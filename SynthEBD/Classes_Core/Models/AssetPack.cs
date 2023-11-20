@@ -23,10 +23,17 @@ public class AssetPack : IModelHasSubgroups
     public HashSet<string> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public List<RaceGrouping> RaceGroupings { get; set; } = new();
-    public ConfigDistributionRules DistributionRules { get; set; }
+    public ConfigDistributionRules DistributionRules { get; set; } = new();
     public List<ModKey> AssociatedBsaModKeys { get; set; } = new();
+    public string InstallationToken { get; set; } = "";
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
+
+    public string GenerateInstallationToken() // assings and returns the installation token string
+    {
+        InstallationToken = GroupName + "|" + DateTime.Now.ToString("yyyy-MM-dd_HH:mm:ss:fff");
+        return InstallationToken;
+    }
 
     public class ConfigDistributionRules : IProbabilityWeighted
     {

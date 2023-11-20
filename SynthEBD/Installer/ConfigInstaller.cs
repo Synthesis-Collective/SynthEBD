@@ -36,6 +36,7 @@ public class ConfigInstaller
     public async Task<(List<string>, bool)> InstallConfigFile()
     {
         var installedConfigs = new List<string>();
+        var assignedTokens = new List<string>();
         bool triggerGeneralVMRefresh = false;
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(_patcherState.ModManagerSettings.CurrentInstallationFolder))
         {
@@ -164,6 +165,7 @@ public class ConfigInstaller
             if (!File.Exists(destinationPath))
             {
                 validationAP.FilePath = destinationPath;
+                assignedTokens.Add(validationAP.GenerateInstallationToken());
                 _assetPackIO.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
                 if (!saveSuccess)
                 {
@@ -375,6 +377,11 @@ public class ConfigInstaller
             CustomMessageBox.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
         }
 
+        if (referencedFilePaths.Any())
+        {
+            RegisterInstalledAssets(manifest, assignedTokens, loadedPacks);
+        }
+
         #region Add Patchable Races
         HashSet<FormKey> missingRaces = new();
         HashSet<IRaceGetter> addedRaces = new();
@@ -475,7 +482,80 @@ public class ConfigInstaller
         return true;
     }
 
-   
+    public void RegisterInstalledAssets(Manifest manifest, List<string> installationTokens, HashSet<AssetPack> installedAssetPacks)
+    {
+        string tokenPath = "";
+
+        if (_patcherState.ModManagerSettings.ModManagerType == ModManager.None)
+        {
+            List<string> manifestPrefixes = new() { manifest.ConfigPrefix };
+            manifestPrefixes.AddRange(manifest.DownloadInfo.Where(info => !info.ExtractionSubPath.IsNullOrWhitespace()).Select(info => info.ExtractionSubPath)); // note: not all prefixes in the manifest are actually used by the installed config files - need to actually go through config's file paths and see which are used.
+            foreach (var prefix in GetUsedPrefixes(manifestPrefixes, installedAssetPacks))
+            {        
+                // look for directories within data folder
+                foreach (var dataSubDir in Directory.GetDirectories(_environmentProvider.DataFolderPath))
+                {
+                    foreach (var secondSubDir in Directory.GetDirectories(dataSubDir))
+                    {
+                        DirectoryInfo dir_info = new DirectoryInfo(secondSubDir);
+                        if (dir_info.Name == prefix.Item2) // put a token file in every prefix directory
+                        {
+                            tokenPath = Path.Combine(_environmentProvider.DataFolderPath, prefix.Item1, prefix.Item2, SynthEBDInstallationTokenFileName);
+                            JSONhandler<List<string>>.SaveJSONFile(installationTokens, tokenPath, out _, out _);
+                        }
+                    }
+                }
+            }
+        }
+        else if (!_patcherState.ModManagerSettings.CurrentInstallationFolder.IsNullOrWhitespace() && !manifest.DestinationModFolder.IsNullOrWhitespace())
+        {
+            tokenPath = Path.Combine(_patcherState.ModManagerSettings.CurrentInstallationFolder, manifest.DestinationModFolder, SynthEBDInstallationTokenFileName);
+            JSONhandler<List<string>>.SaveJSONFile(installationTokens, tokenPath, out _, out _);
+        }
+    }
+
+    public const string SynthEBDInstallationTokenFileName = "SynthEBD_Tokens.json";
+
+    public HashSet<(string,string)> GetUsedPrefixes(List<string> availablePrefixes, HashSet<AssetPack> installedAssetPacks) // returns (data subfolder, prefix)
+    {
+        HashSet<(string, string)> prefixes = new();
+        List<string> usedPaths = new();
+        foreach (var ap in installedAssetPacks)
+        {
+            foreach (var sg in ap.Subgroups)
+            {
+                usedPaths.AddRange(GetSubgroupPaths(sg));
+            }
+            foreach (var replacer in ap.ReplacerGroups)
+            {
+                foreach (var sg in replacer.Subgroups)
+                {
+                    usedPaths.AddRange(GetSubgroupPaths(sg));
+                }
+            }
+        }
+
+        foreach (var path in usedPaths)
+        {
+            var split = path.Split(Path.DirectorySeparatorChar);
+            if (split.Length > 1 && availablePrefixes.Contains(split[1]) && !prefixes.Where(x => x.Item1 == split[0] && x.Item2 == split[1]).Any())
+            {
+                prefixes.Add((split[0], split[1]));
+            }
+        }
+
+        return prefixes;
+    }
+
+    public static List<string> GetSubgroupPaths(AssetPack.Subgroup subgroup)
+    {
+        List<string> subgroupPaths = subgroup.Paths.Select(x => x.Source).ToList();
+        foreach (var sg in subgroup.Subgroups)
+        {
+            subgroupPaths.AddRange(GetSubgroupPaths(sg));
+        }
+        return subgroupPaths;
+    }
 
     private bool ExtractArchive(string archivePath, string destinationPath)
     {

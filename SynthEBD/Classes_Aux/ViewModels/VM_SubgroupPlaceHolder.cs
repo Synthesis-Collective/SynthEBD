@@ -566,6 +566,16 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
+    public List<string> GetContainedAssetRelativePaths()
+    {
+        var paths = AssociatedModel.Paths.Select(x => x.Source).ToList();
+        foreach (var sg in Subgroups)
+        {
+            paths.AddRange(sg.GetContainedAssetRelativePaths());
+        }
+        return paths;
+    }
+
     public bool VersionUpdate(Version version, UpdateMode updateAction)
     {
         if (version == Version.v090)

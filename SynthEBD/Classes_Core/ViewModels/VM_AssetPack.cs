@@ -18,6 +18,7 @@ using System.Reactive.Linq;
 using System.Diagnostics;
 using static SynthEBD.FilePathDestinationMap;
 using SynthEBD;
+using Mutagen.Bethesda.WPF.Reflection.Fields;
 
 namespace SynthEBD;
 
@@ -388,6 +389,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public ObservableCollection<VM_CollectionMemberString> DefaultRecordTemplateAdditionalRacesPaths { get; set; } = new();
     public bool IsSelected { get; set; } = true;
     public string SourcePath { get; set; } = "";
+    public string InstallationToken { get; set; } = "";
     public ILinkCache<ISkyrimMod, ISkyrimModGetter> RecordTemplateLinkCache { get; set; }
     public FormKey DefaultTemplateFK { get; set; } = new();
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
@@ -519,6 +521,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         DistributionRules = _configDistributionRulesFactory(RaceGroupingEditor.RaceGroupings, this);
         DistributionRules.CopyInViewModelFromModel(model.DistributionRules, RaceGroupingEditor.RaceGroupings, this);
 
+        InstallationToken = model.InstallationToken;
         SourcePath = model.FilePath;
 
         Gender = model.Gender; // setting Gender triggers a refresh of the VM's record templates, so only do this after the model's record templates are loaded to avoid adding duplicates to the list (avoids having to do another duplicate check here).
@@ -574,6 +577,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         model.DistributionRules = VM_ConfigDistributionRules.DumpViewModelToModel(DistributionRules);
 
+        model.InstallationToken = InstallationToken;
         model.FilePath = SourcePath;
 
         return model;
@@ -1220,6 +1224,9 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         HashSet<string> prefixes = new HashSet<string>();
         string modsFolderPath = "";
+        string currentModDir = "";
+        string dispMessage = "";
+
         if (_modManager.ModManagerType == ModManager.ModOrganizer2 && Directory.Exists(_modManager.MO2IntegrationVM.ModFolderPath))
         {
             modsFolderPath = _modManager.MO2IntegrationVM.ModFolderPath;
@@ -1229,104 +1236,227 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             modsFolderPath = _modManager.VortexIntegrationVM.StagingFolderPath;
         }
 
-        if (!modsFolderPath.IsNullOrWhitespace())
+        // new asset deletion strategy (v1.0.1.9 or newer, using matched tokens)
+        if (!InstallationToken.IsNullOrWhitespace())
         {
-            GetPrefixes(prefixes);
+            // delete prefix folders if no mod manager used
+            if (_modManager.ModManagerType == ModManager.None)
+            {
+                List<string> deletePrefixPaths = new();
+                List<string> keepPrefixPaths = new();
+                foreach (var dataSubDir in Directory.GetDirectories(_environmentProvider.DataFolderPath))
+                {
+                    foreach (var secondSubDir in Directory.GetDirectories(dataSubDir)) // expected to be the prefix directory
+                    {
+                        var tokenFile = Path.Combine(secondSubDir, ConfigInstaller.SynthEBDInstallationTokenFileName);
+                        if (File.Exists(tokenFile))
+                        {
+                            try
+                            {
+                                var installationTokens = JSONhandler<List<string>>.LoadJSONFile(tokenFile, out bool readSuccess, out _);
+                                if (readSuccess && installationTokens.Contains(InstallationToken))
+                                {
+                                    if (installationTokens.Count == 1)
+                                    {
+                                        deletePrefixPaths.Add(secondSubDir);
+                                    }
+                                    else
+                                    {
+                                        foreach (string token in installationTokens.Where(x => x != InstallationToken && x.Contains("|")))
+                                        {
+                                            keepPrefixPaths.Add(token.Split('|').First() + ':' + secondSubDir);
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                }
 
-            string currentModDir = "";
+                if (keepPrefixPaths.Any())
+                {
+                    dispMessage += "The following asset directories are being used by other config files and will not be deleted:" + Environment.NewLine + String.Join(Environment.NewLine, keepPrefixPaths);
+                }
+
+                if (deletePrefixPaths.Any())
+                {
+                    if (deletePrefixPaths.Count == 1)
+                    {
+                        dispMessage += "Delete asset folder at " + deletePrefixPaths.First() + "?";
+                    }
+                    else
+                    {
+                        dispMessage += "Asset folders found at: " + Environment.NewLine + String.Join(Environment.NewLine, deletePrefixPaths) + Environment.NewLine + "Delete these folders?";
+                    }
+
+                    if (CustomMessageBox.DisplayNotificationYesNo("", dispMessage))
+                    {
+                        foreach (var directory in deletePrefixPaths)
+                        {
+                            _auxIO.TryDeleteDirectory(directory, true);
+                        }
+                    }
+                }
+            }
+
+            // delete mod folder if a mod manager is used
+            else
+            {
+                foreach (var modDirectory in Directory.GetDirectories(modsFolderPath))
+                {
+                    var tokenFile = Path.Combine(modDirectory, ConfigInstaller.SynthEBDInstallationTokenFileName);
+                    if (File.Exists(tokenFile))
+                    {
+                        try
+                        {
+                            var installationTokens = JSONhandler<List<string>>.LoadJSONFile(tokenFile, out bool readSuccess, out _);
+                            if (readSuccess && installationTokens.Contains(InstallationToken))
+                            {
+                                currentModDir = modDirectory;
+                                if (installationTokens.Count == 1)
+                                {
+                                    if (CustomMessageBox.DisplayNotificationYesNo("", "Delete asset folder at " + currentModDir + "?"))
+                                    {
+                                        _auxIO.TryDeleteDirectory(currentModDir, true);
+                                    }
+                                }
+                                else
+                                {
+                                    dispMessage = "The mod folder referenced by this config file is also referenced by the following other config files:" + Environment.NewLine + Environment.NewLine;
+                                    foreach (string token in installationTokens.Where(x => x != InstallationToken && x.Contains("|")))
+                                    {
+                                        dispMessage += Environment.NewLine + token.Split('|').First();
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        // original asset deletion strategy
+        else if (!modsFolderPath.IsNullOrWhitespace())
+        {
+            List<string> candidateAssetDirs = new();
+            GetAssetPackPrefixes(prefixes);
+
             foreach (var modDirectory in Directory.GetDirectories(modsFolderPath))
             {
                 foreach (var subDirectory in Directory.GetDirectories(modDirectory))
                 {
                     var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name).ToArray();
-                    if(candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
+                    if (candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
                     {
-                        currentModDir = modDirectory;
+                        candidateAssetDirs.Add(modDirectory);
                     }
                 }
             }
 
-            if (!currentModDir.IsNullOrWhitespace())
+            if (candidateAssetDirs.Count == 1)
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("", "Delete asset folder at " + currentModDir + "?"))
+                currentModDir = candidateAssetDirs.First();
+                dispMessage = "This config file was installed on a version of SynthEBD < 1.0.1.9, so there is no record of where assets were installed. Based on the paths in this config file, SynthEBD predicts they are in " + currentModDir + ". Do you want to delete this folder?";
+                if (CustomMessageBox.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
                 {
                     _auxIO.TryDeleteDirectory(currentModDir, true);
                 }
             }
+            else if (candidateAssetDirs.Count > 1)
+            {
+                dispMessage = "SynthEBD could not determine which of the following mod folders corresponds to this config file. If you want to delete the corresponding assets, you will need to do it manually from your mod manager." + Environment.NewLine + Environment.NewLine + String.Join(Environment.NewLine, candidateAssetDirs);
+                CustomMessageBox.DisplayNotificationOK("", dispMessage);
+            }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("", "Could not find the Assets Folder for this config file in your mod manager. You will need to delete the installed asset files manually");
+                CustomMessageBox.DisplayNotificationOK("", "Could not find the Assets Folder for this config file in your mod manager. If you want to delete the corresponding assets, you will need to do it manually from your mod manager.");
             }
         }
 
-        else if (CustomMessageBox.DisplayNotificationYesNo("", "Delete this config file's assets in your data folder?"))
+        // no mod manager - delete from data folder
+        else
         {
-            foreach (var subgroup in Subgroups)
+            var containedPaths = GetContainedFileRelativePaths()
+                .Where(x => IsValidSynthEBDInstalledAsset(x))
+                .Select(x => Path.Combine(_environmentProvider.DataFolderPath, x))
+                .Distinct()
+                .ToList();
+
+            dispMessage = "The following assets are detected to be associated with this config file. Please read the following list carefully. If all files are from SynthEBD, press Yes to delete. If any of them are native game files, please press No and delete the SynthEBD files manually" + Environment.NewLine + Environment.NewLine;
+            dispMessage += string.Join(Environment.NewLine, containedPaths);
+
+            if (containedPaths.Any() && CustomMessageBox.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
             {
-                DeleteSubgroupAssets(subgroup);
-            }
-            foreach (var replacer in ReplacersMenu.ReplacerGroups)
-            {
-                foreach (var subgroup in replacer.Subgroups)
+                foreach (var path in containedPaths)
                 {
-                    DeleteSubgroupAssets(subgroup);
+                    _auxIO.TryDeleteFile(path);
+                    var dir = Path.GetDirectoryName(path);
+                    if (dir != null)
+                    {
+                        _auxIO.DeleteDirectoryChainIfEmpty(dir);
+                    }
                 }
             }
+                
         }
     }
 
-    private void GetPrefixes(HashSet<string> prefixes)
+    private void GetAssetPackPrefixes(HashSet<string> prefixes)
     {
         foreach (var subgroup in Subgroups)
         {
-            GetPrefixes(subgroup, prefixes);
+            GetSubgroupPrefixes(subgroup, prefixes);
         }
         foreach (var replacer in ReplacersMenu.ReplacerGroups)
         {
             foreach (var subgroup in replacer.Subgroups)
             {
-                GetPrefixes(subgroup, prefixes);
+                GetSubgroupPrefixes(subgroup, prefixes);
             }
         }
     }
 
-    private void GetPrefixes(VM_SubgroupPlaceHolder sg, HashSet<string> prefixes)
+    private void GetSubgroupPrefixes(VM_SubgroupPlaceHolder sg, HashSet<string> prefixes)
     {
         foreach (var ssg in sg.Subgroups)
         {
-            GetPrefixes(ssg, prefixes);
+            GetSubgroupPrefixes(ssg, prefixes);
         }
         foreach (var path in sg.AssociatedModel.Paths)
         {
             string[] split = path.Source.Split(Path.DirectorySeparatorChar);
-            if (split.Length >= 2 && !prefixes.Contains(split[1]))
+            if (IsValidSynthEBDInstalledAsset(path.Source))
             {
                 prefixes.Add(split[1]);
             }
         }
     }
 
-    private void DeleteSubgroupAssets(VM_SubgroupPlaceHolder sg)
+    private bool IsValidSynthEBDInstalledAsset(string path)
     {
-        foreach (var ssg in sg.Subgroups)
-        {
-            DeleteSubgroupAssets(ssg);
-        }
-        foreach (var path in sg.AssociatedModel.Paths)
-        {
-            if (path.Source == null) { continue; }
-            string candidatePath = Path.Combine(_environmentProvider.DataFolderPath, path.Source);
-            if(File.Exists(candidatePath))
-            {
-                _auxIO.TryDeleteFile(candidatePath);
-            }
+        string[] split = path.Split(Path.DirectorySeparatorChar);
+        return split.Length >= 2 &&
+            !split[0].EndsWith(".esm", StringComparison.OrdinalIgnoreCase) && // don't try to get a prefix for a file coming from a .bsa (referenced as the first part of the filename ending with 'bsaname.esm')
+            !split[1].Equals("actors", StringComparison.OrdinalIgnoreCase); // try to get rid of file paths that are pointing at default (non-modded) file paths. This is hard to do but most often in the case of SynthEBD it would be textures\actors or meshes\actors
+    }
 
-            var parentDir = Directory.GetParent(candidatePath);
-            if (parentDir != null && parentDir.Exists && !Directory.EnumerateFileSystemEntries(parentDir.FullName).Any())
-            {
-                _auxIO.TryDeleteDirectory(parentDir.FullName, false);
-            } 
+    private List<string> GetContainedFileRelativePaths()
+    {
+        List<string> paths = new();
+        foreach (var subgroup in Subgroups)
+        {
+            paths.AddRange(subgroup.GetContainedAssetRelativePaths());
         }
+        return paths;
     }
 
     public void DeleteMissingDescriptors()

@@ -244,6 +244,7 @@ public class IO_Aux
         }
     }
 
+
     public void TryDeleteDirectory(string path, bool recursive)
     {
         try
@@ -253,6 +254,24 @@ public class IO_Aux
         catch (Exception e)
         {
             _logger.LogError("Could not delete directory " + path + Environment.NewLine + "Exception: " + ExceptionLogger.GetExceptionStack(e));
+        }
+    }
+
+    public void DeleteDirectoryChainIfEmpty(string dirPath) // deletes directory if empty, and parent directory if empty, recursively
+    {
+        var parentDir = Directory.GetParent(dirPath);
+        if (parentDir == null || !parentDir.Exists)
+        {
+            return;
+        }
+
+        if (Directory.EnumerateFileSystemEntries(parentDir.FullName).Any()) // if the directory has files, delete the subdirectory
+        {
+            TryDeleteDirectory(dirPath, true);
+        }
+        else // if the directory is empty, check the parent directory
+        {
+            DeleteDirectoryChainIfEmpty(parentDir.FullName);
         }
     }
 }
