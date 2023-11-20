@@ -393,6 +393,11 @@ public class Converters
             return false;
         }
 
+        if (formIDstr.Length == 1)
+        {
+            formIDstr = "0" + formIDstr;
+        }
+
         formIDstr += split[0];
         return true;
     }
