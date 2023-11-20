@@ -67,12 +67,42 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
     public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
 
+    private VM_BodyShapeDescriptorSelectionMenu OppositeToggleMenu { get; set; } = null; // if this menu gets a selection, its opposite gets the same selection deselected
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         var modelDump = DumpToHashSet();
         VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode);
         clone.CopyInFromHashSet(modelDump);
         return clone;
+    }
+
+    public void SetOppositeToggleMenu(VM_BodyShapeDescriptorSelectionMenu opposite)
+    {
+        OppositeToggleMenu = opposite;
+        if (OppositeToggleMenu != null)
+        {
+            foreach (var descriptorShell in DescriptorShells)
+            {
+                var oppositeShell = OppositeToggleMenu.DescriptorShells.Where(x => x.TrackedShell.Category == descriptorShell.TrackedShell.Category).FirstOrDefault();
+                if (oppositeShell != null)
+                {
+                    foreach (var selector in descriptorShell.DescriptorSelectors)
+                    {
+                        var oppositeSelector = oppositeShell.DescriptorSelectors.Where(x => x.TrackedDescriptor.Value == selector.TrackedDescriptor.Value).FirstOrDefault();
+                        if (oppositeSelector != null)
+                        {
+                            selector.WhenAnyValue(x => x.IsSelected).Subscribe(isSelected =>
+                            {
+                                if (isSelected)
+                                {
+                                    oppositeSelector.IsSelected = false;
+                                }
+                            }).DisposeWith(this);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public bool IsAnnotated()
@@ -127,6 +157,11 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             {
                 DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(sourceShell, this));
             }
+        }
+
+        if (OppositeToggleMenu != null)
+        {
+            SetOppositeToggleMenu(OppositeToggleMenu); // refresh toggles to make sure new ones get added
         }
     }
 

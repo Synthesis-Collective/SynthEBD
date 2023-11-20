@@ -67,6 +67,8 @@ public class VM_Subgroup : VM, IDropTarget
         this.WhenAnyValue(x => x.ParentAssetPack.TrackedBodyGenConfig).Subscribe(_ => RefreshBodyGenDescriptors()).DisposeWith(this);
         AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
         DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
+        AllowedBodySlideDescriptors.SetOppositeToggleMenu(DisallowedBodySlideDescriptors);
+        DisallowedBodySlideDescriptors.SetOppositeToggleMenu(AllowedBodySlideDescriptors);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
@@ -415,6 +417,9 @@ public class VM_Subgroup : VM, IDropTarget
         {
             AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, allowedMode);
             DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, disallowedMode);
+
+            AllowedBodyGenDescriptors.SetOppositeToggleMenu(DisallowedBodyGenDescriptors);
+            DisallowedBodyGenDescriptors.SetOppositeToggleMenu(AllowedBodyGenDescriptors);
         }
         _logger.LogStartupEventEnd("Refreshing BodyGen Descriptors for subgroup " + ID);
     }
