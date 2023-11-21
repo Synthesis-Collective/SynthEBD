@@ -154,8 +154,13 @@ public class OBodyWriter
     }
     */
 
-    public void WriteAssignmentDictionary()
+    public void WriteAssignmentDictionaryScriptMode()
     {
+        if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native)
+        {
+            throw new Exception("WriteAssignmentDictionaryScriptMode() cannot be called when OBodySettings.OBodySelectionMode is Native");
+        }
+
         if (Patcher.BodySlideTracker.Count == 0)
         {
             _logger.LogMessage("No BodySlides were assigned to any NPCs");
@@ -165,7 +170,7 @@ public class OBodyWriter
         var outputDictionary = new Dictionary<string, string>();
         foreach (var entry in Patcher.BodySlideTracker)
         {
-            outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value);
+            outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value.First());
         }
         string outputStr = JSONhandler<Dictionary<string, string>>.Serialize(outputDictionary, out bool success, out string exception);
 

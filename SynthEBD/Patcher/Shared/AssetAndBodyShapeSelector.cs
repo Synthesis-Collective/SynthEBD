@@ -25,7 +25,7 @@ public class AssetAndBodyShapeSelector
     {
         public SubgroupCombination Assets { get; set; } = null;
         public List<BodyGenConfig.BodyGenTemplate> BodyGenMorphs { get; set; } = new();
-        public BodySlideSetting BodySlidePreset { get; set; } = null;
+        public List<BodySlideSetting> BodySlidePresets { get; set; } = new(); 
     }
 
     /// <summary>
@@ -62,8 +62,8 @@ public class AssetAndBodyShapeSelector
                         bodyShapeAssigned = assignment.BodyGenMorphs.Any();
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        assignment.BodySlidePreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
-                        bodyShapeAssigned = assignment.BodySlidePreset != null;
+                        assignment.BodySlidePresets = npcInfo.AssociatedLinkGroup.AssignedBodySlides;
+                        bodyShapeAssigned = assignment.BodySlidePresets.Any();
                         break;
                     default: break;
                 }
@@ -87,12 +87,18 @@ public class AssetAndBodyShapeSelector
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
-                        assignment.BodyGenMorphs = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodyGen, out uniqueFounderNPC);
-                        bodyShapeAssigned = assignment.BodyGenMorphs.Any();
+                        if(_uniqueNPCData.TryGetUniqueNPCBodyGenAssignments(npcInfo, out var uniqueLinkedMorphs, out uniqueFounderNPC))
+                        {
+                            assignment.BodyGenMorphs = uniqueLinkedMorphs;
+                            bodyShapeAssigned = assignment.BodyGenMorphs.Any();
+                        }
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        assignment.BodySlidePreset = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out uniqueFounderNPC);
-                        bodyShapeAssigned = assignment.BodySlidePreset != null;
+                        if (_uniqueNPCData.TryGetUniqueNPCBodySlideAssignments(npcInfo, out var uniqueLinkedBodySlides, out uniqueFounderNPC))
+                        {
+                            assignment.BodySlidePresets = uniqueLinkedBodySlides;
+                            bodyShapeAssigned = assignment.BodySlidePresets.Any();
+                        }
                         break;
                     default: break;
                 }
@@ -114,7 +120,7 @@ public class AssetAndBodyShapeSelector
             switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
                 case BodyShapeSelectionMode.BodyGen: bodyShapeAssigned = assignment.BodyGenMorphs.Any(); break;
-                case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.BodySlidePreset != null; break;
+                case BodyShapeSelectionMode.BodySlide: bodyShapeAssigned = assignment.BodySlidePresets.Any(); break;
                 case BodyShapeSelectionMode.None: break;
             }
         }
@@ -128,7 +134,12 @@ public class AssetAndBodyShapeSelector
             switch(_patcherState.GeneralSettings.BodySelectionMode)
             {
                 case BodyShapeSelectionMode.BodyGen: npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignment.BodyGenMorphs.Select(x => x.Label).ToList(); break;
-                case BodyShapeSelectionMode.BodySlide: npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignment.BodySlidePreset.Label; break;
+                case BodyShapeSelectionMode.BodySlide:
+                    if (!(_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && _patcherState.OBodySettings.OBodyEnableMultipleAssignments))
+                    {
+                        npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignment.BodySlidePresets.First().Label;
+                    }
+                    break;
             }
         }
 
@@ -139,8 +150,8 @@ public class AssetAndBodyShapeSelector
     public AssetAndBodyShapeAssignment GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment output = new();
-        List<BodyGenConfig.BodyGenTemplate> candidateMorphs = new List<BodyGenConfig.BodyGenTemplate>();
-        BodySlideSetting candidatePreset = null;
+        List<BodyGenConfig.BodyGenTemplate> candidateMorphs = new();
+        List<BodySlideSetting> candidatePresets = new();
         bool notifyOfPermutationMorphConflict = false;
 
         HashSet<FlattenedAssetPack> filteredAssetPacks = new HashSet<FlattenedAssetPack>();
@@ -205,7 +216,7 @@ public class AssetAndBodyShapeSelector
                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssigned, bodyGenConfigs, output.Assets, previousAssignments.And(output.Assets), out bodyShapeStatusFlags); break;
-                    case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, previousAssignments.And(output.Assets), out bodyShapeStatusFlags); break;
+                    case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssigned, oBodySettings, previousAssignments.And(output.Assets), out bodyShapeStatusFlags); break;
                 }
 
                 // Decision Tree
@@ -229,7 +240,7 @@ public class AssetAndBodyShapeSelector
                     switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
-                        case BodyShapeSelectionMode.BodySlide: candidatePreset = _oBodySelector.SelectBodySlidePreset(npcInfo, out bodyShapeAssigned, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssigned, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
                     }
 
                     // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
@@ -255,7 +266,7 @@ public class AssetAndBodyShapeSelector
                     switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
                         case BodyShapeSelectionMode.BodyGen: output.BodyGenMorphs.AddRange(candidateMorphs); break;
-                        case BodyShapeSelectionMode.BodySlide: output.BodySlidePreset = candidatePreset; break;
+                        case BodyShapeSelectionMode.BodySlide: output.BodySlidePresets = candidatePresets; break;
                     }
                     combinationIsValid = true;
                 }
@@ -270,7 +281,7 @@ public class AssetAndBodyShapeSelector
                         switch (_patcherState.GeneralSettings.BodySelectionMode)
                         {
                             case BodyShapeSelectionMode.BodyGen: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(output.Assets, candidateMorphs); break;
-                            case BodyShapeSelectionMode.BodySlide: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(output.Assets, candidatePreset); break;
+                            case BodyShapeSelectionMode.BodySlide: firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(output.Assets, candidatePresets); break;
                         }
                     }
                     firstValidCombinationShapePairInitialized = true;
@@ -295,9 +306,16 @@ public class AssetAndBodyShapeSelector
                         _bodyGenSelector.GenerateBodyGenDescriptorReport(output.BodyGenMorphs, npcInfo);
                         break;
                     case BodyShapeSelectionMode.BodySlide:
-                        output.BodySlidePreset = (BodySlideSetting)firstValidCombinationShapePair.Item2;
-                        _logger.LogReport("Chose BodySlide Preset: " + output.BodySlidePreset.Label, false, npcInfo);
-                        _oBodySelector.GenerateBodySlideDescriptorReport(output.BodySlidePreset, npcInfo);
+                        output.BodySlidePresets = (List<BodySlideSetting>)firstValidCombinationShapePair.Item2;
+                        if (output.BodySlidePresets.Count == 1)
+                        {
+                            _logger.LogReport("Chose BodySlide Preset: " + output.BodySlidePresets.First().Label, false, npcInfo);
+                        }
+                        else
+                        {
+                            _logger.LogReport("Chose BodySlide Presets: " + String.Join(", ", output.BodySlidePresets.Select(x => x.Label)), false, npcInfo);
+                        }
+                        _oBodySelector.GenerateBodySlideDescriptorReport(output.BodySlidePresets, npcInfo);
                         break;
                 }
             }

@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Fallout4;
 using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
@@ -33,6 +34,8 @@ public class VM_OBodyMiscSettings : VM
 
         generalSettingsVM.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
 
+        this.WhenAnyValue(x => x.OBodySelectionMode).Subscribe(mode => ShowOBodyNativeOptions = mode == OBodySelectionMode.Native).DisposeWith(this);
+
         AddMaleSliderGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => MaleBodySlideGroups.Add(new VM_CollectionMemberString("", MaleBodySlideGroups))
@@ -67,7 +70,8 @@ public class VM_OBodyMiscSettings : VM
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public RelayCommand SetRaceMenuINI { get; set; }
-
+    public bool OBodyEnableMultipleAssignments { get; set; } = false;
+    public bool ShowOBodyNativeOptions { get; set; } = false;
     public RelayCommand AddMaleSliderGroup { get; set; }
     public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
@@ -91,6 +95,7 @@ public class VM_OBodyMiscSettings : VM
         viewModel.UseVerboseScripts = model.bUseVerboseScripts;
         viewModel.AutoBodySelectionMode = model.AutoBodySelectionMode;
         viewModel.AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
+        viewModel.OBodyEnableMultipleAssignments = model.OBodyEnableMultipleAssignments;
         return viewModel;
     }
 
@@ -101,6 +106,7 @@ public class VM_OBodyMiscSettings : VM
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
+        model.OBodyEnableMultipleAssignments = OBodyEnableMultipleAssignments;
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)

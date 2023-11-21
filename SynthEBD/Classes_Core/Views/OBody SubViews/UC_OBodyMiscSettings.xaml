@@ -65,6 +65,13 @@
 
         <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="Native = use OBody's own JSON file to supply SynthEBD's asignments. Script = use a lightweight script to make OBody use SynthEBD's assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
         <ComboBox Grid.Row="5" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+
+        <Border Grid.Row="5" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0"/>
+                <CheckBox IsChecked="{Binding OBodyEnableMultipleAssignments}"/>
+            </StackPanel>
+        </Border>
         
         <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
         <ComboBox Grid.Row="5" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>

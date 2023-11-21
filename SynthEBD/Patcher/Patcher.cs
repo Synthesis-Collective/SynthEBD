@@ -222,7 +222,7 @@ public class Patcher
                 _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, false);
             }
 
-            BodySlideTracker = new Dictionary<FormKey, string>();
+            BodySlideTracker = new();
 
             if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody && _patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.INI)
             {
@@ -349,7 +349,7 @@ public class Patcher
             }
             else
             {
-                _oBodyWriter.WriteAssignmentDictionary();
+                _oBodyWriter.WriteAssignmentDictionaryScriptMode();
             }
         }
 
@@ -483,7 +483,7 @@ public class Patcher
             assetsAssigned = false;
             bodyShapeAssigned = false;
             assignedCombinations = new List<SubgroupCombination>(); // Do not change to hash set - must maintain order
-            BodySlideSetting assignedBodySlide = null; // can be used by headpart function
+            List<BodySlideSetting> assignedBodySlides = new(); // can be used by headpart function
             List<BodyGenConfig.BodyGenTemplate> assignedMorphs = null; // can be used by headpart function
             Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
 
@@ -584,9 +584,9 @@ public class Patcher
                                         break;
 
                                     case BodyShapeSelectionMode.BodySlide:
-                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodySlidePreset.ReferencedBodySlide);
-                                        _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodySlidePreset, currentNPCInfo);
-                                        assignedBodySlide = primaryAssetsAndBodyShape.BodySlidePreset;
+                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodySlidePresets.Select(x => x.ReferencedBodySlide).ToList());
+                                        _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodySlidePresets, currentNPCInfo);
+                                        assignedBodySlides = primaryAssetsAndBodyShape.BodySlidePresets;
                                         break;
                                 }
                             }
@@ -595,7 +595,7 @@ public class Patcher
                     }
                     else if (item == VM_AssetOrderingMenu.PrimaryLabel && blockBodyShape)
                     {
-                        var assignedCombination = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.Primary, primaryAssetPacks, assignedMorphs, assignedBodySlide, out _);
+                        var assignedCombination = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.Primary, primaryAssetPacks, assignedMorphs, assignedBodySlides, out _);
                         if (assignedCombination != null)
                         {
                             assignedCombinations.Add(assignedCombination);
@@ -609,7 +609,7 @@ public class Patcher
                         var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
                         if (currentMixIn != null)
                         {
-                            var assignedMixIn = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.MixIn, new HashSet<FlattenedAssetPack>() { currentMixIn }, assignedMorphs, assignedBodySlide, out bool mixInDeclined);
+                            var assignedMixIn = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.MixIn, new HashSet<FlattenedAssetPack>() { currentMixIn }, assignedMorphs, assignedBodySlides, out bool mixInDeclined);
                             _assetSelector.RecordMixInAssetConsistencyAndLinkedNPCs(assignedMixIn, currentNPCInfo, currentMixIn.GroupName, mixInDeclined);
                             if (assignedMixIn != null)
                             {
@@ -629,12 +629,12 @@ public class Patcher
                     {
                         foreach (var combination in assignedCombinations)
                         {
-                            assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedMorphs, assignedBodySlide));
+                            assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(combination.AssetPack, currentNPCInfo, assignedMorphs, assignedBodySlides));
                         }
                     }
                     foreach (var replacerOnlyPack in mixInAssetPacks.Where(x => !x.Subgroups.Any() && x.AssetReplacerGroups.Any())) // add asset replacers from mix-in asset packs that ONLY have replacer assets, since they won't be contained in assignedCombinations
                     {
-                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedMorphs, assignedBodySlide));
+                        assetReplacerCombinations.UnionWith(_assetReplacerSelector.SelectAssetReplacers(replacerOnlyPack, currentNPCInfo, assignedMorphs, assignedBodySlides));
                     }
                     assignedCombinations.AddRange(assetReplacerCombinations);
                 }
@@ -723,12 +723,12 @@ public class Patcher
                     if (!blockBodyShape && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
                         _logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
-                        assignedBodySlide = _oBodySelector.SelectBodySlidePreset(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
+                        assignedBodySlides = _oBodySelector.SelectBodySlidePresets(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
-                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlide.ReferencedBodySlide);
-                            _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlide, currentNPCInfo);
-                            primaryAssetsAndBodyShape.BodySlidePreset = assignedBodySlide;
+                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlides.Select(x => x.ReferencedBodySlide).ToList());
+                            _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlides, currentNPCInfo);
+                            primaryAssetsAndBodyShape.BodySlidePresets = assignedBodySlides;
                         }
                         else
                         {
@@ -750,7 +750,7 @@ public class Patcher
             HeadPartSelection assignedHeadParts = new();
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
-                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlide, assignedMorphs, outputMod);
+                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlides, assignedMorphs, outputMod);
             }
 
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures) // needs to be done regardless of _patcherState.GeneralSettings.bChangeHeadParts status
@@ -845,7 +845,7 @@ public class Patcher
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
-    public static Dictionary<FormKey, string> BodySlideTracker = new Dictionary<FormKey, string>(); // tracks which NPCs get which bodyslide presets
+    public static Dictionary<FormKey, List<string>> BodySlideTracker = new Dictionary<FormKey, List<string>>(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 
     public static Dictionary<FormKey, HeadPartSelection> HeadPartTracker = new();
     public class BodyGenAssignmentTracker
     {

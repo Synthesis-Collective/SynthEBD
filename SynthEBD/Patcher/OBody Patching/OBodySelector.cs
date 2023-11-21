@@ -18,7 +18,7 @@ public class OBodySelector
         _attributeMatcher = attributeMatcher;   
         _uniqueNPCData = uniqueNPCData;
     }
-    public BodySlideSetting SelectBodySlidePreset(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
+    public List<BodySlideSetting> SelectBodySlidePresets(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         selectionMade = false;
 
@@ -42,15 +42,16 @@ public class OBodySelector
 
         AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
 
-        BodySlideSetting selectedPreset = null;
+        List<BodySlideSetting> selectedPresets = new();
 
         #region Specific NPC Assignments
         if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace())
         {
-            selectedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
-            if (selectedPreset != null)
+            var specifiedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
+            if (specifiedPreset != null)
             {
-                _logger.LogReport("Assigned forced BodySlide preset " + selectedPreset.Label, false, npcInfo);
+                _logger.LogReport("Assigned forced BodySlide preset " + specifiedPreset.Label, false, npcInfo);
+                selectedPresets.Add(specifiedPreset);
             }
             else
             {
@@ -60,34 +61,42 @@ public class OBodySelector
         #endregion
 
         #region Linked NPC Group
-        if (selectedPreset == null && npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary) // check for selectedPreset == null to avoid overwriting Specific Assignment
+        if (!selectedPresets.Any() && // check for availablePresets.Any() to avoid overwriting Specific Assignment
+            npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
         {
-            selectedPreset = npcInfo.AssociatedLinkGroup.AssignedBodySlide;
-            if (selectedPreset != null)
+            var linkedPresets = npcInfo.AssociatedLinkGroup.AssignedBodySlides;
+            if (linkedPresets.Any())
             {
-                _logger.LogReport("Assigned linked BodySlide preset " + selectedPreset.Label + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
+                selectedPresets.AddRange(linkedPresets);
+                if (selectedPresets.Count == 1)
+                {
+                    _logger.LogReport("Assigned linked BodySlide preset " + linkedPresets.First().Label + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
+                }
+                else
+                {
+                    _logger.LogReport("Assigned linked BodySlide presets " + String.Join(", ", linkedPresets) + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
+                }
             }
             else
             {
-                _logger.LogReport("Could not find the linked BodySlide preset \"" + npcInfo.AssociatedLinkGroup.AssignedBodySlide + "\" from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() + " within the available presets. Attempting to assign another preset.", true, npcInfo);
+                _logger.LogReport("No BodySlides were assigned to primary Linked NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString() + ". Attempting to assign another preset.", true, npcInfo);
             }
         }
         #endregion
 
         #region Unique NPC replicates
-        else if (selectedPreset == null && _uniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName)) // check for selectedPreset == null to avoid overwriting Specific Assignment
+        else if (!selectedPresets.Any() && _uniqueNPCData.IsValidUnique(npcInfo.NPC, out var npcName) && _uniqueNPCData.TryGetUniqueNPCBodySlideAssignments(npcInfo, out selectedPresets, out string uniqueFounderNPC)) // check for selectedPreset == null to avoid overwriting Specific Assignment
         {
-            selectedPreset = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.BodySlide, out var uniqueFounderNPC);
-            if (selectedPreset != null)
+            if (selectedPresets.Any())
             {
-                _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a BodySlide preset " + selectedPreset + ". Using that BodySlide for current NPC.", false, npcInfo);
+                _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a BodySlide preset " + selectedPresets + ". Using that BodySlide for current NPC.", false, npcInfo);
             }
         }
         #endregion
 
         #region Random Selection
 
-        if (selectedPreset == null)
+        if (selectedPresets == null)
         {
             var filteredPresets = new List<BodySlideSetting>(); // fall back if ForceIfs fail
             var forceIfPresets = new List<BodySlideSetting>();
@@ -109,12 +118,12 @@ public class OBodySelector
             if (forceIfPresets.Any())
             {
                 #region Consistency (With ForceIf)
-                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
                 {
-                    selectedPreset = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
-                    if (selectedPreset is not null)
+                    selectedPresets = forceIfPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).ToList();
+                    if (selectedPresets.Any())
                     {
-                        _logger.LogReport("Found consistency BodySlide: " + selectedPreset.Label, false, npcInfo);
+                        _logger.LogReport("Found consistency BodySlide: " + selectedPresets.First().Label, false, npcInfo);
                     }
                     else
                     {
@@ -122,20 +131,24 @@ public class OBodySelector
                     }
                 }
                 #endregion
+                else if (_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
+                {
+                    selectedPresets = forceIfPresets;
+                }
                 else
                 {
-                    selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets);
+                    selectedPresets = new() { (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets) };
                 }
             }
             else
             {
                 #region Consistency (Without ForceIf)
-                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
+                if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
                 {
-                    selectedPreset = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).FirstOrDefault();
-                    if (selectedPreset is not null)
+                    selectedPresets = filteredPresets.Where(x => x.Label == npcInfo.ConsistencyNPCAssignment.BodySlidePreset).ToList();
+                    if (selectedPresets.Any())
                     {
-                        _logger.LogReport("Found consistency BodySlide: " + selectedPreset.Label, false, npcInfo);
+                        _logger.LogReport("Found consistency BodySlide: " + selectedPresets.First().Label, false, npcInfo);
                     }
                     else
                     {
@@ -143,15 +156,19 @@ public class OBodySelector
                     }
                 }
                 #endregion
+                else if (_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
+                {
+                    selectedPresets = filteredPresets;
+                }
                 else
                 {
-                    selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets);
+                    selectedPresets = new() { (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets) };
                 }
             }
         }
         #endregion
 
-        if (selectedPreset == null)
+        if (!selectedPresets.Any())
         {
             _logger.LogReport("Could not choose any valid BodySlide presets for NPC " + npcInfo.LogIDstring, true, npcInfo);
             _logger.CloseReportSubsection(npcInfo);
@@ -160,12 +177,21 @@ public class OBodySelector
         }
         else
         {
-            _logger.LogReport("Chose BodySlide Preset: " + selectedPreset.Label, false, npcInfo);
+            string logText;
+            if (selectedPresets.Count == 1)
+            {
+                logText = "Chose BodySlide Preset: " + selectedPresets.First().Label;
+            }
+            else
+            {
+                logText = "Chose BodySlide Presests: " + string.Join(", ", selectedPresets.Select(x => x.Label));
+            }
+            _logger.LogReport(logText, false, npcInfo);
             selectionMade = true;
 
-            if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null)
+            if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
             {
-                if (selectedPreset.Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset)
+                if (selectedPresets.First().Label != npcInfo.ConsistencyNPCAssignment.BodySlidePreset)
                 {
                     statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
                     if (availablePresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset))
@@ -181,16 +207,16 @@ public class OBodySelector
         }
 
         //store selected bodyslide
-        if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && npcInfo.ConsistencyNPCAssignment.BodySlidePreset == selectedPreset.Label)
+        if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments && selectedPresets.Any() && npcInfo.ConsistencyNPCAssignment.BodySlidePreset == selectedPresets.First().Label)
         {
             statusFlags |= AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag.MatchesConsistency;
         }
 
-        GenerateBodySlideDescriptorReport(selectedPreset, npcInfo);
+        GenerateBodySlideDescriptorReport(selectedPresets, npcInfo);
 
         _logger.CloseReportSubsection(npcInfo);
 
-        return selectedPreset;
+        return selectedPresets;
     }
 
     public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, IEnumerable<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
@@ -363,37 +389,58 @@ public class OBodySelector
 
         return false;
     }
-    public void RecordBodySlideConsistencyAndLinkedNPCs(BodySlideSetting assignedBodySlide, NPCInfo npcInfo)
+    public void RecordBodySlideConsistencyAndLinkedNPCs(List<BodySlideSetting> assignedBodySlides, NPCInfo npcInfo)
     {
+        if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && _patcherState.OBodySettings.OBodyEnableMultipleAssignments)
+        {
+            return; // don't enable consistency or linkage if giving OBody multiple BodySlides to choose from since OBody will choose at random anyway.
+        }
+
+        if (!assignedBodySlides.Any())
+        {
+            return;
+        }
+
+        var assignedBodySlide = assignedBodySlides.First();
+
         npcInfo.ConsistencyNPCAssignment.BodySlidePreset = assignedBodySlide.Label;
 
         // assign to linked group if necessary 
         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
         {
-            npcInfo.AssociatedLinkGroup.AssignedBodySlide = assignedBodySlide;
+            npcInfo.AssociatedLinkGroup.AssignedBodySlides = assignedBodySlides;
         }
         // assign to unique NPC list if necessary
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName)
         {
-            _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.BodyShapeRace][npcInfo.Gender].AssignedBodySlidePreset = assignedBodySlide;
+           _uniqueNPCData.InitializeUnsetUniqueNPCBodySlide(npcInfo, assignedBodySlides);
         }
     }
 
-    public void GenerateBodySlideDescriptorReport(BodySlideSetting bodySlide, NPCInfo npcInfo)
+    public void GenerateBodySlideDescriptorReport(List<BodySlideSetting> bodySlides, NPCInfo npcInfo)
     {
-        string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.BodyShapeDescriptors);
-
-        string descriptorLogStr = "Contained descriptors: ";
-
-        if (!descriptorStr.IsNullOrWhitespace())
+        foreach(var bodySlide in bodySlides)
         {
-            descriptorLogStr += Environment.NewLine + descriptorStr;
-        }
-        else
-        {
-            descriptorLogStr += "None";
-        }
+            string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.BodyShapeDescriptors);
 
-        _logger.LogReport(descriptorLogStr, false, npcInfo);
+            string descriptorLogStr = string.Empty;
+            if (bodySlides.Count > 1)
+            {
+                descriptorLogStr += bodySlide.Label + " | ";
+            }
+            
+            descriptorLogStr += "Contained descriptors: ";
+
+            if (!descriptorStr.IsNullOrWhitespace())
+            {
+                descriptorLogStr += Environment.NewLine + descriptorStr;
+            }
+            else
+            {
+                descriptorLogStr += "None";
+            }
+
+            _logger.LogReport(descriptorLogStr, false, npcInfo);
+        } 
     }
 }

@@ -1,4 +1,4 @@
-﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -15,7 +15,7 @@ public class LinkedNPCGroupInfo
     public FormKey PrimaryNPCFormKey { get; set; }
     public SubgroupCombination AssignedCombination { get; set; } = null;
     public List<BodyGenConfig.BodyGenTemplate> AssignedMorphs { get; set; } = new();
-    public BodySlideSetting AssignedBodySlide { get; set; } = null;
+    public List<BodySlideSetting> AssignedBodySlides { get; set; } = new();
     public float AssignedHeight { get; set; } = -1;
     public List<LinkedAssetReplacerAssignment> ReplacerAssignments { get; set; } = new();
     public Dictionary<string, SubgroupCombination> MixInAssignments { get; set; } = new();

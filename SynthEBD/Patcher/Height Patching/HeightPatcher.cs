@@ -84,10 +84,10 @@ public class HeightPatcher
             {
                 assignedHeight = npcInfo.AssociatedLinkGroup.AssignedHeight;
             }
-            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height, out _) != -1)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.TryGetUniqueNPCHeight(npcInfo, out var uniqueLinkedHeight, out string unqiueFounderNPC) && uniqueLinkedHeight != -1)
             {
-                assignedHeight = _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeightRace][npcInfo.Gender].AssignedHeight;
-                _logger.LogReport("Another unique NPC with the same name (" + _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeightRace][npcInfo.Gender].Founder + ") was assigned a height. Using that height for current NPC.", false, npcInfo);
+                assignedHeight = uniqueLinkedHeight;
+                _logger.LogReport("Another unique NPC with the same name (" + unqiueFounderNPC + ") was assigned height " + uniqueLinkedHeight.ToString() + ". Using that height for current NPC.", false, npcInfo);
             }
             // assign by consistency if possible
             else if (npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.Height != null && npcInfo.ConsistencyNPCAssignment.Height <= upperBound && npcInfo.ConsistencyNPCAssignment.Height >= lowerBound)
@@ -137,9 +137,9 @@ public class HeightPatcher
             npcInfo.AssociatedLinkGroup.AssignedHeight = assignedHeight;
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.Height, out _) == -1)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName)
         {
-            _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeightRace][npcInfo.Gender].AssignedHeight = assignedHeight;
+            _uniqueNPCData.InitializeUnsetUniqueNPCHeight(npcInfo, assignedHeight);
         }
 
         _logger.CloseReportSubsection(npcInfo);

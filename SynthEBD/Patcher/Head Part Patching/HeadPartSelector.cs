@@ -33,7 +33,7 @@ namespace SynthEBD
             headPartFormLists = new();
         }
 
-        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, ISkyrimMod outputMod)
+        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, ISkyrimMod outputMod)
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
             _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
@@ -42,12 +42,7 @@ namespace SynthEBD
 
             List<string> consistencyReportTriggers = new();
 
-            bool recordDataForLinkedUniqueNPCs = false;
             var tempUniqueNPCDataRecorder = UniqueNPCData.CreateHeadPartTracker(); // keeps the actual tracker null until all head parts are assigned.
-            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) == null)
-            {
-                recordDataForLinkedUniqueNPCs = true;
-            }
 
             foreach (var headPartType in settings.Types.Keys)
             {
@@ -71,7 +66,7 @@ namespace SynthEBD
                 {
                     currentConsistency = npcInfo.ConsistencyNPCAssignment.HeadParts[headPartType];
                 }
-                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlide, assignedBodyGenMorphs, currentConsistency, out bool randomizedToNone);
+                IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlides, assignedBodyGenMorphs, currentConsistency, out bool randomizedToNone);
                 FormKey? selectedFK = null;
                 if (selection != null) { selectedFK = selection.FormKey; }
                 AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
@@ -131,10 +126,8 @@ namespace SynthEBD
                     npcInfo.AssociatedLinkGroup.HeadPartAssignments[headPartType] = selection;
                 }
 
-                if (recordDataForLinkedUniqueNPCs)
-                {
-                    tempUniqueNPCDataRecorder[headPartType] = selection;
-                }
+                // unique NPC linkage
+                tempUniqueNPCDataRecorder[headPartType] = selection;
 
                 // add NPC's race to headpart races if necessary
                 MakeRaceCompatible(selection, npcInfo.NPC.Race.FormKey, outputMod);
@@ -145,9 +138,9 @@ namespace SynthEBD
                 _logger.LogMessage(npcInfo.LogIDstring + ": (" + String.Join(", ", consistencyReportTriggers) + ") could not be assigned from Consistency and were re-randomized.");
             }
 
-            if (recordDataForLinkedUniqueNPCs)
+            if (_patcherState.GeneralSettings.bLinkNPCsWithSameName)
             {
-                _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.HeadPartsRace][npcInfo.Gender].HeadPartAssignments = tempUniqueNPCDataRecorder;
+                _uniqueNPCData.InitializeUnsetUniqueNPCHeadParts(npcInfo, tempUniqueNPCDataRecorder);
             }
 
             _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
@@ -168,7 +161,7 @@ namespace SynthEBD
             }
         }
 
-        public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, HeadPartConsistency currentConsistency, out bool randomizedToNone)
+        public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
             // if there are no head parts of this type at all, don't assign consistency.
@@ -200,7 +193,7 @@ namespace SynthEBD
                 }
             }
 
-            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo, assignedBodySlide, assignedBodyGenMorphs, attributeGroups))
+            if (!CanGetThisHeadPartType(currentSettings, type, npcInfo, assignedBodySlides, assignedBodyGenMorphs, attributeGroups))
             {
                 return null;
             }
@@ -216,9 +209,8 @@ namespace SynthEBD
                 _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out _) != null)
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.TryGetUniqueNPCHeadParts(npcInfo, out var uniqueAssignments, out var uniqueFounderNPC))
             {
-                Dictionary<HeadPart.TypeEnum, IHeadPartGetter> uniqueAssignments = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.HeadParts, out var uniqueFounderNPC);
                 var assignedHeadPart = uniqueAssignments[type];
                 if (assignedHeadPart != null)
                 {
@@ -232,7 +224,7 @@ namespace SynthEBD
                 }
             }
 
-            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlide, assignedBodyGenMorphs, attributeGroups)).ToHashSet();
+            var availableHeadParts = currentSettings.HeadPartsGendered[npcInfo.Gender].Where(x => HeadPartIsValid(x, npcInfo, type, assignedBodySlides, assignedBodyGenMorphs, attributeGroups)).ToHashSet();
             var availableEDIDs = availableHeadParts.Select(x => x.EditorID ?? x.HeadPartFormKey.ToString()).ToHashSet();
 
             IHeadPartGetter consistencyHeadPart = null;
@@ -301,7 +293,7 @@ namespace SynthEBD
             _logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
-        public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
+        public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
             {
@@ -424,7 +416,7 @@ namespace SynthEBD
             }
 
             // Descriptors
-            if (assignedBodySlide != null)
+            foreach (var assignedBodySlide in assignedBodySlides)
             {
                 if (currentSettings.AllowedBodySlideDescriptors.Any())
                 {
@@ -487,7 +479,7 @@ namespace SynthEBD
             return true;
         }
 
-        public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, BodySlideSetting? assignedBodySlide, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
+        public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
             {
@@ -562,7 +554,7 @@ namespace SynthEBD
                 return false;
             }
 
-            if (assignedBodySlide != null)
+            foreach (var assignedBodySlide in assignedBodySlides)
             {
                 if (candidateHeadPart.AllowedBodySlideDescriptors.Any())
                 {

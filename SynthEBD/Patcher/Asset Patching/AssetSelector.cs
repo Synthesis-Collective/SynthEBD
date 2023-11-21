@@ -37,7 +37,7 @@ public class AssetSelector
         _vanillaSkinsEasyNPC = _vanillaSkins.Select(x => x + "Patched").ToHashSet(); // EasyNPC transformation
     }
 
-    public SubgroupCombination AssignAssets(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide, out bool mixInDeclined)
+    public SubgroupCombination AssignAssets(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, out bool mixInDeclined)
     {
         string subSectionLabel = string.Empty;
         string reportLine = string.Empty;
@@ -109,7 +109,7 @@ public class AssetSelector
             _logger.LogReport("Assigning a new asset combination", false, npcInfo);
             AssignmentIteration iterationInfo = new AssignmentIteration();
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
-            var filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
+            var filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlides);
             // initialize seeds
             iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
 
@@ -122,7 +122,7 @@ public class AssetSelector
                     if (wasFilteredByConsistency) // if no valid groups when filtering for consistency, try again without filtering for it
                     {
                         _logger.LogReport("Attempting to select a valid non-consistency Combination.", mode == AssetPackAssignmentMode.Primary, npcInfo);
-                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlide);
+                        filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlides);
                         iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks);
                     }
                     else // no other filters can be relaxed
@@ -186,19 +186,20 @@ public class AssetSelector
     public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         SubgroupCombination linkedCombination = null;
+        bool uniqueNPCFound = false;
         var uniqueFounderNPC = ""; // placeholder
         switch (mode)
         {
-            case AssetPackAssignmentMode.Primary: linkedCombination = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets, out uniqueFounderNPC); break;
+            case AssetPackAssignmentMode.Primary: uniqueNPCFound = _uniqueNPCData.TryGetUniqueNPCPrimaryAssets(npcInfo, out linkedCombination, out uniqueFounderNPC); break;
             case AssetPackAssignmentMode.MixIn:
-                Dictionary<string, SubgroupCombination> linkedCombinationDict = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets, out uniqueFounderNPC);
+                uniqueNPCFound = _uniqueNPCData.TryGetUniqueNPCMixInAssets(npcInfo, out var linkedCombinationDict, out uniqueFounderNPC);
                 if (linkedCombinationDict.ContainsKey(availableAssetPacks.First().GroupName)) // availableAssetPacks only contains the current Mix-in
                 {
                     linkedCombination = linkedCombinationDict[availableAssetPacks.First().GroupName];
                 }
                 break;
             case AssetPackAssignmentMode.ReplacerVirtual:
-                List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedReplacerCombinations = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets, out uniqueFounderNPC);
+                uniqueNPCFound = _uniqueNPCData.TryGetUniqueNPCReplacerAssets(npcInfo, out var linkedReplacerCombinations, out uniqueFounderNPC);
                 if (linkedReplacerCombinations != null)
                 {
                     var linkedAssignmentGroup = linkedReplacerCombinations.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // availableAssetPacks only contains the current replacer
@@ -207,11 +208,11 @@ public class AssetSelector
                 break;
         }
 
-        if (linkedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
+        if (uniqueNPCFound && linkedCombination != null && CombinationAllowedBySpecificNPCAssignment(npcInfo.SpecificNPCAssignment, linkedCombination, mode))
         {
             _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ")  was assigned a combination. Using that combination for current NPC.", false, npcInfo);
         }
-        else if (linkedCombination != null)
+        else if (uniqueNPCFound && linkedCombination != null)
         {
             _logger.LogReport("The linked combination (" + linkedCombination.Signature + ") assigned to another unique NPC with the same name was incompatible with the Specific Assignments for this NPC. Consider making Specific Assignments only for the primary link group member.", true, npcInfo);
         }
@@ -511,7 +512,7 @@ public class AssetSelector
     /// <param name="availableAssetPacks"></param>
     /// <param name="npcInfo"></param>
     /// <returns></returns>
-    public HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide)
+    public HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides)
     {
         _logger.OpenReportSubsection("ConfigFiltering", npcInfo);
         HashSet<FlattenedAssetPack> assetPacksToBeFiltered = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
@@ -599,7 +600,7 @@ public class AssetSelector
                 _logger.LogReport("Skipped evaluation of Whole Config Distribution Rules for Asset Pack " + ap.GroupName + " because it is forced by Specific NPC Assignments.", false, npcInfo);
                 filteredByMainConfigRules.Add(candidatePack);
             }
-            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlide)) // check distribution rules for whole config
+            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlides)) // check distribution rules for whole config
             {
                 _logger.LogReport("Asset Pack " + ap.GroupName + " is invalid due to its main distribution rules.", false, npcInfo);
             }
@@ -642,7 +643,7 @@ public class AssetSelector
                 for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                 {
                     bool isSpecificNPCAssignment = forcedAssetPack != null && forcedAssignments[i].Any();
-                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlide))
+                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlides))
                     {
                         candidatePack.Subgroups[i].RemoveAt(j);
                         j--;
@@ -798,7 +799,7 @@ public class AssetSelector
                                     {
                                         _logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
                                     }
-                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlide))
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlides))
                                     {
                                         _logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
                                         consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
@@ -837,7 +838,7 @@ public class AssetSelector
     /// <param name="npcInfo"></param>
     /// <param name="forceIfAttributeCount">The number of ForceIf attributes within this subgroup that were matched by the current NPC</param>
     /// <returns></returns>
-    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, BodySlideSetting assignedBodySlide)
+    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides)
     {
         var reportString = "Subgroup " + subgroup.GetDetailedID_NameString(false);
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
@@ -940,18 +941,21 @@ public class AssetSelector
                     }
                     break;
                 case BodyShapeSelectionMode.BodySlide:
-                    if (assignedBodySlide != null)
+                    if (assignedBodySlides != null)
                     {
-                        if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.AllowedBodySlideMatchMode, out _))
+                        foreach (var assignedBodySlide in assignedBodySlides)
                         {
-                            _logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned preset " + assignedBodySlide.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
-                            return false;
-                        }
+                            if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.AllowedBodySlideMatchMode, out _))
+                            {
+                                _logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned bodyslide " + assignedBodySlide.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
+                                return false;
+                            }
 
-                        if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.DisallowedBodySlideMatchMode, out string matchedDescriptor))
-                        {
-                            _logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + assignedBodySlide.Label + "'s descriptors", false, npcInfo);
-                            return false;
+                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+                            {
+                                _logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + assignedBodySlide.Label + "'s descriptors", false, npcInfo);
+                                return false;
+                            }
                         }
                     }
                     break;
@@ -1059,9 +1063,9 @@ public class AssetSelector
             npcInfo.AssociatedLinkGroup.AssignedCombination = assignedCombination;
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.PrimaryAssets, out _) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName)
         {
-            _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].AssignedCombination = assignedCombination;
+            _uniqueNPCData.InitializeUnsetUniqueNPCPrimaryAssets(npcInfo, assignedCombination);
         }
     }
 
@@ -1100,16 +1104,9 @@ public class AssetSelector
             }
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && assignedCombination != null && _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.MixInAssets, out var founder) == null)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && assignedCombination != null)
         {
-            if (_uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments.ContainsKey(mixInName))
-            {
-                _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments[mixInName] = assignedCombination;
-            }
-            else
-            {
-                _uniqueNPCData.UniqueAssignmentsByName[npcInfo.Name][npcInfo.AssetsRace][npcInfo.Gender].MixInAssignments.Add(mixInName, assignedCombination);
-            }
+            _uniqueNPCData.InitializeUnsetUniqueNPCPMixInAssets(npcInfo, mixInName, assignedCombination);
         }
     }
 
@@ -1128,12 +1125,9 @@ public class AssetSelector
             else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
         }
 
-        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique)
+        if (_patcherState.GeneralSettings.bLinkNPCsWithSameName)
         {
-            List<UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment> linkedAssetReplacerAssignments = _uniqueNPCData.GetUniqueNPCTrackerData(npcInfo, AssignmentType.ReplacerAssets, out _);
-            var existingAssignment = linkedAssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
-            if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
-            else { linkedAssetReplacerAssignments.Add(new UniqueNPCData.UniqueNPCTracker.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
+            _uniqueNPCData.InitializeUnsetUniqueNPCPReplacerAssets(npcInfo, new() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination });
         }
     }
 
