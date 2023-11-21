@@ -68,7 +68,7 @@
 
         <Border Grid.Row="5" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0"/>
+                <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="Instead of SynthEBD choosing a single Bodyslide, checking this box will result in SynthEBD providing OBody with ALL bodyslides that comply with the distribution rules for each NPC. OBody will then choose one at random in-game" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <CheckBox IsChecked="{Binding OBodyEnableMultipleAssignments}"/>
             </StackPanel>
         </Border>
