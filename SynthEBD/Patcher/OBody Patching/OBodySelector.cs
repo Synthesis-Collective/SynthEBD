@@ -137,7 +137,11 @@ public class OBodySelector
                 }
                 else
                 {
-                    selectedPresets = new() { (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets) };
+                    var selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets);
+                    if (selectedPreset != null)
+                    {
+                        selectedPresets.Add(selectedPreset);
+                    }
                 }
             }
             else
@@ -162,7 +166,11 @@ public class OBodySelector
                 }
                 else
                 {
-                    selectedPresets = new() { (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets) };
+                    var selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets);
+                    if (selectedPreset != null)
+                    {
+                        selectedPresets.Add(selectedPreset);
+                    }
                 }
             }
         }
