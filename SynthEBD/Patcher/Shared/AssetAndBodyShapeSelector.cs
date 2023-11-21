@@ -239,11 +239,11 @@ public class AssetAndBodyShapeSelector
                     bool bodyShapeAssignable = false;
                     switch (_patcherState.GeneralSettings.BodySelectionMode)
                     {
-                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bool bodyGenAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
-                        case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssigned, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssignable, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
                     }
 
-                    // if not, then the curent combination is fine because no other combination would be compatible with any BodyGen morphs anyway
+                    // if not, then the curent combination is fine because no other combination would be compatible with any body shapes anyway
                     if (!bodyShapeAssignable)
                     {
                         _logger.LogReport("No body shapes would be assignable even without the restrictions imposed by the current combination. Keeping the current combination.", false, npcInfo);
