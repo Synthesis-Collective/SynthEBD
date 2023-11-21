@@ -1228,7 +1228,7 @@ public class AssetSelector
         {
             if (descriptorLog.ContainsKey(subgroupID))
             {
-                descriptorLog[subgroupID] += adj + " Descriptors: " + descriptorStr;
+                descriptorLog[subgroupID] += Environment.NewLine + adj + " Descriptors: " + descriptorStr;
             }
             else
             {
