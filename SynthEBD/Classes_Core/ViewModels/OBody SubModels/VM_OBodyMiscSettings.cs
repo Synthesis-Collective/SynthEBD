@@ -95,6 +95,7 @@ public class VM_OBodyMiscSettings : VM
         viewModel.UseVerboseScripts = model.bUseVerboseScripts;
         viewModel.AutoBodySelectionMode = model.AutoBodySelectionMode;
         viewModel.AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
+        viewModel.OBodySelectionMode = model.OBodySelectionMode;
         viewModel.OBodyEnableMultipleAssignments = model.OBodyEnableMultipleAssignments;
         return viewModel;
     }
@@ -106,6 +107,7 @@ public class VM_OBodyMiscSettings : VM
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
+        model.OBodySelectionMode = OBodySelectionMode;
         model.OBodyEnableMultipleAssignments = OBodyEnableMultipleAssignments;
     }
 
