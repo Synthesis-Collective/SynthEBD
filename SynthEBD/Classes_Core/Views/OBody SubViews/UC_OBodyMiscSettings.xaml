@@ -10,6 +10,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
     </UserControl.Resources>
     
@@ -21,7 +22,6 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -59,21 +59,25 @@
 
         <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="When running the patcher, for any BodySlide that doesn't have descriptors manually annotated, attempt to annotate automatically using the Annotator settings (auto-annotations will not be saved and will be re-calculated during each patcher run)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
         <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
-        
-        <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
-        <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding UseVerboseScripts}"></CheckBox>
+       
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="Native = use OBody's own JSON file to supply SynthEBD's asignments. Script = use a lightweight script to make OBody use SynthEBD's assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="Native = use OBody's own JSON file to supply SynthEBD's asignments. Script = use a lightweight script to make OBody use SynthEBD's assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="5" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
-
-        <Border Grid.Row="5" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+        <Border Grid.Row="4" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="Instead of SynthEBD choosing a single Bodyslide, checking this box will result in SynthEBD providing OBody with ALL bodyslides that comply with the distribution rules for each NPC. OBody will then choose one at random in-game" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <CheckBox IsChecked="{Binding OBodyEnableMultipleAssignments}"/>
             </StackPanel>
         </Border>
-        
-        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="5" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+
+        <Border Grid.Row="4" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
+                <CheckBox IsChecked="{Binding UseVerboseScripts}"></CheckBox>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
     </Grid>
 </UserControl>
