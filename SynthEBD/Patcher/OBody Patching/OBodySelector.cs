@@ -96,7 +96,7 @@ public class OBodySelector
 
         #region Random Selection
 
-        if (selectedPresets == null)
+        if (!selectedPresets.Any())
         {
             var filteredPresets = new List<BodySlideSetting>(); // fall back if ForceIfs fail
             var forceIfPresets = new List<BodySlideSetting>();
