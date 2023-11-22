@@ -125,7 +125,7 @@ public class AssetAndBodyShapeSelector
             }
         }
 
-        if (assignment.Assets != null && assignment.Assets.AssetPackName != "")
+        if (assignment.Assets != null && assignment.Assets.AssignmentName != "")
         {
             assetsAssigned = true;
         }

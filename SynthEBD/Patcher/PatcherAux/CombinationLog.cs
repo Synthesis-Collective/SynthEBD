@@ -165,14 +165,14 @@ public class CombinationLog
             }
 
             List<CombinationInfo> currentAssetPackCombinations = null;
-            if (combinationDict.ContainsKey(combination.AssetPackName))
+            if (combinationDict.ContainsKey(combination.AssignmentName))
             {
-                currentAssetPackCombinations = combinationDict[combination.AssetPackName];
+                currentAssetPackCombinations = combinationDict[combination.AssignmentName];
             }
             else
             {
                 currentAssetPackCombinations = new List<CombinationInfo>();
-                combinationDict.Add(combination.AssetPackName, currentAssetPackCombinations);
+                combinationDict.Add(combination.AssignmentName, currentAssetPackCombinations);
             }
 
             if (!combination.Signature.Contains(':')) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }

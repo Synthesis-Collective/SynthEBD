@@ -187,11 +187,11 @@ namespace SynthEBD
             List<CountableString> assetPacks = new();
             foreach (var combo in combinations.Where(x => x.AssetPack != null).ToArray())
             {
-                var existing = assetPacks.Where(x => x.Str == combo.AssetPackName).FirstOrDefault();
+                var existing = assetPacks.Where(x => x.Str == combo.AssignmentName).FirstOrDefault();
                 if (existing != null) { existing.Count++; }
                 else
                 {
-                    assetPacks.Add(new() { Str = combo.AssetPackName });
+                    assetPacks.Add(new() { Str = combo.AssignmentName });
                 }
             }
 
@@ -221,7 +221,7 @@ namespace SynthEBD
                     foreach (var subgroup in index)
                     {
                         CountableString sgString = new() { Str = subgroup.Id + " (" + subgroup.Name + "): " };
-                        sgString.Count = combinations.Where(x => x.AssetPackName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
+                        sgString.Count = combinations.Where(x => x.AssignmentName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
 
                         var reportString = new VM_ReportCountableStringWrapper(sgString);
                         if (sgString.Count > 0) { reportString.TextColor = CommonColors.White; }

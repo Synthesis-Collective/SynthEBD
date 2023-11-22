@@ -260,7 +260,6 @@ public class AssetSelector
             GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
 
             iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
-            generatedCombination.AssetPackName = iterationInfo.ChosenAssetPack.GroupName;
 
             iterationInfo.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>(); // tracks the available subgroups as the combination gets built up to enable backtracking if the patcher chooses an invalid combination
             for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
@@ -370,6 +369,7 @@ public class AssetSelector
 
         iterationInfo.PreviouslyGeneratedCombinations.Add(generatedSignature);
         generatedCombination.AssetPack = iterationInfo.ChosenAssetPack;
+        generatedCombination.AssignmentName = iterationInfo.ChosenAssetPack.GroupName;
         generatedCombination.Signature = generatedSignature;
 
         _logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
@@ -1009,7 +1009,7 @@ public class AssetSelector
                 if (specificAssignment.AssetPackName == "") { return true; }
                 else
                 {
-                    if (specificAssignment.AssetPackName != selectedCombination.AssetPackName) { return false; }
+                    if (specificAssignment.AssetPackName != selectedCombination.AssignmentName) { return false; }
                     foreach (var id in specificAssignment.SubgroupIDs)
                     {
                         if (!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any())
@@ -1021,7 +1021,7 @@ public class AssetSelector
                 break;
 
             case AssetPackAssignmentMode.MixIn:
-                var forcedMixIn = specificAssignment.MixInAssignments.Where(x => x.AssetPackName == selectedCombination.AssetPackName).FirstOrDefault();
+                var forcedMixIn = specificAssignment.MixInAssignments.Where(x => x.AssetPackName == selectedCombination.AssignmentName).FirstOrDefault();
                 if (forcedMixIn != null)
                 {
                     foreach (var id in forcedMixIn.SubgroupIDs)
@@ -1034,7 +1034,7 @@ public class AssetSelector
                 }
                 break;
             case AssetPackAssignmentMode.ReplacerVirtual:
-                var forcedReplacer = specificAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssetPackName).FirstOrDefault();
+                var forcedReplacer = specificAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssignmentName).FirstOrDefault();
                 if (forcedReplacer != null)
                 {
                     if (forcedReplacer.SubgroupIDs.Count != selectedCombination.ContainedSubgroups.Count) { return false; }
@@ -1055,7 +1055,7 @@ public class AssetSelector
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
-            npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssetPackName;
+            npcInfo.ConsistencyNPCAssignment.AssetPackName = assignedCombination.AssignmentName;
             npcInfo.ConsistencyNPCAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList();
         }
         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary && assignedCombination != null)
