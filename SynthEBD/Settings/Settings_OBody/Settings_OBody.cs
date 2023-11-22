@@ -319,6 +319,7 @@ public class BodySlideSetting : IProbabilityWeighted
     public double ProbabilityWeighting { get; set; } = 1;
     public NPCWeightRange WeightRange { get; set; } = new();
     public bool HideInMenu { get; set; } = false;
+    [JsonIgnore]
     public bool AutoAnnotated { get; set; } = false;
 
     [JsonIgnore]

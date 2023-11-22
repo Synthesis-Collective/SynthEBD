@@ -37,8 +37,15 @@ public class BodySlideAnnotator
     }
 
     public void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
-    {
-        if (bodySlide == null || bodySlideClassificationRules == null || bodySlide.SliderGroup == null || bodySlide.SliderValues == null || !bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup))
+    { 
+        if (bodySlide == null)
+        {
+            return;
+        }
+
+        bodySlide.AutoAnnotated = false; // should be default but because I forgot to set JsonIgnore for this property in SynthEBD <1.0.1.9, some BodySlides can be spuriously imported as "true" even if they should be false.
+
+        if (bodySlideClassificationRules == null || bodySlide.SliderGroup == null || bodySlide.SliderValues == null || !bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup))
         {
             return;
         }
