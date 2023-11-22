@@ -1365,7 +1365,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             if (candidateAssetDirs.Count == 1)
             {
                 currentModDir = candidateAssetDirs.First();
-                dispMessage = "This config file was installed on a version of SynthEBD < 1.0.1.9, so there is no record of where assets were installed. Based on the paths in this config file, SynthEBD predicts they are in " + currentModDir + ". Do you want to delete this folder?";
+                dispMessage = "This config file was installed on a version of SynthEBD < 1.0.1.9 (or was generated using the Config Drafter), so there is no record of where assets were installed. Based on the paths in this config file, SynthEBD predicts they are in " + currentModDir + ". Do you want to delete this folder?";
                 if (CustomMessageBox.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
                 {
                     _auxIO.TryDeleteDirectory(currentModDir, true);
