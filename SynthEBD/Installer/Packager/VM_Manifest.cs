@@ -2,6 +2,7 @@ using DynamicData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -63,6 +64,9 @@ namespace SynthEBD
                         {
                             CustomMessageBox.DisplayNotificationOK("Export Failed", "Manifest.json export failed with the following error: " + Environment.NewLine + exceptionStr);
                         }
+
+                        //ClearInstallationTokens(); This function works but it doesn't seem necessary, and can introduce an unnecessary complication if a user packages config files in the SynthEBD Asset Packs folder (by stripping the installation token the config files will lose association with their assets).
+                        //Leaving this function call in just in case I decide to come back to it, but since the installation token gets overwritten anyway when the end user installs the config file and there's no private information in the token, it seems harmless to leave it in.
                     }
                 });
 
@@ -170,5 +174,49 @@ namespace SynthEBD
             model.Version = 1;
             return model;
         }
+
+        /*
+        private void ClearInstallationTokens()
+        {
+            List<string> configFiles = new();
+            foreach (var node in Options)
+            {
+                configFiles.AddRange(GetConfigFilePaths(node));
+            }
+
+            foreach (string filePath in configFiles)
+            {
+                ClearInstallationToken(filePath);
+            }
+        }
+
+        private List<string> GetConfigFilePaths(VM_PackagerOption node)
+        {
+            List<string> configFilePaths = node.AssetPackPaths.Select(x => Path.Combine(RootDirectory, x.Content)).ToList();
+            foreach (var subNode in node.Options)
+            {
+                configFilePaths.AddRange(GetConfigFilePaths(subNode));
+            }
+            return configFilePaths;
+        }
+
+        private void ClearInstallationToken(string path)
+        {
+            var config = JSONhandler<AssetPack>.LoadJSONFile(path, out var success, out var exceptionStr);
+            if (!success)
+            {
+                CustomMessageBox.DisplayNotificationOK("Warning", "Could not clear the installation token from config file at " + path + Environment.NewLine + Environment.NewLine + "This is non-criticial, but you may want to manually remove the token in a text editor." + Environment.NewLine + Environment.NewLine + "Exception: " + Environment.NewLine + exceptionStr);
+                return;
+            }
+
+            config.InstallationToken = string.Empty;
+
+            JSONhandler<AssetPack>.SaveJSONFile(config, path, out success, out exceptionStr);
+            if (!success)
+            {
+                CustomMessageBox.DisplayNotificationOK("Warning", "Could not clear the installation token from config file at " + path + Environment.NewLine + Environment.NewLine + "This is non-criticial, but you may want to manually remove the token in a text editor." + Environment.NewLine + Environment.NewLine + "Exception: " + Environment.NewLine + exceptionStr);
+            }
+        }
+        */
     }
 }
