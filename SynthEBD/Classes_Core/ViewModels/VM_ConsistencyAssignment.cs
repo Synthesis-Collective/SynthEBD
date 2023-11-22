@@ -79,8 +79,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         var assetPack = _texMeshUI.AssetPacks.Where(x => x.GroupName == assetPackName).FirstOrDefault();
         if (assetPack != null && assetPack.TryGetSubgroupByID(subgroupID, out var subgroup))
         {
-            var parentNames = subgroup.GetParents().Select(x => x.Name).Reverse().And(subgroup.Name);
-            subgroupName = String.Join(" -> ", parentNames);
+            subgroupName = subgroup.GetNameChain(" -> ");
         }
 
         return subgroupName;

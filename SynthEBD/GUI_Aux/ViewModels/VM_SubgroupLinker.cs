@@ -37,9 +37,9 @@ namespace SynthEBD
             LinkThisTo = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => { 
-                    foreach (var sg in CollectedSubgroups)
+                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
                     {
-                        if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.ID) && assetPack.TryGetSubgroupByID(sg.ID, out var placeHolder))
+                        if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.Subgroup.ID) && assetPack.TryGetSubgroupByID(sg.Subgroup.ID, out var placeHolder))
                         {
                             _targetSubgroup.RequiredSubgroups.Add(placeHolder);
                         }
@@ -51,7 +51,7 @@ namespace SynthEBD
             UnlinkThisFrom = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Select(y => y.ID).Contains(x.ID));
+                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(y => y.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
                     window.Close();
                 }
             );
@@ -59,11 +59,11 @@ namespace SynthEBD
             LinkToThis = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    foreach (var sg in CollectedSubgroups)
+                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
                     {
-                        if (!sg.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
+                        if (!sg.Subgroup.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
                         {
-                            sg.AssociatedModel.RequiredSubgroups.Add(_targetSubgroup.ID);
+                            sg.Subgroup.AssociatedModel.RequiredSubgroups.Add(_targetSubgroup.ID);
                         }
                     }
                     window.Close();
@@ -73,9 +73,9 @@ namespace SynthEBD
             UnlinkFromThis = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    foreach (var sg in CollectedSubgroups)
+                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
                     {
-                        sg.AssociatedModel.RequiredSubgroups.RemoveWhere(x => x == _targetSubgroup.ID);
+                        sg.Subgroup.AssociatedModel.RequiredSubgroups.RemoveWhere(x => x == _targetSubgroup.ID);
                     }
                     window.Close();
                 }
@@ -84,14 +84,19 @@ namespace SynthEBD
             LinkWholeGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    var wholeSet = new List<AssetPack.Subgroup>();
-                    wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder.AssociatedModel);
-                    wholeSet.AddRange(CollectedSubgroups.Select(x => x.AssociatedModel));
+                    var wholeSet = new List<VM_SubgroupPlaceHolder>();
+                    wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder);
+                    wholeSet.AddRange(CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup));
 
                     foreach (var sg in wholeSet)
                     {
                         foreach (var sg2 in wholeSet)
                         {
+                            // don't link if subgroups are at the same top level index
+                            if (sg.GetTopLevelIndex() == sg2.GetTopLevelIndex())
+                            {
+                                continue;
+                            }
                             //if sg is the current view model, operate in the view model space
                             if (sg.ID == _targetSubgroup.ID)
                             {
@@ -102,9 +107,9 @@ namespace SynthEBD
                             }
                             else // otherwise operate in the model space
                             {
-                                if (sg2.ID != sg.ID && !sg.RequiredSubgroups.Contains(sg2.ID))
+                                if (sg2.ID != sg.ID && !sg.AssociatedModel.RequiredSubgroups.Contains(sg2.ID))
                                 {
-                                    sg.RequiredSubgroups.Add(sg2.ID);
+                                    sg.AssociatedModel.RequiredSubgroups.Add(sg2.ID);
                                 }
                             }
                         }
@@ -116,10 +121,10 @@ namespace SynthEBD
             UnlinkWholeGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Select(y => y.ID).Contains(x.ID));
+                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(x => x.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
                     foreach (var sg in CollectedSubgroups)
                     {
-                        sg.AssociatedModel.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.And(_targetSubgroup.AssociatedPlaceHolder).Select(y => y.ID).Contains(x));
+                        sg.Subgroup.AssociatedModel.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup).And(_targetSubgroup.AssociatedPlaceHolder).Select(y => y.ID).Contains(x));
                     }
                     window.Close();
                 }
@@ -144,7 +149,7 @@ namespace SynthEBD
         public bool IDallowPartial { get; set; } = false;
         public bool NameAllowPartial { get; set; } = false;
 
-        public ObservableCollection<VM_SubgroupPlaceHolder> CollectedSubgroups { get; set; } = new(); // does not include _targetSubgroup
+        public ObservableCollection<VM_SelectableSubgroupShell> CollectedSubgroups { get; set; } = new(); // does not include _targetSubgroup
 
         public RelayCommand LinkThisTo { get; }
         public RelayCommand LinkToThis { get; }
@@ -175,7 +180,7 @@ namespace SynthEBD
         {
             if (bSubgroupMatches(subgroup.AssociatedModel))
             {
-                CollectedSubgroups.Add(subgroup);
+                CollectedSubgroups.Add(new(subgroup, true, SubgroupLabelFormat.IDandDeepName));
                 return;
             }
             foreach (var sg in subgroup.Subgroups)

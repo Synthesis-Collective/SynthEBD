@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -99,6 +100,11 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         {
             return ID + ": " + Name;
         }
+    }
+    public string GetNameChain(string separatorChar)
+    {
+        var names = GetParents().Select(x => x.Name).Reverse().And(Name).ToArray();
+        return string.Join(separatorChar, names);
     }
 
     public void SaveToModel()
@@ -461,14 +467,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
         return false;
     }
-    public List<VM_SubgroupPlaceHolder> GetParents()
+    public List<VM_SubgroupPlaceHolder> GetParents() // returns parents in nearest order (e.g. top level subgroup is last in the list)
     {
         List<VM_SubgroupPlaceHolder> parents = new();
         GetParents(parents);
         return parents;
     }
 
-    public void GetParents(List<VM_SubgroupPlaceHolder> parents)
+    public void GetParents(List<VM_SubgroupPlaceHolder> parents) // returns parents in nearest order (e.g. top level subgroup is last in the list)
     {
         if (ParentSubgroup is not null)
         {
@@ -676,6 +682,18 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         {
             subgroup.ClearBodyGenRecursive();
         }
+    }
+
+    public int GetTopLevelIndex()
+    {
+        var parents = GetParents();
+        var toIndex = this;
+        if (parents.Any())
+        {
+            toIndex = parents.Last();
+        }
+
+        return ParentAssetPack.Subgroups.IndexOf(toIndex);
     }
 
     public object Clone()

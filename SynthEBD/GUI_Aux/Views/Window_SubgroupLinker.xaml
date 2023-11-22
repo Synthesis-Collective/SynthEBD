@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_SubgroupLinker}"
         mc:Ignorable="d"
-        Title="Window_SubgroupLinker" Height="450" Width="800">
+        Title="Subgroup Linker" Height="450" Width="800">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -49,11 +49,7 @@
             <ItemsControl ItemsSource="{Binding CollectedSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding ID}" Foreground="White"/>
-                            <TextBlock Text=": " Foreground="White"/>
-                            <TextBlock Text="{Binding Name}" Foreground="White"/>
-                        </StackPanel>
+                        <local:UC_SelectableSubgroupShell DataContext="{Binding}"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
