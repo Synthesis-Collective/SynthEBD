@@ -246,6 +246,7 @@ public class Settings_General
     public bool bFilterNPCsByArmature { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
     public bool bTroubleShootingWarningDisplayed { get; set; } = false;
+    public bool bHeadPartWarningDisplayed { get; set; } = false;
 }
 
 public enum BodyShapeSelectionMode

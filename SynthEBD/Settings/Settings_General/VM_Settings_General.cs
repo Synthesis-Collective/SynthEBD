@@ -78,6 +78,21 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        this.WhenAnyValue(x => x.bChangeHeadParts).Subscribe(y =>
+        {
+            if (y && !_bHeadPartWarningDisplayed)
+            {
+                if(!CustomMessageBox.DisplayNotificationYesNo("Warning", "Head Part functionality is experimental and some Head Parts can change the faces of custom face sculpted NPCs. Are you sure you want to enable headpart distribution?"))
+                {
+                    bChangeHeadParts = false;
+                }
+                else
+                {
+                    _bHeadPartWarningDisplayed = true;
+                }
+            }
+        }).DisposeWith(this);
+
         AddRaceAlias = new RelayCommand(
             canExecute: _ => true,
             execute: _ => raceAliases.Add(_aliasFactory(new RaceAlias(), this))
@@ -244,7 +259,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
     public bool bChangeHeight { get; set; } = true;
-    public bool bChangeHeadParts { get; set; } = true;
+    public bool bChangeHeadParts { get; set; } = false;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public bool bEnableConsistency { get; set; } = true;
     public bool bLinkNPCsWithSameName { get; set; } = true;
@@ -285,6 +300,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public string TroubleShootingSettingsToggleLabel { get; set; } = _troubleShootingSettingsShowText;
     private const string _troubleShootingSettingsShowText = "Show Troubleshooting Settings";
     private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
+    private bool _bHeadPartWarningDisplayed { get; set; } = false;
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
@@ -331,6 +347,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
         }
+        _bHeadPartWarningDisplayed = model.bHeadPartWarningDisplayed;
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -379,6 +396,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.Close7ZipWhenFinished = Close7ZipWhenFinished;
         model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
+        model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
         return model;
     }
 

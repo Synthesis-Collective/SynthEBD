@@ -83,7 +83,7 @@
             <TextBlock Grid.Column="0" Grid.Row="6" ToolTip="Allow NPCs to receive random headparts" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Apply Head Part Randomization</TextBlock>
             <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.Row="6">
                 <CheckBox IsChecked="{Binding Path=bChangeHeadParts, Mode=TwoWay}"/>
-                <TextBlock Margin="10 0 5 0" Text="Exclude Custom FaceGen NPCs" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}" ToolTip="Recommended due to current incompatibility of HeadParts feature with NPCs that have custom face sculpts" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock Margin="10 0 5 0" Text="Try To Exclude Custom FaceGen NPCs (Not Perfect)" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}" ToolTip="Attempts to predict which NPCs have custom face sculpts and block them from receiving headparts to avoid their face getting inadvertently changed. Not 100% accurate." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <CheckBox IsChecked="{Binding Path=bHeadPartsExcludeCustomHeads, Mode=TwoWay}" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
 
