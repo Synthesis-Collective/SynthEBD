@@ -317,6 +317,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         BodySelectionMode = model.BodySelectionMode;
         BSSelectionMode = model.BSSelectionMode;
         bChangeHeight = model.bChangeHeight;
+        _bHeadPartWarningDisplayed = model.bHeadPartWarningDisplayed; // has to copy in before bChangeHeadParts
         bChangeHeadParts = model.bChangeHeadParts;
         bHeadPartsExcludeCustomHeads = model.bHeadPartsExcludeCustomHeads;
         bEnableConsistency = model.bEnableConsistency;
@@ -347,7 +348,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
         }
-        _bHeadPartWarningDisplayed = model.bHeadPartWarningDisplayed;
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
