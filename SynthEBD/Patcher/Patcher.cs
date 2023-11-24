@@ -662,14 +662,17 @@ public class Patcher
                     _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
                     if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
 
-                    if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                    if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) && headTextureSourceMod.Equals(outputMod.ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
                     {
-                        npcRecord.Keywords.Add(EBDFaceKW);
-                        npcRecord.Keywords.Add(EBDScriptKW);
-                    }
-                    else
-                    {
-                        npcRecord.Keywords.Add(synthEBDFaceKW);
+                        if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                        {
+                            npcRecord.Keywords.Add(EBDFaceKW);
+                            npcRecord.Keywords.Add(EBDScriptKW);
+                        }
+                        else
+                        {
+                            npcRecord.Keywords.Add(synthEBDFaceKW);
+                        }
                     }
                     RecordGenerator.AddCustomKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
 
