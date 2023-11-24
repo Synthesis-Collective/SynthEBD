@@ -209,7 +209,7 @@ namespace SynthEBD
                 _logger.LogReport("Assigning " + type + ": NONE via the NPC's Link Group.", false, npcInfo);
                 return null;
             }
-            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.TryGetUniqueNPCHeadParts(npcInfo, out var uniqueAssignments, out var uniqueFounderNPC))
+            else if (_patcherState.GeneralSettings.bLinkNPCsWithSameName && npcInfo.IsValidLinkedUnique && _uniqueNPCData.TryGetUniqueNPCHeadParts(npcInfo, out var uniqueAssignments, out var uniqueFounderNPC) && uniqueAssignments.ContainsKey(type))
             {
                 var assignedHeadPart = uniqueAssignments[type];
                 if (assignedHeadPart != null)
