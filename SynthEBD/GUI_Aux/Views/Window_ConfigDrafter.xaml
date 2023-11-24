@@ -210,7 +210,7 @@
                                                             <ColumnDefinition Width="auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <TextBox Grid.Column="0" Text="{Binding Content}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True" Foreground="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter_Multiplets}}"/>
+                                                        <TextBox Grid.Column="0" Text="{Binding DisplayedPath}" HorizontalScrollBarVisibility="Visible" IsReadOnly="True" Foreground="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter_Multiplets}}"/>
                                                         <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
                                                     </Grid>
                                                 </DataTemplate>

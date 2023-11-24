@@ -114,7 +114,7 @@ public class VM_ConfigDrafter : VM
                    {
                        if (multiplet.FilePaths[i].IsSelected)
                        {
-                           IgnoredPaths.Add(multiplet.FilePaths[i].Content);
+                           IgnoredPaths.Add(multiplet.FilePaths[i].FullPath);
                            multiplet.FilePaths.RemoveAt(i);
                            i--;
                        }
@@ -132,7 +132,7 @@ public class VM_ConfigDrafter : VM
                    toShow.Add(multiplet.FileName);
                    foreach (var file in multiplet.FilePaths)
                    {
-                       string toAppend = "\t" + file.Content;
+                       string toAppend = "\t" + file.DisplayedPath;
                        if (!file.IsSelected)
                        {
                            toAppend += " [KEEP]";
@@ -484,11 +484,10 @@ public class VM_ConfigDrafter : VM
 
                 foreach (var filePath in sharedChecksumGroup)
                 {
-                    multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths) { IsSelected = true });
+                    multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter) { IsSelected = true });
                 }
                 if (multiplet.FilePaths.Any())
                 {
-                    multiplet.RemoveRootPath(SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter);
                     _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
                     multipletTextureGroups.Add(multiplet);
                 }
@@ -517,14 +516,24 @@ public class VM_ConfigDrafter : VM
 public class VM_FileDuplicateContainer : VM
 {
     public string FileName { get; set; }
-    public ObservableCollection<VM_SimpleSelectableCollectionMemberString> FilePaths { get; set; } = new();
+    public ObservableCollection<VM_FileMultiplet> FilePaths { get; set; } = new();
 
-    public void RemoveRootPath(List<string> rootPaths, bool trimPrefix, ConfigDrafter configDrafter)
+    public class VM_FileMultiplet : VM
     {
-        foreach (var path in FilePaths)
+        public VM_FileMultiplet(string fullPath, ObservableCollection<VM_FileMultiplet> parentCollection, List<string> rootPaths, bool trimPrefix, ConfigDrafter configDrafter)
         {
-            path.Content = configDrafter.RemoveRootFolder(path.Content, rootPaths, trimPrefix);
+            ParentCollection = parentCollection;
+            FullPath = fullPath;
+
+            DisplayedPath = configDrafter.RemoveRootFolder(FullPath, rootPaths, trimPrefix);
+
+            DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => ParentCollection.Remove(this));
         }
+        public string DisplayedPath { get; set; }
+        public string FullPath { get; set; }
+        public ObservableCollection<VM_FileMultiplet> ParentCollection { get; }
+        public bool IsSelected { get; set; } = false;
+        public RelayCommand DeleteCommand { get; }
     }
 }
 

@@ -903,13 +903,13 @@ namespace SynthEBD
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Old", "Elder" } }
         };
 
-        public void ChooseLeastSpecificPath(IEnumerable<VM_SimpleSelectableCollectionMemberString> candidates) // try to select the most generic directory path
+        public void ChooseLeastSpecificPath(IEnumerable<VM_FileDuplicateContainer.VM_FileMultiplet> candidates) // try to select the most generic directory path
         {
-            var acceptablePaths = new List<VM_SimpleSelectableCollectionMemberString>();
+            var acceptablePaths = new List<VM_FileDuplicateContainer.VM_FileMultiplet>();
             foreach (var candidate in candidates)
             {
                 bool unMatched = true;
-                var splitPath = candidate.Content.Split(Path.DirectorySeparatorChar).ToList();
+                var splitPath = candidate.DisplayedPath.Split(Path.DirectorySeparatorChar).ToList();
                 var canidateDir = string.Join(Path.DirectorySeparatorChar, splitPath.GetRange(0, splitPath.Count - 1)); // ignore file names
               
                 foreach (var entry in RaceFormKeyToRaceString)
@@ -939,11 +939,11 @@ namespace SynthEBD
 
             if (acceptablePaths.Any())
             {
-                acceptablePaths.OrderBy(x => x.Content.Length).First().IsSelected = false;
+                acceptablePaths.OrderBy(x => x.DisplayedPath.Length).First().IsSelected = false;
             }
             else if (candidates.Any())
             {
-                candidates.OrderBy(x => x.Content.Length).First().IsSelected = false;
+                candidates.OrderBy(x => x.DisplayedPath.Length).First().IsSelected = false;
             }
         }
 
