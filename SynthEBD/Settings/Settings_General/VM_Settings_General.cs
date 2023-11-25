@@ -80,7 +80,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
         this.WhenAnyValue(x => x.bChangeHeadParts).Subscribe(y =>
         {
-            if (y && !_bHeadPartWarningDisplayed)
+            if (!IsCurrentlyLoading && y && !_bHeadPartWarningDisplayed)
             {
                 if(!CustomMessageBox.DisplayNotificationYesNo("Warning", "Head Part functionality is experimental and some Head Parts can change the faces of custom face sculpted NPCs. Are you sure you want to enable headpart distribution?"))
                 {
