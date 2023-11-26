@@ -331,14 +331,6 @@ namespace SynthEBD
                 }
             }
         }
-
-        /*
-         * public RelayCommand LinkThisTo { get; }
-        public RelayCommand LinkToThis { get; }
-        public RelayCommand LinkWholeGroup { get; }
-        public RelayCommand UnlinkThisFrom { get; }
-        public RelayCommand UnlinkFromThis { get; }
-        public RelayCommand UnlinkWholeGroup { get; }*/
     }
 
     public enum AndOr

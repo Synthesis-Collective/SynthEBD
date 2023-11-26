@@ -37,6 +37,14 @@ public class VM_ConfigDrafter : VM
         _7ZipInterfaceVM = sevenZipInterfaceVM;
 
         canExecuteDrafting = this.WhenAnyValue(x => x.NotYetDrafted);
+        this.WhenAnyValue(x => x.MutlipletHandlingSelection).Subscribe(selection =>
+        {
+            switch(selection)
+            {
+                case _multipletHandlingReplace: MultipletHandlingMode = MultipletHandlingMode.Replace; break;
+                case _multipletHandlingIgnore: MultipletHandlingMode = MultipletHandlingMode.Ignore; break;
+            }
+        }).DisposeWith(this);
 
         _categorizePaths = () =>
         {
@@ -108,18 +116,32 @@ public class VM_ConfigDrafter : VM
            canExecute: _ => true,
            execute: _ =>
            {
-               foreach (var multiplet in MultipletTextureGroups)
+               switch(MultipletHandlingMode)
                {
-                   for (int i = 0; i < multiplet.FilePaths.Count; i++)
-                   {
-                       if (multiplet.FilePaths[i].IsSelected)
+                   case MultipletHandlingMode.Ignore:
+                       foreach (var multiplet in MultipletTextureGroups)
                        {
-                           IgnoredPaths.Add(multiplet.FilePaths[i].FullPath);
-                           multiplet.FilePaths.RemoveAt(i);
-                           i--;
+                           multiplet.ToIgnoreList(IgnoredPaths);
+                           multiplet.RemoveSelected();
                        }
-                   }
+                       break;
+
+                   case MultipletHandlingMode.Replace:
+                       if (!PreVerifyMultiplets(MultipletTextureGroups, out string failedChecks))
+                       {
+                           CustomMessageBox.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
+                       }
+                       else
+                       {
+                           foreach (var multiplet in MultipletTextureGroups)
+                           {
+                               MultipletDTOs.Add(multiplet.ToMultiplet());
+                               multiplet.RemoveSelected();
+                           }
+                       }
+                       break;
                }
+               
            });
 
         ShowDuplicatesPopupButton = new RelayCommand(
@@ -154,6 +176,12 @@ public class VM_ConfigDrafter : VM
                 {
                     Noggog.ListExt.AddRange(IgnoredPaths, UnmatchedTextures.Where(x => !x.IsSelected).Select(x => x.Content).ToArray());
 
+                    if (HasMultiplets && MultipletHandlingMode == MultipletHandlingMode.Replace && !PreVerifyMultiplets(MultipletTextureGroups, out string failedChecks))
+                    {
+                        CustomMessageBox.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
+                        return;
+                    }
+
                     if (!CurrentConfig.RaceGroupingEditor.RaceGroupings.Any())
                     {
                         CurrentConfig.RaceGroupingEditor.ImportFromGeneralSettings();
@@ -164,7 +192,7 @@ public class VM_ConfigDrafter : VM
                         CurrentConfig.AttributeGroupMenu.ImportFromGeneralSettings();
                     }    
 
-                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures);
+                    var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, MultipletDTOs, MultipletHandlingMode, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures);
 
                     if (status == _configDrafter.SuccessString)
                     {
@@ -271,10 +299,15 @@ public class VM_ConfigDrafter : VM
     public IReactiveCommand CheckDuplicatesButton { get; }
     public ObservableCollection<VM_FileDuplicateContainer> MultipletTextureGroups { get; set; } = new();
     public bool HasMultiplets { get; set; } = false;
-
+    public List<Multiplet> MultipletDTOs { get; set; } = new();
     private List<string> IgnoredPaths { get; set; } = new();
     public RelayCommand RemoveDuplicatesButton { get; }
     public RelayCommand ShowDuplicatesPopupButton { get; }
+    public MultipletHandlingMode MultipletHandlingMode { get; set; } = MultipletHandlingMode.Replace;
+    private const string _multipletHandlingReplace = "Replace With Primary";
+    private const string _multipletHandlingIgnore = "Ignore Non-Primary";
+    public ObservableCollection<string> MultipletHandlingOptions { get; set; } = new() { _multipletHandlingReplace, _multipletHandlingIgnore };
+    public string MutlipletHandlingSelection { get; set; } = _multipletHandlingReplace;
 
     public string CurrentlyHashingFile { get; set; } = String.Empty;
     public int HashingProgressCurrent { get; set; } = 0;
@@ -332,6 +365,8 @@ public class VM_ConfigDrafter : VM
         CurrentlyHashingFile = String.Empty;
         NotYetDrafted = true;
         IgnoredPaths.Clear();
+        MultipletTextureGroups.Clear();
+        MultipletDTOs.Clear();
     }
 
     private bool ValidateExistingDirectories()
@@ -511,6 +546,18 @@ public class VM_ConfigDrafter : VM
             }
         }
     }
+
+    private bool PreVerifyMultiplets(IEnumerable<VM_FileDuplicateContainer> multiples, out string failureNames)
+    {
+        var failedChecks = multiples.Where(multiplet => multiplet.FilePaths.Where(texture => !texture.IsSelected).Count() != 1).ToList();
+        if (failedChecks.Any())
+        {
+            failureNames = "When handling duplicate files by replacement, each group of replicate textures must have exactly ONE texture unchecked to serve as the source texture. The following textures need correction:" + Environment.NewLine + Environment.NewLine + String.Join(Environment.NewLine, failedChecks.Select(x => x.FileName));
+            return false;
+        }
+        failureNames = String.Empty;
+        return true;
+    }
 }
 
 public class VM_FileDuplicateContainer : VM
@@ -534,6 +581,36 @@ public class VM_FileDuplicateContainer : VM
         public ObservableCollection<VM_FileMultiplet> ParentCollection { get; }
         public bool IsSelected { get; set; } = false;
         public RelayCommand DeleteCommand { get; }
+    }
+
+    public Multiplet ToMultiplet() // checking for single deselected option must come from caller
+    {
+        var primary = FilePaths.Where(x => !x.IsSelected).First();
+        return new Multiplet
+        {
+            PrimaryPath = primary.DisplayedPath,
+            ReplicatePaths = FilePaths.Where(x => x != primary).Select(y => y.DisplayedPath).ToList()
+        };
+    }
+
+    public void ToIgnoreList(List<string> ignoredPaths) // can accomodate multiple or no de-selected options
+    {
+        foreach (var pathVM in FilePaths.Where(x => x.IsSelected).ToArray())
+        {
+            ignoredPaths.Add(pathVM.FullPath);
+        }
+    }
+    
+    public void RemoveSelected()
+    {
+        for (int i = 0; i < FilePaths.Count; i++)
+        {
+            if (FilePaths[i].IsSelected)
+            {
+                FilePaths.RemoveAt(i);
+                i--;
+            }
+        }
     }
 }
 

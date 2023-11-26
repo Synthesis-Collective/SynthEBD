@@ -222,7 +222,11 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-                <Button Grid.Row="3" Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                <StackPanel Orientation="Horizontal" Grid.Row="3">
+                    <Button Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <TextBlock Margin="10 0 5 0" Text="Handle duplicate textures by: " Foreground="White" VerticalAlignment="Center"/>
+                    <ComboBox ItemsSource="{Binding MultipletHandlingOptions}" SelectedItem="{Binding MutlipletHandlingSelection}"/>
+                </StackPanel>
             </Grid>
         </Expander>
 

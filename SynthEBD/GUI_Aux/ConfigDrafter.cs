@@ -61,7 +61,7 @@ namespace SynthEBD
             return (categorizedFiles, unCategorizedFiles);
         }
 
-        public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
+        public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<Multiplet> multiplets, MultipletHandlingMode multipletHandling, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
         {
             var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
             var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
@@ -124,6 +124,15 @@ namespace SynthEBD
             {
                 LinkSubgroupsByName(config);
             }
+
+            if (multipletHandling == MultipletHandlingMode.Replace) // replace texture paths only after subgroups have been created
+            {
+                foreach (var subgroup in config.Subgroups)
+                {
+                    ReplaceSubgroupMultipletTextures(subgroup, multiplets);
+                }
+            }
+
             ClearEmptyTopLevels(config);
 
             return SuccessString;
@@ -1468,6 +1477,31 @@ namespace SynthEBD
                 Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
             });
         }
+
+        private void ReplaceSubgroupMultipletTextures(VM_SubgroupPlaceHolder subgroup, List<Multiplet> multiplets)
+        {
+            foreach (var path in subgroup.AssociatedModel.Paths)
+            {
+                var associatedMultiplet = multiplets.Where(x => x.ReplicatePaths.Contains(path.Source)).FirstOrDefault();
+                if (associatedMultiplet != null)
+                {
+                    if (!subgroup.AssociatedModel.Notes.Contains(path.Source)) // some subgroups have two paths containing the same source path being sent to two or three destinations. Don't add multiple notes for the same path.
+                    {
+                        if (subgroup.AssociatedModel.Notes.Any())
+                        {
+                            subgroup.AssociatedModel.Notes += Environment.NewLine;
+                        }
+                        subgroup.AssociatedModel.Notes += "Had duplicate texture: " + path.Source;
+                    }
+                    path.Source = associatedMultiplet.PrimaryPath;
+                }
+            }
+
+            foreach (var sg in subgroup.Subgroups)
+            {
+                ReplaceSubgroupMultipletTextures(sg, multiplets);
+            }
+        }
     }
 
     public enum TextureType
@@ -1502,5 +1536,17 @@ namespace SynthEBD
         UnknownSubsurface,
         UnknownSpecular,
         UnknownComplexion
+    }
+
+    public enum MultipletHandlingMode
+    {
+        Ignore,
+        Replace
+    }
+
+    public class Multiplet
+    {
+        public string PrimaryPath { get; set; } = string.Empty;
+        public List<string> ReplicatePaths { get; set; } = new();
     }
 }
