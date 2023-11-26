@@ -1,4 +1,6 @@
+using DynamicData.Binding;
 using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Reflection.Emit;
 using static SynthEBD.VM_BodyShapeDescriptor;

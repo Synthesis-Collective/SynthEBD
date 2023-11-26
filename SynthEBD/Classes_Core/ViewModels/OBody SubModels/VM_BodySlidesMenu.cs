@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using ReactiveUI;
 using Noggog;
 using System.Reactive.Linq;
+using DynamicData.Binding;
 
 namespace SynthEBD;
 
@@ -12,7 +13,8 @@ public class VM_BodySlidesMenu : VM
     {
         AddPreset = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => {
+            execute: _ =>
+            {
                 var newPlaceHolder = placeHolderFactory(new BodySlideSetting(), CurrentlyDisplayedBodySlides);
                 CurrentlyDisplayedBodySlides.Add(newPlaceHolder);
                 var newPreset = bodySlideFactory(newPlaceHolder, raceGroupingVMs);
@@ -79,7 +81,8 @@ public class VM_BodySlidesMenu : VM
 
         ImportAnnotations = new RelayCommand(
             canExecute: _ => true,
-            execute: x => {
+            execute: x =>
+            {
                 if (CurrentlyDisplayedBodySlide != null)
                 {
                     CurrentlyDisplayedBodySlide.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedBodySlide.DumpToModel();
@@ -92,7 +95,8 @@ public class VM_BodySlidesMenu : VM
 
         ExportAnnotations = new RelayCommand(
             canExecute: _ => true,
-            execute: x => {
+            execute: x =>
+            {
                 if (CurrentlyDisplayedBodySlide != null)
                 {
                     CurrentlyDisplayedBodySlide.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedBodySlide.DumpToModel();
@@ -110,7 +114,8 @@ public class VM_BodySlidesMenu : VM
         this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
          .Buffer(2, 1)
          .Select(b => (Previous: b[0], Current: b[1]))
-         .Subscribe(t => {
+         .Subscribe(t =>
+         {
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpToModel();
@@ -127,11 +132,11 @@ public class VM_BodySlidesMenu : VM
         {
             switch (SelectedGender)
             {
-                case Gender.Female: 
+                case Gender.Female:
                     CurrentlyDisplayedBodySlides = BodySlidesFemale;
                     Alphabetizer = Alphabetizer_Female;
                     break;
-                case Gender.Male: 
+                case Gender.Male:
                     CurrentlyDisplayedBodySlides = BodySlidesMale;
                     Alphabetizer = Alphabetizer_Male;
                     break;
@@ -143,7 +148,14 @@ public class VM_BodySlidesMenu : VM
             TogglePresetVisibility(BodySlidesMale, ShowHidden);
             TogglePresetVisibility(BodySlidesFemale, ShowHidden);
         }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.SelectedSliderGroup).Subscribe(x =>
+        {
+            TogglePresetVisibility(BodySlidesMale, ShowHidden);
+            TogglePresetVisibility(BodySlidesFemale, ShowHidden);
+        }).DisposeWith(this);
     }
+
     public ObservableCollection<VM_BodySlidePlaceHolder> BodySlidesMale { get; set; } = new();
     public ObservableCollection<VM_BodySlidePlaceHolder> BodySlidesFemale { get; set; } = new();
 
@@ -155,6 +167,9 @@ public class VM_BodySlidesMenu : VM
     public VM_BodySlideSetting CurrentlyDisplayedBodySlide { get; set; } = null;
     public VM_BodySlidePlaceHolder SelectedPlaceHolder { get; set; }
     public Gender SelectedGender { get; set; } = Gender.Female;
+    public ObservableCollection<string> AvailableSliderGroups { get; set; } = new();
+    public string SelectedSliderGroup { get; set; }
+    public const string SliderGroupSelectionAll = "ALL";
 
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
@@ -168,10 +183,16 @@ public class VM_BodySlidesMenu : VM
     public RelayCommand ExportAnnotations { get; }
     public bool ShowHidden { get; set; } = false;
 
-    private static void TogglePresetVisibility(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, bool showHidden)
+    private void TogglePresetVisibility(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, bool showHidden)
     {
         foreach (var b in bodySlides)
         {
+            if (SelectedSliderGroup != SliderGroupSelectionAll && b.AssociatedModel.SliderGroup != SelectedSliderGroup)
+            {
+                b.IsVisible = false;
+                continue;
+            }
+
             switch (showHidden)
             {
                 case true: b.IsVisible = true; break;

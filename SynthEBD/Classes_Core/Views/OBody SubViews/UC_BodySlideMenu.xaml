@@ -28,7 +28,8 @@
 
         <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0">
             <ComboBox SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
-            <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="3 0 0 0"/>
+            <ComboBox SelectedValue="{Binding SelectedSliderGroup}" ItemsSource="{Binding AvailableSliderGroups}" IsSynchronizedWithCurrentItem="True" Margin="3 0 3 0"/>
+            <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" />
         </StackPanel>
 
         <StackPanel  Grid.Row="1" Grid.Column="0" Orientation="Horizontal">

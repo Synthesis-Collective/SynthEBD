@@ -33,7 +33,6 @@ public class VM_BodySlideAnnotator : VM
             execute: _ => ApplyAnnotations());
     }
 
-    public ObservableCollection<string> CurrentSliderGroups { get; set; } = new(); // CBBE, UNP, etc
     public string SelectedSliderGroup { get; set; }
     public ObservableCollection<VM_SliderClassificationRulesByBodyType> AnnotationRules { get; set; } = new();
 
@@ -80,6 +79,10 @@ public class VM_BodySlideAnnotator : VM
         {
             AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyTypeGroup, SliderNamesByGroup[bodyTypeGroup]));
         }
+
+        _bodySlideMenu.AvailableSliderGroups.Clear();
+        _bodySlideMenu.AvailableSliderGroups.Add(VM_BodySlidesMenu.SliderGroupSelectionAll);
+        Noggog.ListExt.AddRange(_bodySlideMenu.AvailableSliderGroups, SliderNamesByGroup.Keys);
     }
 
     public void CopyInFromModel()
