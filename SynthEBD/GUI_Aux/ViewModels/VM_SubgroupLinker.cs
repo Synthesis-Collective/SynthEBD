@@ -36,14 +36,8 @@ namespace SynthEBD
 
             LinkThisTo = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
-                execute: x => { 
-                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
-                    {
-                        if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.Subgroup.ID) && assetPack.TryGetSubgroupByID(sg.Subgroup.ID, out var placeHolder))
-                        {
-                            _targetSubgroup.RequiredSubgroups.Add(placeHolder);
-                        }
-                    }
+                execute: x => {
+                    LinkThisToFn();
                     window.Close();
                 }
             );
@@ -51,7 +45,7 @@ namespace SynthEBD
             UnlinkThisFrom = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(y => y.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
+                    UnlinkThisFromFn();
                     window.Close();
                 }
             );
@@ -59,13 +53,7 @@ namespace SynthEBD
             LinkToThis = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
-                    {
-                        if (!sg.Subgroup.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
-                        {
-                            sg.Subgroup.AssociatedModel.RequiredSubgroups.Add(_targetSubgroup.ID);
-                        }
-                    }
+                    LinkToThisFn();
                     window.Close();
                 }
             );
@@ -73,10 +61,16 @@ namespace SynthEBD
             UnlinkFromThis = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
-                    {
-                        sg.Subgroup.AssociatedModel.RequiredSubgroups.RemoveWhere(x => x == _targetSubgroup.ID);
-                    }
+                    UnlinkFromThisFn();
+                    window.Close();
+                }
+            );
+
+            LinkReciprocally = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    LinkToThisFn();
+                    LinkThisToFn();
                     window.Close();
                 }
             );
@@ -84,36 +78,16 @@ namespace SynthEBD
             LinkWholeGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    var wholeSet = new List<VM_SubgroupPlaceHolder>();
-                    wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder);
-                    wholeSet.AddRange(CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup));
+                    LinkWholeGroupFn();
+                    window.Close();
+                }
+            );
 
-                    foreach (var sg in wholeSet)
-                    {
-                        foreach (var sg2 in wholeSet)
-                        {
-                            // don't link if subgroups are at the same top level index
-                            if (sg.GetTopLevelIndex() == sg2.GetTopLevelIndex())
-                            {
-                                continue;
-                            }
-                            //if sg is the current view model, operate in the view model space
-                            if (sg.ID == _targetSubgroup.ID)
-                            {
-                                if (sg2.ID != sg.ID && !_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && assetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
-                                {
-                                    _targetSubgroup.RequiredSubgroups.Add(placeHolder);
-                                }
-                            }
-                            else // otherwise operate in the model space
-                            {
-                                if (sg2.ID != sg.ID && !sg.AssociatedModel.RequiredSubgroups.Contains(sg2.ID))
-                                {
-                                    sg.AssociatedModel.RequiredSubgroups.Add(sg2.ID);
-                                }
-                            }
-                        }
-                    }
+            UnlinkReciprocally = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    UnlinkThisFromFn();
+                    UnlinkFromThisFn();
                     window.Close();
                 }
             );
@@ -121,11 +95,7 @@ namespace SynthEBD
             UnlinkWholeGroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
-                    _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(x => x.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
-                    foreach (var sg in CollectedSubgroups)
-                    {
-                        sg.Subgroup.AssociatedModel.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup).And(_targetSubgroup.AssociatedPlaceHolder).Select(y => y.ID).Contains(x));
-                    }
+                    UnlinkWholeGroupFn();
                     window.Close();
                 }
             );
@@ -153,9 +123,11 @@ namespace SynthEBD
 
         public RelayCommand LinkThisTo { get; }
         public RelayCommand LinkToThis { get; }
+        public RelayCommand LinkReciprocally { get; }
         public RelayCommand LinkWholeGroup { get; }
         public RelayCommand UnlinkThisFrom { get; }
         public RelayCommand UnlinkFromThis { get; }
+        public RelayCommand UnlinkReciprocally { get; }
         public RelayCommand UnlinkWholeGroup { get; }
         public RelayCommand Close { get; }
 
@@ -260,7 +232,113 @@ namespace SynthEBD
                 }
             }
             return false;
-        }    
+        }
+        
+        private void LinkThisToFn()
+        {
+            foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
+            {
+                if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.Subgroup.ID) && _targetAssetPack.TryGetSubgroupByID(sg.Subgroup.ID, out var placeHolder))
+                {
+                    _targetSubgroup.RequiredSubgroups.Add(placeHolder);
+                }
+            }
+        }
+
+        private void LinkToThisFn()
+        {
+            foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
+            {
+                if (!sg.Subgroup.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
+                {
+                    sg.Subgroup.AssociatedModel.RequiredSubgroups.Add(_targetSubgroup.ID);
+                }
+            }
+        }
+
+        private void LinkWholeGroupFn()
+        {
+            var wholeSet = new List<VM_SubgroupPlaceHolder>();
+            wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder);
+            wholeSet.AddRange(CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup));
+
+            foreach (var sg in wholeSet)
+            {
+                foreach (var sg2 in wholeSet)
+                {
+                    // don't link if subgroups are at the same top level index
+                    if (sg.GetTopLevelIndex() == sg2.GetTopLevelIndex())
+                    {
+                        continue;
+                    }
+                    //if sg is the current view model, operate in the view model space
+                    if (sg.ID == _targetSubgroup.ID)
+                    {
+                        if (sg2.ID != sg.ID && !_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && _targetAssetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
+                        {
+                            _targetSubgroup.RequiredSubgroups.Add(placeHolder);
+                        }
+                    }
+                    else // otherwise operate in the model space
+                    {
+                        if (sg2.ID != sg.ID && !sg.AssociatedModel.RequiredSubgroups.Contains(sg2.ID))
+                        {
+                            sg.AssociatedModel.RequiredSubgroups.Add(sg2.ID);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void UnlinkThisFromFn()
+        {
+            _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(y => y.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
+        }
+
+        private void UnlinkFromThisFn()
+        {
+            foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
+            {
+                sg.Subgroup.AssociatedModel.RequiredSubgroups.RemoveWhere(x => x == _targetSubgroup.ID);
+            }
+        }
+        
+        private void UnlinkWholeGroupFn()
+        {
+            var wholeSet = new List<VM_SubgroupPlaceHolder>();
+            wholeSet.Add(_targetSubgroup.AssociatedPlaceHolder);
+            wholeSet.AddRange(CollectedSubgroups.Where(x => x.IsSelected).Select(x => x.Subgroup));
+
+            foreach (var sg in wholeSet)
+            {
+                foreach (var sg2 in wholeSet)
+                {
+                    //if sg is the current view model, operate in the view model space
+                    if (sg.ID == _targetSubgroup.ID)
+                    {
+                        if (sg2.ID != sg.ID && _targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && _targetAssetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
+                        {
+                            _targetSubgroup.RequiredSubgroups.Remove(placeHolder);
+                        }
+                    }
+                    else // otherwise operate in the model space
+                    {
+                        if (sg2.ID != sg.ID && sg.AssociatedModel.RequiredSubgroups.Contains(sg2.ID))
+                        {
+                            sg.AssociatedModel.RequiredSubgroups.Remove(sg2.ID);
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+         * public RelayCommand LinkThisTo { get; }
+        public RelayCommand LinkToThis { get; }
+        public RelayCommand LinkWholeGroup { get; }
+        public RelayCommand UnlinkThisFrom { get; }
+        public RelayCommand UnlinkFromThis { get; }
+        public RelayCommand UnlinkWholeGroup { get; }*/
     }
 
     public enum AndOr
