@@ -218,11 +218,11 @@
     <PackageReference Include="MaterialMessageBox" Version="4.0.2" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.2.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.0.1-nightly-20231117-100516" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.43.0.1-nightly-20231117-100516" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.0.1-nightly-20231127-015852" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.43.0.1-nightly-20231127-015852" />
     <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.27.0-pr003" />
     <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.27.0-pr003" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.43.0.1-nightly-20231117-100516" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.43.0.1-nightly-20231127-015852" />
     <PackageReference Include="Noggog.Autofac" Version="2.60.0.1-nightly-20231103-212929" />
     <PackageReference Include="Pfim" Version="0.11.2" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
