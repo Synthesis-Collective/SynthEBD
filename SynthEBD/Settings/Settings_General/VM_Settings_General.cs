@@ -397,6 +397,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
+
+        model.bUIopened = true;
         return model;
     }
 

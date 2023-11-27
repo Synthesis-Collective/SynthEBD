@@ -102,6 +102,11 @@ public class Patcher
     public async Task RunPatcher()
     {
         // General pre-patching tasks: 
+        if (!_patcherState.GeneralSettings.bUIopened)
+        {
+            _logger.LogMessage("====SynthEBD UI has never been opened. SynthEBD will not do anything until the UI is configured====");
+        }
+
         if (_paths.OutputDataFolder.IsNullOrEmpty())
         {
             if (_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty())
