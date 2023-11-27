@@ -95,6 +95,11 @@ public sealed class Logger : VM
     {
         LoggedEvents.Clear();
     }
+    
+    public void SetSynthesisStartupString()
+    {
+        ReadyString = "When finished changing settings, close this UI and run your Synthesis patcher";
+    }
 
     private static readonly object LockStartupLogMethod = new object();
 

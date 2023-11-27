@@ -14,6 +14,7 @@ public class MainWindow_ViewModel : VM
     private readonly VM_NavPanel _navPanel;
     public readonly SynthEBDPaths _paths; // must be accessible to App.xaml.cs for crash logging
     private readonly CustomMessageBox _customMessageBox;
+    private readonly Logger _logger;
 
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
@@ -30,7 +31,8 @@ public class MainWindow_ViewModel : VM
         VM_NavPanel navPanel,
         Func<VM_RunButton> getRunButton,
         SynthEBDPaths paths,
-        CustomMessageBox customMessageBox)
+        CustomMessageBox customMessageBox,
+        Logger logger)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -38,11 +40,17 @@ public class MainWindow_ViewModel : VM
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
         _customMessageBox = customMessageBox;
+        _logger = logger;
+
         Display = display;
         StatusBarVM = statusBar;
         if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
         {
             RunButtonVM = getRunButton();
+        }
+        else
+        {
+            _logger.SetSynthesisStartupString();
         }
         NavViewModel = _navPanel;
         _paths = paths;
