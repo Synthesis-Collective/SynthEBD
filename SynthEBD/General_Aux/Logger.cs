@@ -99,6 +99,7 @@ public sealed class Logger : VM
     public void SetSynthesisStartupString()
     {
         ReadyString = "When finished changing settings, close this UI and run your Synthesis patcher";
+        StatusString = ReadyString;
     }
 
     private static readonly object LockStartupLogMethod = new object();
