@@ -17,6 +17,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch">
@@ -24,26 +26,62 @@
             <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="0 0 15 0">+</Button>
         </DockPanel>
 
-        <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups" SelectedItem_ ="{Binding SelectedPlaceHolder, Mode=TwoWay}" ItemsSource ="{Binding Subgroups}"  Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" dd:DragDrop.DragHandler="{Binding}"  dd:DragDrop.CanDragWithMouseRightButton="True" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Visible">
-            <TreeView.Resources>
-                <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}" >
-                    <StackPanel Orientation="Horizontal">
-                        <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen">+</Button>
-                        <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp">
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}">
-                                    <!--https://stackoverflow.com/questions/541896/concatenate-strings-instead-of-using-a-stack-of-textblocks-->
-                                    <Binding Path="Name"/>
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                        <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
-                    </StackPanel>
+        <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups" 
+                        SelectedItem_="{Binding SelectedPlaceHolder, Mode=TwoWay}" ItemsSource="{Binding Subgroups}" 
+                        Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" 
+                        dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" dd:DragDrop.DragHandler="{Binding}" 
+                        dd:DragDrop.CanDragWithMouseRightButton="True" ScrollViewer.CanContentScroll="True" 
+                        ScrollViewer.VerticalScrollBarVisibility="Visible">
+
+            <local:ExtendedTreeView.Resources>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="FontFamily" Value="{Binding RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}, Path=(TextElement.FontFamily)}"/>
+                    <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}, Path=(TextElement.FontSize)}"/>
+                    <Setter Property="Margin" Value="3"/>
+                    <!-- Add any other visual properties you want to keep consistent -->
+                    <Style.Resources>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="Transparent"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="Gold"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="Transparent"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White"/> <!-- I don't like overriding this because white is the default TreeView styrling, but with the other manually specified styling it changes to black -->
+                    </Style.Resources>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding VisibleChildOrSelf}" Value="false">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding VisibleSelf}" Value="false">
+                            <Setter Property="Foreground" Value="Gray"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding MatchesSearchString}" Value="true">
+                            <Setter Property="Foreground" Value="Aqua"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HasSearchString}" Value="true">
+                            <Setter Property="IsExpanded" Value="True"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </local:ExtendedTreeView.Resources>
+
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}">
+                    <Border BorderBrush="DarkSlateGray" BorderThickness="1" CornerRadius="8">
+                        <StackPanel Orientation="Horizontal">
+                            <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="3 0 0 3">+</Button>
+                            <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp" VerticalAlignment="Center">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}{0}">
+                                        <Binding Path="Name"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
+                        </StackPanel>
+                    </Border>
                 </HierarchicalDataTemplate>
-            </TreeView.Resources>
+            </TreeView.ItemTemplate>
         </local:ExtendedTreeView>
 
-        <ScrollViewer Grid.Row="1" Grid.Column="1">
+        <ScrollViewer Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3">
             <!--<ContentPresenter Content="{Binding ElementName=TVsubgroups, Path=SelectedItem}" Name="SubgroupPresenter">-->
             <ContentPresenter Content="{Binding DisplayedSubgroup}" Name="SubgroupPresenter">
                 <ContentPresenter.Resources>
@@ -53,5 +91,15 @@
                 </ContentPresenter.Resources>
             </ContentPresenter>
         </ScrollViewer>
+
+        <DockPanel Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch">
+            <TextBlock Text="Search" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding SubgroupSearchText, UpdateSourceTrigger=PropertyChanged}" Margin="3 0 0 0"/>
+        </DockPanel>
+        
+        <DockPanel Grid.Row="3" Grid.Column="0" HorizontalAlignment="Stretch">
+            <TextBlock Text="Case Sensitive" VerticalAlignment="Center"/>
+            <CheckBox IsChecked="{Binding SubgroupSearchCaseSensitive}" Margin="3 0 0 0"/>
+        </DockPanel>
     </Grid>
 </UserControl>

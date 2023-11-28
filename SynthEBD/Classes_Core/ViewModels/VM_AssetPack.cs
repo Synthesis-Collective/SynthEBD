@@ -166,6 +166,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
              }
          }).DisposeWith(this);
 
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.SubgroupSearchText),
+                this.WhenAnyValue(x => x.SubgroupSearchCaseSensitive),
+                (searchText, caseSensitive) => { return (searchText, caseSensitive); })
+            .Throttle(TimeSpan.FromMilliseconds(200))
+            .Subscribe(y => CheckSubgroupVisibility(y.searchText, y.caseSensitive))
+            .DisposeWith(this);
+
         UpdateOrderingMenu = Observable.CombineLatest(
                 this.WhenAnyValue(x => x.GroupName),
                 this.WhenAnyValue(x => x.ConfigType),
@@ -383,6 +391,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public bool DisplayAlerts { get; set; } = true;
     public string UserAlert { get; set; } = "";
     public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
+    public string SubgroupSearchText { get; set; }
+    public bool SubgroupSearchCaseSensitive { get; set; } = false;
     public VM_BodyGenConfig TrackedBodyGenConfig { get; set; }
     public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigs { get; set; }
     public VM_SettingsBodyGen CurrentBodyGenSettings { get; set; }
@@ -1162,6 +1172,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
 
         DropInitiatedRightClick = false;
+
+        CheckSubgroupVisibility(SubgroupSearchText, SubgroupSearchCaseSensitive);
     }
 
     public bool DropInitiatedRightClick { get; set; }
@@ -1639,6 +1651,14 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
 
         TrackedBodyGenConfig = null;
+    }
+
+    private void CheckSubgroupVisibility(string searchText, bool caseSensitive)
+    {
+        foreach (var subgroup in Subgroups)
+        {
+            subgroup.CheckVisibility(searchText, caseSensitive, false);
+        }
     }
 }
 

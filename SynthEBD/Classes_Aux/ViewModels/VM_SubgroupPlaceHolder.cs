@@ -94,6 +94,10 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
     public int ImagePreviewRefreshTrigger { get; set; } = 0; // this seems ridiculous but actually works well
     public RelayCommand DeleteMe { get; }
     public RelayCommand AddSubgroup { get; }
+    public bool VisibleSelf { get; set; }
+    public bool VisibleChildOrSelf { get; set; }
+    public bool HasSearchString { get; set; } = false;
+    public bool MatchesSearchString { get; set; } = false;
     public string DebuggerString
     {
         get
@@ -101,6 +105,35 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
             return ID + ": " + Name;
         }
     }
+
+    public void CheckVisibility(string searchText, bool matchCase, bool parentIsVisible)
+    {
+        if (parentIsVisible || searchText == null || !searchText.Any())
+        {
+            VisibleSelf = true;
+        }
+        else if (!matchCase)
+        {
+            VisibleSelf = Name.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+            MatchesSearchString = VisibleSelf;
+        }
+        else
+        {
+            VisibleSelf = Name.Contains(searchText);
+            MatchesSearchString = VisibleSelf;
+        }
+        
+        VisibleChildOrSelf = VisibleSelf;
+
+        foreach (var child in Subgroups)
+        {
+            child.CheckVisibility(searchText, matchCase, VisibleSelf);
+            VisibleChildOrSelf |= child.VisibleChildOrSelf;
+        }
+
+        HasSearchString = searchText != null && searchText.Any();
+    }
+
     public string GetNameChain(string separatorChar)
     {
         var names = GetParents().Select(x => x.Name).Reverse().And(Name).ToArray();
