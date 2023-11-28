@@ -112,6 +112,8 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
 
     public void CheckVisibilityConfigVM(string searchText, bool matchCase, bool parentIsVisible)
     {
+        MatchesSearchStringConfigVM = false;
+
         if (parentIsVisible || searchText == null || !searchText.Any())
         {
             VisibleSelfConfigVM = true;
@@ -140,6 +142,8 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
 
     public void CheckVisibilitySpecificVM(string searchText, bool matchCase, bool parentIsVisible)
     {
+        MatchesSearchStringSpecificVM = false;
+
         if (parentIsVisible || searchText == null || !searchText.Any())
         {
             VisibleSelfSpecificVM = true;
