@@ -88,6 +88,20 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe()
             .DisposeWith(this);
 
+        DynamicData.ObservableListEx
+            .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.ConfigType)
+                .Subscribe(_ => RefreshAssets())
+                .DisposeWith(this))
+            .Subscribe()
+            .DisposeWith(this);
+
+        DynamicData.ObservableListEx
+            .Transform(SubscribedAssetPacks.ToObservableChangeSet(), x => x.WhenAnyValue(y => y.Gender)
+                .Subscribe(_ => RefreshAssets())
+                .DisposeWith(this))
+            .Subscribe()
+            .DisposeWith(this);
+
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
         {
             if (x != null && x.IsSelected)
@@ -507,22 +521,34 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
     public void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
     {
-        assignment.AvailableAssetPacks.Clear();
-        assignment.AvailableMixInAssetPacks.Clear();
-        foreach (var assetPack in assignment.SubscribedAssetPacks.Where(x => x.IsSelected).ToArray())
+        var availablePrimaryAssetPacks = assignment.SubscribedAssetPacks.Where(x => x.IsSelected && x.Gender == assignment.Gender && x.ConfigType == AssetPackType.Primary).ToArray();
+        var availableMixInAssetPacks = assignment.SubscribedAssetPacks.Where(x => x.IsSelected && x.Gender == assignment.Gender && x.ConfigType == AssetPackType.MixIn).ToArray();
+
+        assignment.AvailableAssetPacks.AddRange(availablePrimaryAssetPacks.Where(x => !assignment.AvailableAssetPacks.Contains(x)));
+        assignment.AvailableMixInAssetPacks.AddRange(availableMixInAssetPacks.Where(x => !assignment.AvailableMixInAssetPacks.Contains(x)));
+
+        // I first tried this with Linq RemoveWhere but it seems to fail "under the hood".
+        // With RemoveWhere, even if assignment.ForcedAssetPack exists in availablePrimaryAssetPacks, it seems to get removed and then re-added, causing assignment.ForcedAssetPack to change to null and clear out.
+        for (int i = 0; i < assignment.AvailableAssetPacks.Count; i++)
         {
-            if (assetPack.Gender == assignment.Gender)
+            if (!availablePrimaryAssetPacks.Contains(assignment.AvailableAssetPacks[i]))
             {
-                if (assetPack.ConfigType == AssetPackType.Primary)
-                {
-                    assignment.AvailableAssetPacks.Add(assetPack);
-                }
-                else if (assetPack.ConfigType == AssetPackType.MixIn)
-                {
-                    assignment.AvailableMixInAssetPacks.Add(assetPack);
-                }
+                assignment.AvailableAssetPacks.RemoveAt(i);
+                i--;
             }
         }
+
+        for (int i = 0; i < assignment.AvailableMixInAssetPacks.Count; i++)
+        {
+            if (!availableMixInAssetPacks.Contains(assignment.AvailableMixInAssetPacks[i]))
+            {
+                assignment.AvailableMixInAssetPacks.RemoveAt(i);
+                i--;
+            }
+        }
+
+        assignment.AvailableAssetPacks.Sort(x => x.GroupName, false);
+        assignment.AvailableMixInAssetPacks.Sort(x => x.GroupName, false);
     }
 
     public static void UpdateAvailableSubgroups(IHasForcedAssets assignment)
@@ -707,8 +733,30 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             AvailableMixInAssetPacks = Parent.AvailableMixInAssetPacks;
             ForcedAssetPack = assetPackFactory(new AssetPack());
 
-            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
-            ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
+            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x => { 
+                UpdateAvailableSubgroups(this); 
+                CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
+            }).DisposeWith(this);
+
+            ForcedSubgroups.ToObservableChangeSet().Subscribe(_ => {
+                UpdateAvailableSubgroups(this);
+                CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
+            }).DisposeWith(this);
+
+            this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
+            {
+                if (x != null && x.IsSelected)
+                {
+                    UpdateAvailableSubgroups(this);
+                    ShowSubgroupAssignments = true;
+                    CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
+                }
+                else
+                {
+                    ShowSubgroupAssignments = false;
+                }
+
+            }).DisposeWith(this);
 
             this.WhenAnyValue(x => x.Decline).Subscribe(y =>
             {
@@ -727,7 +775,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
             );
 
-            DeleteForcedSubgroup = new SynthEBD.RelayCommand(
+            DeleteForcedMixInSubgroup = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
             );
@@ -744,6 +792,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                     replacer.ParentAssetPack = ForcedAssetPack;
                 }
             }).DisposeWith(this);
+
+            Observable.CombineLatest(
+                this.WhenAnyValue(x => x.NameSearchStr),
+                this.WhenAnyValue(x => x.NameSearchCaseSensitive),
+                (searchText, caseSensitive) => { return (searchText, caseSensitive); })
+            .Throttle(TimeSpan.FromMilliseconds(200))
+            .Subscribe(y => CheckSubgroupVisibility(y.searchText, y.caseSensitive))
+            .DisposeWith(this);
         }
         public VM_AssetPack ForcedAssetPack { get; set; }
         public ObservableCollection<VM_AssetPack> AvailableMixInAssetPacks { get; set; }
@@ -756,9 +812,13 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         public VM_SpecificNPCAssignment Parent { get; set; }
 
         public RelayCommand DeleteCommand { get; set; }
-        public RelayCommand DeleteForcedSubgroup { get; set; }
+        public RelayCommand DeleteForcedMixInSubgroup { get; set; }
         public RelayCommand AddForcedReplacer { get; set; }
-        
+       
+        // UI Styling
+        public string NameSearchStr { get; set; }
+        public bool NameSearchCaseSensitive { get; set; } = false;
+
         public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
         {
             NPCAssignment.MixInAssignment model = new NPCAssignment.MixInAssignment();
@@ -772,6 +832,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 model.AssetReplacerAssignments.Add(VM_AssetReplacementAssignment.DumpViewModelToModel(replacer));
             }
             return model;
+        }
+
+        private void CheckSubgroupVisibility(string searchText, bool caseSensitive)
+        {
+            foreach (var subgroup in AvailableSubgroups)
+            {
+                subgroup.CheckVisibilitySpecificVM(searchText, caseSensitive, false);
+            }
         }
     }
 }
