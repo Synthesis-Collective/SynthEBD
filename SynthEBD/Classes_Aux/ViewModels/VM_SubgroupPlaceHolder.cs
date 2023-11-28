@@ -94,10 +94,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
     public int ImagePreviewRefreshTrigger { get; set; } = 0; // this seems ridiculous but actually works well
     public RelayCommand DeleteMe { get; }
     public RelayCommand AddSubgroup { get; }
-    public bool VisibleSelf { get; set; }
-    public bool VisibleChildOrSelf { get; set; }
-    public bool HasSearchString { get; set; } = false;
-    public bool MatchesSearchString { get; set; } = false;
+    public bool VisibleSelfConfigVM { get; set; }
+    public bool VisibleChildOrSelfConfigVM { get; set; }
+    public bool HasSearchStringConfigVM { get; set; } = false;
+    public bool MatchesSearchStringConfigVM { get; set; } = false;
+    public bool VisibleSelfSpecificVM { get; set; }
+    public bool VisibleChildOrSelfSpecificVM { get; set; }
+    public bool HasSearchStringSpecificVM { get; set; } = false;
+    public bool MatchesSearchStringSpecificVM { get; set; } = false;
     public string DebuggerString
     {
         get
@@ -106,32 +110,60 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
-    public void CheckVisibility(string searchText, bool matchCase, bool parentIsVisible)
+    public void CheckVisibilityConfigVM(string searchText, bool matchCase, bool parentIsVisible)
     {
         if (parentIsVisible || searchText == null || !searchText.Any())
         {
-            VisibleSelf = true;
+            VisibleSelfConfigVM = true;
         }
         else if (!matchCase)
         {
-            VisibleSelf = Name.Contains(searchText, StringComparison.OrdinalIgnoreCase);
-            MatchesSearchString = VisibleSelf;
+            VisibleSelfConfigVM = Name.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+            MatchesSearchStringConfigVM = VisibleSelfConfigVM;
         }
         else
         {
-            VisibleSelf = Name.Contains(searchText);
-            MatchesSearchString = VisibleSelf;
+            VisibleSelfConfigVM = Name.Contains(searchText);
+            MatchesSearchStringConfigVM = VisibleSelfConfigVM;
         }
         
-        VisibleChildOrSelf = VisibleSelf;
+        VisibleChildOrSelfConfigVM = VisibleSelfConfigVM;
 
         foreach (var child in Subgroups)
         {
-            child.CheckVisibility(searchText, matchCase, VisibleSelf);
-            VisibleChildOrSelf |= child.VisibleChildOrSelf;
+            child.CheckVisibilityConfigVM(searchText, matchCase, VisibleSelfConfigVM);
+            VisibleChildOrSelfConfigVM |= child.VisibleChildOrSelfConfigVM;
         }
 
-        HasSearchString = searchText != null && searchText.Any();
+        HasSearchStringConfigVM = searchText != null && searchText.Any();
+    }
+
+    public void CheckVisibilitySpecificVM(string searchText, bool matchCase, bool parentIsVisible)
+    {
+        if (parentIsVisible || searchText == null || !searchText.Any())
+        {
+            VisibleSelfSpecificVM = true;
+        }
+        else if (!matchCase)
+        {
+            VisibleSelfSpecificVM = Name.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+            MatchesSearchStringSpecificVM = VisibleSelfSpecificVM;
+        }
+        else
+        {
+            VisibleSelfSpecificVM = Name.Contains(searchText);
+            MatchesSearchStringSpecificVM = VisibleSelfSpecificVM;
+        }
+
+        VisibleChildOrSelfSpecificVM = VisibleSelfSpecificVM;
+
+        foreach (var child in Subgroups)
+        {
+            child.CheckVisibilitySpecificVM(searchText, matchCase, VisibleSelfSpecificVM);
+            VisibleChildOrSelfSpecificVM |= child.VisibleChildOrSelfSpecificVM;
+        }
+
+        HasSearchStringSpecificVM = searchText != null && searchText.Any();
     }
 
     public string GetNameChain(string separatorChar)
@@ -742,5 +774,11 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         SaveToModel();
         var clonedModel = JSONhandler<AssetPack.Subgroup>.CloneViaJSON(AssociatedModel);
         return _selfFactory(clonedModel, this, parentAssetPack, parentCollection);
+    }
+
+    public enum SubgroupVisibiltyVMType
+    {
+        Config,
+        SpecificAssignments
     }
 }

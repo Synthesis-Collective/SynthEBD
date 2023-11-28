@@ -46,16 +46,16 @@
                         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White"/> <!-- I don't like overriding this because white is the default TreeView styrling, but with the other manually specified styling it changes to black -->
                     </Style.Resources>
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding VisibleChildOrSelf}" Value="false">
+                        <DataTrigger Binding="{Binding VisibleChildOrSelfConfigVM}" Value="false">
                             <Setter Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding VisibleSelf}" Value="false">
+                        <DataTrigger Binding="{Binding VisibleSelfConfigVM}" Value="false">
                             <Setter Property="Foreground" Value="Gray"/>
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding MatchesSearchString}" Value="true">
+                        <DataTrigger Binding="{Binding MatchesSearchStringConfigVM}" Value="true">
                             <Setter Property="Foreground" Value="Aqua"/>
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding HasSearchString}" Value="true">
+                        <DataTrigger Binding="{Binding HasSearchStringConfigVM}" Value="true">
                             <Setter Property="IsExpanded" Value="True"/>
                         </DataTrigger>
                     </Style.Triggers>
@@ -74,7 +74,7 @@
                                     </MultiBinding>
                                 </TextBlock.Text>
                             </TextBlock>
-                            <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
+                            <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick" Margin=" 0 0 3 0">X</Button>
                         </StackPanel>
                     </Border>
                 </HierarchicalDataTemplate>

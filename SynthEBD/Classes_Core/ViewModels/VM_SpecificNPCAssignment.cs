@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive;
 using System.Windows;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -93,6 +94,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             {
                 UpdateAvailableSubgroups(this);
                 ShowSubgroupAssignments = true;
+                CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
             }
             else
             {
@@ -106,6 +108,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             if (b)
             {
                 ShowSubgroupAssignments = true;
+                CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
             }
             else
             {
@@ -113,7 +116,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         }).DisposeWith(this);
 
-        ForcedSubgroups.ToObservableChangeSet().Subscribe(x => UpdateAvailableSubgroups(this)).DisposeWith(this);
+        ForcedSubgroups.ToObservableChangeSet().Subscribe(_ => {
+            UpdateAvailableSubgroups(this);
+            CheckSubgroupVisibility(NameSearchStr, NameSearchCaseSensitive);
+        }).DisposeWith(this);
 
         ForcedBodyGenMorphs.ToObservableChangeSet().Subscribe(_ => UpdateAvailableMorphs(this)).DisposeWith(this);
 
@@ -135,6 +141,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         {
             ForcedAssetReplacements.Remove(ForcedAssetReplacements.Where(x => x.ParentAssetPack != ForcedAssetPack));
         }).DisposeWith(this);
+
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.NameSearchStr),
+                this.WhenAnyValue(x => x.NameSearchCaseSensitive),
+                (searchText, caseSensitive) => { return (searchText, caseSensitive); })
+            .Throttle(TimeSpan.FromMilliseconds(200))
+            .Subscribe(y => CheckSubgroupVisibility(y.searchText, y.caseSensitive))
+            .DisposeWith(this);
 
         HeadParts = new()
         {
@@ -224,6 +238,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public ObservableCollection<VM_BodyGenTemplatePlaceHolder> ForcedBodyGenMorphs { get; set; } = new();
     public string ForcedBodySlide { get; set; } = "";
     public Dictionary<HeadPart.TypeEnum, VM_HeadPartAssignment> HeadParts { get; set; } = new();
+
+    // UI Styling
+    public string NameSearchStr { get; set; }
+    public bool NameSearchCaseSensitive { get; set; } = false;
 
     //Needed by UI
     public VM_SpecificNPCAssignmentPlaceHolder AssociatedPlaceHolder { get; set; }
@@ -667,6 +685,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 viewModel.Decline = model.DeclinedAssignment;
                 ForcedMixIns.Add(viewModel);
             }
+        }
+    }
+
+    private void CheckSubgroupVisibility(string searchText, bool caseSensitive)
+    {
+        foreach (var subgroup in AvailableSubgroups)
+        {
+            subgroup.CheckVisibilitySpecificVM(searchText, caseSensitive, false);
         }
     }
 

@@ -1657,7 +1657,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         foreach (var subgroup in Subgroups)
         {
-            subgroup.CheckVisibility(searchText, caseSensitive, false);
+            subgroup.CheckVisibilityConfigVM(searchText, caseSensitive, false);
         }
     }
 }
