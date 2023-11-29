@@ -116,7 +116,7 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must have for this subgroup to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
-        <Button Grid.Row="12" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="12" Grid.Column="0" Margin="0 0 10 0"  Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
 
         <ItemsControl Grid.Row="12" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
@@ -128,7 +128,7 @@
 
 
         <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC may not have if this subgroup is to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
-        <Button Grid.Row="13" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="13" Grid.Column="0" Margin="0 0 10 0"  Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
         <ItemsControl Grid.Row="13" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
@@ -145,48 +145,15 @@
         </StackPanel>
 
         <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that must be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Required Subgroups</TextBlock>
-        <ListBox Grid.Row="15" Grid.Column="1" ItemsSource="{Binding RequiredSubgroups}" Name="lbRequiredSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock>
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}: {1}">
-                                    <Binding Path="ID" />
-                                    <Binding Path="Name" />
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                        <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left"  Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteRequiredSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <TextBlock Grid.Row="15" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding RequiredSubgroupsLabel, UpdateSourceTrigger=PropertyChanged}"/>
-        <Button Grid.Row="15" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding LinkRequiredSubgroups}" Foreground="Lightgreen">Group Linker</Button>
+
+        <local:UC_PositionalSubgroupContainerCollection Grid.Row="15" Grid.Column="1" DataContext="{Binding RequiredSubgroups}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"  dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" AllowDrop="True"/>
+        <Button Grid.Row="15" Grid.Column="0" Margin="0 0 10 0" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding LinkRequiredSubgroups}" Foreground="Lightgreen">Group Linker</Button>
 
         <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other subgroups from this config file that may not be assigned if this subgroup is assigned (Drag and Drop)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Excluded Subgroups</TextBlock>
-        <ListBox Grid.Row="16" Grid.Column="1" ItemsSource="{Binding ExcludedSubgroups}" Name="lbExcludedSubgroups" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock>
-                            <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0}: {1}">
-                                    <Binding Path="ID" />
-                                    <Binding Path="Name" />
-                                </MultiBinding>
-                            </TextBlock.Text>
-                        </TextBlock>
-                        <Button Width="75" Height="20" Margin="15 0 0 0" VerticalAlignment="Center" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.DeleteExcludedSubgroup}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <TextBlock Grid.Row="16" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding ExcludedSubgroupsLabel, UpdateSourceTrigger=PropertyChanged}"/>
+        <local:UC_PositionalSubgroupContainerCollection Grid.Row="16" Grid.Column="1" DataContext="{Binding ExcludedSubgroups}" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4"  dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" AllowDrop="True"/>
 
-        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" ToolTip="Keywords that should be added to an NPC if this subgroup is assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Add Keywords to NPC</TextBlock>
-        <Button Grid.Row="17" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}" Foreground="Lightgreen">Add New</Button>
+        <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Keywords that should be added to an NPC if this subgroup is assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Add Keywords to NPC</TextBlock>
+        <Button Grid.Row="17" Grid.Column="0" Margin="0 0 10 0"  Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddNPCKeyword}" Foreground="Lightgreen">Add New</Button>
         <ListBox Grid.Row="17" Grid.Column="1" ItemsSource="{Binding AddKeywords}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
             <ListBox.ItemTemplate>
                 <DataTemplate>
@@ -198,8 +165,8 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" ToolTip="Asset paths specified by this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Paths</TextBlock>
-        <Button Grid.Row="18" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddPath}" Foreground="Lightgreen">Add New</Button>
+        <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset paths specified by this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Paths</TextBlock>
+        <Button Grid.Row="18" Grid.Column="0" Margin="0 0 10 0"  Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddPath}" Foreground="Lightgreen">Add New</Button>
         <local:UC_FilePathReplacementMenu Grid.Row="18" Grid.Column="1" DataContext="{Binding PathsMenu}"/>
 
         <!--BodyGen-->

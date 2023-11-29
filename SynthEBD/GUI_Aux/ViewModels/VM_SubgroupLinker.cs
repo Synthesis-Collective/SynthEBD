@@ -238,9 +238,9 @@ namespace SynthEBD
         {
             foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
             {
-                if (!_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg.Subgroup.ID) && _targetAssetPack.TryGetSubgroupByID(sg.Subgroup.ID, out var placeHolder))
+                if (!_targetSubgroup.RequiredSubgroups.ContainsSubgroup(sg.Subgroup))
                 {
-                    _targetSubgroup.RequiredSubgroups.Add(placeHolder);
+                    _targetSubgroup.RequiredSubgroups.AddSubgroup(sg.Subgroup);
                 }
             }
         }
@@ -274,9 +274,9 @@ namespace SynthEBD
                     //if sg is the current view model, operate in the view model space
                     if (sg.ID == _targetSubgroup.ID)
                     {
-                        if (sg2.ID != sg.ID && !_targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && _targetAssetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
+                        if (sg2.ID != sg.ID && !_targetSubgroup.RequiredSubgroups.ContainsSubgroup(sg2))
                         {
-                            _targetSubgroup.RequiredSubgroups.Add(placeHolder);
+                            _targetSubgroup.RequiredSubgroups.AddSubgroup(sg2);
                         }
                     }
                     else // otherwise operate in the model space
@@ -292,7 +292,10 @@ namespace SynthEBD
 
         private void UnlinkThisFromFn()
         {
-            _targetSubgroup.RequiredSubgroups.RemoveWhere(x => CollectedSubgroups.Where(y => y.IsSelected).Select(y => y.Subgroup.ID).Contains(x.ID));
+            foreach (var subgroupShell in CollectedSubgroups.Where(y => y.IsSelected))
+            {
+                _targetSubgroup.RequiredSubgroups.RemoveSubgroup(subgroupShell.Subgroup);
+            }
         }
 
         private void UnlinkFromThisFn()
@@ -316,9 +319,9 @@ namespace SynthEBD
                     //if sg is the current view model, operate in the view model space
                     if (sg.ID == _targetSubgroup.ID)
                     {
-                        if (sg2.ID != sg.ID && _targetSubgroup.RequiredSubgroups.Select(x => x.AssociatedModel.ID).Contains(sg2.ID) && _targetAssetPack.TryGetSubgroupByID(sg2.ID, out var placeHolder))
+                        if (sg2.ID != sg.ID && _targetSubgroup.RequiredSubgroups.ContainsSubgroup(sg2))
                         {
-                            _targetSubgroup.RequiredSubgroups.Remove(placeHolder);
+                            _targetSubgroup.RequiredSubgroups.RemoveSubgroup(sg2);
                         }
                     }
                     else // otherwise operate in the model space

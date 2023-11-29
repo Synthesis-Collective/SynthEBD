@@ -15,11 +15,12 @@ using static SynthEBD.VM_NPCAttribute;
 using System.Reactive.Linq;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Windows.Media;
 
 namespace SynthEBD;
 
 [DebuggerDisplay("{ID}: {Name}")]
-public class VM_Subgroup : VM, IDropTarget
+public class VM_Subgroup : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
@@ -43,7 +44,8 @@ public class VM_Subgroup : VM, IDropTarget
         VM_NPCAttributeCreator attributeCreator,
         VM_FilePathReplacementMenu.Factory filePathReplacementMenuFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
-        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
+        VM_PositionalSubgroupContainerCollection.Factory positionalSubgroupCollectionFactory)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
@@ -54,6 +56,9 @@ public class VM_Subgroup : VM, IDropTarget
 
         AssociatedPlaceHolder = associatedPlaceHolder;
         AssociatedPlaceHolder.AssociatedViewModel = this;
+
+        RequiredSubgroups = positionalSubgroupCollectionFactory(parentAssetPack);
+        ExcludedSubgroups = positionalSubgroupCollectionFactory(parentAssetPack);
 
         SetExplicitReferenceNPC = setExplicitReferenceNPC;
         ParentAssetPack = parentAssetPack;
@@ -75,8 +80,10 @@ public class VM_Subgroup : VM, IDropTarget
             .DisposeWith(this);
 
         //UI-related
+        /*
         RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required)).DisposeWith(this);
         ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded)).DisposeWith(this);
+        */
 
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
@@ -148,6 +155,7 @@ public class VM_Subgroup : VM, IDropTarget
             execute: _ => PathsMenu.Paths.Add(filePathReplacementFactory(PathsMenu))
         );
 
+        /*
         DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute:  x => { RequiredSubgroups.Remove((VM_SubgroupPlaceHolder)x); RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required); }
@@ -156,7 +164,7 @@ public class VM_Subgroup : VM, IDropTarget
         DeleteExcludedSubgroup = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: x => { ExcludedSubgroups.Remove((VM_SubgroupPlaceHolder)x); RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded); }
-        );
+        );*/
 
         LinkRequiredSubgroups = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -208,8 +216,8 @@ public class VM_Subgroup : VM, IDropTarget
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
     public bool AllowUnique { get; set; } = true;
     public bool AllowNonUnique { get; set; } = true;
-    public ObservableCollection<VM_SubgroupPlaceHolder> RequiredSubgroups { get; set; } = new();
-    public ObservableCollection<VM_SubgroupPlaceHolder> ExcludedSubgroups { get; set; } = new();
+    public VM_PositionalSubgroupContainerCollection RequiredSubgroups { get; set; }
+    public VM_PositionalSubgroupContainerCollection ExcludedSubgroups { get; set; }
     public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; } = new();
     public double ProbabilityWeighting { get; set; } = 1;
     public VM_FilePathReplacementMenu PathsMenu { get; set; }
@@ -241,8 +249,8 @@ public class VM_Subgroup : VM, IDropTarget
     public RelayCommand ToggleBulkRenameVisibility { get; }
     public RelayCommand ApplyBulkRename { get; }
     public bool SetExplicitReferenceNPC { get; set; }
-    public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
-    public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
+    //public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
+    //public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
     public VM_AssetPack ParentAssetPack { get; set; }
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
@@ -265,23 +273,8 @@ public class VM_Subgroup : VM, IDropTarget
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         AllowUnique = model.AllowUnique;
         AllowNonUnique = model.AllowNonUnique;
-        
-        foreach (var reqID in model.RequiredSubgroups)
-        {
-            if (ParentAssetPack.TryGetSubgroupByID(reqID, out var reqSubgroup))
-            {
-                RequiredSubgroups.Add(reqSubgroup);
-            }
-        }
-
-        foreach (var exID in model.ExcludedSubgroups)
-        {
-            if (ParentAssetPack.TryGetSubgroupByID(exID, out var exSubgroup))
-            {
-                ExcludedSubgroups.Add(exSubgroup);
-            }
-        }
-
+        RequiredSubgroups.InitializeFromCollection(model.RequiredSubgroups);
+        ExcludedSubgroups.InitializeFromCollection(model.ExcludedSubgroups);
         VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
         ProbabilityWeighting = model.ProbabilityWeighting;
         PathsMenu.CopyInFromModels(model.Paths, _filePathReplacementFactory);
@@ -304,6 +297,7 @@ public class VM_Subgroup : VM, IDropTarget
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
     }
+    /*
     public void RefreshListBoxLabel(ObservableCollection<VM_SubgroupPlaceHolder> listSource, SubgroupListBox whichBox)
     {
         string label = "";
@@ -326,7 +320,7 @@ public class VM_Subgroup : VM, IDropTarget
     {
         Required,
         Excluded
-    }
+    }*/
 
     public AssetPack.Subgroup DumpViewModelToModel()
     {
@@ -345,8 +339,8 @@ public class VM_Subgroup : VM, IDropTarget
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
         model.AllowUnique = AllowUnique;
         model.AllowNonUnique = AllowNonUnique;
-        model.RequiredSubgroups = RequiredSubgroups.Select(x => x.ID).ToHashSet();
-        model.ExcludedSubgroups = ExcludedSubgroups.Select(x => x.ID).ToHashSet();
+        model.RequiredSubgroups = RequiredSubgroups.DumpToCollection().ToHashSet();
+        model.ExcludedSubgroups = ExcludedSubgroups.DumpToCollection().ToHashSet();
         model.AddKeywords = AddKeywords.Select(x => x.Content).ToHashSet();
         model.ProbabilityWeighting = ProbabilityWeighting;
         model.Paths = VM_FilePathReplacementMenu.DumpViewModelToModels(PathsMenu);
@@ -373,29 +367,6 @@ public class VM_Subgroup : VM, IDropTarget
             dropInfo.Effects = DragDropEffects.Move;
         }
     }
-
-    public void Drop(IDropInfo dropInfo)
-    {
-        if (dropInfo.Data is VM_SubgroupPlaceHolder && dropInfo.VisualTarget is ListBox)
-        {
-            var listBox = (ListBox)dropInfo.VisualTarget;
-            var parentContextSubgroup = listBox.DataContext as VM_Subgroup;
-            if (parentContextSubgroup != null)
-            {
-                var draggedSubgroup = (VM_SubgroupPlaceHolder)dropInfo.Data;
-                if (listBox.Name == "lbRequiredSubgroups")
-                {
-                    parentContextSubgroup.RequiredSubgroups.Add(draggedSubgroup);
-                    RefreshListBoxLabel(parentContextSubgroup.RequiredSubgroups, SubgroupListBox.Required);
-                }
-                else if (listBox.Name == "lbExcludedSubgroups")
-                {
-                    parentContextSubgroup.ExcludedSubgroups.Add(draggedSubgroup);
-                    RefreshListBoxLabel(parentContextSubgroup.ExcludedSubgroups, SubgroupListBox.Excluded);
-                }
-            }
-        }
-    }  
 
     public void RefreshBodyGenDescriptors()
     {
