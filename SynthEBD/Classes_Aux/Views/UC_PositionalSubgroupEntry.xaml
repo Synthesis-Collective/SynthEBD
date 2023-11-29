@@ -23,9 +23,9 @@
                     <ColumnDefinition Width="auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="{Binding Subgroup.ID}" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text=": " VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding Subgroup.Name}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="{Binding Subgroup.ID}" VerticalAlignment="Center" ToolTip="{Binding ToolTip}"/>
+                <TextBlock Grid.Column="1" Text=": " VerticalAlignment="Center"  ToolTip="{Binding ToolTip}"/>
+                <TextBlock Grid.Column="2" Text="{Binding Subgroup.Name}" VerticalAlignment="Center"  ToolTip="{Binding ToolTip}"/>
                 <Button Grid.Column="3" Command="{Binding DeleteMe}" Foreground="Firebrick" Margin="5 0 0 0">x</Button>
             </Grid>
         </Border>

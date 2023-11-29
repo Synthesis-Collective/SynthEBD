@@ -48,6 +48,8 @@ namespace SynthEBD
             RefreshSeparator();
             ParentContainer.ContainedSubgroupPlaceholders.ToObservableChangeSet().Subscribe(_ => RefreshSeparator()).DisposeWith(this);
 
+            ToolTip = Subgroup.GetNameChain(" -> ");
+
             DeleteMe = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => RemoveMe()
@@ -56,6 +58,7 @@ namespace SynthEBD
         public VM_SubgroupPlaceHolder Subgroup { get; set; }
         public string Separator { get; set; }
         public VM_PositionalSubgroupContainer ParentContainer { get; set; }
+        public string ToolTip { get; set; }
         public RelayCommand DeleteMe { get; set; }
 
         private void RefreshSeparator()
