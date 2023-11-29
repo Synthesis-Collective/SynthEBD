@@ -18,10 +18,11 @@ public class AssetPackValidator
         _patcherState = patcherState;
         _recordPathParser = recordPathParser;
     }
-    
+
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
     {
         bool isValidated = true;
+        bool hasMisingDescriptorsError = false;
 
         BodyGenConfig referencedBodyGenConfig = new BodyGenConfig();
 
@@ -45,7 +46,7 @@ public class AssetPackValidator
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen && !string.IsNullOrWhiteSpace(assetPack.AssociatedBodyGenConfigName))
         {
             BodyGenConfig matchedConfig = null;
-            switch(assetPack.Gender)
+            switch (assetPack.Gender)
             {
                 case Gender.Male: matchedConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
                 case Gender.Female: matchedConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
@@ -66,42 +67,57 @@ public class AssetPackValidator
             isValidated = false;
         }
 
-        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false, assetPack.AssociatedBsaModKeys))
+        if (!ValidateSubgroups(assetPack.Subgroups, errors, assetPack, referencedBodyGenConfig, oBodySettings, false, assetPack.AssociatedBsaModKeys, out hasMisingDescriptorsError))
         {
             isValidated = false;
         }
         foreach (var replacer in assetPack.ReplacerGroups)
         {
-            if (!ValidateReplacer(replacer, referencedBodyGenConfig,oBodySettings, errors, assetPack.AssociatedBsaModKeys))
+            if (!ValidateReplacer(replacer, referencedBodyGenConfig, oBodySettings, errors, assetPack.AssociatedBsaModKeys, out bool replacerHasMissingDescriptors))
             {
                 isValidated = false;
+                if (replacerHasMissingDescriptors)
+                {
+                    hasMisingDescriptorsError = true;
+                }
             }
         }
 
-        if(!isValidated)
+        if (!isValidated)
         {
             errors.Insert(0, "Errors detected in Config File " + assetPack.GroupName);
+        }
+
+        if (hasMisingDescriptorsError)
+        {
+            errors.Add("For missing Body Shape Descriptors, either import the OBody settings from which they are supposed to come, or remove them." + Environment.NewLine + "You can remove all invalid descriptors using Asset Pack -> Misc -> Delete Missing Body Shape Descriptors");
         }
 
         return isValidated;
     }
 
-    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer, List<ModKey> associatedBSAmodKeys)
+    private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorsError)
     {
         bool isValid = true;
+        hasMissingDescriptorsError = false;
         for (int i = 0; i < subgroups.Count; i++)
         {
-            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i, isReplacer, associatedBSAmodKeys))
+            if (!ValidateSubgroup(subgroups[i], errors, parent, bodyGenConfig, oBodySettings, i, isReplacer, associatedBSAmodKeys, out bool subgroupHasMissingDescriptors))
             {
                 isValid = false;
+                if (subgroupHasMissingDescriptors)
+                {
+                    hasMissingDescriptorsError = true;
+                }
             }
         }
 
         return isValid;
     }
 
-    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer, List<ModKey> associatedBSAmodKeys)
+    private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorsError)
     {
+        hasMissingDescriptorsError = false;
         if (!subgroup.Enabled) { return true; }
 
         bool isValid = true;
@@ -191,8 +207,9 @@ public class AssetPackValidator
             {
                 if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
                 {
-                    subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
+                    subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors.");
                     isValid = false;
+                    hasMissingDescriptorsError = true;
                 }
             }
             foreach (var descriptor in subgroup.DisallowedBodySlideDescriptors)
@@ -201,6 +218,7 @@ public class AssetPackValidator
                 {
                     subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;
+                    hasMissingDescriptorsError = true;
                 }
             }
         }
@@ -276,9 +294,13 @@ public class AssetPackValidator
 
         foreach (var subSubgroup in subgroup.Subgroups)
         {
-            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex, isReplacer, associatedBSAmodKeys))
+            if (!ValidateSubgroup(subSubgroup, errors, parent, bodyGenConfig, oBodySettings, topLevelIndex, isReplacer, associatedBSAmodKeys, out bool subHasMissingDescriptors))
             {
                 isValid = false;
+                if (subHasMissingDescriptors)
+                {
+                    hasMissingDescriptorsError = true;
+                }
             }
         }
 
@@ -290,7 +312,7 @@ public class AssetPackValidator
         return id == MiscFunctions.MakeXMLtagCompatible(id);
     }
 
-    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors, List<ModKey> associatedBSAmodKeys)
+    private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorError)
     {
         bool isValid = true;
         if (string.IsNullOrWhiteSpace(group.Label))
@@ -299,7 +321,7 @@ public class AssetPackValidator
             isValid = false;
         }
 
-        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings, true, associatedBSAmodKeys);
+        ValidateSubgroups(group.Subgroups, errors, group, bodyGenConfig, oBodySettings, true, associatedBSAmodKeys, out hasMissingDescriptorError);
         return isValid;
     }
 
