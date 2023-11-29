@@ -92,14 +92,14 @@
             </ContentPresenter>
         </ScrollViewer>
 
-        <DockPanel Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch">
+        <DockPanel Grid.Row="2" Grid.Column="0" Margin="0 0 15 0">
             <TextBlock Text="Search" VerticalAlignment="Center"/>
             <TextBox Text="{Binding SubgroupSearchText, UpdateSourceTrigger=PropertyChanged}" Margin="3 0 0 0"/>
         </DockPanel>
-        
-        <DockPanel Grid.Row="3" Grid.Column="0" HorizontalAlignment="Stretch">
+
+        <DockPanel Grid.Row="3" Grid.Column="0" Margin="0 0 15 0">
             <TextBlock Text="Case Sensitive" VerticalAlignment="Center"/>
-            <CheckBox IsChecked="{Binding SubgroupSearchCaseSensitive}" Margin="3 0 0 0"/>
+            <CheckBox IsChecked="{Binding SubgroupSearchCaseSensitive}" Margin="5 0 0 0"/>
         </DockPanel>
     </Grid>
 </UserControl>
