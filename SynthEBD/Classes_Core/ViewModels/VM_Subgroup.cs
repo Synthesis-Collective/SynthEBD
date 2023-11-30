@@ -79,12 +79,6 @@ public class VM_Subgroup : VM
             .Subscribe(x => LinkCache = x)
             .DisposeWith(this);
 
-        //UI-related
-        /*
-        RequiredSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required)).DisposeWith(this);
-        ExcludedSubgroups.ToObservableChangeSet().Subscribe(x => RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded)).DisposeWith(this);
-        */
-
         // must be set after Parent Asset Pack
         if (SetExplicitReferenceNPC)
         {
@@ -154,17 +148,6 @@ public class VM_Subgroup : VM
             canExecute: _ => true,
             execute: _ => PathsMenu.Paths.Add(filePathReplacementFactory(PathsMenu))
         );
-
-        /*
-        DeleteRequiredSubgroup = new SynthEBD.RelayCommand(
-            canExecute: _ => true,
-            execute:  x => { RequiredSubgroups.Remove((VM_SubgroupPlaceHolder)x); RefreshListBoxLabel(RequiredSubgroups, SubgroupListBox.Required); }
-        );
-
-        DeleteExcludedSubgroup = new SynthEBD.RelayCommand(
-            canExecute: _ => true,
-            execute: x => { ExcludedSubgroups.Remove((VM_SubgroupPlaceHolder)x); RefreshListBoxLabel(ExcludedSubgroups, SubgroupListBox.Excluded); }
-        );*/
 
         LinkRequiredSubgroups = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -249,8 +232,6 @@ public class VM_Subgroup : VM
     public RelayCommand ToggleBulkRenameVisibility { get; }
     public RelayCommand ApplyBulkRename { get; }
     public bool SetExplicitReferenceNPC { get; set; }
-    //public string RequiredSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
-    //public string ExcludedSubgroupsLabel { get; set; } = "Drag subgroups here from the tree view";
     public VM_AssetPack ParentAssetPack { get; set; }
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
@@ -297,30 +278,6 @@ public class VM_Subgroup : VM
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
     }
-    /*
-    public void RefreshListBoxLabel(ObservableCollection<VM_SubgroupPlaceHolder> listSource, SubgroupListBox whichBox)
-    {
-        string label = "";
-        if (listSource.Any())
-        {
-            label = "";
-        }
-        else
-        {
-            label = "Drag subgroups here from the tree view";
-        }
-
-        switch(whichBox)
-        {
-            case SubgroupListBox.Required: RequiredSubgroupsLabel = label; break;
-            case SubgroupListBox.Excluded: ExcludedSubgroupsLabel = label; break;
-        }
-    }
-    public enum SubgroupListBox
-    {
-        Required,
-        Excluded
-    }*/
 
     public AssetPack.Subgroup DumpViewModelToModel()
     {
