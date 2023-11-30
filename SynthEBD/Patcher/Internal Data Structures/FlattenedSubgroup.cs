@@ -1,5 +1,7 @@
 using Mutagen.Bethesda.Plugins;
+using Noggog;
 using System.Diagnostics;
+using System.DirectoryServices.ActiveDirectory;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
@@ -73,6 +75,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
     // used during combination generation
     public FlattenedAssetPack ParentAssetPack { get; set; }
     public int ForceIfMatchCount { get; set; } = 0;
+    public List<string> ParentSubgroupIDs { get; set; } = new();
     // used for logging
     public int AssignmentCount { get; set; } = 0;
     public string DeepNamesString => String.Join(" -> ", ContainedSubgroupNames);
@@ -119,6 +122,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
                 flattened.ProbabilityWeighting *= parent.ProbabilityWeighting; // handled by calling function for the "fake" Distribution Rules subgroup
                 flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
                 flattened.ContainedSubgroupNames.InsertRange(0, parent.ContainedSubgroupNames);
+                flattened.ParentSubgroupIDs.Add(parent.Id);
             }
 
             //handle DisallowedRaces first
@@ -143,7 +147,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
             if (flattened.AllowedRaces.Count == 0 && flattened.AllowedRacesIsEmpty == false) { return; }
 
             //Required / Excluded Subgroups
-            flattened.RequiredSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.RequiredSubgroupIDs, parent.RequiredSubgroupIDs});
+            //flattened.RequiredSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.RequiredSubgroupIDs, parent.RequiredSubgroupIDs});
+            flattened.RequiredSubgroupIDs = MergeRequiredSubgroupIDs(flattened, parent, subgroupHierarchy);
             flattened.ExcludedSubgroupIDs = DictionaryMapper.MergeDictionaries(new List<Dictionary<int, HashSet<string>>> { flattened.ExcludedSubgroupIDs, parent.ExcludedSubgroupIDs });
             flattened.RequiredSubgroupIDs = AllowedDisallowedCombiners.TrimExcludedSubgroupsFromRequired(flattened.RequiredSubgroupIDs, flattened.ExcludedSubgroupIDs, out bool requiredSubgroupsValid);
             if (!requiredSubgroupsValid) { return; }
@@ -194,5 +199,160 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public string GetReportString()
     {
         return "Subgroup " + Id + " (" + Name + ") ";
+    }
+
+    // if the required subgroups being inherited are children of an existing required subgroup, keep the children (more specific restriction) and get rid of the parent
+    // otherwise keep both
+    public static Dictionary<int, HashSet<string>> MergeRequiredSubgroupIDs(FlattenedSubgroup subgroupA, FlattenedSubgroup subgroupB, List<Subgroup> subgroupHierarchy)
+    {
+        Dictionary<int, HashSet<string>> mergedRequiredSubgroupIDs = new();
+        var topLevelIndices = subgroupA.RequiredSubgroupIDs.Keys.And(subgroupB.RequiredSubgroupIDs.Keys).Distinct(x => x).ToArray();
+
+        foreach (int index in topLevelIndices)
+        {
+            if (subgroupA.RequiredSubgroupIDs.ContainsKey(index) && !subgroupB.RequiredSubgroupIDs.ContainsKey(index))
+            {
+                mergedRequiredSubgroupIDs.Add(index, new(subgroupA.RequiredSubgroupIDs[index]));
+                continue;
+            }
+
+            if (subgroupB.RequiredSubgroupIDs.ContainsKey(index) && !subgroupA.RequiredSubgroupIDs.ContainsKey(index))
+            {
+                mergedRequiredSubgroupIDs.Add(index, new(subgroupB.RequiredSubgroupIDs[index]));
+                continue;
+            }
+
+            // both subgroups have required subgroups at this index
+            var aRequiredSubgroups = TryGetSubgroupCollectionByID(subgroupHierarchy, subgroupA.RequiredSubgroupIDs[index], index);
+            var bRequiredSubgroups = TryGetSubgroupCollectionByID(subgroupHierarchy, subgroupB.RequiredSubgroupIDs[index], index);
+
+            var parentSubgroupIDsToDiscard = new HashSet<string>();
+
+            var compatibilizedRequiredSubgroups = new HashSet<Subgroup>();
+
+            foreach (var aSubgroup in aRequiredSubgroups)
+            {
+                // get rid of B's required subgroups if where they contain a parent of one of A's required subgroups (A's is more specific)
+                var parentUmbrellaSubgroups = bRequiredSubgroups.Where(x => GetParentChain(subgroupHierarchy, aSubgroup, index).Contains(x)).ToArray();
+                parentSubgroupIDsToDiscard.Add(parentUmbrellaSubgroups.Select(x => x.ID));
+            }
+
+            foreach (var bSubgroup in bRequiredSubgroups)
+            {
+                // get rid of A's required subgroups if where they contain a parent of one of B's required subgroups (B's is more specific)
+                var parentUmbrellaSubgroups = aRequiredSubgroups.Where(x => GetParentChain(subgroupHierarchy, bSubgroup, index).Contains(x)).ToArray();
+                parentSubgroupIDsToDiscard.Add(parentUmbrellaSubgroups.Select(x => x.ID));
+            }
+
+            compatibilizedRequiredSubgroups.Add(aRequiredSubgroups.And(bRequiredSubgroups).Where(x => !parentSubgroupIDsToDiscard.Contains(x.ID)));
+            mergedRequiredSubgroupIDs.Add(index, compatibilizedRequiredSubgroups.Select(x => x.ID).ToHashSet());
+        }
+        return mergedRequiredSubgroupIDs;
+    }
+
+    private static List<Subgroup> GetParentChain(List<Subgroup> subgroupHierarchy, Subgroup toMatch, int topLevelIndex)
+    {
+        List<Subgroup> parentChain = new();
+
+        if(subgroupHierarchy.Count < topLevelIndex + 1 || topLevelIndex < 0)
+        {
+            return parentChain;
+        }
+
+        if (AddToParentChain(subgroupHierarchy[topLevelIndex], toMatch, parentChain))
+        {
+            parentChain.Add(subgroupHierarchy[topLevelIndex]);
+        }
+
+        return parentChain;
+    }
+
+    private static bool AddToParentChain(Subgroup subgroup, Subgroup toMatch, List<Subgroup> chain)
+    {
+        if (subgroup.Subgroups.Contains(toMatch))
+        {
+            return true;
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            if (AddToParentChain(sg, toMatch, chain))
+            {
+                chain.Add(sg);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool TryGetSubgroupByID(List<Subgroup> subgroupHierarchy, string id, out Subgroup? match)
+    {
+        match = null;
+        foreach (var subgroup in subgroupHierarchy)
+        {
+            if (TryGetSubgroupRecursive(subgroup, id, out match))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool TryGetSubgroupByID(List<Subgroup> subgroupHierarchy, string id, int topLevelIndex, out Subgroup? match)
+    {
+        match = null;
+        if (subgroupHierarchy.Count() < topLevelIndex + 1 || topLevelIndex < 0)
+        {
+            return false;
+        }
+
+        return TryGetSubgroupByID(subgroupHierarchy[topLevelIndex].Subgroups, id, out match);
+    }
+
+    private static bool TryGetSubgroupRecursive(Subgroup subgroup, string id, out Subgroup? match)
+    {
+        match = null;
+        if (subgroup.ID == id)
+        {
+            match = subgroup;
+            return true;
+        }
+
+        foreach (var sg in subgroup.Subgroups)
+        {
+            if (TryGetSubgroupRecursive(sg, id, out match))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static List<Subgroup> TryGetSubgroupCollectionByID(List<Subgroup> subgroupHierarchy, IEnumerable<string> ids)
+    {
+        List<Subgroup> subgroups = new();
+
+        foreach (string id in ids)
+        {
+            if (TryGetSubgroupByID(subgroupHierarchy, id, out var subgroup))
+            {
+                subgroups.Add(subgroup);
+            }
+        }
+        return subgroups;
+    }
+
+    public static List<Subgroup> TryGetSubgroupCollectionByID(List<Subgroup> subgroupHierarchy, IEnumerable<string> ids, int topLevelIndex)
+    {
+        List<Subgroup> subgroups = new();
+
+        foreach (string id in ids)
+        {
+            if (TryGetSubgroupByID(subgroupHierarchy, id, topLevelIndex, out var subgroup))
+            {
+                subgroups.Add(subgroup);
+            }
+        }
+        return subgroups;
     }
 }
