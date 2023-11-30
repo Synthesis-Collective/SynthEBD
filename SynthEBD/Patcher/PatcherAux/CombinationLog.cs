@@ -95,6 +95,7 @@ public class CombinationLog
             fileContents.Add("Generated combinations for Config File: " + entry.Key);
             foreach (var combination in entry.Value.OrderBy(x => x.SubgroupIDs))
             {
+                fileContents.Add(Environment.NewLine);
                 fileContents.Add("\tCombination: " + combination.SubgroupIDs);
                 fileContents.Add("\t\tSubgroup Names: ");
                 foreach (var subgroupName in combination.SubgroupDeepNames)
