@@ -1660,6 +1660,19 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             subgroup.CheckVisibilityConfigVM(searchText, caseSensitive, false);
         }
     }
+
+    public HashSet<VM_SubgroupPlaceHolder> GetAllSubgroups()
+    {
+        HashSet<VM_SubgroupPlaceHolder> subgroups = new();
+        foreach (var topLevel in Subgroups)
+        {
+            var allAtIndex = topLevel.GetChildren();
+            subgroups.Add(topLevel);
+            subgroups.Add(allAtIndex);
+        }
+
+        return subgroups;
+    }
 }
 
 public interface IHasSubgroupViewModels
