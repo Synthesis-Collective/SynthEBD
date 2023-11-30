@@ -765,6 +765,35 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         return ParentAssetPack.Subgroups.IndexOf(toIndex);
     }
 
+    public List<VM_SubgroupPlaceHolder> GetRequiredSubgroupChain(bool includeSelf)
+    {
+        List<VM_SubgroupPlaceHolder> subgroupChain = new();
+        if (includeSelf)
+        {
+            subgroupChain.Add(this);
+        }
+        FollowRequiredSubgroupChain(this, subgroupChain);
+
+        if (!includeSelf && subgroupChain.Contains(this))
+        {
+            subgroupChain.Remove(this); // in case it gets added via a back-cycle in FollowRequiredSubgroupChain()
+        }
+
+        return subgroupChain;
+    }
+
+    private static void FollowRequiredSubgroupChain(VM_SubgroupPlaceHolder currentSubgroup, List<VM_SubgroupPlaceHolder> subgroupChain)
+    {
+        foreach (var requiredID in currentSubgroup.AssociatedModel.RequiredSubgroups)
+        {
+            if (currentSubgroup.ParentAssetPack.TryGetSubgroupByID(requiredID, out var requiredSubgroup) && !subgroupChain.Contains(requiredSubgroup))
+            {
+                subgroupChain.Add(requiredSubgroup);
+                FollowRequiredSubgroupChain(requiredSubgroup, subgroupChain);
+            }
+        }
+    }
+
     public object Clone()
     {
         return Clone(ParentAssetPack, ParentCollection);
