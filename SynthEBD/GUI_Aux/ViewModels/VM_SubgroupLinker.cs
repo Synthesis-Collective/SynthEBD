@@ -100,6 +100,14 @@ namespace SynthEBD
                 }
             );
 
+            AddAsLinkedAlternative = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    AddAsAlternative(_targetSubgroup.AssociatedPlaceHolder, _targetAssetPack, _targetSubgroup, AddAsLinkedAlternativeRecursive, AddAsLinkedAlternativeExcludeNeighbors, new());
+                    window.Close();
+                }
+            );
+
             Close = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
@@ -129,6 +137,9 @@ namespace SynthEBD
         public RelayCommand UnlinkFromThis { get; }
         public RelayCommand UnlinkReciprocally { get; }
         public RelayCommand UnlinkWholeGroup { get; }
+        public RelayCommand AddAsLinkedAlternative { get; }
+        public bool AddAsLinkedAlternativeRecursive { get; set; }
+        public bool AddAsLinkedAlternativeExcludeNeighbors { get; set; }
         public RelayCommand Close { get; }
 
         private void CollectMatchingSubgroups()
@@ -330,6 +341,85 @@ namespace SynthEBD
                         {
                             sg.AssociatedModel.RequiredSubgroups.Remove(sg2.ID);
                         }
+                    }
+                }
+            }
+        }
+
+        private static void AddAsAlternative(VM_SubgroupPlaceHolder currentSubgroup, VM_AssetPack assetPack, VM_Subgroup currentlyOpenSubgroupVM, bool recursive, bool excludeNeighbors, HashSet<VM_SubgroupPlaceHolder> alreadyProcessed)
+        {
+            var allSubgroups = assetPack.GetAllSubgroups();
+            var requiredIndex = currentSubgroup.GetTopLevelIndex();
+
+            var requiredSubgroupChain = currentSubgroup.GetRequiredSubgroupChain(true); // chain includes the seed subgroup
+
+            foreach (var sg in allSubgroups)
+            {
+                // if the subgroup is a child of the current subgroup or one of its linked subgroups, don't add to its requirements
+                if (requiredSubgroupChain.Where(reqSubgroup => reqSubgroup.IsParentOf(sg)).Any())
+                {
+                    continue;
+                }
+
+                // if the subgroup is or belongs to a neighboring subgroup of the current subgroup or one of its linked subgroups, don't add to its requirements
+                if (excludeNeighbors)
+                {
+                    bool isNeighbor = false;
+                    foreach (var requiredSubgroup in requiredSubgroupChain)
+                    {
+                        var parentOfRequired = requiredSubgroup?.ParentSubgroup ?? null;
+                        if (parentOfRequired != null && sg.GetParents().Contains(parentOfRequired))
+                        {
+                            isNeighbor = true;
+                            break;
+                        }
+                    }
+                    if (isNeighbor)
+                    {
+                        continue;
+                    }
+                }
+
+                //if sg is the current view model, operate in the view model space. 
+                if (sg.AssociatedViewModel == currentlyOpenSubgroupVM)
+                {
+                    var requiredSubgroupsAtIndex = currentlyOpenSubgroupVM.RequiredSubgroups.ContainersByIndex.Where(x => x.TopLevelIndex == requiredIndex).FirstOrDefault();
+                    if (requiredSubgroupsAtIndex != null && !currentlyOpenSubgroupVM.RequiredSubgroups.ContainsSubgroup(currentSubgroup)) // note: this should never be true on the first recursion because no required subgroup should be added to the same index as the current subgroup, but it could be true for downstream recursions.
+                    {
+                        currentlyOpenSubgroupVM.RequiredSubgroups.AddSubgroup(currentSubgroup);
+                    }
+                }
+                // otherwise operate in the model space
+                else
+                {
+                    bool hasRequiredSubgroupAtIndex = false;
+                    foreach (var requiredID in sg.AssociatedModel.RequiredSubgroups)
+                    {
+                        var placeHolder = allSubgroups.Where(x => x.AssociatedModel.ID == requiredID).FirstOrDefault();
+                        if (placeHolder != null && placeHolder.GetTopLevelIndex() == requiredIndex)
+                        {
+                            hasRequiredSubgroupAtIndex = true;
+                            break;
+                        }
+                    }
+
+                    if (hasRequiredSubgroupAtIndex && !sg.AssociatedModel.RequiredSubgroups.Contains(currentSubgroup.ID))
+                    {
+                        sg.AssociatedModel.RequiredSubgroups.Add(currentSubgroup.ID);
+                    }
+                }
+            }
+
+            alreadyProcessed.Add(currentSubgroup);
+
+            if(recursive)
+            {
+                foreach (var linkedRequiredID in currentSubgroup.AssociatedModel.RequiredSubgroups.Where(X => !alreadyProcessed.Select(vm => vm.ID).Contains(X)).ToArray())
+                {
+                    var linkedRequiredPlaceHolder = allSubgroups.Where(x => x.AssociatedModel.ID == linkedRequiredID).FirstOrDefault();
+                    if (linkedRequiredPlaceHolder != null)
+                    {
+                        AddAsAlternative(linkedRequiredPlaceHolder, assetPack, currentlyOpenSubgroupVM, recursive, excludeNeighbors, alreadyProcessed);
                     }
                 }
             }
