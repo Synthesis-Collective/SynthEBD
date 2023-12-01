@@ -4,6 +4,7 @@ using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Synthesis;
 using Noggog;
+using System.Linq;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
@@ -638,6 +639,7 @@ public class AssetSelector
             bool isValid = true;
             List<string> subgroupsByPositionLog = new();
 
+            //evaluate subgroup rules - first pass
             for (int i = 0; i < candidatePack.Subgroups.Count; i++)
             {
                 for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
@@ -688,6 +690,13 @@ public class AssetSelector
                     subgroupsByPositionLog.Add(i + " (" + candidatePack.Subgroups[i].First().ContainedSubgroupNames.First() + "): [" + string.Join(", ", candidatePack.Subgroups[i].Select(x => x.Id + " (" + x.Name + ")")) + "]");
                 }
             }
+
+            //evaluate subgroup rules- second pass - remove subgroups with no available linked Required Subgroups
+            if (!RemoveInvalidLinkedSubgroups(candidatePack, npcInfo))
+            {
+                isValid = false;
+            }
+
             if (isValid)
             {
                 _logger.LogReport("Available Subgroups by index: " + Environment.NewLine + string.Join(Environment.NewLine, subgroupsByPositionLog), false, npcInfo);
@@ -829,6 +838,88 @@ public class AssetSelector
         _logger.CloseReportSubsection(npcInfo);
 
         return filteredPacks.ToHashSet();
+    }
+
+    public bool RemoveInvalidLinkedSubgroups(FlattenedAssetPack assetPack, NPCInfo npcInfo)
+    {
+        bool allSubgroupsPassed = false;
+        while (!allSubgroupsPassed) // during each cycle, any given subgroup might be removed. This may be a required subgroup for another subgroup that had been checked earlier in the cycle, thereby invalidating it post-hoc. Therefore, keep checking all subgroups in the config file until a cycle where each one remains valid
+        {
+            allSubgroupsPassed = true;
+            for (int i = 0; i < assetPack.Subgroups.Count; i++)
+            {
+                for (int j = 0; j < assetPack.Subgroups[i].Count; j++)
+                {
+                    var currentSubgroup = assetPack.Subgroups[i][j];
+                    bool currentSubgroupPassed = true;
+
+                    // check required subgroups
+                    foreach (int topLevelIndex in currentSubgroup.RequiredSubgroupIDs.Keys)
+                    {
+                        if (assetPack.Subgroups.Count < topLevelIndex + 1)
+                        {
+                            _logger.LogReport("Error trimming Required Subgroups: " + assetPack.GroupName + " Subgroup " + currentSubgroup.GetReportString() + " expects a required subgroup at position " + topLevelIndex + " but there are only " + assetPack.Subgroups.Count + " top level subgroups", true, npcInfo);
+                            return false; // something wrong with config file
+                        }
+
+                        var requiredSubgroupIDsAtIndex = currentSubgroup.RequiredSubgroupIDs[topLevelIndex];
+                        bool foundMatchAtIndex = assetPack.Subgroups[topLevelIndex]
+                            .Where(subgroup => 
+                            subgroup.ContainedSubgroupIDs.Intersect(requiredSubgroupIDsAtIndex).Any() // subgroup has contains IDs in its ID chain that are required at this index
+                            ).Any(); // any subgroup at topLevelIndex satisfies the condition above
+
+                        if (!foundMatchAtIndex)
+                        {
+                            _logger.LogReport("Subgroup " + currentSubgroup.GetDetailedID_NameString(false) + " is invalid because it requires [" + String.Join(" or ", requiredSubgroupIDsAtIndex) + "] at position " + topLevelIndex + " and none of these subgroups are available", false, npcInfo);
+                            currentSubgroupPassed = false;
+                            break;
+                        }
+                    }
+
+                    if (!currentSubgroupPassed)
+                    {
+                        allSubgroupsPassed = false;
+                        assetPack.Subgroups[i].RemoveAt(j);
+                        j--;
+                        continue;
+                    }
+
+                    // check excluded subgroups
+                    foreach (int topLevelIndex in currentSubgroup.ExcludedSubgroupIDs.Keys)
+                    {
+                        if (assetPack.Subgroups.Count < topLevelIndex + 1)
+                        {
+                            _logger.LogReport("Error trimming Excluded Subgroups: " + assetPack.GroupName + " Subgroup " + currentSubgroup.GetReportString() + " expects a excluded subgroup at position " + topLevelIndex + " but there are only " + assetPack.Subgroups.Count + " top level subgroups", true, npcInfo);
+                            return false; // something wrong with config file
+                        }
+
+                        // if subgroup X excludes Y and Y is the only remaining subgroup at that index, remove X
+                        var excludedSubgroupsAtIndex = currentSubgroup.ExcludedSubgroupIDs[topLevelIndex];
+                        if (assetPack.Subgroups[topLevelIndex].Count == 1 && excludedSubgroupsAtIndex.Intersect(assetPack.Subgroups[topLevelIndex][0].ContainedSubgroupIDs).Any())
+                        {
+                            _logger.LogReport("Subgroup " + currentSubgroup.GetDetailedID_NameString(false) + " is invalid because it excludes [" + String.Join(" or ", excludedSubgroupsAtIndex) + "] at position " + topLevelIndex + " which eliminates the only remaining subgroup at this position", false, npcInfo);
+                            currentSubgroupPassed = false;
+                            break;
+                        }
+                    }
+                    if (!currentSubgroupPassed)
+                    {
+                        allSubgroupsPassed = false;
+                        assetPack.Subgroups[i].RemoveAt(j);
+                        j--;
+                        continue; // just in case I add another check after this
+                    }
+                }
+
+                if (!assetPack.Subgroups[i].Any())
+                {
+                    _logger.LogReport("Asset Pack " + assetPack.GroupName + " is invalid because no subgroups are available at position " + i + ".", false, npcInfo);
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
