@@ -289,17 +289,15 @@ public class OBodyWriter
             return;
         }
 
-        RefreshLoadOrderCaseSensitive();
-
         npcFormIDAssignments.Clear();
 
-        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => GetRealModKeyCapitalization(x.Key.ModKey.ToString()), StringComparer.OrdinalIgnoreCase).ToArray();
+        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => x.Key.ModKey).ToArray();
 
         foreach (var modGroup in npcsGroupedByModKey)
         {
             Dictionary<string, List<string>> modEntry = new();
 
-            npcFormIDAssignments.Add(modGroup.Key, modEntry);
+            npcFormIDAssignments.Add(modGroup.Key.ToString(), modEntry);
 
             foreach (var entry in modGroup)
             {
@@ -331,20 +329,5 @@ public class OBodyWriter
         {
             _logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
-    }
-
-    private void RefreshLoadOrderCaseSensitive()
-    {
-        _loadOrderCaseSensitive = _environmentProvider.LoadOrder.Select(listing => listing.Key).Select(modKey => modKey.ToString()).ToHashSet();
-    }
-
-    private string GetRealModKeyCapitalization(string modKeyStr)
-    {
-        string matched = _loadOrderCaseSensitive.Where(x => x.Equals(modKeyStr, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-        if (matched != null)
-        {
-            return matched;
-        }
-        return modKeyStr;
     }
 }
