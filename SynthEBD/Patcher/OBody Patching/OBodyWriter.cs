@@ -16,6 +16,7 @@ public class OBodyWriter
     private readonly SynthEBDPaths _paths;
     private readonly PatcherIO _patcherIO;
     private readonly Converters _converters;
+    private HashSet<string> _loadOrderCaseSensitive = new(); // should match capitalization on the drive
     public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -288,9 +289,11 @@ public class OBodyWriter
             return;
         }
 
+        RefreshLoadOrderCaseSensitive();
+
         npcFormIDAssignments.Clear();
 
-        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => x.Key.ModKey.ToString()).ToArray();
+        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => GetRealModKeyCapitalization(x.Key.ModKey.ToString()), StringComparer.OrdinalIgnoreCase).ToArray();
 
         foreach (var modGroup in npcsGroupedByModKey)
         {
@@ -328,5 +331,20 @@ public class OBodyWriter
         {
             _logger.LogErrorWithStatusUpdate("Could not write BodySlide assignments to " + destPath, ErrorType.Error);
         }
+    }
+
+    private void RefreshLoadOrderCaseSensitive()
+    {
+        _loadOrderCaseSensitive = _environmentProvider.LoadOrder.Select(listing => listing.Key).Select(modKey => modKey.ToString()).ToHashSet();
+    }
+
+    private string GetRealModKeyCapitalization(string modKeyStr)
+    {
+        string matched = _loadOrderCaseSensitive.Where(x => x.Equals(modKeyStr, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        if (matched != null)
+        {
+            return matched;
+        }
+        return modKeyStr;
     }
 }
