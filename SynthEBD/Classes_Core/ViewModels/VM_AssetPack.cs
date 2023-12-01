@@ -585,7 +585,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         model.ReplacerGroups = VM_AssetPackDirectReplacerMenu.DumpViewModelToModels(ReplacersMenu);
 
-        model.DistributionRules = VM_ConfigDistributionRules.DumpViewModelToModel(DistributionRules);
+        model.DistributionRules = DistributionRules.DumpViewModelToModel();
 
         model.InstallationToken = InstallationToken;
         model.FilePath = SourcePath;

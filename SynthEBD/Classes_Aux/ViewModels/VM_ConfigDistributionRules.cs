@@ -89,6 +89,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
     public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new();
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public bool DistributionEnabled { get; set; } = true;
     public bool AllowUnique { get; set; } = true;
     public bool AllowNonUnique { get; set; } = true;
     public ObservableCollection<VM_CollectionMemberString> AddKeywords { get; set; } = new();
@@ -122,6 +123,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
             _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            DistributionEnabled = model.DistributionEnabled;
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
             VM_CollectionMemberString.CopyInObservableCollectionFromICollection(model.AddKeywords, AddKeywords);
@@ -139,30 +141,31 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         }
     }
 
-    public static AssetPack.ConfigDistributionRules DumpViewModelToModel(VM_ConfigDistributionRules viewModel)
+    public AssetPack.ConfigDistributionRules DumpViewModelToModel()
     {
         var model = new AssetPack.ConfigDistributionRules();
 
-        model.AllowedRaces = viewModel.AllowedRaces.ToHashSet();
-        model.AllowedRaceGroupings = viewModel.AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.DisallowedRaces = viewModel.DisallowedRaces.ToHashSet();
-        model.DisallowedRaceGroupings = viewModel.DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
-        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.AllowedAttributes);
-        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.DisallowedAttributes);
-        model.AllowUnique = viewModel.AllowUnique;
-        model.AllowNonUnique = viewModel.AllowNonUnique;
-        model.AddKeywords = viewModel.AddKeywords.Select(x => x.Content).ToHashSet();
-        model.ProbabilityWeighting = viewModel.ProbabilityWeighting;
-        model.WeightRange = viewModel.WeightRange;
+        model.AllowedRaces = AllowedRaces.ToHashSet();
+        model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.DisallowedRaces = DisallowedRaces.ToHashSet();
+        model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
+        model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
+        model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.DistributionEnabled = DistributionEnabled;
+        model.AllowUnique = AllowUnique;
+        model.AllowNonUnique = AllowNonUnique;
+        model.AddKeywords = AddKeywords.Select(x => x.Content).ToHashSet();
+        model.ProbabilityWeighting = ProbabilityWeighting;
+        model.WeightRange = WeightRange;
 
-        model.AllowedBodyGenDescriptors = viewModel.AllowedBodyGenDescriptors?.DumpToHashSet() ?? null;
-        model.AllowedBodyGenMatchMode = viewModel.AllowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.All;
-        model.DisallowedBodyGenDescriptors = viewModel.DisallowedBodyGenDescriptors?.DumpToHashSet() ?? null;
-        model.DisallowedBodyGenMatchMode = viewModel.DisallowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.Any;
-        model.AllowedBodySlideDescriptors = viewModel.AllowedBodySlideDescriptors.DumpToHashSet();
-        model.AllowedBodySlideMatchMode = viewModel.AllowedBodySlideDescriptors.MatchMode;
-        model.DisallowedBodySlideDescriptors = viewModel.DisallowedBodySlideDescriptors.DumpToHashSet();
-        model.DisallowedBodySlideMatchMode = viewModel.DisallowedBodySlideDescriptors.MatchMode;
+        model.AllowedBodyGenDescriptors = AllowedBodyGenDescriptors?.DumpToHashSet() ?? new();
+        model.AllowedBodyGenMatchMode = AllowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.All;
+        model.DisallowedBodyGenDescriptors = DisallowedBodyGenDescriptors?.DumpToHashSet() ?? new();
+        model.DisallowedBodyGenMatchMode = DisallowedBodyGenDescriptors?.MatchMode ?? DescriptorMatchMode.Any;
+        model.AllowedBodySlideDescriptors = AllowedBodySlideDescriptors.DumpToHashSet();
+        model.AllowedBodySlideMatchMode = AllowedBodySlideDescriptors.MatchMode;
+        model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
+        model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
 
         return model;
     }

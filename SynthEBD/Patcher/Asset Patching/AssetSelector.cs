@@ -601,7 +601,7 @@ public class AssetSelector
                 _logger.LogReport("Skipped evaluation of Whole Config Distribution Rules for Asset Pack " + ap.GroupName + " because it is forced by Specific NPC Assignments.", false, npcInfo);
                 filteredByMainConfigRules.Add(candidatePack);
             }
-            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlides)) // check distribution rules for whole config
+            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Config File")) // check distribution rules for whole config
             {
                 _logger.LogReport("Asset Pack " + ap.GroupName + " is invalid due to its main distribution rules.", false, npcInfo);
             }
@@ -645,7 +645,7 @@ public class AssetSelector
                 for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                 {
                     bool isSpecificNPCAssignment = forcedAssetPack != null && forcedAssignments[i].Any();
-                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlides))
+                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup"))
                     {
                         candidatePack.Subgroups[i].RemoveAt(j);
                         j--;
@@ -808,7 +808,7 @@ public class AssetSelector
                                     {
                                         _logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
                                     }
-                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlides))
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup"))
                                     {
                                         _logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
                                         consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
@@ -929,9 +929,9 @@ public class AssetSelector
     /// <param name="npcInfo"></param>
     /// <param name="forceIfAttributeCount">The number of ForceIf attributes within this subgroup that were matched by the current NPC</param>
     /// <returns></returns>
-    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides)
+    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, string reportStringType)
     {
-        var reportString = "Subgroup " + subgroup.GetDetailedID_NameString(false);
+        var reportString = reportStringType + " " + subgroup.GetDetailedID_NameString(false) + " ";
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
         {
             _logger.LogReport(reportString + "is valid because it is specifically assigned by user.", false, npcInfo);
@@ -1004,7 +1004,7 @@ public class AssetSelector
         // Distribution Enabled
         if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)
         {
-            _logger.LogReport(reportString + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match and of its ForceIf attributes.", false, npcInfo);
+            _logger.LogReport(reportString + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match any of its ForceIf attributes.", false, npcInfo);
             return false;
         }
 

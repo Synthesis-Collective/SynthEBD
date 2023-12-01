@@ -43,6 +43,7 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<string> DisallowedRaceGroupings { get; set; } = new();
         public HashSet<NPCAttribute> AllowedAttributes { get; set; } = new();
         public HashSet<NPCAttribute> DisallowedAttributes { get; set; } = new();
+        public bool DistributionEnabled { get; set; } = true;
         public bool AllowUnique { get; set; } = true;
         public bool AllowNonUnique { get; set; } = true;
         public HashSet<string> AddKeywords { get; set; } = new();
@@ -71,6 +72,7 @@ public class AssetPack : IModelHasSubgroups
             subgroup.DisallowedRaceGroupings = new HashSet<string>(rules.DisallowedRaceGroupings ?? new());
             subgroup.AllowedAttributes = new HashSet<NPCAttribute>(rules.AllowedAttributes ?? new());
             subgroup.DisallowedAttributes = new HashSet<NPCAttribute>(rules.DisallowedAttributes ?? new());
+            subgroup.DistributionEnabled = rules.DistributionEnabled;
             subgroup.AllowUnique = rules.AllowUnique;
             subgroup.AllowNonUnique = rules.AllowNonUnique;
             subgroup.AddKeywords = new HashSet<string>(rules.AddKeywords ?? new());
