@@ -94,12 +94,12 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
     public int ImagePreviewRefreshTrigger { get; set; } = 0; // this seems ridiculous but actually works well
     public RelayCommand DeleteMe { get; }
     public RelayCommand AddSubgroup { get; }
-    public bool VisibleSelfConfigVM { get; set; }
-    public bool VisibleChildOrSelfConfigVM { get; set; }
+    public bool VisibleSelfConfigVM { get; set; } = true;
+    public bool VisibleChildOrSelfConfigVM { get; set; } = true;
     public bool HasSearchStringConfigVM { get; set; } = false;
     public bool MatchesSearchStringConfigVM { get; set; } = false;
-    public bool VisibleSelfSpecificVM { get; set; }
-    public bool VisibleChildOrSelfSpecificVM { get; set; }
+    public bool VisibleSelfSpecificVM { get; set; } = true;
+    public bool VisibleChildOrSelfSpecificVM { get; set; } = true;
     public bool HasSearchStringSpecificVM { get; set; } = false;
     public bool MatchesSearchStringSpecificVM { get; set; } = false;
     public string DebuggerString
