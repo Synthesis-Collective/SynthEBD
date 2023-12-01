@@ -6,7 +6,7 @@ namespace SynthEBD;
 public class PatcherState
 {
     // Version
-    public static string Version = "1.0.2.4";
+    public static string Version = "1.0.2.5";
 
     // Settings
     public Settings_General GeneralSettings { get; set; }
