@@ -7,78 +7,80 @@
         d:DataContext="{d:DesignInstance Type=local:VM_SubgroupLinker}"
         mc:Ignorable="d"
         Title="Subgroup Linker" Height="450" Width="800">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
 
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="auto"/>
-        </Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="ID To Match" Foreground="White" VerticalAlignment="Center"/>
-        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding IdToMatch, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
-        <CheckBox Grid.Row="0" Grid.Column="3" IsChecked="{Binding IDcaseSensitive}" Margin="5 0 0 0"/>
-        <TextBlock Grid.Row="0" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
-        <CheckBox Grid.Row="0" Grid.Column="5" IsChecked="{Binding IDallowPartial}" Margin="5 0 0 0"/>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="ID To Match" Foreground="White" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding IdToMatch, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="0" Grid.Column="3" IsChecked="{Binding IDcaseSensitive}" Margin="5 0 0 0"/>
+            <TextBlock Grid.Row="0" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="0" Grid.Column="5" IsChecked="{Binding IDallowPartial}" Margin="5 0 0 0"/>
 
-        <ComboBox Grid.Row="1" Grid.Column="0" SelectedValue="{Binding AndOrSelection}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AndOr}}}" IsSynchronizedWithCurrentItem="True"/>
+            <ComboBox Grid.Row="1" Grid.Column="0" SelectedValue="{Binding AndOrSelection}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AndOr}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Name To Match" Foreground="White" VerticalAlignment="Center"/>
-        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NameToMatch, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBlock Grid.Row="2" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
-        <CheckBox Grid.Row="2" Grid.Column="3" IsChecked="{Binding NameCaseSensitive}" Margin="5 0 0 0"/>
-        <TextBlock Grid.Row="2" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
-        <CheckBox Grid.Row="2" Grid.Column="5" IsChecked="{Binding NameAllowPartial}" Margin="5 0 0 0"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Name To Match" Foreground="White" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NameToMatch, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Text="Case-Sensitive" Foreground="White" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="2" Grid.Column="3" IsChecked="{Binding NameCaseSensitive}" Margin="5 0 0 0"/>
+            <TextBlock Grid.Row="2" Grid.Column="4" Text="Match Partial" Foreground="White" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="2" Grid.Column="5" IsChecked="{Binding NameAllowPartial}" Margin="5 0 0 0"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4" Text="Subgroups to Link" Foreground="White"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4" Text="Subgroups to Link" Foreground="White"/>
 
-        <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4" BorderBrush="White" BorderThickness="1">
-            <ItemsControl ItemsSource="{Binding CollectedSubgroups}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <local:UC_SelectableSubgroupShell DataContext="{Binding}"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Border>
+            <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4" BorderBrush="White" BorderThickness="1">
+                <ItemsControl ItemsSource="{Binding CollectedSubgroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <local:UC_SelectableSubgroupShell DataContext="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
         
-        <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
-            <Button Command="{Binding LinkThisTo}" Foreground="MediumPurple" ToolTip="Add the selected Subgroups to this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link To These</Button>
-            <Button Command="{Binding LinkToThis}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add this Subgroup to the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link These To</Button>
-            <Button Command="{Binding LinkReciprocally}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups to this Subgroup's Required list, and add this Subgroup to the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Reciprocally</Button>
-            <Button Command="{Binding LinkWholeGroup}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups and this Subgroup to each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Whole Group</Button>
-        </StackPanel>
+            <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
+                <Button Command="{Binding LinkThisTo}" Foreground="MediumPurple" ToolTip="Add the selected Subgroups to this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link To These</Button>
+                <Button Command="{Binding LinkToThis}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add this Subgroup to the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link These To</Button>
+                <Button Command="{Binding LinkReciprocally}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups to this Subgroup's Required list, and add this Subgroup to the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Reciprocally</Button>
+                <Button Command="{Binding LinkWholeGroup}" Foreground="MediumPurple" Margin="10 0 0 0" ToolTip="Add all selected Subgroups and this Subgroup to each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link Whole Group</Button>
+            </StackPanel>
         
-        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
-            <Button Command="{Binding UnlinkThisFrom}" Foreground="Firebrick" ToolTip="Remove the selected Subgroups from this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink From These</Button>
-            <Button Command="{Binding UnlinkFromThis}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove this Subgroup from the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink These From</Button>
-            <Button Command="{Binding UnlinkReciprocally}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove all selected Subgroups from this Subgroup's Required list, and remove this Subgroup from the selected Subgroups' Required lists." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink Group Reciprocally</Button>
-            <Button Command="{Binding UnlinkWholeGroup}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove all selected Subgroups + this Subgroup from each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink Whole Group</Button>
-        </StackPanel>
+            <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
+                <Button Command="{Binding UnlinkThisFrom}" Foreground="Firebrick" ToolTip="Remove the selected Subgroups from this Subgroup's Required list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink From These</Button>
+                <Button Command="{Binding UnlinkFromThis}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove this Subgroup from the selected Subgroups' Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink These From</Button>
+                <Button Command="{Binding UnlinkReciprocally}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove all selected Subgroups from this Subgroup's Required list, and remove this Subgroup from the selected Subgroups' Required lists." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink Group Reciprocally</Button>
+                <Button Command="{Binding UnlinkWholeGroup}" Foreground="Firebrick" Margin="10 0 0 0" ToolTip="Remove all selected Subgroups + this Subgroup from each other's Required lists" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink Whole Group</Button>
+            </StackPanel>
 
-        <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
-            <Button Command="{Binding AddAsLinkedAlternative}" Foreground="MediumPurple" ToolTip="For every subgroup in this Config File, if there is a Required Subgroup at the same top-level index as this subgroup, add this subgroup as an alternative Required Subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Set as Alternate Required Subgroup</Button>
-            <TextBlock Text="Include Chained Required Subgroups" Foreground="White" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="If checked, the all of this Subgroup's Required Subgroups will also be added as alternatives at their own respective Top-Level indices" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <CheckBox IsChecked="{Binding AddAsLinkedAlternativeRecursive}"/>
-            <TextBlock Text="Exclude Neighbors" Foreground="White" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="If checked, this/these competitor subgroup(s) will not be added to the Required Subgroups of their immediate neighbors or their sub-nodes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <CheckBox IsChecked="{Binding AddAsLinkedAlternativeExcludeNeighbors}"/>
-        </StackPanel>
+            <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
+                <Button Command="{Binding AddAsLinkedAlternative}" Foreground="MediumPurple" ToolTip="For every subgroup in this Config File, if there is a Required Subgroup at the same top-level index as this subgroup, add this subgroup as an alternative Required Subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Set as Alternate Required Subgroup</Button>
+                <TextBlock Text="Include Chained Required Subgroups" Foreground="White" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="If checked, the all of this Subgroup's Required Subgroups will also be added as alternatives at their own respective Top-Level indices" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <CheckBox IsChecked="{Binding AddAsLinkedAlternativeRecursive}"/>
+                <TextBlock Text="Exclude Neighbors" Foreground="White" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="If checked, this/these competitor subgroup(s) will not be added to the Required Subgroups of their immediate neighbors or their sub-nodes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <CheckBox IsChecked="{Binding AddAsLinkedAlternativeExcludeNeighbors}"/>
+            </StackPanel>
 
-        <Button Grid.Row="8" Grid.Column="0" Command="{Binding Close}" Foreground="Firebrick" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close</Button>
-    </Grid>
+            <Button Grid.Row="8" Grid.Column="0" HorizontalAlignment="Left" Command="{Binding Close}" Foreground="Firebrick" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close</Button>
+        </Grid>
+    </ScrollViewer>
 </Window>
