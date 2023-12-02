@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -57,6 +58,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         this.WhenAnyValue(x => x.AssociatedViewModel.ID).Subscribe(y => ID = y).DisposeWith(this);
         this.WhenAnyValue(x => x.AssociatedViewModel.Name).Subscribe(y => Name = y).DisposeWith(this);
 
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.ID),
+                this.WhenAnyValue(x => x.Name),
+                (searchText, caseSensitive) => { return (searchText, caseSensitive); })
+            .Throttle(TimeSpan.FromMilliseconds(200))
+            .Subscribe(_ => RefreshExtendedName())
+            .DisposeWith(this);
+
         DeleteMe = new SynthEBD.RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -86,6 +95,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
     public VM_Subgroup? AssociatedViewModel { get; set; }
     public string ID { get; set; }
     public string Name { get; set; }
+    public string ExtendedName { get; set; }
     public ObservableCollection<VM_SubgroupPlaceHolder> Subgroups { get; set; } = new();
     public VM_SubgroupPlaceHolder? ParentSubgroup { get; set; } = null;
     public VM_AssetPack ParentAssetPack { get; set; } = null;
@@ -806,7 +816,14 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
         SaveToModel();
         var clonedModel = JSONhandler<AssetPack.Subgroup>.CloneViaJSON(AssociatedModel);
-        return _selfFactory(clonedModel, this, parentAssetPack, parentCollection);
+        var clone = _selfFactory(clonedModel, this, parentAssetPack, parentCollection);
+        clone.RefreshExtendedName();
+        return clone;
+    }
+
+    private void RefreshExtendedName()
+    {
+        ExtendedName = GetNameChain(" -> ");
     }
 
     public enum SubgroupVisibiltyVMType

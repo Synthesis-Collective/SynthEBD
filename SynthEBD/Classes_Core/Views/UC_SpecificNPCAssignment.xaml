@@ -119,7 +119,7 @@
                                         <TextBlock.Text>
                                             <MultiBinding StringFormat="{}{0}: {1}">
                                                 <Binding Path="ID" />
-                                                <Binding Path="Name" />
+                                                <Binding Path="ExtendedName" />
                                             </MultiBinding>
                                         </TextBlock.Text>
                                     </TextBlock>
@@ -245,7 +245,7 @@
                                                             <TextBlock.Text>
                                                                 <MultiBinding StringFormat="{}{0}: {1}">
                                                                     <Binding Path="ID" />
-                                                                    <Binding Path="Name" />
+                                                                    <Binding Path="ExtendedName" />
                                                                 </MultiBinding>
                                                             </TextBlock.Text>
                                                         </TextBlock>
