@@ -230,6 +230,8 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
 
     public void AutoGenerateID(bool recursive, int skipLayers)
     {
+        string tempName = Name.Replace("+", "Plus ").Replace("-", "Minus ");
+
         if (skipLayers <= 0)
         {
             List<string> ids = new();
@@ -251,16 +253,16 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
             }
 
             //get abbreviation for current subgroup name
-            if (Name.IsNullOrWhitespace())
+            if (tempName.IsNullOrWhitespace())
             {
                 ids.Add("New");
             }
             else
             {
-                var words = System.Text.RegularExpressions.Regex.Split(Name, @"\s+").Where(s => s != string.Empty).ToList();
+                var words = System.Text.RegularExpressions.Regex.Split(tempName, @"\s+").Where(s => s != string.Empty).ToList();
                 if (words.Count == 1 && words.First().Length <= 3)
                 {
-                    ids.Add(Name);
+                    ids.Add(tempName);
                 }
                 else
                 {
@@ -378,6 +380,8 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         HashSet<string> previousSplitNames = new();
         int count = 0; // algorithm can hang if there is two subgroups exist whose IDs should be swapped. Snap out if hang is detected
         string appendStr = string.Empty;
+        string tempName = MiscFunctions.MakeXMLtagCompatible(Name.Replace("+", "Plus "));
+
         while (!isUniqueID)
         {
             if (ParentAssetPack.ContainsSubgroupID(newID))
@@ -387,7 +391,11 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 {
                     newID = "New"; // don't think this should ever happen...
                 }
-                if (count < 100) // seems like a reasonable number of iterations
+                else if (lastID.Any() && lastID.Length < MiscFunctions.MakeXMLtagCompatible(tempName).Length)
+                {
+                    newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, MiscFunctions.MakeXMLtagCompatible(tempName).Substring(0, lastID.Length + 1));
+                }
+                else if (count < 100) // seems like a reasonable number of iterations
                 {
                     int appendCount = 1;
                     while (ParentAssetPack.ContainsSubgroupID(newID))
@@ -398,7 +406,10 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                         }
 
                         appendStr = "_" + appendCount.ToString();
-                        newID = newID.Replace(lastID, lastID + appendStr);
+
+                        //don't just use string.Replace - lastID can appear more than once in the ID. Replace only the last index
+                        newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, lastID + appendStr);
+
                         appendCount++;
                         if (appendCount > 100)
                         {
@@ -409,15 +420,11 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 }
                 else if (lastID.Any() && CanSplitByLettersAndNumbers(newID, out string renamed1))
                 {
-                    newID = newID.Replace(lastID, renamed1);
+                    newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, renamed1);
                 }
-                else if (lastID.Any() && CanExtendWordSplit(lastID, Name, previousSplitNames, ParentAssetPack, out string renamed2))
+                else if (lastID.Any() && CanExtendWordSplit(lastID, tempName, previousSplitNames, ParentAssetPack, out string renamed2))
                 {
-                    newID = newID.Replace(lastID, renamed2);
-                }
-                else if (lastID.Any() && lastID.Length < Name.Length)
-                {
-                    newID = newID.Replace(lastID, Name.Substring(0, lastID.Length + 1));
+                    newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, renamed2);
                 }
                 else
                 {

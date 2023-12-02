@@ -45,7 +45,7 @@ public class MiscFunctions
     {
         if (input.Contains('+'))
         {
-            input = input.Replace("+", "plus_");
+            input = input.Replace("+", "p-");
         }
 
         if (input.IsNullOrWhitespace())
