@@ -400,26 +400,28 @@ public class AssetSelector
     private bool ConformRequiredExcludedSubgroups(SubgroupCombination currentCombination, FlattenedSubgroup targetSubgroup, FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, out FlattenedAssetPack filteredAssetPack)
     {
         filteredAssetPack = chosenAssetPack;
-        if (!targetSubgroup.ExcludedSubgroupIDs.Any() && !targetSubgroup.RequiredSubgroupIDs.Any())
+
+        List<string> specificAssignmentIDs = new();
+        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.AssetPackName == chosenAssetPack.GroupName)
         {
-            return true;
+            specificAssignmentIDs.AddRange(npcInfo.SpecificNPCAssignment.SubgroupIDs);
         }
 
         // check if incoming subgroup is allowed by all existing subgroups
         foreach (var subgroup in currentCombination.ContainedSubgroups.Where(x => x is not null).ToArray())
         {
-            foreach (var index in subgroup.RequiredSubgroupIDs)
+            foreach (var requiredSubgroupsAtIndex in subgroup.RequiredSubgroupIDs)
             {
-                if (index.Key == targetSubgroup.TopLevelSubgroupIndex && !index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any())
+                if (requiredSubgroupsAtIndex.Key == targetSubgroup.TopLevelSubgroupIndex && !(requiredSubgroupsAtIndex.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any() || specificAssignmentIDs.Contains(targetSubgroup.Id)))
                 {
-                    _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because a different subgroup is required at position " + index.Key + " by the already assigned subgroup " + subgroup.Id + Environment.NewLine, false, npcInfo);
+                    _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because a different subgroup is required at position " + requiredSubgroupsAtIndex.Key + " by the already assigned subgroup " + subgroup.Id + Environment.NewLine, false, npcInfo);
                     return false;
                 }
             }
 
             foreach (var index in subgroup.ExcludedSubgroupIDs)
             {
-                if (index.Key == targetSubgroup.TopLevelSubgroupIndex && index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any())
+                if (index.Key == targetSubgroup.TopLevelSubgroupIndex && index.Value.Intersect(targetSubgroup.ContainedSubgroupIDs).Any() && !specificAssignmentIDs.Contains(targetSubgroup.Id))
                 {
                     _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it is excluded at position " + index.Key + " by the already assigned subgroup " + subgroup.Id + Environment.NewLine, false, npcInfo);
                     return false;
@@ -441,14 +443,17 @@ public class AssetSelector
         {
             if (currentCombination.ContainedSubgroups[excludedSubgroupsAtIndex.Key] != null) // check currently assigned subgroup
             {
-                if (excludedSubgroupsAtIndex.Value.Intersect(currentCombination.ContainedSubgroups[excludedSubgroupsAtIndex.Key].ContainedSubgroupIDs).Any())
+                if (excludedSubgroupsAtIndex.Value.Intersect(currentCombination.ContainedSubgroups[excludedSubgroupsAtIndex.Key].ContainedSubgroupIDs).Any() && !specificAssignmentIDs.Contains(targetSubgroup.Id))
                 {
                     _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', excludedSubgroupsAtIndex.Value) + ") which is incompatible with the currently assigned subgroup at position " + excludedSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
                     return false;
                 }
             }
+
+
             // check candidate subgroups to be assigned
-            trialSubgroups[excludedSubgroupsAtIndex.Key] = chosenAssetPack.Subgroups[excludedSubgroupsAtIndex.Key].Where(x => !excludedSubgroupsAtIndex.Value.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
+
+            trialSubgroups[excludedSubgroupsAtIndex.Key] = chosenAssetPack.Subgroups[excludedSubgroupsAtIndex.Key].Where(x => !excludedSubgroupsAtIndex.Value.Intersect(x.ContainedSubgroupIDs).Any()  || specificAssignmentIDs.Contains(x.Id)).ToList();
             if (!trialSubgroups[excludedSubgroupsAtIndex.Key].Any())
             {
                 _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it excludes (" + String.Join(',', excludedSubgroupsAtIndex.Value) + ") which eliminates all options at position " + excludedSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
@@ -459,16 +464,18 @@ public class AssetSelector
         // check required subgroups of incoming subgroup
         foreach (var requiredSubgroupsAtIndex in targetSubgroup.RequiredSubgroupIDs)
         {
-            if (currentCombination.ContainedSubgroups[requiredSubgroupsAtIndex.Key] != null) // check currently assigned subgroup
+            // check currently assigned subgroup
+            if (currentCombination.ContainedSubgroups[requiredSubgroupsAtIndex.Key] != null && 
+                !(requiredSubgroupsAtIndex.Value.Intersect(currentCombination.ContainedSubgroups[requiredSubgroupsAtIndex.Key].ContainedSubgroupIDs).Any() 
+                || specificAssignmentIDs.Contains(currentCombination.ContainedSubgroups[requiredSubgroupsAtIndex.Key].Id))
+            ) 
             {
-                if (!requiredSubgroupsAtIndex.Value.Intersect(currentCombination.ContainedSubgroups[requiredSubgroupsAtIndex.Key].ContainedSubgroupIDs).Any())
-                {
-                    _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', requiredSubgroupsAtIndex.Value) + ") which is incompatible with the currently assigned subgroup at position " + requiredSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
-                    return false;
-                }
+                _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', requiredSubgroupsAtIndex.Value) + ") which is incompatible with the currently assigned subgroup at position " + requiredSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
+                return false;
             }
+
             // check candidate subgroups to be assigned
-            trialSubgroups[requiredSubgroupsAtIndex.Key] = chosenAssetPack.Subgroups[requiredSubgroupsAtIndex.Key].Where(x => requiredSubgroupsAtIndex.Value.Intersect(x.ContainedSubgroupIDs).Any()).ToList();
+            trialSubgroups[requiredSubgroupsAtIndex.Key] = chosenAssetPack.Subgroups[requiredSubgroupsAtIndex.Key].Where(x => requiredSubgroupsAtIndex.Value.Intersect(x.ContainedSubgroupIDs).Any() || specificAssignmentIDs.Contains(x.Id)).ToList();
             if (!trialSubgroups[requiredSubgroupsAtIndex.Key].Any())
             {
                 _logger.LogReport("\tSubgroup " + targetSubgroup.Id + " cannot be added because it requires (" + String.Join('|', requiredSubgroupsAtIndex.Value) + ") which eliminates all options at position " + requiredSubgroupsAtIndex.Key + Environment.NewLine, false, npcInfo);
@@ -852,6 +859,11 @@ public class AssetSelector
                 {
                     var currentSubgroup = assetPack.Subgroups[i][j];
                     bool currentSubgroupPassed = true;
+
+                    if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(currentSubgroup.Id))
+                    {
+                        continue;
+                    }
 
                     // check required subgroups
                     foreach (int topLevelIndex in currentSubgroup.RequiredSubgroupIDs.Keys)
