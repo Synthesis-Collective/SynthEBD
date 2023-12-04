@@ -117,6 +117,10 @@ public class OBodySelector
 
             if (forceIfPresets.Any())
             {
+                #region Filter By Descriptor Priority
+                FilterPresetsByPreferredDescriptors(npcInfo, forceIfPresets, assignedAssetCombinations);
+                #endregion
+
                 #region Consistency (With ForceIf)
                 if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && forceIfPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
                 {
@@ -146,6 +150,10 @@ public class OBodySelector
             }
             else
             {
+                #region Filter By Descriptor Priority
+                FilterPresetsByPreferredDescriptors(npcInfo, filteredPresets, assignedAssetCombinations);
+                #endregion
+
                 #region Consistency (Without ForceIf)
                 if (_patcherState.GeneralSettings.bEnableConsistency && npcInfo.ConsistencyNPCAssignment != null && npcInfo.ConsistencyNPCAssignment.BodySlidePreset != "" && filteredPresets.Select(x => x.Label).Contains(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !_patcherState.OBodySettings.OBodyEnableMultipleAssignments)
                 {
@@ -366,6 +374,60 @@ public class OBodySelector
 
         // If the candidateMorph is still valid
         return true;
+    }
+    
+    public void FilterPresetsByPreferredDescriptors(NPCInfo npcInfo, List<BodySlideSetting> bodySlides, IEnumerable<SubgroupCombination> assignedAssetCombinations)
+    {
+        if (!bodySlides.Any())
+        {
+            return;
+        }
+
+        var subgroups = assignedAssetCombinations.SelectMany(combination => combination.ContainedSubgroups.Where(subgroup => subgroup.PrioritizedBodySlideDescriptors.Any())).ToList();
+
+        var currentBodySlides = new List<BodySlideSetting>(bodySlides);
+
+        if (subgroups.Any())
+        {
+            List<BodyShapeDescriptor.PrioritizedLabelSignature> priorities = new();
+
+            var groupedByConfig = subgroups.GroupBy(x => x.ParentAssetPack.GroupName).ToArray();
+            _logger.LogReport("The assigned combination(s) have imposed the following Body Shape Descriptor priorities: ", false, npcInfo);
+            foreach (var config in groupedByConfig)
+            {
+                _logger.LogReport(config.Key + ":", false, npcInfo);
+
+                foreach (var subgroup in config)
+                {
+                    _logger.LogReport("\t" + subgroup.Id, false, npcInfo);
+                    foreach (var descriptor in subgroup.PrioritizedBodySlideDescriptors.SelectMany(x => x.Value).Where(x => x.Priority >= 0).ToArray())
+                    {
+                        _logger.LogReport("\t\t" + descriptor.ToString(), false, npcInfo);
+                        priorities.Add(descriptor);
+                    }
+                }
+            }
+
+            priorities.OrderBy(x => x.Priority);
+            while(priorities.Any())
+            {
+                var currentSignature = priorities.First();
+                var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(x.BodyShapeDescriptors)).ToList();
+                if (trialBodySlides.Any())
+                {
+                    _logger.LogReport("The following BodySlides match descriptor " + currentSignature.ToString() + Environment.NewLine + string.Join(Environment.NewLine, "\t" + trialBodySlides.Select(x => x.Label).ToArray()), false, npcInfo);
+                    currentBodySlides = trialBodySlides;
+                }
+                else
+                {
+                    _logger.LogReport("No BodySlides match the prioritizes desecriptor " + currentSignature.ToString(), false, npcInfo);
+                }
+                priorities.Remove(currentSignature);
+            }
+
+            bodySlides.Clear();
+            bodySlides.AddRange(currentBodySlides);
+        }
     }
 
     public bool CurrentNPCHasAvailablePresets(NPCInfo npcInfo, Settings_OBody oBodySettings)

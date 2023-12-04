@@ -56,6 +56,7 @@ public class AssetPack : IModelHasSubgroups
         public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
         public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
+        public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> PrioritizedBodySlideDescriptors { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
 
         public static string SubgroupIDString = "ConfigDistributionRules";
@@ -119,6 +120,7 @@ public class AssetPack : IModelHasSubgroups
         public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodySlideDescriptors { get; set; } = new();
         public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
+        public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> PrioritizedBodySlideDescriptors { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";

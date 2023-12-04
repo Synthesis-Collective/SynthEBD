@@ -41,7 +41,7 @@ public class VM_BodySlideSetting : VM
         _placeHolderFactory = placeHolderFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
-        DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any);
+        DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any, false);
         DescriptorsSelectionMenu.AutoSelected = associatedPlaceHolder.AssociatedModel.AutoAnnotated; // if true will be set to false as soon as user makes a selection
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);

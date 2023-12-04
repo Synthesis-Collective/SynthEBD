@@ -70,10 +70,13 @@ public class VM_Subgroup : VM
         this.WhenAnyValue(x => x.Name).Subscribe(name => RenameFrom = name).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ParentAssetPack.TrackedBodyGenConfig).Subscribe(_ => RefreshBodyGenDescriptors()).DisposeWith(this);
-        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All);
-        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any);
+        AllowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.All, false);
+        DisallowedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, true, DescriptorMatchMode.Any, false);
+
         AllowedBodySlideDescriptors.SetOppositeToggleMenu(DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.SetOppositeToggleMenu(AllowedBodySlideDescriptors);
+
+        PrioritizedBodySlideDescriptors = _descriptorSelectionFactory(oBody.DescriptorUI, SubscribedRaceGroupings, parentAssetPack, false, DescriptorMatchMode.Any, true);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => LinkCache = x)
@@ -208,6 +211,7 @@ public class VM_Subgroup : VM
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu AllowedBodySlideDescriptors { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu DisallowedBodySlideDescriptors { get; set; }
+    public VM_BodyShapeDescriptorSelectionMenu PrioritizedBodySlideDescriptors { get; set; }
     public NPCWeightRange WeightRange { get; set; } = new();
 
     //UI-related
@@ -277,6 +281,7 @@ public class VM_Subgroup : VM
         AllowedBodySlideDescriptors.MatchMode = model.AllowedBodySlideMatchMode;
         DisallowedBodySlideDescriptors.CopyInFromHashSet(model.DisallowedBodySlideDescriptors);
         DisallowedBodySlideDescriptors.MatchMode = model.DisallowedBodySlideMatchMode;
+        PrioritizedBodySlideDescriptors.CopyInFromHashSet(model.PrioritizedBodySlideDescriptors);
     }
 
     public AssetPack.Subgroup DumpViewModelToModel()
@@ -312,6 +317,8 @@ public class VM_Subgroup : VM
         model.DisallowedBodySlideDescriptors = DisallowedBodySlideDescriptors.DumpToHashSet();
         model.DisallowedBodySlideMatchMode = DisallowedBodySlideDescriptors.MatchMode;
 
+        model.PrioritizedBodySlideDescriptors = PrioritizedBodySlideDescriptors.DumpToPrioritizedHashSet();
+
         return model;
     }
 
@@ -343,8 +350,8 @@ public class VM_Subgroup : VM
 
         if (ParentAssetPack.TrackedBodyGenConfig != null)
         {
-            AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, allowedMode);
-            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, disallowedMode);
+            AllowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, allowedMode, false);
+            DisallowedBodyGenDescriptors = _descriptorSelectionFactory(ParentAssetPack.TrackedBodyGenConfig.DescriptorUI, SubscribedRaceGroupings, ParentAssetPack, true, disallowedMode, false);
 
             AllowedBodyGenDescriptors.SetOppositeToggleMenu(DisallowedBodyGenDescriptors);
             DisallowedBodyGenDescriptors.SetOppositeToggleMenu(AllowedBodyGenDescriptors);

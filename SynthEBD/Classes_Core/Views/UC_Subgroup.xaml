@@ -182,5 +182,8 @@
 
         <TextBlock Grid.Row="20" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentAssetPack.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Body shape descriptors that a BodySlide may not have if it is to be paired with this subgroup" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed BodySlide Descriptors</TextBlock>
         <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="20" Grid.Column="1"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentAssetPack.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding DisallowedBodySlideDescriptors}"/>
+
+        <TextBlock Grid.Row="21" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentAssetPack.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="Prioritized ranking of which body descriptors should be paired with this texture" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Preferred BodySlide Descriptors</TextBlock>
+        <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="21" Grid.Column="1"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentAssetPack.BodyShapeMode, Converter={StaticResource BSVisibilityConverter}}" DataContext="{Binding PrioritizedBodySlideDescriptors}"/>
     </Grid>
 </UserControl>

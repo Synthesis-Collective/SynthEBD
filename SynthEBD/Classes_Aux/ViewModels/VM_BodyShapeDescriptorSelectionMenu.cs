@@ -14,12 +14,13 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptorSelectionMenu : VM
 {
     private readonly Factory _selfFactory;
-    public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode);
-    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
+    public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, bool showPriority);
+    public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, bool showPriority, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
     {
         _selfFactory = selfFactory;
 
         ShowMatchMode = showMatchMode;
+        ShowPriority = showPriority;
         MatchMode = matchMode;
         TrackedMenu = trackedMenu;
         TrackedRaceGroupings = raceGroupingVMs;
@@ -64,15 +65,24 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
     public bool AutoSelected { get; set; } = false;
     private bool _initializing { get; set; } = false;
+    public bool ShowPriority { get; set; } = false;
 
     public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
-
+    public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> PrioritizedBackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
     private VM_BodyShapeDescriptorSelectionMenu OppositeToggleMenu { get; set; } = null; // if this menu gets a selection, its opposite gets the same selection deselected
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
-        var modelDump = DumpToHashSet();
-        VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode);
-        clone.CopyInFromHashSet(modelDump);
+        VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode, ShowPriority);
+        if (ShowPriority)
+        {
+            HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> pModelDump = DumpToPrioritizedHashSet();            
+            clone.CopyInFromHashSet(pModelDump);
+        }
+        else
+        {
+            var modelDump = DumpToHashSet();
+            clone.CopyInFromHashSet(modelDump);
+        }
         return clone;
     }
 
@@ -195,6 +205,50 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         _initializing = false;
     }
 
+    public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> bodyShapeDescriptors)
+    {
+        _initializing = true;
+        if (bodyShapeDescriptors != null)
+        {
+            foreach (var descriptor in bodyShapeDescriptors)
+            {
+                bool keepLooking = true;
+                foreach (var Descriptor in DescriptorShells)
+                {
+                    foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
+                    {
+                        if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
+                        {
+                            selectableDescriptor.IsSelected = true;
+                            selectableDescriptor.Priority = descriptor.Priority;
+                            keepLooking = false;
+                            break;
+                        }
+                    }
+                    if (keepLooking == false) { break; }
+                }
+                if (keepLooking)
+                {
+                    BackupStash.Add(descriptor); // descriptor is no longer present in the UI
+                }
+            }
+        }
+        _initializing = false;
+    }
+
+    public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> DumpToPrioritizedHashSet()
+    {
+        HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> output = new(PrioritizedBackupStash);
+        if (this is not null && DescriptorShells is not null)
+        {
+            foreach (var shell in DescriptorShells)
+            {
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.Priority > 0).Select(x => new BodyShapeDescriptor.PrioritizedLabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value, Priority = x.Priority }).ToHashSet());
+            }
+        }
+        return output;
+    }
+
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()
     {
         HashSet<BodyShapeDescriptor.LabelSignature> output = new(BackupStash);
@@ -210,33 +264,34 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
     public void BuildHeader()
     {
-        string header = "";
+        List<string> categories = new();
         foreach (var Descriptor in DescriptorShells)
         {
-            string subHeader = "";
             string catHeader = Descriptor.TrackedShell.Category + ": ";
-            foreach (var descriptor in Descriptor.DescriptorSelectors)
+            var selectedValues = Descriptor.DescriptorSelectors.Select(x => FormatSelection(x)).Where(x => x != string.Empty).ToArray();
+            if (selectedValues.Any())
             {
-                if (descriptor.IsSelected)
-                {
-                    subHeader += descriptor.Value + ", ";
-                }
-            }
-            if (subHeader.EndsWith(", "))
-            {
-                subHeader = subHeader.Remove(subHeader.Length - 2);
-            }
-            if (subHeader != "")
-            {
-                header += catHeader + subHeader + " | ";
-            }
+                categories.Add(catHeader + string.Join(", ", selectedValues));
+            }  
         }
 
-        if (header.EndsWith(" | "))
+        Header = string.Join(" | ", categories);
+    }
+
+    private string FormatSelection(VM_BodyShapeDescriptorSelector selection)
+    {
+        if(selection.ParentMenu.ShowPriority)
         {
-            header = header.Remove(header.Length - 3);
+            if(selection.Priority != 0)
+            {
+                return selection.Value + " (" + selection.Priority + ")";
+            }
+        }    
+        else if(selection.IsSelected)
+        {
+            return selection.Value;
         }
-        Header = header;
+        return string.Empty;
     }
 
     public void DeselectAll()
@@ -266,7 +321,10 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             .QueryWhenChanged(x => x)
             .Subscribe(x =>
             {
-                NeedsRefresh = DescriptorSelectors.Select(x => x.WhenAnyValue(x => x.IsSelected)).Merge().Unit();
+                NeedsRefresh = DescriptorSelectors
+                    .Select(x => x.WhenAnyValue(x => x.IsSelected, x => x.Priority))
+                    .CombineLatest()
+                    .Select(_ => Unit.Default);
             })
             .DisposeWith(this);
     }
@@ -331,4 +389,5 @@ public class VM_BodyShapeDescriptorSelector : VM
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public string Value { get; set; }
     public bool IsSelected { get; set; } = false;
+    public int Priority { get; set; } = 0;
 }

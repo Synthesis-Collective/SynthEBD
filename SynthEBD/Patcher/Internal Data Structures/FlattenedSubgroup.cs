@@ -1,7 +1,10 @@
+using DynamicData.Aggregation;
 using Mutagen.Bethesda.Plugins;
 using Noggog;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.DirectoryServices.ActiveDirectory;
+using System.Linq;
 using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
@@ -39,6 +42,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         AllowedBodySlideMatchMode = template.AllowedBodySlideMatchMode;
         DisallowedBodySlideDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(template.DisallowedBodySlideDescriptors);
         DisallowedBodySlideMatchMode = template.DisallowedBodySlideMatchMode;
+        PrioritizedBodySlideDescriptors = template.PrioritizedBodySlideDescriptors.GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.ToList());
         WeightRange = template.WeightRange.Clone();
         ContainedSubgroupIDs = new List<string> { Id };
         ContainedSubgroupNames = new List<string> { Name };
@@ -67,6 +71,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
     public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptors { get; set; }
     public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
+    public Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>> PrioritizedBodySlideDescriptors { get; set; } = new();
     public NPCWeightRange WeightRange { get; set; }
     public int TopLevelSubgroupIndex { get; set; }
     public List<string> ContainedSubgroupIDs { get; set; }
@@ -180,6 +185,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
                 flattened.DisallowedBodySlideDescriptors = DictionaryMapper.MergeDictionaries(new List<Dictionary<string, HashSet<string>>> { flattened.DisallowedBodySlideDescriptors, parent.DisallowedBodySlideDescriptors });
                 flattened.AllowedBodySlideDescriptors = AllowedDisallowedCombiners.TrimDisallowedDescriptorsFromAllowed(flattened.AllowedBodySlideDescriptors, flattened.DisallowedBodySlideDescriptors, out bool BodyShapeDescriptorsValid);
                 if (!BodyShapeDescriptorsValid) { return; }
+                flattened.PrioritizedBodySlideDescriptors = MergePrioritizedDescriptors(parent, toFlatten);
             }
         }
 
@@ -354,5 +360,41 @@ public class FlattenedSubgroup : IProbabilityWeighted
             }
         }
         return subgroups;
+    }
+
+    private static Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>> MergePrioritizedDescriptors(FlattenedSubgroup parent, Subgroup subgroup)
+    {
+        var mergedDescriptors = new Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>>();
+
+        var incomingDescriptors = subgroup.PrioritizedBodySlideDescriptors.GroupBy(x => x.Category).ToDictionary(g => g.Key, g => g.ToList());
+
+        var descriptorCategories = parent.PrioritizedBodySlideDescriptors.Keys.And(incomingDescriptors.Keys).Distinct(x => x).ToList();
+
+        foreach (var category in descriptorCategories)
+        {
+            if (parent.PrioritizedBodySlideDescriptors.ContainsKey(category) && !incomingDescriptors.ContainsKey(category))
+            {
+                mergedDescriptors.Add(category, new(parent.PrioritizedBodySlideDescriptors[category]));
+            }
+            else if (incomingDescriptors.ContainsKey(category) && !parent.PrioritizedBodySlideDescriptors.ContainsKey(category))
+            {
+                mergedDescriptors.Add(category, new(incomingDescriptors[category]));
+            }
+            else // both have descriptors for the same category
+            {
+                var descriptorsByValue = incomingDescriptors[category].And(parent.PrioritizedBodySlideDescriptors[category]).GroupBy(x => x.Value).ToArray();
+                List<BodyShapeDescriptor.PrioritizedLabelSignature> descriptorsHere = new();
+                foreach (var descriptorgrouping in descriptorsByValue)
+                {
+                    var templateDescriptor = descriptorgrouping.First();
+                    BodyShapeDescriptor.PrioritizedLabelSignature inheritedDescriptor = new() { Category = templateDescriptor.Category, Value = templateDescriptor.Value };
+                    inheritedDescriptor.Priority = descriptorgrouping.Select(x => x.Priority).ToArray().Sum();
+                    descriptorsHere.Add(inheritedDescriptor);
+                }
+                mergedDescriptors.Add(category, descriptorsHere);
+            }
+        }
+
+        return mergedDescriptors;
     }
 }

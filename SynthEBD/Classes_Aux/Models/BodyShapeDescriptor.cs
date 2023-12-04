@@ -49,6 +49,15 @@ public class BodyShapeDescriptor : IHasLabel
         }
     }
 
+    public class PrioritizedLabelSignature: LabelSignature
+    {
+        public int Priority { get; set; } = 0;
+
+        public override string ToString()
+        {
+            return ToSignatureString(Category, Value) + " (" + Priority + ")";
+        }
+    }
 
     public class LabelSignature
     {

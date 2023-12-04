@@ -148,7 +148,7 @@ public class VM_BodyGenTemplate : VM
 
         SubscribedTemplateGroups = templateGroups;
         GroupSelectionCheckList = new VM_CollectionMemberStringCheckboxList(SubscribedTemplateGroups);
-        DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig, false, DescriptorMatchMode.Any);
+        DescriptorsSelectionMenu = descriptorSelectionFactory(BodyShapeDescriptors, raceGroupingVMs, parentConfig, false, DescriptorMatchMode.Any, false);
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 

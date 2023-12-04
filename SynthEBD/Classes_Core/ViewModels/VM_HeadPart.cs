@@ -32,8 +32,8 @@ namespace SynthEBD
             ParentMenu = parentConfig;
 
             FormKey = headPartFormKey;
-            AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All);
-            DisallowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.Any);
+            AllowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.All, false);
+            DisallowedBodySlideDescriptors = descriptorSelectionFactory(bodyShapeDescriptors, raceGroupingVMs, parentConfig, true, DescriptorMatchMode.Any, false);
             this.WhenAnyValue(x => x.ParentMenu.SettingsMenu.TrackedBodyGenConfigMale).Subscribe(_ => RefreshBodyGenDescriptorsMale(raceGroupingVMs)).DisposeWith(this);
             this.WhenAnyValue(x => x.ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale).Subscribe(_ => RefreshBodyGenDescriptorsFemale(raceGroupingVMs)).DisposeWith(this);
 
@@ -206,8 +206,8 @@ namespace SynthEBD
 
             if (ParentMenu.SettingsMenu.TrackedBodyGenConfigMale != null)
             {
-                AllowedBodyGenDescriptorsMale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigMale.DescriptorUI, raceGroupingVMs, ParentMenu, true, allowedMode);
-                DisallowedBodyGenDescriptorsMale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigMale.DescriptorUI, raceGroupingVMs, ParentMenu, true, disallowedMode);
+                AllowedBodyGenDescriptorsMale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigMale.DescriptorUI, raceGroupingVMs, ParentMenu, true, allowedMode, false);
+                DisallowedBodyGenDescriptorsMale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigMale.DescriptorUI, raceGroupingVMs, ParentMenu, true, disallowedMode, false);
             }
         }
 
@@ -228,8 +228,8 @@ namespace SynthEBD
 
             if (ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale != null)
             {
-                AllowedBodyGenDescriptorsFemale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale.DescriptorUI, raceGroupingVMs, ParentMenu, true, allowedMode);
-                DisallowedBodyGenDescriptorsFemale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale.DescriptorUI, raceGroupingVMs, ParentMenu, true, disallowedMode);
+                AllowedBodyGenDescriptorsFemale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale.DescriptorUI, raceGroupingVMs, ParentMenu, true, allowedMode, false);
+                DisallowedBodyGenDescriptorsFemale = _descriptorSelectionFactory(ParentMenu.SettingsMenu.TrackedBodyGenConfigFemale.DescriptorUI, raceGroupingVMs, ParentMenu, true, disallowedMode, false);
             }
         }
     }
