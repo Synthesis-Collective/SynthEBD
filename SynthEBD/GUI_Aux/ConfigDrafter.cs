@@ -63,8 +63,8 @@ namespace SynthEBD
 
         public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<Multiplet> multiplets, MultipletHandlingMode multipletHandling, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
         {
-            var validCategorizedTexturePaths = categorizedTexturePaths.Where(x => !ignoredTexturePaths.Contains(x)).ToList();
-            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
+            var validCategorizedTexturePaths = categorizedTexturePaths.Where(cPath => !ignoredTexturePaths.Where(iPath => cPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)).Any()).ToList();
+            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
             
             hasTNGTextures = HasTNGPaths(validCategorizedTexturePaths);
             hasEtcTextures = HasEtcPaths(validCategorizedTexturePaths);
