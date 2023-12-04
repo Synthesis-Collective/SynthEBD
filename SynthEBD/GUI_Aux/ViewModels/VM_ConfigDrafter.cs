@@ -190,7 +190,9 @@ public class VM_ConfigDrafter : VM
                     if (!CurrentConfig.AttributeGroupMenu.Groups.Any())
                     {
                         CurrentConfig.AttributeGroupMenu.ImportFromGeneralSettings();
-                    }    
+                    }
+
+                    IgnoredPaths.AddRange(_existingFilePaths); // for upgrading config
 
                     var status = _configDrafter.DraftConfigFromTextures(CurrentConfig, _categorizedTexturePaths, _uncategorizedTexturePaths, IgnoredPaths, MultipletDTOs, MultipletHandlingMode, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, AutoApplyNames, AutoApplyRules, AutoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures);
 
@@ -207,6 +209,26 @@ public class VM_ConfigDrafter : VM
                         NotYetDrafted = false;
                         HasEtcTextures = hasEtcTextures;
                         HasTNGTextures = hasTNGTextures;
+
+                        if(IsUpgrade)
+                        {
+                            var currentSubgroups = CurrentConfig.GetAllSubgroups();
+                            var addedSubgroups = currentSubgroups.Where(sg => !_existingSubgroups.Contains(sg)).ToList();
+
+                            string message;
+                            if (addedSubgroups.Any())
+                            {
+                                List<string> messages = new() { "Subgroups Added:" };
+                                messages.AddRange(addedSubgroups.Select(x => x.ExtendedName));
+                                message = string.Join(Environment.NewLine, messages);
+                            }
+                            else
+                            {
+                                message = "No new subgroups were added";
+                            }
+
+                            CustomMessageBox.DisplayNotificationOK("Config File Update", message);
+                        }
                     }
                     else
                     {
@@ -319,7 +341,9 @@ public class VM_ConfigDrafter : VM
 
     public RelayCommand AddDirectoryButton { get; }
     public RelayCommand AddFileArchiveButton { get; }
-
+    private List<string> _existingFilePaths { get; set; } = new(); // for upgrading config
+    private List<VM_SubgroupPlaceHolder> _existingSubgroups { get; set; } = new(); // for upgrading config
+    public bool IsUpgrade { get; set; } = false;
     public void InitializeTo(VM_AssetPack config)
     {
         CurrentConfig = config;
@@ -367,6 +391,15 @@ public class VM_ConfigDrafter : VM
         IgnoredPaths.Clear();
         MultipletTextureGroups.Clear();
         MultipletDTOs.Clear();
+
+        var allSubgroups = config.GetAllSubgroups();
+        _existingSubgroups.Clear();
+        _existingSubgroups.AddRange(allSubgroups);
+
+        _existingFilePaths.Clear();
+        _existingFilePaths.AddRange(allSubgroups.SelectMany(subgroup => subgroup.AssociatedModel.Paths).Select(pathVM => pathVM.Source));
+
+        IsUpgrade = _existingFilePaths.Any();
     }
 
     private bool ValidateExistingDirectories()
