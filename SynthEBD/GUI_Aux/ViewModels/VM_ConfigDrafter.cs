@@ -219,7 +219,7 @@ public class VM_ConfigDrafter : VM
                             if (addedSubgroups.Any())
                             {
                                 List<string> messages = new() { "Subgroups Added:" };
-                                messages.AddRange(addedSubgroups.Select(x => x.ExtendedName));
+                                messages.AddRange(addedSubgroups.Select(x => x.ID + ": " + x.GetNameChain(" -> ")));
                                 message = string.Join(Environment.NewLine, messages);
                             }
                             else
