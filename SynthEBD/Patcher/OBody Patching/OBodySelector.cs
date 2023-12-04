@@ -399,11 +399,19 @@ public class OBodySelector
 
                 foreach (var subgroup in config)
                 {
-                    _logger.LogReport("\t" + subgroup.Id, false, npcInfo);
+                    _logger.LogReport("-" + subgroup.Id + ":", false, npcInfo);
                     foreach (var descriptor in subgroup.PrioritizedBodySlideDescriptors.SelectMany(x => x.Value).Where(x => x.Priority >= 0).ToArray())
                     {
-                        _logger.LogReport("\t\t" + descriptor.ToString(), false, npcInfo);
-                        priorities.Add(descriptor);
+                        _logger.LogReport("--" + descriptor.ToString(), false, npcInfo);
+                        var existingDescriptor = priorities.Where(x => x.Equals(descriptor)).FirstOrDefault();
+                        if (existingDescriptor == null)
+                        {
+                            priorities.Add(descriptor);
+                        }
+                        else
+                        {
+                            existingDescriptor.Priority += descriptor.Priority;
+                        }
                     }
                 }
             }
@@ -415,7 +423,7 @@ public class OBodySelector
                 var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(x.BodyShapeDescriptors)).ToList();
                 if (trialBodySlides.Any())
                 {
-                    _logger.LogReport("The following BodySlides match descriptor " + currentSignature.ToString() + Environment.NewLine + string.Join(Environment.NewLine, "\t" + trialBodySlides.Select(x => x.Label).ToArray()), false, npcInfo);
+                    _logger.LogReport("The following BodySlides match descriptor " + currentSignature.ToString() + Environment.NewLine + string.Join(Environment.NewLine, trialBodySlides.Select(x => "-" + x.Label).ToArray()), false, npcInfo);
                     currentBodySlides = trialBodySlides;
                 }
                 else
