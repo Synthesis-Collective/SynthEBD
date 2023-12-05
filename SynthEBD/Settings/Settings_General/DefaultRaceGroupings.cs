@@ -47,7 +47,6 @@ public class DefaultRaceGroupings
             Skyrim.Race.OrcRace.FormKey,
             Skyrim.Race.RedguardRace.FormKey,
             Skyrim.Race.WoodElfRace.FormKey,
-            Skyrim.Race.ElderRace.FormKey,
             Skyrim.Race.NordRaceVampire.FormKey,
             Skyrim.Race.BretonRaceVampire.FormKey,
             Skyrim.Race.DarkElfRaceVampire.FormKey,
@@ -55,8 +54,7 @@ public class DefaultRaceGroupings
             Skyrim.Race.ImperialRaceVampire.FormKey,
             Skyrim.Race.OrcRaceVampire.FormKey,
             Skyrim.Race.RedguardRaceVampire.FormKey,
-            Skyrim.Race.WoodElfRaceVampire.FormKey,
-            Skyrim.Race.ElderRaceVampire.FormKey,
+            Skyrim.Race.WoodElfRaceVampire.FormKey
         }
     };
 

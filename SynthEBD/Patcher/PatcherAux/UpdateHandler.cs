@@ -1,3 +1,4 @@
+using DynamicData;
 using Microsoft.Extensions.Logging;
 using Mutagen.Bethesda.Plugins;
 using System;
@@ -187,31 +188,42 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     {
         if (!_patcherState.UpdateLog.Performed1_0_2_5RGUpdate)
         {
-            if (MessageWindow.DisplayNotificationYesNo("Version 1.0.2.5 Update", new List<string>() { "In previous SynthEBD versions, the Humanoid Playable race grouping erroneously included Elder Race.", "Would you like to fix this? (Recommend: Yes)"}, Environment.NewLine))
+            List<VM_RaceGrouping> toUpdateVMs = new();
+            var humanoidPlayableVM = _generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+            if (humanoidPlayableVM != null)
             {
-                var humanoidPlayableVM = _generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                if (humanoidPlayableVM != null && (humanoidPlayableVM.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || humanoidPlayableVM.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey)))
+                toUpdateVMs.Add(humanoidPlayableVM);
+            }
+            
+            foreach (var assetPack in _texMeshVM.AssetPacks)
+            {
+                humanoidPlayableVM = assetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+                if (humanoidPlayableVM != null)
                 {
+                    toUpdateVMs.Add(humanoidPlayableVM);
+                }
+            }
 
-                    RemoveEldersFromGrouping(humanoidPlayableVM.Races);
+            List<RaceGrouping> toUpdateMs = new();
+            foreach (var assetPack in _patcherState.AssetPacks)
+            {
+                var humanoidPlayableM = assetPack.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+                if (humanoidPlayableM != null)
+                {
+                    toUpdateMs.Add(humanoidPlayableM);
+                }
+            }
+
+            if ((toUpdateVMs.Any() || toUpdateMs.Any()) && MessageWindow.DisplayNotificationYesNo("Version 1.0.2.5 Update", new List<string>() { "In previous SynthEBD versions, the Humanoid Playable race grouping erroneously included Elder Race.", "Would you like to fix this? (Recommend: Yes)"}, Environment.NewLine))
+            {
+                foreach (var vm in toUpdateVMs)
+                {
+                    RemoveEldersFromGrouping(vm.Races);
                 }
 
-                foreach (var assetPack in _texMeshVM.AssetPacks)
+                foreach (var m in toUpdateMs)
                 {
-                    var humanoidPlayableM = assetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                    if (humanoidPlayableM != null)
-                    {
-                        RemoveEldersFromGrouping(humanoidPlayableM.Races);
-                    }
-                }
-
-                foreach (var assetPack in _patcherState.AssetPacks)
-                {
-                    var humanoidPlayableM = assetPack.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                    if (humanoidPlayableM != null)
-                    {
-                        RemoveEldersFromGrouping(humanoidPlayableM.Races);
-                    }
+                    RemoveEldersFromGrouping(m.Races);
                 }
             }
         }
