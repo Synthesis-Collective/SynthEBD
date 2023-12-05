@@ -56,7 +56,7 @@ public class VM_BodySlideSetting : VM
             execute: _ => {
                 if (!ReferenceUnlocked)
                 {
-                    if (CustomMessageBox.DisplayNotificationYesNo("Confirm Unlock", "Bodyslide is exactly the name that will be fed to O/AutoBody and is expected to be read from the data in your CalienteTools\\BodySlide\\SliderPresets directory. Are you sure you want to unlock it for editing?"))
+                    if (MessageWindow.DisplayNotificationYesNo("Confirm Unlock", "Bodyslide is exactly the name that will be fed to O/AutoBody and is expected to be read from the data in your CalienteTools\\BodySlide\\SliderPresets directory. Are you sure you want to unlock it for editing?"))
                     {
                         UnlockReference();
                     }

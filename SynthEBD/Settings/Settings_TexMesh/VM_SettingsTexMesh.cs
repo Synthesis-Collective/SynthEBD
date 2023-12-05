@@ -150,11 +150,11 @@ public class VM_SettingsTexMesh : VM
 
                 if (!AssetPacks.Any())
                 {
-                    CustomMessageBox.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
+                    MessageWindow.DisplayNotificationOK("", "There are no Asset Pack Config Files installed.");
                 }
                 else if (ValidateAllConfigs(bgConfigs, oBodySettings, out List<string> errors))
                 {
-                    CustomMessageBox.DisplayNotificationOK("", "No errors found.");
+                    MessageWindow.DisplayNotificationOK("", "No errors found.");
                 }
                 else
                 {
@@ -507,7 +507,7 @@ public class VM_SettingsTexMesh : VM
                 Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
                 Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
 
-            if (CustomMessageBox.DisplayNotificationYesNo("Config File Update", messageStr))
+            if (MessageWindow.DisplayNotificationYesNo("Config File Update", messageStr))
             {
                 foreach (var ap in toUpdate)
                 {

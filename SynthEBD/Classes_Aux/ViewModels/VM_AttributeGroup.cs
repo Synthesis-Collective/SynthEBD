@@ -85,7 +85,7 @@ public class VM_AttributeGroup : VM
         {
             if (CheckMemberForCircularReference(attribute, circularRefs, ParentMenu.Groups))
             {
-                CustomMessageBox.DisplayNotificationOK("Attribute Group Error", "Circular reference detected: " + string.Join(" -> ", circularRefs));
+                MessageWindow.DisplayNotificationOK("Attribute Group Error", "Circular reference detected: " + string.Join(" -> ", circularRefs));
                 var groupAttribute = attribute.MostRecentlyEditedShell.Attribute as VM_NPCAttributeGroup;
                 if (groupAttribute != null)
                 {

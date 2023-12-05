@@ -69,7 +69,7 @@ namespace SynthEBD
                     message += g + " (" + (duplicates.Where(x => x == g).Count() + 1) + ")" + Environment.NewLine;
                 }
 
-                if (CustomMessageBox.DisplayNotificationYesNo("Duplicate " + type, message))
+                if (MessageWindow.DisplayNotificationYesNo("Duplicate " + type, message))
                 {
                     foreach (var name in duplicates)
                     {

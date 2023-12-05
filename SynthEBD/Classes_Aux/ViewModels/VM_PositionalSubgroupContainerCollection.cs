@@ -127,7 +127,7 @@ namespace SynthEBD
                         {
                             if (collectionViewModel.ContainsSubgroup(draggedSubgroup))
                             {
-                                CustomMessageBox.DisplayNotificationOK("Invalid Operation", "This list already contains subgroup " + draggedSubgroup.ID + ": " + draggedSubgroup.Name);
+                                MessageWindow.DisplayNotificationOK("Invalid Operation", "This list already contains subgroup " + draggedSubgroup.ID + ": " + draggedSubgroup.Name);
                             }
                             else
                             {

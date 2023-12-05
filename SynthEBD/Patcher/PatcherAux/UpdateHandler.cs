@@ -65,7 +65,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         {
             var missingNames = v1012UniqueNameExclusions.Where(x => !generalVM.LinkedNameExclusions.Select(y => y.Content).Contains(x)).ToHashSet();
             var dispText = "v1.0.1.2 Update: It is suggested to add the following names to your Linked Unique NPC Name Exclusions. Would you like to do this automatically?" + Environment.NewLine + String.Join(Environment.NewLine, missingNames);
-            if (missingNames.Any() && CustomMessageBox.DisplayNotificationYesNo("Update Unique Name Exclusions?", dispText))
+            if (missingNames.Any() && MessageWindow.DisplayNotificationYesNo("Update Unique Name Exclusions?", dispText))
             {
                 foreach (var name in missingNames)
                 {
@@ -187,7 +187,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     {
         if (!_patcherState.UpdateLog.Performed1_0_2_5RGUpdate)
         {
-            if (CustomMessageBox.DisplayNotificationYesNo("Version 1.0.2.5 Update", "In previous SynthEBD versions, the Humanoid Playable race grouping erroneously included Elder Race. Would you like to fix this? (Recommend: Yes)"))
+            if (MessageWindow.DisplayNotificationYesNo("Version 1.0.2.5 Update", new List<string>() { "In previous SynthEBD versions, the Humanoid Playable race grouping erroneously included Elder Race.", "Would you like to fix this? (Recommend: Yes)"}, Environment.NewLine))
             {
                 var humanoidPlayableVM = _generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                 if (humanoidPlayableVM != null && (humanoidPlayableVM.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || humanoidPlayableVM.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey)))

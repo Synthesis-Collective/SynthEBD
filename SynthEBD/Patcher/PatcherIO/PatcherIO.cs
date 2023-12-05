@@ -56,7 +56,7 @@ public class PatcherIO
         catch(Exception e)
         {
             var error = ExceptionLogger.GetExceptionStack(e);
-            CustomMessageBox.DisplayNotificationOK("Could not save text file", "Error: could not save text file to " + path + ". Exception: " + Environment.NewLine + error);
+            MessageWindow.DisplayNotificationOK("Could not save text file", "Error: could not save text file to " + path + ". Exception: " + Environment.NewLine + error);
         }
     }
 

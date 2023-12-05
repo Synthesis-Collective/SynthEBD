@@ -40,7 +40,7 @@ public class ConfigInstaller
         bool triggerGeneralVMRefresh = false;
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && string.IsNullOrWhiteSpace(_patcherState.ModManagerSettings.CurrentInstallationFolder))
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
+            MessageWindow.DisplayNotificationOK("Installation failed", "You must set the location of your mod manager's Mods folder before installing a config file archive.");
             return (installedConfigs, triggerGeneralVMRefresh);
         }
 
@@ -70,20 +70,20 @@ public class ConfigInstaller
         }
         catch (Exception ex)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex));
+            MessageWindow.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex));
         }
 
         string manifestPath = Path.Combine(tempFolderPath, "Manifest.json");
         if (!File.Exists(manifestPath))
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
+            MessageWindow.DisplayNotificationOK("Installation failed", "Could not find Manifest.json in " + tempFolderPath + ". Installation aborted.");
             return (installedConfigs, triggerGeneralVMRefresh);
         }
 
         Manifest manifest = JSONhandler<Manifest>.LoadJSONFile(manifestPath, out bool parsed, out string exceptionStr);
         if (!parsed)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
+            MessageWindow.DisplayNotificationOK("Installation failed", "Could not parse Manifest.json in " + tempFolderPath + ". Installation aborted.");
             _logger.LogError(exceptionStr);
             return (installedConfigs, triggerGeneralVMRefresh);
         }
@@ -104,7 +104,7 @@ public class ConfigInstaller
 
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
         {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
+            MessageWindow.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
             manifest.DestinationModFolder = "New SynthEBD Config";
         }
 
@@ -118,7 +118,7 @@ public class ConfigInstaller
         List<SkyrimMod> validationRecordTemplates = _assetPackIO.LoadRecordTemplates(recordTemplatePaths, out bool loadSuccess);
         if (!loadSuccess)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
+            MessageWindow.DisplayNotificationOK("Installation failed", "Could not parse all Record Template Plugins at " + string.Join(", ", recordTemplatePaths) + ". Installation aborted.");
             return (new List<string>(), triggerGeneralVMRefresh);
         }
 
@@ -131,7 +131,7 @@ public class ConfigInstaller
         BodyGenConfigs validationBG = _bodyGenIO.LoadBodyGenConfigs(bodyGenConfigPaths.ToArray(), _patcherState.GeneralSettings.RaceGroupings, out loadSuccess);
         if (!loadSuccess)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
+            MessageWindow.DisplayNotificationOK("Installation failed", "Could not parse all BodyGen configs at " + string.Join(", ", bodyGenConfigPaths) + ". Installation aborted.");
             return (new List<string>(), triggerGeneralVMRefresh);
         }
 
@@ -150,7 +150,7 @@ public class ConfigInstaller
             var validationAP = _assetPackIO.LoadAssetPack(extractedPath, _patcherState.GeneralSettings.RaceGroupings, validationRecordTemplates, validationBG, out loadSuccess);
             if (!loadSuccess)
             {
-                CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
+                MessageWindow.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
                 continue;
             }
             loadedPacks.Add(validationAP);
@@ -169,7 +169,7 @@ public class ConfigInstaller
                 _assetPackIO.SaveAssetPack(validationAP, out bool saveSuccess); // save as Json instead of moving in case the referenced paths were modified by HandleLongFilePaths()
                 if (!saveSuccess)
                 {
-                    CustomMessageBox.DisplayNotificationOK("Installation failed", "Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
+                    MessageWindow.DisplayNotificationOK("Installation failed", "Could not save Asset Pack to " + destinationPath + ". Installation aborted.");
                     continue;
                 }
             }
@@ -198,7 +198,7 @@ public class ConfigInstaller
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                    MessageWindow.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
                 }
             }
             else
@@ -221,7 +221,7 @@ public class ConfigInstaller
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
+                    MessageWindow.DisplayNotificationOK("Installation warning", "Could not move " + sourcePath + " to " + destPath + ": " + ex.Message);
                 }
             }
             else
@@ -233,7 +233,7 @@ public class ConfigInstaller
 
         if (skippedConfigs.Any())
         {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "The following resources were not installed because they already exist in your settings:" + Environment.NewLine + String.Join(Environment.NewLine, skippedConfigs));
+            MessageWindow.DisplayNotificationOK("Installation warning", "The following resources were not installed because they already exist in your settings:" + Environment.NewLine + String.Join(Environment.NewLine, skippedConfigs));
         }
 
         #region move dependency files
@@ -370,11 +370,11 @@ public class ConfigInstaller
                 missingFilesWarnStr += Environment.NewLine + "You may need to move your Temp Folder in your Mod Manager Settings to a shorter path.";
             }
             missingFilesWarnStr += Environment.NewLine + "You will likely need to reinstall this config file to correctly extract the missing files.";
-            CustomMessageBox.DisplayNotificationOK("Installation warning", missingFilesWarnStr);
+            MessageWindow.DisplayNotificationOK("Installation warning", missingFilesWarnStr);
         }
         if (assetPathCopyErrors)
         {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
+            MessageWindow.DisplayNotificationOK("Installation warning", "Some installation errors occurred. Please see the Status Log.");
         }
 
         if (referencedFilePaths.Any())
@@ -410,13 +410,13 @@ public class ConfigInstaller
             }
         }
 
-        if (missingRaces.Any() && CustomMessageBox.DisplayNotificationYesNo("Missing Additional Races", "The installer attempted to add the following patchable races, but they were not found in your load order. Add them to Patchable Races list anyway?" + Environment.NewLine + String.Join(Environment.NewLine, missingRaces)))
+        if (missingRaces.Any() && MessageWindow.DisplayNotificationYesNo("Missing Additional Races", "The installer attempted to add the following patchable races, but they were not found in your load order. Add them to Patchable Races list anyway?" + Environment.NewLine + String.Join(Environment.NewLine, missingRaces)))
         {
             _patcherState.GeneralSettings.PatchableRaces.AddRange(missingRaces);
             triggerGeneralVMRefresh = true;
         }
 
-        if (addedRaces.Any() && CustomMessageBox.DisplayNotificationYesNo("Found Additional Races", "This config file references the following races. Add them to your Patchable Races list?" + Environment.NewLine + String.Join(Environment.NewLine, addedRaces.Select(x => x.EditorID ?? x.FormKey.ToString()))))
+        if (addedRaces.Any() && MessageWindow.DisplayNotificationYesNo("Found Additional Races", "This config file references the following races. Add them to your Patchable Races list?" + Environment.NewLine + String.Join(Environment.NewLine, addedRaces.Select(x => x.EditorID ?? x.FormKey.ToString()))))
         {
             _patcherState.GeneralSettings.PatchableRaces.AddRange(addedRaces.Select(x => x.FormKey));
             triggerGeneralVMRefresh = true;
@@ -461,12 +461,12 @@ public class ConfigInstaller
         }
         catch
         {
-            CustomMessageBox.DisplayNotificationOK("Installation warning", "Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
+            MessageWindow.DisplayNotificationOK("Installation warning", "Could not delete the temp folder located at " + tempFolderPath + ". This may be because the folder path or some of the contained file paths exceeded 260 characters. You may delete this folder manually.");
         }
 
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && referencedFilePaths.Any())
         {
-            CustomMessageBox.DisplayNotificationOK("Installation success", "Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
+            MessageWindow.DisplayNotificationOK("Installation success", "Installation complete. You will need to restart your mod manager to rebuild the VFS in order for SynthEBD to see the newly installed asset files.");
         }
 
         return (installedConfigs, triggerGeneralVMRefresh);
@@ -476,7 +476,7 @@ public class ConfigInstaller
     {
         if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
         {
-            CustomMessageBox.DisplayNotificationOK("Installation error", "Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
+            MessageWindow.DisplayNotificationOK("Installation error", "Manifest did not include a destination prefix. This must match the second directory of each file path in the config file (e.g. textures\\PREFIX\\some\\texture.dds). Please fix the manifest file.");
             return false;
         }
         return true;
@@ -600,7 +600,7 @@ public class ConfigInstaller
         else
         {
             Cursor.Current = Cursors.Default;
-            CustomMessageBox.DisplayNotificationOK("Installation error", "Could not extract the config archive. Valid formats are .7z, .zip, and .rar.");
+            MessageWindow.DisplayNotificationOK("Installation error", "Could not extract the config archive. Valid formats are .7z, .zip, and .rar.");
             return false;
         }
     }
@@ -659,7 +659,7 @@ public class ConfigInstaller
                     "After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long.",
                     "Please consider moving the destination directory to a shorter path"
                 };
-                CustomMessageBox.DisplayNotificationOK("Installation error", string.Join(Environment.NewLine, longMessage));
+                MessageWindow.DisplayNotificationOK("Installation error", string.Join(Environment.NewLine, longMessage));
                 return false;
             }
             else
@@ -673,7 +673,7 @@ public class ConfigInstaller
                     "All long paths within the config file and the destination data folder were automatically modified.",
                     "No additional action is required."
                 };
-                CustomMessageBox.DisplayNotificationOK("Installation notice", string.Join(Environment.NewLine, longMessage));
+                MessageWindow.DisplayNotificationOK("Installation notice", string.Join(Environment.NewLine, longMessage));
             }
         }
 

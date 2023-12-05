@@ -129,7 +129,7 @@ public class VM_ConfigDrafter : VM
                    case MultipletHandlingMode.Replace:
                        if (!PreVerifyMultiplets(MultipletTextureGroups, out string failedChecks))
                        {
-                           CustomMessageBox.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
+                           MessageWindow.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
                        }
                        else
                        {
@@ -164,7 +164,7 @@ public class VM_ConfigDrafter : VM
                    toShow.Add("");
                }
 
-               CustomMessageBox.DisplayNotificationOK("Press the white button to copy list", string.Join(Environment.NewLine, toShow));
+               MessageWindow.DisplayNotificationOK("Press the white button to copy list", string.Join(Environment.NewLine, toShow));
            });
 
         DraftConfigButton = ReactiveCommand.CreateFromTask(
@@ -178,7 +178,7 @@ public class VM_ConfigDrafter : VM
 
                     if (HasMultiplets && MultipletHandlingMode == MultipletHandlingMode.Replace && !PreVerifyMultiplets(MultipletTextureGroups, out string failedChecks))
                     {
-                        CustomMessageBox.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
+                        MessageWindow.DisplayNotificationOK("Please Fix Duplicate File Selections", failedChecks);
                         return;
                     }
 
@@ -227,12 +227,12 @@ public class VM_ConfigDrafter : VM
                                 message = "No new subgroups were added";
                             }
 
-                            CustomMessageBox.DisplayNotificationOK("Config File Update", message);
+                            MessageWindow.DisplayNotificationOK("Config File Update", message);
                         }
                     }
                     else
                     {
-                        CustomMessageBox.DisplayNotificationOK("Error drafting config file", status);
+                        MessageWindow.DisplayNotificationOK("Error drafting config file", status);
                     }
                 }
             }, canExecuteDrafting);
@@ -417,7 +417,7 @@ public class VM_ConfigDrafter : VM
     {
         if (!Directory.Exists(directory))
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory does not exist: " + directory);
+            MessageWindow.DisplayNotificationOK("Drafter Error", "The selected mod directory does not exist: " + directory);
             return false;
         }
 
@@ -426,12 +426,12 @@ public class VM_ConfigDrafter : VM
             var texturesDir = Path.Combine(directory, "Textures");
             if (!Directory.Exists(texturesDir))
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder: " + directory);
+                MessageWindow.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures folder: " + directory);
                 return false;
             }
             if (Directory.GetDirectories(texturesDir).Length < 1)
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder: " + directory);
+                MessageWindow.DisplayNotificationOK("Drafter Error", "The selected mod directory must contain a Textures\\* folder: " + directory);
                 return false;
             }
         }
@@ -442,13 +442,13 @@ public class VM_ConfigDrafter : VM
     {
         if (!SelectedFileArchives.Any())
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "No file archives were selected");
+            MessageWindow.DisplayNotificationOK("Drafter Error", "No file archives were selected");
             return false;
         }
 
         if (GeneratedModName.IsNullOrWhitespace())
         {
-            CustomMessageBox.DisplayNotificationOK("Drafter Error", "You must enter a name for the mod to which the files will be extracted. Recommend something like \"SynthEBD - This Texture Mod\"");
+            MessageWindow.DisplayNotificationOK("Drafter Error", "You must enter a name for the mod to which the files will be extracted. Recommend something like \"SynthEBD - This Texture Mod\"");
             return false;
         }
 
@@ -461,26 +461,26 @@ public class VM_ConfigDrafter : VM
 
             if (fileNames.Contains(container.FilePath))
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "Cannot select the same file multiple times: " + Environment.NewLine + container.FilePath);
+                MessageWindow.DisplayNotificationOK("Drafter Error", "Cannot select the same file multiple times: " + Environment.NewLine + container.FilePath);
                 return false;
             }
             fileNames.Add(container.FilePath);
 
             if (!File.Exists(container.FilePath))
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file from Archive #" + (i + 1).ToString() + " does not exist: " + Environment.NewLine + container.FilePath);
+                MessageWindow.DisplayNotificationOK("Drafter Error", "The following file from Archive #" + (i + 1).ToString() + " does not exist: " + Environment.NewLine + container.FilePath);
                 return false;
             }
             if (container.Prefix.IsNullOrWhitespace())
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "You need to assign a prefix to Archive #" + (i + 1).ToString());
+                MessageWindow.DisplayNotificationOK("Drafter Error", "You need to assign a prefix to Archive #" + (i + 1).ToString());
                 return false;
             }
 
             var currentArchiveContents = await _7ZipInterfaceVM().GetArchiveContents(container.FilePath, true, _patcherState.GeneralSettings.Close7ZipWhenFinished, 1000);
             if (!currentArchiveContents.Any())
             {
-                CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
+                MessageWindow.DisplayNotificationOK("Drafter Error", "The following file has no contents upon extraction: " + Environment.NewLine + container.FilePath);
                 return false;
             }
             foreach (var path in currentArchiveContents)
@@ -489,7 +489,7 @@ public class VM_ConfigDrafter : VM
                 {
                     if (archiveContents[j].Contains(path) && container.Prefix == SelectedFileArchives[j].Prefix)
                     {
-                        CustomMessageBox.DisplayNotificationOK("Drafter Error", "The following file in Archive #" + (i + 1).ToString() + " was also found in Archive # " + (j + 1).ToString() + ":" + Environment.NewLine + path + Environment.NewLine + "You must assign a different Prefix to one of these archives");
+                        MessageWindow.DisplayNotificationOK("Drafter Error", "The following file in Archive #" + (i + 1).ToString() + " was also found in Archive # " + (j + 1).ToString() + ":" + Environment.NewLine + path + Environment.NewLine + "You must assign a different Prefix to one of these archives");
                         return false;
                     }
                 }

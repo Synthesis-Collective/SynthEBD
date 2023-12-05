@@ -9,7 +9,7 @@ public class FileDialogs
     }
     public bool ConfirmFileDeletion(string path, string filetype)
     {
-        if (CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
+        if (MessageWindow.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this " + filetype + "?"))
         {
             try
             {

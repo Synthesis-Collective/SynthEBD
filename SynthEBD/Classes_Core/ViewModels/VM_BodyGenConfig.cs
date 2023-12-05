@@ -96,7 +96,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
             canExecute: _ => true,
             execute: _ =>
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to permanently delete this BodyGen Config?"))
+                if (MessageWindow.DisplayNotificationYesNo("Confirmation", "Are you sure you want to permanently delete this BodyGen Config?"))
                 {
                     try
                     {

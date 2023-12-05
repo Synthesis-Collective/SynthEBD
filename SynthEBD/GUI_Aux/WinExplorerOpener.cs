@@ -27,12 +27,12 @@ namespace SynthEBD
                 }
                 catch
                 {
-                    CustomMessageBox.DisplayNotificationOK("Explorer Launcher", "Could not launch Windows Explorer to directory: " + folderPath);
+                    MessageWindow.DisplayNotificationOK("Explorer Launcher", "Could not launch Windows Explorer to directory: " + folderPath);
                 }
             }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("Explorer Launcher", string.Format("{0} Directory does not exist!", folderPath));
+                MessageWindow.DisplayNotificationOK("Explorer Launcher", string.Format("{0} Directory does not exist!", folderPath));
             }
         }
     }

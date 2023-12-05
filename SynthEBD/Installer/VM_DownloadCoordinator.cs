@@ -32,13 +32,13 @@ public class VM_DownloadCoordinator : VM
                 {
                     if (string.IsNullOrWhiteSpace(DI.Path))
                     {
-                        CustomMessageBox.DisplayNotificationOK("Path required", "Please enter a path to the required archive for " + DI.ModDownloadName);
+                        MessageWindow.DisplayNotificationOK("Path required", "Please enter a path to the required archive for " + DI.ModDownloadName);
                         allFound = false;
                         break;
                     }
                     else if (!File.Exists(DI.Path))
                     {
-                        CustomMessageBox.DisplayNotificationOK("File not found", "Could not find the archive at " + DI.Path + " for mod " + DI.ModDownloadName);
+                        MessageWindow.DisplayNotificationOK("File not found", "Could not find the archive at " + DI.Path + " for mod " + DI.ModDownloadName);
                         allFound= false;
                         break;
                     }

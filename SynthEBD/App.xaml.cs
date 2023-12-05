@@ -65,14 +65,6 @@ public partial class App : Application
         var navPanel = container.Resolve<VM_NavPanel>();
         navPanel.GoToMainMenu();
 
-        var customMessages = container.Resolve<CustomMessageBox>();
-        customMessages.AllowMessageDisplay();
-
-        //special case - MaterialMessageBox causes main window to close if it's called before window.Show(), so have to call these functions now
-        //update 2023 08 09 - it looks like MaterialMessageBox is fine as long as it's called after the window is declared, not when window.Show() is called. Not changing the function calls below because they work fine, but
-        // for future reference it's fine to call MaterialMessageBox any time after the window is declared -- currently used by mainVM.Init()
-        //update 2023 08 21 - Moved these functions to ViewModelLoader now that they're ok to call before window.Show()
-
         return 0;
     }
 
@@ -97,9 +89,6 @@ public partial class App : Application
         window.DataContext = mainVM;
         mainVM.Init();
         window.Show();
-
-        var customMessages = container.Resolve<CustomMessageBox>();
-        customMessages.AllowMessageDisplay();
 
         return 0;
     }
@@ -253,7 +242,7 @@ public partial class App : Application
         }
 
         var errorMessage = sb.ToString();
-        CustomMessageBox.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
+        MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
 
         var path = Path.Combine(_settingsSourceProvider.DefaultSettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");

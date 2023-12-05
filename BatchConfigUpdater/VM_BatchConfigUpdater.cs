@@ -24,7 +24,7 @@ namespace BatchConfigUpdater
 
                     if (errors.Any())
                     {
-                        CustomMessageBox.DisplayNotificationOK("Errors", String.Join(Environment.NewLine, errors));
+                        MessageWindow.DisplayNotificationOK("Errors", String.Join(Environment.NewLine, errors));
                     }
                 }
             }

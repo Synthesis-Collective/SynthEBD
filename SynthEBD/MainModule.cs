@@ -12,7 +12,6 @@ public class MainModule : Autofac.Module
 
         //logging
         builder.RegisterType<Logger>().AsSelf().SingleInstance();
-        builder.RegisterType<CustomMessageBox>().AsSelf().SingleInstance();
 
         //IO
         builder.RegisterType<PatcherIO>().AsSelf().SingleInstance();

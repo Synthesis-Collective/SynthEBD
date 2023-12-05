@@ -10,13 +10,11 @@ public class VM_SettingsModManager : VM
 {
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
-    private readonly CustomMessageBox _customMessageBox;
     public delegate VM_SettingsModManager Factory();
-    public VM_SettingsModManager(PatcherState patcherState, Logger logger, CustomMessageBox customMessageBox)
+    public VM_SettingsModManager(PatcherState patcherState, Logger logger)
     {
         _patcherState = patcherState;
         _logger = logger;
-        _customMessageBox = customMessageBox;
 
         SelectTempFolder = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -39,7 +37,7 @@ public class VM_SettingsModManager : VM
         {
             if (folder.Length > 100)
             {
-                _customMessageBox.DisplayNotificationOK_WindowSafe("Warning", "Your SynthEBD Temp Folder is currently buried very deep: the folder path is " + folder.Length + " characters long. This can cause issues during config file installation. It is recommended that you change the Temp Folder in the Mod Manager Integration menu to a less deep folder.");
+                MessageWindow.DisplayNotificationOK("Warning", "Your SynthEBD Temp Folder is currently buried very deep: the folder path is " + folder.Length + " characters long. This can cause issues during config file installation. It is recommended that you change the Temp Folder in the Mod Manager Integration menu to a less deep folder.");
             }
         }).DisposeWith(this);
     }

@@ -66,7 +66,7 @@ namespace SynthEBD
                     var redirectedOutput = standardOutputCapture.ToString();
                     if (redirectedOutput.Contains("Can't open as archive"))
                     {
-                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + redirectedOutput.Replace("\r\n", Environment.NewLine));
+                        MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + redirectedOutput.Replace("\r\n", Environment.NewLine));
                         return false;
                     }
                 }
@@ -74,7 +74,7 @@ namespace SynthEBD
 
             catch (Exception e)
             {
-                CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
                 return false;
             }
             return true;
@@ -131,7 +131,7 @@ namespace SynthEBD
                     var  outputStr = standardOutputCapture.ToString();
                     if (outputStr.Contains("Can't open as archive"))
                     {
-                        CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
+                        MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
                         return new();
                     }
                 }
@@ -139,7 +139,7 @@ namespace SynthEBD
 
             catch (Exception e)
             {
-                CustomMessageBox.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
                 return new();
             }
  

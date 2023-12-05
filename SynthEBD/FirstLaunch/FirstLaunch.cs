@@ -21,8 +21,7 @@ namespace SynthEBD
         private readonly VM_SettingsModManager _modManager;
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly PatcherState _patcherState;
-        private readonly CustomMessageBox _customMessageBox;
-        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, VM_SettingsModManager modManager, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory, CustomMessageBox customMessageBox)
+        public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, VM_SettingsModManager modManager, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory)
         {
             _environmentProvider = environmentProvider;
             _paths = paths;
@@ -33,7 +32,6 @@ namespace SynthEBD
             _patcherState = patcherState;
             _heightConfigFactory = heightConfigFactory;
             _heightAssignmentFactory = heightAssignmentFactory;
-            _customMessageBox = customMessageBox;
         }
 
         public void OnFirstLaunch()
@@ -95,7 +93,7 @@ namespace SynthEBD
 If you are using a mod manager, start by going to the Mod Manager Integration menu and setting up your paths.
 If you don't want your patcher output going straight to your Data or Overwrite folder, set your desired Output Data Folder in the General Settings menu.";
 
-            _customMessageBox.DisplayNotificationOK_WindowSafe("", message);
+            MessageWindow.DisplayNotificationOK("Welcome!", message);
         }
     }
 }

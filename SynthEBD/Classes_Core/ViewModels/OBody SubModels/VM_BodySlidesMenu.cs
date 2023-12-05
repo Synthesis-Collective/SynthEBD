@@ -32,7 +32,7 @@ public class VM_BodySlidesMenu : VM
             canExecute: _ => true,
             execute: x =>
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not in your current game environment?"))
+                if (MessageWindow.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not in your current game environment?"))
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {
@@ -49,7 +49,7 @@ public class VM_BodySlidesMenu : VM
             canExecute: _ => true,
             execute: x =>
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not currently annotated with Body Shape Descriptors?"))
+                if (MessageWindow.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not currently annotated with Body Shape Descriptors?"))
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {
@@ -66,7 +66,7 @@ public class VM_BodySlidesMenu : VM
             canExecute: _ => true,
             execute: x =>
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides?"))
+                if (MessageWindow.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides?"))
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {

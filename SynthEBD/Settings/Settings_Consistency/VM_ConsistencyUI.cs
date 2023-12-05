@@ -115,7 +115,7 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-                if (CustomMessageBox.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
+                if (MessageWindow.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                 {
                     CurrentlyDisplayedAssignment = null;
                     _patcherState.Consistency.Clear();

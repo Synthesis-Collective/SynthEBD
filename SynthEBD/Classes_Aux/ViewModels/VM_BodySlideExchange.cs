@@ -98,7 +98,7 @@ namespace SynthEBD
                 JSONhandler<BodySlideExchange>.SaveJSONFile(exchange, savePath, out bool success, out string exception);
                 if (!success)
                 {
-                    CustomMessageBox.DisplayNotificationOK("Export Failed", exception);
+                    MessageWindow.DisplayNotificationOK("Export Failed", exception);
                     closeWindow = false;
                 }
             }
@@ -215,11 +215,11 @@ namespace SynthEBD
             var exchange = JSONhandler<BodySlideExchange>.LoadJSONFile(loadPath, out bool success, out string exception);
             if (!success)
             {
-                CustomMessageBox.DisplayNotificationOK("Import Failed", exception);
+                MessageWindow.DisplayNotificationOK("Import Failed", exception);
                 return false;
             }
 
-            if (CustomMessageBox.DisplayNotificationYesNo("Settings Backup", "Back up your current BodySlide settings before importing?"))
+            if (MessageWindow.DisplayNotificationYesNo("Settings Backup", "Back up your current BodySlide settings before importing?"))
             {
                 var currentSettings = _oBodyUI.DumpViewModelToModel();
                 if (currentSettings != null && IO_Aux.SelectFileSave("", "Bodyslide Settings files (.json|*.json", ".json", "Save BodySlide Settings", out string savePath, "OBodySettings.json"))
@@ -227,7 +227,7 @@ namespace SynthEBD
                     JSONhandler<Settings_OBody>.SaveJSONFile(currentSettings, savePath, out bool succes, out string saveException);
                     if (!succes)
                     {
-                        CustomMessageBox.DisplayNotificationOK("Failed to save settings", "Settings could not be saved. Error: " + Environment.NewLine + Environment.NewLine + saveException);
+                        MessageWindow.DisplayNotificationOK("Failed to save settings", "Settings could not be saved. Error: " + Environment.NewLine + Environment.NewLine + saveException);
                         return false;
                     }
                 }
@@ -261,7 +261,7 @@ namespace SynthEBD
             _oBodyUI.DescriptorUI.MergeInMissingModels(exchange.TemplateDescriptors, DescriptorMergeMode, mergedDescriptors);
             if (mergedDescriptors.Any())
             {
-                CustomMessageBox.DisplayNotificationOK("Descriptor Merge", "The following already existing Descriptors were merged from the imported file. Please check their associated distribution rules to make sure the merged product is consistent with your preferences." + Environment.NewLine + string.Join(Environment.NewLine, mergedDescriptors));
+                MessageWindow.DisplayNotificationOK("Descriptor Merge", "The following already existing Descriptors were merged from the imported file. Please check their associated distribution rules to make sure the merged product is consistent with your preferences." + Environment.NewLine + string.Join(Environment.NewLine, mergedDescriptors));
             }
 
             List<(string, int, int)> multiplexWarnings = new();
@@ -277,7 +277,7 @@ namespace SynthEBD
                 }
 
                 string dispStr = "Could not import annotations for the following BodySlides because the number of existing entries in your BodySlide Settings does not match the number of annotations in the exchange file. Either adjust the number of your entries to match by copying/deleting the existing one(s), or delete all but one, and then try importing again." + Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine + Environment.NewLine, warnStrs);
-                CustomMessageBox.DisplayNotificationOK("Import Warnings", dispStr);
+                MessageWindow.DisplayNotificationOK("Import Warnings", dispStr);
             }
 
             return true;

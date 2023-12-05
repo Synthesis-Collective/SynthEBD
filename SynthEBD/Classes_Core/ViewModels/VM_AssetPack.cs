@@ -238,7 +238,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 if (Validate(bgConfigs, oBodySettings, out List<string> errors))
                 {
-                    CustomMessageBox.DisplayNotificationOK("Validation", "No errors found.");
+                    MessageWindow.DisplayNotificationOK("Validation", "No errors found.");
                 }
                 else
                 {
@@ -256,7 +256,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             canExecute: _ => true,
             execute: _ => {
                 var disabledSubgroups = GetDisabledSubgroups();
-                CustomMessageBox.DisplayNotificationOK("Disabled Subgroups", string.Join(Environment.NewLine, disabledSubgroups));
+                MessageWindow.DisplayNotificationOK("Disabled Subgroups", string.Join(Environment.NewLine, disabledSubgroups));
             }
         );
 
@@ -264,7 +264,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             canExecute: _ => true,
             execute: _ => {
                 var rules = GetCustomRules();
-                CustomMessageBox.DisplayNotificationOK("Custom Rules", string.Join(Environment.NewLine, rules));
+                MessageWindow.DisplayNotificationOK("Custom Rules", string.Join(Environment.NewLine, rules));
             }
         );
 
@@ -653,7 +653,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void RemoveAssetPackDialog()
     {
-        bool result = CustomMessageBox.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this config file?");
+        bool result = MessageWindow.DisplayNotificationYesNo("Confirm Deletion", "Are you sure you want to permanently delete this config file?");
             
         switch (result)
         {
@@ -714,12 +714,12 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
                 if (newSubgroupNames.Any())
                 {
-                    CustomMessageBox.DisplayNotificationOK("Config Merger", "The following subgroups were imported:" + Environment.NewLine + string.Join(Environment.NewLine, newSubgroupNames));
+                    MessageWindow.DisplayNotificationOK("Config Merger", "The following subgroups were imported:" + Environment.NewLine + string.Join(Environment.NewLine, newSubgroupNames));
                 }
             }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("Config Merger", "That file could not be parsed as a valid Asset Config Plugin File.");
+                MessageWindow.DisplayNotificationOK("Config Merger", "That file could not be parsed as a valid Asset Config Plugin File.");
             }
         }
     }
@@ -819,13 +819,13 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
     public void SetDefaultTargetPaths()
     {
-        bool saveConfig = CustomMessageBox.DisplayNotificationYesNo("Save Config File?", "Save the config file before modifying destinations? (Recommended yes so you can use the Discard button to throw out incorrect changes).");
+        bool saveConfig = MessageWindow.DisplayNotificationYesNo("Save Config File?", "Save the config file before modifying destinations? (Recommended yes so you can use the Discard button to throw out incorrect changes).");
         if (saveConfig)
         {
             bool saved = SaveToModel(false);
             if (!saved)
             {
-                CustomMessageBox.DisplayNotificationOK("Save Failure", "Config file could not be saved. Destination paths will not be modified.");
+                MessageWindow.DisplayNotificationOK("Save Failure", "Config file could not be saved. Destination paths will not be modified.");
                 return;
             }
         }
@@ -884,11 +884,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
         if (modifications.Any())
         {
-            CustomMessageBox.DisplayNotificationOK("Summary", "The following modifications were made: " + Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine + Environment.NewLine, modifications));
+            MessageWindow.DisplayNotificationOK("Summary", "The following modifications were made: " + Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine + Environment.NewLine, modifications));
         }
         else
         {
-            CustomMessageBox.DisplayNotificationOK("Summary", "No automatic modifications could be made based on the current Source and Destination paths.");
+            MessageWindow.DisplayNotificationOK("Summary", "No automatic modifications could be made based on the current Source and Destination paths.");
         }
     }
 
@@ -1305,7 +1305,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                         dispMessage += "Asset folders found at: " + Environment.NewLine + String.Join(Environment.NewLine, deletePrefixPaths) + Environment.NewLine + "Delete these folders?";
                     }
 
-                    if (CustomMessageBox.DisplayNotificationYesNo("", dispMessage))
+                    if (MessageWindow.DisplayNotificationYesNo("", dispMessage))
                     {
                         foreach (var directory in deletePrefixPaths)
                         {
@@ -1331,7 +1331,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                                 currentModDir = modDirectory;
                                 if (installationTokens.Count == 1)
                                 {
-                                    if (CustomMessageBox.DisplayNotificationYesNo("", "Delete asset folder at " + currentModDir + "?"))
+                                    if (MessageWindow.DisplayNotificationYesNo("", "Delete asset folder at " + currentModDir + "?"))
                                     {
                                         _auxIO.TryDeleteDirectory(currentModDir, true);
                                     }
@@ -1378,7 +1378,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             {
                 currentModDir = candidateAssetDirs.First();
                 dispMessage = "This config file was installed on a version of SynthEBD < 1.0.1.9 (or was generated using the Config Drafter), so there is no record of where assets were installed. Based on the paths in this config file, SynthEBD predicts they are in " + currentModDir + ". Do you want to delete this folder?";
-                if (CustomMessageBox.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
+                if (MessageWindow.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
                 {
                     _auxIO.TryDeleteDirectory(currentModDir, true);
                 }
@@ -1386,11 +1386,11 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             else if (candidateAssetDirs.Count > 1)
             {
                 dispMessage = "SynthEBD could not determine which of the following mod folders corresponds to this config file. If you want to delete the corresponding assets, you will need to do it manually from your mod manager." + Environment.NewLine + Environment.NewLine + String.Join(Environment.NewLine, candidateAssetDirs);
-                CustomMessageBox.DisplayNotificationOK("", dispMessage);
+                MessageWindow.DisplayNotificationOK("", dispMessage);
             }
             else
             {
-                CustomMessageBox.DisplayNotificationOK("", "Could not find the Assets Folder for this config file in your mod manager. If you want to delete the corresponding assets, you will need to do it manually from your mod manager.");
+                MessageWindow.DisplayNotificationOK("", "Could not find the Assets Folder for this config file in your mod manager. If you want to delete the corresponding assets, you will need to do it manually from your mod manager.");
             }
         }
 
@@ -1406,7 +1406,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             dispMessage = "The following assets are detected to be associated with this config file. Please read the following list carefully. If all files are from SynthEBD, press Yes to delete. If any of them are native game files, please press No and delete the SynthEBD files manually" + Environment.NewLine + Environment.NewLine;
             dispMessage += string.Join(Environment.NewLine, containedPaths);
 
-            if (containedPaths.Any() && CustomMessageBox.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
+            if (containedPaths.Any() && MessageWindow.DisplayNotificationYesNo("PLEASE READ CAREFULLY", dispMessage))
             {
                 foreach (var path in containedPaths)
                 {

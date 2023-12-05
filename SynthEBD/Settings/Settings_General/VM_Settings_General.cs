@@ -82,7 +82,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             if (!IsCurrentlyLoading && y && !_bHeadPartWarningDisplayed)
             {
-                if(!CustomMessageBox.DisplayNotificationYesNo("Warning", "Head Part functionality is experimental and some Head Parts can change the faces of custom face sculpted NPCs. Are you sure you want to enable headpart distribution?"))
+                if(!MessageWindow.DisplayNotificationYesNo("Warning", "Head Part functionality is experimental and some Head Parts can change the faces of custom face sculpted NPCs. Are you sure you want to enable headpart distribution?"))
                 {
                     bChangeHeadParts = false;
                 }
@@ -156,7 +156,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 {
                     if (!string.Equals(new DirectoryInfo(selectedPath).Name, "SynthEBD", StringComparison.OrdinalIgnoreCase))
                     {
-                        CustomMessageBox.DisplayNotificationOK("Invalid Directory", "The folder name must be \"SynthEBD\"");
+                        MessageWindow.DisplayNotificationOK("Invalid Directory", "The folder name must be \"SynthEBD\"");
                     }
                     else
                     {
@@ -172,7 +172,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             {
                 if (string.IsNullOrWhiteSpace(SettingsSourceProvider.PortableSettingsFolder))
                 {
-                    CustomMessageBox.DisplayNotificationOK("", "There is no settings folder path to clear.");
+                    MessageWindow.DisplayNotificationOK("", "There is no settings folder path to clear.");
                     return;
                 }
                 SettingsSourceProvider.PortableSettingsFolder = String.Empty;
@@ -188,7 +188,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                     bShowTroubleshootingSettings = false;
                     TroubleShootingSettingsToggleLabel = _troubleShootingSettingsShowText;
                 }
-                else if (_bTroubleshootingWarningDisplayed || CustomMessageBox.DisplayNotificationYesNo("Are you sure?", "These settings are only meant for troubleshooting. Do not change them unless you know what you're doing or have been instructed to do so."))
+                else if (_bTroubleshootingWarningDisplayed || MessageWindow.DisplayNotificationYesNo("Are you sure?", "These settings are only meant for troubleshooting. Do not change them unless you know what you're doing or have been instructed to do so."))
                 {
                     bShowTroubleshootingSettings = true;
                     _bTroubleshootingWarningDisplayed = true;
@@ -207,9 +207,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
                 if (!changes.Any())
                 {
-                    CustomMessageBox.DisplayNotificationOK("Reverting Settings", "All troubleshooting settings are already at their default values.");
+                    MessageWindow.DisplayNotificationOK("Reverting Settings", "All troubleshooting settings are already at their default values.");
                 }
-                else if (CustomMessageBox.DisplayNotificationYesNo("Are you sure?", string.Join(Environment.NewLine, changes)))
+                else if (MessageWindow.DisplayNotificationYesNo("Are you sure?", string.Join(Environment.NewLine, changes)))
                 {
                     ResetTroubleShootingToDefault(false);
                     getTexMesh().ResetTroubleShootingToDefault(false);
@@ -242,7 +242,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         {
             if (!IsCurrentlyLoading && y)
             {
-                if (!CustomMessageBox.DisplayNotificationYesNo("Are you sure?", "SynthEBD can ignore validation, but Skyrim itself cannot. If you disable validation, you may run into issues such as NPCs missing textures and turning blue, or even Papyrus script issues. This option is mainly intended for config file devs to share and troubleshoot configs without having to download the corresponding large texture mods. Are you sure you meant to disable validation?"))
+                if (!MessageWindow.DisplayNotificationYesNo("Are you sure?", "SynthEBD can ignore validation, but Skyrim itself cannot. If you disable validation, you may run into issues such as NPCs missing textures and turning blue, or even Papyrus script issues. This option is mainly intended for config file devs to share and troubleshoot configs without having to download the corresponding large texture mods. Are you sure you meant to disable validation?"))
                 {
                     DisableValidation = false;
                 }

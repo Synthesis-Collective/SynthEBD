@@ -71,7 +71,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
                     }
                     else
                     {
-                        CustomMessageBox.DisplayNotificationOK("Parsing Error", "Cannot figure out where the Data folder is within the supplied path. You will need to edit the path so that it starts one folder beneath the Data folder.");
+                        MessageWindow.DisplayNotificationOK("Parsing Error", "Cannot figure out where the Data folder is within the supplied path. You will need to edit the path so that it starts one folder beneath the Data folder.");
                         Source = dialog.FileName;
                     }
 

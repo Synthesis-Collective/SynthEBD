@@ -13,7 +13,6 @@ public class MainWindow_ViewModel : VM
     private readonly VM_Settings_General _settingsGeneral;
     private readonly VM_NavPanel _navPanel;
     public readonly SynthEBDPaths _paths; // must be accessible to App.xaml.cs for crash logging
-    private readonly CustomMessageBox _customMessageBox;
     private readonly Logger _logger;
 
     public DisplayedItemVm Display { get; }
@@ -31,7 +30,6 @@ public class MainWindow_ViewModel : VM
         VM_NavPanel navPanel,
         Func<VM_RunButton> getRunButton,
         SynthEBDPaths paths,
-        CustomMessageBox customMessageBox,
         Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -39,7 +37,6 @@ public class MainWindow_ViewModel : VM
         _viewModelLoader = viewModelLoader;
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
-        _customMessageBox = customMessageBox;
         _logger = logger;
 
         Display = display;
@@ -87,9 +84,9 @@ public class MainWindow_ViewModel : VM
 
         if (!trueVar)
         {
-            _customMessageBox.DisplayEvalErrorMessage();
+            MessageWindow.DisplayNotificationOK("Eval-Expression License Expired", EvalExpiredMessage);
         }
     }
 
-    
+    public const string EvalExpiredMessage = "SynthEBD's asset distribution functionality depends on a month-to-month license of Eval-Expression.NET, and it appears this license has expired for the current build of SynthEBD. Please check the GitHub or Nexus page to see if an updated version has been released, and install the update if so. Otherwise, please contact Piranha91 or another member of the Synthesis Collective to refresh this license by updating the Eval-Expression NuGet package.";
 }

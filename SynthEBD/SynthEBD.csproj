@@ -215,7 +215,6 @@
     <PackageReference Include="AlphaFS" Version="2.2.6" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.5.1" />
     <PackageReference Include="gong-wpf-dragdrop" Version="3.2.1" />
-    <PackageReference Include="MaterialMessageBox" Version="4.0.2" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.2.0" />
     <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.0.1-nightly-20231127-015852" />

@@ -25,13 +25,11 @@ public class RecordPathParser
     private readonly IEnvironmentStateProvider _environmentProvider; 
     private readonly Logger _logger;
     private readonly PatchableRaceResolver _raceResolver;
-    private readonly CustomMessageBox _customMessageBox;
-    public RecordPathParser(IEnvironmentStateProvider environmentProvider, Logger logger, PatchableRaceResolver raceResolver, CustomMessageBox customMessageBox)
+    public RecordPathParser(IEnvironmentStateProvider environmentProvider, Logger logger, PatchableRaceResolver raceResolver)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
         _raceResolver = raceResolver;
-        _customMessageBox = customMessageBox;
     }
 
     //note: To allow the most flexibility in alternative usages, rootRecord can be any IMajorRecordGetter, but in SynthEBD it should always be the root INpcGetter.
@@ -809,7 +807,7 @@ public class RecordPathParser
             {
                 if (ex.Message.StartsWith("ERROR_005") && !MainWindow_ViewModel.EvalMessageTriggered)
                 {
-                    _customMessageBox.DisplayEvalErrorMessage();
+                    MessageWindow.DisplayNotificationOK("Eval-Expression License Expired", MainWindow_ViewModel.EvalExpiredMessage);
                 }
                 return false; // should only happen when user is screwing around with UI
             }

@@ -115,11 +115,11 @@ namespace SynthEBD
         {
             Clear();
             if (PrimaryAPs is null || !PrimaryAPs.Any()) {
-                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files are selected in the Active Config Files list");
+                MessageWindow.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files are selected in the Active Config Files list");
                 return false; 
             }
             if (NPCformKey.IsNull) {
-                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No NPC is selected");
+                MessageWindow.DisplayNotificationOK("Cannot Simulate Distribution", "No NPC is selected");
                 return false; 
             }
 
@@ -129,7 +129,7 @@ namespace SynthEBD
 
             if (!flattenedAssetPacks.Any())
             {
-                CustomMessageBox.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files with the same gender as " + _logger.GetNPCLogNameString(NPCgetter) + " are selected in the Active Config Files list");
+                MessageWindow.DisplayNotificationOK("Cannot Simulate Distribution", "No Primary Config Files with the same gender as " + _logger.GetNPCLogNameString(NPCgetter) + " are selected in the Active Config Files list");
                 return false;
             }
 
@@ -247,7 +247,7 @@ namespace SynthEBD
             output.Add(npcInfo.Report.RootElement);
 
             var outputStr = Logger.FormatLogStringIndents(output.ToString());
-            CustomMessageBox.DisplayNotificationOK("Copy this to a text editor: Notepad++ is recommended", outputStr);
+            MessageWindow.DisplayNotificationOK("Copy this to a text editor: Notepad++ is recommended", outputStr);
         }
 
 
@@ -270,7 +270,7 @@ namespace SynthEBD
                 ReferencedStr = str;
                 ExplainCommand = new RelayCommand(canExecute: _ => true, execute: _ =>
                 {
-                    CustomMessageBox.DisplayNotificationOK("Explanation", ExplainStr);
+                    MessageWindow.DisplayNotificationOK("Explanation", ExplainStr);
                 });
             }
 

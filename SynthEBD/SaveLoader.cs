@@ -244,7 +244,7 @@ public class SaveLoader
         if (showFinalExceptions)
         {
             string notificationStr = allExceptions;
-            CustomMessageBox.DisplayNotificationOK("Errors were encountered upon closing", notificationStr);
+            MessageWindow.DisplayNotificationOK("Errors were encountered upon closing", notificationStr);
         }
     }
 

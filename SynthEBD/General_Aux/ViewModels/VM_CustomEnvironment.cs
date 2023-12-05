@@ -72,7 +72,7 @@ namespace SynthEBD
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    CustomMessageBox.DisplayNotificationOK("Environment Creation Error", CurrentError);
+                    MessageWindow.DisplayNotificationOK("Environment Creation Error", CurrentError);
                 }
                 );
 

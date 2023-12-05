@@ -217,7 +217,7 @@ namespace SynthEBD
 
             if (skippedImports.Any())
             {
-                CustomMessageBox.DisplayNotificationOK("Duplicate Imports", "The following head parts were previously imported and will be skipped: " + Environment.NewLine + String.Join(Environment.NewLine, skippedImports));
+                MessageWindow.DisplayNotificationOK("Duplicate Imports", "The following head parts were previously imported and will be skipped: " + Environment.NewLine + String.Join(Environment.NewLine, skippedImports));
             }
 
             _logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);

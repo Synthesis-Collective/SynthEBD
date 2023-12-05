@@ -47,7 +47,7 @@ public class VM_BodyGenTemplateMenu : VM
             {
                 if (IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Templates.ini file", out string templatePath))
                 {
-                    if (System.IO.Path.GetFileName(templatePath).Equals("morphs.ini", StringComparison.OrdinalIgnoreCase) && !CustomMessageBox.DisplayNotificationYesNo("Confirm File Name", "Expecting templates.ini but this file is morphs.ini, which should be imported in the Specific NPC Assignments Menu. Are you sure you want to continue?"))
+                    if (System.IO.Path.GetFileName(templatePath).Equals("morphs.ini", StringComparison.OrdinalIgnoreCase) && !MessageWindow.DisplayNotificationYesNo("Confirm File Name", "Expecting templates.ini but this file is morphs.ini, which should be imported in the Specific NPC Assignments Menu. Are you sure you want to continue?"))
                     {
                         return;
                     }

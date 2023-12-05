@@ -74,7 +74,7 @@ namespace SynthEBD
             DeleteAll = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => { 
-                    if (CustomMessageBox.DisplayNotificationYesNo("Batch Deletion", "Are you sure you want to delete all headparts in this list?"))
+                    if (MessageWindow.DisplayNotificationYesNo("Batch Deletion", "Are you sure you want to delete all headparts in this list?"))
                     {
                         foreach (var hp in DisplayedList.ToArray())
                         {

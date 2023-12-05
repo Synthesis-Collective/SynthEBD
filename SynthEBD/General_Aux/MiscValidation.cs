@@ -270,7 +270,7 @@ public class MiscValidation
         else if (message.Any())
         {
             message.Add("Morphs that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
-            return CustomMessageBox.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, message));
+            return MessageWindow.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, message));
         }
         else
         {
@@ -418,7 +418,7 @@ public class MiscValidation
         {
             bsMissingDescriptors.Insert(0, "The following active BodySlides have not been annotated with any body shape descriptors:");
             bsMissingDescriptors.Add("Bodyslides that lack descriptors can be misassigned by the texture/body shape assigner. Do you want to continue patching?");
-            return CustomMessageBox.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, bsMissingDescriptors));
+            return MessageWindow.DisplayNotificationYesNo("Missing Descriptors", String.Join(Environment.NewLine, bsMissingDescriptors));
         }
         else
         {
@@ -664,7 +664,7 @@ public class MiscValidation
                 message += g + " (" + (duplicates.Where(x => x == g).Count() + 1) + ")" + Environment.NewLine;
             }
 
-            if (CustomMessageBox.DisplayNotificationYesNo("Duplicate Race Groupings", message))
+            if (MessageWindow.DisplayNotificationYesNo("Duplicate Race Groupings", message))
             {
                 foreach (var name in duplicates)
                 {

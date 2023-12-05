@@ -76,7 +76,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
             {
                 if (IO_Aux.SelectFile("", "INI files (*.ini)|*.ini", "Select the Morphs.ini file", out string morphsPath))
                 {
-                    if (System.IO.Path.GetFileName(morphsPath).Equals("templates.ini", StringComparison.OrdinalIgnoreCase) && !CustomMessageBox.DisplayNotificationYesNo("Confirm File Name", "Expecting morphs.ini but this file is templates.ini, which should be imported in the BodyGen Menu. Are you sure you want to continue?"))
+                    if (System.IO.Path.GetFileName(morphsPath).Equals("templates.ini", StringComparison.OrdinalIgnoreCase) && !MessageWindow.DisplayNotificationYesNo("Confirm File Name", "Expecting morphs.ini but this file is templates.ini, which should be imported in the BodyGen Menu. Are you sure you want to continue?"))
                     {
                         return;
                     }

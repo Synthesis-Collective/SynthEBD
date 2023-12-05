@@ -172,11 +172,11 @@ public class VM_Subgroup : VM
             execute: x => {
                 if (RenameTo.IsNullOrWhitespace())
                 {
-                    CustomMessageBox.DisplayNotificationOK("Renaming Error", "Subgroup Names cannot be blank or empty");
+                    MessageWindow.DisplayNotificationOK("Renaming Error", "Subgroup Names cannot be blank or empty");
                 }
                 else if (RenameFrom.Length == 0)
                 {
-                    CustomMessageBox.DisplayNotificationOK("Renaming Error", "Text to replace cannot be blank");
+                    MessageWindow.DisplayNotificationOK("Renaming Error", "Text to replace cannot be blank");
                 }
                 else
                 {
