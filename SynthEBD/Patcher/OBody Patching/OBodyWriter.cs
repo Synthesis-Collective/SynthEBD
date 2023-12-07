@@ -201,7 +201,11 @@ public class OBodyWriter
 
         foreach (var entry in Patcher.BodySlideTracker)
         {
-            outputStr += BodyGenWriter.FormatFormKeyForBodyGen(entry.Key) + "=" + entry.Value + Environment.NewLine;
+            if (!entry.Value.Any())
+            {
+                continue;
+            }
+            outputStr += BodyGenWriter.FormatFormKeyForBodyGen(entry.Key) + "=" + entry.Value.First() + Environment.NewLine;
         }
 
         var destPath = Path.Combine(_paths.OutputDataFolder, "autoBody", "Config", "morphs.ini");
