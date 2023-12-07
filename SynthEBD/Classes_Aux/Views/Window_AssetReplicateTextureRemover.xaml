@@ -33,7 +33,7 @@
         <Button Grid.Row="1" Foreground="White" Content="Find Replicate Textures" Command="{Binding CheckDuplicatesButton}" HorizontalAlignment="Left"/>
 
         <StackPanel Grid.Row="2"  Orientation="Horizontal">
-            <TextBlock Foreground="White" Text="Cleaning Mode: " VerticalAlignment="Center"/>
+            <TextBlock Foreground="White" Text="Cleaning Mode: " VerticalAlignment="Center" ToolTip="{Binding ModeToolTipStr}" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <ComboBox SelectedItem="{Binding SelectedCleaningMode}" ItemsSource="{Binding CleaningOptions}"/>
             <Button Content="Remove Duplicate Assets" Command="{Binding CleanAssetPack}" Foreground="MediumPurple" Visibility="{ Binding HasMultiplets, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
