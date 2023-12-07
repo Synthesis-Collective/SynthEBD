@@ -107,8 +107,8 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<NPCAttribute> DisallowedAttributes { get; set; } = new();
         public bool AllowUnique { get; set; } = true;
         public bool AllowNonUnique { get; set; } = true;
-        public HashSet<string> RequiredSubgroups { get; set; } = new();
-        public HashSet<string> ExcludedSubgroups { get; set; } = new();
+        public List<string> RequiredSubgroups { get; set; } = new();
+        public List<string> ExcludedSubgroups { get; set; } = new();
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
         public HashSet<FilePathReplacement> Paths { get; set; } = new();
@@ -248,8 +248,8 @@ class ZEBDAssetPack
             Converters.ImportzEBDForceIfAttributes(s.AllowedAttributes, converters.zEBDStringArraysToAttributes(forceIfAttributes));
             s.AllowUnique = bAllowUnique;
             s.AllowNonUnique = bAllowNonUnique;
-            s.RequiredSubgroups = new HashSet<string>(requiredSubgroups);
-            s.ExcludedSubgroups = new HashSet<string>(excludedSubgroups);
+            s.RequiredSubgroups = new(requiredSubgroups);
+            s.ExcludedSubgroups = new(excludedSubgroups);
             s.AddKeywords = new HashSet<string>(addKeywords);
             s.ProbabilityWeighting = probabilityWeighting;
 

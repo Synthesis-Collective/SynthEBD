@@ -80,6 +80,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_ConfigDistributionRules.Factory configDistributionRulesFactory,
         AssetPackValidator assetPackValidator,
+        VM_AssetReplicateTextureRemover assetReplicateRemover,
         RecordPathParser recordPathParser,
         Logger logger,
         SynthEBDPaths paths,
@@ -339,6 +340,26 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        RemoveDuplicatesButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                Window_AssetReplicateTextureRemover replicatesWindow = new();
+                replicatesWindow.DataContext = assetReplicateRemover;
+                assetReplicateRemover.Initialize(this);
+                bool needsReload = false;
+                if (SelectedPlaceHolder != null && SelectedPlaceHolder.AssociatedViewModel != null)
+                {
+                    SelectedPlaceHolder.AssociatedViewModel.DumpViewModelToModel();
+                    needsReload = true;
+                }
+                replicatesWindow.ShowDialog();
+                if (needsReload && SelectedPlaceHolder != null && SelectedPlaceHolder.AssociatedViewModel != null)
+                {
+                    SelectedPlaceHolder.AssociatedViewModel.CopyInViewModelFromModel();
+                }
+            }
+        );
+
         ClearBodyGenButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ClearBodyGen()
@@ -425,6 +446,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ImportTexturesButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
+    public RelayCommand RemoveDuplicatesButton { get; }
     public RelayCommand SetDefaultTargetDestPaths { get; }
     public RelayCommand ClearBodyGenButton { get; }
     public BodyShapeSelectionMode BodyShapeMode { get; set; }

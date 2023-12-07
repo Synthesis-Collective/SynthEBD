@@ -104,7 +104,7 @@ public class VM_ConfigDrafter : VM
                     MultipletTextureGroups.Clear();
                     var searchDirs = SelectedTextureFolders.Select(x => x.DirPath).ToList();
                     var texturePaths = _configDrafter.GetDDSFiles(searchDirs);
-                    var multiples =  await Task.Run(async () => ComputeFileDuplicates(texturePaths, duplicateCheckProgress));
+                    var multiples =  await Task.Run(async () => ComputeFileDuplicates(texturePaths, duplicateCheckProgress, SelectedTextureFolders.Select(x => x.DirPath).ToList(), IsUsingModManager, configDrafter));
                     Noggog.ListExt.AddRange(MultipletTextureGroups, multiples.Result);
                     HasMultiplets = multiples.Result.Any();
                     HashingProgressCurrent = 0;
@@ -524,7 +524,7 @@ public class VM_ConfigDrafter : VM
         return destinationDirs;
     }
     // 
-    private async Task<ObservableCollection<VM_FileDuplicateContainer>> ComputeFileDuplicates(List<string> texturePaths, IProgress<(int, int,string)> progress)
+    public static async Task<ObservableCollection<VM_FileDuplicateContainer>> ComputeFileDuplicates(List<string> texturePaths, IProgress<(int, int,string)> progress, List<string> selectedTextureFolders, bool isUsingModManager, ConfigDrafter configDrafter)
     {
         ObservableCollection<VM_FileDuplicateContainer> multipletTextureGroups = new();
 
@@ -552,11 +552,11 @@ public class VM_ConfigDrafter : VM
 
                 foreach (var filePath in sharedChecksumGroup)
                 {
-                    multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths, SelectedTextureFolders.Select(x => x.DirPath).ToList(), !IsUsingModManager, _configDrafter) { IsSelected = true });
+                    multiplet.FilePaths.Add(new(filePath, multiplet.FilePaths, selectedTextureFolders, !isUsingModManager, configDrafter) { IsSelected = true });
                 }
                 if (multiplet.FilePaths.Any())
                 {
-                    _configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
+                    configDrafter.ChooseLeastSpecificPath(multiplet.FilePaths); // uncheck the best candidate
                     multipletTextureGroups.Add(multiplet);
                 }
             }

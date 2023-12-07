@@ -127,7 +127,7 @@ public class DictionaryMapper
         return result;
     }
 
-    public Dictionary<int, HashSet<string>> RequiredOrExcludedSubgroupsToDictionary(HashSet<string> sgList, List<AssetPack.Subgroup> subgroupHierarchy)
+    public Dictionary<int, HashSet<string>> RequiredOrExcludedSubgroupsToDictionary(List<string> sgList, List<AssetPack.Subgroup> subgroupHierarchy)
     {
         Dictionary<int, HashSet<string>> dict = new Dictionary<int, HashSet<string>>();
 

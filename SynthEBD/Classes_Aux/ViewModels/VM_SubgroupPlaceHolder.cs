@@ -327,9 +327,9 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 required[i] = updatedSubgroupID;
             }
         }
-        subgroup.AssociatedModel.RequiredSubgroups = required.ToHashSet();
+        subgroup.AssociatedModel.RequiredSubgroups = required;
 
-        var excluded = subgroup.AssociatedModel.ExcludedSubgroups.ToList();
+        var excluded = subgroup.AssociatedModel.ExcludedSubgroups;
         for (int i = 0; i < excluded.Count; i++)
         {
             if (excluded[i] == oldSubgroupID)
@@ -337,7 +337,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 excluded[i] = updatedSubgroupID;
             }
         }
-        subgroup.AssociatedModel.ExcludedSubgroups = excluded.ToHashSet();
+        subgroup.AssociatedModel.ExcludedSubgroups = excluded;
 
         foreach (var sg in subgroup.Subgroups)
         {

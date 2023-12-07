@@ -58,12 +58,13 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
+        builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_AssetReplicateTextureRemover>().AsSelf().SingleInstance();
 
         // UI Infrastructure
         builder.RegisterType<VM_NPCAttributeCreator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyShapeDescriptorCreator>().AsSelf().SingleInstance();
-        builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
 
         // Back End Infrastructure
         builder.RegisterType<PatcherSettingsSourceProvider>().AsSelf().SingleInstance();

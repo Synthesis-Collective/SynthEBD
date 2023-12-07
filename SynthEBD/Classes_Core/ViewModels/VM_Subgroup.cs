@@ -301,8 +301,8 @@ public class VM_Subgroup : VM
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
         model.AllowUnique = AllowUnique;
         model.AllowNonUnique = AllowNonUnique;
-        model.RequiredSubgroups = RequiredSubgroups.DumpToCollection().ToHashSet();
-        model.ExcludedSubgroups = ExcludedSubgroups.DumpToCollection().ToHashSet();
+        model.RequiredSubgroups = RequiredSubgroups.DumpToCollection().ToList();
+        model.ExcludedSubgroups = ExcludedSubgroups.DumpToCollection().ToList();
         model.AddKeywords = AddKeywords.Select(x => x.Content).ToHashSet();
         model.ProbabilityWeighting = ProbabilityWeighting;
         model.Paths = VM_FilePathReplacementMenu.DumpViewModelToModels(PathsMenu);
