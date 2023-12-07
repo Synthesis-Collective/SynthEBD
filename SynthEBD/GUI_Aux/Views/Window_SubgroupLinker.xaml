@@ -80,7 +80,10 @@
                 <CheckBox IsChecked="{Binding AddAsLinkedAlternativeExcludeNeighbors}"/>
             </StackPanel>
 
-            <Button Grid.Row="8" Grid.Column="0" HorizontalAlignment="Left" Command="{Binding Close}" Foreground="Firebrick" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close</Button>
+            <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal">
+                <Button Command="{Binding UnlinkAllFromThis}" Foreground="Firebrick" ToolTip="Remove this subgroup from the Required Subgroups of all other subgroups in this config file (regardless of the search filter above)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Unlink All From This</Button>
+                <Button Command="{Binding Close}" Foreground="Firebrick" ToolTip="Return without making changes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"  Margin="10 0 0 0">Close</Button>
+            </StackPanel>
         </Grid>
     </ScrollViewer>
 </Window>

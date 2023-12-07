@@ -108,6 +108,14 @@ namespace SynthEBD
                 }
             );
 
+            UnlinkAllFromThis = new SynthEBD.RelayCommand(
+                canExecute: _ => true,
+                execute: x => {
+                    UnlinkAllFromThisFn();
+                    window.Close();
+                }
+            );
+
             Close = new SynthEBD.RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
@@ -137,6 +145,7 @@ namespace SynthEBD
         public RelayCommand UnlinkFromThis { get; }
         public RelayCommand UnlinkReciprocally { get; }
         public RelayCommand UnlinkWholeGroup { get; }
+        public RelayCommand UnlinkAllFromThis { get; }
         public RelayCommand AddAsLinkedAlternative { get; }
         public bool AddAsLinkedAlternativeRecursive { get; set; }
         public bool AddAsLinkedAlternativeExcludeNeighbors { get; set; }
@@ -342,6 +351,18 @@ namespace SynthEBD
                             sg.AssociatedModel.RequiredSubgroups.Remove(sg2.ID);
                         }
                     }
+                }
+            }
+        }
+
+        private void UnlinkAllFromThisFn()
+        {
+            var allSubgroups = _targetAssetPack.GetAllSubgroups();
+            foreach (var subgroup in allSubgroups)
+            {
+                if (subgroup.AssociatedModel.RequiredSubgroups.Contains(_targetSubgroup.ID))
+                {
+                    subgroup.AssociatedModel.RequiredSubgroups.Remove(_targetSubgroup.ID);
                 }
             }
         }
