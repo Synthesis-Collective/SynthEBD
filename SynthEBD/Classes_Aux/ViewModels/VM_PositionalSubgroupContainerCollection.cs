@@ -31,7 +31,7 @@ namespace SynthEBD
 
         public void InitializeFromCollection(IEnumerable<string> subgroupIDs)
         {
-            foreach (var id in subgroupIDs)
+            foreach (var id in subgroupIDs.Where(x => !x.IsNullOrWhitespace()))
             {
                 if (ParentConfig.TryGetSubgroupByID(id, out var placeholder))
                 {
