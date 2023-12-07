@@ -391,6 +391,10 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 {
                     newID = "New"; // don't think this should ever happen...
                 }
+                else if (lastID.Any() && CanExtendWordSplit(lastID, tempName, previousSplitNames, ParentAssetPack, out string renamed2))
+                {
+                    newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, renamed2);
+                }
                 else if (lastID.Any() && lastID.Length < MiscFunctions.MakeXMLtagCompatible(tempName).Length)
                 {
                     newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, MiscFunctions.MakeXMLtagCompatible(tempName).Substring(0, lastID.Length + 1));
@@ -421,10 +425,6 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                 else if (lastID.Any() && CanSplitByLettersAndNumbers(newID, out string renamed1))
                 {
                     newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, renamed1);
-                }
-                else if (lastID.Any() && CanExtendWordSplit(lastID, tempName, previousSplitNames, ParentAssetPack, out string renamed2))
-                {
-                    newID = MiscFunctions.ReplaceLastOccurrence(newID, lastID, renamed2);
                 }
                 else
                 {
