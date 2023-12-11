@@ -112,7 +112,7 @@ public class BodySlideAnnotator
 
     private bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule)
     {
-        if (rule != null && bodySlide.SliderValues.ContainsKey(rule.SliderName))
+        if (rule != null && rule.SliderName != null && bodySlide.SliderValues.ContainsKey(rule.SliderName))
         {
             switch(rule.SliderType)
             {
