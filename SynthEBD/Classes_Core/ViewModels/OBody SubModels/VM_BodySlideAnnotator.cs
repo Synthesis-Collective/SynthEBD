@@ -77,6 +77,7 @@ public class VM_BodySlideAnnotator : VM
 
         foreach (var bodyTypeGroup in SliderNamesByGroup.Keys)
         {
+            SliderNamesByGroup[bodyTypeGroup].Sort(x => x, false);
             AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyTypeGroup, SliderNamesByGroup[bodyTypeGroup]));
         }
 
