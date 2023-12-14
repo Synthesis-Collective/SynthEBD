@@ -51,6 +51,16 @@ public class HeadPartFunctions
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
                                 npc.HeadTexture.SetTo(raceGetter.HeadData.Male.DefaultFaceTexture.FormKey);
                             }
+                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
+                            {
+                                var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadMaleKhajiit);
+                            }
+                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
+                            {
+                                var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadMaleArgonian);
+                            }
                             else
                             {
                                 AddNPCtoRemovalList(npcGetter, npcsToRemove);
@@ -61,6 +71,16 @@ public class HeadPartFunctions
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
                                 npc.HeadTexture.SetTo(raceGetter.HeadData.Female.DefaultFaceTexture.FormKey);
+                            }
+                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
+                            {
+                                var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadFemaleKhajiit);
+                            }
+                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
+                            {
+                                var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadFemaleArgonian);
                             }
                             else
                             {
