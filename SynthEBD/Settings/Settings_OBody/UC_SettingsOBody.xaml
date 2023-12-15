@@ -26,6 +26,7 @@
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAttributeGroupsMenu}" ToolTip="Edit available attribute groups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attribute Groups</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickMiscMenu}">Misc Settings</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAnnotationMenu}">Annotator</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAnnotationTrainerMenu}">Annotator Training</RadioButton>
         </StackPanel>
 
         <ContentPresenter Content="{Binding DisplayedUI}" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="10, 0, 0, 0" >
@@ -44,6 +45,9 @@
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodySlideAnnotator}">
                     <local:UC_BodySlideAnnotator/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_OBodyTrainer}">
+                    <local:UC_OBodyTrainer/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

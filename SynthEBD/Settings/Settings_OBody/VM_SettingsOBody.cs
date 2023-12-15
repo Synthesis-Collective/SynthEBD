@@ -24,7 +24,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_OBodyMiscSettings.Factory miscSettingsFactory,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
-        VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory
+        VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory,
+        VM_OBodyTrainer obodyTrainer
         )
     {
         _logger = logger;
@@ -65,6 +66,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ => DisplayedUI = AnnotatorUI
         );
+
+        ClickAnnotationTrainerMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DisplayedUI = obodyTrainer
+        );
     }
 
     public object DisplayedUI { get; set; }
@@ -78,6 +84,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
     public RelayCommand ClickAnnotationMenu { get; }
+    public RelayCommand ClickAnnotationTrainerMenu { get; }
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
     public void CopyInViewModelFromModel(Settings_OBody model, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
