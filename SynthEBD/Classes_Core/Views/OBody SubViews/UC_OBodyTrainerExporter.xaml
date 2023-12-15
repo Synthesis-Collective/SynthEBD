@@ -16,35 +16,86 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="BodySlides:"/>
-        <ScrollViewer Grid.Row="0" Grid.Column="2">
-            <ItemsControl ItemsSource="{Binding SelectedBodySlides}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Master.Label}"/>
-                            <CheckBox IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+        <Border Grid.Row="0" Grid.Column="2" BorderBrush="White" BorderThickness="1">
+            <ScrollViewer Margin="0 2 0 2">
+                <ItemsControl ItemsSource="{Binding SelectedBodySlides}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IsSelected}" Margin="2 0 5 0"/>
+                                <TextBlock Text="{Binding Label}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Sliders:"/>
-        <ScrollViewer Grid.Row="1" Grid.Column="2">
-            <ItemsControl ItemsSource="{Binding SelectedSliders}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
+        <ItemsControl Grid.Row="1" Grid.Column="2" ItemsSource="{Binding SelectedSliderGroups}" Margin="0 5 0 5">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal">
+                    </WrapPanel>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Master.SubscribedSlider.SliderName}"/>
-                            <CheckBox IsChecked="{Binding IsSelected}" Margin="5 0 0 0"/>
+                            <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
+                            <CheckBox IsChecked="{Binding IsSelected}" Margin="5 3 0 3"/>
                         </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <WrapPanel Grid.Row="2" Grid.Column="2" Margin="0 0 0 5">
+            <Button Foreground="MediumPurple" Content="Add Selected Slider Groups" Command="{Binding AddSelectedGroups}"/>
+            <Button Foreground="Firebrick" Content="Remove Selected Slider Groups" Command="{Binding RemoveSelectedGroups}" Margin="15 0 0 0"/>
+        </WrapPanel>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Sliders:"/>
+        <Border Grid.Row="3" Grid.Column="2" BorderBrush="White" BorderThickness="1">
+            <ScrollViewer Margin="0 2 0 2">
+                <ItemsControl ItemsSource="{Binding SelectedSliders}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IsSelected}" Margin="2 0 5 0"/>
+                                <TextBlock Text="{Binding SubscribedSlider.SliderName}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Descriptor:" Margin="0 5 0 0" VerticalAlignment="Center"/>
+        <ItemsControl Grid.Row="4" Grid.Column="2" ItemsSource="{Binding SelectedDescriptors}" Margin="0 5 0 5">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal">
+                    </WrapPanel>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
+                            <RadioButton IsChecked="{Binding IsSelected}" GroupName="Descriptors" Margin="5 3 0 3"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>
