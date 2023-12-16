@@ -332,7 +332,7 @@ public class BodySlideSetting : IProbabilityWeighted
     public Dictionary<string, BodySlideSlider> SliderValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-[DebuggerDisplay("SliderName: {Small} / {Big}")]
+[DebuggerDisplay("{SliderName}: {Small} / {Big}")]
 public class BodySlideSlider
 {
     public string SliderName { get; set; }

@@ -21,6 +21,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="BodySlides:"/>
@@ -30,7 +31,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <CheckBox IsChecked="{Binding IsAvailable}" Margin="2 0 5 0"/>
+                                <CheckBox IsChecked="{Binding IsSelected}" Margin="2 0 5 0"/>
                                 <TextBlock Text="{Binding Label}"/>
                             </StackPanel>
                         </DataTemplate>
@@ -51,7 +52,7 @@
                     <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
-                            <CheckBox IsChecked="{Binding IsAvailable}" Margin="5 3 0 3"/>
+                            <CheckBox IsChecked="{Binding IsSelected}" Margin="5 3 0 3"/>
                         </StackPanel>
                     </Border>
                 </DataTemplate>
@@ -59,19 +60,24 @@
         </ItemsControl>
 
         <WrapPanel Grid.Row="2" Grid.Column="2" Margin="0 0 0 5">
-            <Button Foreground="MediumPurple" Content="Add Available Slider Groups" Command="{Binding AddAvailableGroups}"/>
-            <Button Foreground="Firebrick" Content="Remove Available Slider Groups" Command="{Binding RemoveAvailableGroups}" Margin="15 0 0 0"/>
+            <Button Foreground="MediumPurple" Content="Add Available Slider Groups" Command="{Binding AddSelectedGroups}"/>
+            <Button Foreground="Firebrick" Content="Remove Available Slider Groups" Command="{Binding RemoveSelectedGroups}" Margin="15 0 0 0"/>
         </WrapPanel>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Sliders:"/>
+        <StackPanel Grid.Row="3" Grid.Column="0" >
+            <TextBlock Text="Sliders:"/>
+            <Button Content="All" Foreground="Green" Command="{Binding SelectAllSliders}"/>
+            <Button Content="None" Foreground="Firebrick" Command="{Binding DeselectAllSliders}"/>
+        </StackPanel>
+        
         <Border Grid.Row="3" Grid.Column="2" BorderBrush="White" BorderThickness="1">
             <ScrollViewer Margin="0 2 0 2">
                 <ItemsControl ItemsSource="{Binding AvailableSliders}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <CheckBox IsChecked="{Binding IsAvailable}" Margin="2 0 5 0"/>
-                                <TextBlock Text="{Binding SubscribedSlider.SliderName}"/>
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="2 0 5 0"/>
+                                <TextBlock Text="{Binding DisplayedText}"/>
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -84,13 +90,13 @@
             <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Big" Margin="3 3 3 3" HorizontalAlignment="Center"/>
-                    <RadioButton IsChecked="{Binding IsBigAvailable}" GroupName="BigSmall" Margin="5 3 0 3"/>
+                    <RadioButton IsChecked="{Binding IsBigSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
                 </StackPanel>
             </Border>
             <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Small" Margin="3 3 3 3" HorizontalAlignment="Center"/>
-                    <RadioButton IsChecked="{Binding IsSmallAvailable}" GroupName="BigSmall" Margin="5 3 0 3"/>
+                    <RadioButton IsChecked="{Binding IsSmallSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
                 </StackPanel>
             </Border>
         </WrapPanel>
@@ -108,11 +114,16 @@
                     <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
-                            <RadioButton IsChecked="{Binding IsAvailable}" GroupName="Descriptors" Margin="5 3 0 3"/>
+                            <RadioButton IsChecked="{Binding IsSelected}" GroupName="Descriptors" Margin="5 3 0 3"/>
                         </StackPanel>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+            <Button Content="Train Model" Foreground="Green" Command="{Binding TrainModel}"/>
+            <Button Content="Export Selected Data" Foreground="MediumPurple" Command="{Binding ExportTrainingSet}" Margin="10 0 0 0"/>
+        </StackPanel>
     </Grid>
 </UserControl>
