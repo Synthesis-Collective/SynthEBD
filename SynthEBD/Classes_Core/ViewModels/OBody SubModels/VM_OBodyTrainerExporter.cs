@@ -23,9 +23,9 @@ public class VM_OBodyTrainerExporter : VM
             execute: _ =>
             {
                 PauseSliderRefresh = true;
-                foreach (var group in SelectedSliderGroups.Where(x => x.IsSelected))
+                foreach (var group in AvailableSliderGroups.Where(x => x.IsSelected))
                 {
-                    foreach (var bodySlide in SelectedBodySlides.Where(x => x.SubscribedBodySlide.AssociatedModel.SliderGroup == group.Text))
+                    foreach (var bodySlide in AvailableBodySlides.Where(x => x.SubscribedBodySlide.AssociatedModel.SliderGroup == group.Text))
                     {
                         bodySlide.IsSelected = true;
                     }
@@ -39,9 +39,9 @@ public class VM_OBodyTrainerExporter : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                foreach (var group in SelectedSliderGroups.Where(x => x.IsSelected))
+                foreach (var group in AvailableSliderGroups.Where(x => x.IsSelected))
                 {
-                    foreach (var bodySlide in SelectedBodySlides.Where(x => x.SubscribedBodySlide.AssociatedModel.SliderGroup == group.Text))
+                    foreach (var bodySlide in AvailableBodySlides.Where(x => x.SubscribedBodySlide.AssociatedModel.SliderGroup == group.Text))
                     {
                         bodySlide.IsSelected = false;
                     }
@@ -49,11 +49,11 @@ public class VM_OBodyTrainerExporter : VM
                 }
             });
     }
-    public ObservableCollection<VM_SelectableBodySlidePlaceHolder> SelectedBodySlides { get; set; } = new();
-    public ObservableCollection<VM_SelectableSlider> SelectedSliders { get; set; } = new();
+    public ObservableCollection<VM_SelectableBodySlidePlaceHolder> AvailableBodySlides { get; set; } = new();
+    public ObservableCollection<VM_SelectableSlider> AvailableSliders { get; set; } = new();
     public bool PauseSliderRefresh = false;
-    public ObservableCollection<VM_SelectableMenuString> SelectedDescriptors { get; set; } = new();
-    public ObservableCollection<VM_SelectableMenuString> SelectedSliderGroups { get; set; } = new();
+    public ObservableCollection<VM_SelectableMenuString> AvailableDescriptors { get; set; } = new();
+    public ObservableCollection<VM_SelectableMenuString> AvailableSliderGroups { get; set; } = new();
     public RelayCommand AddSelectedGroups { get; }
     public RelayCommand RemoveSelectedGroups { get; }
     public bool IsBigSelected { get; set; } = true;
@@ -62,7 +62,7 @@ public class VM_OBodyTrainerExporter : VM
     public void Reinitialize()
     {
         var parentVM = _parentVM();
-        SelectedBodySlides.Clear();
+        AvailableBodySlides.Clear();
         PauseSliderRefresh = true; // lock down until the intial set is loaded
         var toAdd = new List<VM_SelectableBodySlidePlaceHolder>();
         foreach (var bs in parentVM.BodySlidesUI.CurrentlyDisplayedBodySlides)
@@ -78,9 +78,9 @@ public class VM_OBodyTrainerExporter : VM
         var groups = toAdd.GroupBy(x => x.SubscribedBodySlide.AssociatedModel.SliderGroup).OrderBy(x => x.Key).ToArray();
         foreach (var group in groups)
         {
-            SelectedSliderGroups.Add(new() { Text = group.Key });
+            AvailableSliderGroups.Add(new() { Text = group.Key });
             var bodyslides = group.OrderBy(x => x.SubscribedBodySlide.AssociatedModel.Label).ToArray();
-            SelectedBodySlides.AddRange(bodyslides);
+            AvailableBodySlides.AddRange(bodyslides);
         }
 
         PauseSliderRefresh = false;
@@ -88,37 +88,58 @@ public class VM_OBodyTrainerExporter : VM
 
         foreach (var descriptor in parentVM.DescriptorUI.TemplateDescriptors)
         {
-            SelectedDescriptors.Add(new() { Text = descriptor.Category });
+            AvailableDescriptors.Add(new() { Text = descriptor.Category });
         }
     }
 
     public void RefreshAvaliableSliderNames()
     {
-        HashSet<BodySlideSlider> availableSliders = SelectedBodySlides.Where(x => x.IsSelected)
+        HashSet<BodySlideSlider> availableSliders = AvailableBodySlides.Where(x => x.IsSelected)
             .Select(x => x.SubscribedBodySlide.AssociatedModel)
             .SelectMany(x => x.SliderValues)
             .Select(x => x.Value)
             .ToHashSet();
 
-        for (int i = 0; i < SelectedSliders.Count; i++)
+        for (int i = 0; i < AvailableSliders.Count; i++)
         {
-            if (!availableSliders.Contains(SelectedSliders[i].SubscribedSlider))
+            if (!availableSliders.Contains(AvailableSliders[i].SubscribedSlider))
             {
-                SelectedSliders.RemoveAt(i);
+                AvailableSliders.RemoveAt(i);
                 i--;
             }
         }
 
-        var existingSliders = SelectedSliders.Select(x => x.SubscribedSlider).ToHashSet();
+        var existingSliders = AvailableSliders.Select(x => x.SubscribedSlider).ToHashSet();
         foreach (var slider in availableSliders.Where(x => !existingSliders.Contains(x)))
         {
-            if (!SelectedSliders.Where(x => x.SubscribedSlider.SliderName == slider.SliderName).Any())
+            if (!AvailableSliders.Where(x => x.SubscribedSlider.SliderName == slider.SliderName).Any())
             {
-                SelectedSliders.Add(new(slider));
+                AvailableSliders.Add(new(slider));
             }
         }
 
-        SelectedSliders.Sort(x => x.SubscribedSlider.SliderName, false);
+        AvailableSliders.Sort(x => x.SubscribedSlider.SliderName, false);
+    }
+
+    private TrainerExportDTO? ExportTrainingDTO(bool selectedOnly)
+    {
+        var selectedBodySlides = (selectedOnly ? AvailableBodySlides.Where(x => x.IsSelected) : AvailableBodySlides)
+                             .Select(x => x.SubscribedBodySlide.AssociatedModel)
+                             .ToArray();
+
+        var selectedSliders = (selectedOnly ? AvailableSliders.Where(x => x.IsSelected) : AvailableSliders)
+                             .Select(x => x.SubscribedSlider.SliderName)
+                             .ToArray();
+
+        return IsBigSelected ? new TrainerExportDTO(selectedBodySlides, selectedSliders, BodySliderType.Big) :
+        IsSmallSelected ? new TrainerExportDTO(selectedBodySlides, selectedSliders, BodySliderType.Small) :
+        null;
+    }
+
+    private void ComputeMCA()
+    {
+        var dataObj = ExportTrainingDTO(false); // export matrix where each row is a categorical measurement and each column is the BodySlide's nth slider value (0 if missing)
+
     }
 }
 
@@ -149,8 +170,11 @@ public class VM_SelectableSlider : VM
     public VM_SelectableSlider(BodySlideSlider slider)
     {
         SubscribedSlider = slider;
+        DisplayedText = SubscribedSlider.SliderName;
     }
     public BodySlideSlider SubscribedSlider { get; }
+    public string DisplayedText { get; set; }
+    public double Weight { get; set; }
     public bool IsSelected { get; set; }
 }
 
@@ -158,4 +182,45 @@ public class VM_SelectableMenuString : VM
 {
     public string Text { get; set; }
     public bool IsSelected { get; set; }
+}
+
+public class TrainerExportDTO
+{
+    public TrainerExportDTO(IList<BodySlideSetting> SelectedBodySlides, IList<string> SelectedSliders, BodySliderType type)
+    {
+        ColumnNames = SelectedSliders.ToArray();
+        RowNames = SelectedBodySlides.Select(x => x.Label + " (" + type.ToString() + ")").ToArray();
+
+        SliderValues = new int[SelectedBodySlides.Count, ColumnNames.Length];
+
+        for (int i = 0; i < SelectedBodySlides.Count; i++)
+        {
+            var bodySlide = SelectedBodySlides[i];
+
+            for (int j = 0; j < ColumnNames.Length; j++)
+            {
+                var sliderName = ColumnNames[j];
+
+                if (bodySlide.SliderValues.ContainsKey(sliderName))
+                {
+                    switch (type)
+                    {
+                        case BodySliderType.Big:
+                            SliderValues[i, j] = bodySlide.SliderValues[sliderName].Big;
+                            break;
+                        case BodySliderType.Small:
+                            SliderValues[i, j] = bodySlide.SliderValues[sliderName].Small;
+                            break;
+                    }
+                }
+                else
+                {
+                    SliderValues[i, j] = 0;
+                }
+            }
+        }
+    }
+    public string[] ColumnNames { get; set; }
+    public string[] RowNames { get; set; }
+    public int[,] SliderValues { get; set; }
 }

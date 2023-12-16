@@ -60,4 +60,60 @@ public class MiscFunctions
 
         return input.Replace(' ', '_');
     }
+
+    // Function to center the data
+    public static double[,] CenterData(int[,] data)
+    {
+        int numRows = data.GetLength(0);
+        int numCols = data.GetLength(1);
+
+        double[,] centeredData = new double[numRows, numCols];
+
+        for (int j = 0; j < numCols; j++)
+        {
+            int sum = 0;
+
+            for (int i = 0; i < numRows; i++)
+            {
+                sum += data[i, j];
+            }
+
+            double mean = (double)sum / numRows;
+
+            for (int i = 0; i < numRows; i++)
+            {
+                centeredData[i, j] = data[i, j] - mean;
+            }
+        }
+
+        return centeredData;
+    }
+
+    // Function to standardize the data
+    public static double[,] StandardizeData(double[,] data)
+    {
+        int numRows = data.GetLength(0);
+        int numCols = data.GetLength(1);
+
+        double[,] standardizedData = new double[numRows, numCols];
+
+        for (int j = 0; j < numCols; j++)
+        {
+            double sumSquared = 0;
+
+            for (int i = 0; i < numRows; i++)
+            {
+                sumSquared += data[i, j] * data[i, j];
+            }
+
+            double stdDev = Math.Sqrt(sumSquared / numRows);
+
+            for (int i = 0; i < numRows; i++)
+            {
+                standardizedData[i, j] = data[i, j] / stdDev;
+            }
+        }
+
+        return standardizedData;
+    }
 }
