@@ -56,6 +56,8 @@ public class VM_OBodyTrainerExporter : VM
     public ObservableCollection<VM_SelectableMenuString> SelectedSliderGroups { get; set; } = new();
     public RelayCommand AddSelectedGroups { get; }
     public RelayCommand RemoveSelectedGroups { get; }
+    public bool IsBigSelected { get; set; } = true;
+    public bool IsSmallSelected { get; set; } = false;
 
     public void Reinitialize()
     {

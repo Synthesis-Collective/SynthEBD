@@ -20,6 +20,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="BodySlides:"/>
@@ -78,8 +79,24 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Text="Descriptor:" Margin="0 5 0 0" VerticalAlignment="Center"/>
-        <ItemsControl Grid.Row="4" Grid.Column="2" ItemsSource="{Binding SelectedDescriptors}" Margin="0 5 0 5">
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Slider Set:" Margin="0 5 0 0" VerticalAlignment="Center"/>
+        <WrapPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal">
+            <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Big" Margin="3 3 3 3" HorizontalAlignment="Center"/>
+                    <RadioButton IsChecked="{Binding IsBigSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
+                </StackPanel>
+            </Border>
+            <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Small" Margin="3 3 3 3" HorizontalAlignment="Center"/>
+                    <RadioButton IsChecked="{Binding IsSmallSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
+                </StackPanel>
+            </Border>
+        </WrapPanel>
+
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Descriptor:" Margin="0 5 0 0" VerticalAlignment="Center"/>
+        <ItemsControl Grid.Row="5" Grid.Column="2" ItemsSource="{Binding SelectedDescriptors}" Margin="0 5 0 5">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel Orientation="Horizontal">
