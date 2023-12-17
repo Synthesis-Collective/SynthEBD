@@ -15,9 +15,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
     private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
     private readonly VM_BodySlideAnnotator.Factory _bodySlideAnnotatorFactory;
+    private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
 
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
+        Func<VM_SettingsTexMesh> texMeshSettings,
         Logger logger,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_BodySlidesMenu.Factory bodySlidesMenuFactory,
@@ -33,8 +35,9 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _bodySlideAnnotatorFactory = bodySlideAnnotatorFactory;
+        _texMeshSettings = texMeshSettings;
 
-        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState);
         BodySlidesUI = _bodySlidesMenuFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
@@ -182,5 +185,47 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         return model;
+    }
+
+    public void UpdateState((string, string) previousDescriptor, (string, string) newDescriptor)
+    {
+        if (previousDescriptor.Item2.IsNullOrWhitespace())
+        {
+            return;
+        }
+
+        var oldCategory = previousDescriptor.Item1;
+        var oldValue = previousDescriptor.Item2;
+        var newCategory = newDescriptor.Item1;
+        var newValue = newDescriptor.Item2;
+
+        foreach (var bodySlide in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
+        {
+            UpdateDescriptors(bodySlide.AssociatedModel.BodyShapeDescriptors, oldCategory, oldValue, newCategory, newValue);   
+        }
+
+        foreach (var subgroup in _texMeshSettings().AssetPacks.SelectMany(x => x.GetAllSubgroups()).ToArray())
+        {
+            UpdateDescriptors(subgroup.AssociatedModel.AllowedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
+            UpdateDescriptors(subgroup.AssociatedModel.DisallowedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
+            UpdateDescriptors(subgroup.AssociatedModel.PrioritizedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
+        }
+    }
+
+    private void UpdateDescriptors<T>(ICollection<T> descriptors, string oldCategory, string oldValue, string newCategory, string newValue)
+        where T : BodyShapeDescriptor.LabelSignature
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.Category == oldCategory)
+            {
+                descriptor.Category = newCategory;
+
+                if (descriptor.Value == oldValue)
+                {
+                    descriptor.Value = newValue;
+                }
+            }
+        }
     }
 }

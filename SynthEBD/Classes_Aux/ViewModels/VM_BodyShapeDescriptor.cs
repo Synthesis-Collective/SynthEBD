@@ -1,6 +1,8 @@
+using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -8,8 +10,8 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptor : VM
 {
     private VM_BodyShapeDescriptorRules.Factory _rulesFactory;
-    public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig);
-    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorRules.Factory rulesFactory)
+    public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
+    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorRules.Factory rulesFactory, Action<(string, string), (string, string)> responseToChange)
     {
         _rulesFactory = rulesFactory;
         ParentShell = parentShell;
@@ -19,6 +21,15 @@ public class VM_BodyShapeDescriptor : VM
             canExecute: _ => true,
             execute: _ => ParentShell.Descriptors.Remove(this)
         );
+
+        this.WhenAnyValue(x => x.ParentShell.Category, x => x.Value)
+            .Throttle(TimeSpan.FromMilliseconds(500), RxApp.MainThreadScheduler)
+            .Buffer(2, 1)
+             .Select(b => (Previous: b[0], Current: b[1]))
+             .Subscribe(t =>
+             {
+                 responseToChange(t.Previous, t.Current);
+             }).DisposeWith(this);
     }
     public string Value { get; set; } = "";
     public string Signature => BodyShapeDescriptor.LabelSignature.ToSignatureString(ParentShell.Category, Value);
@@ -40,13 +51,13 @@ public class VM_BodyShapeDescriptor : VM
             _shellFactory = shellFactory;
             _rulesFactory = rulesFactory;
         }
-        public VM_BodyShapeDescriptor CreateNew(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
+        public VM_BodyShapeDescriptor CreateNew(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange)
         {
-            return _descriptorFactory(parentShell, raceGroupingVMs, parentConfig);
+            return _descriptorFactory(parentShell, raceGroupingVMs, parentConfig, responseToChange);
         }
-        public VM_BodyShapeDescriptorShell CreateNewShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig)
+        public VM_BodyShapeDescriptorShell CreateNewShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange)
         {
-            return _shellFactory(parentCollection, raceGroupings, parentConfig);
+            return _shellFactory(parentCollection, raceGroupings, parentConfig, responseToChange);
         }
     }
 

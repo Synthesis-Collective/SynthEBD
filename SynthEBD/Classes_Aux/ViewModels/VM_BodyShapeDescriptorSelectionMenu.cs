@@ -5,6 +5,7 @@ using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reactive;
 using System.Reactive.Linq;
 using static SynthEBD.VM_BodyShapeDescriptor;
@@ -26,7 +27,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         TrackedRaceGroupings = raceGroupingVMs;
         Parent = parentConfig;
         
-        CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig), this);
+        CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig, null), this);
 
         if (TrackedMenu != null)
         {
@@ -306,6 +307,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     }
 }
 
+[DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count()})")]
 public class VM_BodyShapeDescriptorShellSelector : VM
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)

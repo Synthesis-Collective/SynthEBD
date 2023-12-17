@@ -1,3 +1,5 @@
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using Noggog.WPF;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -21,9 +23,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
     private readonly VM_BodyGenTemplateMenu.Factory _templateMenuFactory;
     private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
     private readonly VM_BodyGenTemplate.Factory _templateFactory;
+    private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
+
     public VM_BodyGenConfig(
         ObservableCollection<VM_BodyGenConfig> parentCollection,
         VM_Settings_General generalSettingsVM,
+        Func<VM_SettingsTexMesh> texMeshSettings,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyShapeDescriptorCreationMenu.Factory bodyShapeDescriptorCreationMenuFactory,
         VM_SettingsBodyGen bodyGenSettingsVM,
@@ -39,6 +44,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory)
     {
         _logger = logger;
+        _texMeshSettings = texMeshSettings;
         _raceMenuHandler = raceMenuHandler;
         _attributeGroupMenuFactory = attributeGroupMenuFactory;
         _bodyGenIO = bodyGenIO;
@@ -51,7 +57,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         RaceGroupingEditor = raceGroupingEditorFactory(this, true);
         GroupUI = new VM_BodyGenGroupsMenu(this);
         GroupMappingUI = _groupMappingMenuFactory(GroupUI, RaceGroupingEditor.RaceGroupings);
-        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState);
         TemplateMorphUI = _templateMenuFactory(this, RaceGroupingEditor.RaceGroupings);
         DisplayedUI = TemplateMorphUI;
         AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
@@ -225,10 +231,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         {
             _logger.LogStartupEventStart("Generating UI for BodyShape Descriptor " + descriptor.ID);
             var subVm = _descriptorCreator.CreateNew(
-                _descriptorCreator.CreateNewShell(
-                    new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this),
+                _descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this, DescriptorUI.ResponseToChange),  // May want to update this later to perform its own check
                 RaceGroupingEditor.RaceGroupings, 
-                this);
+                this,
+                DescriptorUI.ResponseToChange);
             subVm.CopyInViewModelFromModel(descriptor, RaceGroupingEditor.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
             _logger.LogStartupEventEnd("Generating UI for BodyShape Descriptor " + descriptor.ID);
@@ -250,6 +256,47 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         //    tempateVM.UpdateThisOtherGroupsTemplateCollection();
         //}
         _logger.LogStartupEventEnd("Updating available partner lists for BodyGen Templates");
+    }
+
+    public void UpdateState((string, string) previousDescriptor, (string, string) newDescriptor)
+    {
+        if (previousDescriptor.Item2.IsNullOrWhitespace())
+        {
+            return;
+        }
+
+        var oldCategory = previousDescriptor.Item1;
+        var oldValue = previousDescriptor.Item2;
+        var newCategory = newDescriptor.Item1;
+        var newValue = newDescriptor.Item2;
+
+        foreach (var morph in TemplateMorphUI.Templates)
+        {
+            UpdateDescriptors(morph.AssociatedModel.BodyShapeDescriptors, oldCategory, oldValue, newCategory, newValue);
+        }
+
+        foreach (var subgroup in _texMeshSettings().AssetPacks.SelectMany(x => x.GetAllSubgroups()).ToArray())
+        {
+            UpdateDescriptors(subgroup.AssociatedModel.AllowedBodyGenDescriptors, oldCategory, oldValue, newCategory, newValue);
+            UpdateDescriptors(subgroup.AssociatedModel.DisallowedBodyGenDescriptors, oldCategory, oldValue, newCategory, newValue);
+        }
+    }
+
+    private void UpdateDescriptors<T>(ICollection<T> descriptors, string oldCategory, string oldValue, string newCategory, string newValue)
+        where T : BodyShapeDescriptor.LabelSignature
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.Category == oldCategory)
+            {
+                descriptor.Category = newCategory;
+
+                if (descriptor.Value == oldValue)
+                {
+                    descriptor.Value = newValue;
+                }
+            }
+        }
     }
 
     public BodyGenConfig DumpViewModelToModel()

@@ -10,20 +10,22 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator _descriptorCreator;
     private readonly IHasAttributeGroupMenu _parentConfig;
-    public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig);
-    
-    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator)
+    public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
+    public Action<(string, string), (string, string)> ResponseToChange { get; set; }
+
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator, Action<(string, string), (string, string)> responseToChange)
     {
         _generalSettings = generalSettings;
         _logger = logger;
         _descriptorCreator = descriptorCreator;
         _parentConfig = parentConfig;
+        ResponseToChange = responseToChange;
 
-        CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig);
+        CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange);
 
         AddTemplateDescriptorShell = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => TemplateDescriptors.Add(descriptorCreator.CreateNewShell(TemplateDescriptors, generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig))
+            execute: _ => TemplateDescriptors.Add(descriptorCreator.CreateNewShell(TemplateDescriptors, generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange))
         );
 
         RemoveTemplateDescriptorShell = new RelayCommand(
@@ -80,7 +82,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             var shell = TemplateDescriptors.Where(x => x.Category == model.ID.Category).FirstOrDefault();
             if (shell == null)
             {
-                shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
                 shell.Category = model.ID.Category;
                 TemplateDescriptors.Add(shell);
             }
@@ -88,7 +90,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
             if (descriptor == null)
             {
-                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig);
+                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
                 descriptor.Value = model.ID.Value;
                 descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
                 shell.Descriptors.Add(descriptor);

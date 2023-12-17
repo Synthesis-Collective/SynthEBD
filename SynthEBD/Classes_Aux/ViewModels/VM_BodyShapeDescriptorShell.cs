@@ -1,5 +1,8 @@
+using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Reactive.Linq;
 using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
@@ -8,8 +11,8 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptorShell : VM
 {
     private VM_BodyShapeDescriptorCreator _creator;
-    public delegate VM_BodyShapeDescriptorShell Factory(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig);
-    public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator creator)
+    public delegate VM_BodyShapeDescriptorShell Factory(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
+    public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator creator, Action<(string, string), (string, string)> responseToChange)
     {
         _creator = creator;
 
@@ -17,7 +20,7 @@ public class VM_BodyShapeDescriptorShell : VM
 
         AddTemplateDescriptorValue = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => Descriptors.Add(_creator.CreateNew(this, raceGroupings, parentConfig))
+            execute: _ => Descriptors.Add(_creator.CreateNew(this, raceGroupings, parentConfig, responseToChange))
         );
     }
 
