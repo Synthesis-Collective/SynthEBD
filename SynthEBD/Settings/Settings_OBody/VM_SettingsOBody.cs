@@ -169,6 +169,15 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             BodySlidesUI.CurrentlyDisplayedBodySlide.AssociatedPlaceHolder.AssociatedModel = BodySlidesUI.CurrentlyDisplayedBodySlide.DumpToModel();
         }
 
+        // clear auto-annotated descriptors
+        foreach (var preset in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
+        {
+            if (preset.AssociatedModel.AutoAnnotated)
+            {
+                preset.AssociatedModel.BodyShapeDescriptors.Clear();
+            }
+        }
+
         foreach (var preset in BodySlidesUI.BodySlidesMale)
         {
             model.BodySlidesMale.Add(preset.AssociatedModel);
