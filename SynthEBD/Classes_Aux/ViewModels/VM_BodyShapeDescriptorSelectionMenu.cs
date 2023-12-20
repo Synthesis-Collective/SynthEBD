@@ -8,6 +8,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Security.Cryptography.Pkcs;
+using System.Windows.Media;
 using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
@@ -46,7 +48,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 { 
                     if (!_initializing)
                     {
-                        AutoSelected = false;
+                        AutoSelected = DescriptorShells.Where(x => x.HasAutoAnnotations).Any();
                     }
                     BuildHeader();
                 })
@@ -176,7 +178,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
-    public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.LabelSignature> bodyShapeDescriptors)
+    public void CopyInFromHashSet<T>(HashSet<T> bodyShapeDescriptors)
+        where T: BodyShapeDescriptor.LabelSignature
     {
         _initializing = true;
         if (bodyShapeDescriptors != null)
@@ -263,6 +266,19 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
+    public HashSet<AnnotatedDescriptorSignature> DumpToOBodySettingsHashSet()
+    {
+        HashSet<AnnotatedDescriptorSignature> output = new(BackupStash.Select(x => new AnnotatedDescriptorSignature(x, false)));
+        if (this is not null && DescriptorShells is not null)
+        {
+            foreach (var shell in DescriptorShells)
+            {
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected && !x.IsAutoAnnotated).Select(x => new AnnotatedDescriptorSignature(new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }, false )).ToHashSet());
+            }
+        }
+        return output;
+    }
+
     public void BuildHeader()
     {
         List<string> categories = new();
@@ -307,7 +323,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     }
 }
 
-[DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count()})")]
+[DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count})")]
 public class VM_BodyShapeDescriptorShellSelector : VM
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
@@ -329,11 +345,21 @@ public class VM_BodyShapeDescriptorShellSelector : VM
                     .Select(_ => Unit.Default);
             })
             .DisposeWith(this);
+
+        this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(_ =>
+        {
+            foreach (var descriptor in DescriptorSelectors)
+            {
+                descriptor.TextColor = CommonColors.White;
+                descriptor.IsAutoAnnotated = false;
+            }
+        }).DisposeWith(this);
     }
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
     public IObservable<Unit> NeedsRefresh { get; set; }
+    public bool HasAutoAnnotations => DescriptorSelectors.Where(x => x.IsAutoAnnotated).Any();
 
     void UpdateDescriptorList()
     {
@@ -376,6 +402,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
     }
 }
 
+[DebuggerDisplay("{Value} {IsSelected ? \"(x)\" : \"(_)\";} Priority: {Priority}")]
 public class VM_BodyShapeDescriptorSelector : VM
 {
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
@@ -385,6 +412,7 @@ public class VM_BodyShapeDescriptorSelector : VM
         Value = TrackedDescriptor.Value;
 
         TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value).DisposeWith(this);
+        this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => { TextColor = CommonColors.White; IsAutoAnnotated = false; }).DisposeWith(this);
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
@@ -392,4 +420,6 @@ public class VM_BodyShapeDescriptorSelector : VM
     public string Value { get; set; }
     public bool IsSelected { get; set; } = false;
     public int Priority { get; set; } = 0;
+    public SolidColorBrush TextColor { get; set; } = CommonColors.White;
+    public bool IsAutoAnnotated { get; set; } = false;
 }

@@ -607,7 +607,8 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         return string.Join(" | ", sections);
     }
 
-    public static string GetBodyShapeDescriptorString(HashSet<BodyShapeDescriptor.LabelSignature> descriptors)
+    public static string GetBodyShapeDescriptorString<T>(HashSet<T> descriptors)
+        where T : BodyShapeDescriptor.LabelSignature
     {
         var categories = descriptors.Select(x => x.Category).ToHashSet();
         List<string> desc = new();

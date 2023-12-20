@@ -8,6 +8,7 @@ using ReactiveUI;
 using static SynthEBD.VM_NPCAttribute;
 using ControlzEx.Standard;
 using System.Diagnostics;
+using System.Linq;
 
 namespace SynthEBD;
 
@@ -104,6 +105,22 @@ public class VM_BodySlideSetting : VM
             execute: _ => Clone()
         );
 
+        AcceptAutoAnnotations = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => { 
+            foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
+                {
+                    foreach (var value in category.DescriptorSelectors)
+                    {
+                        value.IsAutoAnnotated = false;
+                        value.TextColor = CommonColors.White;
+                    }
+                }
+                DescriptorsSelectionMenu.AutoSelected = false;
+                UpdateStatusDisplay();
+            }
+        );
+
         this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferencedBodySlide).Subscribe(_ => UpdateStatusDisplay()).DisposeWith(this);
     }
@@ -141,6 +158,7 @@ public class VM_BodySlideSetting : VM
     public RelayCommand DeleteMe { get; }
     public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
+    public RelayCommand AcceptAutoAnnotations { get; }
 
     public SolidColorBrush BorderColor { get; set; }
 
@@ -231,10 +249,12 @@ public class VM_BodySlideSetting : VM
         Notes = model.Notes;
 
         bool autoAnnotated = model.AutoAnnotated;
-        if (ParentMenuVM.MiscUI.AutoApplyMissingAnnotations && !model.BodyShapeDescriptors.Any())
+        List<string> autoAnnotatedDescriptorSignatures = new();
+        if (ParentMenuVM.MiscUI.AutoApplyMissingAnnotations)
         {
-            _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel(), null);
-            autoAnnotated = true;
+            List<BodyShapeDescriptor.LabelSignature> autoAnnotatedDescriptors = _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel(), false, null);
+            autoAnnotated = autoAnnotatedDescriptors.Any();
+            autoAnnotatedDescriptorSignatures = autoAnnotatedDescriptors.Select(x => x.ToString()).ToList();
         }
 
         DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
@@ -242,6 +262,17 @@ public class VM_BodySlideSetting : VM
         if (autoAnnotated)
         {
             DescriptorsSelectionMenu.AutoSelected = true;
+            foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
+            {
+                var values = category.DescriptorSelectors.Where(selectableValue => autoAnnotatedDescriptorSignatures.Contains(selectableValue.TrackedDescriptor.Signature)).ToArray();
+                {
+                    foreach (var value in values)
+                    {
+                        value.TextColor = BorderColorAutoAnnotated;
+                        value.IsAutoAnnotated = true;
+                    }
+                }
+            }
         }
 
         AllowedRaces.AddRange(model.AllowedRaces);
@@ -298,10 +329,7 @@ public class VM_BodySlideSetting : VM
         model.Label = Label;
         model.ReferencedBodySlide = ReferencedBodySlide;
         model.Notes = Notes;
-        if (!DescriptorsSelectionMenu.AutoSelected) // don't save auto-generated descriptors. They will be recalculated upon next load (potentially with updated rules), unless the users makes a manual selection
-        {
-            model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToHashSet();
-        }
+        model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToOBodySettingsHashSet();
         model.AllowedRaces = AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = DisallowedRaces.ToHashSet();

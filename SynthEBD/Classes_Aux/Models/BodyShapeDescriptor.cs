@@ -155,7 +155,8 @@ public class BodyShapeDescriptor : IHasLabel
         return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, bDetailedAttributeLogging, out reportStr);
     }
 
-    public static bool DescriptorsMatch(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<LabelSignature> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
+    public static bool DescriptorsMatch<T>(Dictionary<string, HashSet<string>> DescriptorSet, HashSet<T> shapeDescriptors, DescriptorMatchMode matchMode, out string firstMatch)
+        where T : BodyShapeDescriptor.LabelSignature
     {
         firstMatch = "";
         if (!shapeDescriptors.Any())

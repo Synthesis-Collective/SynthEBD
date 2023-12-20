@@ -29,7 +29,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding TrackedShell.Category}" MinWidth="100" />
+                                        <TextBlock Text="{Binding TrackedShell.Category}" MinWidth="100" ToolTip="{Binding TrackedShell.CategoryDescription}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
