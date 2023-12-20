@@ -30,7 +30,7 @@ public class VM_BodySlideAnnotator : VM
 
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => ApplyAnnotations());
+            execute: _ => ApplyAnnotations(null, null));
     }
 
     public string SelectedSliderGroup { get; set; }
@@ -78,7 +78,7 @@ public class VM_BodySlideAnnotator : VM
         foreach (var bodyTypeGroup in SliderNamesByGroup.Keys)
         {
             SliderNamesByGroup[bodyTypeGroup].Sort(x => x, false);
-            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyTypeGroup, SliderNamesByGroup[bodyTypeGroup]));
+            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyTypeGroup, SliderNamesByGroup[bodyTypeGroup], this));
         }
 
         _bodySlideMenu.AvailableSliderGroups.Clear();
@@ -145,11 +145,16 @@ public class VM_BodySlideAnnotator : VM
         return bodySlideClassificationRules;
     }
 
-    public void ApplyAnnotations()
+    public void ApplyAnnotations(string? specifiedSliderGroup, string? specifiedDescriptorCategory)
     {
         var targetVMs = _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale).Where(x => x.AssociatedModel.AutoAnnotated || !x.AssociatedModel.BodyShapeDescriptors.Any()).ToList();
 
-        _bodySlideAnnotator.AnnotateBodySlides(targetVMs.Select(x => x.AssociatedModel).ToList(), this.DumpToModel(), true);
+        if (specifiedSliderGroup != null)
+        {
+            targetVMs = targetVMs.Where(x => x.AssociatedModel.SliderGroup == specifiedSliderGroup).ToList();
+        }
+
+        _bodySlideAnnotator.AnnotateBodySlides(targetVMs.Select(x => x.AssociatedModel).ToList(), this.DumpToModel(), true, specifiedDescriptorCategory);
 
         foreach (var targetVM in targetVMs)
         {
@@ -166,7 +171,7 @@ public class VM_BodySlideAnnotator : VM
 [DebuggerDisplay("{SliderGroup}: Rule List for {DescriptorClassifiers.Count} Descriptors")]
 public class VM_SliderClassificationRulesByBodyType : VM // contains a list of rules for each descriptor
 {
-    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames)
+    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM)
     {
         _subscribedDescriptorMenu = subscribedMenu;
 
@@ -174,14 +179,19 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
 
         foreach (var descriptorShell in _subscribedDescriptorMenu.TemplateDescriptors)
         {
-            DescriptorClassifiers.Add(new(descriptorShell, availableSliderNames));
+            DescriptorClassifiers.Add(new(descriptorShell, availableSliderNames, annotatorVM, this));
         }
+
+        ApplyAnnotationsCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => annotatorVM.ApplyAnnotations(BodyTypeGroup, null)
+        );
     }
     public string BodyTypeGroup { get; } // E.g. HIMBO, CBBE, etc
     public ObservableCollection<VM_DescriptorClassificationRuleSet> DescriptorClassifiers { get; set; } = new();
     public VM_DescriptorClassificationRuleSet SelectedDescriptor { get; set; }
     private VM_BodyShapeDescriptorCreationMenu _subscribedDescriptorMenu { get; }
-
+    public RelayCommand ApplyAnnotationsCommand { get; }
     private List<DescriptorClassificationRuleSet> _stashedUnloadedDescriptorRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
 
     public void CopyInFromModel(SliderClassificationRulesByBodyType model)
@@ -215,7 +225,7 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
 [DebuggerDisplay("{DescriptorCategory}: {RuleList.Count} Rule Groups")]
 public class VM_DescriptorClassificationRuleSet : VM // rule set for a given descriptor
 {
-    public VM_DescriptorClassificationRuleSet(VM_BodyShapeDescriptorShell subscribedDescriptorShell, ObservableCollection<string> availableSliderNames)
+    public VM_DescriptorClassificationRuleSet(VM_BodyShapeDescriptorShell subscribedDescriptorShell, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM, VM_SliderClassificationRulesByBodyType parentVM)
     {
         _subscribedDescriptorShell = subscribedDescriptorShell;
         SubscribedDescriptors = subscribedDescriptorShell.Descriptors;
@@ -232,6 +242,11 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
                 RuleList.Add(newRule);
             } 
         );
+
+        ApplyAnnotationsCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => annotatorVM.ApplyAnnotations(parentVM.BodyTypeGroup, DescriptorCategory)
+        );
     }
 
     private VM_BodyShapeDescriptorShell _subscribedDescriptorShell { get; }
@@ -240,7 +255,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     public string DescriptorCategory { get; }
     public VM_BodyShapeDescriptor DefaultDescriptorValue { get; set; }
     public ObservableCollection<VM_DescriptorAssignmentRuleSet> RuleList { get; set; } = new();
-
+    public RelayCommand ApplyAnnotationsCommand { get; }
     public RelayCommand AddNewRuleGroup { get; }
 
     public void CopyInFromModel(DescriptorClassificationRuleSet model)

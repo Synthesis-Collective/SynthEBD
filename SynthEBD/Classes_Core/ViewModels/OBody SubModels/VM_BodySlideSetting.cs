@@ -233,7 +233,7 @@ public class VM_BodySlideSetting : VM
         bool autoAnnotated = model.AutoAnnotated;
         if (ParentMenuVM.MiscUI.AutoApplyMissingAnnotations && !model.BodyShapeDescriptors.Any())
         {
-            _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel());
+            _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel(), null);
             autoAnnotated = true;
         }
 

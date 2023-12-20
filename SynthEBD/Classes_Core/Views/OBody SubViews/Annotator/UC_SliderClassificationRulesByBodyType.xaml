@@ -14,6 +14,7 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -27,7 +28,9 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1" Content="{Binding SelectedDescriptor}" Margin="5 0 0 0">
+        <Button Grid.Row="1" Grid.Column="0" Content="Re-Annotate Selected" Foreground="Purple" Command="{Binding SelectedDescriptor.ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
+
+        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Content="{Binding SelectedDescriptor}" Margin="5 0 0 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_DescriptorClassificationRuleSet}">
                     <local:UC_DescriptorClassificationRuleSet/>

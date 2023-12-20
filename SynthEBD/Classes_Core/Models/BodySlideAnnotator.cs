@@ -15,7 +15,7 @@ public class BodySlideAnnotator
     {
         _logger = logger;
     }
-    public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations)
+    public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations, string? specifiedDescriptorCategory)
     {
         var toAnnotate = new List<BodySlideSetting>(bodySlides);
         if (overwriteExistingAnnotations)
@@ -32,11 +32,11 @@ public class BodySlideAnnotator
 
         foreach (var bs in toAnnotate)
         {
-            AnnotateBodySlide(bs, bodySlideClassificationRules);
+            AnnotateBodySlide(bs, bodySlideClassificationRules, specifiedDescriptorCategory);
         }
     }
 
-    public void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules)
+    public void AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, string? specifiedDescriptorCategory)
     { 
         if (bodySlide == null)
         {
@@ -52,6 +52,10 @@ public class BodySlideAnnotator
 
         foreach (var ruleSet in bodySlideClassificationRules[bodySlide.SliderGroup].DescriptorClassifiers)
         {
+            if (specifiedDescriptorCategory != null && ruleSet.DescriptorCategory != specifiedDescriptorCategory)
+            {
+                continue;
+            }
             ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet);
         }
     }

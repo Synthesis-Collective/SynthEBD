@@ -15,6 +15,7 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -28,9 +29,10 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <Button Grid.Row="1" Grid.Column="0" Content="Re-annotate" Foreground="MediumPurple" Command="{Binding ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
+        <Button Grid.Row="1" Grid.Column="0" Content="Re-Annotate Selected" Foreground="Purple" Command="{Binding DisplayedRuleSet.ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
+        <Button Grid.Row="2" Grid.Column="0" Content="Re-Annotate All" Foreground="MediumPurple" Command="{Binding ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Content="{Binding DisplayedRuleSet}" Margin="5 0 0 0">
+        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Content="{Binding DisplayedRuleSet}" Margin="5 0 0 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_SliderClassificationRulesByBodyType}">
                     <local:UC_SliderClassificationRulesByBodyType/>
