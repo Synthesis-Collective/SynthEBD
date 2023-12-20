@@ -14,7 +14,7 @@
     </UserControl.Resources>
     
     <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto"/>
