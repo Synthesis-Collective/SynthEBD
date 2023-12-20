@@ -14,8 +14,8 @@
     
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="3*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -39,38 +39,37 @@
 
         </StackPanel>
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
-        <ScrollViewer Grid.Row="3" Grid.Column="0">
-            <StackPanel >
-                <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" >
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="auto"/>
-                                    </Grid.ColumnDefinitions>
 
-                                    <TextBlock Grid.Column="0" Text="{Binding Label}" MinWidth="100"/>
-                                    <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemovePreset}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
+        <ListBox Grid.Row="3" Grid.Column="0" SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderThickness="1" BorderBrush="{Binding BorderColor}" MaxWidth="{Binding Path=ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
 
-                    <!-- the following ItemContainerStyle makes selecting the TextBox containing Category also toggle the ListBoxItem.IsSelected property to focus on that ListBox Item-->
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="{x:Type ListBoxItem}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsVisible}" Value="False">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                </ListBox>
-            </StackPanel>
-        </ScrollViewer>
+                            <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" PreviewMouseLeftButtonDown="TextBlock_PreviewMouseLeftButtonDown"/>
+                            </ScrollViewer>
+                            <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemovePreset}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ListBoxItem}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsVisible}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ListBox.ItemContainerStyle>
+        </ListBox>
+
 
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
             <TextBlock VerticalAlignment="Center" Text="Delete"/>
