@@ -112,7 +112,11 @@ public class Settings_OBody
                             if (newPreset.Label.Contains("Zero for OBody", StringComparison.OrdinalIgnoreCase) ||
                                 newPreset.Label.Contains("Zeroed Sliders", StringComparison.OrdinalIgnoreCase) ||
                                 newPreset.Label.Contains("Clothes", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Clothed", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Clothing", StringComparison.OrdinalIgnoreCase) ||
                                 newPreset.Label.Contains("Outfit", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Armor", StringComparison.OrdinalIgnoreCase) ||
+                                newPreset.Label.Contains("Armour", StringComparison.OrdinalIgnoreCase) ||
                                 newPreset.Label.Contains("Refit ", StringComparison.OrdinalIgnoreCase))
                             {
                                 newPreset.AllowRandom = false;
