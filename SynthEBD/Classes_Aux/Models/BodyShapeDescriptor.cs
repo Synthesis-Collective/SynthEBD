@@ -29,6 +29,8 @@ public class BodyShapeDescriptor : IHasLabel
     public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
     public string Label { get; set; } // for duplicate removal - populated by removal code
+    public string CategoryDescription { get; set; } // this will be redundant for Descriptors with the same Category. Not worth breaking backwards compatibility to make BodyShapeDescriptor class nested like VM_BodyShapeDescriptor is.
+    public string ValueDescription { get; set; } 
 
     public bool MapsTo(Object obj)
     {

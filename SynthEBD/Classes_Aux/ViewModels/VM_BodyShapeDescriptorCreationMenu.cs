@@ -84,6 +84,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             {
                 shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
                 shell.Category = model.ID.Category;
+                shell.CategoryDescription = model.CategoryDescription;
                 TemplateDescriptors.Add(shell);
             }
 
@@ -92,6 +93,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             {
                 descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
                 descriptor.Value = model.ID.Value;
+                descriptor.ValueDescription = model.ValueDescription;
                 descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
                 shell.Descriptors.Add(descriptor);
                 TemplateDescriptorList.Add(descriptor);

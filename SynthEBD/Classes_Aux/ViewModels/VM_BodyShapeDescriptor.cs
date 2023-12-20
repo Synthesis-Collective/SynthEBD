@@ -32,6 +32,7 @@ public class VM_BodyShapeDescriptor : VM
              }).DisposeWith(this);
     }
     public string Value { get; set; } = "";
+    public string ValueDescription { get; set; } = "";
     public string Signature => BodyShapeDescriptor.LabelSignature.ToSignatureString(ParentShell.Category, Value);
     public VM_BodyShapeDescriptorRules AssociatedRules { get; set; }
 
@@ -64,6 +65,7 @@ public class VM_BodyShapeDescriptor : VM
     public void CopyInViewModelFromModel(BodyShapeDescriptor model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig)
     {
         Value = model.ID.Value;
+        ValueDescription = model.ValueDescription;
         AssociatedRules = _rulesFactory(this, raceGroupingVMs, parentConfig);
         AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, raceGroupingVMs);
     }
@@ -72,6 +74,8 @@ public class VM_BodyShapeDescriptor : VM
     {
         BodyShapeDescriptor model = new BodyShapeDescriptor(); 
         model.ID = new() { Category = ParentShell.Category, Value = Value };
+        model.ValueDescription = ValueDescription;
+        model.CategoryDescription = ParentShell.CategoryDescription;
         model.AssociatedRules = AssociatedRules.DumpViewModelToModel();
         return model;
     }

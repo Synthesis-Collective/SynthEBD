@@ -25,6 +25,7 @@ public class VM_BodyShapeDescriptorShell : VM
     }
 
     public string Category { get; set; } = "";
+    public string CategoryDescription { get; set; } = "";
     public ObservableCollection<VM_BodyShapeDescriptor> Descriptors { get; set; } = new();
     public ObservableCollection<VM_BodyShapeDescriptorShell> ParentCollection { get; set; }
     public RelayCommand AddTemplateDescriptorValue { get; }
