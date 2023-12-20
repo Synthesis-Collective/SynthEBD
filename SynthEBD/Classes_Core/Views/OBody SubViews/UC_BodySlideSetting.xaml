@@ -45,6 +45,7 @@
                     <RowDefinition Height="auto"/>
                     <RowDefinition Height="auto"/>
                     <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding Path=StatusHeader, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
@@ -69,17 +70,18 @@
                 <ContentPresenter Grid.Row="6" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
-                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black"/>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
-                <Button Grid.Row="6" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 5 0 0" Content="Accept Annotations" Foreground="LightGreen" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding Path=DescriptorsSelectionMenu.AutoSelected, Converter={StaticResource BoolToVis}}"/>
+                
+                <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding Path=DescriptorsSelectionMenu.AutoSelected, Converter={StaticResource BoolToVis}}"/>
 
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="7" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
-                <ContentPresenter Grid.Row="8" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                             <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -87,11 +89,11 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="9" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="10" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
-                <ContentPresenter Grid.Row="10" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+                <ContentPresenter Grid.Row="11" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
                             <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
@@ -99,10 +101,10 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this BodySlide preset to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
-                <Button Grid.Row="11" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this BodySlide preset to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+                <Button Grid.Row="12" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
 
-                <ItemsControl Grid.Row="11" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <ItemsControl Grid.Row="12" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                             <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -110,9 +112,9 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attribute that an NPC may not possess for this BodySlide to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
-                <Button Grid.Row="12" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
-                <ItemsControl Grid.Row="12" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attribute that an NPC may not possess for this BodySlide to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+                <Button Grid.Row="13" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <ItemsControl Grid.Row="13" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
                             <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
@@ -120,27 +122,27 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this BodySlide preset to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
-                <StackPanel Grid.Row="13" Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this BodySlide preset to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
+                <StackPanel Grid.Row="14" Grid.Column="2" Orientation="Horizontal">
                     <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
                     <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
                     <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
-                <CheckBox Grid.Row="14" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
+                <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
-                <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="16" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
-                <CheckBox Grid.Row="16" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
+                <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+                <CheckBox Grid.Row="17" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the BodySlide preset compared to others" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Probability Weighting</TextBlock>
-                <TextBox Grid.Row="17" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+                <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the BodySlide preset compared to others" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Probability Weighting</TextBlock>
+                <TextBox Grid.Row="18" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
 
-                <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Bodyslide's slider values" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Slider Values</TextBlock>
-                <Expander Grid.Row="18" Grid.Column="2">
+                <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Bodyslide's slider values" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Slider Values</TextBlock>
+                <Expander Grid.Row="19" Grid.Column="2">
                     <ScrollViewer>
                         <ItemsControl ItemsSource="{Binding SliderValues}">
                             <ItemsControl.ItemTemplate>
@@ -152,9 +154,9 @@
                     </ScrollViewer>
                 </Expander>
                 
-                <Button Grid.Row="19" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ToggleHide}" ToolTip="Hide this BodySlide preset in the preset list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple" Content="{Binding HideButtonText}"></Button>
-                <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding CloneCommand}" ToolTip="Clone this BodySlide preset (intended for presets that vary drastically with NPC weight)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple">Clone Preset</Button>
-                <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this preset (will be re-added if the preset remains installed when SynthEBD is next launched)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Preset</Button>
+                <Button Grid.Row="20" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ToggleHide}" ToolTip="Hide this BodySlide preset in the preset list" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple" Content="{Binding HideButtonText}"></Button>
+                <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding CloneCommand}" ToolTip="Clone this BodySlide preset (intended for presets that vary drastically with NPC weight)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple">Clone Preset</Button>
+                <Button Grid.Row="22" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this preset (will be re-added if the preset remains installed when SynthEBD is next launched)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Preset</Button>
             </Grid>
         </ScrollViewer>
     </Border>
