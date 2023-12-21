@@ -65,11 +65,11 @@ namespace SynthEBD
 
         private void InitializeAutoAnnotation()
         {
-            if (_patcherState.OBodySettings.AutoApplyMissingAnnotations && !AssociatedModel.BodyShapeDescriptors.Any()) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
+            if (_patcherState.OBodySettings.AutoApplyMissingAnnotations) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
             {
-                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, false, null);
+                var autoannotations = _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, false, null);
 
-                if (AssociatedModel.BodyShapeDescriptors.Any())
+                if (autoannotations.Any())
                 {
                     AssociatedModel.AutoAnnotated = true;
                 }
