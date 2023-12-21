@@ -147,7 +147,7 @@ public class VM_BodySlideAnnotator : VM
 
     public void ApplyAnnotations(string? specifiedSliderGroup, string? specifiedDescriptorCategory)
     {
-        var targetVMs = _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale).Where(x => x.AssociatedModel.AutoAnnotated || !x.AssociatedModel.BodyShapeDescriptors.Any()).ToList();
+        var targetVMs = _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale).ToList();
 
         if (specifiedSliderGroup != null)
         {

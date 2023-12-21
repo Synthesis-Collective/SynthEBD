@@ -48,7 +48,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 { 
                     if (!_initializing)
                     {
-                        AutoSelected = DescriptorShells.Where(x => x.HasAutoAnnotations).Any();
+                        RefreshAutoSelectionState();
                     }
                     BuildHeader();
                 })
@@ -66,7 +66,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
     public bool ShowMatchMode { get; set; } = false;
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
-    public bool AutoSelected { get; set; } = false;
+    public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
     private bool _initializing { get; set; } = false;
     public bool ShowPriority { get; set; } = false;
 
@@ -194,37 +194,14 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                         if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
                         {
                             selectableDescriptor.IsSelected = true;
-                            keepLooking = false;
-                            break;
-                        }
-                    }
-                    if (keepLooking == false) { break; }
-                }
-                if (keepLooking)
-                {
-                    BackupStash.Add(descriptor); // descriptor is no longer present in the UI
-                }
-            }
-        }
-        _initializing = false;
-    }
-
-    public void CopyInFromHashSet(HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> bodyShapeDescriptors)
-    {
-        _initializing = true;
-        if (bodyShapeDescriptors != null)
-        {
-            foreach (var descriptor in bodyShapeDescriptors)
-            {
-                bool keepLooking = true;
-                foreach (var Descriptor in DescriptorShells)
-                {
-                    foreach (var selectableDescriptor in Descriptor.DescriptorSelectors)
-                    {
-                        if (selectableDescriptor.TrackedDescriptor.MapsTo(descriptor))
-                        {
-                            selectableDescriptor.IsSelected = true;
-                            selectableDescriptor.Priority = descriptor.Priority;
+                            if (descriptor is AnnotatedDescriptorSignature annotated)
+                            {
+                                selectableDescriptor.AnnotationState = annotated.AnnotationState;
+                            }
+                            else if (descriptor is BodyShapeDescriptor.PrioritizedLabelSignature prioritized)
+                            {
+                                selectableDescriptor.Priority = prioritized.Priority;
+                            }
                             keepLooking = false;
                             break;
                         }
@@ -268,12 +245,12 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
     public HashSet<AnnotatedDescriptorSignature> DumpToOBodySettingsHashSet()
     {
-        HashSet<AnnotatedDescriptorSignature> output = new(BackupStash.Select(x => new AnnotatedDescriptorSignature(x, false)));
+        HashSet<AnnotatedDescriptorSignature> output = new(BackupStash.Select(x => new AnnotatedDescriptorSignature(x)));
         if (this is not null && DescriptorShells is not null)
         {
             foreach (var shell in DescriptorShells)
             {
-                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected && !x.IsAutoAnnotated).Select(x => new AnnotatedDescriptorSignature(new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }, false )).ToHashSet());
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new AnnotatedDescriptorSignature(new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }, x.AnnotationState)).ToHashSet());
             }
         }
         return output;
@@ -321,6 +298,32 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
         }
     }
+
+    private void RefreshAutoSelectionState()
+    {
+        bool hasAnnotations = DescriptorShells.Where(x => x.AnnotationState != BodyShapeAnnotationState.None).Any();
+        if (!hasAnnotations)
+        {
+            AnnotationState = BodyShapeAnnotationState.None;
+            return;
+        }
+
+        bool hasManualAnnotations = DescriptorShells.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
+        bool hasRulesBasedAnnotations = DescriptorShells.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
+        
+        if (hasManualAnnotations && !hasRulesBasedAnnotations)
+        {
+            AnnotationState = BodyShapeAnnotationState.Manual;
+        }
+        else if (!hasManualAnnotations && hasRulesBasedAnnotations)
+        {
+            AnnotationState = BodyShapeAnnotationState.RulesBased;
+        }
+        else if (hasManualAnnotations && hasRulesBasedAnnotations)
+        {
+            AnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
+        }
+    }
 }
 
 [DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count})")]
@@ -350,8 +353,16 @@ public class VM_BodyShapeDescriptorShellSelector : VM
         {
             foreach (var descriptor in DescriptorSelectors)
             {
-                descriptor.TextColor = CommonColors.White;
-                descriptor.IsAutoAnnotated = false;
+                descriptor.TextColor = CommonColors.White;                
+            }
+
+            if (DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any())
+            {
+                AnnotationState = BodyShapeAnnotationState.Manual;
+            }
+            else
+            {
+                AnnotationState = BodyShapeAnnotationState.None;
             }
         }).DisposeWith(this);
     }
@@ -359,7 +370,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
     public IObservable<Unit> NeedsRefresh { get; set; }
-    public bool HasAutoAnnotations => DescriptorSelectors.Where(x => x.IsAutoAnnotated).Any();
+    public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
 
     void UpdateDescriptorList()
     {
@@ -412,7 +423,8 @@ public class VM_BodyShapeDescriptorSelector : VM
         Value = TrackedDescriptor.Value;
 
         TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value).DisposeWith(this);
-        this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => { TextColor = CommonColors.White; IsAutoAnnotated = false; }).DisposeWith(this);
+        this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => AnnotationState = IsSelected ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None).DisposeWith(this);
+        this.WhenAnyValue(x => x.AnnotationState).Subscribe(x => UpdateTextColor(x)).DisposeWith(this);
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
@@ -421,5 +433,23 @@ public class VM_BodyShapeDescriptorSelector : VM
     public bool IsSelected { get; set; } = false;
     public int Priority { get; set; } = 0;
     public SolidColorBrush TextColor { get; set; } = CommonColors.White;
-    public bool IsAutoAnnotated { get; set; } = false;
+    public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
+
+    private void UpdateTextColor(BodyShapeAnnotationState annotationState)
+    {
+        TextColor = VM_BodySlideSetting.AnnotationToColor[annotationState];
+        // some states have explicit differences vs. BodySlideSettings and BodySlidePlaceHolders
+        if (annotationState == BodyShapeAnnotationState.None || annotationState == BodyShapeAnnotationState.Manual)
+        {
+            TextColor = CommonColors.White;
+        }
+    }
+}
+
+public enum BodyShapeAnnotationState
+{
+    None,
+    Manual,
+    RulesBased,
+    Mix_Manual_RulesBased
 }

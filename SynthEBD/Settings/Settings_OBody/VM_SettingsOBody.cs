@@ -172,10 +172,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         // clear auto-annotated descriptors
         foreach (var preset in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
         {
-            if (preset.AssociatedModel.AutoAnnotated)
-            {
-                preset.AssociatedModel.BodyShapeDescriptors.Clear();
-            }
+            preset.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.AnnotationState != BodyShapeAnnotationState.Manual);
         }
 
         foreach (var preset in BodySlidesUI.BodySlidesMale)

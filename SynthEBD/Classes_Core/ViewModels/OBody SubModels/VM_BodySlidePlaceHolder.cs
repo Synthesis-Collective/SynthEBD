@@ -29,7 +29,7 @@ namespace SynthEBD
             Label = model.Label;
             ParentCollection = parentCollection;
 
-            InitializeAutoAnnotation();
+            InitializeAnnotation();
             InitializeBorderColor();
 
             this.WhenAnyValue(x => x.AssociatedViewModel.Label).Subscribe(y => Label = y).DisposeWith(this);
@@ -63,20 +63,21 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
-        private void InitializeAutoAnnotation()
+        private void InitializeAnnotation()
         {
+            bool hasAnnotations = AssociatedModel.BodyShapeDescriptors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
+            if (hasAnnotations)
+            {
+                AssociatedModel.AnnotationState = BodyShapeAnnotationState.Manual;
+            }
+
             if (_patcherState.OBodySettings.AutoApplyMissingAnnotations) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
             {
-                var autoannotations = _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, false, null);
-
-                if (autoannotations.Any())
-                {
-                    AssociatedModel.AutoAnnotated = true;
-                }
+                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, false, null);
             }
         }
 
-        public void InitializeBorderColor()
+        public void InitializeBorderColor() // this should follow the same logic as VM_BodySlideSettings.UpdateStatusDisplay()
         {
             if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
             {
@@ -86,17 +87,9 @@ namespace SynthEBD
             {
                 BorderColor = VM_BodySlideSetting.BorderColorHidden;
             }
-            else if (AssociatedModel.AutoAnnotated)
-            {
-                BorderColor = VM_BodySlideSetting.BorderColorAutoAnnotated;
-            }
-            else if (!AssociatedModel.BodyShapeDescriptors.Any())
-            {
-                BorderColor = VM_BodySlideSetting.BorderColorUnannotated;
-            }
             else
             {
-                BorderColor = VM_BodySlideSetting.BorderColorValid;
+                BorderColor = VM_BodySlideSetting.AnnotationToColor[AssociatedModel.AnnotationState];
             }
         }
 

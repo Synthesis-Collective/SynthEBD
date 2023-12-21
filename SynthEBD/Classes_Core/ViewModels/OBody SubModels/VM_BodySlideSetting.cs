@@ -43,7 +43,7 @@ public class VM_BodySlideSetting : VM
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
         DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any, false);
-        DescriptorsSelectionMenu.AutoSelected = associatedPlaceHolder.AssociatedModel.AutoAnnotated; // if true will be set to false as soon as user makes a selection
+        DescriptorsSelectionMenu.AnnotationState = associatedPlaceHolder.AssociatedModel.AnnotationState; // if true will be set to false as soon as user makes a selection
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
@@ -107,22 +107,32 @@ public class VM_BodySlideSetting : VM
 
         AcceptAutoAnnotations = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => { 
-            foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
+            execute: _ => {
+                bool hasSelected = false;
+                foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
                 {
                     foreach (var value in category.DescriptorSelectors)
                     {
-                        value.IsAutoAnnotated = false;
+                        value.AnnotationState = BodyShapeAnnotationState.Manual;
                         value.TextColor = CommonColors.White;
                     }
+                    category.AnnotationState = category.DescriptorSelectors.Where(x => x.IsSelected).Any()? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
+                    if (category.AnnotationState == BodyShapeAnnotationState.Manual)
+                    {
+                        hasSelected = true;
+                    }
                 }
-                DescriptorsSelectionMenu.AutoSelected = false;
-                UpdateStatusDisplay();
+                DescriptorsSelectionMenu.AnnotationState = hasSelected? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
             }
         );
 
         this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
         this.WhenAnyValue(x => x.ReferencedBodySlide).Subscribe(_ => UpdateStatusDisplay()).DisposeWith(this);
+        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.AnnotationState).Subscribe(state =>
+        {
+            ShowAcceptAnnotationsButton = state != BodyShapeAnnotationState.None && state != BodyShapeAnnotationState.Manual;
+            UpdateStatusDisplay();
+        }).DisposeWith(this);
     }
 
     public string Label { get; set; } = "";
@@ -159,7 +169,7 @@ public class VM_BodySlideSetting : VM
     public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
     public RelayCommand AcceptAutoAnnotations { get; }
-
+    public bool ShowAcceptAnnotationsButton { get; set; }
     public SolidColorBrush BorderColor { get; set; }
 
     public string HideButtonText { get; set; } = "Hide";
@@ -171,7 +181,8 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorUnannotated = CommonColors.Yellow;
     public static SolidColorBrush BorderColorValid = CommonColors.LightGreen;
     public static SolidColorBrush BorderColorHidden = CommonColors.LightSlateGrey;
-    public static SolidColorBrush BorderColorAutoAnnotated = CommonColors.MediumPurple;
+    public static SolidColorBrush BorderColorAnnotationRuleBased = CommonColors.MediumPurple;
+    public static SolidColorBrush BorderColorAnnotationMixManual_RulesBased = new(Colors.Teal);
 
     public VM_BodySlideSetting Clone()
     {
@@ -201,7 +212,7 @@ public class VM_BodySlideSetting : VM
         var model = DumpToModel();
         return _placeHolderFactory(model, parentCollection);
     }
-    public void UpdateStatusDisplay()
+    public void UpdateStatusDisplay() // this should follow the same logic as VM_BodySlidePlaceHolder.InitializeBorderColor()
     {
         if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.ReferencedBodySlide))
         {
@@ -214,28 +225,43 @@ public class VM_BodySlideSetting : VM
         {
             BorderColor = BorderColorHidden;
         }
-        else if (DescriptorsSelectionMenu.AutoSelected && DescriptorsSelectionMenu.IsAnnotated())
+        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.None)
         {
-            BorderColor = BorderColorAutoAnnotated;
-            StatusHeader = "Note:";
-            StatusText = "Bodyslide has been automatically annotated";
-            ShowStatus = true;
-        }
-        else if(!DescriptorsSelectionMenu.IsAnnotated())
-        {
-            BorderColor = BorderColorUnannotated;
+            BorderColor = AnnotationToColor[BodyShapeAnnotationState.None];
             StatusHeader = "Warning:";
             StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
             ShowStatus = true;
         }
-        else
+        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.RulesBased)
         {
-            BorderColor = BorderColorValid;
+            BorderColor = AnnotationToColor[BodyShapeAnnotationState.RulesBased];
+            StatusHeader = "Note:";
+            StatusText = "Bodyslide has been automatically annotated using slider rules";
+            ShowStatus = true;
+        }
+        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.Mix_Manual_RulesBased)
+        {
+            BorderColor = AnnotationToColor[BodyShapeAnnotationState.Mix_Manual_RulesBased];
+            StatusHeader = "Note:";
+            StatusText = "Bodyslide has both manual and automatical slider rules-based annotations";
+            ShowStatus = true;
+        }
+        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.Manual)
+        {
+            BorderColor = AnnotationToColor[BodyShapeAnnotationState.Manual];
             StatusHeader = string.Empty;
             StatusText = string.Empty;
             ShowStatus = false;   
         }
     }
+
+    public static Dictionary<BodyShapeAnnotationState, SolidColorBrush> AnnotationToColor = new()
+    {
+        { BodyShapeAnnotationState.None, BorderColorUnannotated},
+        { BodyShapeAnnotationState.RulesBased, BorderColorAnnotationRuleBased},
+        {BodyShapeAnnotationState.Manual, BorderColorValid },
+        { BodyShapeAnnotationState.Mix_Manual_RulesBased, BorderColorAnnotationMixManual_RulesBased }
+    };
 
     public void CopyInViewModelFromModel(BodySlideSetting model)
     {
@@ -248,32 +274,7 @@ public class VM_BodySlideSetting : VM
         SliderGroup = model.SliderGroup;
         Notes = model.Notes;
 
-        bool autoAnnotated = model.AutoAnnotated;
-        List<string> autoAnnotatedDescriptorSignatures = new();
-        if (ParentMenuVM.MiscUI.AutoApplyMissingAnnotations)
-        {
-            List<BodyShapeDescriptor.LabelSignature> autoAnnotatedDescriptors = _bodySlideAnnotator.AnnotateBodySlide(model, ParentMenuVM.AnnotatorUI.DumpToModel(), false, null);
-            autoAnnotated = autoAnnotatedDescriptors.Any();
-            autoAnnotatedDescriptorSignatures = autoAnnotatedDescriptors.Select(x => x.ToString()).ToList();
-        }
-
         DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
-
-        if (autoAnnotated)
-        {
-            DescriptorsSelectionMenu.AutoSelected = true;
-            foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
-            {
-                var values = category.DescriptorSelectors.Where(selectableValue => autoAnnotatedDescriptorSignatures.Contains(selectableValue.TrackedDescriptor.Signature)).ToArray();
-                {
-                    foreach (var value in values)
-                    {
-                        value.TextColor = BorderColorAutoAnnotated;
-                        value.IsAutoAnnotated = true;
-                    }
-                }
-            }
-        }
 
         AllowedRaces.AddRange(model.AllowedRaces);
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
@@ -346,7 +347,7 @@ public class VM_BodySlideSetting : VM
         // also copy JSonIgnored values because they're needed by the patcher or if returning to this VM
         model.SliderGroup = AssociatedPlaceHolder.AssociatedModel.SliderGroup;
         model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues);
-        model.AutoAnnotated = DescriptorsSelectionMenu.AutoSelected;
+        model.AnnotationState = DescriptorsSelectionMenu.AnnotationState;
         return model;
     }
 }

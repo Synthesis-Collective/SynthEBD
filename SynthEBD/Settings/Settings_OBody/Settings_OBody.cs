@@ -131,7 +131,7 @@ public class Settings_OBody
                                     var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                                     if (descriptor != null)
                                     {
-                                        newPreset.BodyShapeDescriptors.Add(new(descriptor.ID, false));
+                                        newPreset.BodyShapeDescriptors.Add(new(descriptor.ID, BodyShapeAnnotationState.Manual));
                                     }
                                 }
                             }
@@ -205,30 +205,30 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new(){ Category = "Build", Value = "Medium" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new(){ Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Jack")
                 {
                     numCopies = 2;
 
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.WeightRange.Upper = 44;
                     copiedBodySlide.Label += " (Low Weight)";
 
                     var copiedBodySlide2 = JSONhandler<BodySlideSetting>.CloneViaJSON(currentBodySlide);
-                    copiedBodySlide2.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, false));
+                    copiedBodySlide2.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide2.WeightRange.Lower = 56;
                     copiedBodySlide2.WeightRange.Upper = 100;
                     copiedBodySlide2.Label += " (High Weight)";
 
                     currentBodySlide.WeightRange.Lower = 45;
                     currentBodySlide.WeightRange.Upper = 55;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (Medium Weight)";
 
                     BodySlidesMale.Insert(i + 1, copiedBodySlide2);
@@ -238,11 +238,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 40;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 41;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Sultry")
@@ -250,11 +250,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hugh")
@@ -262,11 +262,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 59;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 60;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hideo")
@@ -274,11 +274,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 66;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, false));
+                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 67;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, false));
+                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
                     currentBodySlide.Label += " (High Weight)";
                 }
 
@@ -288,7 +288,7 @@ public class Settings_OBody
             else if (currentBodySlide.ReferencedBodySlide == "HIMBO Mike")
             {
                 currentBodySlide.BodyShapeDescriptors.Clear();
-                currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, false));
+                currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
             }
         }
         HIMBOAnnotationVersion = 1;
@@ -325,7 +325,7 @@ public class BodySlideSetting : IProbabilityWeighted
     public NPCWeightRange WeightRange { get; set; } = new();
     public bool HideInMenu { get; set; } = false;
     [JsonIgnore]
-    public bool AutoAnnotated { get; set; } = false;
+    public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
 
     [JsonIgnore]
     public int MatchedForceIfCount { get; set; } = 0;
@@ -339,11 +339,16 @@ public class BodySlideSetting : IProbabilityWeighted
 
 public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
 {
-    public AnnotatedDescriptorSignature(BodyShapeDescriptor.LabelSignature template, bool autoAnnotated)
+    public AnnotatedDescriptorSignature(BodyShapeDescriptor.LabelSignature template)
     {
         Category = template.Category;
         Value = template.Value;
-        AutoAnnotated = autoAnnotated;
+    }
+    public AnnotatedDescriptorSignature(BodyShapeDescriptor.LabelSignature template, BodyShapeAnnotationState annotationState)
+    {
+        Category = template.Category;
+        Value = template.Value;
+        AnnotationState = annotationState;
     }
 
     [JsonConstructor]
@@ -351,15 +356,20 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
     {
         Category = category;
         Value = value;
-        AutoAnnotated = false;
+        AnnotationState = BodyShapeAnnotationState.Manual;
     }
 
     [JsonIgnore]
-    public bool AutoAnnotated { get; set; } = false;
+    public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.Manual;
 
     public BodyShapeDescriptor.LabelSignature ToLabelSignature()
     {
         return new BodyShapeDescriptor.LabelSignature() { Category = Category, Value = Value };
+    }
+
+    public override string ToString()
+    {
+        return this.ToLabelSignature() + " (" + AnnotationState.ToString() + ")";
     }
 }
 

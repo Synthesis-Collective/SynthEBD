@@ -75,7 +75,7 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
                 
-                <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding Path=DescriptorsSelectionMenu.AutoSelected, Converter={StaticResource BoolToVis}}"/>
+                <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding ShowAcceptAnnotationsButton, Converter={StaticResource BoolToVis}}"/>
 
                 <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
                 <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />

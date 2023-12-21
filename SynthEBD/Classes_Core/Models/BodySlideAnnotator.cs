@@ -31,7 +31,7 @@ public class BodySlideAnnotator
             return annotatedDescriptors;
         }
 
-        bodySlide.AutoAnnotated = false; // should be default but because I forgot to set JsonIgnore for this property in SynthEBD <1.0.1.9, some BodySlides can be spuriously imported as "true" even if they should be false.
+        bodySlide.AnnotationState = bodySlide.BodyShapeDescriptors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any()? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
 
         if (bodySlideClassificationRules == null || bodySlide.SliderGroup == null || bodySlide.SliderValues == null || !bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup) || bodySlideClassificationRules[bodySlide.SliderGroup] == null)
         {
@@ -49,13 +49,26 @@ public class BodySlideAnnotator
                 bodySlide.BodyShapeDescriptors.RemoveWhere(x => x.Category == ruleSet.DescriptorCategory); // remove all descriptors from this category if they are to be re-annotated
             }
 
-            if (bodySlide.BodyShapeDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory && !x.AutoAnnotated).Any()) // skip over the category if it's already manually annotated
+            if (bodySlide.BodyShapeDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory && x.AnnotationState == BodyShapeAnnotationState.Manual).Any()) // skip over the category if it's already manually annotated
             {
                 continue;
             }
 
             annotatedDescriptors.AddRange(ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet));
         }
+
+        if (annotatedDescriptors.Any())
+        {
+            if (bodySlide.AnnotationState == BodyShapeAnnotationState.None)
+            {
+                bodySlide.AnnotationState = BodyShapeAnnotationState.RulesBased;
+            }
+            else if (bodySlide.AnnotationState == BodyShapeAnnotationState.Manual)
+            {
+                bodySlide.AnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
+            }
+        }
+
         return annotatedDescriptors;
     }
 
@@ -68,10 +81,9 @@ public class BodySlideAnnotator
             if (EvaluateDescriptorValueRule(bodySlide, rule))
             {
                 var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue };
-                bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, true));
+                bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, BodyShapeAnnotationState.RulesBased));
                 _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString());
                 ruleApplied = true;
-                bodySlide.AutoAnnotated = true;
                 annotatedDescriptors.Add(descriptorSignature);
             }
         }
@@ -79,9 +91,8 @@ public class BodySlideAnnotator
         if (!ruleApplied && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace())
         {
             var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
-            bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, true));
+            bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, BodyShapeAnnotationState.RulesBased));
             _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString());
-            bodySlide.AutoAnnotated = true;
             annotatedDescriptors.Add(descriptorSignature);
         }
         return annotatedDescriptors;
