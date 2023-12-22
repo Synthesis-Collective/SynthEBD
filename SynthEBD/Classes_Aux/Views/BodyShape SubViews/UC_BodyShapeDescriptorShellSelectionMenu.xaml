@@ -19,12 +19,10 @@
             <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
-        <ScrollViewer Grid.Row="1" Grid.Column="0" MaxHeight="100">
+        <ScrollViewer Grid.Row="0" Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding DescriptorSelectors}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
