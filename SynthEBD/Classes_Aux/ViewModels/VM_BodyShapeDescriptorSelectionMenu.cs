@@ -48,7 +48,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 { 
                     if (!_initializing)
                     {
-                        RefreshAutoSelectionState();
+                        AnnotationState = AnnotationStateComputer.ComputeAnnotationState(DescriptorShells.Cast<IHasAnnotationState>().ToList());
                     }
                     BuildHeader();
                 })
@@ -298,36 +298,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
         }
     }
-
-    private void RefreshAutoSelectionState()
-    {
-        bool hasAnnotations = DescriptorShells.Where(x => x.AnnotationState != BodyShapeAnnotationState.None).Any();
-        if (!hasAnnotations)
-        {
-            AnnotationState = BodyShapeAnnotationState.None;
-            return;
-        }
-
-        bool hasManualAnnotations = DescriptorShells.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
-        bool hasRulesBasedAnnotations = DescriptorShells.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
-        
-        if (hasManualAnnotations && !hasRulesBasedAnnotations)
-        {
-            AnnotationState = BodyShapeAnnotationState.Manual;
-        }
-        else if (!hasManualAnnotations && hasRulesBasedAnnotations)
-        {
-            AnnotationState = BodyShapeAnnotationState.RulesBased;
-        }
-        else if (hasManualAnnotations && hasRulesBasedAnnotations)
-        {
-            AnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
-        }
-    }
 }
 
 [DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count})")]
-public class VM_BodyShapeDescriptorShellSelector : VM
+public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
 {
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
@@ -351,26 +325,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
 
         this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(_ =>
         {
-            if (!IsAnnotated())
-            {
-                AnnotationState = BodyShapeAnnotationState.None;
-            }
-            bool hasManual = HasManualDescriptors();
-            bool hasRulesBased = HasRulesBasedDescriptors();
-
-            if (hasManual && !hasRulesBased)
-            {
-                AnnotationState = BodyShapeAnnotationState.Manual;
-            }
-            else if (!hasManual && hasRulesBased)
-            {
-                AnnotationState = BodyShapeAnnotationState.RulesBased;
-            }
-            else if (hasManual && hasRulesBased)
-            {
-                AnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
-            }
-
+            AnnotationState = AnnotationStateComputer.ComputeAnnotationState(DescriptorSelectors.Cast<IHasAnnotationState>().ToList());
         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.AnnotationState).Subscribe(x => UpdateTextColor(x)).DisposeWith(this);
@@ -381,19 +336,6 @@ public class VM_BodyShapeDescriptorShellSelector : VM
     public IObservable<Unit> NeedsRefresh { get; set; }
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
     public SolidColorBrush TextColor { get; set; } = CommonColors.White;
-    
-    private bool IsAnnotated()
-    {
-        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.None).Any();
-    }
-    private bool HasManualDescriptors()
-    {
-        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
-    }
-    private bool HasRulesBasedDescriptors()
-    {
-        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
-    }
 
     void UpdateDescriptorList()
     {
@@ -447,7 +389,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
 }
 
 [DebuggerDisplay("{Value} {IsSelected ? \"(x)\" : \"(_)\";} Priority: {Priority}")]
-public class VM_BodyShapeDescriptorSelector : VM
+public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
 {
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
