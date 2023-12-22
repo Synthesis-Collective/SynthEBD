@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Json;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -56,6 +57,13 @@ public class JSONhandler<T>
         {
             success = false;
             exception = ExceptionLogger.GetExceptionStack(ex);
+            return default(T);
+        }
+
+        if (contents == null || contents.IsNullOrWhitespace())
+        {
+            success = false;
+            exception = "File " + loadLoc + " is empty.";
             return default(T);
         }
 
