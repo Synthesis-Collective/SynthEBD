@@ -1,6 +1,7 @@
 using DynamicData;
 using DynamicData.Binding;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Noggog;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -232,6 +233,8 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         DescriptorCategory = _subscribedDescriptorShell.Category;
         AvailableSliderNames = availableSliderNames;
 
+        RefreshAvailableDefaults();
+
         AddNewRuleGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -251,9 +254,10 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
 
     private VM_BodyShapeDescriptorShell _subscribedDescriptorShell { get; }
     public ObservableCollection<VM_BodyShapeDescriptor> SubscribedDescriptors { get; }
+    public ObservableCollection<IHasValueString> AvailableDefaultDescriptors { get; set; } = new();
     public ObservableCollection<string> AvailableSliderNames { get; }
     public string DescriptorCategory { get; }
-    public VM_BodyShapeDescriptor DefaultDescriptorValue { get; set; }
+    public IHasValueString DefaultDescriptorValue { get; set; }
     public ObservableCollection<VM_DescriptorAssignmentRuleSet> RuleList { get; set; } = new();
     public RelayCommand ApplyAnnotationsCommand { get; }
     public RelayCommand AddNewRuleGroup { get; }
@@ -278,6 +282,42 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         model.DefaultDescriptorValue = DefaultDescriptorValue?.Value ?? String.Empty;
         model.RuleList = RuleList.Select(x => x.DumpToModel()).ToList();
         return model;
+    }
+
+    private void RefreshAvailableDefaults()
+    {
+        if (!AvailableDefaultDescriptors.Where(x => x.Value.IsNullOrEmpty()).Any())
+        {
+            AvailableDefaultDescriptors.Insert(0, new DummyDescriptor());
+        }
+
+        foreach (var descriptor in SubscribedDescriptors)
+        {
+            if (!AvailableDefaultDescriptors.Contains(descriptor))
+            {
+                AvailableDefaultDescriptors.Add(descriptor);
+            }
+        }
+
+        for (int i = 0; i < AvailableDefaultDescriptors.Count; i++)
+        {
+            var descriptor = AvailableDefaultDescriptors[i];
+            if (descriptor is DummyDescriptor)
+            {
+                continue;
+            }
+
+            if (!SubscribedDescriptors.Contains(descriptor))
+            {
+                AvailableDefaultDescriptors.RemoveAt(i);
+                i--;
+            }
+        }
+    }
+
+    private class DummyDescriptor: IHasValueString
+    {
+        public string Value { get; set; } = string.Empty;
     }
 }
 

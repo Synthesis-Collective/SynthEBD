@@ -7,7 +7,7 @@ using System.Reactive.Linq;
 namespace SynthEBD;
 
 [DebuggerDisplay("{Value}")]
-public class VM_BodyShapeDescriptor : VM
+public class VM_BodyShapeDescriptor : VM, IHasValueString
 {
     private VM_BodyShapeDescriptorRules.Factory _rulesFactory;
     public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
@@ -95,4 +95,9 @@ public class VM_BodyShapeDescriptor : VM
             return false;
         }
     }
+}
+
+public interface IHasValueString
+{
+    public string Value { get; set; }
 }

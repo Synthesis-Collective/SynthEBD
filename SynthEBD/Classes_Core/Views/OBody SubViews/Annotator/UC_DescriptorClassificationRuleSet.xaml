@@ -25,7 +25,7 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Default Descriptor" VerticalAlignment="Center"/>
-        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding SubscribedDescriptors}" SelectedItem="{Binding DefaultDescriptorValue}" DisplayMemberPath="Value"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AvailableDefaultDescriptors}" SelectedItem="{Binding DefaultDescriptorValue}" DisplayMemberPath="Value"/>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Annotation Rules" VerticalAlignment="Center"/>
         <Button Grid.Row="1" Grid.Column="1" Content="Create a Rule" Foreground="MediumPurple" Command="{Binding AddNewRuleGroup}" HorizontalAlignment="Left" VerticalAlignment="Center" />
