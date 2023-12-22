@@ -259,7 +259,7 @@ public class VM_BodySlideSetting : VM
     {
         { BodyShapeAnnotationState.None, BorderColorUnannotated},
         { BodyShapeAnnotationState.RulesBased, BorderColorAnnotationRuleBased},
-        {BodyShapeAnnotationState.Manual, BorderColorValid },
+        { BodyShapeAnnotationState.Manual, BorderColorValid },
         { BodyShapeAnnotationState.Mix_Manual_RulesBased, BorderColorAnnotationMixManual_RulesBased }
     };
 

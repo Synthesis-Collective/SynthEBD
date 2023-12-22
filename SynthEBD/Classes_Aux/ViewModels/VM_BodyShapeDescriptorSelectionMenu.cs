@@ -343,7 +343,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             .Subscribe(x =>
             {
                 NeedsRefresh = DescriptorSelectors
-                    .Select(x => x.WhenAnyValue(x => x.IsSelected, x => x.Priority))
+                    .Select(x => x.WhenAnyValue(x => x.IsSelected, x => x.Priority, x => x.AnnotationState))
                     .CombineLatest()
                     .Select(_ => Unit.Default);
             })
@@ -351,26 +351,49 @@ public class VM_BodyShapeDescriptorShellSelector : VM
 
         this.WhenAnyObservable(x => x.NeedsRefresh).Subscribe(_ =>
         {
-            foreach (var descriptor in DescriptorSelectors)
-            {
-                descriptor.TextColor = CommonColors.White;                
-            }
-
-            if (DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any())
-            {
-                AnnotationState = BodyShapeAnnotationState.Manual;
-            }
-            else
+            if (!IsAnnotated())
             {
                 AnnotationState = BodyShapeAnnotationState.None;
             }
+            bool hasManual = HasManualDescriptors();
+            bool hasRulesBased = HasRulesBasedDescriptors();
+
+            if (hasManual && !hasRulesBased)
+            {
+                AnnotationState = BodyShapeAnnotationState.Manual;
+            }
+            else if (!hasManual && hasRulesBased)
+            {
+                AnnotationState = BodyShapeAnnotationState.RulesBased;
+            }
+            else if (hasManual && hasRulesBased)
+            {
+                AnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
+            }
+
         }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.AnnotationState).Subscribe(x => UpdateTextColor(x)).DisposeWith(this);
     }
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
     public IObservable<Unit> NeedsRefresh { get; set; }
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
+    public SolidColorBrush TextColor { get; set; } = CommonColors.White;
+    
+    private bool IsAnnotated()
+    {
+        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.None).Any();
+    }
+    private bool HasManualDescriptors()
+    {
+        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
+    }
+    private bool HasRulesBasedDescriptors()
+    {
+        return DescriptorSelectors.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
+    }
 
     void UpdateDescriptorList()
     {
@@ -409,6 +432,16 @@ public class VM_BodyShapeDescriptorShellSelector : VM
             {
                 DescriptorSelectors.Add(new VM_BodyShapeDescriptorSelector(sourceDescriptor, ParentMenu));
             }
+        }
+    }
+
+    private void UpdateTextColor(BodyShapeAnnotationState annotationState)
+    {
+        TextColor = VM_BodySlideSetting.AnnotationToColor[annotationState];
+        // some states have explicit differences vs. BodySlideSettings and BodySlidePlaceHolders
+        if (annotationState == BodyShapeAnnotationState.Manual)
+        {
+            TextColor = CommonColors.White;
         }
     }
 }
