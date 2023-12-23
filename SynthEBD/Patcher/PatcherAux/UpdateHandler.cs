@@ -42,6 +42,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1016AttributeGroups();
         UpdateV1018RecordTemplates();
         UpdateV1025RaceGroupings();
+        UpdateV1028Toggle();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -242,6 +243,17 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1028Toggle()
+    {
+        if (!_patcherState.UpdateLog.Performed1_0_2_8Update && 
+            _texMeshVM.bLegacyEBDMode == true &&
+            MessageWindow.DisplayNotificationYesNo("Update 1.0.2.8", "In previous versions of SynthEBD, the \"Use Original EBD Scripts\" setting was enabled by default. This was an error - the original EBD scripts should not be used other than for troubleshooting. Would you like to correct this setting? Note that if you are re-running SynthEBD on an existing save, you will need to clean save first (see instructions on the SynthEBD Nexus page)."))
+        {
+            _texMeshVM.bLegacyEBDMode = false;
+        }
+        _patcherState.UpdateLog.Performed1_0_2_8Update = true;
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -274,4 +286,5 @@ public class UpdateLog
     public bool Performed1_0_1_6AttributeUpdate { get; set; } = false;
     public bool Performed1_0_1_8RTUpdate { get; set; } = false;
     public bool Performed1_0_2_5RGUpdate { get; set; } = false;
+    public bool Performed1_0_2_8Update { get; set; } = false;
 }
