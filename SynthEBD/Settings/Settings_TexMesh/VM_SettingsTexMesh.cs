@@ -55,7 +55,7 @@ public class VM_SettingsTexMesh : VM
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
                 _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
                 (_, _) => { return 0; })
-            .Subscribe(_ => UpdateSKSESelectionVisibility()).DisposeWith(this);
+            .Subscribe(_ => UpdateEBDOptionsVisibility()).DisposeWith(this);
 
         AssetPacks
             .ToObservableChangeSet()
@@ -298,7 +298,9 @@ public class VM_SettingsTexMesh : VM
     private static string oldSKSEversion = "< 1.5.97";
     private static string newSKSEversion = "1.5.97 or higher";
     public string SKSEversionSSE { get; set; } = newSKSEversion;
+    public bool bPO3ModeForVR { get; set; } = true;
     public bool bShowSKSEversionOptions { get; set; } = false;
+    public bool bShowPO3Options { get; set; } = false;
     public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
@@ -381,6 +383,7 @@ public class VM_SettingsTexMesh : VM
         bApplyFixedScripts = model.bApplyFixedScripts;
         bLegacyEBDMode = model.bLegacyEBDMode;
         bNewEBDModeVerbose = model.bNewEBDModeVerbose;
+        bPO3ModeForVR = model.bPO3ModeForVR;
         TriggerEvents = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.TriggerEvents);
 
         if (model.bFixedScriptsOldSKSEversion)
@@ -425,6 +428,7 @@ public class VM_SettingsTexMesh : VM
         model.bCacheRecords = bCacheRecords;
         model.bLegacyEBDMode = bLegacyEBDMode;
         model.bNewEBDModeVerbose = bNewEBDModeVerbose;
+        model.bPO3ModeForVR = bPO3ModeForVR;
         model.AssetOrder = AssetOrderingMenu.DumpToModel();
         model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         model.bPatchArmors = bPatchArmors;
@@ -458,15 +462,22 @@ public class VM_SettingsTexMesh : VM
         simWindow.ShowDialog();
     }
 
-    private void UpdateSKSESelectionVisibility()
+    private void UpdateEBDOptionsVisibility()
     {
         if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
         {
             bShowSKSEversionOptions = true;
+            bShowPO3Options = false;
+        }
+        else if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR)
+        {
+            bShowPO3Options = true;
+            bShowSKSEversionOptions = false;
         }
         else
         {
             bShowSKSEversionOptions = false;
+            bShowPO3Options = false;
         }
     }
 
@@ -606,7 +617,7 @@ public class VM_SettingsTexMesh : VM
         {
             if (preparationMode)
             {
-                changes.Add("Fix EBD Script: False --> True");
+                changes.Add("Fix EBD Global Script: False --> True");
             }
             else
             {
@@ -614,11 +625,23 @@ public class VM_SettingsTexMesh : VM
             }
         }
 
+        if (!bPO3ModeForVR)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Use PO3 Extender and Tweaks for Fixed EBD Global Script: False --> True");
+            }
+            else
+            {
+                bPO3ModeForVR = true;
+            }
+        }
+
         if (bLegacyEBDMode)
         {
             if (preparationMode)
             {
-                changes.Add("Use Original EBD Script: True --> False");
+                changes.Add("Use Original EBD Face Texture Script: True --> False");
             }
             else
             {

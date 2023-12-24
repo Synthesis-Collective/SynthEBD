@@ -37,6 +37,10 @@
     <None Remove="InternalData\7Zip\x86\7z.exe" />
     <None Remove="InternalData\EBD Code\SynthEBD Face Texture\Source\SynthEBDFaceTextureScript.psc" />
     <None Remove="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex" />
+    <None Remove="InternalData\EBD Code\VR\Non-PO3\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\VR\Non-PO3\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\EBD Code\VR\PO3\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\VR\PO3\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\FirstLaunchResources\Default Config.json" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - 3BA - pamonha.esp" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - BHUNP - pamonha.esp" />
@@ -65,7 +69,7 @@
     <None Remove="InternalData\EBD Code\SSE\EBDGlobalFuncs.pex" />
     <None Remove="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\EBD Code\VR\EBDGlobalFuncs.pex" />
-    <None Remove="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\EBD Code\VR\Deprecated\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
     <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
     <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderPAScript - Copy.pex" />
@@ -98,6 +102,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\Non-PO3\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\Non-PO3\Source\EBDGlobalFuncs.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\PO3\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\PO3\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\FirstLaunchResources\Default Config.json">
@@ -166,10 +182,10 @@
     <Content Include="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="InternalData\EBD Code\VR\EBDGlobalFuncs.pex">
+    <Content Include="InternalData\EBD Code\VR\Deprecated\EBDGlobalFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc">
+    <Content Include="InternalData\EBD Code\VR\Deprecated\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">

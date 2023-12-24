@@ -692,4 +692,46 @@ public class MiscValidation
         }
         return raceGroupings;
     }
+
+    public bool VerifyPO3ExtenderInstalled()
+    {
+        bool valid = true;
+        
+        string extenderScriptsPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "PO3_SKSEFunctions.pex");
+        if (!File.Exists(extenderScriptsPath))
+        {
+            _logger.LogMessage("Could not find PO3_SKSEFunctions.pex from PowerOfThree's Papyrus Extender at " + extenderScriptsPath);
+            valid = false;
+        }
+
+        string extenderDLLPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_PapyrusExtender.dll");
+        if (!File.Exists(extenderDLLPath))
+        {
+            _logger.LogMessage("Could not find po3_PapyrusExtender.dll from Papyrus Extender VR at " + extenderDLLPath);
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    public bool VerifyPO3TweaksInstalled()
+    {
+        bool valid = true;
+
+        string tweaksScriptsPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "po3_Tweaks.pex");
+        if (!File.Exists(tweaksScriptsPath))
+        {
+            _logger.LogMessage("Could not find po3_Tweaks.pex from powerofthree's Tweaks at " + tweaksScriptsPath);
+            valid = false;
+        }
+
+        string tweaksDLLPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_Tweaks.dll");
+        if (!File.Exists(tweaksDLLPath))
+        {
+            _logger.LogMessage("Could not find po3_Tweaks.dll from powerofthree's Tweaks VR at " + tweaksDLLPath);
+            valid = false;
+        }
+
+        return valid;
+    }
 }

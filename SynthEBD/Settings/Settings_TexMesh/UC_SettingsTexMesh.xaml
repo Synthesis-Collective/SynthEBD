@@ -138,11 +138,16 @@
 
             <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
             <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
-                <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Script</TextBlock>
+                <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Global Script</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
-                <TextBlock Text="Skyrim Version: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}"/>
+
+                <TextBlock Text="Use Fixed EBD Global Script For: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" ToolTip="Determines which version of the fixed EBD Global Script will be installed&#x0a;The one for 1.5.97 or higher is recommended because it doesn't bug out when the NPC head's Full Name doesn't match its EditorID" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" />
-                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Use original EBD Scripts instead of new SynthEBD versions (bug fix will still be applied if Fix EBD Script is checked)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Original EBD Scripts</TextBlock>
+
+                <TextBlock Text="Use PO3 Extender and Tweaks for Fixed EBD Global Script: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowPO3Options, Converter={StaticResource BoolToVis}}" ToolTip="Determines which version of the fixed EBD Global Script will be installed&#x0a;The one using powerofthree's mods is recommended because it doesn't bug out when the NPC head's Full Name doesn't match its EditorID&#x0a;Powerofthree's Papyrus Extender and Tweaks, AND their respective VR adaptations, must all be installed for that version." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bPO3ModeForVR, Mode=TwoWay}" Visibility="{Binding Path = bShowPO3Options, Converter={StaticResource BoolToVis}}"/>
+
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Use original EBD Face Texture Scripts instead of new SynthEBD versions (EBD Global bug fix will still be applied if Fix EBD Global Script is checked)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Original EBD Face Texture Script</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bLegacyEBDMode, Mode=TwoWay}"/>
                 <Expander Margin="5 0 0 0" Header="Refresh Triggers" ExpandDirection="Down" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
                     <Grid>

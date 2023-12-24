@@ -28,6 +28,7 @@ public class Settings_TexMesh
     public bool bCacheRecords { get; set; } = true;
     public bool bLegacyEBDMode { get; set; } = false;
     public bool bNewEBDModeVerbose { get; set; } = false;
+    public bool bPO3ModeForVR { get; set; } = true;
     public List<TrimPath> TrimPaths { get; set; } = new()
     {
         new TrimPath()

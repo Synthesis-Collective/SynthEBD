@@ -26,33 +26,23 @@ namespace SynthEBD
         public void ApplyFixedScripts()
         {
             string sourcePath = String.Empty;
-            if ((_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !_patcherState.TexMeshSettings.bFixedScriptsOldSKSEversion) || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && HasESLVR() || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
+            if ((_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !_patcherState.TexMeshSettings.bFixedScriptsOldSKSEversion) || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
             {
                 _logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
                 sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
             }
+            else if (_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && _patcherState.TexMeshSettings.bPO3ModeForVR)
+            {
+                _logger.LogMessage("Applying fixed EBD script (for VR via powerofthree's Papyrus Extender & Tweaks)");
+                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "PO3", "EBDGlobalFuncs.pex");
+            }
             else
             {
-                _logger.LogMessage("Applying fixed EBD script (for VR or SSE < 1.5.97)");
-                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
+                _logger.LogMessage("Applying fixed EBD script (for SSE < 1.5.97 or VR without powerofthree's Papyrus Extender & Tweaks)");
+                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "Non-PO3", "EBDGlobalFuncs.pex");
             }
             string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
             _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);
-        }
-
-        private bool HasESLVR()
-        {
-            string expectedDLLpath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skyrimvresl.dll");
-            bool exists = File.Exists(expectedDLLpath);
-            if (exists)
-            {
-                _logger.LogMessage("Detected Skyrim VR ESL Support"); // ESL support comes with ported SKSE scripts that enabled the new EBDGlobalFuncs.pex to work. It does not work with the original SKSEVR scripts, so the old pre-1.5.97 version of EBDGlobalFuncs.pex must be used in that case.
-            }
-            else
-            {
-                _logger.LogMessage("Did not detect Skyrim VR ESL Support. Using EBD Script for SSE < 1.5.97");
-            }
-            return exists;
         }
     }
 }

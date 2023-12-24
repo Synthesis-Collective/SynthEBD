@@ -39,6 +39,11 @@ namespace SynthEBD
                 {
                     valid = false;
                 }
+                
+                if (_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && _patcherState.TexMeshSettings.bPO3ModeForVR && !(_miscValidation.VerifyPO3ExtenderInstalled() && _miscValidation.VerifyPO3TweaksInstalled()))
+                {
+                    valid = false;
+                }
 
                 List<string> assetPackErrors = new();
                 foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToArray())
