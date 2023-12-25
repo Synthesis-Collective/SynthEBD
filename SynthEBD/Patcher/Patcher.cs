@@ -226,7 +226,7 @@ public class Patcher
 
             if (copiedOBodySettings.AutoApplyMissingAnnotations)
             {
-                _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, false, null);
+                _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, copiedOBodySettings.TemplateDescriptors.Select(x => x.ID).ToHashSet(), false, null);
             }
 
             BodySlideTracker = new();

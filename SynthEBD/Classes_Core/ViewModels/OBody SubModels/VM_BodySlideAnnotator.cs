@@ -155,7 +155,7 @@ public class VM_BodySlideAnnotator : VM
             targetVMs = targetVMs.Where(x => x.AssociatedModel.SliderGroup == specifiedSliderGroup).ToList();
         }
 
-        _bodySlideAnnotator.AnnotateBodySlides(targetVMs.Select(x => x.AssociatedModel).ToList(), this.DumpToModel(), true, specifiedDescriptorCategory);
+        _bodySlideAnnotator.AnnotateBodySlides(targetVMs.Select(x => x.AssociatedModel).ToList(), this.DumpToModel(), _oBodyDescriptorMenu.DumpToViewModels().Select(x => x.ID).ToHashSet(), true, specifiedDescriptorCategory);
 
         foreach (var targetVM in targetVMs)
         {

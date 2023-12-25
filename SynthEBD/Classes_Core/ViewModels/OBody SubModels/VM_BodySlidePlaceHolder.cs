@@ -73,7 +73,7 @@ namespace SynthEBD
 
             if (_patcherState.OBodySettings.AutoApplyMissingAnnotations) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
             {
-                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, false, null);
+                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, _patcherState.OBodySettings.TemplateDescriptors.Select(x => x.ID).ToHashSet(), false, null);
             }
         }
 
