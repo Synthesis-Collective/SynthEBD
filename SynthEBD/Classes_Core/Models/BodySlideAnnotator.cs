@@ -15,15 +15,15 @@ public class BodySlideAnnotator
     {
         _logger = logger;
     }
-    public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations, string? specifiedDescriptorCategory)
+    public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory)
     {
         foreach (var bs in bodySlides)
         {
-            AnnotateBodySlide(bs, bodySlideClassificationRules, overwriteExistingAnnotations, specifiedDescriptorCategory);
+            AnnotateBodySlide(bs, bodySlideClassificationRules, overwriteExistingAutoAnnotations, specifiedDescriptorCategory);
         }
     }
 
-    public List<BodyShapeDescriptor.LabelSignature> AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAnnotations, string? specifiedDescriptorCategory)
+    public List<BodyShapeDescriptor.LabelSignature> AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory)
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
         if (bodySlide == null)
@@ -44,9 +44,9 @@ public class BodySlideAnnotator
             {
                 continue;
             }
-            if (overwriteExistingAnnotations)
+            if (overwriteExistingAutoAnnotations)
             {
-                bodySlide.BodyShapeDescriptors.RemoveWhere(x => x.Category == ruleSet.DescriptorCategory); // remove all descriptors from this category if they are to be re-annotated
+                bodySlide.BodyShapeDescriptors.RemoveWhere(x => x.Category == ruleSet.DescriptorCategory && x.AnnotationState != BodyShapeAnnotationState.Manual); // remove all auto-annotated descriptors from this category if they are to be refreshed
             }
 
             if (bodySlide.BodyShapeDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory && x.AnnotationState == BodyShapeAnnotationState.Manual).Any()) // skip over the category if it's already manually annotated
