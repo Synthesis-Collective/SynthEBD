@@ -43,6 +43,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         MiscUI = miscSettingsFactory();
         AnnotatorUI = _bodySlideAnnotatorFactory(DescriptorUI, BodySlidesUI, MiscUI);
 
+        BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+
         DisplayedUI = BodySlidesUI;
 
         ClickBodySlidesMenu = new RelayCommand(

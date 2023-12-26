@@ -9,8 +9,11 @@ namespace SynthEBD;
 public class VM_BodySlidesMenu : VM
 {
     public delegate VM_BodySlidesMenu Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlidesMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory)
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
+    public VM_BodySlidesMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory, Func<VM_SettingsOBody> oBodyVM, VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory)
     {
+        _filterFactory = filterFactory;
+
         AddPreset = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -145,14 +148,12 @@ public class VM_BodySlidesMenu : VM
 
         this.WhenAnyValue(x => x.ShowHidden).Subscribe(x =>
         {
-            TogglePresetVisibility(BodySlidesMale, ShowHidden);
-            TogglePresetVisibility(BodySlidesFemale, ShowHidden);
+            TogglePresetVisibility();
         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.SelectedSliderGroup).Subscribe(x =>
         {
-            TogglePresetVisibility(BodySlidesMale, ShowHidden);
-            TogglePresetVisibility(BodySlidesFemale, ShowHidden);
+            TogglePresetVisibility();
         }).DisposeWith(this);
     }
 
@@ -182,9 +183,14 @@ public class VM_BodySlidesMenu : VM
     public RelayCommand ImportAnnotations { get; }
     public RelayCommand ExportAnnotations { get; }
     public bool ShowHidden { get; set; } = false;
+    public VM_BodyShapeDescriptorSelectionMenu DescriptorFilter { get; set; }
+    public string FilterCaption { get; set; } = _defaultFilterCaption;
+    private static string _defaultFilterCaption = "Descriptor Filter";
+    private Dictionary<string, HashSet<string>> _selectedDescriptors = new();
 
-    private void TogglePresetVisibility(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, bool showHidden)
+    private void TogglePresetVisibility()
     {
+        var bodySlides = BodySlidesMale.And(BodySlidesFemale).ToList();
         foreach (var b in bodySlides)
         {
             if (SelectedSliderGroup != SliderGroupSelectionAll && b.AssociatedModel.SliderGroup != SelectedSliderGroup)
@@ -193,7 +199,13 @@ public class VM_BodySlidesMenu : VM
                 continue;
             }
 
-            switch (showHidden)
+            if (_selectedDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(_selectedDescriptors, b.AssociatedModel.BodyShapeDescriptors, DescriptorFilter.MatchMode, out _))
+            {
+                b.IsVisible = false;
+                continue;
+            }
+
+            switch (ShowHidden)
             {
                 case true: b.IsVisible = true; break;
                 case false:
@@ -205,5 +217,27 @@ public class VM_BodySlidesMenu : VM
                     break;
             }
         }
+    }
+
+    public void InitializeDescriptorFilter(VM_SettingsOBody oBodyVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    {
+        DescriptorFilter = _filterFactory(oBodyVM.DescriptorUI, raceGroupingVMs, oBodyVM, true, DescriptorMatchMode.All, false);
+
+        this.WhenAnyValue(x => x.DescriptorFilter.Header).Subscribe(caption =>
+        {
+            if (caption.IsNullOrEmpty())
+            {
+                FilterCaption = _defaultFilterCaption;
+                _selectedDescriptors.Clear();
+            }
+            else
+            {
+                FilterCaption = String.Empty;
+                var selectedDescriptorSet = DescriptorFilter.DumpToHashSet();
+                _selectedDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(selectedDescriptorSet);
+            }
+
+            TogglePresetVisibility();
+        }).DisposeWith(this);
     }
 }
