@@ -57,7 +57,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         RaceGroupingEditor = raceGroupingEditorFactory(this, true);
         GroupUI = new VM_BodyGenGroupsMenu(this);
         GroupMappingUI = _groupMappingMenuFactory(GroupUI, RaceGroupingEditor.RaceGroupings);
-        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState, OnDescriptorValueDeletion, OnDescriptorCategoryDeletion);
         TemplateMorphUI = _templateMenuFactory(this, RaceGroupingEditor.RaceGroupings);
         DisplayedUI = TemplateMorphUI;
         AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
@@ -231,10 +231,11 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         {
             _logger.LogStartupEventStart("Generating UI for BodyShape Descriptor " + descriptor.ID);
             var subVm = _descriptorCreator.CreateNew(
-                _descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this, DescriptorUI.ResponseToChange),  // May want to update this later to perform its own check
+                _descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this, DescriptorUI.ResponseToChange, DescriptorUI.ResponseToValueDeletion),  // May want to update this later to perform its own check
                 RaceGroupingEditor.RaceGroupings, 
                 this,
-                DescriptorUI.ResponseToChange);
+                DescriptorUI.ResponseToChange,
+                DescriptorUI.ResponseToValueDeletion);
             subVm.CopyInViewModelFromModel(descriptor, RaceGroupingEditor.RaceGroupings, this);
             DescriptorUI.TemplateDescriptorList.Add(subVm);
             _logger.LogStartupEventEnd("Generating UI for BodyShape Descriptor " + descriptor.ID);
@@ -296,6 +297,57 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
                     descriptor.Value = newValue;
                 }
             }
+        }
+    }
+
+    public void OnDescriptorCategoryDeletion(string category)
+    {
+        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + category + " Descriptors from all BodySlides and Config Files that reference it?"))
+        {
+            TemplateMorphUI.StashAndNullDisplayedMorph();
+
+            foreach (var morph in TemplateMorphUI.Templates)
+            {
+                morph.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.Category == category);
+            }
+
+            foreach (var ap in _texMeshSettings().AssetPacks)
+            {
+                var subgroups = ap.GetAllSubgroups();
+                foreach (var sg in subgroups)
+                {
+                    sg.AssociatedModel.AllowedBodyGenDescriptors.RemoveWhere(x => x.Category == category);
+                    sg.AssociatedModel.DisallowedBodyGenDescriptors.RemoveWhere(x => x.Category == category);
+                }
+            }
+
+            TemplateMorphUI.RestoreStashedMorph();
+        }
+    }
+
+    public void OnDescriptorValueDeletion(string decriptorSignature)
+    {
+        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + decriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
+        {
+            TemplateMorphUI.StashAndNullDisplayedMorph();
+
+            foreach (var morph in TemplateMorphUI.Templates)
+            {
+                morph.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+            }
+
+            foreach (var ap in _texMeshSettings().AssetPacks)
+            {
+                var subgroups = ap.GetAllSubgroups();
+                foreach (var sg in subgroups)
+                {
+                    sg.AssociatedModel.AllowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                    sg.AssociatedModel.DisallowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                    sg.AssociatedModel.PrioritizedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                }
+            }
+
+            TemplateMorphUI.RestoreStashedMorph();
         }
     }
 

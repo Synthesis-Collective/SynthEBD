@@ -37,7 +37,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlideAnnotatorFactory = bodySlideAnnotatorFactory;
         _texMeshSettings = texMeshSettings;
 
-        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState);
+        DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState, OnDescriptorValueDeletion, OnDescriptorCategoryDeletion);
         BodySlidesUI = _bodySlidesMenuFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
@@ -217,6 +217,58 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             UpdateDescriptors(subgroup.AssociatedModel.AllowedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
             UpdateDescriptors(subgroup.AssociatedModel.DisallowedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
             UpdateDescriptors(subgroup.AssociatedModel.PrioritizedBodySlideDescriptors, oldCategory, oldValue, newCategory, newValue);
+        }
+    }
+
+    public void OnDescriptorCategoryDeletion(string category)
+    {
+        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + category + " Descriptors from all BodySlides and Config Files that reference it?"))
+        {
+            BodySlidesUI.StashAndNullDisplayedBodySlide();
+
+            foreach(var bs in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToArray())
+            {
+                bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.Category == category);
+            }
+
+            foreach (var ap in _texMeshSettings().AssetPacks)
+            {
+                var subgroups = ap.GetAllSubgroups();
+                foreach (var sg in subgroups)
+                {
+                    sg.AssociatedModel.AllowedBodySlideDescriptors.RemoveWhere(x => x.Category == category);
+                    sg.AssociatedModel.DisallowedBodySlideDescriptors.RemoveWhere(x => x.Category == category);
+                    sg.AssociatedModel.PrioritizedBodySlideDescriptors.RemoveWhere(x => x.Category == category);
+                }
+            }
+
+            BodySlidesUI.RestoreStashedBodySlide();
+        }
+    }
+
+    public void OnDescriptorValueDeletion(string decriptorSignature)
+    {
+        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + decriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
+        {
+            BodySlidesUI.StashAndNullDisplayedBodySlide();
+
+            foreach (var bs in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToArray())
+            {
+                bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.ToLabelSignature().ToString() == decriptorSignature);
+            }
+
+            foreach (var ap in _texMeshSettings().AssetPacks)
+            {
+                var subgroups = ap.GetAllSubgroups();
+                foreach (var sg in subgroups)
+                {
+                    sg.AssociatedModel.AllowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                    sg.AssociatedModel.DisallowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                    sg.AssociatedModel.PrioritizedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                }
+            }
+
+            BodySlidesUI.RestoreStashedBodySlide();
         }
     }
 

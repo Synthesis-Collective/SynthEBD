@@ -10,27 +10,36 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator _descriptorCreator;
     private readonly IHasAttributeGroupMenu _parentConfig;
-    public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
+    public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> responseToValueDeletion, Action<string> repsonseToCategoryDeletion);
     public Action<(string, string), (string, string)> ResponseToChange { get; set; }
+    public Action<string> ResponseToValueDeletion { get; set; }
+    public Action<string> RepsonseToCategoryDeletion { get; set; }
 
-    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator, Action<(string, string), (string, string)> responseToChange)
+    public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator, Action<(string, string), (string, string)> responseToChange, Action<string> responseToValueDeletion, Action<string> repsonseToCategoryDeletion)
     {
         _generalSettings = generalSettings;
         _logger = logger;
         _descriptorCreator = descriptorCreator;
         _parentConfig = parentConfig;
         ResponseToChange = responseToChange;
+        ResponseToValueDeletion = responseToValueDeletion;
+        RepsonseToCategoryDeletion = repsonseToCategoryDeletion;
 
-        CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange);
+        CurrentlyDisplayedTemplateDescriptorShell = descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange, ResponseToValueDeletion);
 
         AddTemplateDescriptorShell = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => TemplateDescriptors.Add(descriptorCreator.CreateNewShell(TemplateDescriptors, generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange))
+            execute: _ => TemplateDescriptors.Add(descriptorCreator.CreateNewShell(TemplateDescriptors, generalSettings.RaceGroupingEditor.RaceGroupings, parentConfig, ResponseToChange, ResponseToValueDeletion))
         );
 
         RemoveTemplateDescriptorShell = new RelayCommand(
             canExecute: _ => true,
-            execute: x => TemplateDescriptors.Remove((VM_BodyShapeDescriptorShell)x)
+            execute: x =>
+            {
+                var shell = (VM_BodyShapeDescriptorShell)x;
+                RepsonseToCategoryDeletion(shell.Category);
+                TemplateDescriptors.Remove(shell);
+            }
         );
     }
 
@@ -82,7 +91,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             var shell = TemplateDescriptors.Where(x => x.Category == model.ID.Category).FirstOrDefault();
             if (shell == null)
             {
-                shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
+                shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
                 shell.Category = model.ID.Category;
                 shell.CategoryDescription = model.CategoryDescription;
                 TemplateDescriptors.Add(shell);
@@ -91,7 +100,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
             if (descriptor == null)
             {
-                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange);
+                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
                 descriptor.Value = model.ID.Value;
                 descriptor.ValueDescription = model.ValueDescription;
                 descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);

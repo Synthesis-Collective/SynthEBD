@@ -10,8 +10,8 @@ namespace SynthEBD;
 public class VM_BodyShapeDescriptor : VM, IHasValueString
 {
     private VM_BodyShapeDescriptorRules.Factory _rulesFactory;
-    public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange);
-    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorRules.Factory rulesFactory, Action<(string, string), (string, string)> responseToChange)
+    public delegate VM_BodyShapeDescriptor Factory(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> ResponseToDeletion);
+    public VM_BodyShapeDescriptor(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorRules.Factory rulesFactory, Action<(string, string), (string, string)> responseToChange, Action<string> ResponseToDeletion)
     {
         _rulesFactory = rulesFactory;
         ParentShell = parentShell;
@@ -19,7 +19,11 @@ public class VM_BodyShapeDescriptor : VM, IHasValueString
 
         RemoveDescriptorValue = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => ParentShell.Descriptors.Remove(this)
+            execute: _ =>
+            {
+                ParentShell.Descriptors.Remove(this);
+                ResponseToDeletion(Signature);
+            }
         );
 
         this.WhenAnyValue(x => x.ParentShell.Category, x => x.Value)
@@ -52,13 +56,13 @@ public class VM_BodyShapeDescriptor : VM, IHasValueString
             _shellFactory = shellFactory;
             _rulesFactory = rulesFactory;
         }
-        public VM_BodyShapeDescriptor CreateNew(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange)
+        public VM_BodyShapeDescriptor CreateNew(VM_BodyShapeDescriptorShell parentShell, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> responseToDeletion)
         {
-            return _descriptorFactory(parentShell, raceGroupingVMs, parentConfig, responseToChange);
+            return _descriptorFactory(parentShell, raceGroupingVMs, parentConfig, responseToChange, responseToDeletion);
         }
-        public VM_BodyShapeDescriptorShell CreateNewShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange)
+        public VM_BodyShapeDescriptorShell CreateNewShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> responseToDeletion)
         {
-            return _shellFactory(parentCollection, raceGroupings, parentConfig, responseToChange);
+            return _shellFactory(parentCollection, raceGroupings, parentConfig, responseToChange, responseToDeletion);
         }
     }
 

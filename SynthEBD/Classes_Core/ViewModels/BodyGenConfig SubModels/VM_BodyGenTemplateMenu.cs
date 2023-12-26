@@ -93,6 +93,25 @@ public class VM_BodyGenTemplateMenu : VM
     public RelayCommand AddTemplate { get; }
     public RelayCommand RemoveTemplate { get; }
     public RelayCommand ImportBodyGen { get; }
+
+    private VM_BodyGenTemplatePlaceHolder _stashedPlaceHolder;
+
+    public void StashAndNullDisplayedMorph()
+    {
+        if (SelectedPlaceHolder != null)
+        {
+            _stashedPlaceHolder = SelectedPlaceHolder;
+            SelectedPlaceHolder = null;
+        }
+    }
+
+    public void RestoreStashedMorph()
+    {
+        if (_stashedPlaceHolder != null)
+        {
+            SelectedPlaceHolder = _stashedPlaceHolder;
+        }
+    }
 }
 
 [DebuggerDisplay("{Label}")]

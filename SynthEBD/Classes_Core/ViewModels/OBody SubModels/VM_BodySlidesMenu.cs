@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using ReactiveUI;
 using Noggog;
 using System.Reactive.Linq;
-using DynamicData.Binding;
 
 namespace SynthEBD;
 
@@ -187,6 +186,7 @@ public class VM_BodySlidesMenu : VM
     public string FilterCaption { get; set; } = _defaultFilterCaption;
     private static string _defaultFilterCaption = "Descriptor Filter";
     private Dictionary<string, HashSet<string>> _selectedDescriptors = new();
+    private VM_BodySlidePlaceHolder _stashedPlaceHolder;
 
     private void TogglePresetVisibility()
     {
@@ -239,5 +239,22 @@ public class VM_BodySlidesMenu : VM
 
             TogglePresetVisibility();
         }).DisposeWith(this);
+    }
+
+    public void StashAndNullDisplayedBodySlide()
+    {
+        if (SelectedPlaceHolder != null)
+        {
+            _stashedPlaceHolder = SelectedPlaceHolder;
+            SelectedPlaceHolder = null;
+        }
+    }
+
+    public void RestoreStashedBodySlide()
+    {
+        if (_stashedPlaceHolder != null)
+        {
+            SelectedPlaceHolder = _stashedPlaceHolder;
+        }
     }
 }

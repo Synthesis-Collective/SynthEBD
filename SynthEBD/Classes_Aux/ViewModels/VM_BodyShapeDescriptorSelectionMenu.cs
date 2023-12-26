@@ -29,7 +29,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         TrackedRaceGroupings = raceGroupingVMs;
         Parent = parentConfig;
         
-        CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig, null), this);
+        CurrentlyDisplayedShell = new VM_BodyShapeDescriptorShellSelector(descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), raceGroupingVMs, parentConfig, null, null), this);
 
         if (TrackedMenu != null)
         {
