@@ -10,12 +10,14 @@ public class VM_OBodyMiscSettings : VM
     private readonly Logger _logger;
     private readonly RaceMenuIniHandler _raceMenuHandler;
     private readonly VM_Settings_General _generalSettingsVM;
+    private readonly Func<VM_SettingsOBody> _parentMenu;
     public delegate VM_OBodyMiscSettings Factory();
-    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM)
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
         _generalSettingsVM = generalSettingsVM;
+        _parentMenu = parentMenu;
 
         generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(mode => {
             
@@ -61,7 +63,24 @@ public class VM_OBodyMiscSettings : VM
             }
         );
 
+        RemoveStashedDescriptors = new(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                var toRemove = StashedDescriptors.Where(x => x.IsSelected).Select(x => x.Text).ToArray();
 
+                var parentMenu = _parentMenu();
+
+                foreach (var bs in parentMenu.BodySlidesUI.BodySlidesMale.And(parentMenu.BodySlidesUI.BodySlidesFemale).ToArray())
+                {
+                    bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(d => toRemove.Contains(d.ToLabelSignature().ToString()));
+                }
+
+                StashedDescriptors.RemoveWhere(x => x.IsSelected);
+
+                ShowRemoveStashedDescriptorsButton = StashedDescriptors.Any();
+            }
+        );
     }
 
     public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; } = new();
@@ -78,26 +97,53 @@ public class VM_OBodyMiscSettings : VM
     public bool ShowOBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
+    public ObservableCollection<VM_SelectableMenuString> StashedDescriptors { get; set; } = new();
+    public RelayCommand RemoveStashedDescriptors { get; }
+    public bool ShowRemoveStashedDescriptorsButton { get; set; } = false;
 
-    public VM_OBodyMiscSettings GetViewModelFromModel(Settings_OBody model)
+    public void CopyInViewModelFromModel(Settings_OBody model)
     {
-        VM_OBodyMiscSettings viewModel = new VM_OBodyMiscSettings(_logger, _raceMenuHandler, _generalSettingsVM);
-        viewModel.MaleBodySlideGroups.Clear();
+        MaleBodySlideGroups.Clear();
         foreach (var g in model.MaleSliderGroups)
         {
-            viewModel.MaleBodySlideGroups.Add(new VM_CollectionMemberString(g, viewModel.MaleBodySlideGroups));
+            MaleBodySlideGroups.Add(new VM_CollectionMemberString(g, MaleBodySlideGroups));
         }
-        viewModel.FemaleBodySlideGroups.Clear();
+        FemaleBodySlideGroups.Clear();
         foreach (var g in model.FemaleSliderGroups)
         {
-            viewModel.FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, viewModel.FemaleBodySlideGroups));
+            FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, FemaleBodySlideGroups));
         }
-        viewModel.UseVerboseScripts = model.bUseVerboseScripts;
-        viewModel.AutoBodySelectionMode = model.AutoBodySelectionMode;
-        viewModel.AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
-        viewModel.OBodySelectionMode = model.OBodySelectionMode;
-        viewModel.OBodyEnableMultipleAssignments = model.OBodyEnableMultipleAssignments;
-        return viewModel;
+        UseVerboseScripts = model.bUseVerboseScripts;
+        AutoBodySelectionMode = model.AutoBodySelectionMode;
+        AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
+        OBodySelectionMode = model.OBodySelectionMode;
+        OBodyEnableMultipleAssignments = model.OBodyEnableMultipleAssignments;
+
+        var parentMenu = _parentMenu();
+
+        var uiDescriptors = parentMenu.DescriptorUI.TemplateDescriptors.SelectMany(x => x.Descriptors).Select(y => y.Signature).ToArray();
+
+        HashSet<string> stashedDescriptorSignatures = new();
+
+        foreach (var bs in parentMenu.BodySlidesUI.BodySlidesMale.And(parentMenu.BodySlidesUI.BodySlidesFemale))
+        {
+            foreach (var descriptor in bs.AssociatedModel.BodyShapeDescriptors)
+            {
+                var str = descriptor.ToLabelSignature().ToString();
+                if (!uiDescriptors.Contains(str) && !stashedDescriptorSignatures.Contains(str))
+                {
+                    stashedDescriptorSignatures.Add(str);
+                }
+            }
+        }
+
+        StashedDescriptors.Clear();
+        foreach (var str in stashedDescriptorSignatures)
+        {
+            StashedDescriptors.Add(new() { Text = str, IsSelected = true });
+        }
+
+        ShowRemoveStashedDescriptorsButton = StashedDescriptors.Any();
     }
 
     public void DumpViewModelToModel(Settings_OBody model)

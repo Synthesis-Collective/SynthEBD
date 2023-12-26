@@ -150,7 +150,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             existingPresets.Add(presetVM.Label);
         }
 
-        MiscUI = MiscUI.GetViewModelFromModel(model);
+        MiscUI.CopyInViewModelFromModel(model);
 
         AnnotatorUI.CopyInFromModel();
 
