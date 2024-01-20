@@ -452,9 +452,8 @@ public class Patcher
         int npcCount = npcCollection.Count();
         var npcArray = npcCollection.ToArray();
 
-        for (int i = 0; i < npcCount; i++)
+        foreach (var npc in npcArray)
         {
-            var npc = npcArray[i];
             _statusBar.ProgressBarCurrent++;
 
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
@@ -656,8 +655,7 @@ public class Patcher
                 {
                     if (_patcherState.TexMeshSettings.StrippedSkinWNAMs.Any())
                     {
-                        npc = _recordGenerator.StripSpecifiedSkinArmor(npc, _environmentProvider.LinkCache, outputMod);
-                        currentNPCInfo.NPC = npc;
+                        currentNPCInfo.NPC = _recordGenerator.StripSpecifiedSkinArmor(npc, _environmentProvider.LinkCache, outputMod);
                     }
                     var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
