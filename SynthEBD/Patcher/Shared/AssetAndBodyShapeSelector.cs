@@ -125,10 +125,8 @@ public class AssetAndBodyShapeSelector
             }
         }
 
-        if (assignment.Assets != null && assignment.Assets.AssignmentName != "")
-        {
-            assetsAssigned = true;
-        }
+        assetsAssigned = assignment.Assets != null && assignment.Assets.AssignmentName != "";
+
         if (bodyShapeAssigned)
         {
             switch(_patcherState.GeneralSettings.BodySelectionMode)

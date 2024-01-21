@@ -1,6 +1,7 @@
 using Mutagen.Bethesda.Plugins;
 using Noggog;
 using Synthesis.Bethesda.Execution.Patchers.Solution;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using static SynthEBD.Patcher;
 
@@ -23,20 +24,16 @@ public class CombinationLog
         _patcherIO = patcherIO;
         _paths = paths;
         _converters = converters;
-
-        AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
     }
-    public Dictionary<string, List<CombinationInfo>> AssignedPrimaryCombinations { get; set; }
-    public Dictionary<string, List<CombinationInfo>> AssignedMixInCombinations { get; set; }
-    public Dictionary<string, List<CombinationInfo>> AssignedReplacerCombinations { get; set; }
+    public ConcurrentDictionary<string, ConcurrentDictionary<string, CombinationInfo>> AssignedPrimaryCombinations { get; set; } = new();
+    public ConcurrentDictionary<string, ConcurrentDictionary<string, CombinationInfo>> AssignedMixInCombinations { get; set; } = new();
+    public ConcurrentDictionary<string, ConcurrentDictionary<string, CombinationInfo>> AssignedReplacerCombinations { get; set; } = new();
 
     public void Reinitialize() 
     {
-        AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
-        AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
+        AssignedPrimaryCombinations = new();
+        AssignedMixInCombinations = new();
+        AssignedReplacerCombinations = new();
     }
 
     public void WriteToFile(CategorizedFlattenedAssetPacks assetPacks)
@@ -81,19 +78,19 @@ public class CombinationLog
         {
             foreach (var subgroup in subgroupPos)
             {
-                output.Add("\t\t" + subgroup.Id + " " + subgroup.DeepNamesString + ": " + subgroup.AssignmentCount.ToString());
+                output.Add("\t\t" + subgroup.Id + " " + subgroup.DeepNamesString + ": " + subgroup.GetAssignmentCount().ToString());
             }
         }
         output.Add("");
         return output;
     }
 
-    public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
+    public void FormatCombinationInfoOutput(ConcurrentDictionary<string, ConcurrentDictionary<string, CombinationInfo>> combinationInfo, List<string> fileContents)
     {
         foreach (var entry in combinationInfo)
         {
             fileContents.Add("Generated combinations for Config File: " + entry.Key);
-            foreach (var combination in entry.Value.OrderBy(x => x.SubgroupIDs))
+            foreach (var combination in entry.Value.Values.OrderBy(x => x.SubgroupIDs))
             {
                 fileContents.Add(Environment.NewLine);
                 fileContents.Add("\tCombination: " + combination.SubgroupIDs);
@@ -111,17 +108,24 @@ public class CombinationLog
 
                 //resolve subrecords
                 HashSet<GeneratedRecordInfo> resolvedSubRecords = new HashSet<GeneratedRecordInfo>(new GeneratedRecordInfo.CombinationRecordComparer());
-                resolvedSubRecords.UnionWith(combination.AssignedRecords); // prevent duplicates
+                resolvedSubRecords.UnionWith(combination.AssignedRecords.Values); // prevent duplicates
 
-                foreach (var assignedRecord in combination.AssignedRecords)
+                foreach (var assignedRecord in combination.AssignedRecords.Values)
                 {
                     ResolveSubRecords(assignedRecord, resolvedSubRecords);
                 }
-                combination.AssignedRecords.UnionWith(resolvedSubRecords);
 
-                foreach (var record in combination.AssignedRecords)
+                foreach (var subRecord in resolvedSubRecords)
                 {
-                    if (_converters.TryFormKeyStringToFormIDString(record.FormKey, out string formID))
+                    if (!combination.AssignedRecords.ContainsKey(subRecord.FormKey))
+                    {
+                        combination.AssignedRecords.TryAdd(subRecord.FormKey, subRecord);
+                    }
+                }
+
+                foreach (var record in combination.AssignedRecords.Values)
+                {
+                    if (_converters.TryFormKeyStringToFormIDString(record.FormKey.ToString(), out string formID))
                     {
                         fileContents.Add("\t\t\t" + (record.EditorID) + " (" + formID + ")"); // not a Mutagen record; EditorID will never be null
                     }
@@ -137,7 +141,7 @@ public class CombinationLog
         {
             if (_environmentProvider.LinkCache.TryResolve(containedFormLink.FormKey, containedFormLink.Type, out var resolvedSubRecord))
             {
-                var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
+                var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey, SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
                 if (!subRecords.Contains(loggedSubRecord))
                 {
@@ -153,7 +157,7 @@ public class CombinationLog
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
-        Dictionary<string, List<CombinationInfo>> combinationDict = null;
+        ConcurrentDictionary<string, ConcurrentDictionary<string, CombinationInfo>> combinationDict;
 
         foreach (var combination in combinations)
         {
@@ -165,25 +169,30 @@ public class CombinationLog
                 default: continue;
             }
 
-            List<CombinationInfo> currentAssetPackCombinations = null;
+            ConcurrentDictionary<string, CombinationInfo> currentAssetPackCombinations;
             if (combinationDict.ContainsKey(combination.AssignmentName))
             {
                 currentAssetPackCombinations = combinationDict[combination.AssignmentName];
             }
             else
             {
-                currentAssetPackCombinations = new List<CombinationInfo>();
-                combinationDict.Add(combination.AssignmentName, currentAssetPackCombinations);
+                currentAssetPackCombinations = new();
+                combinationDict.TryAdd(combination.AssignmentName, currentAssetPackCombinations);
             }
 
             if (!combination.Signature.Contains(':')) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
 
             string currentSubgroupIDs = combination.Signature.Split(':')[1];
-            var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
-            if (currentCombinationRecord == null)
+
+            CombinationInfo currentCombinationRecord;
+            if(currentAssetPackCombinations.ContainsKey(currentSubgroupIDs))
+            {
+                currentCombinationRecord = currentAssetPackCombinations[currentSubgroupIDs];
+            }
+            else
             {
                 currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.DeepNamesString).ToList() };
-                currentAssetPackCombinations.Add(currentCombinationRecord);
+                currentAssetPackCombinations.TryAdd(currentSubgroupIDs, currentCombinationRecord);
             }
 
             currentCombinationRecord.NPCsAssignedTo.Add(npcInfo.LogIDstring);
@@ -193,17 +202,16 @@ public class CombinationLog
             {
                 foreach (var recordInfo in recordSet)
                 {
-                    if (currentCombinationRecord.AssignedFormKeys.Contains(recordInfo.FormKey)) { continue; }
+                    if (currentCombinationRecord.AssignedRecords.ContainsKey(recordInfo.FormKey)) { continue; }
 
-                    currentCombinationRecord.AssignedRecords.Add(recordInfo);
-                    currentCombinationRecord.AssignedFormKeys.Add(recordInfo.FormKey);
+                    currentCombinationRecord.AssignedRecords.TryAdd(recordInfo.FormKey, recordInfo);
                 }
             }
 
             combination.AssetPack.AssignmentCount++;
             foreach (var subgroup in combination.ContainedSubgroups)
             {
-                subgroup.AssignmentCount++;
+                subgroup.IncrementAssignmentCount();
             }
         }
     }
@@ -213,14 +221,13 @@ public class CombinationInfo
 {
     public string SubgroupIDs { get; set; } = "";
     public List<string> SubgroupDeepNames { get; set; } = new();
-    public HashSet<GeneratedRecordInfo> AssignedRecords { get; set; } = new(new GeneratedRecordInfo.CombinationRecordComparer());
+    public ConcurrentDictionary<FormKey, GeneratedRecordInfo> AssignedRecords { get; set; } = new();
     public HashSet<string> NPCsAssignedTo { get; set; } = new();
-    public HashSet<string> AssignedFormKeys { get; set; } = new(); // same data as AssignedRecords but easier to check against
 }
 
 public class GeneratedRecordInfo
 {
-    public string FormKey { get; set; }
+    public FormKey FormKey { get; set; }
     public string EditorID { get; set; }
     public HashSet<IFormLinkGetter> SubRecords { get; set; }
 

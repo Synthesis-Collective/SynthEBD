@@ -1,11 +1,7 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
-using Mutagen.Bethesda.Synthesis;
 using Noggog;
-using System.Linq;
-using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -387,7 +383,8 @@ public class AssetSelector
     {
         int maxMatchedForceIfCount = availableSeeds[0].ForceIfMatchCount;
         var candidateSubgroups = availableSeeds.Where(x => x.ForceIfMatchCount == maxMatchedForceIfCount).ToList(); // input list is sorted so that the subgroup with the most matched ForceIf attributes is first. Get other subgroups with the same number of matched ForceIf attributes (if any)
-        return (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(candidateSubgroups);
+        var result = ProbabilityWeighting.SelectByProbability(candidateSubgroups);
+        return (FlattenedSubgroup)result;
     }
 
     private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
@@ -544,7 +541,7 @@ public class AssetSelector
                     forcedAssetPack = assetPacksToBeFiltered.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
                     if (forcedAssetPack != null)
                     {
-                        forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
+                        forcedAssetPack = forcedAssetPack.ShallowCopyWithRelink(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, npcInfo.SpecificNPCAssignment.SubgroupIDs, npcInfo);
                         _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedAssetPack.GroupName, false, npcInfo);
                     }
@@ -558,7 +555,7 @@ public class AssetSelector
                     var forcedMixIn = npcInfo.SpecificNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
                     if (forcedMixIn != null)
                     {
-                        forcedAssetPack = availableAssetPacks.First().ShallowCopy();
+                        forcedAssetPack = availableAssetPacks.First().ShallowCopyWithRelink();
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedMixIn.SubgroupIDs, npcInfo);
                         _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedMixIn.AssetPackName, false, npcInfo);
                     }
@@ -567,7 +564,7 @@ public class AssetSelector
                     var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                     if (forcedReplacerGroup != null)
                     {
-                        forcedAssetPack = availableAssetPacks.First().ShallowCopy();
+                        forcedAssetPack = availableAssetPacks.First().ShallowCopyWithRelink();
                         forcedAssignments = GetForcedSubgroupsAtIndex(forcedAssetPack, forcedReplacerGroup.SubgroupIDs, npcInfo);
                         _logger.LogReport("Found Asset Pack set by Specific NPC Assignment: " + forcedAssetPack.GroupName, false, npcInfo);
                     }
@@ -602,7 +599,7 @@ public class AssetSelector
         {
             _logger.OpenReportSubsection("AssetPack", npcInfo);
             _logger.LogReport("Evaluating distribution rules for asset pack: " + ap.GroupName, false, npcInfo);
-            var candidatePack = ap.ShallowCopy();
+            var candidatePack = ap.ShallowCopyWithRelink();
             if (forcedAssetPack != null && candidatePack.GroupName == forcedAssetPack.GroupName)
             {
                 _logger.LogReport("Skipped evaluation of Whole Config Distribution Rules for Asset Pack " + ap.GroupName + " because it is forced by Specific NPC Assignments.", false, npcInfo);

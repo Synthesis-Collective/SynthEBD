@@ -47,6 +47,41 @@ public class FlattenedSubgroup : IProbabilityWeighted
         ContainedSubgroupIDs = new List<string> { Id };
         ContainedSubgroupNames = new List<string> { Name };
         ParentAssetPack = parent;
+        _originalTemplate = this;
+    }
+
+    private FlattenedSubgroup(FlattenedSubgroup template)
+    {
+        Id = template.Id;
+        Name = template.Name;
+        DistributionEnabled = template.DistributionEnabled;
+        AllowedRaces = template.AllowedRaces;
+        DisallowedRaces = template.DisallowedRaces;
+        AllowedRacesIsEmpty = template.AllowedRacesIsEmpty;
+        AllowedAttributes = template.AllowedAttributes;
+        DisallowedAttributes = template.DisallowedAttributes;
+        AllowUnique = template.AllowUnique;
+        AllowNonUnique = template.AllowNonUnique;
+        RequiredSubgroupIDs = template.RequiredSubgroupIDs;
+        ExcludedSubgroupIDs = template.ExcludedSubgroupIDs;
+        AddKeywords = template.AddKeywords;
+        ProbabilityWeighting = template.ProbabilityWeighting;
+        Paths = template.Paths;
+        AllowedBodyGenDescriptors = template.AllowedBodyGenDescriptors;
+        AllowedBodyGenMatchMode = template.AllowedBodyGenMatchMode;
+        DisallowedBodyGenDescriptors = template.DisallowedBodyGenDescriptors;
+        DisallowedBodyGenMatchMode = template.DisallowedBodyGenMatchMode;
+        AllowedBodySlideDescriptors = template.AllowedBodySlideDescriptors;
+        AllowedBodySlideMatchMode = template.AllowedBodySlideMatchMode;
+        DisallowedBodySlideDescriptors = template.DisallowedBodySlideDescriptors;
+        DisallowedBodySlideMatchMode = template.DisallowedBodySlideMatchMode;
+        PrioritizedBodySlideDescriptors = template.PrioritizedBodySlideDescriptors;
+        WeightRange = template.WeightRange;
+        TopLevelSubgroupIndex = template.TopLevelSubgroupIndex;
+        ContainedSubgroupIDs = template.ContainedSubgroupIDs;
+        ContainedSubgroupNames = template.ContainedSubgroupNames;
+        ParentSubgroupIDs = template.ParentSubgroupIDs;
+        _originalTemplate = template;
     }
     public string Id { get; set; }
     public string Name { get; set; }
@@ -82,7 +117,16 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public int ForceIfMatchCount { get; set; } = 0;
     public List<string> ParentSubgroupIDs { get; set; } = new();
     // used for logging
-    public int AssignmentCount { get; set; } = 0;
+    private int AssignmentCount { get; set; } = 0;
+    private FlattenedSubgroup _originalTemplate;
+    public void IncrementAssignmentCount()
+    {
+        _originalTemplate.AssignmentCount++;
+    }
+    public int GetAssignmentCount()
+    {
+        return _originalTemplate.AssignmentCount;
+    }
     public string DeepNamesString => String.Join(" -> ", ContainedSubgroupNames);
 
     public string GetNestedNameString(bool ignoreTopLevel)
@@ -396,5 +440,12 @@ public class FlattenedSubgroup : IProbabilityWeighted
         }
 
         return mergedDescriptors;
+    }
+
+    public FlattenedSubgroup ShallowCloneTo(FlattenedAssetPack destination) // all properties are same in-memory as original, BESIDES ParentAssetPack
+    {
+        FlattenedSubgroup clone = new(this);
+        clone.ParentAssetPack = destination;
+        return clone;
     }
 }

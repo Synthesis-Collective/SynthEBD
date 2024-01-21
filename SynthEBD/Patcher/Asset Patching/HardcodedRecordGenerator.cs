@@ -19,12 +19,14 @@ public class HardcodedRecordGenerator
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly HeadPartSelector _headPartSelector;
-    public HardcodedRecordGenerator(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, HeadPartSelector headPartSelector)
+    private readonly Func<RecordGenerator> _recordGenerator;
+    public HardcodedRecordGenerator(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, HeadPartSelector headPartSelector, Func<RecordGenerator> recordGenerator)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _headPartSelector = headPartSelector;
+        _recordGenerator = recordGenerator;
     }
 
     public void CategorizePaths(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode)
@@ -138,7 +140,7 @@ public class HardcodedRecordGenerator
         else if (templateNPC != null && !templateNPC.HeadTexture.IsNull && templateLinkCache.TryResolve<ITextureSetGetter>(templateNPC.HeadTexture.FormKey, out var templateHeadTexture))
         {
             HashSet<IMajorRecord> subRecords = new HashSet<IMajorRecord>();
-            headTex = (TextureSet)RecordGenerator.DeepCopyRecordToPatch(templateHeadTexture, templateHeadTexture.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
+            headTex = (TextureSet)_recordGenerator().DeepCopyRecordToPatch(templateHeadTexture, templateHeadTexture.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
             RecordGenerator.IncrementEditorID(subRecords);
             RecordGenerator.AddGeneratedRecordToDictionary(pathSignature, templateNPC, headTex);
             RecordGenerator.CacheResolvedObject("HeadTexture", templateHeadTexture, objectCaches, templateNPC);
@@ -208,7 +210,7 @@ public class HardcodedRecordGenerator
             RecordGenerator.CacheResolvedObject("WornArmor", templateWNAM, objectCaches, templateNPC);
             RecordGenerator.CacheResolvedObject("WornArmor.Armature", templateWNAM.Armature, objectCaches, templateNPC);
             HashSet<IMajorRecord> subRecords = new HashSet<IMajorRecord>();
-            newSkin = (Armor)RecordGenerator.DeepCopyRecordToPatch(templateWNAM, templateWNAM.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
+            newSkin = (Armor)_recordGenerator().DeepCopyRecordToPatch(templateWNAM, templateWNAM.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
             RecordGenerator.IncrementEditorID(subRecords);
             assignedFromTemplate = true;
             RecordGenerator.AddGeneratedRecordToDictionary(pathSignature, templateNPC, newSkin);
@@ -365,7 +367,7 @@ public class HardcodedRecordGenerator
             if (!TryGetGeneratedRecord(pathSignature, templateNPC, out newArmorAddon) && sourceArmorAddon != null)
             {
                 HashSet<IMajorRecord> subRecords = new HashSet<IMajorRecord>();
-                newArmorAddon = (ArmorAddon)RecordGenerator.DeepCopyRecordToPatch(sourceArmorAddon, sourceArmorAddon.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
+                newArmorAddon = (ArmorAddon)_recordGenerator().DeepCopyRecordToPatch(sourceArmorAddon, sourceArmorAddon.FormKey.ModKey, templateLinkCache, outputMod, subRecords);
                 RecordGenerator.IncrementEditorID(subRecords);
                 RecordGenerator.AddGeneratedRecordToDictionary(pathSignature, templateNPC, newArmorAddon);
 

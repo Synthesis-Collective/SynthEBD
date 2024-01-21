@@ -2,6 +2,7 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -19,7 +20,7 @@ public class HeadPartFunctions
 
     }
 
-    public void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
+    public void ApplyNeededFaceTextures(ConcurrentDictionary<FormKey, HeadPartSelection> headPartAssignemnts) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
         HashSet<FormKey> npcsToRemove = new();
         foreach (var npcFormKey in headPartAssignemnts.Keys)
@@ -98,7 +99,10 @@ public class HeadPartFunctions
 
         foreach (var npcFK in npcsToRemove)
         {
-            headPartAssignemnts.Remove(npcFK);
+            if (headPartAssignemnts.ContainsKey(npcFK))
+            {
+                headPartAssignemnts.TryRemove(npcFK, out _);
+            }
         }
     }
 

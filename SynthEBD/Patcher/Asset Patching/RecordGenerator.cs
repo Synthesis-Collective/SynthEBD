@@ -5,6 +5,7 @@ using Mutagen.Bethesda.Plugins.Records;
 using Loqui;
 using Mutagen.Bethesda.Plugins.Cache;
 using Noggog;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -18,6 +19,7 @@ public class RecordGenerator
     private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
     private HashSet<FormKey> skinWNAMsToStrip;
+    private object _recordGenLock = new object();
     public RecordGenerator(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
     {
         _environmentProvider = environmentProvider;
@@ -32,11 +34,11 @@ public class RecordGenerator
 
     public void Reinitialize()
     {
-        ModifiedRecordCounts = new Dictionary<string, int>();
-        ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer());
-        CachedObjectsByPathAndTemplate = CachedObjectsByPathAndTemplate = new Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>>(HashSet<string>.CreateSetComparer());
+        ModifiedRecordCounts = new();
+        ModifiedRecords = new(HashSet<string>.CreateSetComparer());
+        CachedObjectsByPathAndTemplate = CachedObjectsByPathAndTemplate = new(HashSet<string>.CreateSetComparer());
         GeneratedRecordsByTempateNPC = GeneratedRecordsByTempateNPC = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer());
-        EdidCounts = new Dictionary<string, int>();
+        EdidCounts = new();
 
         skinWNAMsToStrip = new();
         var editorIDsToSearch = new HashSet<string>(_patcherState.TexMeshSettings.StrippedSkinWNAMs);
@@ -438,10 +440,14 @@ public class RecordGenerator
         return output;
     }
 
-    public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod, HashSet<IMajorRecord> copiedSubRecords)
+    public IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod, HashSet<IMajorRecord> copiedSubRecords)
     {
         dynamic group = GetPatchRecordGroup(sourceRecordObj, destinationMod);
-        IMajorRecord copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(group, sourceRecordObj);
+        IMajorRecord copiedRecord;
+        lock (_recordGenLock)
+        {
+            copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(group, sourceRecordObj);
+        }
         copiedSubRecords.Add(copiedRecord);
 
         Dictionary<FormKey, FormKey> mapping = new Dictionary<FormKey, FormKey>();
@@ -508,7 +514,7 @@ public class RecordGenerator
             }
             else
             {
-                ModifiedRecordCounts.Add(templateFKstr, 1);
+                ModifiedRecordCounts.TryAdd(templateFKstr, 1);
             }
 
             record.EditorID += ModifiedRecordCounts[templateFKstr].ToString("D4");
@@ -526,7 +532,7 @@ public class RecordGenerator
             }
             else
             {
-                EdidCounts.Add(newRecord.EditorID ?? "NoEditorID", 1);
+                EdidCounts.TryAdd(newRecord.EditorID ?? "NoEditorID", 1);
                 newRecord.EditorID += 1.ToString("D4");
             }
         }
@@ -545,12 +551,12 @@ public class RecordGenerator
         return string.Join(", ", templateNames);
     }
 
-    public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
+    public static ConcurrentDictionary<string, int> EdidCounts = new(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
-    private static Dictionary<string, int> ModifiedRecordCounts = new Dictionary<string, int>(); // for modified Editor IDs only
+    private static ConcurrentDictionary<string, int> ModifiedRecordCounts = new(); // for modified Editor IDs only
 
     //Dictionary[SourcePaths.ToHashSet()][OriginalRecordGetter.FormKey.ToString()] = IMajorRecord Generated
-    private static Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>> ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key
+    private static ConcurrentDictionary<HashSet<string>, ConcurrentDictionary<string, IMajorRecord>> ModifiedRecords = new(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key
 
     public static bool TryGetModifiedRecord<T>(HashSet<string> pathSignature, FormKey originalFormKey, out T record) where T : class
     {
@@ -574,12 +580,12 @@ public class RecordGenerator
 
         if (!ModifiedRecords.ContainsKey(pathSignature))
         {
-            ModifiedRecords.Add(pathSignature, new Dictionary<string, IMajorRecord>());
+            ModifiedRecords.TryAdd(pathSignature, new());
         }
 
         if (!ModifiedRecords[pathSignature].ContainsKey(fkStr))
         {
-            ModifiedRecords[pathSignature].Add(fkStr, null);
+            ModifiedRecords[pathSignature].TryAdd(fkStr, null);
         }
 
         ModifiedRecords[pathSignature][fkStr] = record;
@@ -604,7 +610,7 @@ public class RecordGenerator
 
     //Dictionary[SourcePaths.ToHashSet()][SubPathStr][RecordTemplate.FormKey.ToString()] = Object Generated
 
-    private static Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>> CachedObjectsByPathAndTemplate = new Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>>(HashSet<string>.CreateSetComparer());
+    private static ConcurrentDictionary<HashSet<string>, ConcurrentDictionary<string, ConcurrentDictionary<HashSet<string>, ObjectAtIndex>>> CachedObjectsByPathAndTemplate = new(HashSet<string>.CreateSetComparer());
 
     private class ObjectAtIndex
     {
@@ -633,24 +639,24 @@ public class RecordGenerator
         var templateSignatureStr = templateSignature.Select(x => x.FormKey.ToString()).ToHashSet();
         if (!CachedObjectsByPathAndTemplate.ContainsKey(pathSignature))
         {
-            CachedObjectsByPathAndTemplate.Add(pathSignature, new Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>());
+            CachedObjectsByPathAndTemplate.TryAdd(pathSignature, new());
         }
 
         if (!CachedObjectsByPathAndTemplate[pathSignature].ContainsKey(pathRelativeToNPC))
         {
-            CachedObjectsByPathAndTemplate[pathSignature].Add(pathRelativeToNPC, new Dictionary<HashSet<string>, ObjectAtIndex>(HashSet<string>.CreateSetComparer()));
+            CachedObjectsByPathAndTemplate[pathSignature].TryAdd(pathRelativeToNPC, new(HashSet<string>.CreateSetComparer()));
         }
 
         if (!CachedObjectsByPathAndTemplate[pathSignature][pathRelativeToNPC].ContainsKey(templateSignatureStr))
         {
-            CachedObjectsByPathAndTemplate[pathSignature][pathRelativeToNPC].Add(templateSignatureStr, storedObjectAndIndex);
+            CachedObjectsByPathAndTemplate[pathSignature][pathRelativeToNPC].TryAdd(templateSignatureStr, storedObjectAndIndex);
         }
     }
 
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
         HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
-        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey, EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
 
         foreach (var entry in group)
         {

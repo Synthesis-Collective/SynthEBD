@@ -5,6 +5,7 @@ using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins.Records;
 using Noggog;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -52,6 +53,7 @@ public class Patcher
     private readonly HeadPartFunctions _headPartFunctions;
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
+    private Object patcherLock = new Object();
 
     public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions)
     {
@@ -318,7 +320,7 @@ public class Patcher
 
         // Run main patching operations
         HashSet<Npc> headPartNPCs = new HashSet<Npc>();
-        HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
+        HeadPartTracker = new(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
         _vanillaBodyPathSetter.Reinitialize();
 
         _patchedNpcCount = 0;
@@ -443,17 +445,17 @@ public class Patcher
         bool assetsAssigned = false;
         bool bodyShapeAssigned = false;
 
-        HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
-        HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
-
-        List<SubgroupCombination> assignedCombinations = new List<SubgroupCombination>();
         HashSet<LinkedNPCGroup> linkedGroupsHashSet = _patcherState.GeneralSettings.LinkedNPCGroups.ToHashSet();
 
         int npcCount = npcCollection.Count();
         var npcArray = npcCollection.ToArray();
 
-        foreach (var npc in npcArray)
+        Parallel.ForEach(npcCollection, npc =>
         {
+            HashSet<FlattenedAssetPack> primaryAssetPacks = new HashSet<FlattenedAssetPack>();
+            HashSet<FlattenedAssetPack> mixInAssetPacks = new HashSet<FlattenedAssetPack>();
+            List<SubgroupCombination> assignedCombinations = new List<SubgroupCombination>();
+
             _statusBar.ProgressBarCurrent++;
 
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
@@ -464,7 +466,7 @@ public class Patcher
             {
                 _logger.TriggerNPCReporting(currentNPCInfo);
             }
-            
+
             if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll) // if logging is done via non-compliant assets, the downstream callers will trigger save if the NPC is found to be non-compliant so don't short-circuit that logic here.
             {
                 _logger.TriggerNPCReportingSave(currentNPCInfo);
@@ -483,7 +485,7 @@ public class Patcher
             {
                 _logger.LogReport("NPC skipped because its race or alias for all patcher functions are not included in the General Settings' Patchable Races", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
-                continue;
+                return;
             }
 
             assetsAssigned = false;
@@ -499,7 +501,7 @@ public class Patcher
                 skippedLinkedNPCs.Add(npc);
                 _logger.LogReport("NPC temporarily skipped because it is a secondary Linked NPC Group member and the primary has not yet been assigned", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
-                continue;
+                return;
             }
             #endregion
 
@@ -528,21 +530,21 @@ public class Patcher
             {
                 _logger.LogReport("NPC skipped because Player patching is disabled", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
-                continue;
+                return;
             }
 
             if (_patcherState.GeneralSettings.ExcludePresets && npc.EditorID != null && npc.EditorID.Contains("Preset"))
             {
                 _logger.LogReport("NPC skipped because Preset patching is disabled", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
-                continue;
+                return;
             }
 
             if (_patcherState.GeneralSettings.bFilterNPCsByArmature && !AppearsHumanoidByArmature(npc))
             {
                 _logger.LogReport("NPC skipped because its WornArmor skin does not have a torso, hands, and feet", false, currentNPCInfo);
                 _logger.SaveReport(currentNPCInfo);
-                continue;
+                return;
             }
 
             AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment primaryAssetsAndBodyShape = new AssetAndBodyShapeSelector.AssetAndBodyShapeAssignment();
@@ -564,7 +566,7 @@ public class Patcher
                 }
 
                 List<string> assetOrder = _patcherState.TexMeshSettings.AssetOrder;
-                if (currentNPCInfo?.SpecificNPCAssignment?.AssetOrder != null) {  assetOrder = currentNPCInfo.SpecificNPCAssignment.AssetOrder; }
+                if (currentNPCInfo?.SpecificNPCAssignment?.AssetOrder != null) { assetOrder = currentNPCInfo.SpecificNPCAssignment.AssetOrder; }
 
                 foreach (var item in assetOrder)
                 {
@@ -584,13 +586,13 @@ public class Patcher
                                 switch (_patcherState.GeneralSettings.BodySelectionMode)
                                 {
                                     case BodyShapeSelectionMode.BodyGen:
-                                        BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodyGenMorphs.Select(x => x.Label).ToList());
+                                        BodyGenTracker.NPCAssignments.TryAdd(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodyGenMorphs.Select(x => x.Label).ToList());
                                         _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodyGenMorphs, currentNPCInfo);
                                         assignedMorphs = primaryAssetsAndBodyShape.BodyGenMorphs;
                                         break;
 
                                     case BodyShapeSelectionMode.BodySlide:
-                                        BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodySlidePresets.Select(x => x.ReferencedBodySlide).ToList());
+                                        BodySlideTracker.TryAdd(currentNPCInfo.NPC.FormKey, primaryAssetsAndBodyShape.BodySlidePresets.Select(x => x.ReferencedBodySlide).ToList());
                                         _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(primaryAssetsAndBodyShape.BodySlidePresets, currentNPCInfo);
                                         assignedBodySlides = primaryAssetsAndBodyShape.BodySlidePresets;
                                         break;
@@ -657,7 +659,12 @@ public class Patcher
                     {
                         currentNPCInfo.NPC = _recordGenerator.StripSpecifiedSkinArmor(npc, _environmentProvider.LinkCache, outputMod);
                     }
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+
+                    Npc npcRecord;
+                    lock (patcherLock)
+                    {
+                        npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    }
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
                     var replacedRecords = new Dictionary<FormKey, FormKey>();
@@ -717,7 +724,7 @@ public class Patcher
                         assignedMorphs = _bodyGenSelector.SelectMorphs(currentNPCInfo, out bool success, bodyGenConfigs, null, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
-                            BodyGenTracker.NPCAssignments.Add(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
+                            BodyGenTracker.NPCAssignments.TryAdd(currentNPCInfo.NPC.FormKey, assignedMorphs.Select(x => x.Label).ToList());
                             _bodyGenSelector.RecordBodyGenConsistencyAndLinkedNPCs(assignedMorphs, currentNPCInfo);
                             primaryAssetsAndBodyShape.BodyGenMorphs = assignedMorphs;
                         }
@@ -734,7 +741,7 @@ public class Patcher
                         assignedBodySlides = _oBodySelector.SelectBodySlidePresets(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
-                            BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlides.Select(x => x.ReferencedBodySlide).ToList());
+                            BodySlideTracker.TryAdd(currentNPCInfo.NPC.FormKey, assignedBodySlides.Select(x => x.ReferencedBodySlide).ToList());
                             _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlides, currentNPCInfo);
                             primaryAssetsAndBodyShape.BodySlidePresets = assignedBodySlides;
                         }
@@ -767,7 +774,10 @@ public class Patcher
                 CheckForAssetDerivedHeadParts(generatedHeadParts); // triggers headpart output even if bChangeHeadParts is false
             }
 
-            HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
+            lock (patcherLock)
+            {
+                HeadPartTracker.TryAdd(currentNPCInfo.NPC.FormKey, assignedHeadParts);
+            }
             #endregion
 
             #region final functions
@@ -778,9 +788,9 @@ public class Patcher
             #endregion
 
             _logger.SaveReport(currentNPCInfo);
-            
+
             _patchedNpcCount++;
-        }
+        });
     }
 
     private void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
@@ -853,37 +863,39 @@ public class Patcher
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
-    public static Dictionary<FormKey, List<string>> BodySlideTracker = new Dictionary<FormKey, List<string>>(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 
-    public static Dictionary<FormKey, HeadPartSelection> HeadPartTracker = new();
+    public static ConcurrentDictionary<FormKey, List<string>> BodySlideTracker = new(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 
+    public static ConcurrentDictionary<FormKey, HeadPartSelection> HeadPartTracker = new();
     public class BodyGenAssignmentTracker
     {
-        public Dictionary<FormKey, List<string>> NPCAssignments = new();
-        public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
-        public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
+        public ConcurrentDictionary<FormKey, List<string>> NPCAssignments = new();
+        public ConcurrentDictionary<string, HashSet<string>> AllChosenMorphsMale = new();
+        public ConcurrentDictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
     }
 
     public class AssetStatsTracker
     {
+        public AssetStatsTracker()
+        {
+            AssignmentsByGenderAndRace.TryAdd(Gender.Male, new());
+            AssignmentsByGenderAndRace.TryAdd(Gender.Female, new());
+        }
+
         public class AssignablePairing
         {
             public int Assignable { get; set; } = 0;
             public int Assigned { get; set; } = 0;
         }
 
-        public Dictionary<Gender, bool> HasGenderedConfigs { get; set; } = new();
+        public ConcurrentDictionary<Gender, bool> HasGenderedConfigs { get; set; } = new();
 
-        public Dictionary<Gender, Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new()
-        {
-            {   Gender.Male, new Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>()},
-            {   Gender.Female, new Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>()} 
-        };
+        public ConcurrentDictionary<Gender, ConcurrentDictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing>> AssignmentsByGenderAndRace { get; set; } = new();
         private readonly Logger _logger;
         private readonly ILinkCache _linkCache;
 
         public AssetStatsTracker(PatcherState patcherState, Logger logger, ILinkCache linkCache)
         {
-            HasGenderedConfigs.Add(Gender.Male, false);
-            HasGenderedConfigs.Add(Gender.Female, false);
+            HasGenderedConfigs.TryAdd(Gender.Male, false);
+            HasGenderedConfigs.TryAdd(Gender.Female, false);
 
             if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Male] = true; }
             if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Female] = true; }
@@ -895,13 +907,12 @@ public class Patcher
         {
             if (!AssignmentsByGenderAndRace.ContainsKey(npcInfo.Gender))
             {
-                Dictionary<IFormLinkGetter<IRaceGetter>, AssignablePairing> entry = new();
-                AssignmentsByGenderAndRace.Add(npcInfo.Gender, entry);
+                AssignmentsByGenderAndRace.TryAdd(npcInfo.Gender, new());
             }
 
             if (!AssignmentsByGenderAndRace[npcInfo.Gender].ContainsKey(npcInfo.NPC.Race))
             {
-                AssignmentsByGenderAndRace[npcInfo.Gender].Add(npcInfo.NPC.Race, new AssignablePairing());
+                AssignmentsByGenderAndRace[npcInfo.Gender].TryAdd(npcInfo.NPC.Race, new());
             }
 
             AssignmentsByGenderAndRace[npcInfo.Gender][npcInfo.NPC.Race].Assignable++;

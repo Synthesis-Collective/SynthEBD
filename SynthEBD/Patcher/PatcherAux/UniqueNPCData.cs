@@ -2,6 +2,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using Mutagen.Bethesda.Synthesis;
 using Noggog;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -14,9 +15,9 @@ public class UniqueNPCData
     }
 
     public HashSet<string> UniqueNameExclusions { get; set; } = new();
-    public Dictionary<string, 
-        Dictionary<FormKey, // race for the given type
-        Dictionary<Gender, UniqueNPCTracker>>> UniqueAssignmentsByName = new();
+    public ConcurrentDictionary<string,
+        ConcurrentDictionary<FormKey, // race for the given type
+        ConcurrentDictionary<Gender, UniqueNPCTracker>>> UniqueAssignmentsByName = new();
 
     public void Reinitialize()
     {
@@ -96,17 +97,17 @@ public class UniqueNPCData
 
         if (!UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
         {
-            UniqueAssignmentsByName.Add(npcInfo.Name, new());
+            UniqueAssignmentsByName.TryAdd(npcInfo.Name, new());
         }
         
         if (!UniqueAssignmentsByName[npcInfo.Name].ContainsKey(comparisonRace))
         {
-            UniqueAssignmentsByName[npcInfo.Name].Add(comparisonRace, new());
+            UniqueAssignmentsByName[npcInfo.Name].TryAdd(comparisonRace, new());
         }
 
         if (!UniqueAssignmentsByName[npcInfo.Name][comparisonRace].ContainsKey(npcInfo.Gender))
         {
-            UniqueAssignmentsByName[npcInfo.Name][comparisonRace].Add(npcInfo.Gender, new(npcInfo.NPC));
+            UniqueAssignmentsByName[npcInfo.Name][comparisonRace].TryAdd(npcInfo.Gender, new(npcInfo.NPC));
         }
     }
 
@@ -297,21 +298,21 @@ public class UniqueNPCData
     {
         if (!UniqueAssignmentsByName.ContainsKey(npcInfo.Name))
         {
-            UniqueAssignmentsByName.Add(npcInfo.Name, new());
+            UniqueAssignmentsByName.TryAdd(npcInfo.Name, new());
         }
 
-        foreach (var type in Enum.GetValues(typeof(AssignmentType)))
+        foreach (var type in Enum.GetValues<AssignmentType>())
         {
-            var comparisonRace = GetComparisonRace(npcInfo, (AssignmentType)type);
+            var comparisonRace = GetComparisonRace(npcInfo, type);
 
             if (!UniqueAssignmentsByName[npcInfo.Name].ContainsKey(comparisonRace))
             {
-                UniqueAssignmentsByName[npcInfo.Name].Add(comparisonRace, new());
+                UniqueAssignmentsByName[npcInfo.Name].TryAdd(comparisonRace, new());
             }
 
             if (!UniqueAssignmentsByName[npcInfo.Name][comparisonRace].ContainsKey(npcInfo.Gender))
             {
-                UniqueAssignmentsByName[npcInfo.Name][comparisonRace].Add(npcInfo.Gender, new(npcInfo.NPC));
+                UniqueAssignmentsByName[npcInfo.Name][comparisonRace].TryAdd(npcInfo.Gender, new(npcInfo.NPC));
             }
         }   
     }

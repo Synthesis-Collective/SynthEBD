@@ -1,4 +1,5 @@
 using Noggog;
+using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
@@ -149,7 +150,7 @@ public class BodyGenSelector
 
         //store selected morphs
         var chosenMorphNames = chosenMorphs.Select(x => x.Label).ToList();
-        Dictionary<string, HashSet<string>> allChosenMorphs = null;
+        ConcurrentDictionary<string, HashSet<string>> allChosenMorphs = new();
         switch(npcInfo.Gender)
         {
             case Gender.Male: allChosenMorphs = Patcher.BodyGenTracker.AllChosenMorphsMale; break;
@@ -157,7 +158,7 @@ public class BodyGenSelector
         }
         if (!allChosenMorphs.ContainsKey(currentBodyGenConfig.Label))
         {
-            allChosenMorphs.Add(currentBodyGenConfig.Label, new HashSet<string>());
+            allChosenMorphs.TryAdd(currentBodyGenConfig.Label, new HashSet<string>());
         }
         allChosenMorphs[currentBodyGenConfig.Label].UnionWith(chosenMorphNames);
 

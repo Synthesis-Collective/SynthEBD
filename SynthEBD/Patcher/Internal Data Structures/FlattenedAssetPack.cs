@@ -120,6 +120,21 @@ public class FlattenedAssetPack
         return copy;
     }
 
+    public FlattenedAssetPack ShallowCopyWithRelink()
+    {
+        FlattenedAssetPack copy = new FlattenedAssetPack(GroupName, Gender, DefaultRecordTemplate, AdditionalRecordTemplateAssignments, AssociatedBodyGenConfigName, Source, Type, _dictionaryMapper, _patcherState);
+        foreach (var subgroupList in Subgroups)
+        {
+            var copiedList = new List<FlattenedSubgroup>();
+            copy.Subgroups.Add(copiedList);
+            foreach (var subgroup in subgroupList)
+            {
+                copiedList.Add(subgroup.ShallowCloneTo(copy));
+            }
+        }
+        return copy;
+    }
+
     public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual, dictionaryMapper, patcherState);
