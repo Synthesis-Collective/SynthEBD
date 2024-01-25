@@ -107,6 +107,11 @@ public class VanillaBodyPathSetter
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
+        if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        {
+            _logger.LogMessage("Setting vanilla body path for " + npcGetter.EditorID ?? "NULL");
+        }
+
         if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
         {
             if (ArmorDuplicatedwithVanillaPaths.ContainsKey(npcGetter.WornArmor.FormKey))
