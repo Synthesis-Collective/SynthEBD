@@ -216,10 +216,36 @@ public class VanillaBodyPathSetter
                 _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
                 continue;
             }
-            else if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
+            if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
             {
+                _logger.LogMessage("Section 1");
+                _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
+                _logger.LogMessage("currentArmorGetter: " + currentArmorGetter?.FormKey.ToString() ?? "null");
+                _logger.LogMessage("currentNPCGetter: " + currentNpcGetter?.FormKey.ToString() ?? "null");
+            }
+            if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
+            {
+                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                {
+                    _logger.LogMessage("Section 2");
+                    _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
+                    _logger.LogMessage("currentArmorGetter: " + currentArmorGetter?.FormKey.ToString() ?? "null");
+                    _logger.LogMessage("currentNPCGetter: " + currentNpcGetter?.FormKey.ToString() ?? "null");
+                    _logger.LogMessage("primaryBodyPart: " + primaryBodyPart ?? "null");
+                    _logger.LogMessage("currentGender: " + currentGender);
+                }
                 if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPath))
                 {
+                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    {
+                        _logger.LogMessage("Section 3");
+                        _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
+                        _logger.LogMessage("currentArmorGetter: " + currentArmorGetter?.FormKey.ToString() ?? "null");
+                        _logger.LogMessage("currentNPCGetter: " + currentNpcGetter?.FormKey.ToString() ?? "null");
+                        _logger.LogMessage("primaryBodyPart: " + primaryBodyPart ?? "null");
+                        _logger.LogMessage("currentGender: " + currentGender);
+                        _logger.LogMessage("vanillaPath: " + vanillaPath);
+                    }
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                     SetArmatureVanillaPath(armature, currentGender, vanillaPath);
                 }
