@@ -419,6 +419,33 @@ public class VanillaBodyPathSetter
         if (currentNPC != null && (currentNPC.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNPC.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
         {
             _logger.LogMessage("IsValidBodyArmature: " + currentNPC.EditorID ?? "NULL");
+            _logger.LogMessage("armaGetter: " + armaGetter.EditorID ?? armaGetter.FormKey.ToString());
+            _logger.LogMessage("armorGetter: " + armorGetter.EditorID ?? armorGetter.FormKey.ToString());
+            _logger.LogMessage("Keywords is null: " + (armorGetter.Keywords == null));
+            if (armorGetter.Keywords != null)
+            {
+                _logger.LogMessage("Keywords: ");
+                foreach (var keyword in armorGetter.Keywords)
+                {
+                    _logger.LogMessage(keyword.FormKey.ToString());
+                }
+            }
+            _logger.LogMessage("World Model is null: " + (armaGetter.WorldModel == null));
+            _logger.LogMessage("Arma Race is null: " + (armaGetter.Race == null));
+            if (armaGetter.Race != null)
+            {
+                _logger.LogMessage("Arma Race: " + armaGetter.Race.FormKey.ToString());
+            }
+            _logger.LogMessage("Arma Additional Races is null: " + (armaGetter.AdditionalRaces == null));
+            if (armaGetter.AdditionalRaces != null)
+            {
+                _logger.LogMessage("Additional Races: ");
+                foreach (var race in armaGetter.AdditionalRaces)
+                {
+                    _logger.LogMessage(race.FormKey.ToString());
+                }
+            }
+            _logger.LogMessage("Current race: " + currentNPC.Race.FormKey.ToString() ?? "NULL");
         }
 
         return IsBodyPart(armaGetter, out primaryBodyPart, currentNPC) &&
