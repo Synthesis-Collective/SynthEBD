@@ -130,11 +130,14 @@ public class VanillaBodyPathSetter
 
     private static bool IsTrackedNPC(INpcGetter npcGetter)
     {
+        return true;
+        /*
         return npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Guthrum.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.GiraudGemane.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.CorpulusVinius.FormKey);
+        */
     }
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
