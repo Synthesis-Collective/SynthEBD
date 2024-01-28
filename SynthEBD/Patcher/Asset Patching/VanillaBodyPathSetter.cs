@@ -40,7 +40,7 @@ public class VanillaBodyPathSetter
         {
             _statusBar.ProgressBarCurrent++;
             var npc = npcArray[i];
-
+            /*
             _logger.LogMessage("Iterating through NPC: " + npc.EditorID ?? "NULL");
             if (npc.FormKey != null)
             {
@@ -49,7 +49,7 @@ public class VanillaBodyPathSetter
             else
             {
                 _logger.LogMessage("FormKey is null!");
-            }
+            }*/
 
             if (!_raceResolver.PatchableRaces.Contains(npc.Race))
             {
@@ -70,8 +70,9 @@ public class VanillaBodyPathSetter
             if (patchedNPC != null)
             {
                 npc = patchedNPC;
-                _logger.LogMessage("Winning context comes from SynthEBD");
+                //_logger.LogMessage("Winning context comes from SynthEBD");
             }
+            /*
             else
             {
                 var getContext = _environmentStateProvider.LinkCache.TryResolveContext(npc, out var tempRecord);
@@ -83,7 +84,7 @@ public class VanillaBodyPathSetter
                 {
                     _logger.LogMessage("Could not find winning context!");
                 }
-            }
+            }*/
 
             if (BlockedNPCs.Contains(npc.FormKey))
             {
@@ -119,7 +120,8 @@ public class VanillaBodyPathSetter
             {
                 if (!BlockedArmatures.ContainsKey(armaLink.FormKey) && 
                     armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, currentNPCinfo.Gender) &&
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentNPCinfo.Gender, npcWinningRecord, out _))
                 {
                     BlockedArmatures.Add(armaGetter.FormKey, primaryBodyPart);
@@ -130,14 +132,11 @@ public class VanillaBodyPathSetter
 
     private static bool IsTrackedNPC(INpcGetter npcGetter)
     {
-        return true;
-        /*
         return npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Guthrum.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.GiraudGemane.FormKey) ||
             npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.CorpulusVinius.FormKey);
-        */
     }
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
@@ -152,7 +151,7 @@ public class VanillaBodyPathSetter
             _logger.LogMessage("FormKey is null. Can't process!");
             return;
         }
-        _logger.LogMessage("Setting vanilla body path for NPC: " + npcGetter.EditorID ?? "Null" + " " + npcGetter.FormKey.ToString());
+        //_logger.LogMessage("Setting vanilla body path for NPC: " + npcGetter.EditorID ?? "Null" + " " + npcGetter.FormKey.ToString());
         if (npcGetter != null && IsTrackedNPC(npcGetter))
         {
             _logger.LogMessage("Setting vanilla body path for " + npcGetter.EditorID ?? "NULL");
@@ -199,7 +198,8 @@ public class VanillaBodyPathSetter
                     _logger.LogMessage("Checkpoint B1: " + armaLink.FormKeyNullable.ToString() ?? "NULL");
                 }
                 if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, NPCInfo.GetGender(npcGetter)) &&
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
                 {
                     if (npcGetter != null && IsTrackedNPC(npcGetter))
@@ -318,7 +318,9 @@ public class VanillaBodyPathSetter
                     _logger.LogMessage("Checkpoint D8: " + templateArmorGetter.EditorID ?? "NULL");
                 }
             }
-            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
+            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender) &&
+                !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
             {
                 if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
@@ -363,7 +365,8 @@ public class VanillaBodyPathSetter
                 _logger.LogMessage("currentArmorGetter: " + currentArmorGetter?.FormKey.ToString() ?? "null");
                 _logger.LogMessage("currentNPCGetter: " + currentNpcGetter?.FormKey.ToString() ?? "null");
             }
-            if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
+            if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender))
             {
                 if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
@@ -466,6 +469,20 @@ public class VanillaBodyPathSetter
         }
     }
 
+    private bool ArmatureHasWorldModel(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        if (armaGetter.WorldModel == null)
+        {
+            return false;
+        }
+        switch (currentGender)
+        {
+            case Gender.Female: return armaGetter.WorldModel.Female != null;
+            case Gender.Male: return armaGetter.WorldModel.Male != null;
+            default: return false;
+        }
+    }
+
     private bool IsValidBodyArmature(IArmorAddonGetter armaGetter, IArmorGetter armorGetter, INpcGetter currentNPC, out BipedObjectFlag primaryBodyPart)
     {
         if (currentNPC != null && (currentNPC.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNPC.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
@@ -502,11 +519,8 @@ public class VanillaBodyPathSetter
 
         return IsBodyPart(armaGetter, out primaryBodyPart, currentNPC) &&
             (armorGetter.Keywords == null || !armorGetter.Keywords.Contains(Skyrim.Keyword.ArmorClothing)) &&
-            armaGetter.WorldModel != null &&
-            (
-                (armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
-                (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race))
-                );
+            ((armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
+                (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race)));
     }
     
     private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart, INpcGetter currentNpcGetter)
