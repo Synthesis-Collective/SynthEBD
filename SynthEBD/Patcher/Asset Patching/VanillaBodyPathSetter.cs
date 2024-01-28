@@ -41,6 +41,16 @@ public class VanillaBodyPathSetter
             _statusBar.ProgressBarCurrent++;
             var npc = npcArray[i];
 
+            _logger.LogMessage("Iterating through NPC: " + npc.EditorID ?? "NULL");
+            if (npc.FormKey != null)
+            {
+                _logger.LogMessage("FormKey is " + npc.FormKey.ToString());
+            }
+            else
+            {
+                _logger.LogMessage("FormKey is null!");
+            }
+
             if (!_raceResolver.PatchableRaces.Contains(npc.Race))
             {
                 continue;
@@ -60,6 +70,19 @@ public class VanillaBodyPathSetter
             if (patchedNPC != null)
             {
                 npc = patchedNPC;
+                _logger.LogMessage("Winning context comes from SynthEBD");
+            }
+            else
+            {
+                var getContext = _environmentStateProvider.LinkCache.TryResolveContext(npc, out var tempRecord);
+                if (getContext && tempRecord != null)
+                {
+                    _logger.LogMessage("Winning context comes from " + tempRecord.ModKey.ToString());
+                }
+                else
+                {
+                    _logger.LogMessage("Could not find winning context!");
+                }
             }
 
             if (BlockedNPCs.Contains(npc.FormKey))
@@ -105,17 +128,40 @@ public class VanillaBodyPathSetter
         }
     }
 
+    private static bool IsTrackedNPC(INpcGetter npcGetter)
+    {
+        return npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) ||
+            npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02) ||
+            npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Guthrum.FormKey);
+    }
+
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
+        if (npcGetter == null)
+        {
+            _logger.LogMessage("npcGetter is null. Can't process!");
+            return;
+        }
+        if (npcGetter.FormKey == null)
+        {
+            _logger.LogMessage("FormKey is null. Can't process!");
+            return;
+        }
         _logger.LogMessage("Setting vanilla body path for NPC: " + npcGetter.EditorID ?? "Null" + " " + npcGetter.FormKey.ToString());
-        if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (npcGetter != null && IsTrackedNPC(npcGetter))
         {
             _logger.LogMessage("Setting vanilla body path for " + npcGetter.EditorID ?? "NULL");
         }
 
+        if (_environmentStateProvider.LinkCache == null)
+        {
+            _logger.LogMessage("LinkCache is null. Can't process!");
+            return;
+        }
+
         if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
         {
-            if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+            if (npcGetter != null && IsTrackedNPC(npcGetter))
             {
                 _logger.LogMessage("Checkpoint A1: " + armorGetter.EditorID ?? "NULL");
             }
@@ -123,13 +169,13 @@ public class VanillaBodyPathSetter
             if (ArmorDuplicatedwithVanillaPaths.ContainsKey(npcGetter.WornArmor.FormKey))
             {
                 var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (npcGetter != null && IsTrackedNPC(npcGetter))
                 {
                     _logger.LogMessage("Checkpoint A2 " + npcGetter.EditorID ?? "NULL");
                 }
                 npc.WornArmor.SetTo(ArmorDuplicatedwithVanillaPaths[npcGetter.WornArmor.FormKey]);
 
-                if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (npcGetter != null && IsTrackedNPC(npcGetter))
                 {
                     _logger.LogMessage("Checkpoint A3: " + npcGetter.EditorID ?? "NULL");
                 }
@@ -143,7 +189,7 @@ public class VanillaBodyPathSetter
             bool hasNonVanillaBodyPaths = false;
             foreach (var armaLink in armorGetter.Armature)
             {
-                if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (npcGetter != null && IsTrackedNPC(npcGetter))
                 {
                     _logger.LogMessage("Checkpoint B1: " + armaLink.FormKeyNullable.ToString() ?? "NULL");
                 }
@@ -151,7 +197,7 @@ public class VanillaBodyPathSetter
                     IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) && 
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
                 {
-                    if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (npcGetter != null && IsTrackedNPC(npcGetter))
                     {
                         _logger.LogMessage("Checkpoint B2 - Has non-vanilla body paths: " + armaGetter.EditorID ?? "NULL");
                     }
@@ -169,7 +215,7 @@ public class VanillaBodyPathSetter
 
             if (hasBlockedArmature)
             {
-                if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (npcGetter != null && IsTrackedNPC(npcGetter))
                 {
                     _logger.LogMessage("Checkpoint C1: " + npcGetter.EditorID ?? "NULL");
                 }
@@ -177,7 +223,7 @@ public class VanillaBodyPathSetter
             }
             else
             {
-                if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (npcGetter != null && IsTrackedNPC(npcGetter))
                 {
                     _logger.LogMessage("Checkpoint C2: " + npcGetter.EditorID ?? "NULL");
                 }
@@ -188,7 +234,7 @@ public class VanillaBodyPathSetter
 
     private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
     {
-        if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
         {
             _logger.LogMessage("Checkpoint D1: " + templateArmorGetter.EditorID ?? "NULL");
         }
@@ -196,7 +242,7 @@ public class VanillaBodyPathSetter
         wornArmor.DeepCopyIn(templateArmorGetter);
         if (wornArmor.EditorID == null)
         {
-            if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+            if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
             {
                 _logger.LogMessage("Checkpoint D2: " + templateArmorGetter.EditorID ?? "NULL");
             }
@@ -204,7 +250,7 @@ public class VanillaBodyPathSetter
         }
         else
         {
-            if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+            if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
             {
                 _logger.LogMessage("Checkpoint D3: " + templateArmorGetter.EditorID ?? "NULL");
             }
@@ -215,7 +261,7 @@ public class VanillaBodyPathSetter
         npc.WornArmor.SetTo(wornArmor);
         ArmorDuplicatedwithVanillaPaths.Add(templateArmorGetter.FormKey, wornArmor);
 
-        if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
         {
             _logger.LogMessage("Checkpoint D4: " + templateArmorGetter.EditorID ?? "NULL");
         }
@@ -229,21 +275,21 @@ public class VanillaBodyPathSetter
             }
             else if (ArmatureDuplicatedWithVanillaPath.ContainsKey(armaLinkGetter.FormKey)) // set the previously duplicated armature from cache
             {
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D5: " + templateArmorGetter.EditorID ?? "NULL");
                 }
                 var newSetter = armaLinkGetter.AsSetter();
                 newSetter.SetTo(ArmatureDuplicatedWithVanillaPath[armaLinkGetter.FormKey]);
                 wornArmor.Armature[i] = newSetter;
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D6: " + templateArmorGetter.EditorID ?? "NULL");
                 }
             }
             else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey) && GetArmatureVanillaPath(BlockedArmatures[armaLinkGetter.FormKey], currentGender, currentNpcGetter, out string vanillaPath))
             {
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D7: " + templateArmorGetter.EditorID ?? "NULL");
                 }
@@ -262,20 +308,20 @@ public class VanillaBodyPathSetter
                 wornArmor.Armature[i] = newSetter;
                 SetArmatureVanillaPath(clonedArmature, currentGender, vanillaPath);
                 ArmatureDuplicatedWithVanillaPath.Add(armaGetter.FormKey, clonedArmature);
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D8: " + templateArmorGetter.EditorID ?? "NULL");
                 }
             }
             else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
             {
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D9: " + templateArmorGetter.EditorID ?? "NULL");
                 }
                 var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                 SetArmatureVanillaPath(armature, currentGender, vanillaPathB);
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint D10: " + templateArmorGetter.EditorID ?? "NULL");
                 }
@@ -285,27 +331,27 @@ public class VanillaBodyPathSetter
 
     private void SetInExistingArmor(ISkyrimMod outputMod, IArmorGetter currentArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
     {
-        if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
         {
             _logger.LogMessage("Checkpoint E1: " + currentArmorGetter.EditorID ?? "NULL");
         }
         for (int i = 0; i < currentArmorGetter.Armature.Count; i++)
         {
-            if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+            if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
             {
                 _logger.LogMessage("Checkpoint E2: " + currentArmorGetter.EditorID ?? "NULL");
             }
             var armaLinkGetter = currentArmorGetter.Armature[i];
             if (!_environmentStateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armaLinkGetter.FormKey, out var armaGetter))
             {
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint E3: " + currentArmorGetter.EditorID ?? "NULL");
                 }
                 _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
                 continue;
             }
-            if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+            if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
             {
                 _logger.LogMessage("Checkpoint E4");
                 _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
@@ -314,11 +360,11 @@ public class VanillaBodyPathSetter
             }
             if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
             {
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint E5: " + currentArmorGetter.EditorID ?? "NULL");
                 }
-                if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                 {
                     _logger.LogMessage("Checkpoint E6");
                     _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
@@ -329,11 +375,11 @@ public class VanillaBodyPathSetter
                 }
                 if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPath))
                 {
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("Checkpoint E7: " + currentArmorGetter.EditorID ?? "NULL");
                     }
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("Checkpoint E8");
                         _logger.LogMessage("armaGetter: " + armaGetter?.FormKey.ToString() ?? "null");
@@ -343,17 +389,17 @@ public class VanillaBodyPathSetter
                         _logger.LogMessage("currentGender: " + currentGender);
                         _logger.LogMessage("vanillaPath: " + vanillaPath);
                     }
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("Checkpoint E9: " + currentArmorGetter.EditorID ?? "NULL");
                     }
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("Checkpoint E10: " + currentArmorGetter.EditorID ?? "NULL");
                     }
                     SetArmatureVanillaPath(armature, currentGender, vanillaPath);
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("Checkpoint E11: " + currentArmorGetter.EditorID ?? "NULL");
                     }
@@ -460,7 +506,7 @@ public class VanillaBodyPathSetter
     
     private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart, INpcGetter currentNpcGetter)
     {
-        if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
         {
             _logger.LogMessage("IsBodyPart: " + armaGetter.EditorID ?? "NULL");
         }
@@ -471,7 +517,7 @@ public class VanillaBodyPathSetter
             {
                 if (armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(flag))
                 {
-                    if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+                    if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
                     {
                         _logger.LogMessage("IsBodyPart: Primary: " + flag);
                     }
@@ -486,7 +532,7 @@ public class VanillaBodyPathSetter
     public bool IsBlockedForVanillaBodyPaths(NPCInfo npcInfo)
     {
         var currentNpcGetter = npcInfo.NPC;
-        if (currentNpcGetter != null && (currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || currentNpcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
+        if (currentNpcGetter != null && IsTrackedNPC(currentNpcGetter))
         {
             _logger.LogMessage("IsBlockedForVanillaBodyPaths: " + currentNpcGetter.EditorID ?? "NULL");
         }
