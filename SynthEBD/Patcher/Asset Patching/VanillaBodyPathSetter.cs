@@ -107,6 +107,7 @@ public class VanillaBodyPathSetter
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
+        _logger.LogMessage("Setting vanilla body path for NPC: " + npcGetter.EditorID ?? "Null" + " " + npcGetter.FormKey.ToString());
         if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
         {
             _logger.LogMessage("Setting vanilla body path for " + npcGetter.EditorID ?? "NULL");
@@ -152,7 +153,7 @@ public class VanillaBodyPathSetter
                 {
                     if (npcGetter != null && (npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Eydis.FormKey) || npcGetter.FormKey.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Npc.DLC2dunFahlbtharzExplorerCorpse02)))
                     {
-                        _logger.LogMessage("Checkpoint B2: " + armaGetter.EditorID ?? "NULL");
+                        _logger.LogMessage("Checkpoint B2 - Has non-vanilla body paths: " + armaGetter.EditorID ?? "NULL");
                     }
                     hasNonVanillaBodyPaths = true;
                     break;
