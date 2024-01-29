@@ -96,7 +96,8 @@ public class VanillaBodyPathSetter
             {
                 if (!BlockedArmatures.ContainsKey(armaLink.FormKey) && 
                     armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, currentNPCinfo.Gender) &&
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentNPCinfo.Gender, npcWinningRecord, out _))
                 {
                     BlockedArmatures.Add(armaGetter.FormKey, primaryBodyPart);
@@ -107,6 +108,12 @@ public class VanillaBodyPathSetter
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
+        if (npcGetter == null)
+        {
+            _logger.LogMessage("npcGetter is null. Can't process!");
+            return;
+        }
+
         if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
         {
             if (ArmorDuplicatedwithVanillaPaths.ContainsKey(npcGetter.WornArmor.FormKey))
@@ -124,7 +131,8 @@ public class VanillaBodyPathSetter
             foreach (var armaLink in armorGetter.Armature)
             {
                 if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, NPCInfo.GetGender(npcGetter)) &&
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
                 {
                     hasNonVanillaBodyPaths = true;
@@ -198,7 +206,9 @@ public class VanillaBodyPathSetter
                 SetArmatureVanillaPath(clonedArmature, currentGender, vanillaPath);
                 ArmatureDuplicatedWithVanillaPath.Add(armaGetter.FormKey, clonedArmature);
             }
-            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
+            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender) &&
+                !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
             {
                 var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                 SetArmatureVanillaPath(armature, currentGender, vanillaPathB);
@@ -216,7 +226,8 @@ public class VanillaBodyPathSetter
                 _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
                 continue;
             }
-            else if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
+            if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender))
             {
                 if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPath))
                 {
@@ -280,18 +291,29 @@ public class VanillaBodyPathSetter
         }
     }
 
+    private bool ArmatureHasWorldModel(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        if (armaGetter.WorldModel == null)
+        {
+            return false;
+        }
+        switch (currentGender)
+        {
+            case Gender.Female: return armaGetter.WorldModel.Female != null;
+            case Gender.Male: return armaGetter.WorldModel.Male != null;
+            default: return false;
+        }
+    }
+
     private bool IsValidBodyArmature(IArmorAddonGetter armaGetter, IArmorGetter armorGetter, INpcGetter currentNPC, out BipedObjectFlag primaryBodyPart)
     {
-        return IsBodyPart(armaGetter, out primaryBodyPart) &&
+        return IsBodyPart(armaGetter, out primaryBodyPart, currentNPC) &&
             (armorGetter.Keywords == null || !armorGetter.Keywords.Contains(Skyrim.Keyword.ArmorClothing)) &&
-            armaGetter.WorldModel != null &&
-            (
-                (armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
-                (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race))
-                );
+            ((armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
+            (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race)));
     }
     
-    private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart)
+    private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart, INpcGetter currentNpcGetter)
     {
         primaryBodyPart = 0;
         if (armaGetter.BodyTemplate != null)
