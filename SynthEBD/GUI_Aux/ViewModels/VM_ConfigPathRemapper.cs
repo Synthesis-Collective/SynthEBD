@@ -53,9 +53,14 @@ namespace SynthEBD
                     }
                     UpdatedSubgroups.Clear();
                     await Task.Run(() => ComputePathHashes(_hashingProgress));
+                    if (_missingCurrentPaths.Any())
+                    {
+                        CreateMissingPathsObjects(_missingCurrentPaths.ToList());
+                    }
                     RemapPathsByHash();
                     ShowProgressEndMessage = false;
                     ShowProgressBar = false;
+                    ShowMissingSubgroups = MissingPathSubgroups.Any();
                 });
         }
 
@@ -68,6 +73,9 @@ namespace SynthEBD
         private int _progressCurrent = 0;
         private Progress<int> _hashingProgress { get; }
         public ObservableCollection<RemappedSubgroup> UpdatedSubgroups { get; set; } = new();
+        private List<string> _missingCurrentPaths { get; set; } = new();
+        public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
+        public bool ShowMissingSubgroups { get; set; } = false;
         public bool ShowProgressBar { get; set; } = false;
         public bool ShowProgressDigits { get; set; } = false;
         public bool ShowProgressEndMessage { get; set; } = false;
@@ -84,6 +92,8 @@ namespace SynthEBD
             ProgressMax = currentFiles.Count + newFiles.Length;
             _progressCurrent = 0;
 
+            var missingFiles = new ConcurrentBag<string>();
+
             Parallel.ForEach(currentFiles, path =>
             {
                 if (File.Exists(path))
@@ -93,6 +103,10 @@ namespace SynthEBD
                     {
                         _currentPathHashes.TryAdd(path, hash);
                     }
+                }
+                else
+                {
+                    missingFiles.Add(Path.GetRelativePath(_environmentStateProvider.DataFolderPath, path));
                 }
                 progress.Report(1);
             });
@@ -109,6 +123,35 @@ namespace SynthEBD
                 }               
                 progress.Report(1);
             });
+
+            if (missingFiles.Any())
+            {
+                _missingCurrentPaths = missingFiles.ToList();
+            }
+        }
+        
+        private void CreateMissingPathsObjects(List<string> missingPaths)
+        {
+            var subgroups = _parentAssetPack.GetAllSubgroups();
+            foreach (var subgroup in subgroups)
+            {
+                var logged = new RemappedSubgroup(subgroup);
+                foreach (var path in subgroup.AssociatedModel.Paths.Select(x => x.Source).ToArray())
+                {
+                    if (missingPaths.Contains(path))
+                    {
+                        logged.Paths.Add(new RemappedPath()
+                        {
+                            OldPath = path
+                        });
+                    }
+                }
+
+                if (logged.Paths.Any())
+                {
+                    MissingPathSubgroups.Add(logged);
+                }
+            }
         }
 
         private void RemapPathsByHash()

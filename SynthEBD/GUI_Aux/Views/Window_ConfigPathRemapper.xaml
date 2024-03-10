@@ -16,6 +16,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -41,7 +42,39 @@
         </TextBlock>
         <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
 
-        <ScrollViewer Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" VerticalScrollBarVisibility="Visible">
+        <Expander Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding MissingPathSubgroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="White" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="Aqua"/>
+                                    <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Paths}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBox Foreground="Red" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Expander>
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Text="Some Missing Assets Cannot Be Remapped" HorizontalAlignment="Center" Foreground="White"/>
+
+        <ScrollViewer Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" VerticalScrollBarVisibility="Visible">
             <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -67,7 +100,7 @@
                                                 </Grid.RowDefinitions>
                                                 <TextBox Grid.Row="0" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
                                                 <TextBlock Grid.Row="1" Foreground="White" Text="To"/>
-                                                <TextBox Grid.Row="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                <TextBox Grid.Row="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
