@@ -34,6 +34,12 @@ namespace SynthEBD
             {
                 Interlocked.Increment(ref _progressCurrent);
                 ProgressCurrent = _progressCurrent;
+
+                if (ProgressCurrent == ProgressMax - 1)
+                {
+                    ShowProgressDigits = false;
+                    ShowProgressEndMessage = true;
+                }
             });
 
             RemapPaths = new RelayCommand(
@@ -46,8 +52,10 @@ namespace SynthEBD
                         return;
                     }
                     UpdatedSubgroups.Clear();
-                    await ComputePathHashes(_hashingProgress);
+                    await Task.Run(() => ComputePathHashes(_hashingProgress));
                     RemapPathsByHash();
+                    ShowProgressEndMessage = false;
+                    ShowProgressBar = false;
                 });
         }
 
@@ -60,12 +68,17 @@ namespace SynthEBD
         private int _progressCurrent = 0;
         private Progress<int> _hashingProgress { get; }
         public ObservableCollection<RemappedSubgroup> UpdatedSubgroups { get; set; } = new();
+        public bool ShowProgressBar { get; set; } = false;
+        public bool ShowProgressDigits { get; set; } = false;
+        public bool ShowProgressEndMessage { get; set; } = false;
 
         private ConcurrentDictionary<string, string> _currentPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         private async Task ComputePathHashes(IProgress<int> progress)
         {
+            ShowProgressBar = true;
+            ShowProgressDigits = true;
             var currentFiles = _parentAssetPack.GetAllSubgroups().SelectMany(x => x.AssociatedModel.Paths).Select(x => Path.Combine(_environmentStateProvider.DataFolderPath, x.Source)).ToList();
             var newFiles = Directory.GetFiles(NewAssetDirectory, "*", SearchOption.AllDirectories);
             ProgressMax = currentFiles.Count + newFiles.Length;
@@ -81,7 +94,7 @@ namespace SynthEBD
                         _currentPathHashes.TryAdd(path, hash);
                     }
                 }
-                progress.Report(_progressCurrent);
+                progress.Report(1);
             });
 
             Parallel.ForEach(newFiles, path =>
@@ -94,7 +107,7 @@ namespace SynthEBD
                         _newPathHashes.TryAdd(path, hash);
                     }
                 }               
-                progress.Report(_progressCurrent);
+                progress.Report(1);
             });
         }
 

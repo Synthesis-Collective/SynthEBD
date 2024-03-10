@@ -7,6 +7,10 @@
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigPathRemapper}"
         mc:Ignorable="d"
         Title="Config Path Updater" Height="450" Width="800">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -26,8 +30,8 @@
 
         <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="1" Grid.Column="0"/>
 
-        <ProgressBar Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" />
-        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" Foreground="White">
+        <ProgressBar Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressDigits, Converter={StaticResource BoolToVis}}">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} of {1}">
                     <Binding Path="ProgressCurrent"/>
@@ -35,6 +39,7 @@
                 </MultiBinding>
             </TextBlock.Text>
         </TextBlock>
+        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
 
         <ScrollViewer Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" VerticalScrollBarVisibility="Visible">
             <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
