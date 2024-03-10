@@ -186,6 +186,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_7ZipInterface>().AsSelf();
         builder.RegisterType<VM_AdditionalRecordTemplate>().AsSelf();
         builder.RegisterType<VM_PositionalSubgroupContainerCollection>().AsSelf();
+        builder.RegisterType<VM_ConfigPathRemapper>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();

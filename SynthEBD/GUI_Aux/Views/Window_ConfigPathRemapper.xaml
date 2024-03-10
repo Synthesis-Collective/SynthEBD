@@ -1,0 +1,77 @@
+<Window x:Class="SynthEBD.Window_ConfigPathRemapper"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        d:DataContext="{d:DesignInstance Type=local:VM_ConfigPathRemapper}"
+        mc:Ignorable="d"
+        Title="Config Path Updater" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="New Asset Root Directory" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
+        <Button Grid.Row="0" Grid.Column="1" Content="Select" Command="{Binding SelectNewAssetDirectory}" Foreground="LightGreen" Margin="5 0 5 0"/>
+        <TextBox Text="{Binding NewAssetDirectory}" Grid.Row="0" Grid.Column="2"/>
+
+        <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="1" Grid.Column="0"/>
+
+        <ProgressBar Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" Foreground="White">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="{}{0} of {1}">
+                    <Binding Path="ProgressCurrent"/>
+                    <Binding Path="ProgressMax"/>
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
+
+        <ScrollViewer Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" VerticalScrollBarVisibility="Visible">
+            <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="White" BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="Aqua"/>
+                                <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Paths}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="auto"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBox Grid.Row="0" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                <TextBlock Grid.Row="1" Foreground="White" Text="To"/>
+                                                <TextBox Grid.Row="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

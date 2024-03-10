@@ -60,6 +60,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
     private readonly VM_RaceGroupingEditor.Factory _raceGroupingEditorFactory;
     private readonly VM_AdditionalRecordTemplate.Factory _additionalRecordTemplateFactory;
+    private readonly VM_ConfigPathRemapper.Factory _pathRemapperFactory;
 
     public delegate VM_AssetPack Factory(AssetPack model);
 
@@ -91,6 +92,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         VM_AttributeGroupMenu.Factory attributeGroupMenuFactory,
         VM_RaceGroupingEditor.Factory raceGroupingEditorFactory,
         VM_AdditionalRecordTemplate.Factory additionalRecordTemplateFactory,
+        VM_ConfigPathRemapper.Factory pathRemapperFactory,
         Factory selfFactory)
     {
         AssociatedModel = model;
@@ -118,6 +120,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         _attributeGroupMenuFactory = attributeGroupMenuFactory;
         _raceGroupingEditorFactory = raceGroupingEditorFactory;
         _additionalRecordTemplateFactory = additionalRecordTemplateFactory;
+        _pathRemapperFactory = pathRemapperFactory;
 
         ParentCollection = texMesh.AssetPacks;
 
@@ -296,6 +299,16 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             }
         );
 
+        RemapTexturesButton = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                var remapper = _pathRemapperFactory(this);
+                var remapperWindow = new Window_ConfigPathRemapper();
+                remapperWindow.DataContext = remapper;
+                remapperWindow.ShowDialog();
+            });
+
         DiscardButton = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -444,6 +457,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public RelayCommand ListCustomRulesButton { get; }
     public RelayCommand SaveButton { get; }
     public RelayCommand ImportTexturesButton { get; }
+    public RelayCommand RemapTexturesButton { get; }
     public RelayCommand DiscardButton { get; }
     public RelayCommand CopyButton { get; }
     public RelayCommand RemoveDuplicatesButton { get; }
