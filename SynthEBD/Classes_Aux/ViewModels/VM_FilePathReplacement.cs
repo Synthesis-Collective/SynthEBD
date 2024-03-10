@@ -101,6 +101,14 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             }
         );
 
+        ToggleDestinationView = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => {
+                ShowDestinationAbstractView = !ShowDestinationAbstractView;
+                ShowDestinationDetailView = !ShowDestinationDetailView;
+            }
+        );
+
         ParentMenu = parentMenu;
 
         this.WhenAnyValue(x => x.Source).Subscribe(x =>
@@ -108,7 +116,12 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
             RefreshSourceColor();
         }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
+        this.WhenAnyValue(x => x.IntellisensedPath).Subscribe(x =>
+        {
+            RefreshReferenceNPC();
+            RefreshAbstractView();
+        }).DisposeWith(this);
+
         this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
     }
 
@@ -141,11 +154,85 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     public ObservableCollection<RecordIntellisense.PathSuggestion> PathSuggestions { get; set; } = new();
     public FormKey ReferenceNPCFormKey { get; set; }
     public ILinkCache LinkCache { get; set; }
+    public RelayCommand ToggleDestinationView { get; }
+    public bool ShowDestinationDetailView { get; set; } = false;
+    public bool ShowDestinationAbstractView { get; set; } = true;
+    private const string destinationCustomView = "Custom Path";
+    public string DestinationAbstractView { get; set; } = destinationCustomView;
+    private Dictionary<string, string> DestinationDetailAbstractDictionary { get; set; } = new()
+    {
+        // Head mappings
+        { "HeadTexture.Diffuse.RawPath", "Head Diffuse" },
+        { "HeadTexture.NormalOrGloss.RawPath", "Head Normal" },
+        { "HeadTexture.GlowOrDetailMap.RawPath", "Head Subsurface" },
+        { "HeadTexture.BacklightMaskOrSpecular.RawPath", "Head Specular" },
+        { "HeadTexture.Height.RawPath", "Head Detail" },
+
+        // Torso Male mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath", "Torso Diffuse (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath", "Torso Normal (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath", "Torso Subsurface (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath", "Torso Specular (Male)" },
+
+        // Hands Male mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath", "Hands Diffuse (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath", "Hands Normal (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath", "Hands Subsurface (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath", "Hands Specular (Male)" },
+
+        // Feet Male mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath", "Feet Diffuse (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath", "Feet Normal (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath", "Feet Subsurface (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath", "Feet Specular (Male)" },
+
+        // Tail Male mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.RawPath", "Tail Diffuse (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.RawPath", "Tail Normal (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.RawPath", "Tail Subsurface (Male)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.RawPath", "Tail Specular (Male)" },
+
+        // Torso Female mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath", "Torso Diffuse (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath", "Torso Normal (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath", "Torso Subsurface (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath", "Torso Specular (Female)" },
+
+        // Hands Female mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath", "Hands Diffuse (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath", "Hands Normal (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath", "Hands Subsurface (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath", "Hands Specular (Female)" },
+
+        // Feet Female mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath", "Feet Diffuse (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath", "Feet Normal (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath", "Feet Subsurface (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath", "Feet Specular (Female)" },
+
+        // Tail Female mappings
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.RawPath", "Tail Diffuse (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.RawPath", "Tail Normal (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.RawPath", "Tail Subsurface (Female)" },
+        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.RawPath", "Tail Specular (Female)" },
+    };
 
     public void CopyInViewModelFromModel(FilePathReplacement model)
     {
         Source = model.Source;
         IntellisensedPath = model.Destination;
+    }
+
+    private void RefreshAbstractView()
+    {
+        if (DestinationDetailAbstractDictionary.ContainsKey(IntellisensedPath))
+        {
+            DestinationAbstractView = DestinationDetailAbstractDictionary[IntellisensedPath];
+        }
+        else
+        {
+            DestinationAbstractView = destinationCustomView + ": " + IntellisensedPath;
+        }
     }
 
     public void RefreshReferenceNPC()
