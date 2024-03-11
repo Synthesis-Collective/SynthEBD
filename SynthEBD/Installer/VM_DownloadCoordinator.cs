@@ -5,21 +5,19 @@ namespace SynthEBD;
 
 public class VM_DownloadCoordinator : VM
 {
-    public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
+    public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, VM_ConfigInstaller parentVM)
     {
         foreach (var di in downloadInfo)
         {
             DownloadInfo.Add(VM_DownloadInfo.GetViewModelFromModel(di));
         }
 
-        AssociatedWindow = window;
-
         Cancel = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 parentVM.Cancelled = true;
-                AssociatedWindow.Close();
+                parentVM.ConcludeInstallation();
             }
         );
 
@@ -46,7 +44,7 @@ public class VM_DownloadCoordinator : VM
                 if(allFound)
                 {
                     parentVM.Completed = true;
-                    AssociatedWindow.Close();
+                    parentVM.ConcludeInstallation();
                 }
             }
         );
@@ -55,7 +53,6 @@ public class VM_DownloadCoordinator : VM
     public ObservableCollection<VM_DownloadInfo> DownloadInfo { get; set; } = new();
     public RelayCommand Cancel { get; }
     public RelayCommand OK { get; }
-    Window_ConfigInstaller AssociatedWindow { get; set; }
 
     public class VM_DownloadInfo : VM
     {

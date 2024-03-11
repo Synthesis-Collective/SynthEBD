@@ -23,7 +23,9 @@ public class ConfigInstaller
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_7ZipInterface _7ZipInterfaceVM;
-    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_7ZipInterface sevenZipInterfaceVM)
+    private readonly VM_ConfigInstaller.Factory _installerVMFactory;
+    public readonly string DefaultDestinationFolderName = "New SynthEBD Config";
+    public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_7ZipInterface sevenZipInterfaceVM, VM_ConfigInstaller.Factory installerVMFactory)
     {
         _logger = logger;
         _paths = synthEBDPaths;
@@ -32,6 +34,7 @@ public class ConfigInstaller
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _7ZipInterfaceVM = sevenZipInterfaceVM;
+        _installerVMFactory = installerVMFactory;
     }
     public async Task<(List<string>, bool)> InstallConfigFile()
     {
@@ -93,7 +96,7 @@ public class ConfigInstaller
         }
 
         var installerWindow = new Window_ConfigInstaller();
-        var installerVM = new VM_ConfigInstaller(manifest, installerWindow); // note: installerVM edits the Manifest to use as a convenient DTO.
+        var installerVM = _installerVMFactory(manifest, installerWindow, tempFolderPath); // note: installerVM edits the Manifest to use as a convenient DTO.
         installerWindow.DataContext = installerVM;
         installerWindow.ShowDialog();
 
@@ -104,8 +107,8 @@ public class ConfigInstaller
 
         if (_patcherState.ModManagerSettings.ModManagerType != ModManager.None && (manifest.DestinationModFolder == null || string.IsNullOrWhiteSpace(manifest.DestinationModFolder)))
         {
-            MessageWindow.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"New SynthEBD Config\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
-            manifest.DestinationModFolder = "New SynthEBD Config";
+            MessageWindow.DisplayNotificationOK("Installation warning", "Manifest did not include a destination folder. A new folder called \"" + DefaultDestinationFolderName + "\" will appear in your mod list. Pleast rename this folder to something sensible after completing installation.");
+            manifest.DestinationModFolder = DefaultDestinationFolderName;
         }
 
         #region load potential required dependencies for validating asset pack
