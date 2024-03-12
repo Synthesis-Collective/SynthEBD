@@ -51,19 +51,38 @@ namespace SynthEBD
                         MessageWindow.DisplayNotificationOK("No Can Do", "New asset source directory is invalid");
                         return;
                     }
+
+                    GetCurrentFileExtensions();
+
                     UpdatedSubgroups.Clear();
                     await Task.Run(() => ComputePathHashes(_hashingProgress));
                     if (_missingCurrentPaths.Any())
                     {
                         CreateMissingPathsObjects(_missingCurrentPaths.ToList());
                     }
+
                     RemapPathsByHash();
+
+                    PredictUpdatesByPathSimilarity();
+
                     ShowProgressEndMessage = false;
                     ShowProgressBar = false;
+
                     ShowMissingSubgroups = MissingPathSubgroups.Any();
+
                     if (UpdatedSubgroups.Any())
                     {
                         ShowRemappedByHashList = true;
+                    }
+
+                    if (PredictedUpdateSubgroups.Any())
+                    {
+                        ShowPredictedPathUpdateList = true;
+                    }
+
+                    if (NewFilesUnmatched.Any())
+                    {
+                        ShowUnpredictedPathUpdateList = true;
                     }
                 });
         }
@@ -76,7 +95,15 @@ namespace SynthEBD
         public int ProgressMax { get; set; }
         private int _progressCurrent = 0;
         private Progress<int> _hashingProgress { get; }
+        private List<string> _currentFileExtensions { get; set; } = new(); // files extensions used in the original config file (so as to ignore xml files, preview images, etc from the updated mod archive)
         public ObservableCollection<RemappedSubgroup> UpdatedSubgroups { get; set; } = new();
+        private List<string> _filesMatchedByHash_Existing { get; set; } = new();
+        private List<string> _filesMatchedByHash_New { get; set; } = new(); // paths in the new mod that got matched by hash to files in the previous version
+        private List<string> _unmatchedPaths_Current { get; set; } = new(); // paths in the current config file that do not have a hash match in the new mod
+        private List<string> _unmatchedPaths_New { get; set; } = new(); // paths in the new mod that do not have a hash match in the current config file
+        private List<string> _allFiles_New { get; set; } = new();
+        public ObservableCollection<string> NewFilesUnmatched { get; set; } = new();
+        public ObservableCollection<RemappedSubgroup> PredictedUpdateSubgroups { get; set; } = new();
         private List<string> _missingCurrentPaths { get; set; } = new();
         public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
         public bool ShowMissingSubgroups { get; set; } = false;
@@ -84,22 +111,40 @@ namespace SynthEBD
         public bool ShowProgressDigits { get; set; } = false;
         public bool ShowProgressEndMessage { get; set; } = false;
         public bool ShowRemappedByHashList { get; set; } = false;
+        public bool ShowPredictedPathUpdateList { get; set; } = false;
+        public bool ShowUnpredictedPathUpdateList { get; set; } = false;
 
         private ConcurrentDictionary<string, string> _currentPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        private void GetCurrentFileExtensions()
+        {
+            var allSubgroups = _parentAssetPack.GetAllSubgroups();
+            foreach (var subgroup in allSubgroups)
+            {
+                foreach (var path in subgroup.AssociatedModel.Paths)
+                {
+                    var extension = Path.GetExtension(path.Source);
+                    if (!_currentFileExtensions.Contains(extension))
+                    {
+                        _currentFileExtensions.Add(extension);
+                    }
+                }
+            }
+        }
 
         private async Task ComputePathHashes(IProgress<int> progress)
         {
             ShowProgressBar = true;
             ShowProgressDigits = true;
-            var currentFiles = _parentAssetPack.GetAllSubgroups().SelectMany(x => x.AssociatedModel.Paths).Select(x => Path.Combine(_environmentStateProvider.DataFolderPath, x.Source)).ToList();
-            var newFiles = Directory.GetFiles(NewAssetDirectory, "*", SearchOption.AllDirectories);
-            ProgressMax = currentFiles.Count + newFiles.Length;
+            var currentReferencedFilePaths = _parentAssetPack.GetAllSubgroups().SelectMany(x => x.AssociatedModel.Paths).Select(x => Path.Combine(_environmentStateProvider.DataFolderPath, x.Source)).ToList();
+            _allFiles_New = Directory.GetFiles(NewAssetDirectory, "*", SearchOption.AllDirectories).Where(x => _currentFileExtensions.Contains(Path.GetExtension(x), StringComparer.OrdinalIgnoreCase)).ToList();
+            ProgressMax = currentReferencedFilePaths.Count + _allFiles_New.Count;
             _progressCurrent = 0;
 
             var missingFiles = new ConcurrentBag<string>();
 
-            Parallel.ForEach(currentFiles, path =>
+            Parallel.ForEach(currentReferencedFilePaths, path =>
             {
                 if (File.Exists(path))
                 {
@@ -116,7 +161,7 @@ namespace SynthEBD
                 progress.Report(1);
             });
 
-            Parallel.ForEach(newFiles, path =>
+            Parallel.ForEach(_allFiles_New, path =>
             {
                 if (File.Exists(path))
                 {
@@ -183,9 +228,21 @@ namespace SynthEBD
                                 OldPath = path.Source,
                                 NewPath = newSource
                             };
+
+                            _filesMatchedByHash_New.AddRange(matchingEntries.Select(x => x.Key));
+                            _filesMatchedByHash_Existing.Add(path.Source);
+
                             remappedHolder.Paths.Add(recordEntry);
                             path.Source = newSource;
                         }
+                        else if (!_unmatchedPaths_Current.Contains(path.Source))
+                        {
+                            _unmatchedPaths_Current.Add(path.Source);
+                        }
+                    }
+                    else if (!_unmatchedPaths_Current.Contains(path.Source))
+                    {
+                        _unmatchedPaths_Current.Add(path.Source);
                     }
                 }
 
@@ -195,6 +252,79 @@ namespace SynthEBD
                     UpdatedSubgroups.Add(remappedHolder);
                 }
             }
+        }
+
+        private void PredictUpdatesByPathSimilarity()
+        {
+            _unmatchedPaths_New = _allFiles_New.Where(x => !_filesMatchedByHash_New.Contains(x)).ToList();
+
+            var subgroups = _parentAssetPack.GetAllSubgroups();
+
+            foreach (var unmatchedPath in _unmatchedPaths_New)
+            {
+                string currentFileName = Path.GetFileName(unmatchedPath);
+                List<string> matchingPaths = new();
+
+                // get all paths with the same file name
+                foreach (var subgroup in subgroups)
+                {
+                    foreach (var existingPath in subgroup.AssociatedModel.Paths)
+                    {
+                        if (currentFileName.Equals(Path.GetFileName(existingPath.Source), StringComparison.OrdinalIgnoreCase) && !_filesMatchedByHash_New.Contains(existingPath.Source))
+                        {
+                            matchingPaths.Add(existingPath.Source);
+                        }
+                    }
+                }
+
+                // predict which one is a match based on the folder structure
+                bool predictionMade = false;
+                if (matchingPaths.Any())
+                {
+                    matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath));
+                    if (GetMatchingDirCount(matchingPaths.First(), unmatchedPath) > 1)
+                    {
+                        // make predictions here
+                        foreach (var subgroup in subgroups)
+                        {
+                            foreach (var pathToUpdate in subgroup.AssociatedModel.Paths)
+                            {
+                                if (pathToUpdate.Source == matchingPaths.First())
+                                {
+                                    var recordEntry = PredictedUpdateSubgroups.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
+                                    if (recordEntry == null)
+                                    {
+                                        recordEntry = new(subgroup);
+                                        PredictedUpdateSubgroups.Add(recordEntry);
+                                    }
+
+                                    recordEntry.Paths.Add(new()
+                                    {
+                                        OldPath = pathToUpdate.Source,
+                                        NewPath = unmatchedPath
+                                    });
+                                }
+                            }
+                        }
+
+                        predictionMade = true;
+                    }
+                }
+                
+                if (!predictionMade)
+                {
+                    // record no prediction
+                    NewFilesUnmatched.Add(unmatchedPath);
+                }
+            }
+        }
+
+        private int GetMatchingDirCount(string path1, string path2)
+        {
+            var split1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { path1.Split(Path.DirectorySeparatorChar) };
+            var split2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { path2.Split(Path.DirectorySeparatorChar) };
+
+            return split1.Intersect(split2).Count();
         }
 
         public class RemappedSubgroup

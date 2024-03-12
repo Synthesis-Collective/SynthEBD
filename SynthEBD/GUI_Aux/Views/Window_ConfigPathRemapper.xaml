@@ -17,7 +17,9 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -114,5 +116,61 @@
             </ScrollViewer>
         </Expander>
         <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped with 100% Confidence" HorizontalAlignment="Center" Foreground="White"/>
+
+        <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer VerticalScrollBarVisibility="Visible">
+                <ItemsControl ItemsSource="{Binding PredictedUpdateSubgroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="White" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="Aqua"/>
+                                    <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Paths}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="auto"/>
+                                                        <RowDefinition Height="auto"/>
+                                                        <RowDefinition Height="auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBox Grid.Row="0" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                    <TextBlock Grid.Row="1" Foreground="White" Text="To"/>
+                                                    <TextBox Grid.Row="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Expander>
+        <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped By File Path Similarity. Please Verify These." HorizontalAlignment="Center" Foreground="White"/>
+
+        <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer VerticalScrollBarVisibility="Visible">
+                <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ScrollViewer HorizontalScrollBarVisibility="Visible">
+                                <TextBox Text="{Binding}" Foreground="Red" IsReadOnly="True"/>
+                            </ScrollViewer>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Expander>
+        <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Files In The New Mod Could Not Be Mapped To Existing Subgroups. Handle These Manually." HorizontalAlignment="Center" Foreground="White"/>
     </Grid>
 </Window>
