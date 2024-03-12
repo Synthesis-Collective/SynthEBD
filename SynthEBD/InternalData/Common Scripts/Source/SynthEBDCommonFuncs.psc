@@ -30,11 +30,15 @@ Function ReloadSynthEBDDataBase(string jsonPath, string dbSubPath, bool verbose,
 EndFunction
 
 string Function FormKeyFromForm(form fForm, bool bJCPathCompatibility) global
-	string formKey = StringUtil.subString(getFormIDString(fForm), 2) + ":" + getModName(fForm)
-	if (bJCPathCompatibility)
-		formKey = strReplace(formKey, ".",  "*")
+	if fForm
+		string formKey = StringUtil.subString(getFormIDString(fForm), 2) + ":" + getModName(fForm)
+		if (bJCPathCompatibility)
+			formKey = strReplace(formKey, ".",  "*")
+		endif
+		return formKey
+	else
+		return "None"
 	endif
-	return formKey
 EndFunction
 
 form Function FormKeyToForm(string formKeyStr, bool bJCPathCompatibility, bool bVerbose) global

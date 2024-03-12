@@ -14,6 +14,9 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 EndEvent
 
 Event OnHeadPartReload()
+	if !self
+		return
+	endif
 	SetHeadParts(GetCasterActor(), true) ; JFormDB has been refreshed - set the headparts again to bring about any changes
 EndEvent
 
