@@ -61,6 +61,10 @@ namespace SynthEBD
                     ShowProgressEndMessage = false;
                     ShowProgressBar = false;
                     ShowMissingSubgroups = MissingPathSubgroups.Any();
+                    if (UpdatedSubgroups.Any())
+                    {
+                        ShowRemappedByHashList = true;
+                    }
                 });
         }
 
@@ -79,6 +83,7 @@ namespace SynthEBD
         public bool ShowProgressBar { get; set; } = false;
         public bool ShowProgressDigits { get; set; } = false;
         public bool ShowProgressEndMessage { get; set; } = false;
+        public bool ShowRemappedByHashList { get; set; } = false;
 
         private ConcurrentDictionary<string, string> _currentPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
