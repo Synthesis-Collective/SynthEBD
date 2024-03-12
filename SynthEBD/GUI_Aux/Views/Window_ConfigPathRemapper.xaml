@@ -10,16 +10,16 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </Window.Resources>
-    
-    <Grid>
+
+    <Grid x:Name="MainGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -44,7 +44,7 @@
         </TextBlock>
         <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
 
-        <Expander Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}">
+        <Expander Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer>
                 <ItemsControl ItemsSource="{Binding MissingPathSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -76,7 +76,7 @@
         </Expander>
         <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Text="Some Missing Assets Cannot Be Remapped" HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}">
+        <Expander Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -117,7 +117,7 @@
         </Expander>
         <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped with 100% Confidence" HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}">
+        <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding PredictedUpdateSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -158,13 +158,13 @@
         </Expander>
         <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped By File Path Similarity. Please Verify These." HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}">
+        <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <ScrollViewer HorizontalScrollBarVisibility="Visible">
-                                <TextBox Text="{Binding}" Foreground="Red" IsReadOnly="True"/>
+                                <TextBox Text="{Binding Mode=OneWay}" Foreground="Red" IsReadOnly="True"/>
                             </ScrollViewer>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
