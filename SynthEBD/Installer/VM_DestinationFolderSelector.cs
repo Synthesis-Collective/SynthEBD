@@ -29,6 +29,7 @@ public class VM_DestinationFolderSelector : VM
         this.WhenAnyValue(x => x.DestinationFolderName).Subscribe(_ => UpdateWarningMessage(manifest)).DisposeWith(this);
 
         SetDestinationFolder(manifest);
+        UpdateWarningMessage(manifest);
 
         Finalize = new RelayCommand(
             canExecute: _ => _destinationFolderValid,
@@ -115,7 +116,7 @@ public class VM_DestinationFolderSelector : VM
             manifest.DestinationModFolder = DestinationFolderName;
             int longestPath = _configInstaller.GetLongestPathLength(tempAP, manifest, out _);
 
-            if (longestPath > _modManagerVM.FilePathLimit)
+            if (longestPath >= _modManagerVM.FilePathLimit)
             {
                 exceedsPathLimit = true;
                 break;
