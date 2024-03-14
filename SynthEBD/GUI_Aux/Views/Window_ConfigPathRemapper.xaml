@@ -114,13 +114,13 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
 
-                                                    <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White" VerticalAlignment="Center"/>
                                                     <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
-                                                    <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White" VerticalAlignment="Center"/>
                                                     <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
                                                     <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -165,13 +165,13 @@
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
 
-                                                    <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White" VerticalAlignment="Center"/>
                                                     <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
-                                                    <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White" VerticalAlignment="Center"/>
                                                     <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
                                                     <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
