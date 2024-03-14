@@ -241,6 +241,7 @@
     <PackageReference Include="Noggog.Autofac" Version="2.60.0.1-nightly-20231103-212929" />
     <PackageReference Include="Pfim" Version="0.11.2" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
+    <PackageReference Include="ReactiveUI.Events.WPF" Version="15.1.1" />
     <PackageReference Include="SharpCompress" Version="0.34.2" />
     <PackageReference Include="Z.Expressions.Eval" Version="6.1.1" />
   </ItemGroup>

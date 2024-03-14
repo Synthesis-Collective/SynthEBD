@@ -303,8 +303,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             canExecute: _ => true,
             execute: _ =>
             {
-                var remapper = _pathRemapperFactory(this);
                 var remapperWindow = new Window_ConfigPathRemapper();
+                var remapper = _pathRemapperFactory(this, remapperWindow);
                 remapperWindow.DataContext = remapper;
                 remapperWindow.ShowDialog();
             });

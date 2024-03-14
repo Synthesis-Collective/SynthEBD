@@ -85,7 +85,7 @@
 
         <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
-                <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
+                <ItemsControl ItemsSource="{Binding SubgroupsRemappedByHash}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="White" BorderThickness="1">
@@ -108,9 +108,19 @@
                                                         <RowDefinition Height="auto"/>
                                                         <RowDefinition Height="auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBox Grid.Row="0" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
-                                                    <TextBlock Grid.Row="1" Foreground="White" Text="To"/>
-                                                    <TextBox Grid.Row="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="auto"/>
+                                                        <ColumnDefinition Width="5"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
+                                                    <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+
+                                                    <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -126,7 +136,7 @@
 
         <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
-                <ItemsControl ItemsSource="{Binding PredictedUpdateSubgroups}">
+                <ItemsControl ItemsSource="{Binding SubgroupsRemappedByPathPrediction}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="White" BorderThickness="1">
@@ -149,9 +159,19 @@
                                                         <RowDefinition Height="auto"/>
                                                         <RowDefinition Height="auto"/>
                                                     </Grid.RowDefinitions>
-                                                    <TextBox Grid.Row="0" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
-                                                    <TextBlock Grid.Row="1" Foreground="White" Text="To"/>
-                                                    <TextBox Grid.Row="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="auto"/>
+                                                        <ColumnDefinition Width="5"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
+                                                    <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+
+                                                    <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

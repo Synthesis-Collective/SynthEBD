@@ -8,17 +8,21 @@ using Noggog;
 using System.Collections.Concurrent;
 using System.Windows.Controls;
 using System.Collections.ObjectModel;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 public class VM_ConfigPathRemapper : VM
 {
-    public delegate VM_ConfigPathRemapper Factory(VM_AssetPack parentAssetPack);
+    public delegate VM_ConfigPathRemapper Factory(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window);
     private readonly IEnvironmentStateProvider _environmentStateProvider;
-    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, IEnvironmentStateProvider environmentStateProvider)
+    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider)
     {
         _parentAssetPack = parentAssetPack;
         _environmentStateProvider = environmentStateProvider;
+
+        window.Events().Unloaded
+            .Subscribe(_ => RemapSelectedPaths()).DisposeWith(this);
 
         SelectNewAssetDirectory = new RelayCommand(
             canExecute: _ => true,
@@ -54,7 +58,7 @@ public class VM_ConfigPathRemapper : VM
 
                 GetCurrentFileExtensions();
 
-                UpdatedSubgroups.Clear();
+                SubgroupsRemappedByHash.Clear();
                 await Task.Run(() => ComputePathHashes(_hashingProgress));
                 if (_missingCurrentPaths.Any())
                 {
@@ -70,12 +74,12 @@ public class VM_ConfigPathRemapper : VM
 
                 ShowMissingSubgroups = MissingPathSubgroups.Any();
 
-                if (UpdatedSubgroups.Any())
+                if (SubgroupsRemappedByHash.Any())
                 {
                     ShowRemappedByHashList = true;
                 }
 
-                if (PredictedUpdateSubgroups.Any())
+                if (SubgroupsRemappedByPathPrediction.Any())
                 {
                     ShowPredictedPathUpdateList = true;
                 }
@@ -96,14 +100,14 @@ public class VM_ConfigPathRemapper : VM
     private int _progressCurrent = 0;
     private Progress<int> _hashingProgress { get; }
     private List<string> _currentFileExtensions { get; set; } = new(); // files extensions used in the original config file (so as to ignore xml files, preview images, etc from the updated mod archive)
-    public ObservableCollection<RemappedSubgroup> UpdatedSubgroups { get; set; } = new();
+    public ObservableCollection<RemappedSubgroup> SubgroupsRemappedByHash { get; set; } = new();
     private List<string> _filesMatchedByHash_Existing { get; set; } = new();
     private List<string> _filesMatchedByHash_New { get; set; } = new(); // paths in the new mod that got matched by hash to files in the previous version
     private List<string> _unmatchedPaths_Current { get; set; } = new(); // paths in the current config file that do not have a hash match in the new mod
     private List<string> _unmatchedPaths_New { get; set; } = new(); // paths in the new mod that do not have a hash match in the current config file
     private List<string> _allFiles_New { get; set; } = new();
     public ObservableCollection<string> NewFilesUnmatched { get; set; } = new();
-    public ObservableCollection<RemappedSubgroup> PredictedUpdateSubgroups { get; set; } = new();
+    public ObservableCollection<RemappedSubgroup> SubgroupsRemappedByPathPrediction { get; set; } = new();
     private List<string> _missingCurrentPaths { get; set; } = new();
     public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
     public bool ShowMissingSubgroups { get; set; } = false;
@@ -215,41 +219,40 @@ public class VM_ConfigPathRemapper : VM
             var paths = subgroup.AssociatedModel.Paths.ToList();
             for (int i = 0; i < paths.Count; i++)
             {
-                var path = paths[i];
-                if (_currentPathHashes.ContainsKey(path.Source))
+                var pathEntry = paths[i];
+                if (_currentPathHashes.ContainsKey(pathEntry.Source))
                 {
-                    var currentHash = _currentPathHashes[path.Source];
+                    var currentHash = _currentPathHashes[pathEntry.Source];
                     var matchingEntries = _newPathHashes.Where(x => x.Value.Equals(currentHash)).ToList();
                     if (matchingEntries.Any())
                     {
-                        var newSource = ChooseBestHashMatch(matchingEntries.Select(x => x.Key).ToList(), path.Source);
+                        var newSource = ChooseBestHashMatch(matchingEntries.Select(x => x.Key).ToList(), pathEntry.Source);
                         var recordEntry = new RemappedPath()
                         {
-                            OldPath = path.Source,
+                            OldPath = pathEntry.Source,
                             NewPath = newSource
                         };
 
                         _filesMatchedByHash_New.AddRange(matchingEntries.Select(x => x.Key));
-                        _filesMatchedByHash_Existing.Add(path.Source);
+                        _filesMatchedByHash_Existing.Add(pathEntry.Source);
 
                         remappedHolder.Paths.Add(recordEntry);
-                        path.Source = newSource;
                     }
-                    else if (!_unmatchedPaths_Current.Contains(path.Source))
+                    else if (!_unmatchedPaths_Current.Contains(pathEntry.Source))
                     {
-                        _unmatchedPaths_Current.Add(path.Source);
+                        _unmatchedPaths_Current.Add(pathEntry.Source);
                     }
                 }
-                else if (!_unmatchedPaths_Current.Contains(path.Source))
+                else if (!_unmatchedPaths_Current.Contains(pathEntry.Source))
                 {
-                    _unmatchedPaths_Current.Add(path.Source);
+                    _unmatchedPaths_Current.Add(pathEntry.Source);
                 }
             }
 
             if (remappedHolder.Paths.Any())
             {
                 subgroup.AssociatedModel.Paths = paths.ToHashSet();
-                UpdatedSubgroups.Add(remappedHolder);
+                SubgroupsRemappedByHash.Add(remappedHolder);
             }
         }
     }
@@ -308,7 +311,7 @@ public class VM_ConfigPathRemapper : VM
             bool predictionMade = false;
             if (matchingPaths.Any())
             {
-                matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath));
+                matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList();
                 if (GetMatchingDirCount(matchingPaths.First(), unmatchedPath) > 1)
                 {
                     // make predictions here
@@ -318,11 +321,11 @@ public class VM_ConfigPathRemapper : VM
                         {
                             if (pathToUpdate.Source == matchingPaths.First())
                             {
-                                var recordEntry = PredictedUpdateSubgroups.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
+                                var recordEntry = SubgroupsRemappedByPathPrediction.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
                                 if (recordEntry == null)
                                 {
                                     recordEntry = new(subgroup);
-                                    PredictedUpdateSubgroups.Add(recordEntry);
+                                    SubgroupsRemappedByPathPrediction.Add(recordEntry);
                                 }
 
                                 recordEntry.Paths.Add(new()
@@ -354,6 +357,31 @@ public class VM_ConfigPathRemapper : VM
         return split1.Intersect(split2).Count();
     }
 
+    private void RemapSelectedPaths()
+    {
+        foreach (var subgroupEntry in SubgroupsRemappedByHash)
+        {
+            foreach (var remappedPath in subgroupEntry.Paths.Where(x => x.AcceptRenaming).ToArray())
+            {
+                foreach (var pathEntry in subgroupEntry.SourceSubgroup.AssociatedModel.Paths.Where(x => x.Source == remappedPath.OldPath).ToArray())
+                {
+                    pathEntry.Source = remappedPath.NewPath;
+                }
+            }
+        }
+
+        foreach (var subgroupEntry in SubgroupsRemappedByPathPrediction)
+        {
+            foreach (var remappedPath in subgroupEntry.Paths.Where(x => x.AcceptRenaming).ToArray())
+            {
+                foreach (var pathEntry in subgroupEntry.SourceSubgroup.AssociatedModel.Paths.Where(x => x.Source == remappedPath.OldPath).ToArray())
+                {
+                    pathEntry.Source = remappedPath.NewPath;
+                }
+            }
+        }
+    }
+
     public class RemappedSubgroup
     {
         public RemappedSubgroup(VM_SubgroupPlaceHolder subgroup)
@@ -368,6 +396,7 @@ public class VM_ConfigPathRemapper : VM
     {
         public string OldPath { get; set; } = string.Empty;
         public string NewPath { get; set; } = string.Empty;
+        public bool AcceptRenaming { get; set; } = true;
     }
 }
 
