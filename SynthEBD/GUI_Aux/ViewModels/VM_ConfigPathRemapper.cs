@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Windows.Controls;
 using System.Collections.ObjectModel;
 using ReactiveUI;
+using Mutagen.Bethesda.Starfield;
 
 namespace SynthEBD;
 
@@ -57,8 +58,8 @@ public class VM_ConfigPathRemapper : VM
                 }
 
                 GetCurrentFileExtensions();
+                SortFilesByName();
 
-                SubgroupsRemappedByHash.Clear();
                 await Task.Run(() => ComputePathHashes(_hashingProgress));
                 if (_missingCurrentPaths.Any())
                 {
@@ -121,6 +122,7 @@ public class VM_ConfigPathRemapper : VM
     private ConcurrentDictionary<string, string> _currentPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public PathMatchModeHash HashMatchMode { get; set; } = PathMatchModeHash.Similar;
+    public Dictionary<string, ObservableCollection<string>> NewPathsByFileName { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     private void GetCurrentFileExtensions()
     {
@@ -135,6 +137,22 @@ public class VM_ConfigPathRemapper : VM
                     _currentFileExtensions.Add(extension);
                 }
             }
+        }
+    }
+
+    private void SortFilesByName()
+    {
+        if (!_allFiles_New.Any()) // in case execution order changes later
+        {
+            _allFiles_New = Directory.GetFiles(NewAssetDirectory, "*", SearchOption.AllDirectories).Where(x => _currentFileExtensions.Contains(Path.GetExtension(x), StringComparer.OrdinalIgnoreCase)).ToList();
+        }
+
+        var pathsByFileName = _allFiles_New.GroupBy(x => Path.GetFileName(x).ToLower()).ToArray();
+        foreach (var group in pathsByFileName)
+        {
+            var newCollection = new ObservableCollection<string>();
+            newCollection.AddRange(group.Select(x => Path.GetRelativePath(NewAssetDirectory, x)));
+            NewPathsByFileName.Add(group.Key, newCollection);
         }
     }
 
@@ -230,7 +248,8 @@ public class VM_ConfigPathRemapper : VM
                         var recordEntry = new RemappedPath()
                         {
                             OldPath = pathEntry.Source,
-                            NewPath = newSource
+                            NewPath = newSource,
+                            CandidateNewPaths = NewPathsByFileName[Path.GetFileName(newSource)]
                         };
 
                         _filesMatchedByHash_New.AddRange(matchingEntries.Select(x => x.Key));
@@ -331,7 +350,8 @@ public class VM_ConfigPathRemapper : VM
                                 recordEntry.Paths.Add(new()
                                 {
                                     OldPath = pathToUpdate.Source,
-                                    NewPath = unmatchedPath
+                                    NewPath = unmatchedPath,
+                                    CandidateNewPaths = NewPathsByFileName[Path.GetFileName(unmatchedPath)]
                                 });
                             }
                         }
@@ -397,6 +417,7 @@ public class VM_ConfigPathRemapper : VM
         public string OldPath { get; set; } = string.Empty;
         public string NewPath { get; set; } = string.Empty;
         public bool AcceptRenaming { get; set; } = true;
+        public ObservableCollection<string> CandidateNewPaths { get; set;} = new();
     }
 }
 

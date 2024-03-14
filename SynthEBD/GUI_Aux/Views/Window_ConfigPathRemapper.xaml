@@ -117,7 +117,7 @@
                                                     <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
                                                     <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
                                                     <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
-                                                    <TextBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                    <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
                                                     <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
                                                     <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
@@ -168,7 +168,7 @@
                                                     <TextBox Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White"/>
                                                     <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
                                                     <TextBox Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White"/>
-                                                    <TextBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding NewPath}"/>
+                                                    <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
                                                     <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
                                                     <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping"/>
