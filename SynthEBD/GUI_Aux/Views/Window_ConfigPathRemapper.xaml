@@ -16,6 +16,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
@@ -31,10 +32,16 @@
         <Button Grid.Row="0" Grid.Column="1" Content="Select" Command="{Binding SelectNewAssetDirectory}" Foreground="LightGreen" Margin="5 0 5 0"/>
         <TextBox Text="{Binding NewAssetDirectory}" Grid.Row="0" Grid.Column="2"/>
 
-        <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="1" Grid.Column="0"/>
+        <WrapPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+            <TextBlock Text="If multiple matching textures exist, choose the one with the " Foreground="White" VerticalAlignment="Center"/>
+            <ComboBox SelectedItem="{Binding HashMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:PathMatchModeHash}}}" MaxWidth="250" Margin="5 0 5 0"/>
+            <TextBlock Text="path" Foreground="White" VerticalAlignment="Center"/>
+        </WrapPanel>
 
-        <ProgressBar Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}" />
-        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressDigits, Converter={StaticResource BoolToVis}}">
+        <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="2" Grid.Column="0"/>
+
+        <ProgressBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressDigits, Converter={StaticResource BoolToVis}}">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} of {1}">
                     <Binding Path="ProgressCurrent"/>
@@ -42,9 +49,9 @@
                 </MultiBinding>
             </TextBlock.Text>
         </TextBlock>
-        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
 
-        <Expander Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+        <Expander Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer>
                 <ItemsControl ItemsSource="{Binding MissingPathSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -74,9 +81,9 @@
                 </ItemsControl>
             </ScrollViewer>
         </Expander>
-        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Text="Some Missing Assets Cannot Be Remapped" HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}" Text="Some Missing Assets Cannot Be Remapped" HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+        <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding UpdatedSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -115,9 +122,9 @@
                 </ItemsControl>
             </ScrollViewer>
         </Expander>
-        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped with 100% Confidence" HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped with 100% Confidence" HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+        <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding PredictedUpdateSubgroups}">
                     <ItemsControl.ItemTemplate>
@@ -156,9 +163,9 @@
                 </ItemsControl>
             </ScrollViewer>
         </Expander>
-        <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped By File Path Similarity. Please Verify These." HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Assets Were Remapped By File Path Similarity. Please Verify These." HorizontalAlignment="Center" Foreground="White"/>
 
-        <Expander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
+        <Expander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Expanded="Expander_Expanded" Collapsed="Expander_Collapsed">
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
                     <ItemsControl.ItemTemplate>
@@ -171,6 +178,6 @@
                 </ItemsControl>
             </ScrollViewer>
         </Expander>
-        <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Files In The New Mod Could Not Be Mapped To Existing Subgroups. Handle These Manually." HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Margin="0 5 0 0" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}" Text="Some Files In The New Mod Could Not Be Mapped To Existing Subgroups. Handle These Manually." HorizontalAlignment="Center" Foreground="White"/>
     </Grid>
 </Window>

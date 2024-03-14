@@ -36,8 +36,7 @@ namespace SynthEBD
 
         private void UpdateRowHeights()
         {
-            // Update the height of rows containing expanders
-            int row = 3; // Start at row 3
+            int row = 4;
             foreach (Expander expander in MainGrid.Children.OfType<Expander>())
             {
                 if (!expander.IsVisible)
