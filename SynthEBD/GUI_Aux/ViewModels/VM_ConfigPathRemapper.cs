@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Starfield;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -283,7 +284,7 @@ public class VM_ConfigPathRemapper : VM
             case PathMatchModeHash.Shortest:
                 return matches.ToList().OrderBy(x => GetDirectoryNestingCount(x)).First();
             case PathMatchModeHash.Similar:
-                return matches.ToList().OrderBy(x => GetMatchingDirCount(x, origPath)).First();
+                return matches.ToList().OrderBy(x => GetMatchingDirCount(x, origPath)).Last(); // lowest to highest
             default:
                 return matches.First();
         }
@@ -330,15 +331,16 @@ public class VM_ConfigPathRemapper : VM
             bool predictionMade = false;
             if (matchingPaths.Any())
             {
-                matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList();
-                if (GetMatchingDirCount(matchingPaths.First(), unmatchedPath) > 1)
+                matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList(); // lowest to highest
+                var bestMatchingPath = matchingPaths.Last();
+                if (GetMatchingDirCount(bestMatchingPath, unmatchedPath) > 1) // 1 because the first folder name should always be a match (e.g. "textures")
                 {
                     // make predictions here
                     foreach (var subgroup in subgroups)
                     {
                         foreach (var pathToUpdate in subgroup.AssociatedModel.Paths)
                         {
-                            if (pathToUpdate.Source == matchingPaths.First())
+                            if (pathToUpdate.Source == bestMatchingPath && !PathWasRemappedByHash(subgroup, pathToUpdate))
                             {
                                 var recordEntry = SubgroupsRemappedByPathPrediction.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
                                 if (recordEntry == null)
@@ -369,10 +371,25 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    private bool PathWasRemappedByHash(VM_SubgroupPlaceHolder subgroup, FilePathReplacement pathToUpdate)
+    {
+        var matchingSubgroup = SubgroupsRemappedByHash.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
+        if (matchingSubgroup != null)
+        {
+            var matchingPath = matchingSubgroup.Paths.Where(x => x.OldPath == pathToUpdate.Source).FirstOrDefault();
+            if (matchingPath != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private int GetMatchingDirCount(string path1, string path2)
     {
-        var split1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { path1.Split(Path.DirectorySeparatorChar) };
-        var split2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { path2.Split(Path.DirectorySeparatorChar) };
+        var split1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path1) ?? path1).Split(Path.DirectorySeparatorChar) };
+        var split2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path2) ?? path1).Split(Path.DirectorySeparatorChar) };
 
         return split1.Intersect(split2).Count();
     }
