@@ -282,7 +282,8 @@ public class VM_ConfigPathRemapper : VM
 
     private void PredictUpdatesByPathSimilarity()
     {
-        _unmatchedPaths_New = _allFiles_New.Where(x => !_filesMatchedByHash_New.Contains(x)).ToList();
+        var allFiles_New_RelativePaths = _allFiles_New.Select(x => Path.GetRelativePath(NewAssetDirectory, x)).ToList();
+        _unmatchedPaths_New = allFiles_New_RelativePaths.Where(x => !_filesMatchedByHash_New.Contains(x)).ToList();
 
         var subgroups = _parentAssetPack.GetAllSubgroups();
 
@@ -296,7 +297,7 @@ public class VM_ConfigPathRemapper : VM
             {
                 foreach (var existingPath in subgroup.AssociatedModel.Paths)
                 {
-                    if (currentFileName.Equals(Path.GetFileName(existingPath.Source), StringComparison.OrdinalIgnoreCase) && !_filesMatchedByHash_New.Contains(existingPath.Source))
+                    if (currentFileName.Equals(Path.GetFileName(existingPath.Source), StringComparison.OrdinalIgnoreCase) && !_filesMatchedByHash_New.Contains(existingPath.Source) && !matchingPaths.Contains(existingPath.Source))
                     {
                         matchingPaths.Add(existingPath.Source);
                     }
