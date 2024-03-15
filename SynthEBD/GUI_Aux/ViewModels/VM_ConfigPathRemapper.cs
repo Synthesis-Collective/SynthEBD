@@ -22,6 +22,38 @@ public class VM_ConfigPathRemapper : VM
     {
         _parentAssetPack = parentAssetPack;
         _environmentStateProvider = environmentStateProvider;
+        _hashMatchedVM = new("Some Assets Were Remapped with 100% Confidence", SubgroupsRemappedByHash);
+        _predictionMatchedVM = new("Some assets were remapped by path similarity - please check that these are correct", SubgroupsRemappedByPathPrediction);
+        _missingPathsVM = new(MissingPathSubgroups);
+        _failedRemappingsVM = new(NewFilesUnmatched);
+
+        DisplayHashMatches = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _hashMatchedVM;
+            });
+
+        DisplayPathPredictionMatches = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _predictionMatchedVM;
+            });
+
+        DisplayMissingPaths = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _missingPathsVM;
+            });
+
+        DisplayFailedRemapping = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _failedRemappingsVM;
+            });
 
         window.Events().Unloaded
             .Subscribe(_ => RemapSelectedPaths()).DisposeWith(this);
@@ -90,13 +122,27 @@ public class VM_ConfigPathRemapper : VM
                 {
                     ShowUnpredictedPathUpdateList = true;
                 }
+                ProcessingComplete = true;
+                ShowRemapButton = false;
             });
     }
 
     private VM_AssetPack _parentAssetPack { get; set; }
+    private VM_ConfigRemapperPathSubstitutions _hashMatchedVM { get; set; }
+    private VM_ConfigRemapperPathSubstitutions _predictionMatchedVM { get; set; }
+    private VM_ConfigRemapperMissingPaths _missingPathsVM { get; set; }
+    private VM_ConfigRemapperFailedRemappings _failedRemappingsVM { get; set; }
+    public VM DisplayedSubMenu { get; set; }
+    public RelayCommand DisplayHashMatches { get; }
+    public RelayCommand DisplayPathPredictionMatches { get; }
+    public RelayCommand DisplayMissingPaths { get; }
+    public RelayCommand DisplayFailedRemapping { get; }
+    public bool ProcessingComplete { get; set; } = false;
+
     public string NewAssetDirectory { get; set; } = string.Empty;
     public RelayCommand SelectNewAssetDirectory { get; }
     public RelayCommand RemapPaths { get; }
+    public bool ShowRemapButton { get; set; } = true;
     public int ProgressCurrent { get; set; }
     public int ProgressMax { get; set; }
     private int _progressCurrent = 0;

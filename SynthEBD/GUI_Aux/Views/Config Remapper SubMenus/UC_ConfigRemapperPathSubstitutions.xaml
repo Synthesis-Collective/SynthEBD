@@ -1,0 +1,66 @@
+<UserControl x:Class="SynthEBD.UC_ConfigRemapperPathSubstitutions"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance Type=local:VM_ConfigRemapperPathSubstitutions}"
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="{Binding DisplayText}" HorizontalAlignment="Center" Foreground="White"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+            <ItemsControl ItemsSource="{Binding RemappedSubgroups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="White" BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="Aqua"/>
+                                <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Paths}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="auto"/>
+                                                    <RowDefinition Height="auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="auto"/>
+                                                    <ColumnDefinition Width="5"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
+
+                                                <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
+                                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
