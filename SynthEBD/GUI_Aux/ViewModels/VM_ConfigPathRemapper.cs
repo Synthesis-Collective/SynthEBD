@@ -379,7 +379,8 @@ public class VM_ConfigPathRemapper : VM
             {
                 matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList(); // lowest to highest
                 var bestMatchingPath = matchingPaths.Last();
-                if (GetMatchingDirCount(bestMatchingPath, unmatchedPath) > 1) // 1 because the first folder name should always be a match (e.g. "textures")
+                var matchingDirNamesCount = GetMatchingDirCount(bestMatchingPath, unmatchedPath);
+                if (matchingDirNamesCount > 1) // 1 because the first folder name should always be a match (e.g. "textures")
                 {
                     // make predictions here
                     foreach (var subgroup in subgroups)
@@ -395,12 +396,19 @@ public class VM_ConfigPathRemapper : VM
                                     SubgroupsRemappedByPathPrediction.Add(recordEntry);
                                 }
 
-                                recordEntry.Paths.Add(new()
+                                var pathEntry = recordEntry.Paths.Where(x => x.OldPath == bestMatchingPath).FirstOrDefault();
+                                if (pathEntry == null)
                                 {
-                                    OldPath = pathToUpdate.Source,
-                                    NewPath = unmatchedPath,
-                                    CandidateNewPaths = NewPathsByFileName[Path.GetFileName(unmatchedPath)]
-                                });
+                                    pathEntry = new();
+                                    recordEntry.Paths.Add(pathEntry);
+                                }
+
+                                if (pathEntry.OldPath.IsNullOrEmpty() || matchingDirNamesCount > GetMatchingDirCount(pathEntry.OldPath, unmatchedPath))
+                                {
+                                    pathEntry.OldPath = pathToUpdate.Source;
+                                    pathEntry.NewPath = unmatchedPath;
+                                    pathEntry.CandidateNewPaths = NewPathsByFileName[Path.GetFileName(unmatchedPath)];
+                                }
                             }
                         }
                     }
