@@ -13,7 +13,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="Some assets expected by the original config file are missing and could not be analyzed for remapping" HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="{Binding DisplayStr}" HorizontalAlignment="Center" Foreground="White"/>
         <ScrollViewer Grid.Row="1">
             <ItemsControl ItemsSource="{Binding MissingPathSubgroups}">
                 <ItemsControl.ItemTemplate>

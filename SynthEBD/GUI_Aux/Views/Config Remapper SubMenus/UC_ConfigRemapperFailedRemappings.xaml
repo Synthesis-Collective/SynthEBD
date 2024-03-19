@@ -19,7 +19,7 @@
             <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <ScrollViewer HorizontalScrollBarVisibility="Visible">
+                        <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Hidden">
                             <TextBox Text="{Binding Mode=OneWay}" Foreground="Red" IsReadOnly="True"/>
                         </ScrollViewer>
                     </DataTemplate>

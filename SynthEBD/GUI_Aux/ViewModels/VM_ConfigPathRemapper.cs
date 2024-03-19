@@ -24,8 +24,9 @@ public class VM_ConfigPathRemapper : VM
         _environmentStateProvider = environmentStateProvider;
         _hashMatchedVM = new("Some Assets Were Remapped with 100% Confidence", SubgroupsRemappedByHash);
         _predictionMatchedVM = new("Some assets were remapped by path similarity - please check that these are correct", SubgroupsRemappedByPathPrediction);
-        _missingPathsVM = new(MissingPathSubgroups);
+        _missingPathsVM = new(MissingPathSubgroups, "Some assets expected by the original config file are missing and could not be analyzed for remapping");
         _failedRemappingsVM = new(NewFilesUnmatched);
+        _deprecatedPathsVM = new("Some subgroups contain assets for which a replacement could not be automatically selected. Please select one and opt-in for replacement if possible", DeprecatedPathSubgroups);
 
         DisplayHashMatches = new RelayCommand(
             canExecute: _ => true,
@@ -53,6 +54,13 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _failedRemappingsVM;
+            });
+
+        DisplayDeprecatedPathSubgroups = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _deprecatedPathsVM;
             });
 
         window.Events().Unloaded
@@ -103,6 +111,8 @@ public class VM_ConfigPathRemapper : VM
 
                 PredictUpdatesByPathSimilarity();
 
+                GetUnUpdatedPaths();
+
                 ShowProgressEndMessage = false;
                 ShowProgressBar = false;
 
@@ -122,6 +132,12 @@ public class VM_ConfigPathRemapper : VM
                 {
                     ShowUnpredictedPathUpdateList = true;
                 }
+
+                if (DeprecatedPathSubgroups.Any())
+                {
+                    ShowDeprecatedPathSubgroups = true;
+                }
+
                 ProcessingComplete = true;
                 ShowRemapButton = false;
             });
@@ -132,11 +148,13 @@ public class VM_ConfigPathRemapper : VM
     private VM_ConfigRemapperPathSubstitutions _predictionMatchedVM { get; set; }
     private VM_ConfigRemapperMissingPaths _missingPathsVM { get; set; }
     private VM_ConfigRemapperFailedRemappings _failedRemappingsVM { get; set; }
+    private VM_ConfigRemapperPathSubstitutions _deprecatedPathsVM { get; set; }
     public VM DisplayedSubMenu { get; set; }
     public RelayCommand DisplayHashMatches { get; }
     public RelayCommand DisplayPathPredictionMatches { get; }
     public RelayCommand DisplayMissingPaths { get; }
     public RelayCommand DisplayFailedRemapping { get; }
+    public RelayCommand DisplayDeprecatedPathSubgroups { get; }
     public bool ProcessingComplete { get; set; } = false;
 
     public string NewAssetDirectory { get; set; } = string.Empty;
@@ -159,12 +177,14 @@ public class VM_ConfigPathRemapper : VM
     private List<string> _missingCurrentPaths { get; set; } = new();
     public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
     public bool ShowMissingSubgroups { get; set; } = false;
+    public ObservableCollection<RemappedSubgroup> DeprecatedPathSubgroups { get; set; } = new();
     public bool ShowProgressBar { get; set; } = false;
     public bool ShowProgressDigits { get; set; } = false;
     public bool ShowProgressEndMessage { get; set; } = false;
     public bool ShowRemappedByHashList { get; set; } = false;
     public bool ShowPredictedPathUpdateList { get; set; } = false;
     public bool ShowUnpredictedPathUpdateList { get; set; } = false;
+    public bool ShowDeprecatedPathSubgroups { get; set; } = false;
 
     private ConcurrentDictionary<string, string> _currentPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -469,6 +489,35 @@ public class VM_ConfigPathRemapper : VM
                 {
                     pathEntry.Source = remappedPath.NewPath;
                 }
+            }
+        }
+    }
+
+    public void GetUnUpdatedPaths()
+    {
+        var subgroups = _parentAssetPack.GetAllSubgroups();
+        foreach (var subgroup in subgroups)
+        {
+            var placeholderSubgroup = new RemappedSubgroup(subgroup);
+            foreach (var path in subgroup.AssociatedModel.Paths)
+            {
+                if (!SubgroupsRemappedByHash.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
+                    !SubgroupsRemappedByPathPrediction.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
+                    !MissingPathSubgroups.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
+                    !_allFiles_New.Contains(path.Source, StringComparer.OrdinalIgnoreCase) &&
+                    !placeholderSubgroup.Paths.Any(x => x.OldPath == path.Source))
+                {
+                    placeholderSubgroup.Paths.Add(new()
+                    {
+                        OldPath = path.Source,
+                        CandidateNewPaths = NewPathsByFileName[Path.GetFileName(path.Source)],
+                        AcceptRenaming = false
+                    });
+                }
+            }
+            if (placeholderSubgroup.Paths.Any())
+            {
+                DeprecatedPathSubgroups.Add(placeholderSubgroup);
             }
         }
     }

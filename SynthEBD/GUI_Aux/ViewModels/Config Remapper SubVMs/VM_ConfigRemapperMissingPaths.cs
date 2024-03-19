@@ -10,10 +10,12 @@ namespace SynthEBD;
 
 class VM_ConfigRemapperMissingPaths : VM
 {
-    public VM_ConfigRemapperMissingPaths(ObservableCollection<RemappedSubgroup> missingPathSubgroups)
+    public VM_ConfigRemapperMissingPaths(ObservableCollection<RemappedSubgroup> missingPathSubgroups, string displayStr)
     {
         MissingPathSubgroups = missingPathSubgroups;
+        DisplayStr = displayStr;
     }
 
     public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
+    public string DisplayStr { get; set; }
 }
