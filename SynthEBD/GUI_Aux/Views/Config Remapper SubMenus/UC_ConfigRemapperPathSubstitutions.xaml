@@ -7,6 +7,9 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_ConfigRemapperPathSubstitutions}"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -20,7 +23,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border BorderBrush="White" BorderThickness="1">
-                            <Grid>
+                            <Grid Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="auto"/>
                                     <RowDefinition Height="*"/>

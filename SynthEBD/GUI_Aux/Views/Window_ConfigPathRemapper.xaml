@@ -18,6 +18,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -69,5 +70,12 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
+
+        <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Visibility="{Binding ProcessingComplete, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Search Subgroup: " VerticalAlignment="Center" Foreground="White"/>
+            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
+            <TextBlock Text="Case-sensitive" VerticalAlignment="Center" Foreground="White"/>
+            <CheckBox IsChecked="{Binding SearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 0 0"/>
+        </StackPanel>
     </Grid>
 </Window>

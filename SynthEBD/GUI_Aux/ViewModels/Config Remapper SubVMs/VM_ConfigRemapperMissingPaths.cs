@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Fallout4;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,7 +9,7 @@ using static SynthEBD.VM_ConfigPathRemapper;
 
 namespace SynthEBD;
 
-class VM_ConfigRemapperMissingPaths : VM
+class VM_ConfigRemapperMissingPaths : VM, IConfigRemapperSubVM
 {
     public VM_ConfigRemapperMissingPaths(ObservableCollection<RemappedSubgroup> missingPathSubgroups, string displayStr)
     {
@@ -17,5 +18,14 @@ class VM_ConfigRemapperMissingPaths : VM
     }
 
     public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
+    public ObservableCollection<RemappedSubgroup> DisplayedSubgroups { get; set; } = new();
     public string DisplayStr { get; set; }
+
+    public void Refresh(string searchStr, bool caseSensitive)
+    {
+        foreach (var subgroup in MissingPathSubgroups)
+        {
+            subgroup.IsVisible = subgroup.NameMatches(searchStr, caseSensitive);
+        }
+    }
 }

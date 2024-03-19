@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using ReactiveUI;
 using Mutagen.Bethesda.Starfield;
 using static SynthEBD.AssetPack;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -33,6 +34,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _hashMatchedVM;
+                //_hashMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayPathPredictionMatches = new RelayCommand(
@@ -40,6 +42,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _predictionMatchedVM;
+                //_predictionMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayMissingPaths = new RelayCommand(
@@ -61,10 +64,16 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _deprecatedPathsVM;
+                //_deprecatedPathsVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         window.Events().Unloaded
             .Subscribe(_ => RemapSelectedPaths()).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.SearchText, y => y.SearchCaseSensitive)
+            .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+            .Subscribe(z => DisplayedSubMenu?.Refresh(z.Item1, z.Item2))
+            .DisposeWith(this);
 
         SelectNewAssetDirectory = new RelayCommand(
             canExecute: _ => true,
@@ -149,7 +158,7 @@ public class VM_ConfigPathRemapper : VM
     private VM_ConfigRemapperMissingPaths _missingPathsVM { get; set; }
     private VM_ConfigRemapperFailedRemappings _failedRemappingsVM { get; set; }
     private VM_ConfigRemapperPathSubstitutions _deprecatedPathsVM { get; set; }
-    public VM DisplayedSubMenu { get; set; }
+    public IConfigRemapperSubVM DisplayedSubMenu { get; set; }
     public RelayCommand DisplayHashMatches { get; }
     public RelayCommand DisplayPathPredictionMatches { get; }
     public RelayCommand DisplayMissingPaths { get; }
@@ -190,6 +199,9 @@ public class VM_ConfigPathRemapper : VM
     private ConcurrentDictionary<string, string> _newPathHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public PathMatchModeHash HashMatchMode { get; set; } = PathMatchModeHash.Similar;
     public Dictionary<string, ObservableCollection<string>> NewPathsByFileName { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public string SearchText { get; set; } = string.Empty;
+    public bool SearchCaseSensitive { get; set; } = false;
 
     private void GetCurrentFileExtensions()
     {
@@ -530,6 +542,18 @@ public class VM_ConfigPathRemapper : VM
         }
         public VM_SubgroupPlaceHolder SourceSubgroup { get; }
         public ObservableCollection<RemappedPath> Paths { get; set; } = new();
+        public bool IsVisible { get; set; } = true;
+
+        public bool NameMatches(string searchStr, bool caseSensitive)
+        {
+            if (searchStr.IsNullOrEmpty() ||
+                caseSensitive && SourceSubgroup.ExtendedName.Contains(searchStr) ||
+                !caseSensitive && SourceSubgroup.ExtendedName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return false;
+        }
     }
 
     public class RemappedPath
@@ -545,4 +569,9 @@ public enum PathMatchModeHash
 {
     Shortest,
     Similar
+}
+
+public interface IConfigRemapperSubVM
+{
+    public void Refresh(string searchStr, bool caseSensitive);
 }
