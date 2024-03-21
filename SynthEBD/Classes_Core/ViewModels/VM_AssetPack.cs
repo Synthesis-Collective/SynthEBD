@@ -678,7 +678,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
         foreach (var subgroupVM in Subgroups)
         {
-            subgroupVM.Refresh();
+            subgroupVM.RefreshID(true);
         }
         
         if (DisplayedSubgroup.AssociatedPlaceHolder != null)

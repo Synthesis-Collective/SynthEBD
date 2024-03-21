@@ -53,8 +53,12 @@
                                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White" VerticalAlignment="Center"/>
                                                 <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
-                                                <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding AcceptRenaming}"/>
-                                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+                                                    <CheckBox IsChecked="{Binding AcceptRenaming}" Margin="0 0 5 0"/>
+                                                    <TextBlock Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
+                                                    <CheckBox IsChecked="{Binding CreateSubgroupFrom}" Margin="20 0 5 0" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
+                                                    <TextBlock Text="Create New Subgroup Instead" Foreground="White" VerticalAlignment="Center" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
+                                                </StackPanel>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

@@ -196,13 +196,34 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
-    public void Refresh()
+    public void RefreshID(bool recursive)
     {
         ID = AssociatedModel.ID;
-        foreach (var sg in Subgroups)
+        if (recursive)
         {
-            sg.Refresh();
+            foreach (var sg in Subgroups)
+            {
+                sg.RefreshID(recursive);
+            }
         }
+    }
+
+    public void RefreshName(bool recursive)
+    {
+        Name = AssociatedModel.Name;
+        if (recursive)
+        {
+            foreach (var sg in Subgroups)
+            {
+                sg.RefreshName(recursive);
+            }
+        }
+    }
+
+    public void Refresh(bool recursive)
+    {
+        RefreshID(recursive);
+        RefreshName(recursive);
     }
 
     public static VM_SubgroupPlaceHolder GetSubgroupByID(ObservableCollection<VM_SubgroupPlaceHolder> subgroups, string id)

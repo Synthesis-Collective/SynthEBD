@@ -19,10 +19,14 @@ public class VM_ConfigPathRemapper : VM
 {
     public delegate VM_ConfigPathRemapper Factory(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window);
     private readonly IEnvironmentStateProvider _environmentStateProvider;
-    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider)
+    private readonly VM_SubgroupPlaceHolder.Factory _subgroupFactory;
+
+    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory)
     {
         _parentAssetPack = parentAssetPack;
         _environmentStateProvider = environmentStateProvider;
+        _subgroupFactory = subgroupFactory;
+
         _hashMatchedVM = new("Some Assets Were Remapped with 100% Confidence", SubgroupsRemappedByHash);
         _predictionMatchedVM = new("Some assets were remapped by path similarity - please check that these are correct", SubgroupsRemappedByPathPrediction);
         _missingPathsVM = new(MissingPathSubgroups, "Some assets expected by the original config file are missing and could not be analyzed for remapping");
@@ -34,7 +38,6 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _hashMatchedVM;
-                //_hashMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayPathPredictionMatches = new RelayCommand(
@@ -42,7 +45,6 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _predictionMatchedVM;
-                //_predictionMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayMissingPaths = new RelayCommand(
@@ -68,7 +70,10 @@ public class VM_ConfigPathRemapper : VM
             });
 
         window.Events().Unloaded
-            .Subscribe(_ => RemapSelectedPaths()).DisposeWith(this);
+            .Subscribe(_ => {
+                RemapSelectedPaths();
+                CreateRequestedSubgroups();
+                }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.SearchText, y => y.SearchCaseSensitive)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
@@ -328,7 +333,8 @@ public class VM_ConfigPathRemapper : VM
                         {
                             OldPath = pathEntry.Source,
                             NewPath = newSource,
-                            CandidateNewPaths = NewPathsByFileName[Path.GetFileName(newSource)]
+                            CandidateNewPaths = NewPathsByFileName[Path.GetFileName(newSource)],
+                            ShowCreateSubgroupOption = false
                         };
 
                         _filesMatchedByHash_New.AddRange(matchingEntries.Select(x => x.Key));
@@ -505,6 +511,54 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    private void CreateRequestedSubgroups()
+    {
+        var requestedSubgroups = SubgroupsRemappedByPathPrediction.SelectMany(x => x.Paths).Where(path => path.CreateSubgroupFrom).ToList();
+        HashSet<string> processed = new();
+
+        if(requestedSubgroups.Any())
+        {
+            var parentSubgroup = _subgroupFactory(new(), null, _parentAssetPack, _parentAssetPack.Subgroups);
+            _parentAssetPack.Subgroups.Add(parentSubgroup);
+            parentSubgroup.AssociatedModel.Name = "Additional Assets";
+            parentSubgroup.AssociatedModel.ID = "AA";
+            parentSubgroup.Name = "Additional Assets";
+
+            foreach (var asset in requestedSubgroups)
+            {
+                string assetPath = asset.NewPath;
+
+                if (processed.Contains(assetPath)) { continue; }
+
+                string assetFile = Path.GetFileName(assetPath);
+                string assetName = Path.GetFileNameWithoutExtension(assetPath);
+                string destination = string.Empty;
+                if (FilePathDestinationMap.FileNameToDestMap.ContainsKey(assetFile))
+                {
+                    destination = FilePathDestinationMap.FileNameToDestMap[assetFile];
+                }
+
+                var newModel = new AssetPack.Subgroup()
+                {
+                    Name = assetName,
+                    Paths =
+                    {
+                        new() { 
+                        Source = assetPath,
+                        Destination = destination
+                        }
+                    }
+                };
+                
+                var newSubgroup = _subgroupFactory(newModel, parentSubgroup, _parentAssetPack, parentSubgroup.Subgroups);
+                parentSubgroup.Subgroups.Add(newSubgroup);
+                processed.Add(assetPath);
+            }
+            parentSubgroup.AutoGenerateID(true, 0);
+            parentSubgroup.Refresh(true);
+        }    
+    }
+
     public void GetUnUpdatedPaths()
     {
         var subgroups = _parentAssetPack.GetAllSubgroups();
@@ -534,7 +588,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
-    public class RemappedSubgroup
+    public class RemappedSubgroup : VM
     {
         public RemappedSubgroup(VM_SubgroupPlaceHolder subgroup)
         {
@@ -556,12 +610,32 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
-    public class RemappedPath
+    public class RemappedPath : VM
     {
+        public RemappedPath()
+        {
+            this.WhenAnyValue(x => x.CreateSubgroupFrom).Subscribe(x =>
+            {
+                if(x)
+                {
+                    AcceptRenaming = false;
+                }
+            }).DisposeWith(this);
+
+            this.WhenAnyValue(x => x.AcceptRenaming).Subscribe(x =>
+            {
+                if (x)
+                {
+                    CreateSubgroupFrom = false;
+                }
+            }).DisposeWith(this);
+        }
         public string OldPath { get; set; } = string.Empty;
         public string NewPath { get; set; } = string.Empty;
         public bool AcceptRenaming { get; set; } = true;
         public ObservableCollection<string> CandidateNewPaths { get; set;} = new();
+        public bool ShowCreateSubgroupOption { get; set; } = true;
+        public bool CreateSubgroupFrom { get; set; } = false;
     }
 }
 
