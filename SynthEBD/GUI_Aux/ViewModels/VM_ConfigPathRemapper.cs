@@ -66,7 +66,6 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _deprecatedPathsVM;
-                //_deprecatedPathsVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         window.Events().Unloaded
@@ -186,7 +185,7 @@ public class VM_ConfigPathRemapper : VM
     private List<string> _unmatchedPaths_Current { get; set; } = new(); // paths in the current config file that do not have a hash match in the new mod
     private List<string> _unmatchedPaths_New { get; set; } = new(); // paths in the new mod that do not have a hash match in the current config file
     private List<string> _allFiles_New { get; set; } = new();
-    public ObservableCollection<string> NewFilesUnmatched { get; set; } = new();
+    public ObservableCollection<SelectableFilePath> NewFilesUnmatched { get; set; } = new();
     public ObservableCollection<RemappedSubgroup> SubgroupsRemappedByPathPrediction { get; set; } = new();
     private List<string> _missingCurrentPaths { get; set; } = new();
     public ObservableCollection<RemappedSubgroup> MissingPathSubgroups { get; set; } = new();
@@ -458,7 +457,7 @@ public class VM_ConfigPathRemapper : VM
             if (!predictionMade)
             {
                 // record no prediction
-                NewFilesUnmatched.Add(unmatchedPath);
+                NewFilesUnmatched.Add(new(unmatchedPath, false));
             }
         }
     }
@@ -514,20 +513,21 @@ public class VM_ConfigPathRemapper : VM
     private void CreateRequestedSubgroups()
     {
         var requestedSubgroups = SubgroupsRemappedByPathPrediction.SelectMany(x => x.Paths).Where(path => path.CreateSubgroupFrom).ToList();
+        var requestedSubgroups2 = NewFilesUnmatched.Where(x => x.CreateSubgroupFromFile).ToList();
         HashSet<string> processed = new();
 
-        if(requestedSubgroups.Any())
+        if(requestedSubgroups.Any() || requestedSubgroups2.Any())
         {
+            var filesToAdd = requestedSubgroups.Select(x => x.NewPath).And(requestedSubgroups2.Select(x => x.File)).ToList();
+
             var parentSubgroup = _subgroupFactory(new(), null, _parentAssetPack, _parentAssetPack.Subgroups);
             _parentAssetPack.Subgroups.Add(parentSubgroup);
             parentSubgroup.AssociatedModel.Name = "Additional Assets";
             parentSubgroup.AssociatedModel.ID = "AA";
             parentSubgroup.Name = "Additional Assets";
 
-            foreach (var asset in requestedSubgroups)
+            foreach (var assetPath in filesToAdd)
             {
-                string assetPath = asset.NewPath;
-
                 if (processed.Contains(assetPath)) { continue; }
 
                 string assetFile = Path.GetFileName(assetPath);
@@ -577,7 +577,8 @@ public class VM_ConfigPathRemapper : VM
                     {
                         OldPath = path.Source,
                         CandidateNewPaths = NewPathsByFileName[Path.GetFileName(path.Source)],
-                        AcceptRenaming = false
+                        AcceptRenaming = false,
+                        ShowCreateSubgroupOption = false
                     });
                 }
             }
@@ -636,6 +637,18 @@ public class VM_ConfigPathRemapper : VM
         public ObservableCollection<string> CandidateNewPaths { get; set;} = new();
         public bool ShowCreateSubgroupOption { get; set; } = true;
         public bool CreateSubgroupFrom { get; set; } = false;
+    }
+
+    public class SelectableFilePath : VM
+    {
+        public string File { get; set; } = string.Empty;
+        public bool CreateSubgroupFromFile { get; set; } = false;
+
+        public SelectableFilePath(string file, bool createSubgroupFromFile)
+        {
+            File = file;
+            CreateSubgroupFromFile = createSubgroupFromFile;
+        }
     }
 }
 

@@ -19,9 +19,17 @@
             <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Hidden">
-                            <TextBox Text="{Binding Mode=OneWay}" Foreground="Red" IsReadOnly="True"/>
-                        </ScrollViewer>
+                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5">
+                            <StackPanel>
+                                <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Hidden">
+                                    <TextBox Text="{Binding File, Mode=OneWay}" Foreground="Red" IsReadOnly="True"/>
+                                </ScrollViewer>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding CreateSubgroupFromFile}" Margin="0 0 5 0"/>
+                                    <TextBlock Text="Create New Subgroup From Path" Foreground="White" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
