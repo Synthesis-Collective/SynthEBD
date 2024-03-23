@@ -38,6 +38,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _hashMatchedVM;
+                _hashMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayPathPredictionMatches = new RelayCommand(
@@ -45,6 +46,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _predictionMatchedVM;
+                _predictionMatchedVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayMissingPaths = new RelayCommand(
@@ -52,6 +54,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _missingPathsVM;
+                _missingPathsVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayFailedRemapping = new RelayCommand(
@@ -59,6 +62,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _failedRemappingsVM;
+                _failedRemappingsVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         DisplayDeprecatedPathSubgroups = new RelayCommand(
@@ -66,6 +70,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _deprecatedPathsVM;
+                _deprecatedPathsVM.Refresh(SearchText, SearchCaseSensitive);
             });
 
         window.Events().Unloaded
@@ -125,6 +130,8 @@ public class VM_ConfigPathRemapper : VM
                 PredictUpdatesByPathSimilarity();
 
                 GetUnUpdatedPaths();
+
+                //CheckTexturePathConflicts(); // may come back to this later
 
                 ShowProgressEndMessage = false;
                 ShowProgressBar = false;
@@ -207,6 +214,8 @@ public class VM_ConfigPathRemapper : VM
     public string SearchText { get; set; } = string.Empty;
     public bool SearchCaseSensitive { get; set; } = false;
 
+    public ObservableCollection<MultimappedSubgroup> MultimappedSubgroups { get; set; } = new();
+    
     private void GetCurrentFileExtensions()
     {
         var allSubgroups = _parentAssetPack.GetAllSubgroups();
@@ -414,7 +423,7 @@ public class VM_ConfigPathRemapper : VM
             bool predictionMade = false;
             if (matchingPaths.Any())
             {
-                matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList(); // lowest to highest
+                matchingPaths = matchingPaths.OrderBy(x => GetMatchingDirCount(x, unmatchedPath)).ToList(); // lowest to highest, then alphabetically
                 var bestMatchingPath = matchingPaths.Last();
                 var matchingDirNamesCount = GetMatchingDirCount(bestMatchingPath, unmatchedPath);
                 if (matchingDirNamesCount > 1) // 1 because the first folder name should always be a match (e.g. "textures")
@@ -585,6 +594,66 @@ public class VM_ConfigPathRemapper : VM
             if (placeholderSubgroup.Paths.Any())
             {
                 DeprecatedPathSubgroups.Add(placeholderSubgroup);
+            }
+        }
+    }
+
+    public class MultimappedSubgroup : VM
+    {
+        public VM_SubgroupPlaceHolder SourceSubgroup { get; set; }
+        public ObservableCollection<MultimappedTexture> MultimappedTextures { get; set; } = new();
+    }
+
+    public class MultimappedTexture : VM
+    {
+        public string OrigPath { get; set; }
+        public ObservableCollection<string> NewPaths { get; set; } = new();
+    }
+    private void CheckTexturePathConflicts()
+    {
+        var allReplacements = SubgroupsRemappedByHash.And(SubgroupsRemappedByPathPrediction).ToList();
+
+        foreach (var subgroup in allReplacements)
+        {
+            foreach (var otherSubgroup in allReplacements.Where(x => x != subgroup).ToList())
+            {
+                if (subgroup.SourceSubgroup != otherSubgroup.SourceSubgroup)
+                {
+                    continue;
+                }
+
+                foreach (var path in subgroup.Paths)
+                {
+                    if (!path.AcceptRenaming)
+                    {
+                        continue;
+                    }
+
+                    foreach (var otherPath in otherSubgroup.Paths)
+                    {
+                        if (path.OldPath != otherPath.OldPath ||
+                            path.NewPath == otherPath.NewPath ||
+                            otherPath.AcceptRenaming)
+                        {
+                            continue;
+                        }
+
+                        var existingRecord = MultimappedSubgroups.Where(x => x.SourceSubgroup == subgroup.SourceSubgroup).FirstOrDefault();
+                        if (existingRecord == null)
+                        {
+                            existingRecord = new() { SourceSubgroup = subgroup.SourceSubgroup };
+                            MultimappedSubgroups.Add(existingRecord);
+                        }
+
+                        var existingTexture = existingRecord.MultimappedTextures.Where(x => x.OrigPath == path.OldPath).FirstOrDefault();
+                        if (existingTexture == null)
+                        {
+                            existingTexture = new() { OrigPath = path.OldPath };
+                            existingTexture.NewPaths.Add(path.NewPath);
+                        }
+                        existingTexture.NewPaths.Add(otherPath.NewPath);
+                    }
+                }
             }
         }
     }
