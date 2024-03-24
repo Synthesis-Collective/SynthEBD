@@ -582,13 +582,24 @@ public class VM_ConfigPathRemapper : VM
                     !_allFiles_New.Contains(path.Source, StringComparer.OrdinalIgnoreCase) &&
                     !placeholderSubgroup.Paths.Any(x => x.OldPath == path.Source))
                 {
-                    placeholderSubgroup.Paths.Add(new()
+                    var placeholderPath = new RemappedPath()
                     {
                         OldPath = path.Source,
-                        CandidateNewPaths = NewPathsByFileName[Path.GetFileName(path.Source)],
                         AcceptRenaming = false,
                         ShowCreateSubgroupOption = false
-                    });
+                    };
+
+                    var fileName = Path.GetFileName(path.Source);
+
+                    if (NewPathsByFileName.ContainsKey(fileName))
+                    {
+                        placeholderPath.CandidateNewPaths = NewPathsByFileName[fileName];
+                    }
+                    else
+                    {
+                        placeholderPath.CandidateNewPaths.Add(path.Source);
+                    }
+                    placeholderSubgroup.Paths.Add(placeholderPath);
                 }
             }
             if (placeholderSubgroup.Paths.Any())
