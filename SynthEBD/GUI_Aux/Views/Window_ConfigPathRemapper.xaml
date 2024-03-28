@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigPathRemapper}"
         mc:Ignorable="d"
-        Title="Config Path Updater" Height="450" Width="800">
+        Title="Config Path Updater" Height="800" Width="1200">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </Window.Resources>
@@ -55,6 +55,7 @@
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayFailedRemapping}" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}">Failed Predictions - Review These</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayMissingPaths}" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}">Missing Files - Review These</RadioButton>
             <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayDeprecatedPathSubgroups}" Visibility="{Binding ShowDeprecatedPathSubgroups, Converter={StaticResource BoolToVis}}">Deprecated Files - Review These</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayAssetComparer}" Visibility="{Binding ShowDeprecatedPathSubgroups, Converter={StaticResource BoolToVis}}">Asset Comparer</RadioButton>
         </WrapPanel>
 
         <ContentPresenter Content="{Binding DisplayedSubMenu}" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
@@ -67,6 +68,9 @@
                 </DataTemplate>
                 <DataTemplate DataType="{x:Type local:VM_ConfigRemapperMissingPaths}">
                     <local:UC_ConfigRemapperMissingPaths/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_ConfigRemapperAssetComparer}">
+                    <local:UC_ConfigRemapperAssetComparer/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

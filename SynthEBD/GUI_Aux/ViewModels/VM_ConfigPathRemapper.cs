@@ -19,19 +19,22 @@ public class VM_ConfigPathRemapper : VM
 {
     public delegate VM_ConfigPathRemapper Factory(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window);
     private readonly IEnvironmentStateProvider _environmentStateProvider;
+    private readonly VM_SettingsModManager _modManagerSettings;
     private readonly VM_SubgroupPlaceHolder.Factory _subgroupFactory;
 
-    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory)
+    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory, VM_SettingsModManager modManagerSettings)
     {
         _parentAssetPack = parentAssetPack;
         _environmentStateProvider = environmentStateProvider;
         _subgroupFactory = subgroupFactory;
+        _modManagerSettings = modManagerSettings;
 
         _hashMatchedVM = new("Some Assets Were Remapped with 100% Confidence", SubgroupsRemappedByHash);
         _predictionMatchedVM = new("Some assets were remapped by path similarity - please check that these are correct", SubgroupsRemappedByPathPrediction);
         _missingPathsVM = new(MissingPathSubgroups, "Some assets expected by the original config file are missing and could not be analyzed for remapping");
         _failedRemappingsVM = new(NewFilesUnmatched);
         _deprecatedPathsVM = new("Some subgroups contain assets for which a replacement could not be automatically selected. Please select one and opt-in for replacement if possible", DeprecatedPathSubgroups);
+        _assetComparerVM = new();
 
         DisplayHashMatches = new RelayCommand(
             canExecute: _ => true,
@@ -71,6 +74,13 @@ public class VM_ConfigPathRemapper : VM
             {
                 DisplayedSubMenu = _deprecatedPathsVM;
                 _deprecatedPathsVM.Refresh(SearchText, SearchCaseSensitive);
+            });
+
+        DisplayAssetComparer = new RelayCommand(
+            canExecute: _ => true,
+            execute: async _ =>
+            {
+                DisplayedSubMenu = _assetComparerVM;
             });
 
         window.Events().Unloaded
@@ -118,6 +128,22 @@ public class VM_ConfigPathRemapper : VM
 
                 GetCurrentFileExtensions();
                 SortFilesByName();
+
+                var invalidPaths = CheckNewPathLengths();
+                if (invalidPaths.Any())
+                {
+                    var displayStrs = invalidPaths.Select(x => x + " (" + x.Length + ")").ToList();
+                    displayStrs.Insert(0, "The following paths were too long to process. Please move the mod into a shorter or less deeply nested folder.");
+                    displayStrs.Add(Environment.NewLine);
+                    displayStrs.Add("Do you want to continue the update anyway (not recommended)?");
+                    if (!MessageWindow.DisplayNotificationYesNo("Path Length Error", displayStrs, Environment.NewLine))
+                    {
+                        _currentFileExtensions.Clear();
+                        NewPathsByFileName.Clear();
+                        _allFiles_New.Clear();
+                        return;
+                    }
+                }
 
                 await Task.Run(() => ComputePathHashes(_hashingProgress));
                 if (_missingCurrentPaths.Any())
@@ -169,12 +195,14 @@ public class VM_ConfigPathRemapper : VM
     private VM_ConfigRemapperMissingPaths _missingPathsVM { get; set; }
     private VM_ConfigRemapperFailedRemappings _failedRemappingsVM { get; set; }
     private VM_ConfigRemapperPathSubstitutions _deprecatedPathsVM { get; set; }
+    private VM_ConfigRemapperAssetComparer _assetComparerVM { get; set; }
     public IConfigRemapperSubVM DisplayedSubMenu { get; set; }
     public RelayCommand DisplayHashMatches { get; }
     public RelayCommand DisplayPathPredictionMatches { get; }
     public RelayCommand DisplayMissingPaths { get; }
     public RelayCommand DisplayFailedRemapping { get; }
     public RelayCommand DisplayDeprecatedPathSubgroups { get; }
+    public RelayCommand DisplayAssetComparer { get; }
     public bool ProcessingComplete { get; set; } = false;
 
     public string NewAssetDirectory { get; set; } = string.Empty;
@@ -246,6 +274,11 @@ public class VM_ConfigPathRemapper : VM
             newCollection.AddRange(group.Select(x => Path.GetRelativePath(NewAssetDirectory, x)));
             NewPathsByFileName.Add(group.Key, newCollection);
         }
+    }
+
+    private List<string> CheckNewPathLengths()
+    {
+        return _allFiles_New.Where(y => y.Length > _modManagerSettings.FilePathLimit).ToList();
     }
 
     private async Task ComputePathHashes(IProgress<int> progress)
