@@ -14,11 +14,18 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
         <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="{Binding DisplayText}" HorizontalAlignment="Center" Foreground="White"/>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+            <Button Foreground="LightGreen" Content="Accept All" Command="{Binding AcceptAll}" Margin="15 0 50 0"/>
+            <Button Foreground="Firebrick" Content="Reject All" Command="{Binding RejectAll}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Visible">
             <ItemsControl ItemsSource="{Binding RemappedSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>

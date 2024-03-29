@@ -14,9 +14,37 @@ public class VM_ConfigRemapperPathSubstitutions : VM, IConfigRemapperSubVM
     {
         DisplayText = displayText;
         RemappedSubgroups = remappedSubgroups;
+
+        AcceptAll = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                foreach (var subgroup in RemappedSubgroups)
+                {
+                    foreach (var path in subgroup.Paths)
+                    {
+                        path.AcceptRenaming = true;
+                    }
+                }
+            });
+
+        RejectAll = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                foreach (var subgroup in RemappedSubgroups)
+                {
+                    foreach (var path in subgroup.Paths)
+                    {
+                        path.AcceptRenaming = false;
+                    }
+                }
+            });
     }
     public string DisplayText { get; set; }
     public ObservableCollection<RemappedSubgroup> RemappedSubgroups { get; set; } = new();
+    public RelayCommand AcceptAll { get; }
+    public RelayCommand RejectAll { get; }
 
     public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
     {
