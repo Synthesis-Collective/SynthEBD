@@ -41,7 +41,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _hashMatchedVM;
-                _hashMatchedVM.Refresh(SearchText, SearchCaseSensitive);
+                _hashMatchedVM.Refresh(SubgroupSearchText, SubgroupSearchCaseSensitive,PathSearchText, PathSearchCaseSensitive);
             });
 
         DisplayPathPredictionMatches = new RelayCommand(
@@ -49,7 +49,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _predictionMatchedVM;
-                _predictionMatchedVM.Refresh(SearchText, SearchCaseSensitive);
+                _predictionMatchedVM.Refresh(SubgroupSearchText, SubgroupSearchCaseSensitive, PathSearchText, PathSearchCaseSensitive);
             });
 
         DisplayMissingPaths = new RelayCommand(
@@ -57,7 +57,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _missingPathsVM;
-                _missingPathsVM.Refresh(SearchText, SearchCaseSensitive);
+                _missingPathsVM.Refresh(SubgroupSearchText, SubgroupSearchCaseSensitive, PathSearchText, PathSearchCaseSensitive);
             });
 
         DisplayFailedRemapping = new RelayCommand(
@@ -65,7 +65,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _failedRemappingsVM;
-                _failedRemappingsVM.Refresh(SearchText, SearchCaseSensitive);
+                _failedRemappingsVM.Refresh(SubgroupSearchText, SubgroupSearchCaseSensitive, PathSearchText, PathSearchCaseSensitive);
             });
 
         DisplayDeprecatedPathSubgroups = new RelayCommand(
@@ -73,7 +73,7 @@ public class VM_ConfigPathRemapper : VM
             execute: async _ =>
             {
                 DisplayedSubMenu = _deprecatedPathsVM;
-                _deprecatedPathsVM.Refresh(SearchText, SearchCaseSensitive);
+                _deprecatedPathsVM.Refresh(SubgroupSearchText, SubgroupSearchCaseSensitive, PathSearchText, PathSearchCaseSensitive);
             });
 
         DisplayAssetComparer = new RelayCommand(
@@ -89,9 +89,9 @@ public class VM_ConfigPathRemapper : VM
                 CreateRequestedSubgroups();
                 }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.SearchText, y => y.SearchCaseSensitive)
+        this.WhenAnyValue(a => a.SubgroupSearchText, b => b.SubgroupSearchCaseSensitive, c => c.PathSearchText, d => d.PathSearchCaseSensitive)
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            .Subscribe(z => DisplayedSubMenu?.Refresh(z.Item1, z.Item2))
+            .Subscribe(z => DisplayedSubMenu?.Refresh(z.Item1, z.Item2, z.Item3, z.Item4))
             .DisposeWith(this);
 
         SelectNewAssetDirectory = new RelayCommand(
@@ -239,8 +239,10 @@ public class VM_ConfigPathRemapper : VM
     public PathMatchModeHash HashMatchMode { get; set; } = PathMatchModeHash.Similar;
     public Dictionary<string, ObservableCollection<string>> NewPathsByFileName { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public string SearchText { get; set; } = string.Empty;
-    public bool SearchCaseSensitive { get; set; } = false;
+    public string SubgroupSearchText { get; set; } = string.Empty;
+    public bool SubgroupSearchCaseSensitive { get; set; } = false;
+    public string PathSearchText { get; set; } = string.Empty;
+    public bool PathSearchCaseSensitive { get; set; } = false;
 
     public ObservableCollection<MultimappedSubgroup> MultimappedSubgroups { get; set; } = new();
     
@@ -712,11 +714,29 @@ public class VM_ConfigPathRemapper : VM
         public ObservableCollection<RemappedPath> Paths { get; set; } = new();
         public bool IsVisible { get; set; } = true;
 
-        public bool NameMatches(string searchStr, bool caseSensitive)
+        public bool SearchMatches(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
         {
-            if (searchStr.IsNullOrEmpty() ||
-                caseSensitive && SourceSubgroup.ExtendedName.Contains(searchStr) ||
-                !caseSensitive && SourceSubgroup.ExtendedName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            bool subgroupNeedsSearch = !subgroupSearchStr.IsNullOrEmpty();
+            bool subgroupSearchMatches = subgroupCaseSensitive && SourceSubgroup.ExtendedName.Contains(subgroupSearchStr) ||
+                !subgroupCaseSensitive && SourceSubgroup.ExtendedName.Contains(subgroupSearchStr, StringComparison.OrdinalIgnoreCase);
+
+            bool pathNeedsSearch = !pathSearchStr.IsNullOrEmpty();
+            bool pathSearchMatches = false;
+
+            if (pathNeedsSearch)
+            {
+                foreach (var path in Paths)
+                {
+                    if (pathCaseSensitive && (path.OldPath.Contains(pathSearchStr) || path.NewPath.Contains(pathSearchStr)) ||
+                        !pathCaseSensitive && (path.OldPath.Contains(pathSearchStr, StringComparison.OrdinalIgnoreCase) || path.NewPath.Contains(pathSearchStr, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        pathSearchMatches = true;
+                        break;
+                    }
+                }
+            }
+
+            if ((!subgroupNeedsSearch || subgroupSearchMatches) && (!pathNeedsSearch || pathSearchMatches))
             {
                 return true;
             }
@@ -757,6 +777,16 @@ public class VM_ConfigPathRemapper : VM
         public string File { get; set; } = string.Empty;
         public bool CreateSubgroupFromFile { get; set; } = false;
 
+        public bool IsVisible { get; set; } = true;
+        public void Refresh(string searchStr, bool caseSensitive)
+        {
+            bool needsSearch = !searchStr.IsNullOrEmpty();
+            bool matchesSearch = caseSensitive && File.Contains(searchStr) ||
+                !caseSensitive && File.Contains(searchStr, StringComparison.OrdinalIgnoreCase);
+
+            IsVisible = !needsSearch || matchesSearch;
+        }
+
         public SelectableFilePath(string file, bool createSubgroupFromFile)
         {
             File = file;
@@ -773,5 +803,5 @@ public enum PathMatchModeHash
 
 public interface IConfigRemapperSubVM
 {
-    public void Refresh(string searchStr, bool caseSensitive);
+    public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive);
 }

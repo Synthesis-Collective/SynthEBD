@@ -22,7 +22,7 @@
             <ItemsControl ItemsSource="{Binding RemappedSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5">
+                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                             <Grid Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="auto"/>

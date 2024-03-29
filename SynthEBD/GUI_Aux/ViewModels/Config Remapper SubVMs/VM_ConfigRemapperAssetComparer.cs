@@ -77,7 +77,7 @@ public class VM_ConfigRemapperAssetComparer : VM, IConfigRemapperSubVM
     public RelayCommand SetPath2 { get; }
     public RelayCommand ComparePaths { get; }
 
-    public void Refresh(string searchStr, bool caseSensitive)
+    public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
     {
         return;
     }

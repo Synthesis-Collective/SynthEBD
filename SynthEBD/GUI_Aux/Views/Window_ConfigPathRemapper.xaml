@@ -77,9 +77,13 @@
 
         <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Visibility="{Binding ProcessingComplete, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="Search Subgroup: " VerticalAlignment="Center" Foreground="White"/>
-            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
+            <TextBox Text="{Binding SubgroupSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
             <TextBlock Text="Case-sensitive" VerticalAlignment="Center" Foreground="White"/>
-            <CheckBox IsChecked="{Binding SearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 0 0"/>
+            <CheckBox IsChecked="{Binding SubgroupSearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 50 0"/>
+            <TextBlock Text="Search Path: " VerticalAlignment="Center" Foreground="White"/>
+            <TextBox Text="{Binding PathSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
+            <TextBlock Text="Case-sensitive" VerticalAlignment="Center" Foreground="White"/>
+            <CheckBox IsChecked="{Binding PathSearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 0 0"/>
         </StackPanel>
     </Grid>
 </Window>

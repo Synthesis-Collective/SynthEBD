@@ -22,7 +22,7 @@
             <ItemsControl ItemsSource="{Binding MissingPathSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="White" BorderThickness="1">
+                        <Border BorderBrush="White" BorderThickness="1" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                             <Grid Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="auto"/>

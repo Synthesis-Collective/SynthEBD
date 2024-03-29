@@ -7,6 +7,11 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=local:VM_ConfigRemapperFailedRemappings}"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -19,7 +24,7 @@
             <ItemsControl ItemsSource="{Binding NewFilesUnmatched}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5">
+                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                             <StackPanel>
                                 <ScrollViewer HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Hidden">
                                     <TextBox Text="{Binding File, Mode=OneWay}" Foreground="Red" IsReadOnly="True"/>

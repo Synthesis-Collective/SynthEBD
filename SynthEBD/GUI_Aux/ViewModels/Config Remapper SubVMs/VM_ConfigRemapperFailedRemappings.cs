@@ -17,8 +17,11 @@ class VM_ConfigRemapperFailedRemappings : VM, IConfigRemapperSubVM
 
     public ObservableCollection<SelectableFilePath> NewFilesUnmatched { get; set; } = new();
 
-    public void Refresh(string searchStr, bool caseSensitive)
+    public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
     {
-        return;
+        foreach (var pathVM in NewFilesUnmatched)
+        {
+            pathVM.Refresh(pathSearchStr, pathCaseSensitive);
+        }
     }
 }

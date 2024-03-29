@@ -18,11 +18,11 @@ public class VM_ConfigRemapperPathSubstitutions : VM, IConfigRemapperSubVM
     public string DisplayText { get; set; }
     public ObservableCollection<RemappedSubgroup> RemappedSubgroups { get; set; } = new();
 
-    public void Refresh(string searchStr, bool caseSensitive)
+    public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
     {
         foreach (var subgroup in RemappedSubgroups)
         {
-            subgroup.IsVisible = subgroup.NameMatches(searchStr, caseSensitive);
+            subgroup.IsVisible = subgroup.SearchMatches(subgroupSearchStr, subgroupCaseSensitive, pathSearchStr, pathCaseSensitive);
         }
     }
 }
