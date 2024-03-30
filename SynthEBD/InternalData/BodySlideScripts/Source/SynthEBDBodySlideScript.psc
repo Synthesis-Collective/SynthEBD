@@ -17,6 +17,9 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
 EndEvent
 
 Event OnBodySlideReload()
+	if !self
+		return
+	endif
 	ApplyBodySlide(GetCasterActor(), true) ; JFormDB has been refreshed - set the bodyslides again to bring about any changes
 EndEvent
 

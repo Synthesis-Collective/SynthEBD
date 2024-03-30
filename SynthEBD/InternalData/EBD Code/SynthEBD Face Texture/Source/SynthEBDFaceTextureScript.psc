@@ -34,11 +34,17 @@ Event OnNiNodeUpdate(ObjectReference akActorRef) ; Other scripts calling QueNiNo
 EndEvent
 
 Event OnSynthEBDSubscribedEvent(string eventName, string strArg, float numArg, Form sender) ; Re-apply face texture on custom events registered via SynthEBD UI (must match these params)
+	if !self
+		return
+	endif
 	actor akActor = GetTargetActor()
 	SetTextures(akActor, eventName)
 EndEvent
 
 Event OnGameHasLoaded()
+	if !self
+		return
+	endif
 	actor akActor = GetTargetActor()
 	SetTextures(akActor, "Game Reload")
 EndEvent
