@@ -1,6 +1,7 @@
 scriptName EBDGlobalFuncs
 {contains all Global Funcions}
 
+import PO3_SKSEFunctions
 
 ;=====================================================================
 ; * General purpose
@@ -8,21 +9,30 @@ scriptName EBDGlobalFuncs
 ;=====================================================================
 
 ActorBase Function getProperActorBase(Actor akActor) Global;return proper actor base for leveled and non-leveled actors	
-	if (akActor.GetLeveledActorBase() != (akActor.GetBaseObject() as ActorBase)) ;should be true for all leveled actors
-		return akActor.GetLeveledActorBase().GetTemplate()				
-	else
-		return akActor.GetActorBase()						
-	EndIf
+	if akActor
+		ActorBase akBase = akActor.GetBaseObject() as ActorBase
+		ActorBase akLvlBase = akActor.GetLeveledActorBase()
+		if (akLvlBase != akBase) ;should be true for all leveled actors
+			return akLvlBase.GetTemplate()				
+		else
+			return akBase					
+		EndIf
+	endif
+	return None
 EndFunction
 
 ;if actor is levelled and its template is the same as the non-levelled actorBase, then the body skin has to re-applied or it won't show (Skyrim bug)
 bool Function isTemplateActorBase(Actor akActor) Global
-	if (akActor.GetLeveledActorBase() != (akActor.GetBaseObject() as ActorBase)) ;should be true for all leveled actors
-		ActorBase baseTemplate = akActor.GetLeveledActorBase().GetTemplate()	
-		If (baseTemplate == akActor.getActorBase())
-			return true
+	if akActor
+		ActorBase akBase = akActor.GetBaseObject() as ActorBase
+		ActorBase akLvlBase = akActor.GetLeveledActorBase()
+		if (akLvlBase != akBase) ;should be true for all leveled actors
+			ActorBase baseTemplate = akLvlBase.GetTemplate()	
+			If (baseTemplate == akBase)
+				return true
+			EndIf
 		EndIf
-	EndIf
+	endif
 	Return false
 EndFunction
 
@@ -39,12 +49,15 @@ EndFunction
 
 ;returns the plugin name the form belongs to
 String Function getModName(Form fForm) Global
-	int formID = fForm.GetFormID() ; Get the formid to extract modindex
-	if isLightMod(formID) ; and check whether the for formid comes from a light mod (i.e. FE plugin space)
-		return Game.GetLightModName(getLightModIndex(fForm))
-	else
-		return Game.GetModName(Math.RightShift(formID, 24)) ; Shift right 24 bits to leave only modindex
-	endIf
+	if fForm
+		int formID = fForm.GetFormID() ; Get the formid to extract modindex
+		if isLightMod(formID) ; and check whether the for formid comes from a light mod (i.e. FE plugin space)
+			return Game.GetLightModName(getLightModIndex(fForm))
+		else
+			return Game.GetModName(Math.RightShift(formID, 24)) ; Shift right 24 bits to leave only modindex
+		endIf
+	endif
+	return "None"
 EndFunction
 
 ; checks if formid comes from a light mod by looking the index which is FE=254 for light plugins
@@ -146,25 +159,31 @@ EndFunction
 
 ; returns the int index for a given form assuming that it is coming from light plugin
 int function getLightModIndex(form fForm) global
-	string formIDRaw = fForm as string
-	int bracketIndex = StringUtil.Find(formIDRaw, "(", 0) ; a light form looks like this: FE087800
-	string indexHex =  StringUtil.Substring(formIDRaw, bracketIndex + 3, 3) ; the index is between FE and the last three digits; in the above case it would be 087
-	int modIndex = HexToTen(indexHex) ; convert the extracted hex index to int
-	Return modIndex
+	if fForm
+		string formIDRaw = fForm as string
+		int bracketIndex = StringUtil.Find(formIDRaw, "(", 0) ; a light form looks like this: FE087800
+		string indexHex =  StringUtil.Substring(formIDRaw, bracketIndex + 3, 3) ; the index is between FE and the last three digits; in the above case it would be 087
+		int modIndex = HexToTen(indexHex) ; convert the extracted hex index to int
+		Return modIndex
+	endif
+	return -1
 endfunction
 
 ; returns the formid string needed for facegen textures
 ; the load index is overwritten with zeroes
 ; 5 zeroes for light plugins and 2 for regular ones
 string function getFormIDString(form fForm) Global
-	int formID = fForm.GetFormID()
-	string formIDRaw = fForm as string
-	int bracketIndex = StringUtil.Find(formIDRaw, "(", 0)
-	if isLightMod(formID)
-		return "00000" + StringUtil.Substring(formIDRaw, bracketIndex + 6, 3)
-	else
-		return "00" + StringUtil.Substring(formIDRaw, bracketIndex + 3, 6)
-	endIf
+	if fForm != None
+		int formID = fForm.GetFormID()
+		string formIDRaw = fForm as string
+		int bracketIndex = StringUtil.Find(formIDRaw, "(", 0)
+		if isLightMod(formID)
+			return "00000" + StringUtil.Substring(formIDRaw, bracketIndex + 6, 3)
+		else
+			return "00" + StringUtil.Substring(formIDRaw, bracketIndex + 3, 6)
+		endIf
+	endif
+	return "None"
 endfunction
 
 ;=====================================================================
@@ -176,11 +195,14 @@ Function FixFaceTexture(Actor akActor, ActorBase akActorBase) Global
 	int index = akActorBase.GetIndexOfHeadPartByType(1) ; 1 is Face type, 3 is Hair
 	HeadPart facePart = akActorBase.GetNthHeadPart(index)		
 	string modName = getModName(akActorBase)
+	if modName == "None"
+		return
+	endif
 	string formIDString = getFormIDString(akActorBase)
 	TextureSet akActorTexSet = akActorBase.GetFaceTextureSet()
 	if (akActorTexSet)
 		akActorTexSet.SetNthTexturePath(6, "Actors\\Character\\FaceGenData\\FaceTint\\" + modName + "\\" + formIDString + ".dds")
-		NetImmerse.SetNodeTextureSet(akActor, facePart.GetName(), akActorTexSet, false) ; GetPartName() only exists in SKSE >= 2.0.17; for older versions we need to use the somewhat buggy GetName()				
+		NetImmerse.SetNodeTextureSet(akActor, GetFormEditorID(facePart), akActorTexSet, false) ; GetPartName() only exists in SKSE >= 2.0.17; for older versions we need to use the somewhat buggy GetName()				
 		;DebugOutput("Found face texture for: " + akActorBase.getName() + ", " + formIDRaw + ": " + akActorBase.GetFaceTextureSet().GetNthTexturePath(0) + ", " +akActorBase.GetFaceTextureSet().GetNthTexturePath(6))
 	EndIf	
 	
