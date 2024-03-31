@@ -27,9 +27,10 @@ public class VM_SettingsModManager : VM
             }
         );
 
-        this.WhenAnyValue(x => x.ModManagerType).Subscribe(x => UpdateDisplayedVM()).DisposeWith(this);
         this.WhenAnyValue(x => x.ModManagerType).Subscribe(x =>
         {
+            UpdateDisplayedVM();
+            UpdateFilePathLimit();
             UpdatePatcherSettings();
         }).DisposeWith(this);
 
@@ -50,6 +51,7 @@ public class VM_SettingsModManager : VM
 
     public string TempFolder { get; set; } = "";
     public int FilePathLimit { get; set; } = 260;
+    public int FilePathLimit_NoModManager { get; set; } = 260;
     public RelayCommand SelectTempFolder { get; set; }
 
     public void UpdateDisplayedVM()
@@ -70,6 +72,16 @@ public class VM_SettingsModManager : VM
         }
     }
 
+    private void UpdateFilePathLimit()
+    {
+        switch (ModManagerType)
+        {
+            case ModManager.None: FilePathLimit = FilePathLimit_NoModManager; break;
+            case ModManager.ModOrganizer2: FilePathLimit = MO2IntegrationVM.FilePathLimit; break;
+            case ModManager.Vortex: FilePathLimit = VortexIntegrationVM.FilePathLimit; break;
+        }
+    }
+
     public void CopyInViewModelFromModel(Settings_ModManager model)
     {
         if (model == null)
@@ -87,7 +99,8 @@ public class VM_SettingsModManager : VM
             case ModManager.ModOrganizer2: model.CurrentInstallationFolder = model.MO2Settings.ModFolderPath; break;
             case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
         }
-        FilePathLimit = model.FilePathLimit;
+        FilePathLimit_NoModManager = model.FilePathLimit;
+        UpdateFilePathLimit();
         _logger.LogStartupEventEnd("Loading Mod Manager Settings UI");
     }
 
@@ -106,7 +119,7 @@ public class VM_SettingsModManager : VM
             case ModManager.Vortex: model.CurrentInstallationFolder = model.VortexSettings.StagingFolderPath; break;
         }
 
-        model.FilePathLimit = FilePathLimit;
+        model.FilePathLimit = FilePathLimit_NoModManager;
         return model;
     }
 }

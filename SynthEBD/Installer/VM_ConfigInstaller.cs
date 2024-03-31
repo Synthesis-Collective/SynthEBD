@@ -35,6 +35,7 @@ public class VM_ConfigInstaller : VM
         }
         else
         {
+            DestinationFolderSelector.InitializeDisplay();
             DisplayedViewModel = DestinationFolderSelector;
         }
     }

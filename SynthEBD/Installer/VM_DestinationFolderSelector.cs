@@ -25,11 +25,9 @@ public class VM_DestinationFolderSelector : VM
         _assetPackIO = assetPackIO;
         _configInstaller = configInstaller;
         _modManagerVM = modManagerVM;
+        _loadedManifest = manifest;
 
         this.WhenAnyValue(x => x.DestinationFolderName).Subscribe(_ => UpdateWarningMessage(manifest)).DisposeWith(this);
-
-        SetDestinationFolder(manifest);
-        UpdateWarningMessage(manifest);
 
         Finalize = new RelayCommand(
             canExecute: _ => _destinationFolderValid,
@@ -63,6 +61,13 @@ public class VM_DestinationFolderSelector : VM
     public RelayCommand Finalize { get; }
     public bool IsFinalized { get; set; } = false;
     public RelayCommand Cancel { get; }
+    private Manifest _loadedManifest { get; set; }
+
+    public void InitializeDisplay()
+    {
+        SetDestinationFolder(_loadedManifest);
+        UpdateWarningMessage(_loadedManifest);
+    }
 
     private void SetDestinationFolder(Manifest manifest)
     {
