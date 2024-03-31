@@ -21,13 +21,15 @@ public class VM_ConfigPathRemapper : VM
     private readonly IEnvironmentStateProvider _environmentStateProvider;
     private readonly VM_SettingsModManager _modManagerSettings;
     private readonly VM_SubgroupPlaceHolder.Factory _subgroupFactory;
+    private readonly RemappedPath.Factory _remappedPathFactory;
 
-    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory, VM_SettingsModManager modManagerSettings)
+    public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory, VM_SettingsModManager modManagerSettings, RemappedPath.Factory remappedPathFactory)
     {
         _parentAssetPack = parentAssetPack;
         _environmentStateProvider = environmentStateProvider;
         _subgroupFactory = subgroupFactory;
         _modManagerSettings = modManagerSettings;
+        _remappedPathFactory = remappedPathFactory;
 
         _hashMatchedVM = new("Some Assets Were Remapped with 100% Confidence", SubgroupsRemappedByHash);
         _predictionMatchedVM = new("Some assets were remapped by path similarity - please check that these are correct", SubgroupsRemappedByPathPrediction);
@@ -340,10 +342,9 @@ public class VM_ConfigPathRemapper : VM
             {
                 if (missingPaths.Contains(path))
                 {
-                    logged.Paths.Add(new RemappedPath()
-                    {
-                        OldPath = path
-                    });
+                    var missingPath = _remappedPathFactory(this);
+                    missingPath.OldPath = path;
+                    logged.Paths.Add(missingPath);
                 }
             }
 
@@ -372,13 +373,10 @@ public class VM_ConfigPathRemapper : VM
                     if (matchingEntries.Any())
                     {
                         var newSource = ChooseBestHashMatch(matchingEntries.Select(x => x.Key).ToList(), pathEntry.Source);
-                        var recordEntry = new RemappedPath()
-                        {
-                            OldPath = pathEntry.Source,
-                            NewPath = newSource,
-                            CandidateNewPaths = NewPathsByFileName[Path.GetFileName(newSource)],
-                            ShowCreateSubgroupOption = false
-                        };
+                        var recordEntry = _remappedPathFactory(this);
+                        recordEntry.OldPath = pathEntry.Source;
+                        recordEntry.NewPath = newSource;
+                        recordEntry.CandidateNewPaths = NewPathsByFileName[Path.GetFileName(newSource)];
 
                         _filesMatchedByHash_New.AddRange(matchingEntries.Select(x => x.Key));
                         _filesMatchedByHash_Existing.Add(pathEntry.Source);
@@ -480,7 +478,7 @@ public class VM_ConfigPathRemapper : VM
                                 var pathEntry = recordEntry.Paths.Where(x => x.OldPath == bestMatchingPath).FirstOrDefault();
                                 if (pathEntry == null)
                                 {
-                                    pathEntry = new();
+                                    pathEntry = _remappedPathFactory(this);
                                     recordEntry.Paths.Add(pathEntry);
                                 }
 
@@ -617,12 +615,10 @@ public class VM_ConfigPathRemapper : VM
                     !_allFiles_New.Contains(path.Source, StringComparer.OrdinalIgnoreCase) &&
                     !placeholderSubgroup.Paths.Any(x => x.OldPath == path.Source))
                 {
-                    var placeholderPath = new RemappedPath()
-                    {
-                        OldPath = path.Source,
-                        AcceptRenaming = false,
-                        ShowCreateSubgroupOption = false
-                    };
+                    var placeholderPath = _remappedPathFactory(this);
+                    placeholderPath.OldPath = path.Source;
+                    placeholderPath.AcceptRenaming = false;
+                    placeholderPath.ShowCreateSubgroupOption = false;
 
                     var fileName = Path.GetFileName(path.Source);
 
@@ -746,7 +742,8 @@ public class VM_ConfigPathRemapper : VM
 
     public class RemappedPath : VM
     {
-        public RemappedPath()
+        public delegate RemappedPath Factory(VM_ConfigPathRemapper parentVM);
+        public RemappedPath(IEnvironmentStateProvider environmentStateProvider, VM_ConfigPathRemapper parentVM)
         {
             this.WhenAnyValue(x => x.CreateSubgroupFrom).Subscribe(x =>
             {
@@ -763,6 +760,31 @@ public class VM_ConfigPathRemapper : VM
                     CreateSubgroupFrom = false;
                 }
             }).DisposeWith(this);
+
+            this.WhenAnyValue(x => x.OldPath, y => y.NewPath).Subscribe(z =>
+            {
+                if (z.Item1.EndsWith(".dds", StringComparison.OrdinalIgnoreCase) || z.Item2.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+                {
+                    CanShowComparison = true;
+                }
+                else
+                {
+                    CanShowComparison = false;
+                }
+            }).DisposeWith(this);
+
+            ShowComparison = new RelayCommand(
+                canExecute: _ => CanShowComparison,
+                execute: _ =>
+                {
+                    var oldPathFull = Path.Combine(environmentStateProvider.DataFolderPath, OldPath);
+                    var newPathFull = Path.Combine(parentVM.NewAssetDirectory, NewPath);
+
+                    var comparisonVM = new VM_ConfigRemapperTextureComparer(oldPathFull, newPathFull);
+                    var comparisonWindow = new Window_ConfigRemapperTextureComparer();
+                    comparisonWindow.DataContext = comparisonVM;
+                    comparisonWindow.ShowDialog();
+                });
         }
         public string OldPath { get; set; } = string.Empty;
         public string NewPath { get; set; } = string.Empty;
@@ -770,6 +792,9 @@ public class VM_ConfigPathRemapper : VM
         public ObservableCollection<string> CandidateNewPaths { get; set;} = new();
         public bool ShowCreateSubgroupOption { get; set; } = true;
         public bool CreateSubgroupFrom { get; set; } = false;
+
+        public RelayCommand ShowComparison { get; set; }
+        public bool CanShowComparison { get; set; } = false;
     }
 
     public class SelectableFilePath : VM

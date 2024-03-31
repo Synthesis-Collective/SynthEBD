@@ -65,6 +65,7 @@
                                                     <TextBlock Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
                                                     <CheckBox IsChecked="{Binding CreateSubgroupFrom}" Margin="20 0 5 0" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
                                                     <TextBlock Text="Create New Subgroup Instead" Foreground="White" VerticalAlignment="Center" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
+                                                    <Button Content="Compare Textures" Foreground="MediumPurple" Command="{Binding ShowComparison}" Visibility="{Binding CanShowComparison, Converter={StaticResource BoolToVis}}" Margin="20 0 0 0"/>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>

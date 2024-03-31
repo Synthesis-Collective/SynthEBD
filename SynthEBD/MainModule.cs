@@ -1,5 +1,6 @@
 using Autofac;
 using static SynthEBD.VM_BodyShapeDescriptor;
+using static SynthEBD.VM_ConfigPathRemapper;
 using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
@@ -189,6 +190,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_ConfigPathRemapper>().AsSelf();
         builder.RegisterType<VM_ConfigInstaller>().AsSelf();
         builder.RegisterType<VM_DestinationFolderSelector>().AsSelf();
+        builder.RegisterType<RemappedPath>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();
