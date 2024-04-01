@@ -33,7 +33,9 @@
         <WrapPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
             <TextBlock Text="If multiple matching textures exist, choose the one with the " Foreground="White" VerticalAlignment="Center"/>
             <ComboBox SelectedItem="{Binding HashMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:PathMatchModeHash}}}" MaxWidth="250" Margin="5 0 5 0"/>
-            <TextBlock Text="path" Foreground="White" VerticalAlignment="Center"/>
+            <TextBlock Text="path." Foreground="White" VerticalAlignment="Center"/>
+            <TextBlock Text="Match same file names only" VerticalAlignment="Center" Margin="150 0 5 0" Foreground="White"/>
+            <CheckBox IsChecked="{Binding LimitHashMatchingByFileName}"/>
         </WrapPanel>
 
         <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="2" Grid.Column="0" Visibility="{Binding ShowRemapButton, Converter={StaticResource BoolToVis}}"/>

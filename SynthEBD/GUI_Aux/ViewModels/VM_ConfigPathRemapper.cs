@@ -217,6 +217,7 @@ public class VM_ConfigPathRemapper : VM
     private Progress<int> _hashingProgress { get; }
     private List<string> _currentFileExtensions { get; set; } = new(); // files extensions used in the original config file (so as to ignore xml files, preview images, etc from the updated mod archive)
     public ObservableCollection<RemappedSubgroup> SubgroupsRemappedByHash { get; set; } = new();
+    public bool LimitHashMatchingByFileName { get; set; } = true;
     private List<string> _filesMatchedByHash_Existing { get; set; } = new();
     private List<string> _filesMatchedByHash_New { get; set; } = new(); // paths in the new mod that got matched by hash to files in the previous version
     private List<string> _unmatchedPaths_Current { get; set; } = new(); // paths in the current config file that do not have a hash match in the new mod
@@ -370,6 +371,12 @@ public class VM_ConfigPathRemapper : VM
                 {
                     var currentHash = _currentPathHashes[pathEntry.Source];
                     var matchingEntries = _newPathHashes.Where(x => x.Value.Equals(currentHash)).ToList();
+
+                    if (LimitHashMatchingByFileName)
+                    {
+                        matchingEntries = matchingEntries.Where(x => Path.GetFileName(x.Key).Equals(Path.GetFileName(pathEntry.Source), StringComparison.OrdinalIgnoreCase)).ToList();
+                    }
+
                     if (matchingEntries.Any())
                     {
                         var newSource = ChooseBestHashMatch(matchingEntries.Select(x => x.Key).ToList(), pathEntry.Source);
