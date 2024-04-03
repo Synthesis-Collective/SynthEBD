@@ -9,9 +9,9 @@
 
     <ItemGroup>
         <PackageReference Include="FluentAssertions" Version="7.0.0-alpha.3" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0-preview-23531-01" />
-        <PackageReference Include="Noggog.Autofac" Version="2.60.0.1-nightly-20231103-212929" />
-        <PackageReference Include="xunit" Version="2.6.2" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+        <PackageReference Include="Noggog.Autofac" Version="2.64.0" />
+        <PackageReference Include="xunit" Version="2.7.0" />
     </ItemGroup>
 
     <ItemGroup>
