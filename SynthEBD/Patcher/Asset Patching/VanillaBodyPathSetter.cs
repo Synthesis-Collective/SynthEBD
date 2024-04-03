@@ -77,6 +77,7 @@ public class VanillaBodyPathSetter
         BlockedNPCs.Clear();
         ArmatureDuplicatedWithVanillaPath.Clear();
         ArmorDuplicatedwithVanillaPaths.Clear();
+        ArmatureNifsFromAssets.Clear();
 
         InitializeDefaultMeshPaths();
     }
@@ -85,6 +86,7 @@ public class VanillaBodyPathSetter
     private HashSet<FormKey> BlockedNPCs = new();
     private Dictionary<FormKey, IArmorAddonGetter> ArmatureDuplicatedWithVanillaPath = new();
     private Dictionary<FormKey, IArmorGetter> ArmorDuplicatedwithVanillaPaths = new();
+    private HashSet<string> ArmatureNifsFromAssets = new();
 
     public void RegisterBlockedFromVanillaBodyPaths(NPCInfo currentNPCinfo)
     {
@@ -133,7 +135,8 @@ public class VanillaBodyPathSetter
                 if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
                     IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) &&
                     ArmatureHasWorldModel(armaGetter, NPCInfo.GetGender(npcGetter)) &&
-                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
+                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _) &&
+                    !ArmaturePathAssignedFromConfig(armaGetter, currentGender))
                 {
                     hasNonVanillaBodyPaths = true;
                     break;
@@ -285,10 +288,25 @@ public class VanillaBodyPathSetter
 
         switch (currentGender)
         {
-            case Gender.Female: return armaGetter.WorldModel.Female.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
-            case Gender.Male: return armaGetter.WorldModel.Male.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
+            case Gender.Female: return armaGetter.WorldModel?.Female?.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
+            case Gender.Male: return armaGetter.WorldModel?.Male?.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
             default: return true;
         }
+    }
+
+    public void RegisterAssetAssignedMeshes(List<SubgroupCombination> assignedCombinations)
+    {
+        ArmatureNifsFromAssets.UnionWith(assignedCombinations.SelectMany(x => x.ContainedSubgroups).SelectMany(x => x.Paths).Select(x => x.Source).Where(x => x.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private bool ArmaturePathAssignedFromConfig(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        if (currentGender == Gender.Female && armaGetter.WorldModel?.Female?.File.RawPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Female.File.RawPath) ||
+            (currentGender == Gender.Male && armaGetter.WorldModel?.Male?.File.RawPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Male.File.RawPath)))
+        {
+            return true;
+        }
+        return false;
     }
 
     private bool ArmatureHasWorldModel(IArmorAddonGetter armaGetter, Gender currentGender)

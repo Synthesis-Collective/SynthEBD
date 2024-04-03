@@ -700,9 +700,13 @@ public class Patcher
             }
             #endregion
 
-            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath && _vanillaBodyPathSetter.IsBlockedForVanillaBodyPaths(currentNPCInfo))
+            if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
             {
-                _vanillaBodyPathSetter.RegisterBlockedFromVanillaBodyPaths(currentNPCInfo);
+                _vanillaBodyPathSetter.RegisterAssetAssignedMeshes(assignedCombinations);
+                if (_vanillaBodyPathSetter.IsBlockedForVanillaBodyPaths(currentNPCInfo))
+                {
+                    _vanillaBodyPathSetter.RegisterBlockedFromVanillaBodyPaths(currentNPCInfo);
+                }
             }
 
             #region Body Shape assignment (if assets not assigned with Assets)
