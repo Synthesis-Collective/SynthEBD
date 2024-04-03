@@ -1,3 +1,4 @@
+using Loqui;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
@@ -146,6 +147,20 @@ public class VanillaBodyPathSetter
             if (!hasNonVanillaBodyPaths)
             {
                 return;
+            }
+
+            
+            var registration = LoquiRegistration.StaticRegister.GetRegister(npcGetter.GetType());
+            var contexts = _environmentStateProvider.LinkCache?.ResolveAllContexts(npcGetter.FormKey, registration.GetterType).ToList() ?? new(); // note: ResolveAllContexts directly off npcGetter returns only the context from SynthEBD.esp
+
+            if (contexts.Count == 2) // base mod and output mod only
+            {
+                string raceName = "No Race";
+                if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve(npcGetter.Race, out var raceGetter))
+                {
+                    raceName = EditorIDHandler.GetEditorIDSafely(raceGetter);
+                }
+                _logger.LogMessage(_logger.GetNPCLogNameString(npcGetter) + " is getting its body mesh path set to that of its race (" + raceName + ") despite having no overriding appearance mods. Make sure this NPC does not need to be blocked from vanilla body paths.");
             }
 
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
