@@ -141,7 +141,7 @@ public class ConfigInstaller
         #endregion
 
         Dictionary<string, string> assetPathMapping = new Dictionary<string, string>();
-        HashSet<string> referencedFilePaths = new HashSet<string>();
+        HashSet<string> referencedFilePaths = new(StringComparer.OrdinalIgnoreCase);
 
         HashSet<string> skippedConfigs = new HashSet<string>();
 
