@@ -1,6 +1,7 @@
 using DynamicData;
 using Microsoft.Extensions.Logging;
 using Mutagen.Bethesda.Plugins;
+using Noggog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,6 +44,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1018RecordTemplates();
         UpdateV1025RaceGroupings();
         UpdateV1028Toggle();
+        UpdateV1032AttributeGroups();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -254,6 +256,14 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         _patcherState.UpdateLog.Performed1_0_2_8Update = true;
     }
 
+    private void UpdateV1032AttributeGroups()
+    {
+        if(!_patcherState.UpdateLog.Performed1_0_3_2AttributeUpdate && !_patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
+        {
+            _generalVM.AttributeGroupMenu.AddAttributeGroupFromModel(DefaultAttributeGroups.CharmersOfTheReachHeads);
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.RawPath" },
@@ -287,4 +297,5 @@ public class UpdateLog
     public bool Performed1_0_1_8RTUpdate { get; set; } = false;
     public bool Performed1_0_2_5RGUpdate { get; set; } = false;
     public bool Performed1_0_2_8Update { get; set; } = false;
+    public bool Performed1_0_3_2AttributeUpdate { get; set; } = false;
 }

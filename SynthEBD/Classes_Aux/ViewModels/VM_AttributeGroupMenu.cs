@@ -95,6 +95,13 @@ public class VM_AttributeGroupMenu : VM
         }
     }
 
+    public void AddAttributeGroupFromModel(AttributeGroup model)
+    {
+        var attrGroup = new VM_AttributeGroup(this, _attributeCreator, _logger);
+        attrGroup.CopyInViewModelFromModel(model);
+        Groups.Add(attrGroup);
+    }
+
     public static void DumpViewModelToModels(VM_AttributeGroupMenu viewModel, HashSet<AttributeGroup> models)
     {
         models.Clear();

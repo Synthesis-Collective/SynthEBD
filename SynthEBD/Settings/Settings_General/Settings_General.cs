@@ -235,7 +235,8 @@ public class Settings_General
         DefaultAttributeGroups.Age50,
         DefaultAttributeGroups.Freckles,
         DefaultAttributeGroups.Rough01,
-        DefaultAttributeGroups.Rough02
+        DefaultAttributeGroups.Rough02,
+        DefaultAttributeGroups.CharmersOfTheReachHeads
     };
 
     public bool OverwritePluginAttGroups { get; set; } = true;
