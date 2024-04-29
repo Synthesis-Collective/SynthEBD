@@ -179,6 +179,25 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         );
 
+        SelectEasyNPCProfile= new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "Select your exported EasyNPC Profile", ".txt", out string path))
+                    {
+                        EasyNPCprofilePath = path;
+                    }
+                }
+                );
+
+        ClearEasyNPCProfile = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                EasyNPCprofilePath = string.Empty;
+            }
+        );
+
         ToggleTroubleShootingSettingsDisplay = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -252,6 +271,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
+    public string EasyNPCprofilePath { get; set; } = "";
     public bool bShowToolTips { get; set; } = true;
     public bool bChangeMeshesOrTextures { get; set; } = true;
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
@@ -291,6 +311,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
+    public RelayCommand SelectEasyNPCProfile { get; }
+    public RelayCommand ClearEasyNPCProfile { get; }
     public bool IsStandalone { get; set; }
     public bool bFilterNPCsByArmature { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
@@ -312,6 +334,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IsCurrentlyLoading = true;
 
         OutputDataFolder = model.OutputDataFolder;
+        EasyNPCprofilePath = model.EasyNPCprofilePath;
         bShowToolTips = model.bShowToolTips;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         BodySelectionMode = model.BodySelectionMode;
@@ -360,6 +383,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     {
         Settings_General model = new();
         model.OutputDataFolder = OutputDataFolder;
+        model.EasyNPCprofilePath = EasyNPCprofilePath;
         model.bShowToolTips = bShowToolTips;
         model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
         model.BodySelectionMode = BodySelectionMode;

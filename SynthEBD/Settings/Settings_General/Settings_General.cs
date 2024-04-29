@@ -13,6 +13,7 @@ public class Settings_General
     public bool bChangeHeadParts { get; set; } = true;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public string OutputDataFolder { get; set; } = "";
+    public string EasyNPCprofilePath { get; set; } = "";
     public bool bEnableConsistency { get; set; } = true;
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;

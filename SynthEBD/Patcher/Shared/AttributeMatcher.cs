@@ -10,12 +10,14 @@ public class AttributeMatcher
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
-    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser)
+    private readonly EasyNPCProfileParser _easyNPCProfileParser;
+    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser, EasyNPCProfileParser easyNPCProfileParser)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _recordPathParser = recordPathParser;
+        _easyNPCProfileParser = easyNPCProfileParser;
     }
 
     /// <summary>
@@ -199,6 +201,10 @@ public class AttributeMatcher
                                 foreach (var context in contexts)
                                 {
                                     if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey)) {  foundContext = true; break; }
+                                }
+                                if (_easyNPCProfileParser.GetNPCMod(npc.FormKey, out var appearanceModKey) && appearanceModKey.HasValue && ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                {
+                                    foundContext = true;
                                 }
                                 if (!foundContext)
                                 {
