@@ -258,9 +258,17 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
     private void UpdateV1032AttributeGroups()
     {
-        if(!_patcherState.UpdateLog.Performed1_0_3_2AttributeUpdate && !_patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
+        if (!_patcherState.UpdateLog.Performed1_0_3_2AttributeUpdate && !_patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
         {
             _generalVM.AttributeGroupMenu.AddAttributeGroupFromModel(DefaultAttributeGroups.CharmersOfTheReachHeads);
+
+            foreach (var assetPack in _texMeshVM.AssetPacks)
+            {
+                if (!assetPack.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
+                {
+                    assetPack.AttributeGroupMenu.AddAttributeGroupFromModel(DefaultAttributeGroups.CharmersOfTheReachHeads);
+                }
+            }
         }
     }
 
