@@ -62,6 +62,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_AssetReplicateTextureRemover>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_TexMeshBatchActions>().AsSelf().SingleInstance();
 
         // UI Infrastructure
         builder.RegisterType<VM_NPCAttributeCreator>().AsSelf().SingleInstance();

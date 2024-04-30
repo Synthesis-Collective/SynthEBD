@@ -242,6 +242,7 @@
             <Button Command="{Binding ValidateAll}" Foreground="MediumPurple" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
             <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" Foreground="White" ToolTip="Split screen for config editor to drag and drop subgroups between config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Split Screen Config Editor</Button>
             <Button Margin="10 0 0 0" HorizontalAlignment="Right" Command="{Binding MenuButtonsToggle}" Foreground="White" ToolTip="Toggle main settings visibility to give the config editor more screen space" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding MenuButtonToggleStr}" />
+            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="MediumPurple" ToolTip="Edit all/selected config files simultaneously" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Actions</Button>
         </StackPanel>
 
         <Grid Grid.Row="2">

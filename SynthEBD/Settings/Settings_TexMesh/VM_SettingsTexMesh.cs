@@ -19,6 +19,7 @@ public class VM_SettingsTexMesh : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Func<ViewModelLoader> _getVMLoader;
+    private readonly Func<VM_TexMeshBatchActions> _getBatchActionsMenu;
 
     public VM_SettingsTexMesh(
         PatcherState patcherState,
@@ -36,7 +37,8 @@ public class VM_SettingsTexMesh : VM
         ConfigInstaller configInstaller,
         SettingsIO_AssetPack assetIO,
         VM_AssetDistributionSimulator.Factory simulatorFactory,
-        VM_Manifest.Factory manifestFactory)
+        VM_Manifest.Factory manifestFactory,
+        Func<VM_TexMeshBatchActions> getBatchActionsMenu)
     {
         _logger = logger;
         _paths = paths;
@@ -45,6 +47,7 @@ public class VM_SettingsTexMesh : VM
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _getVMLoader = getVMLoader;
+        _getBatchActionsMenu = getBatchActionsMenu;
 
         AssetOrderingMenu = new(this);
 
@@ -277,6 +280,16 @@ public class VM_SettingsTexMesh : VM
                }
            }
        );
+
+        ShowBatchActionsMenu = new RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               var window = new Window_TexMeshBatchActions();
+               window.DataContext = _getBatchActionsMenu();
+               window.ShowDialog();
+           }
+       );
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -336,7 +349,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SelectConfigsAll { get; }
     public RelayCommand SelectConfigsNone { get; }
     public RelayCommand SimulateDistribution { get; }
-
+    public RelayCommand ShowBatchActionsMenu { get; }
     public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
 
     private List<ObservableCollection<VM_CollectionMemberString>> StrippedSkinWNAMsHistory = new();

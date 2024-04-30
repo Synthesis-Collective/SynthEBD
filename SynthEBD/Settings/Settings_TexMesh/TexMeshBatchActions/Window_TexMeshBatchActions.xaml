@@ -1,0 +1,51 @@
+<Window x:Class="SynthEBD.Window_TexMeshBatchActions"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        d:DataContext="{d:DesignInstance Type=local:VM_TexMeshBatchActions}"
+        mc:Ignorable="d"
+        Title="Batch Actions" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="15"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer Grid.Row="0" Grid.Column="0">
+            <ItemsControl ItemsSource="{Binding AssetPacks}" BorderBrush="MediumPurple" BorderThickness="1">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel>
+                            <CheckBox IsChecked="{Binding IsSelected}" Margin="2"/>
+                            <TextBlock Text="{Binding WrappedAssetPack.GroupName}" Margin="2" Foreground="White"/>
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <local:UC_NPCAttribute DataContext="{Binding DisplayedAttribute}" Grid.Row="0" Grid.Column="2" Background="Black" Margin="0 0 0 10"/>
+
+        <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+            <Button Foreground="LightGreen" Content="Select" Command="{Binding SelectAll}" Margin="3 0 0 0"/>
+            <TextBlock Foreground="White" Text="/" Margin="1 0 1 0"/>
+            <Button Foreground="FireBrick" Content="Deselect" Command="{Binding DeselectAll}" Margin="3 0 0 0"/>
+            <TextBlock Foreground="White" Text="All" Margin="3 0 0 0"/>
+        </WrapPanel>
+
+        <WrapPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+            <TextBlock Foreground="White" Text="Add as "/>
+            <Button Foreground="Aqua" Content="Allowed" Command="{Binding ApplyAsAllowedAttribute}" Margin="3 0 0 0"/>
+            <Button Foreground="MediumPurple" Content="Disallowed" Command="{Binding ApplyAsDisallowedAttribute}" Margin="3 0 0 0"/>
+            <TextBlock Foreground="White" Text="Attribute" Margin="3 0 0 0"/>
+        </WrapPanel>
+    </Grid>
+</Window>
