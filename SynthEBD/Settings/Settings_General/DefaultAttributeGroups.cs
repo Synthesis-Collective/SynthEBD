@@ -791,7 +791,13 @@ public class DefaultAttributeGroups
                             ModKey.FromNameAndExtension("Karura's Ordinary People Refined.esp"),
                             ModKey.FromNameAndExtension("Karura's Ordinary People Refined BUVARP Patch.esp"),
                             ModKey.FromNameAndExtension("Mythos Followers Refined.esp"),
-                            ModKey.FromNameAndExtension("Mythos Followers Refined - ezPG.esp")
+                            ModKey.FromNameAndExtension("TaliesinReplacer.esp"), // 
+                            ModKey.FromNameAndExtension("LucienReplacer.esp"),
+                            ModKey.FromNameAndExtension("0SeranaReplacer.esp"),
+                            ModKey.FromNameAndExtension("0LordHarkonandValericaReplacer.esp"),
+                            ModKey.FromNameAndExtension("0BrynjolfReplacer.esp"),
+                            ModKey.FromNameAndExtension("0KaidanReplacer.esp"),
+                            ModKey.FromNameAndExtension("0AuriReplacer.esp.esp")
                         }
                     }
                 }
