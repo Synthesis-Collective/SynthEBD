@@ -23,8 +23,8 @@ public class EasyNPCProfileParser
                 {
                     continue;
                 }
-                entry.TrimEnd('|');
-                var split1 = entry.Split('|');
+                var trimmed = entry.TrimEnd('|');
+                var split1 = trimmed.Split('|');
                 if (split1.Length != 2) { continue; }
                 var appearanceMod = ModKey.FromNameAndExtension(split1[1]);
 
