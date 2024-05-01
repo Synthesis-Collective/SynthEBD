@@ -183,7 +183,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 canExecute: _ => true,
                 execute: _ =>
                 {
-                    if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "Select your exported EasyNPC Profile", ".txt", out string path))
+                    if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "Text Files (*.txt)|*.txt", "Select your exported EasyNPC Profile",  out string path))
                     {
                         EasyNPCprofilePath = path;
                     }
