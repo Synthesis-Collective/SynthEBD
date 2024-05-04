@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.3" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.43.3" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.43.3" />
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.44.0" />
+    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.44.0" />
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.44.0" />
     <PackageReference Include="Noggog.Autofac" Version="2.64.0" />
   </ItemGroup>
 
