@@ -71,8 +71,8 @@ public class PatcherState
                     string fixedScriptVer = string.Empty;
                     switch(TexMeshSettings.bFixedScriptsOldSKSEversion)
                     {
-                        case true: fixedScriptVer = "1.5.9.7 or Higher"; break;
-                        case false: fixedScriptVer = "<1.5.9.7"; break;
+                        case false: fixedScriptVer = "1.5.9.7 or Higher"; break;
+                        case true: fixedScriptVer = "<1.5.9.7"; break;
                     }
                     sb.AppendLine("Using Fixed Global Script For " + fixedScriptVer);
                 }
