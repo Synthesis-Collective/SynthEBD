@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using System.Windows.Forms;
 
 namespace SynthEBD;
 
@@ -58,6 +59,32 @@ public class PatcherState
         if (TexMeshSettings == null)
         {
             sb.AppendLine("Asset Settings: Null");
+        }
+        else
+        {
+            if (GeneralSettings != null && GeneralSettings.bChangeMeshesOrTextures)
+            {
+                sb.AppendLine("Fix EBD's Global Script: " + TexMeshSettings.bApplyFixedScripts);
+                
+                if (TexMeshSettings.bApplyFixedScripts)
+                {
+                    string fixedScriptVer = string.Empty;
+                    switch(TexMeshSettings.bFixedScriptsOldSKSEversion)
+                    {
+                        case true: fixedScriptVer = "1.5.9.7 or Higher"; break;
+                        case false: fixedScriptVer = "<1.5.9.7"; break;
+                    }
+                    sb.AppendLine("Using Fixed Global Script For " + fixedScriptVer);
+                }
+
+                switch (TexMeshSettings.bLegacyEBDMode)
+                {
+                    case true: sb.AppendLine("Using original EBD face texture script"); break;
+                    case false: sb.AppendLine("Using SynthEBD's updated face texture script"); break;
+                }
+
+                sb.AppendLine("VR Only: Use PO3 script version: " + TexMeshSettings.bPO3ModeForVR);
+            }
         }
         if (BodyGenSettings == null)
         {
