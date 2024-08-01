@@ -52,6 +52,8 @@ public class PatcherState
             sb.AppendLine("Apply Height: " + GeneralSettings.bChangeHeight);
             sb.AppendLine("Apply Head Parts: " + GeneralSettings.bChangeHeadParts);
             sb.AppendLine("Use Consistency: " + GeneralSettings.bEnableConsistency);
+            sb.AppendLine("Output Folder: " + GeneralSettings.OutputDataFolder);
+            sb.AppendLine("Output File Name: " + GeneralSettings.PatchFileName);
         }
         if (TexMeshSettings == null)
         {
@@ -86,7 +88,7 @@ public class PatcherState
                 {
                     if (System.IO.File.Exists(ModManagerSettings.MO2Settings.ExecutablePath))
                     {
-                        sb.AppendLine("MO2 Path exists");
+                        sb.AppendLine("MO2 Path exists: " + ModManagerSettings.MO2Settings.ExecutablePath);
                     }
                     else
                     {
@@ -94,7 +96,7 @@ public class PatcherState
                     }
                     if (System.IO.Directory.Exists(ModManagerSettings.MO2Settings.ModFolderPath))
                     {
-                        sb.AppendLine("Mod Folder exists");
+                        sb.AppendLine("Mod Folder exists: " + ModManagerSettings.MO2Settings.ModFolderPath);
                     }
                     else
                     {
