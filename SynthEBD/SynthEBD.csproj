@@ -238,7 +238,6 @@
     <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.28.0" />
     <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.28.0" />
     <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.44.0" />
-    <PackageReference Include="Noggog.Autofac" Version="2.64.0" />
     <PackageReference Include="Pfim" Version="0.11.2" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
     <PackageReference Include="ReactiveUI.Events.WPF" Version="15.1.1" />
