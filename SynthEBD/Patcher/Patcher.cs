@@ -115,13 +115,20 @@ public class Patcher
         {
             if (_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty())
             {
+                _logger.LogMessage("A1");
                 _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
             }
             else
             {
+                _logger.LogMessage("A2");
                 _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
             }
         }
+        else
+        {
+            _logger.LogMessage("A3");
+        }
+        _logger.LogMessage("A checkpoint: " + _paths.OutputDataFolder);
 
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>().OrderBy(x => _converters.FormKeyStringToFormIDString(x.FormKey.ToString())).ToArray();

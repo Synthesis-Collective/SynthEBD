@@ -20,22 +20,28 @@ public class SettingsIO_General
         _logger.LogStartupEventStart("Loading general settings from disk");
         if (File.Exists(_paths.GeneralSettingsPath))
         {
+            _logger.LogMessage("B1");
             _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
             if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
             {
                 _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
+                _logger.LogMessage("B2");
             }
             else if (!loadSuccess)
             {
                 _logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
+                _logger.LogMessage("B3");
             }
         }
         else
         {
+            _logger.LogMessage("B4");
             _patcherState.GeneralSettings = new Settings_General();
             loadSuccess = true;
         }
         _logger.LogStartupEventEnd("Loading general settings from disk");
+
+        _logger.LogMessage("B5: " + _patcherState.GeneralSettings.OutputDataFolder);
 
         _patcherState.GeneralSettings.RaceGroupings = MiscValidation.CheckRaceGroupingDuplicates(_patcherState.GeneralSettings.RaceGroupings, "General Settings").ToList();
     }
