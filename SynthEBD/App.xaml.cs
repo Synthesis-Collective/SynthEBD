@@ -145,6 +145,8 @@ public partial class App : Application
         }
         //
 
+        var patcher = container.Resolve<Patcher>();
+
         // Output folder setting is handled via an Rx subscription in standalone mode; must be explicitly set in patcher mode
         if (!_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty() && Directory.Exists(_patcherState.GeneralSettings.OutputDataFolder))
         {
@@ -156,8 +158,7 @@ public partial class App : Application
         {
             _logger.LogMessage("Warning: outputting SynthEBD-associated files to data folder because no output folder was found in settings");
         }
-
-        var patcher = container.Resolve<Patcher>();
+        
         await patcher.RunPatcher();
     }
 
