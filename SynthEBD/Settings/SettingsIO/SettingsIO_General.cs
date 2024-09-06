@@ -1,3 +1,4 @@
+using Noggog;
 using System.IO;
 
 namespace SynthEBD;
@@ -21,11 +22,7 @@ public class SettingsIO_General
         if (File.Exists(_paths.GeneralSettingsPath))
         {
             _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
-            if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
-            {
-                _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
-            }
-            else if (!loadSuccess)
+            if (!loadSuccess)
             {
                 _logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
             }
@@ -36,6 +33,17 @@ public class SettingsIO_General
             loadSuccess = true;
         }
         _logger.LogStartupEventEnd("Loading general settings from disk");
+
+        if (!loadSuccess ||
+            _patcherState.GeneralSettings.OutputDataFolder.IsNullOrWhitespace() ||
+            !Directory.Exists(_patcherState.GeneralSettings.OutputDataFolder))
+        {
+            _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
+        }
+        else
+        {
+            _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
+        }
 
         _patcherState.GeneralSettings.RaceGroupings = MiscValidation.CheckRaceGroupingDuplicates(_patcherState.GeneralSettings.RaceGroupings, "General Settings").ToList();
     }
