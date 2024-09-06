@@ -51,7 +51,7 @@ public class SettingsIO_General
         }
 
 
-        _logger.LogMessage("B5: " + _patcherState.GeneralSettings.OutputDataFolder);
+        _logger.LogMessage("B5: " + _paths.OutputDataFolder);
 
         _patcherState.GeneralSettings.RaceGroupings = MiscValidation.CheckRaceGroupingDuplicates(_patcherState.GeneralSettings.RaceGroupings, "General Settings").ToList();
     }
