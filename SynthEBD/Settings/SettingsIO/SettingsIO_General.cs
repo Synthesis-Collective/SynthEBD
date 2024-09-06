@@ -1,3 +1,4 @@
+using Noggog;
 using System.IO;
 
 namespace SynthEBD;
@@ -22,24 +23,33 @@ public class SettingsIO_General
         {
             _logger.LogMessage("B1");
             _patcherState.GeneralSettings = JSONhandler<Settings_General>.LoadJSONFile(_paths.GeneralSettingsPath, out loadSuccess, out string exceptionStr);
-            if(loadSuccess && string.IsNullOrWhiteSpace(_paths.OutputDataFolder))
-            {
-                _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
-                _logger.LogMessage("B2");
-            }
-            else if (!loadSuccess)
+            if (!loadSuccess)
             {
                 _logger.LogError("Could not parse General Settings. Error: " + exceptionStr);
-                _logger.LogMessage("B3");
+                _logger.LogMessage("B2");
             }
         }
         else
         {
-            _logger.LogMessage("B4");
+            _logger.LogMessage("B3");
             _patcherState.GeneralSettings = new Settings_General();
             loadSuccess = true;
         }
         _logger.LogStartupEventEnd("Loading general settings from disk");
+
+        if (!loadSuccess || 
+            _patcherState.GeneralSettings.OutputDataFolder.IsNullOrWhitespace() || 
+            !Directory.Exists(_patcherState.GeneralSettings.OutputDataFolder))
+        {
+            _paths.OutputDataFolder = _environmentProvider.DataFolderPath;
+            _logger.LogMessage("B4A");
+        }
+        else
+        {
+            _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
+            _logger.LogMessage("B4B");
+        }
+
 
         _logger.LogMessage("B5: " + _patcherState.GeneralSettings.OutputDataFolder);
 
