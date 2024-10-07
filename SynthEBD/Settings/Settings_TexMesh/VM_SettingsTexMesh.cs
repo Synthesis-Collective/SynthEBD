@@ -526,7 +526,7 @@ public class VM_SettingsTexMesh : VM
 
         if (toUpdate.Any())
         {
-            string messageStr = "The following Config Files appear to have been generated prior to Version " + version + "." +
+            string messageStr = "The following Config Files appear to have been generated prior to Version " + GetVersionString(version) + "." +
                 Environment.NewLine + "Do you want to update them for compatibility with the current SynthEBD version?" +
                 Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
                 Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
@@ -539,6 +539,17 @@ public class VM_SettingsTexMesh : VM
                 }
             }
         }
+    }
+
+    private string GetVersionString(Version version)
+    {
+        var verStr = version.ToString();
+        if (verStr.StartsWith('v'))
+        {
+            verStr = verStr.Substring(1);
+        }
+
+        return string.Join('.', verStr.ToArray());
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)

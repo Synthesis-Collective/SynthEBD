@@ -711,6 +711,24 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
             }
         }
 
+        if (version == Version.v1038)
+        {
+            foreach (var path in AssociatedModel.Paths)
+            {
+                if (path.Destination.Contains(".RawPath"))
+                {
+                    switch (updateAction)
+                    {
+                        case UpdateMode.Check:
+                            return true;
+                        case UpdateMode.Perform:
+                            path.Destination = path.Destination.Replace(".RawPath", ".GivenPath");
+                            break;
+                    }
+                }
+            }
+        }
+
         foreach (var subgroup in Subgroups)
         {
             bool bUpdate = subgroup.VersionUpdate(version, updateAction);
