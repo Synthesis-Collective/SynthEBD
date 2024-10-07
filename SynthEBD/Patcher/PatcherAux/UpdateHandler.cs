@@ -274,11 +274,11 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        { "Diffuse", "Diffuse.RawPath" },
-        { "NormalOrGloss", "NormalOrGloss.RawPath" },
-        { "GlowOrDetailMap", "GlowOrDetailMap.RawPath" },
-        { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.RawPath" },
-        { "Height", "Height.RawPath" }
+        { "Diffuse", "Diffuse.GivenPath" },
+        { "NormalOrGloss", "NormalOrGloss.GivenPath" },
+        { "GlowOrDetailMap", "GlowOrDetailMap.GivenPath" },
+        { "BacklightMaskOrSpecular", "BacklightMaskOrSpecular.GivenPath" },
+        { "Height", "Height.GivenPath" }
     };
 
     public HashSet<string> v1012UniqueNameExclusions { get; set; } = new(StringComparer.OrdinalIgnoreCase)

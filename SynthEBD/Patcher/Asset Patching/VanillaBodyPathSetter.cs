@@ -303,8 +303,8 @@ public class VanillaBodyPathSetter
 
         switch (currentGender)
         {
-            case Gender.Female: return armaGetter.WorldModel?.Female?.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
-            case Gender.Male: return armaGetter.WorldModel?.Male?.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
+            case Gender.Female: return armaGetter.WorldModel?.Female?.File.GivenPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
+            case Gender.Male: return armaGetter.WorldModel?.Male?.File.GivenPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
             default: return true;
         }
     }
@@ -316,8 +316,8 @@ public class VanillaBodyPathSetter
 
     private bool ArmaturePathAssignedFromConfig(IArmorAddonGetter armaGetter, Gender currentGender)
     {
-        if (currentGender == Gender.Female && armaGetter.WorldModel?.Female?.File.RawPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Female.File.RawPath) ||
-            (currentGender == Gender.Male && armaGetter.WorldModel?.Male?.File.RawPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Male.File.RawPath)))
+        if (currentGender == Gender.Female && armaGetter.WorldModel?.Female?.File.GivenPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Female.File.GivenPath) ||
+            (currentGender == Gender.Male && armaGetter.WorldModel?.Male?.File.GivenPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Male.File.GivenPath)))
         {
             return true;
         }

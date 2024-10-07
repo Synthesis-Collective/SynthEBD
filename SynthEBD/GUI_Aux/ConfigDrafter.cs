@@ -1446,7 +1446,7 @@ namespace SynthEBD
             vectorPlexusRegular.AssociatedModel.Paths.Add(new()
             {
                 Source = "meshes\\actors\\character\\character assets\\TNG\\r_genitals_1.nif",
-                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.GivenPath"
             });
 
             VM_SubgroupPlaceHolder vectorPlexusMuscular = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM.VM", "VectorPlexus Muscular"), topLevelTNG, config, topLevelTNG.Subgroups);
@@ -1454,7 +1454,7 @@ namespace SynthEBD
             vectorPlexusMuscular.AssociatedModel.Paths.Add(new()
             {
                 Source = "meshes\\actors\\character\\character assets\\TNG\\m_genitals_1.nif",
-                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.GivenPath"
             });
             vectorPlexusMuscular.AssociatedModel.AllowedAttributes.Add(new()
             {
@@ -1474,7 +1474,7 @@ namespace SynthEBD
             smurfAverage.AssociatedModel.Paths.Add(new()
             {
                 Source = "meshes\\actors\\character\\character assets\\TNG\\c_genitals_1.nif",
-                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.RawPath"
+                Destination = "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].WorldModel.Male.File.GivenPath"
             });
         }
 

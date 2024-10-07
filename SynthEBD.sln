@@ -5,10 +5,6 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SynthEBD", "SynthEBD\SynthEBD.csproj", "{B28A99EA-8407-4F6B-A1E4-88D4F9F02D28}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SynthEBD.Tests", "SynthEBD.Tests\SynthEBD.Tests.csproj", "{C3F773A1-8EE3-47E3-8AAF-FBA5790A34C4}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatchConfigUpdater", "BatchConfigUpdater\BatchConfigUpdater.csproj", "{8DE09CAF-160D-48E7-9D57-79EDCE126804}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,14 +15,6 @@ Global
 		{B28A99EA-8407-4F6B-A1E4-88D4F9F02D28}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B28A99EA-8407-4F6B-A1E4-88D4F9F02D28}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B28A99EA-8407-4F6B-A1E4-88D4F9F02D28}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C3F773A1-8EE3-47E3-8AAF-FBA5790A34C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C3F773A1-8EE3-47E3-8AAF-FBA5790A34C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C3F773A1-8EE3-47E3-8AAF-FBA5790A34C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C3F773A1-8EE3-47E3-8AAF-FBA5790A34C4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8DE09CAF-160D-48E7-9D57-79EDCE126804}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8DE09CAF-160D-48E7-9D57-79EDCE126804}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8DE09CAF-160D-48E7-9D57-79EDCE126804}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8DE09CAF-160D-48E7-9D57-79EDCE126804}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

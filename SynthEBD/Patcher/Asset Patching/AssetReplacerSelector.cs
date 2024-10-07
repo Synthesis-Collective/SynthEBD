@@ -130,7 +130,7 @@ namespace SynthEBD
         {
             foreach (var part in npc.HeadParts)
             {
-                if (linkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && linkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.DataRelativePath.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
+                if (linkCache.TryResolve<IHeadPartGetter>(part.FormKey, out var headPartGetter) && linkCache.TryResolve<ITextureSetGetter>(headPartGetter.TextureSet.FormKey, out var headPartTextureSetGetter) && headPartTextureSetGetter.Diffuse.DataRelativePath.Path.Equals(diffusePath, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
