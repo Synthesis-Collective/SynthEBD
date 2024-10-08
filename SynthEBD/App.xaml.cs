@@ -244,11 +244,11 @@ public partial class App : Application
         }
 
         var errorMessage = sb.ToString();
-        MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
-
-        var path = Path.Combine(_settingsSourceProvider.DefaultSettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+        var path = Path.Combine(_settingsSourceProvider.GetCurrentSettingsRootPath(), "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
         PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
+
+        MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
         e.Handled = true;
 
