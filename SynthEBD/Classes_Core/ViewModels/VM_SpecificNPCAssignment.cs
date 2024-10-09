@@ -147,8 +147,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             SubscribedBodyGenSettings.WhenAnyValue(x => x.CurrentFemaleConfig),
             (a, b, c, d, e, f, g) => { return Unit.Default; })
             .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
-            //.Subscribe(_ => UpdateAvailableMorphs(this))
-            .Subscribe(_ => MessageBox.Show("Combined Subscription"))
+            .Subscribe(_ => UpdateAvailableMorphs(this))
             .DisposeWith(this);
 
         this.WhenAnyValue(x => x.ForcedAssetPack).Subscribe(x =>
