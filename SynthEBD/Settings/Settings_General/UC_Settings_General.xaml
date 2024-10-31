@@ -104,14 +104,14 @@
             <CheckBox Grid.Column="2" Grid.Row="11" IsChecked="{Binding Path=SettingsSourceProvider.UsePortableSettings, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Column="0" Grid.Row="12" ToolTip="Folder from which settings should be loaded. Must be named SynthEBD." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">Portable Settings Folder</TextBlock>
-            <StackPanel Grid.Column="2" Grid.Row="12" Orientation="Horizontal">
+            <StackPanel Grid.Column="2" Grid.Row="12" Orientation="Horizontal" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">
                 <Button VerticalAlignment="Center" Command="{Binding SelectPortableSettingsFolder}"  Foreground="LightGreen">Search</Button>
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding Path=SettingsSourceProvider.PortableSettingsFolder, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
                 <Button VerticalAlignment="Center" Command="{Binding ClearPortableSettingsFolder}" Foreground="Firebrick">Clear</Button>
             </StackPanel>
 
-            <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Generate this in EasyNPC by going to Profile, and click the disk icon on the top right." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">EasyNPC Profile Path</TextBlock>
-            <StackPanel Grid.Column="2" Grid.Row="13" Orientation="Horizontal" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">
+            <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Generate this in EasyNPC by going to Profile, and click the disk icon on the top right." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Profile Path</TextBlock>
+            <StackPanel Grid.Column="2" Grid.Row="13" Orientation="Horizontal">
                 <Button VerticalAlignment="Center" Command="{Binding SelectEasyNPCProfile}"  Foreground="LightGreen">Search</Button>
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding EasyNPCprofilePath, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
                 <Button VerticalAlignment="Center" Command="{Binding ClearEasyNPCProfile}" Foreground="Firebrick">Clear</Button>
