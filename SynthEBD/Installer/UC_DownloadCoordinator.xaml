@@ -14,13 +14,16 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">Please download the required resources and navigate to them using the interface below</TextBlock>
 
-        <ScrollViewer Grid.Row="1" Grid.Column="0">
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding SelectFromFolder}" Foreground="Aqua" HorizontalAlignment="Left" Margin="0 5 0 5" ToolTip="Search for the required downloads in a folder. Files will be found as long as their name matches the expected downloaded file name." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Search Folder for Downloads</Button>
+
+        <ScrollViewer Grid.Row="2" Grid.Column="0">
             <ItemsControl ItemsSource="{Binding DownloadInfo}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_DownloadCoordinator+VM_DownloadInfo}">
@@ -60,7 +63,7 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
-        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
+        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
             <Button Command="{Binding OK}" Foreground="LightGreen" Margin="0 0 10 0">Finish</Button>
             <Button Command="{Binding Cancel}" Foreground="Firebrick">Cancel</Button>
         </StackPanel>

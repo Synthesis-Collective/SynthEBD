@@ -48,11 +48,36 @@ public class VM_DownloadCoordinator : VM
                 }
             }
         );
+
+        SelectFromFolder = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFolder("", out var sourceFolder) && sourceFolder != null)
+                {
+                    if (!Directory.Exists(sourceFolder))
+                    {
+                        MessageWindow.DisplayNotificationOK("Error", "Directory " + sourceFolder + " does not exist.");
+                        return;
+                    }
+
+                    foreach (var DI in DownloadInfo)
+                    {
+                        var trialPath = Path.Combine(sourceFolder, DI.ExpectedFileName);
+                        if (File.Exists(trialPath))
+                        {
+                            DI.Path = trialPath;
+                        }  
+                    }
+                }
+            }
+        );
     }
 
     public ObservableCollection<VM_DownloadInfo> DownloadInfo { get; set; } = new();
     public RelayCommand Cancel { get; }
     public RelayCommand OK { get; }
+    public RelayCommand SelectFromFolder { get; }
 
     public class VM_DownloadInfo : VM
     {
