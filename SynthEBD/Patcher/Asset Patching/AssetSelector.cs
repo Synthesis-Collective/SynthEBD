@@ -241,7 +241,7 @@ public class AssetSelector
                 return null;
             }
 
-            _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
+            _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
 
             if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
             {
