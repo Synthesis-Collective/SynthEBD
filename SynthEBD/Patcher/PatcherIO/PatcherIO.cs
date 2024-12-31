@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Mutagen.Bethesda.Skyrim;
 using System.IO;
+using Mutagen.Bethesda.Plugins.Analysis.DI;
+using Mutagen.Bethesda.Plugins.Exceptions;
 
 namespace SynthEBD;
 
@@ -81,18 +83,49 @@ public class PatcherIO
         try
         {
             logger.LogMessage("Writing output file to " + patchOutputPath + ".");
-            var writeParams = new Mutagen.Bethesda.Plugins.Binary.Parameters.BinaryWriteParameters()
+            try
             {
-                MastersListOrdering = new Mutagen.Bethesda.Plugins.Binary.Parameters.MastersListOrderingByLoadOrder(environmentProvider.LoadOrder)
-            };
-            outputMod.WriteToBinary(patchOutputPath, writeParams);
+                outputMod.BeginWrite
+                    .ToPath(patchOutputPath)
+                    .WithDefaultLoadOrder()
+                    .WriteAsync();
+            }
+            catch (TooManyMastersException)
+            {
+                logger.LogMessage(
+                    "Too many masters for a single plugin file. Attempting to split the output to multiple plugins: ");
+                MultiModFileSplitter splitter = new();
+                var splitOutputs = splitter.Split<ISkyrimMod, ISkyrimModGetter>(outputMod, 255);
+
+                logger.LogMessage("New output files: " + string.Join(", ",
+                    splitOutputs
+                        .Select(x => x.ModKey.FileName + " (" + x.ModHeader.MasterReferences.Count + " Masters)")
+                        .ToArray()));
+
+                string? parentDir = Path.GetDirectoryName(patchOutputPath);
+                if (parentDir == null)
+                {
+                    logger.LogError(
+                        "Failed to patch - could not write to expected path's directory: " + patchOutputPath);
+                    return;
+                }
+
+                foreach (var splitMod in splitOutputs)
+                {
+                    var outputPath = Path.Combine(parentDir, splitMod.ModKey.FileName);
+                    splitMod.BeginWrite
+                        .ToPath(outputPath)
+                        .WithDefaultLoadOrder()
+                        .WriteAsync();
+                }
+            }
         }
         catch (Exception e)
         {
             errStr = ExceptionLogger.GetExceptionStack(e);
             logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
-            logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error); 
-        };
+            logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
+        }
     }
 
     public bool TryCopyResourceFile(string sourcePath, string destPath, Logger logger)
