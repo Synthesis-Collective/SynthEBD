@@ -87,7 +87,7 @@ public class PatcherIO
             {
                 outputMod.BeginWrite
                     .ToPath(patchOutputPath)
-                    .WithDefaultLoadOrder()
+                    .WithLoadOrder(environmentProvider.LoadOrder)
                     .Write();
             }
             catch (TooManyMastersException)
@@ -115,7 +115,7 @@ public class PatcherIO
                     var outputPath = Path.Combine(parentDir, splitMod.ModKey.FileName);
                     splitMod.BeginWrite
                         .ToPath(outputPath)
-                        .WithDefaultLoadOrder()
+                        .WithLoadOrder(environmentProvider.LoadOrder)
                         .Write();
                 }
             }
