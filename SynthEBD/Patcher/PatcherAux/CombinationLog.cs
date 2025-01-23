@@ -149,7 +149,7 @@ public class CombinationLog
         }
     }
 
-    public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
+    public void LogAssignment(NPCInfo npcInfo, List<SimplifiedSubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
@@ -157,7 +157,7 @@ public class CombinationLog
 
         foreach (var combination in combinations)
         {
-            switch (combination.AssetPack.Type)
+            switch (combination.AssetPackType)
             {
                 case FlattenedAssetPack.AssetPackType.Primary: combinationDict = AssignedPrimaryCombinations; break;
                 case FlattenedAssetPack.AssetPackType.MixIn: combinationDict = AssignedMixInCombinations; break;
@@ -182,13 +182,13 @@ public class CombinationLog
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
             if (currentCombinationRecord == null)
             {
-                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.DeepNamesString).ToList() };
+                currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.SubgroupDeepNames };
                 currentAssetPackCombinations.Add(currentCombinationRecord);
             }
 
             currentCombinationRecord.NPCsAssignedTo.Add(npcInfo.LogIDstring);
 
-            var pathsForThisCombination = assignedPaths.Where(x => x.ParentCombination.Signature == combination.Signature).ToArray();
+            var pathsForThisCombination = assignedPaths.Where(x => x.ParentCombinationSignature == combination.Signature).ToArray();
             foreach (var recordSet in pathsForThisCombination.Select(x => x.TraversedRecords).ToArray())
             {
                 foreach (var recordInfo in recordSet)
@@ -200,14 +200,16 @@ public class CombinationLog
                 }
             }
 
-            combination.AssetPack.AssignmentCount++;
-            foreach (var subgroup in combination.ContainedSubgroups)
-            {
-                subgroup.AssignmentCount++;
-            }
+            //combination.AssetPack.AssignmentCount++;
+            //foreach (var subgroup in combination.ContainedSubgroups)
+            //{
+            //    subgroup.AssignmentCount++;
+            //}
         }
     }
 }
+
+
 
 public class CombinationInfo
 {

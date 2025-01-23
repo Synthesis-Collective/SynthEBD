@@ -309,9 +309,9 @@ public class VanillaBodyPathSetter
         }
     }
 
-    public void RegisterAssetAssignedMeshes(List<SubgroupCombination> assignedCombinations)
+    public void RegisterAssetAssignedMeshes(List<SimplifiedSubgroupCombination> assignedCombinations)
     {
-        ArmatureNifsFromAssets.UnionWith(assignedCombinations.SelectMany(x => x.ContainedSubgroups).SelectMany(x => x.Paths).Select(x => x.Source).Where(x => x.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)));
+        ArmatureNifsFromAssets.UnionWith(assignedCombinations.SelectMany(x => x.FilePathReplacements).Select(x => x.Source).Where(x => x.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)));
     }
 
     private bool ArmaturePathAssignedFromConfig(IArmorAddonGetter armaGetter, Gender currentGender)

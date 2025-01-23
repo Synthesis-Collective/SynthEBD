@@ -36,7 +36,7 @@ public class HardcodedRecordGenerator
             {
                 foreach (var path in subgroup.Paths)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
+                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination.Signature, _logger);
 
                     if (!_patcherState.TexMeshSettings.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
                     if (!_patcherState.TexMeshSettings.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
@@ -607,7 +607,7 @@ public class HardcodedRecordGenerator
             {
                 foreach (var path in subgroup.Paths)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
+                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination.Signature, _logger);
 
                     nonHardcodedPaths.Add(parsed);
                     if (parsed.Destination.Length > longestPath)

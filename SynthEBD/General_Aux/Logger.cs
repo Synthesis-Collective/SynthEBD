@@ -9,6 +9,8 @@ using Noggog;
 using System.Reflection;
 using System.IO;
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
+using System.Windows;
 
 namespace SynthEBD;
 
@@ -31,6 +33,10 @@ public sealed class Logger : VM
     public string StatusString { get; set; }
     public string BackupStatusString { get; set; }
     public ObservableCollection<string> LoggedEvents { get; set; } = new();
+    // parallel updates
+    private readonly ConcurrentQueue<string> _logQueue = new();
+    private static readonly object _consoleLock = new();
+    //
     public string LogString => string.Join(Environment.NewLine, LoggedEvents);
     public SolidColorBrush StatusColor { get; set; }
     public SolidColorBrush BackupStatusColor { get; set; }
@@ -78,8 +84,22 @@ public sealed class Logger : VM
     {
         switch (_environmentProvider.LoggerMode)
         {
-            case LogMode.SynthEBD: LoggedEvents.Add(message); break;
-            case LogMode.Synthesis: Console.WriteLine(message); break;
+            case LogMode.SynthEBD:
+                _logQueue.Enqueue(message);
+                Application.Current.Dispatcher.BeginInvoke(() =>
+                {
+                    while (_logQueue.TryDequeue(out string queuedMessage))
+                    {
+                        LoggedEvents.Add(queuedMessage);
+                    }
+                });
+                break;
+            case LogMode.Synthesis:
+                lock (_consoleLock)
+                {
+                    Console.WriteLine(message);
+                }
+                break;
         }
     }
 

@@ -5,6 +5,7 @@ using Mutagen.Bethesda.Plugins.Records;
 using Loqui;
 using Mutagen.Bethesda.Plugins.Cache;
 using Noggog;
+using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
@@ -660,18 +661,15 @@ public class RecordGenerator
 
     private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
 
-    public static void AddCustomKeywordsToNPC(List<SubgroupCombination> assignedCombinations, Npc npc, ISkyrimMod outputMod)
+    public static void AddCustomKeywordsToNPC(List<SimplifiedSubgroupCombination> assignedCombinations, Npc npc, ISkyrimMod outputMod)
     {
         foreach (var combination in assignedCombinations)
         {
-            foreach (var subgroup in combination.ContainedSubgroups)
+            foreach (var keyword in combination.AddKeywords)
             {
-                foreach (var keyword in subgroup.AddKeywords)
+                if (!string.IsNullOrWhiteSpace(keyword))
                 {
-                    if (!string.IsNullOrWhiteSpace(keyword))
-                    {
-                        AddKeywordToNPC(npc, keyword, outputMod);
-                    }
+                    AddKeywordToNPC(npc, keyword, outputMod);
                 }
             }
         }
