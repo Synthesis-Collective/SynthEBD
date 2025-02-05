@@ -21,7 +21,11 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White">Please download the required resources and navigate to them using the interface below</TextBlock>
 
-        <Button Grid.Row="1" Grid.Column="0" Command="{Binding SelectFromFolder}" Foreground="Aqua" HorizontalAlignment="Left" Margin="0 5 0 5" ToolTip="Search for the required downloads in a folder. Files will be found as long as their name matches the expected downloaded file name." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Search Folder for Downloads</Button>
+        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+            <Button Command="{Binding SelectFromFolder}" Foreground="Aqua" HorizontalAlignment="Left" Margin="0 5 0 5" ToolTip="Search for the required downloads in a folder. Files will be found as long as their name matches the expected downloaded file name." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Search Folder for Downloads</Button>
+            <CheckBox Margin="5 0 0 0" IsChecked="{Binding SelectFromFolderRecursive}">Search Subfolders</CheckBox>
+        </StackPanel>
+        
 
         <ScrollViewer Grid.Row="2" Grid.Column="0">
             <ItemsControl ItemsSource="{Binding DownloadInfo}">

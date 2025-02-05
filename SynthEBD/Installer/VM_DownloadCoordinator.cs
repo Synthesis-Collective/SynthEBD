@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -61,14 +62,7 @@ public class VM_DownloadCoordinator : VM
                         return;
                     }
 
-                    foreach (var DI in DownloadInfo)
-                    {
-                        var trialPath = Path.Combine(sourceFolder, DI.ExpectedFileName);
-                        if (File.Exists(trialPath))
-                        {
-                            DI.Path = trialPath;
-                        }  
-                    }
+                    PopulateDownloadInfo(sourceFolder, DownloadInfo, SelectFromFolderRecursive);
                 }
             }
         );
@@ -78,6 +72,28 @@ public class VM_DownloadCoordinator : VM
     public RelayCommand Cancel { get; }
     public RelayCommand OK { get; }
     public RelayCommand SelectFromFolder { get; }
+    public bool SelectFromFolderRecursive { get; set; }
+
+    public static void PopulateDownloadInfo(string folderPath, ObservableCollection<VM_DownloadInfo> DownloadInfo, bool recursive)
+    {
+        foreach (var DI in DownloadInfo.Where(x => x.Path.IsNullOrWhitespace()).ToArray())
+        {
+            var trialPath = Path.Combine(folderPath, DI.ExpectedFileName);
+            if (File.Exists(trialPath))
+            {
+                DI.Path = trialPath;
+            }
+        }
+
+        if (recursive)
+        {
+            var directories = Directory.GetDirectories(folderPath);
+            foreach (var directory in directories)
+            {
+                PopulateDownloadInfo(directory, DownloadInfo, recursive);
+            }
+        }
+    }
 
     public class VM_DownloadInfo : VM
     {
