@@ -221,7 +221,6 @@ public class VM_ConfigPathRemapper : VM
     private List<string> _filesMatchedByHash_Existing { get; set; } = new();
     private List<string> _filesMatchedByHash_New { get; set; } = new(); // paths in the new mod that got matched by hash to files in the previous version
     private List<string> _unmatchedPaths_Current { get; set; } = new(); // paths in the current config file that do not have a hash match in the new mod
-    private List<string> _unmatchedPaths_New { get; set; } = new(); // paths in the new mod that do not have a hash match in the current config file
     private List<string> _allFiles_New { get; set; } = new();
     public ObservableCollection<SelectableFilePath> NewFilesUnmatched { get; set; } = new();
     public ObservableCollection<RemappedSubgroup> SubgroupsRemappedByPathPrediction { get; set; } = new();
@@ -438,11 +437,27 @@ public class VM_ConfigPathRemapper : VM
     private void PredictUpdatesByPathSimilarity()
     {
         var allFiles_New_RelativePaths = _allFiles_New.Select(x => Path.GetRelativePath(NewAssetDirectory, x)).ToList();
-        _unmatchedPaths_New = allFiles_New_RelativePaths.Where(x => !_filesMatchedByHash_New.Contains(x)).ToList();
+        var unmatchedPaths_New = allFiles_New_RelativePaths.Where(x => !_filesMatchedByHash_New.Contains(x)).ToList();
+        List<string> ejectedPaths = new();
 
+        PredictUpdatesByPathSimilarity(unmatchedPaths_New, ejectedPaths);
+
+        if (ejectedPaths.Any())
+        {
+            List<string> ejectedPaths2 = new();
+            PredictUpdatesByPathSimilarity(ejectedPaths, ejectedPaths2);
+            foreach (var ejectedPath in ejectedPaths2)
+            {
+                // record no prediction
+                NewFilesUnmatched.Add(new(ejectedPath, false));
+            }
+        }
+    }
+
+    private void PredictUpdatesByPathSimilarity(List<string> candidatePaths, List<string> ejectedPaths)
+    {
         var subgroups = _parentAssetPack.GetAllSubgroups();
-
-        foreach (var unmatchedPath in _unmatchedPaths_New)
+        foreach (var unmatchedPath in candidatePaths)
         {
             string currentFileName = Path.GetFileName(unmatchedPath);
             List<string> matchingPaths = new();
@@ -492,14 +507,19 @@ public class VM_ConfigPathRemapper : VM
                                 if (pathEntry.OldPath.IsNullOrEmpty() || matchingDirNamesCount > GetMatchingDirCount(pathEntry.OldPath, unmatchedPath))
                                 {
                                     pathEntry.OldPath = pathToUpdate.Source;
+
+                                    if (!pathEntry.NewPath.IsNullOrEmpty() && !ejectedPaths.Contains(pathEntry.NewPath)) // if a previous unmatched path was assigned to this subgroup but the new unmatched path is a better match, keep the old one and recirculate.
+                                    {
+                                        ejectedPaths.Add(pathEntry.NewPath);
+                                    }
+                                    
                                     pathEntry.NewPath = unmatchedPath;
                                     pathEntry.CandidateNewPaths = NewPathsByFileName[Path.GetFileName(unmatchedPath)];
+                                    predictionMade = true;
                                 }
                             }
                         }
                     }
-
-                    predictionMade = true;
                 }
             }
             
