@@ -449,7 +449,9 @@ public class VM_ConfigPathRemapper : VM
             foreach (var ejectedPath in ejectedPaths2)
             {
                 // record no prediction
-                NewFilesUnmatched.Add(new(ejectedPath, false));
+                bool isLikelyCharacterTexture = FilePathDestinationMap.FileNameToDestMap.Any(x =>
+                    x.Key.Equals(Path.GetFileName(ejectedPath), StringComparison.OrdinalIgnoreCase));
+                NewFilesUnmatched.Add(new(ejectedPath, isLikelyCharacterTexture));
             }
         }
     }
@@ -526,7 +528,9 @@ public class VM_ConfigPathRemapper : VM
             if (!predictionMade)
             {
                 // record no prediction
-                NewFilesUnmatched.Add(new(unmatchedPath, false));
+                bool isLikelyCharacterTexture = FilePathDestinationMap.FileNameToDestMap.Any(x =>
+                    x.Key.Equals(Path.GetFileName(unmatchedPath), StringComparison.OrdinalIgnoreCase));
+                NewFilesUnmatched.Add(new(unmatchedPath, isLikelyCharacterTexture));
             }
         }
     }
