@@ -177,17 +177,23 @@ public class Settings_General
 
     public List<RaceAlias> RaceAliases { get; set; } = new()
     {
-        new RaceAlias()
-        {
-            Race = Skyrim.Race.DA13AfflictedRace.FormKey,
-            AliasRace = Skyrim.Race.BretonRace.FormKey,
-            bMale = true,
-            bFemale = true,
-            bApplyToAssets = false,
-            bApplyToBodyGen = true,
-            bApplyToHeight = true,
-            bApplyToHeadParts = true
-        },
+        DefaultRaceAliases.RaceAliasAfflicted,
+        DefaultRaceAliases.RaceAliasCotR_Breton,
+        DefaultRaceAliases.RaceAliasCotR_BretonVampire,
+        DefaultRaceAliases.RaceAliasCotR_DarkElf,
+        DefaultRaceAliases.RaceAliasCotR_DarkElfVampire,
+        DefaultRaceAliases.RaceAliasCotR_HighElf,
+        DefaultRaceAliases.RaceAliasCotR_HighElfVampire,
+        DefaultRaceAliases.RaceAliasCotR_Imperial,
+        DefaultRaceAliases.RaceAliasCotR_Imperial,
+        DefaultRaceAliases.RaceAliasCotR_Nord,
+        DefaultRaceAliases.RaceAliasCotR_NordVampire,
+        DefaultRaceAliases.RaceAliasCotR_Orc,
+        DefaultRaceAliases.RaceAliasCotR_OrcVampire,
+        DefaultRaceAliases.RaceAliasCotR_Redguard,
+        DefaultRaceAliases.RaceAliasCotR_RedguardVampire,
+        DefaultRaceAliases.RaceAliasCotR_WoodElf,
+        DefaultRaceAliases.RaceAliasCotR_WoodElfVampire
     };
 
     public List<RaceGrouping> RaceGroupings { get; set; } = new()

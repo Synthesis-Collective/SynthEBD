@@ -45,6 +45,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1025RaceGroupings();
         UpdateV1028Toggle();
         UpdateV1032AttributeGroups();
+        UpdateV1048RaceAliases();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -272,6 +273,108 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    private void UpdateV1048RaceAliases()
+    {
+        if (_patcherState.UpdateLog.Performed1_0_4_8_RaceAliasCOTRUpdates)
+        {
+            return;
+        }
+        
+        // first update attribute group:
+        var attGroup = _generalVM.AttributeGroupMenu.Groups
+            .FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
+        if (attGroup != null)
+        {
+            var cotrMods = attGroup.Attributes.FirstOrDefault((x => x.GroupedSubAttributes.FirstOrDefault() != null
+                && x.GroupedSubAttributes.FirstOrDefault().Attribute as VM_NPCAttributeMod != null)
+                ).GroupedSubAttributes.First().Attribute as VM_NPCAttributeMod;
+            
+            if (cotrMods != null)
+            {
+                var erroneous = cotrMods.ModKeys.FirstOrDefault(x => x.FileName == "0AuriReplacer.esp.esp");
+                if (erroneous != null)
+                {
+                    cotrMods.ModKeys.Remove(erroneous);
+                    cotrMods.ModKeys.Add(ModKey.TryFromFileName("0AuriReplacer.esp").Value);
+                }
+                
+                var gentle = cotrMods.ModKeys.FirstOrDefault(x => x.FileName == "Gentle Auri.esp");
+                if (gentle == null)
+                {
+                    cotrMods.ModKeys.Add(ModKey.TryFromFileName("Gentle Auri.esp").Value);
+                }
+            }
+        }
+        
+        // then upate aliases
+        List<string> cotrRaceStrs = new()
+        {
+            "005734:COR_AllRace.esp",
+            "005735:COR_AllRace.esp",
+            "05A179:COR_AllRace.esp",
+            "05A17A:COR_AllRace.esp",
+            "05A184:COR_AllRace.esp",
+            "05A185:COR_AllRace.esp",
+            "05A18E:COR_AllRace.esp",
+            "05A18F:COR_AllRace.esp",
+            "05A198:COR_AllRace.esp",
+            "05A199:COR_AllRace.esp",
+            "05A1A2:COR_AllRace.esp",
+            "05A1A3:COR_AllRace.esp",
+            "05A1AC:COR_AllRace.esp",
+            "05A1AD:COR_AllRace.esp",
+            "05A1B0:COR_AllRace.esp",
+            "05A1B1:COR_AllRace.esp"
+        };
+
+        List<string> toUpdateCOTRAliases = new();
+
+        HashSet<RaceAlias> cotrRaceAliases = new()
+        {
+            DefaultRaceAliases.RaceAliasCotR_Breton,
+            DefaultRaceAliases.RaceAliasCotR_BretonVampire,
+            DefaultRaceAliases.RaceAliasCotR_DarkElf,
+            DefaultRaceAliases.RaceAliasCotR_DarkElfVampire,
+            DefaultRaceAliases.RaceAliasCotR_HighElf,
+            DefaultRaceAliases.RaceAliasCotR_HighElfVampire,
+            DefaultRaceAliases.RaceAliasCotR_Imperial,
+            DefaultRaceAliases.RaceAliasCotR_Imperial,
+            DefaultRaceAliases.RaceAliasCotR_Nord,
+            DefaultRaceAliases.RaceAliasCotR_NordVampire,
+            DefaultRaceAliases.RaceAliasCotR_Orc,
+            DefaultRaceAliases.RaceAliasCotR_OrcVampire,
+            DefaultRaceAliases.RaceAliasCotR_Redguard,
+            DefaultRaceAliases.RaceAliasCotR_RedguardVampire,
+            DefaultRaceAliases.RaceAliasCotR_WoodElf,
+            DefaultRaceAliases.RaceAliasCotR_WoodElfVampire
+        };
+        
+        foreach (string cotrFormKeyStr in cotrRaceStrs)
+        {
+            if (!_patcherState.GeneralSettings.RaceAliases.Any(x => x.Race.ToString() == cotrFormKeyStr))
+            {
+                toUpdateCOTRAliases.Add(cotrFormKeyStr);
+            }
+        }
+
+        if (toUpdateCOTRAliases.Any())
+        {
+            if (MessageWindow.DisplayNotificationYesNo("Update Race Aliases?",
+                    "Some config files now have Charmers of the Reach support. Would you like to update your Race Aliases to support the default CotR Vanilla Races? Press yes if you want to make sure SynthEBD patches NPCs using CotR faces when CotR-supporting config files are installed."))
+            {
+                foreach (var formKeyStr in toUpdateCOTRAliases)
+                {
+                    var correspondingAlias = cotrRaceAliases.FirstOrDefault(x => x.Race.ToString() == formKeyStr);
+                    if (correspondingAlias != null)
+                    {
+                        var aliasVM = new VM_RaceAlias(correspondingAlias, _generalVM, _environmentProvider);
+                        _generalVM.raceAliases.Add(aliasVM);
+                    }
+                }
+            }
+        }
+    }
+
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.GivenPath" },
@@ -306,4 +409,5 @@ public class UpdateLog
     public bool Performed1_0_2_5RGUpdate { get; set; } = false;
     public bool Performed1_0_2_8Update { get; set; } = false;
     public bool Performed1_0_3_2AttributeUpdate { get; set; } = false;
+    public bool Performed1_0_4_8_RaceAliasCOTRUpdates { get; set; } = false;
 }

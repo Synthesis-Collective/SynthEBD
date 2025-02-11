@@ -797,7 +797,8 @@ public class DefaultAttributeGroups
                             ModKey.FromNameAndExtension("0LordHarkonandValericaReplacer.esp"),
                             ModKey.FromNameAndExtension("0BrynjolfReplacer.esp"),
                             ModKey.FromNameAndExtension("0KaidanReplacer.esp"),
-                            ModKey.FromNameAndExtension("0AuriReplacer.esp.esp")
+                            ModKey.FromNameAndExtension("0AuriReplacer.esp"),
+                            ModKey.FromNameAndExtension("Gentle Auri.esp")
                         }
                     }
                 }
