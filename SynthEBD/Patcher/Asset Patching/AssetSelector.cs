@@ -925,7 +925,7 @@ public class AssetSelector
 
                 if (!assetPack.Subgroups[i].Any())
                 {
-                    _logger.LogReport("Asset Pack " + assetPack.GroupName + " is invalid because no subgroups are available at position " + i + ".", false, npcInfo);
+                    _logger.LogReport("Asset Pack " + assetPack.GroupName + " is invalid because no subgroups are available at position " + i + assetPack.GetSubgroupPositionString(i) + ".", false, npcInfo);
                     return false;
                 }
             }
