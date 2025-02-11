@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
 using Noggog;
 
 namespace SynthEBD;
@@ -109,6 +110,17 @@ public class VM_DownloadCoordinator : VM
                     }
                 }
             );
+            
+            CopyURL = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (!URL.IsNullOrWhitespace())
+                    {
+                        Clipboard.SetText(URL);
+                    }
+                }
+            );
         }
         public string ModName { get; set; } = "";
         public string ModDownloadName { get; set; }
@@ -117,6 +129,7 @@ public class VM_DownloadCoordinator : VM
         public string Path { get; set; }
         public string ExtractionSubPath { get; set; } = "";
         public RelayCommand FindPath { get; set; }
+        public RelayCommand CopyURL { get; set; }
 
         public static VM_DownloadInfo GetViewModelFromModel(Manifest.DownloadInfoContainer downloadInfo)
         {

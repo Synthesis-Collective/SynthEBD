@@ -49,11 +49,14 @@
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Download file:" Foreground="White"/>
                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModDownloadName}" Foreground="White"/>
                                 <TextBlock Grid.Row="2" Grid.Column="0" Foreground="White">Download From:</TextBlock>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Foreground="BlueViolet">         
-                            <Hyperlink NavigateUri="{Binding URL}" RequestNavigate="Hyperlink_RequestNavigate">
-                                <TextBlock Text="{Binding URL}"/>
-                            </Hyperlink>
-                            </TextBlock>
+                                <StackPanel Grid.Row ="2" Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock Foreground="BlueViolet">         
+                                        <Hyperlink NavigateUri="{Binding URL}" RequestNavigate="Hyperlink_RequestNavigate">
+                                            <TextBlock Text="{Binding URL}"/>
+                                        </Hyperlink>
+                                    </TextBlock>
+                                    <Button Command="{Binding CopyURL}" Foreground="MediumPurple" Margin="5 0 0 0">Copy</Button>
+                                </StackPanel>
                                 <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White">Expected File Name:</TextBlock>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ExpectedFileName}" Foreground="White"/>
                                 <TextBlock Grid.Row="4" Grid.Column="0" Foreground="White" VerticalAlignment="Center">Downloaded Location:</TextBlock>
