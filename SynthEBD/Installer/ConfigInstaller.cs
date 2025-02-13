@@ -776,14 +776,20 @@ public class ConfigInstaller
     {
         foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath).Where(x => !x.IsNullOrWhitespace()))
         {
-            if (path.Contains(additionalPrefix))
+            int index = path.IndexOf(additionalPrefix, StringComparison.OrdinalIgnoreCase);
+            if (index != -1)
             {
-                return additionalPrefix;
+                return path.Substring(index, additionalPrefix.Length);
             }
         }
 
-        if (path.Contains(manifest.ConfigPrefix))
+        if (path.Contains(manifest.ConfigPrefix, StringComparison.OrdinalIgnoreCase))
         {
+            int index = path.IndexOf(manifest.ConfigPrefix, StringComparison.OrdinalIgnoreCase);
+            if (index != -1)
+            {
+                return path.Substring(index, manifest.ConfigPrefix.Length);
+            }
             return manifest.ConfigPrefix;
         }
 
