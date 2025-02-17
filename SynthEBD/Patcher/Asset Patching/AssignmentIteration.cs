@@ -16,6 +16,29 @@ public class AssignmentIteration
     public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; } = new();
     public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
+    public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds)
+    {
+        // 1. Collect all unique ParentAssetPack members from availableSeeds.
+        var uniqueAssetPacks = availableSeeds
+            .Select(seed => seed.ParentAssetPack)
+            .Distinct();
+
+        // 2. Use the probability selector to pick a parent asset pack based on its probability weighting.
+        //    Since FlattenedAssetPack implements IProbabilityWeighted, this works as expected.
+        ChosenAssetPack = ProbabilityWeighting.SelectByProbability(uniqueAssetPacks, assetPack => assetPack.DistributionRules.ProbabilityWeighting);
+        if (ChosenAssetPack == null)
+        {
+            return;
+        }
+
+        // 3. Filter availableSeeds to those whose ParentAssetPack equals the chosen one.
+        var seedsFromChosenPack = availableSeeds
+            .Where(seed => seed.ParentAssetPack == ChosenAssetPack);
+
+        // 4. Use the probability selector to randomly select a seed based on seed.ProbabilityWeighting.
+        ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(seedsFromChosenPack);
+    }
+    
     public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, int steps)
     {
         FlattenedAssetPack revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - steps];

@@ -243,18 +243,22 @@ public class AssetSelector
 
             _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
 
-            if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
+            if (iterationInfo.AvailableSeeds.Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
-                iterationInfo.ChosenSeed = ChooseForceIfSubgroup(iterationInfo.AvailableSeeds);
-                iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
+                var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
+                    x.ForceIfMatchCount == matchedForceIfCount);
+
+                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups);
+                
+                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
-                iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
-                iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds);
+                
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
+            iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
 
             _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
 
@@ -319,9 +323,11 @@ public class AssetSelector
             #endregion
 
             #region Pick next subgroup
-            if (iterationInfo.ChosenAssetPack.Subgroups[i][0].ForceIfMatchCount > 0)
+            if (iterationInfo.ChosenAssetPack.Subgroups[i].Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
-                nextSubgroup = ChooseForceIfSubgroup(iterationInfo.ChosenAssetPack.Subgroups[i]);
+                var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
+                    x.ForceIfMatchCount == matchedForceIfCount);
+                nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups);
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
@@ -381,13 +387,6 @@ public class AssetSelector
         GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
-    }
-
-    private static FlattenedSubgroup ChooseForceIfSubgroup(List<FlattenedSubgroup> availableSeeds)
-    {
-        int maxMatchedForceIfCount = availableSeeds[0].ForceIfMatchCount;
-        var candidateSubgroups = availableSeeds.Where(x => x.ForceIfMatchCount == maxMatchedForceIfCount).ToList(); // input list is sorted so that the subgroup with the most matched ForceIf attributes is first. Get other subgroups with the same number of matched ForceIf attributes (if any)
-        return (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(candidateSubgroups);
     }
 
     private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
