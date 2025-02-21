@@ -16,7 +16,7 @@ public class HeightPatcher
         _logger = logger;
         _uniqueNPCData = uniqueNPCData;
     }
-    public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
+    public float? AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Npc npc = null;
         float assignedHeight = 1;
@@ -28,13 +28,13 @@ public class HeightPatcher
         {
             _logger.LogReport("Height randomization for individual NPCs is disabled. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
             _logger.CloseReportSubsection(npcInfo);
-            return;
+            return null;
         }
         else if (!_patcherState.HeightSettings.bOverwriteNonDefaultNPCHeights && !npcInfo.NPC.Height.Equals(1))
         {
             _logger.LogReport("Height randomization is disabled for NPCs with custom height. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
             _logger.CloseReportSubsection(npcInfo);
-            return;
+            return null;
         }
         else if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
         {
@@ -47,7 +47,7 @@ public class HeightPatcher
             {
                 _logger.LogReport("No height configurations were installed.", false, npcInfo);
                 _logger.CloseReportSubsection(npcInfo);
-                return;
+                return null;
             }
 
             var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
@@ -56,7 +56,7 @@ public class HeightPatcher
             {
                 _logger.LogReport("No heights were specified for NPCs of the current race.", false, npcInfo);
                 _logger.CloseReportSubsection(npcInfo);
-                return;
+                return null;
             }
 
             npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
@@ -143,6 +143,8 @@ public class HeightPatcher
         }
 
         _logger.CloseReportSubsection(npcInfo);
+        
+        return assignedHeight;
     }
 
     public void AssignRacialHeight(HeightConfig heightConfig, ISkyrimMod outputMod)

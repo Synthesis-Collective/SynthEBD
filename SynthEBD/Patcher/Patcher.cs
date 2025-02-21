@@ -1,3 +1,4 @@
+using System.Windows.Documents;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -51,10 +52,13 @@ public class Patcher
     private readonly BodySlideAnnotator _bodySlideAnnotator;
     private readonly HeadPartFunctions _headPartFunctions;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
+    private readonly NPCProvider _npcProvider;
+    private readonly SkyPatcherInterface _skyPatcherInterface;
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
+    private List<Npc> _patchedNpcs { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions, EasyNPCProfileParser easyNPCProfileParser)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -97,6 +101,8 @@ public class Patcher
         _bodySlideAnnotator = bodySlideAnnotator;
         _headPartFunctions = headPartFunctions;
         _easyNPCProfileParser = easyNPCProfileParser;
+        _npcProvider = npcProvider;
+        _skyPatcherInterface = skyPatcherInterface;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -186,6 +192,8 @@ public class Patcher
         }
         HasAssetDerivedHeadParts = false;
         FacePartCompliance facePartComplianceMaintainer = new(_environmentProvider, _patcherState);
+        _patchedNpcs = new();
+        _npcProvider.Reinitialize();
 
         // BodyGen Pre-patching tasks:
         BodyGenTracker = new BodyGenAssignmentTracker();
@@ -405,6 +413,11 @@ public class Patcher
             PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
         }
 
+        if (true) // NEW
+        {
+            _skyPatcherInterface.WriteIni();
+        }
+
         _logger.StopTimer();
         _logger.LogMessage("Finished patching in " + _logger.GetEllapsedTime());
         _logger.UpdateStatus("Finished Patching in " + _logger.GetEllapsedTime(), false);
@@ -463,6 +476,7 @@ public class Patcher
 
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
             _logger.CurrentNPCInfo = currentNPCInfo;
+            Npc npcRecord = null;
 
             #region Detailed logging
             if (_patcherState.GeneralSettings.VerboseModeNPClist.Contains(npc.FormKey) || _patcherState.GeneralSettings.bVerboseModeAssetsAll || _patcherState.GeneralSettings.bVerboseModeAssetsNoncompliant)
@@ -658,11 +672,22 @@ public class Patcher
                 #region Generate Records
                 if (assignedCombinations.Any())
                 {
+                    // NEW
+                    if (true)
+                    {
+                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC);
+                        currentNPCInfo.NPC = npcRecord;
+                    }
+                    else
+                    {
+                        npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    }
+                    
                     if (_patcherState.TexMeshSettings.StrippedSkinWNAMs.Any())
                     {
-                        currentNPCInfo.NPC = _recordGenerator.StripSpecifiedSkinArmor(npc, _environmentProvider.LinkCache, outputMod);
+                        currentNPCInfo.NPC = _recordGenerator.StripSpecifiedSkinArmor(npcRecord, _environmentProvider.LinkCache, outputMod);
                     }
-                    var npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    
                     var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
                     var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
                     var replacedRecords = new Dictionary<FormKey, FormKey>();
@@ -700,6 +725,15 @@ public class Patcher
                         _skinPatcher.PatchAltTextures(currentNPCInfo, replacedRecords, outputMod);
                     }
                     _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, outputMod);
+
+                    if (true) // NEW
+                    {
+                        _skyPatcherInterface.ApplyFace(npc.FormKey, npcRecord.FormKey);
+                        if (!npcRecord.WornArmor.IsNull)
+                        {
+                            _skyPatcherInterface.ApplySkin(npc.FormKey, npcRecord.WornArmor.FormKey);
+                        }
+                    }
                 }
                 #endregion
             }
@@ -759,7 +793,21 @@ public class Patcher
             #region Height assignment
             if (_patcherState.GeneralSettings.bChangeHeight && !blockHeight && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeightRace))
             {
-                _heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                // NEW
+                if (true)
+                {
+                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC);
+                    currentNPCInfo.NPC = npcRecord;
+                }
+                else
+                {
+                    npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                }
+                var height = _heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                if (true && height.HasValue) // NEW
+                {
+                    _skyPatcherInterface.ApplyHeight(npc.FormKey, height.Value);
+                }
             }
             #endregion
 
@@ -782,6 +830,17 @@ public class Patcher
             #region final functions
             if (facePartComplianceMaintainer.RequiresComplianceCheck && (assignedCombinations.Any() || assignedHeadParts.HasAssignment()))
             {
+                // NEW
+                if (true)
+                {
+                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC);
+                    currentNPCInfo.NPC = npcRecord;
+                }
+                else
+                {
+                    npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                }
+                
                 facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, _environmentProvider.LinkCache, outputMod);
             }
             #endregion
