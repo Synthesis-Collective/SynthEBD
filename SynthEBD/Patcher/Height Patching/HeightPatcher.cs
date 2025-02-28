@@ -1,4 +1,6 @@
+using System.IO;
 using Mutagen.Bethesda;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -9,16 +11,28 @@ public class HeightPatcher
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly UniqueNPCData _uniqueNPCData;
-    public HeightPatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, UniqueNPCData uniqueNPCData)
+    private readonly SynthEBDPaths _paths;
+    private readonly SkyPatcherInterface _skyPatcherInterface;
+
+    private Dictionary<string, float> _scriptHeightAssignments = new();
+    
+    public HeightPatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, UniqueNPCData uniqueNPCData, SynthEBDPaths paths, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _uniqueNPCData = uniqueNPCData;
+        _paths = paths;
+        _skyPatcherInterface = skyPatcherInterface;
     }
-    public void AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
+
+    public void Reinitialize()
     {
-        Npc npc = null;
+        _scriptHeightAssignments.Clear();
+    }
+    
+    public float? AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
+    {
         float assignedHeight = 1;
 
         _logger.OpenReportSubsection("Height", npcInfo);
@@ -28,17 +42,16 @@ public class HeightPatcher
         {
             _logger.LogReport("Height randomization for individual NPCs is disabled. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
             _logger.CloseReportSubsection(npcInfo);
-            return;
+            return null;
         }
         else if (!_patcherState.HeightSettings.bOverwriteNonDefaultNPCHeights && !npcInfo.NPC.Height.Equals(1))
         {
             _logger.LogReport("Height randomization is disabled for NPCs with custom height. Height remains: " + npcInfo.NPC.Height, false, npcInfo);
             _logger.CloseReportSubsection(npcInfo);
-            return;
+            return null;
         }
         else if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.Height != null)
         {
-            npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
             assignedHeight = npcInfo.SpecificNPCAssignment.Height.Value;
         }
         else
@@ -47,7 +60,7 @@ public class HeightPatcher
             {
                 _logger.LogReport("No height configurations were installed.", false, npcInfo);
                 _logger.CloseReportSubsection(npcInfo);
-                return;
+                return null;
             }
 
             var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
@@ -56,10 +69,8 @@ public class HeightPatcher
             {
                 _logger.LogReport("No heights were specified for NPCs of the current race.", false, npcInfo);
                 _logger.CloseReportSubsection(npcInfo);
-                return;
+                return null;
             }
-
-            npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
 
             float lowerBound = 0;
             float upperBound = 0;
@@ -124,7 +135,8 @@ public class HeightPatcher
             }
         }
 
-        npc.Height = assignedHeight;
+        ApplyHeight(npcInfo, assignedHeight, outputMod);
+
         _logger.LogReport("Height set to: " + assignedHeight, false, npcInfo);
 
         if (_patcherState.GeneralSettings.bEnableConsistency)
@@ -143,6 +155,22 @@ public class HeightPatcher
         }
 
         _logger.CloseReportSubsection(npcInfo);
+        
+        return assignedHeight;
+    }
+
+    private void ApplyHeight(NPCInfo npcInfo, float assignedHeight, ISkyrimMod outputMod)
+    {
+        if (_patcherState.HeightSettings.bApplyWithoutOverride)
+        {
+            //_scriptHeightAssignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), assignedHeight);
+            _skyPatcherInterface.ApplyHeight(npcInfo.OriginalNPC.FormKey, assignedHeight);
+        }
+        else
+        {
+            var npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+            npc.Height = assignedHeight;
+        }
     }
 
     public void AssignRacialHeight(HeightConfig heightConfig, ISkyrimMod outputMod)
@@ -204,6 +232,41 @@ public class HeightPatcher
                     patchedRace.Height.Male = heightRacialSetting.HeightMale;
                     patchedRace.Height.Female = heightRacialSetting.HeightFemale;
                 }
+            }
+        }
+    }
+    
+    public void WriteAssignmentDictionaryScriptMode()
+    {
+        if (!_patcherState.HeightSettings.bApplyWithoutOverride)
+        {
+            return;
+        }
+        
+        if (!_scriptHeightAssignments.Any())
+        {
+            _logger.LogMessage("No heights were assigned to any NPCs. Height Database will not be generated.");
+            return;
+        }
+
+        string destPath = string.Empty;
+        string outputStr = JSONhandler<Dictionary<string, float>>.Serialize((_scriptHeightAssignments), out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Failed to generate Height Dictionary", exception);
+        }
+        else
+        {
+            try
+            {
+                destPath = Path.Combine(_paths.OutputDataFolder, "SynthEBD", "HeightAssignments.json");
+                _logger.LogMessage("Writing Height Assignments to " + destPath);
+                PatcherIO.CreateDirectoryIfNeeded(destPath, PatcherIO.PathType.File);
+                File.WriteAllText(destPath, outputStr);
+            }
+            catch
+            {
+                _logger.LogErrorWithStatusUpdate("Could not write Height assignments to " + destPath, ErrorType.Error);
             }
         }
     }

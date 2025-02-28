@@ -44,23 +44,23 @@ public class MiscValidation
         return verified;
     }
 
-    public bool VerifyRaceMenuInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyRaceMenuInstalled()
     {
         bool verified = true;
 
-        string dllPath64 = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skee64.dll");
-        string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.dll");
+        string dllPath64 = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
+        string dllPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skeevr.dll");
         if (!File.Exists(dllPath64) && !File.Exists(dllPathVR))
         {
-            _logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
+            _logger.LogMessage("Could not find skee64.dll from RaceMenu at " + Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
-        string iniPath64 = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skee64.ini");
-        string iniPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "skeevr.ini");
+        string iniPath64 = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skee64.ini");
+        string iniPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skeevr.ini");
         if (!File.Exists(iniPath64) && !File.Exists(iniPathVR))
         {
-            _logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(dataFolderPath, "SKSE", "Plugins"));
+            _logger.LogMessage("Could not find skee64.ini from RaceMenu at " + Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins"));
             verified = false;
         }
 
@@ -72,18 +72,18 @@ public class MiscValidation
         return verified;
     }
 
-    public bool VerifyOBodyInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyOBodyInstalled()
     {
         bool verified = true;
 
-        string scriptPath = Path.Combine(dataFolderPath, "Scripts", "OBodyNative.pex");
+        string scriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "OBodyNative.pex");
         if (!File.Exists(scriptPath))
         {
             _logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
             verified = false;
         }
 
-        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "OBody.dll");
+        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody.dll");
         if (!File.Exists(dllPath))
         {
             _logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
@@ -98,11 +98,11 @@ public class MiscValidation
         return verified;
     }
 
-    public bool VerifyOBodyTemplateJsonExits(DirectoryPath dataFolderPath)
+    public bool VerifyOBodyTemplateJsonExits()
     {
         bool verified = true;
 
-        var expectedPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+        var expectedPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
         if (!File.Exists(expectedPath))
         {
             _logger.LogMessage("Could not find OBody_presetDistributionConfig.json from OBody at " + expectedPath);
@@ -112,18 +112,18 @@ public class MiscValidation
         return verified;
     }
 
-    public bool VerifyAutoBodyInstalled(DirectoryPath dataFolderPath)
+    public bool VerifyAutoBodyInstalled()
     {
         bool verified = true;
 
-        string scriptPath = Path.Combine(dataFolderPath, "Scripts", "autoBodyUtils.pex");
+        string scriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "autoBodyUtils.pex");
         if (!File.Exists(scriptPath))
         {
             _logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
             verified = false;
         }
 
-        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
+        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
         if (!File.Exists(dllPath))
         {
             _logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
@@ -171,9 +171,9 @@ public class MiscValidation
         return !foundEmpty;
     }
 
-    public bool VerifySPIDInstalled(DirectoryPath dataFolderPath, bool bSilent)
+    public bool VerifySPIDInstalled(bool bSilent)
     {
-        string dllPath = Path.Combine(dataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
+        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
         if (!File.Exists(dllPath))
         {
             if (!bSilent)
@@ -186,11 +186,27 @@ public class MiscValidation
         }
         return true;
     }
-
-    public bool VerifyJContainersInstalled(DirectoryPath dataFolderPath, bool bSilent)
+    
+    public bool VerifySkyPatcherInstalled(bool bSilent)
     {
-        string dllPathSE_AE = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
-        string dllPathVR = Path.Combine(dataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
+        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "SkyPatcher.dll");
+        if (!File.Exists(dllPath))
+        {
+            if (!bSilent)
+            {
+                _logger.LogMessage("Could not find SkyPatcher.dll from SkyPatcher at " + dllPath);
+                _logger.LogMessage("Please make sure SkyPatcher is enabled.");
+            }
+            
+            return false;
+        }
+        return true;
+    }
+
+    public bool VerifyJContainersInstalled(bool bSilent)
+    {
+        string dllPathSE_AE = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
+        string dllPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
 
         var currentSkyrimVersion = _environmentProvider.SkyrimVersion;
         bool checkSE = currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE || currentSkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE; // not sure if JContainers actually works with Enderal

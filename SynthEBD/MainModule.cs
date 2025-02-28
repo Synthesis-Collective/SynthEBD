@@ -32,6 +32,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();
         builder.RegisterType<FirstLaunch>().AsSelf().SingleInstance();
+        builder.RegisterType<SkyPatcherInterface>().AsSelf().SingleInstance();
 
         // UI components (main)
         builder.RegisterType<MainWindow_ViewModel>().AsSelf().SingleInstance();
@@ -113,6 +114,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<ArmorPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<SkinPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartFunctions>().AsSelf().SingleInstance();
+        builder.RegisterType<NPCProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<AssetAssignmentDB>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();

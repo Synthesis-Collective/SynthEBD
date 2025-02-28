@@ -164,7 +164,7 @@ public class OBodyWriter
 
         if (Patcher.BodySlideTracker.Count == 0)
         {
-            _logger.LogMessage("No BodySlides were assigned to any NPCs");
+            _logger.LogMessage("No BodySlides were assigned to any NPCs. OBody database will not be generated.");
             return;
         }
 
