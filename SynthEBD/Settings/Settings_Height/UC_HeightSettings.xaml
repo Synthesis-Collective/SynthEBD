@@ -31,11 +31,8 @@
             <TextBlock Grid.Row="2" Grid.Column="0" ToolTip="Allow patcher to change height of NPCs whose height is not 1" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Overwrite Non-Default NPC Heights</TextBlock>
             <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=bOverwriteNonDefaultNPCHeights, Mode=TwoWay}"></CheckBox>
             
-            <TextBlock Grid.Row="2" Grid.Column="0" ToolTip="Allow patcher to change height of NPCs whose height is not 1" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Overwrite Non-Default NPC Heights</TextBlock>
-            <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding Path=bOverwriteNonDefaultNPCHeights, Mode=TwoWay}"></CheckBox>
-            
             <TextBlock Grid.Row="3" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If checked, SynthEBD will try to avoid incorporating NPCs as masters" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attempt Override-Free Patching</TextBlock>
-            <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=bApplyViaScript, Mode=TwoWay}"></CheckBox>
+            <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=bApplyWithoutOverride, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Select your current active height configuration" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Height Configuration</TextBlock>
             <ComboBox Grid.Row="4" Grid.Column="1" MinWidth="150"  ItemsSource="{Binding AvailableHeightConfigs}" DisplayMemberPath="Label" SelectedItem="{Binding SelectedHeightConfig}" ></ComboBox>

@@ -140,6 +140,11 @@ namespace SynthEBD
                 }
             }
 
+            if (_patcherState.GeneralSettings.bChangeHeight && _patcherState.HeightSettings.bApplyWithoutOverride && !_miscValidation.VerifySkyPatcherInstalled(false))
+            {
+                valid = false;
+            }
+
             if (_patcherState.GeneralSettings.bChangeHeadParts)
             {
                 if (!_miscValidation.VerifyEBDInstalled())

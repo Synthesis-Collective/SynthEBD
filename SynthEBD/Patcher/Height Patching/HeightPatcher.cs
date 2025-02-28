@@ -12,16 +12,18 @@ public class HeightPatcher
     private readonly Logger _logger;
     private readonly UniqueNPCData _uniqueNPCData;
     private readonly SynthEBDPaths _paths;
+    private readonly SkyPatcherInterface _skyPatcherInterface;
 
     private Dictionary<string, float> _scriptHeightAssignments = new();
     
-    public HeightPatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, UniqueNPCData uniqueNPCData, SynthEBDPaths paths)
+    public HeightPatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, UniqueNPCData uniqueNPCData, SynthEBDPaths paths, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _uniqueNPCData = uniqueNPCData;
         _paths = paths;
+        _skyPatcherInterface = skyPatcherInterface;
     }
 
     public void Reinitialize()
@@ -159,9 +161,10 @@ public class HeightPatcher
 
     private void ApplyHeight(NPCInfo npcInfo, float assignedHeight, ISkyrimMod outputMod)
     {
-        if (_patcherState.HeightSettings.bApplyViaScript)
+        if (_patcherState.HeightSettings.bApplyWithoutOverride)
         {
-            _scriptHeightAssignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), assignedHeight);
+            //_scriptHeightAssignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), assignedHeight);
+            _skyPatcherInterface.ApplyHeight(npcInfo.OriginalNPC.FormKey, assignedHeight);
         }
         else
         {
@@ -235,7 +238,7 @@ public class HeightPatcher
     
     public void WriteAssignmentDictionaryScriptMode()
     {
-        if (!_patcherState.HeightSettings.bApplyViaScript)
+        if (!_patcherState.HeightSettings.bApplyWithoutOverride)
         {
             return;
         }
