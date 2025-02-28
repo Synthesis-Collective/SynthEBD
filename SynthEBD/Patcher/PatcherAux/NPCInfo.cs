@@ -22,6 +22,7 @@ public class NPCInfo
         _uniqueNPCData = uniqueNPCData;
 
         NPC = npc;
+        OriginalNPC = npc;
         LogIDstring = _logger.GetNPCLogNameString(npc);
         Gender = GetGender(npc);
         AssetsRace = _aliasHandler.GetAliasTexMesh(npc.Race.FormKey);
@@ -90,6 +91,7 @@ public class NPCInfo
     }
 
     public INpcGetter NPC { get; set; }
+    public INpcGetter OriginalNPC { get; set; } // NPC may be changed if patcer deep copies in the NPC
     public string Name { get; set; }
     public string LogIDstring { get; set; }
     public Gender Gender { get; set; }

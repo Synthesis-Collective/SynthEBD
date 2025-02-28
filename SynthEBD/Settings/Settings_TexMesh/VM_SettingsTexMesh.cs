@@ -290,6 +290,9 @@ public class VM_SettingsTexMesh : VM
                window.ShowDialog();
            }
        );
+
+        this.WhenAnyValue(x => x.bPureScriptMode).Subscribe(_ => ValidatePureScriptMode()).DisposeWith(this);
+        this.WhenAnyValue(x => x.bLegacyEBDMode).Subscribe(_ => ValidateLegacyEBDMode()).DisposeWith(this);
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -321,6 +324,7 @@ public class VM_SettingsTexMesh : VM
     public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
+    public bool bPureScriptMode { get; set; } = false;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -411,6 +415,7 @@ public class VM_SettingsTexMesh : VM
         bCacheRecords = model.bCacheRecords;
         bPatchArmors = model.bPatchArmors;
         bPatchSkinAltTextures = model.bPatchSkinAltTextures;
+        bPureScriptMode = model.bPureScriptMode;
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
@@ -446,6 +451,7 @@ public class VM_SettingsTexMesh : VM
         model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         model.bPatchArmors = bPatchArmors;
         model.bPatchSkinAltTextures = bPatchSkinAltTextures;
+        model.bPureScriptMode = bPureScriptMode;
         return model;
     }
 
@@ -710,7 +716,7 @@ public class VM_SettingsTexMesh : VM
         {
             if (preparationMode)
             {
-                changes.Add("Face Textre Script Verbose Mode: True --> False");
+                changes.Add("Face Texture Script Verbose Mode: True --> False");
             }
             else
             {
@@ -770,6 +776,54 @@ public class VM_SettingsTexMesh : VM
             }
         }
 
+        if (bPureScriptMode)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Pure Script Mode: True --> False");
+            }
+            else
+            {
+                bPureScriptMode = false;
+            }
+        }
+
         return changes;
+    }
+
+    private void ValidatePureScriptMode()
+    {
+        if (bPureScriptMode)
+        {
+            if (bLegacyEBDMode)
+            {
+                if (MessageWindow.DisplayNotificationYesNo("Confirm Modification", "This setting requires you to use SynthEBD's updated Face Texture Script rather than the original EBD version. Would you like to make this change?"))
+                {
+                    bLegacyEBDMode = false;
+                }
+                else
+                {
+                    bPureScriptMode = false;
+                }
+            }
+        }
+    }
+    
+    private void ValidateLegacyEBDMode()
+    {
+        if (bLegacyEBDMode)
+        {
+            if (bPureScriptMode)
+            {
+                if (MessageWindow.DisplayNotificationYesNo("Confirm Modification", "This setting prevents you from using Override-free Patching Mode. Would you like to make this change?"))
+                {
+                    bPureScriptMode = false;
+                }
+                else
+                {
+                    bLegacyEBDMode = false;
+                }
+            }
+        }
     }
 }

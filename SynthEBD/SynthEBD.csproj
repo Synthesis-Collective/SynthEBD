@@ -273,4 +273,11 @@
     <NativeLibs Remove="InternalData\7Zip\x64\7zxa.dll" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDTextureLoaderPAScript.pex" />
+    <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDTextureLoaderPAScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

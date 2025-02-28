@@ -44,6 +44,11 @@ namespace SynthEBD
                 {
                     valid = false;
                 }
+                
+                if (_patcherState.TexMeshSettings.bPureScriptMode && !_miscValidation.VerifySkyPatcherInstalled(false))
+                {
+                    valid = false;
+                }
 
                 List<string> assetPackErrors = new();
                 foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToArray())
@@ -61,7 +66,7 @@ namespace SynthEBD
 
             if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
             {
-                if (!_miscValidation.VerifyRaceMenuInstalled(_environmentProvider.DataFolderPath))
+                if (!_miscValidation.VerifyRaceMenuInstalled())
                 {
                     valid = false;
                 }
@@ -78,29 +83,29 @@ namespace SynthEBD
                 {
                     if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody)
                     {
-                        if (!_miscValidation.VerifyOBodyInstalled(_environmentProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyOBodyInstalled())
                         {
                             valid = false;
                         }
 
-                        if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                        if (!_miscValidation.VerifyJContainersInstalled(false))
                         {
                             valid = false;
                         }
 
-                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits(_environmentProvider.DataFolderPath))
+                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits())
                         {
                             valid = false;
                         }
                     }
                     else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {
-                        if (!_miscValidation.VerifyAutoBodyInstalled(_environmentProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyAutoBodyInstalled())
                         {
                             valid = false;
                         }
 
-                        if (_patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                        if (_patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(false))
                         {
                             valid = false;
                         }
@@ -147,7 +152,7 @@ namespace SynthEBD
                 //    valid = false;
                 //}
 
-                if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                if (!_miscValidation.VerifyJContainersInstalled(false))
                 {
                     valid = false;
                 }

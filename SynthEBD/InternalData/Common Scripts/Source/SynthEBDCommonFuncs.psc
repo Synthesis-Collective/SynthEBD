@@ -21,7 +21,7 @@ Function ReloadSynthEBDDataBase(string jsonPath, string dbSubPath, bool verbose,
 		string eventName = "SynthEBD_" + entryType + "sReloaded"
 		int handle = ModEvent.Create(eventName)
 		if (handle)
-			VerboseLogger("SynthEBD: Sending" + eventName, verbose, false)
+			VerboseLogger("SynthEBD: Sending " + eventName, verbose, false)
 			ModEvent.Send(handle)
 		endif
 	else

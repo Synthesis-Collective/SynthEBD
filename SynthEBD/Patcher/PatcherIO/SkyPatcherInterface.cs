@@ -28,8 +28,13 @@ public class SkyPatcherInterface
         outputLines = new List<string>();
     }
 
-    public void ApplyFace(FormKey applyTo, FormKey faceTemplate)
+    public void ApplyFace(FormKey applyTo, FormKey faceTemplate) // This doesn't work if the face texture isn't baked into the facegen nif. Not useful for SynthEBD.
     {
+        if (applyTo.IsNull || faceTemplate.IsNull)
+        {
+            return;
+        }
+        
         string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
         string template = BodyGenWriter.FormatFormKeyForBodyGen(faceTemplate);
         
@@ -38,6 +43,11 @@ public class SkyPatcherInterface
     
     public void ApplySkin(FormKey applyTo, FormKey skinFk)
     {
+        if (applyTo.IsNull || skinFk.IsNull)
+        {
+            return;
+        }
+        
         string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
         string skin = BodyGenWriter.FormatFormKeyForBodyGen(skinFk);
         

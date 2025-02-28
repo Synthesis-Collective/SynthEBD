@@ -93,6 +93,9 @@
 
             <TextBlock Grid.Row="2" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to create or edit head parts" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC head parts</TextBlock>
             <CheckBox Grid.Row="2" Grid.Column="1"  IsChecked="{Binding Path=bChangeNPCHeadParts, Mode=TwoWay}"></CheckBox>
+            
+            <TextBlock Grid.Row="3" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If checked, SynthEBD will try to avoid incorporating NPCs as masters" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Attempt Override-Free Patching</TextBlock>
+            <CheckBox Grid.Row="3" Grid.Column="1"  IsChecked="{Binding Path=bPureScriptMode, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="Permit config files to modify NPCs that already have custom body textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patch NPCs with custom bodies</TextBlock>
             <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=bApplyToNPCsWithCustomSkins, Mode=TwoWay}"></CheckBox>

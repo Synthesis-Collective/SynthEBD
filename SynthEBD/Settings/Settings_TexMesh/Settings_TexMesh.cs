@@ -51,4 +51,5 @@ public class Settings_TexMesh
     public List<string> TriggerEvents { get; set; } = new() { "OStim_PreStart", "OStim_Start", "OStim_End" };
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
+    public bool bPureScriptMode { get; set; } = false;
 }
