@@ -93,6 +93,12 @@ public class PatcherIO
             catch (TooManyMastersException)
             {
                 logger.LogMessage(
+                    "Too many masters for a single plugin file. Please try selecting the Attempt Override-Free Patching option in SynthEBD's Texture and/or Height menus");
+            }
+            /*
+            catch (TooManyMastersException)
+            {
+                logger.LogMessage(
                     "Too many masters for a single plugin file. Attempting to split the output to multiple plugins: ");
                 MultiModFileSplitter splitter = new();
                 var splitOutputs = splitter.Split<ISkyrimMod, ISkyrimModGetter>(outputMod, 255);
@@ -118,7 +124,7 @@ public class PatcherIO
                         .WithLoadOrder(environmentProvider.LoadOrder)
                         .Write();
                 }
-            }
+            }*/
         }
         catch (Exception e)
         {
