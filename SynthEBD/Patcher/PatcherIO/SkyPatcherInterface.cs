@@ -69,4 +69,9 @@ public class SkyPatcherInterface
         
         Task.Run(() => PatcherIO.WriteTextFile(destinationPath, outputLines, _logger));
     }
+
+    public bool HasSkinEntries()
+    {
+        return outputLines.Any();
+    }
 }

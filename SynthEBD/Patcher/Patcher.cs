@@ -361,8 +361,12 @@ public class Patcher
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
             _assetAssignmentDB.WriteAssignmentDictionaryScriptMode();
-            _skyPatcherInterface.WriteIni();
             _combinationLog.WriteToFile(availableAssetPacks);
+        }
+
+        if (_skyPatcherInterface.HasSkinEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
+        {
+            _skyPatcherInterface.WriteIni();
         }
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
@@ -686,7 +690,7 @@ public class Patcher
                 {
                     if (_patcherState.TexMeshSettings.bPureScriptMode)
                     {
-                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC);
+                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false);
                         currentNPCInfo.NPC = npcRecord;
                     }
                     else
@@ -747,6 +751,7 @@ public class Patcher
             }
             #endregion
 
+            #region Force Vanilla Body Paths
             if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
             {
                 _vanillaBodyPathSetter.RegisterAssetAssignedMeshes(assignedCombinations);
@@ -755,7 +760,7 @@ public class Patcher
                     _vanillaBodyPathSetter.RegisterBlockedFromVanillaBodyPaths(currentNPCInfo);
                 }
             }
-
+            #endregion
             #region Body Shape assignment (if assets not assigned with Assets)
             switch (_patcherState.GeneralSettings.BodySelectionMode)
             {
@@ -826,7 +831,7 @@ public class Patcher
             {
                 if (_patcherState.TexMeshSettings.bPureScriptMode)
                 {
-                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC);
+                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false);
                     currentNPCInfo.NPC = npcRecord;
                 }
                 else

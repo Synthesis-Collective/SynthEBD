@@ -34,12 +34,16 @@ public class NPCProvider
         _formKeyMap.Clear();
     }
 
-    public Npc? GetNpc(INpcGetter npcGetter)
+    public Npc? GetNpc(INpcGetter npcGetter, bool onlyFromImportedNpcs)
     {
         if (_importedNPCMap.TryGetValue(npcGetter.FormKey, out Npc importedNpc))
         {
             return importedNpc;
         };
+        if (onlyFromImportedNpcs)
+        {
+            return null;
+        }
         
         Npc npc = null;
         var outputMod = _environmentStateProvider.OutputMod;
@@ -68,6 +72,20 @@ public class NPCProvider
         }
         
         return npcRecord;
+    }
+
+    public bool TryGetImportedFormKey(FormKey templateFormKey, out FormKey importedFormKey)
+    {
+        if (_formKeyMap.ContainsKey(templateFormKey))
+        {
+            importedFormKey = _formKeyMap[templateFormKey];
+            return true;
+        }
+        else
+        {
+            importedFormKey = default;
+            return false;
+        }
     }
 }
 public static class PatcherExt
