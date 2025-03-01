@@ -92,8 +92,10 @@ public class PatcherIO
             }
             catch (TooManyMastersException)
             {
-                logger.LogMessage(
-                    "Too many masters for a single plugin file. Please try selecting the Attempt Override-Free Patching option in SynthEBD's Texture and/or Height menus");
+                logger.CallTimedLogErrorWithStatusUpdateAsync(
+                    "Error: Too many masters for a single plugin file. Please try selecting the Attempt Override-Free Patching option in SynthEBD's Texture and/or Height menus",
+                    ErrorType.Error,
+                    5);
             }
             /*
             catch (TooManyMastersException)
