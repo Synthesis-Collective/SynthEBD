@@ -25,7 +25,7 @@ public class NPCProvider
         _formKeyMap.Clear();
     }
 
-    public Npc? GetNpc(INpcGetter npcGetter, bool onlyFromImportedNpcs)
+    public Npc? GetNpc(INpcGetter npcGetter, bool onlyFromImportedNpcs, bool ignoreOutputModContext)
     {
         if (_importedNPCMap.TryGetValue(npcGetter.FormKey, out Npc importedNpc))
         {
@@ -36,15 +36,24 @@ public class NPCProvider
             return null;
         }
         
-        Npc npc = null;
         var outputMod = _environmentStateProvider.OutputMod;
         
         _environmentStateProvider.LinkCache.TryResolveContext(npcGetter.FormKey, typeof(INpcGetter), out var context);
+        if (context.ModKey.Equals(outputMod.ModKey) && ignoreOutputModContext)
+        {
+            var allContexts = npcGetter.ToLink().ResolveAllContexts<ISkyrimMod, ISkyrimModGetter, INpc, INpcGetter>(_environmentStateProvider.LinkCache).ToArray();
+            var prePatchingWinningOverride = allContexts.FirstOrDefault(x => !x.ModKey.Equals(outputMod.ModKey));
+            if (prePatchingWinningOverride != null)
+            {
+                context = prePatchingWinningOverride;
+            }
+        }
+
         if (context.ModKey.Equals(outputMod.ModKey))
         {
             return context.Record as Npc;
         }
-
+        
         Npc npcRecord = null;
 
         if (!_patcherState.GeneralSettings.BlockedModsFromImport.Contains(context.ModKey) && !outputMod.ModKey.Equals(context.ModKey))

@@ -690,7 +690,7 @@ public class Patcher
                 {
                     if (_patcherState.TexMeshSettings.bPureScriptMode)
                     {
-                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false);
+                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
                         currentNPCInfo.NPC = npcRecord;
                     }
                     else
@@ -831,7 +831,7 @@ public class Patcher
             {
                 if (_patcherState.TexMeshSettings.bPureScriptMode)
                 {
-                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false);
+                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
                     currentNPCInfo.NPC = npcRecord;
                 }
                 else

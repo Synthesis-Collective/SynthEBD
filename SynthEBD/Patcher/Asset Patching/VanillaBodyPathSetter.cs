@@ -108,18 +108,7 @@ public class VanillaBodyPathSetter
             }
         }
     }
-
-    private Npc GetNpcRecord(INpcGetter npcGetter, ISkyrimMod outputMod)
-    {
-        if (_patcherState.TexMeshSettings.bPureScriptMode)
-        {
-            return _npcProvider.GetNpc(npcGetter, false);
-        }
-        else
-        {
-            return outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-        }
-    }
+    
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod) // npcGetter and originalNpcGetter are same unless in SkyPatcher mode
     {
@@ -130,7 +119,7 @@ public class VanillaBodyPathSetter
         }
 
         var currentNpc = npcGetter;
-        var surrogateNpc = _npcProvider.GetNpc(currentNpc, true);
+        var surrogateNpc = _npcProvider.GetNpc(currentNpc, true, false);
         if (surrogateNpc != null)
         {
             currentNpc = surrogateNpc;
@@ -215,7 +204,7 @@ public class VanillaBodyPathSetter
 
         if (_patcherState.TexMeshSettings.bPureScriptMode)
         {
-            var npc = _npcProvider.GetNpc(npcGetter, false);
+            var npc = _npcProvider.GetNpc(npcGetter, false, true);
             if(!_npcProvider.TryGetImportedFormKey(npcGetter.WornArmor.FormKey, out _))
             {
                 _logger.LogMessage($"Cannot set vanilla body paths in armor {npcGetter.WornArmor.FormKey} of NPC {npcGetter.FormKey} because the armor's source mod is blocked from import in Avoid Override Mode");
