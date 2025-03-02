@@ -256,6 +256,13 @@ public class Settings_General
     public bool bTroubleShootingWarningDisplayed { get; set; } = false;
     public bool bHeadPartWarningDisplayed { get; set; } = false;
     public bool bUIopened { get; set; } = false;
+    public List<ModKey> BlockedModsFromImport { get; set; } = new()
+    {
+        ModKey.FromNameAndExtension("Skyrim.esm"),
+        ModKey.FromNameAndExtension("Dawnguard.esm"),
+        ModKey.FromNameAndExtension("Dragonborn.esm"),
+        ModKey.FromNameAndExtension("Hearthfires.esm"),
+    }; // do not import these mods in SkyPatcher mode.
 }
 
 public enum BodyShapeSelectionMode

@@ -13,20 +13,11 @@ public class NPCProvider
     private readonly PatcherState _patcherState;
     private Dictionary<FormKey, FormKey> _formKeyMap = new();
     private Dictionary<FormKey, Npc> _importedNPCMap = new();
-    private List<string> _blockedImportPlugions = new();
 
     public NPCProvider(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState)
     {
         _environmentStateProvider = environmentStateProvider;
         _patcherState = patcherState;
-        
-        _blockedImportPlugions = new List<string>()
-        {
-            "Skyrim.esm",
-            "Dawnguard.esm",
-            "Dragonborn.esm",
-            "Hearthfires.esm"
-        };
     }
 
     public void Reinitialize()
@@ -56,7 +47,7 @@ public class NPCProvider
 
         Npc npcRecord = null;
 
-        if (!_blockedImportPlugions.Contains(context.ModKey.FileName) && !outputMod.ModKey.Equals(context.ModKey))
+        if (!_patcherState.GeneralSettings.BlockedModsFromImport.Contains(context.ModKey) && !outputMod.ModKey.Equals(context.ModKey))
         {
             outputMod.DuplicateFromOnlyReferenced(new List<INpcGetter>() { context.Record as INpcGetter },
                 _environmentStateProvider.LinkCache, context.ModKey, ref _formKeyMap);

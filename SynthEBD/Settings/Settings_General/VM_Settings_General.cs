@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -76,6 +77,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
         environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
+            .DisposeWith(this);
+        
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
+            .Subscribe(x => LoadOrder = x)
             .DisposeWith(this);
 
         this.WhenAnyValue(x => x.bChangeHeadParts).Subscribe(y =>
@@ -323,6 +328,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     private const string _troubleShootingSettingsShowText = "Show Troubleshooting Settings";
     private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
     private bool _bHeadPartWarningDisplayed { get; set; } = false;
+    public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
+    public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
@@ -365,6 +372,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
         bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         Close7ZipWhenFinished = model.Close7ZipWhenFinished;
+        BlockedModsFromImport = new(model.BlockedModsFromImport);
         bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
         if (bShowTroubleshootingSettings)
@@ -419,6 +427,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         model.Close7ZipWhenFinished = Close7ZipWhenFinished;
         model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
+        model.BlockedModsFromImport = new(BlockedModsFromImport);
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
 

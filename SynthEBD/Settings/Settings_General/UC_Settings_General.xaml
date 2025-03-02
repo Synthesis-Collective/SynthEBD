@@ -39,18 +39,19 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"  x:Name="row15"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"   x:Name="row20"/>
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" />
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="auto" x:Name="row15"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"   x:Name="row20"/>
+                <RowDefinition Height="auto" x:Name="row25"/>
+                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}" />
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}" x:Name="row25"/>
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
@@ -245,8 +246,11 @@
             <TextBlock Grid.Column="0" Grid.Row="28" ToolTip="Uncheck this if you are having problems with SynthEBD's archive extraction and want the window to stay open to see what the issue is." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Close Archive Extractor When Done</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="28" IsChecked="{Binding Path=Close7ZipWhenFinished, Mode=TwoWay}"></CheckBox>
 
-            <Button Grid.Column="0" Grid.Row="29" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="MediumPurple" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
-            <Button Grid.Column="2" Grid.Row="29" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="MediumPurple" Content="Reset Troubleshooting Settings to Defaults"/>
+            <TextBlock Grid.Column="0" Grid.Row="29" ToolTip="When SynthEBD is operating in Attempt to Avoid Override (a.k.a. SkyPatcher) mode, NPCs and their dependencies will be merged into the patch to avoid creating dependencies. Records from these mods will not be merged in." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Do Not Merge In Records From</TextBlock>
+            <plugins:ModKeyMultiPicker Grid.Column="2" Grid.Row="29"  ModKeys="{Binding BlockedModsFromImport}"  SearchableMods="{Binding LoadOrder}" />
+            
+            <Button Grid.Column="0" Grid.Row="30" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="MediumPurple" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
+            <Button Grid.Column="2" Grid.Row="30" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="MediumPurple" Content="Reset Troubleshooting Settings to Defaults"/>
         </Grid>
     </ScrollViewer>
 </UserControl>
