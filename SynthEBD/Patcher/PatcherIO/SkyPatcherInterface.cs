@@ -10,15 +10,17 @@ public class SkyPatcherInterface
     private readonly PatcherState _patcherState;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
+    private readonly PatcherIO _patcherIO;
 
     private List<string> outputLines;
 
-    public SkyPatcherInterface(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, SynthEBDPaths paths, Logger logger)
+    public SkyPatcherInterface(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, SynthEBDPaths paths, Logger logger, PatcherIO patcherIO)
     {
         _environmentStateProvider = environmentStateProvider;
         _patcherState = patcherState;
         _paths = paths;
         _logger = logger;
+        _patcherIO = patcherIO;
         
         Reinitialize();
     }
@@ -26,6 +28,7 @@ public class SkyPatcherInterface
     public void Reinitialize()
     {
         outputLines = new List<string>();
+        ClearIni();
     }
 
     public void ApplyFace(FormKey applyTo, FormKey faceTemplate) // This doesn't work if the face texture isn't baked into the facegen nif. Not useful for SynthEBD.
@@ -68,6 +71,12 @@ public class SkyPatcherInterface
         PatcherIO.CreateDirectoryIfNeeded(destinationPath, PatcherIO.PathType.File);
         
         Task.Run(() => PatcherIO.WriteTextFile(destinationPath, outputLines, _logger));
+    }
+
+    private void ClearIni()
+    {
+        string destinationPath = Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "SkyPatcher", "npc", "SynthEBD", "SynthEBD.ini");
+        _patcherIO.TryDeleteFile(destinationPath, _logger);
     }
 
     public bool HasSkinEntries()

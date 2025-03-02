@@ -341,8 +341,8 @@ public class Patcher
         HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
         
         _vanillaBodyPathSetter.Reinitialize();
-
         _easyNPCProfileParser.Reinitialize(_patcherState.GeneralSettings.EasyNPCprofilePath);
+        _skyPatcherInterface.Reinitialize();
 
         _patchedNpcCount = 0;
         _statusBar.ProgressBarMax = allNPCs.Count();
