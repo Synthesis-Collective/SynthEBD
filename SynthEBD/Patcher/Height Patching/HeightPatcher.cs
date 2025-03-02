@@ -168,7 +168,7 @@ public class HeightPatcher
         }
         else
         {
-            var npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+            var npc = outputMod.Npcs.GetOrAddAsOverride(npcInfo.OriginalNPC);
             npc.Height = assignedHeight;
         }
     }
