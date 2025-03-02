@@ -238,6 +238,7 @@ public class HeightPatcher
     
     public void WriteAssignmentDictionaryScriptMode()
     {
+        return; // This is currently handled by SkyPatcher
         if (!_patcherState.HeightSettings.bApplyWithoutOverride)
         {
             return;

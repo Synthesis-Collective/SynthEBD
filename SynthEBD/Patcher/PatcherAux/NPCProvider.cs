@@ -39,7 +39,7 @@ public class NPCProvider
         if (_importedNPCMap.TryGetValue(npcGetter.FormKey, out Npc importedNpc))
         {
             return importedNpc;
-        };
+        }
         if (onlyFromImportedNpcs)
         {
             return null;
@@ -49,10 +49,14 @@ public class NPCProvider
         var outputMod = _environmentStateProvider.OutputMod;
         
         _environmentStateProvider.LinkCache.TryResolveContext(npcGetter.FormKey, typeof(INpcGetter), out var context);
+        if (context.ModKey.Equals(outputMod.ModKey))
+        {
+            return context.Record as Npc;
+        }
 
         Npc npcRecord = null;
 
-        if (!_blockedImportPlugions.Contains(context.ModKey.FileName))
+        if (!_blockedImportPlugions.Contains(context.ModKey.FileName) && !outputMod.ModKey.Equals(context.ModKey))
         {
             outputMod.DuplicateFromOnlyReferenced(new List<INpcGetter>() { context.Record as INpcGetter },
                 _environmentStateProvider.LinkCache, context.ModKey, ref _formKeyMap);

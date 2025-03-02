@@ -198,7 +198,7 @@ public class VanillaBodyPathSetter
 
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
 
-            if (hasBlockedArmature || _patcherState.TexMeshSettings.bPureScriptMode)
+            if (hasBlockedArmature || _patcherState.TexMeshSettings.bPureScriptMode && !_npcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
             {
                 SetViaNewArmor(outputMod, armorGetter, npcGetter, currentGender);
             }
