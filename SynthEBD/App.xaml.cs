@@ -164,7 +164,7 @@ public partial class App : Application
         await patcher.RunPatcher();
     }
 
-    private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    private async void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();
         sb.AppendLine("SynthEBD has crashed with the following error:");
@@ -257,7 +257,9 @@ public partial class App : Application
         var errorMessage = sb.ToString();
 
         var path = Path.Combine(_settingsSourceProvider.GetCurrentSettingsRootPath(), "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
-        PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
+
+
+        Task.Run(() => PatcherIO.WriteTextFile(path, errorMessage, _logger)).Wait();
 
         MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
 
