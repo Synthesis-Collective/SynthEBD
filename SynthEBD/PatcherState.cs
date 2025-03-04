@@ -61,6 +61,12 @@ public class PatcherState
         }
         else
         {
+            if (GeneralSettings != null && TexMeshSettings != null &&
+                (TexMeshSettings.bForceVanillaBodyMeshPath || GeneralSettings.bChangeMeshesOrTextures))
+            {
+                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bPureScriptMode);
+            }
+            
             if (GeneralSettings != null && GeneralSettings.bChangeMeshesOrTextures)
             {
                 sb.AppendLine("Fix EBD's Global Script: " + TexMeshSettings.bApplyFixedScripts);
@@ -226,6 +232,11 @@ public class PatcherState
         else
         {
             sb.AppendLine("Height Configs: " + HeightConfigs.Count);
+        }
+
+        if (GeneralSettings != null && GeneralSettings.bChangeHeight && HeightSettings != null)
+        {
+            sb.AppendLine("SkyPatcher Mode for Height: " + HeightSettings.bApplyWithoutOverride);
         }
 
         if (HeadPartSettings == null)

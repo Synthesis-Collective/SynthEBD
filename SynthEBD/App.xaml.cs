@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Windows;
+using Mutagen.Bethesda;
 
 namespace SynthEBD;
 
@@ -211,11 +212,21 @@ public partial class App : Application
             if (_logger.CurrentNPCInfo != null)
             {
                 string id = "No ID";
-                if (_logger.CurrentNPCInfo.LogIDstring != null) { id = _logger.CurrentNPCInfo.LogIDstring; }
-                else if (_logger.CurrentNPCInfo.NPC.FormKey != null) { id = _logger.CurrentNPCInfo.NPC.FormKey.ToString(); }
+                if (_logger.CurrentNPCInfo?.LogIDstring != null) { id = _logger.CurrentNPCInfo.LogIDstring; }
+                else if (_logger.CurrentNPCInfo?.NPC?.FormKey != null) { id = _logger.CurrentNPCInfo.NPC.FormKey.ToString(); }
                 sb.AppendLine("Current NPC: " + id);
 
-                if (_logger.CurrentNPCInfo.Report != null)
+                if (_logger.CurrentNPCInfo?.NPC != null && 
+                    _environmentStateProvider != null && 
+                    _environmentStateProvider?.LinkCache != null)
+                {
+                    var contexts = _logger.CurrentNPCInfo.NPC.ToLink().ResolveAllContexts<ISkyrimMod, ISkyrimModGetter, INpc, INpcGetter>(_environmentStateProvider.LinkCache).ToArray();
+                    var sourcePlugins = "NPC Override Order: " + Environment.NewLine +
+                                        string.Join(Environment.NewLine, contexts.Select(x => x.ModKey.ToString()));
+                    sb.AppendLine(sourcePlugins);
+                }
+
+                if (_logger.CurrentNPCInfo?.Report != null)
                 {
                     try
                     {
