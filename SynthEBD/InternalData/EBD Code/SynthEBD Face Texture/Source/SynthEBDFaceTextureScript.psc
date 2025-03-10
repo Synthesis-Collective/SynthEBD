@@ -61,7 +61,7 @@ EndEvent
 Event OnPlayerLoadGame() ; Fix actors in current cell when player reloads game.
 	int handle = ModEvent.Create("SynthEBD_ReloadFaces")
 	if (handle)
-		VerboseLogger("SynthEBD: Sending SynthEBD_ReloadFaces", VerboseMode, false)
+		VerboseLogger("SynthEBD: Sending SynthEBD_ReloadFaces", VerboseMode.GetValue(), false)
 		ModEvent.Send(handle)
 	endif
 EndEvent
@@ -192,7 +192,7 @@ string[] Function GetTextureAssignmentInfo(ActorBase akActorBase)
 		EndIf
 	EndIf
 	
-	VerboseLogger(akActorBase.getName() + " " + outputs[0] + " "  + outputs[1] + " "  + outputs[2], true, true)
+	;VerboseLogger(akActorBase.getName() + " " + outputs[0] + " "  + outputs[1] + " "  + outputs[2], true, true)
 	
 	return outputs
 EndFunction
