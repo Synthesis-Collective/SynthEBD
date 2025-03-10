@@ -161,12 +161,30 @@ public class PatcherState
             sb.AppendLine("Primary Config Files");
             foreach (var primary in AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary))
             {
-                sb.AppendLine("\t" + primary.GroupName);
+                string symbol = string.Empty;
+                if (TexMeshSettings.SelectedAssetPacks.Contains(primary.GroupName))
+                {
+                    symbol = "(+) ";
+                }
+                else
+                {
+                    symbol = "(-) ";
+                }
+                sb.AppendLine("\t" + symbol + primary.GroupName);
             }
             sb.AppendLine(("MixIn Config Files"));
             foreach (var mixin in AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn))
             {
-                sb.AppendLine("\t" + mixin.GroupName);
+                string symbol = string.Empty;
+                if (TexMeshSettings.SelectedAssetPacks.Contains(mixin.GroupName))
+                {
+                    symbol = "(+) ";
+                }
+                else
+                {
+                    symbol = "(-) ";
+                }
+                sb.AppendLine("\t" + symbol + mixin.GroupName);
             }
         }
         else
