@@ -119,15 +119,15 @@ public static class PatcherExt
             if (link.FormKey.IsNull) return;
             if (!passedLinks.Add(link.FormKey)) return;
             if (implicits.RecordFormKeys.Contains(link.FormKey)) return;
+            
+            if (!linkCache.TryResolve(link.FormKey, link.Type, out var linkRec))
+            {
+                return;
+            }
 
             if (link.FormKey.ModKey == modKeyToDuplicateFrom)
             {
                 identifiedLinks.Add(link);
-            }
-
-            if (!linkCache.TryResolve(link.FormKey, link.Type, out var linkRec))
-            {
-                return;
             }
 
             foreach (var containedLink in linkRec.EnumerateFormLinks())
