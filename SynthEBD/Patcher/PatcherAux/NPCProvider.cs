@@ -1,4 +1,5 @@
 ﻿using Mutagen.Bethesda;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
@@ -58,10 +59,11 @@ public class NPCProvider
 
         if (!_patcherState.GeneralSettings.BlockedModsFromImport.Contains(context.ModKey) && !outputMod.ModKey.Equals(context.ModKey))
         {
-            outputMod.DuplicateFromOnlyReferenced(new List<INpcGetter>() { context.Record as INpcGetter },
-                _environmentStateProvider.LinkCache, context.ModKey, ref _formKeyMap);
+            Dictionary<FormKey, FormKey> remappedNpcs = new();
+            outputMod.DuplicateFromOnlyReferencedNpcs(new List<INpcGetter>() { context.Record as INpcGetter },
+                _environmentStateProvider.LinkCache, context.ModKey, ref _formKeyMap, true, ref remappedNpcs);
 
-            var remappedNpcFk = _formKeyMap[npcGetter.FormKey];
+            var remappedNpcFk = remappedNpcs[npcGetter.FormKey];
 
             npcRecord = outputMod.Npcs.First(x => x.FormKey.Equals(remappedNpcFk));
             if (!npcRecord.EditorID.IsNullOrWhitespace())
@@ -94,15 +96,16 @@ public class NPCProvider
 }
 public static class PatcherExt
 {
-    public static void DuplicateFromOnlyReferenced<TMod, TModGetter>(
+    public static void DuplicateFromOnlyReferencedNpcs<TMod, TModGetter>(
         this TMod modToDuplicateInto,
         IEnumerable<IMajorRecordGetter> recordsToDuplicate,
         ILinkCache<TMod, TModGetter> linkCache, 
         ModKey modKeyToDuplicateFrom,
-        ref Dictionary<FormKey, FormKey> mapping,
+        ref Dictionary<FormKey, FormKey> mapping, bool onlySkin,
+        ref Dictionary<FormKey, FormKey> topLevelRemaps,
         params Type[] typesToInspect)
         where TModGetter : class, IModGetter
-        where TMod : class, TModGetter, IMod
+        where TMod : class, TModGetter, IMod, ISkyrimMod
     {
         if (modKeyToDuplicateFrom == modToDuplicateInto.ModKey)
         {
@@ -119,7 +122,7 @@ public static class PatcherExt
             if (link.FormKey.IsNull) return;
             if (!passedLinks.Add(link.FormKey)) return;
             if (implicits.RecordFormKeys.Contains(link.FormKey)) return;
-            
+
             if (!linkCache.TryResolve(link.FormKey, link.Type, out var linkRec))
             {
                 return;
@@ -136,11 +139,43 @@ public static class PatcherExt
                 AddAllLinks(containedLink);
             }
         }
-        
-        foreach (var rec in recordsToDuplicate)
+
+        if (onlySkin)
         {
-            identifiedLinks.Add(rec.ToLink());
-            AddAllLinks(new FormLinkInformation(rec.FormKey, rec.Registration.GetterType));
+            foreach (var record in recordsToDuplicate)
+            {
+                var npcGetter = record as INpcGetter;
+                if (npcGetter is null)
+                {
+                    throw new ArgumentException("When onlySkin == true, recordsToDuplicate must be of type INpcGetter" +
+                                                Environment.NewLine + "FormKey: " + record.FormKey.ToString());
+                }
+
+                var newNpc = new Npc(modToDuplicateInto, npcGetter.EditorID ?? npcGetter.Name?.String ?? npcGetter.FormKey.ToString() ?? "NewNpc");
+                newNpc.Race.SetTo(Skyrim.Race.DefaultRace);
+                modToDuplicateInto.Npcs.Add(newNpc);
+                topLevelRemaps.Add(record.FormKey, newNpc.FormKey);
+       
+                if (!npcGetter.HeadTexture.IsNull)
+                {
+                    AddAllLinks(npcGetter.HeadTexture);
+                    newNpc.HeadTexture.SetTo(npcGetter.HeadTexture);
+                }
+
+                if (!npcGetter.WornArmor.IsNull)
+                {
+                    AddAllLinks(npcGetter.WornArmor);
+                    newNpc.WornArmor.SetTo(npcGetter.WornArmor);
+                }
+            }
+        }
+        else
+        {
+            foreach (var rec in recordsToDuplicate)
+            {
+                identifiedLinks.Add(rec.ToLink());
+                AddAllLinks(new FormLinkInformation(rec.FormKey, rec.Registration.GetterType));
+            }
         }
 
         // Duplicate in the records
@@ -153,8 +188,15 @@ public static class PatcherExt
 
             if (!mapping.ContainsKey(rec.Record.FormKey))
             {
-                var dup = rec.DuplicateIntoAsNewRecord(modToDuplicateInto, rec.Record.EditorID);
-                mapping[rec.Record.FormKey] = dup.FormKey; 
+                var newEdid = (rec.Record.EditorID ?? "NoEditorID") + "_SynthEBD_Imported";
+                var dup = rec.DuplicateIntoAsNewRecord(modToDuplicateInto, newEdid);
+                dup.EditorID = newEdid;
+                mapping[rec.Record.FormKey] = dup.FormKey;
+
+                if (recordsToDuplicate.Contains(dup))
+                {
+                    topLevelRemaps.Add(rec.Record.FormKey, dup.FormKey);
+                }
             }
             
             // ToDo
