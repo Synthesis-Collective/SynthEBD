@@ -1158,6 +1158,8 @@ public enum ThreeWayState
 
 public enum ModAttributeEnum
 {
-    From,
-    PatchedBy
+    CreatedBy,
+    PatchedBy,
+    WinningOverrideIsFrom,
+    WinningAppearanceIsFrom
 }

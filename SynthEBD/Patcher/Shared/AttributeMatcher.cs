@@ -192,9 +192,10 @@ public class AttributeMatcher
                         var modAttribute = (NPCAttributeMod)subAttribute;
                         switch(modAttribute.ModActionType)
                         {
-                            case ModAttributeEnum.From: 
+                            case ModAttributeEnum.CreatedBy: 
                                 if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
                                 break;
+                            
                             case ModAttributeEnum.PatchedBy:
                                 var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
                                 bool foundContext = false;
@@ -206,6 +207,99 @@ public class AttributeMatcher
                                 {
                                     foundContext = true;
                                 }
+                                if (!foundContext)
+                                {
+                                    subAttributeMatched = false;
+                                }
+                                break;
+                            
+                            case ModAttributeEnum.WinningOverrideIsFrom:
+                                contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Do NOT omit the source plugin
+                                var winningContext = contexts.FirstOrDefault();
+                                if (winningContext == null)
+                                {
+                                    subAttributeMatched = false;
+                                    break;
+                                }
+                                
+                                foundContext = false;
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true;}
+                                else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
+                                    _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
+                                    appearanceModKey.HasValue && 
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                {
+                                    foundContext = true;
+                                }
+                                
+                                if (!foundContext)
+                                {
+                                    subAttributeMatched = false;
+                                }
+                                break;
+                            
+                            case ModAttributeEnum.WinningAppearanceIsFrom:
+                                contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Do NOT omit the source plugin
+                                winningContext = contexts.FirstOrDefault();
+                                if (winningContext == null)
+                                {
+                                    subAttributeMatched = false;
+                                    break;
+                                }
+                                
+                                foundContext = false;
+                                // first check if the winning context is the winning appearance context, just like for ModAttributeEnum.WinningAppearance
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true; }
+                                else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
+                                    _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
+                                    appearanceModKey.HasValue && 
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                {
+                                    foundContext = true;
+                                }
+                                // If not, check if the winning appearance override inherits from those in any of the allowed ModKeys
+                                else
+                                {
+                                    var candidateAppearanceContexts = contexts.Where(x => 
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, x.ModKey))
+                                    .ToList();
+                                
+                                    // Add EasyNPC plugin context if necessary
+                                    if (_easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) &&
+                                        appearanceModKey.HasValue &&
+                                        ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                    {
+                                        var EasyNpcContext = contexts.FirstOrDefault(x => x.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower());
+                                        if (EasyNpcContext != null)
+                                        {
+                                            candidateAppearanceContexts.Insert(0, EasyNpcContext); // check this context first
+                                        }
+                                    }
+                                    
+                                    // check the appearance of each context against that of the winning context
+                                    var winningNpc = contexts.First()?.Record;
+                                    Npc.TranslationMask appearanceMask = new Npc.TranslationMask(defaultOn: false)
+                                    {
+                                        FaceMorph = true,
+                                        FaceParts = true,
+                                        HairColor = true,
+                                        HeadParts = true,
+                                        HeadTexture = true,
+                                        TextureLighting = true,
+                                        TintLayers = true,
+                                        WornArmor = true
+                                    };
+
+                                    foreach (var candidate in candidateAppearanceContexts)
+                                    {
+                                        if (candidate.Record.Equals(winningNpc, appearanceMask))
+                                        {
+                                            subAttributeMatched = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                                                                
                                 if (!foundContext)
                                 {
                                     subAttributeMatched = false;

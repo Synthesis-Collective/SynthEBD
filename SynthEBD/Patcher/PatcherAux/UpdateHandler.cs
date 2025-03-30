@@ -46,6 +46,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1028Toggle();
         UpdateV1032AttributeGroups();
         UpdateV1048RaceAliases();
+        UpdateV1053CotrAttributes();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -271,6 +272,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
                 }
             }
         }
+        _patcherState.UpdateLog.Performed1_0_3_2AttributeUpdate = true;
     }
 
     private void UpdateV1048RaceAliases()
@@ -373,6 +375,66 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
                 }
             }
         }
+
+        _patcherState.UpdateLog.Performed1_0_4_8_RaceAliasCOTRUpdates = true;
+    }
+
+    private void UpdateV1053CotrAttributes()
+    {
+        if (_patcherState.UpdateLog.Performed1_0_5_3_CotrAttributeUpdates)
+        {
+            return;
+        }
+
+        List<VM_NPCAttributeMod> toUpdate = new();
+        
+        var cotrAttributeGroup = _generalVM.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
+        if (cotrAttributeGroup != null)
+        {
+            foreach (var attribute in cotrAttributeGroup.Attributes)
+            {
+                foreach (var subAttribute in attribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Mod))
+                {
+                    var editable = subAttribute.Attribute as VM_NPCAttributeMod;
+                    if (editable != null)
+                    {
+                        toUpdate.Add(editable);
+                    }
+                }
+            }
+        }
+
+        foreach (var config in _texMeshVM.AssetPacks)
+        {
+            cotrAttributeGroup = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
+            if (cotrAttributeGroup != null)
+            {
+                foreach (var attribute in cotrAttributeGroup.Attributes)
+                {
+                    foreach (var subAttribute in attribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Mod))
+                    {
+                        var editable = subAttribute.Attribute as VM_NPCAttributeMod;
+                        if (editable != null)
+                        {
+                            toUpdate.Add(editable);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (toUpdate.Any() && MessageWindow.DisplayNotificationYesNo("Update Charmers of the Reach Attribute Group?",
+                "SynthEBD 1.0.5.3 includes new modes for Mod-type NPC Attributes, which improves handling of mods containing Charmers of the Reach heads.\n" +
+                "Would you like to automatically update the Attribute Group that handles CotR heads?\n" +
+                "Press Yes unless you know what you're doing"))
+        {
+            foreach (var attribute in toUpdate)
+            {
+                attribute.ModActionType = ModAttributeEnum.WinningAppearanceIsFrom;
+            }
+        }
+        
+        _patcherState.UpdateLog.Performed1_0_5_3_CotrAttributeUpdates = true;
     }
 
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -410,4 +472,5 @@ public class UpdateLog
     public bool Performed1_0_2_8Update { get; set; } = false;
     public bool Performed1_0_3_2AttributeUpdate { get; set; } = false;
     public bool Performed1_0_4_8_RaceAliasCOTRUpdates { get; set; } = false;
+    public bool Performed1_0_5_3_CotrAttributeUpdates { get; set; } = false;
 }
