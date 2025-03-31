@@ -14,6 +14,8 @@ public class NPCProvider
     private readonly PatcherState _patcherState;
     private Dictionary<FormKey, FormKey> _formKeyMap = new();
     private Dictionary<FormKey, Npc> _importedNPCMap = new();
+    
+    public const string importedSuffix = "_SynthEBD_Imported";
 
     public NPCProvider(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState)
     {
@@ -188,7 +190,7 @@ public static class PatcherExt
 
             if (!mapping.ContainsKey(rec.Record.FormKey))
             {
-                var newEdid = (rec.Record.EditorID ?? "NoEditorID") + "_SynthEBD_Imported";
+                var newEdid = (rec.Record.EditorID ?? "NoEditorID") + NPCProvider.importedSuffix;
                 var dup = rec.DuplicateIntoAsNewRecord(modToDuplicateInto, newEdid);
                 dup.EditorID = newEdid;
                 mapping[rec.Record.FormKey] = dup.FormKey;
