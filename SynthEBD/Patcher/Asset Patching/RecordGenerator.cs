@@ -10,23 +10,30 @@ namespace SynthEBD;
 
 public class RecordGenerator
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
-    private readonly SynthEBDPaths _paths;
     private readonly HardcodedRecordGenerator _hardcodedRecordGenerator;
     private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
+    private readonly NPCProvider _npcProvider;
+    private readonly ArmorPatcher _armorPatcher;
+    private readonly SkinPatcher _skinPatcher;
+    private readonly SkyPatcherInterface _skyPatcherInterface;
     private HashSet<FormKey> skinWNAMsToStrip;
-    public RecordGenerator(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser)
+    
+    public RecordGenerator(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser, NPCProvider npcProvider, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
-        _paths = paths;
         _hardcodedRecordGenerator = hardcodedRecordGenerator;
         _headPartSelector = headPartSelector;
         _recordPathParser = recordPathParser;
+        _npcProvider = npcProvider;
+        _armorPatcher = armorPatcher;
+        _skinPatcher = skinPatcher;
+        _skyPatcherInterface = skyPatcherInterface;
         skinWNAMsToStrip = new();
     }
 
@@ -64,24 +71,108 @@ public class RecordGenerator
         }
     }
 
-    public void CombinationToRecords(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, ISkyrimMod outputMod, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
+    public void ApplySelectedAssets(Dictionary<NPCInfo, List<Patcher.SelectedAssetContainer>> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> generatedHeadPartAssignmentTransfers, HashSet<Npc> headPartNPCs, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
+    {
+        foreach (var npcAssetEntry in selectedAssets)
+        {
+            var currentNPCInfo = npcAssetEntry.Key;
+            var assignments = npcAssetEntry.Value;
+            
+            if (assignments.Any())
+            {
+                Npc npcRecord;
+                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                {
+                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
+                    currentNPCInfo.NPC = npcRecord;
+                }
+                else
+                {
+                    npcRecord = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                }
+                
+                if (_patcherState.TexMeshSettings.StrippedSkinWNAMs.Any())
+                {
+                    currentNPCInfo.NPC = StripSpecifiedSkinArmor(npcRecord, _environmentProvider.LinkCache, _environmentProvider.OutputMod);
+                }
+                
+                var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
+                var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
+                var replacedRecords = new Dictionary<FormKey, FormKey>();
+                var recordsFromTemplates = new HashSet<IMajorRecord>(); // needed for downstream quality check
+                var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
+                var generatedHeadParts = generatedHeadPartAssignmentTransfers[currentNPCInfo];
+                CombinationToRecords(assignments, flattenedAssetPacks, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, assignedPaths, generatedHeadParts);
+                combinationLog.LogAssignedRecords(currentNPCInfo, assignments);
+                
+                if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
+
+                if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) && headTextureSourceMod.Equals(_environmentProvider.OutputMod.ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
+                {
+                    if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                    {
+                        npcRecord.Keywords.Add(EBDFaceKW);
+                        npcRecord.Keywords.Add(EBDScriptKW);
+                    }
+                    else
+                    {
+                        npcRecord.Keywords.Add(synthEBDFaceKW);
+                    }
+                }
+                AddCustomKeywordsToNPC(assignments, npcRecord, _environmentProvider.OutputMod);
+
+                if (assignedPaths.Where(x => x.DestinationStr.StartsWith("HeadParts")).Any())
+                {
+                    headPartNPCs.Add(npcRecord);
+                }
+
+                if (_patcherState.TexMeshSettings.bPatchArmors)
+                {
+                    _armorPatcher.PatchArmorTextures(currentNPCInfo, replacedRecords, _environmentProvider.OutputMod);
+                }
+                if (_patcherState.TexMeshSettings.bPatchSkinAltTextures)
+                {
+                    _skinPatcher.PatchAltTextures(currentNPCInfo, replacedRecords, _environmentProvider.OutputMod);
+                }
+                _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, _environmentProvider.OutputMod);
+
+                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                {
+                    _skyPatcherInterface.ApplySkin(currentNPCInfo.OriginalNPC.FormKey, npcRecord.WornArmor.FormKey);
+                    assetAssignmentJsonDictHandler.LogNPCAssignments(currentNPCInfo, _environmentProvider.OutputMod);
+                }
+            }
+        }
+    }
+
+    public void CombinationToRecords(List<Patcher.SelectedAssetContainer> assignments, HashSet<FlattenedAssetPack> flattenedAssetPacks, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts)
     {
         HashSet<FilePathReplacementParsed> wnamPaths = new HashSet<FilePathReplacementParsed>();
         HashSet<FilePathReplacementParsed> headtexPaths = new HashSet<FilePathReplacementParsed>();
         List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
 
-        _hardcodedRecordGenerator.CategorizePaths(combinations, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
+        _hardcodedRecordGenerator.CategorizePaths(assignments, flattenedAssetPacks, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
 
         if (!nonHardcodedPaths.Any() && !wnamPaths.Any() && !headtexPaths.Any()) { return; } // avoid making ITM if user blocks all assets of the type assigned (see AssetSelector.BlockAssetDistributionByExistingAssets())
 
-        var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+        var currentNPC = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
         objectCaches.Add(npcInfo.NPC.FormKey, new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", currentNPC } });
 
-        _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, outputMod, this);
+        _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, _environmentProvider.OutputMod, this);
 
         if (nonHardcodedPaths.Any())
         {
-            AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, outputMod, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths, generatedHeadParts, replacedRecords, recordsFromTemplates);
+            AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths, generatedHeadParts, replacedRecords, recordsFromTemplates);
+        }
+        
+        //logging: compile traversed records
+        foreach (var p in nonHardcodedPaths)
+        {
+            var entry = assignments.First(x => x.AssetPackName == p.AssetPackName);
+            foreach (var record in p.TraversedRecords)
+            {
+                entry.TraversedRecords.Add(record);
+            }
         }
     }
 
@@ -92,7 +183,7 @@ public class RecordGenerator
     }
 
     // assignedPaths is for logging purposes only
-    public void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, ISkyrimMod outputMod, int longestPath, bool canAssignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates)
+    public void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int longestPath, bool canAssignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates)
     {
         HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
 
@@ -157,7 +248,7 @@ public class RecordGenerator
                     npcSetterHasObject = true;
                     if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
                     {
-                        if (currentObjInfo.RecordFormKey.ModKey.Equals(outputMod.ModKey)) // This is a subrecord of a template-derived deep copied record. Now that the path signature of the given template-derived subrecord is known, cache it
+                        if (currentObjInfo.RecordFormKey.ModKey.Equals(_environmentProvider.OutputMod.ModKey) && !IsImportedForSkyPatcher(currentObj)) // This is a subrecord of a template-derived deep copied record. Now that the path signature of the given template-derived subrecord is known, cache it
                         {
                             var generatedSubRecord = templateSubRecords.Where(x => x.SubRecord == currentObj).FirstOrDefault();
                             if (generatedSubRecord != null)
@@ -167,7 +258,7 @@ public class RecordGenerator
                                 LogRecordAlongPaths(group, currentObj);
                             }
                         }
-                        else if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, replacedRecords, outputMod, out currentObj))
+                        else if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, replacedRecords, out currentObj))
                         {
                             continue;
                         }
@@ -179,7 +270,7 @@ public class RecordGenerator
                 {
                     if (currentObjInfo.HasFormKey)  // if the current object is a record, resolve it
                     {
-                        if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, replacedRecords, outputMod, out currentObj))
+                        if (!TraverseRecordFromNpc(currentObj, currentObjInfo, pathSignature, group, rootObj, currentSubPath, npcInfo, nonHardcodedPaths, generatedHeadParts, replacedRecords, out currentObj))
                         {
                             continue;
                         }
@@ -215,7 +306,7 @@ public class RecordGenerator
                     {
                         if (currentObjInfo.HasFormKey)
                         {
-                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, generatedHeadParts, outputMod, rootNPC, npcInfo, out currentObj))
+                            if (!TraverseRecordFromTemplate(rootObj, currentSubPath, currentObj, currentObjInfo, recordTemplateLinkCache, nonHardcodedPaths, group, templateSignature, templateSubRecords, generatedHeadParts, rootNPC, npcInfo, out currentObj))
                             {
                                 continue;
                             }
@@ -252,7 +343,7 @@ public class RecordGenerator
         }
     }
 
-    private bool TraverseRecordFromNpc(dynamic currentObj, ObjectInfo currentObjInfo, HashSet<string> pathSignature, IGrouping<string, FilePathReplacementParsed> group, dynamic rootObj, string currentSubPath, NPCInfo npcInfo, List<FilePathReplacementParsed> allPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod, out dynamic outputObj)
+    private bool TraverseRecordFromNpc(dynamic currentObj, ObjectInfo currentObjInfo, HashSet<string> pathSignature, IGrouping<string, FilePathReplacementParsed> group, dynamic rootObj, string currentSubPath, NPCInfo npcInfo, List<FilePathReplacementParsed> allPaths, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, out dynamic outputObj)
     {
         outputObj = currentObj;
         IMajorRecord copiedRecord = null;
@@ -265,7 +356,7 @@ public class RecordGenerator
                 return false;
             }
 
-            dynamic recordGroup = GetPatchRecordGroup(currentObjInfo.RecordType, outputMod);
+            dynamic recordGroup = GetPatchRecordGroup(currentObjInfo.RecordType, _environmentProvider.OutputMod);
             copiedRecord = (IMajorRecord)IGroupMixIns.DuplicateInAsNewRecord(recordGroup, (IMajorRecordGetter)currentObj);
             AssignEditorID(copiedRecord, currentObjInfo.RecordFormKey.ToString(), false);
             if (!replacedRecords.ContainsKey(currentObjInfo.RecordFormKey))
@@ -300,12 +391,12 @@ public class RecordGenerator
         return true;
     }
 
-    private bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, ISkyrimMod outputMod, IMajorRecordGetter rootRecord, NPCInfo npcInfo, out dynamic currentObj)
+    private bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts, IMajorRecordGetter rootRecord, NPCInfo npcInfo, out dynamic currentObj)
     {
         IMajorRecord newRecord = null;
         HashSet<IMajorRecord> copiedRecords = new HashSet<IMajorRecord>(); // includes current record and its subrecords
 
-        newRecord = DeepCopyRecordToPatch((IMajorRecordGetter)recordToCopy, recordObjectInfo.RecordFormKey.ModKey, recordTemplateLinkCache, outputMod, copiedRecords);
+        newRecord = DeepCopyRecordToPatch((IMajorRecordGetter)recordToCopy, recordObjectInfo.RecordFormKey.ModKey, recordTemplateLinkCache, _environmentProvider.OutputMod, copiedRecords);
 
         if (newRecord == null)
         {
@@ -545,6 +636,16 @@ public class RecordGenerator
         return string.Join(", ", templateNames);
     }
 
+    private bool IsImportedForSkyPatcher(dynamic currentObj) // determines if the given formkey is from a record merged-in from NpcProvider
+    {
+        var record = currentObj as IMajorRecord;
+        if (record != null && record.EditorID != null && record.EditorID.EndsWith(NPCProvider.importedSuffix))
+        {
+            return true;
+        }
+        return false;
+    }
+
     public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
     private static Dictionary<string, int> ModifiedRecordCounts = new Dictionary<string, int>(); // for modified Editor IDs only
@@ -660,18 +761,15 @@ public class RecordGenerator
 
     private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
 
-    public static void AddCustomKeywordsToNPC(List<SubgroupCombination> assignedCombinations, Npc npc, ISkyrimMod outputMod)
+    public static void AddCustomKeywordsToNPC(List<Patcher.SelectedAssetContainer> assignedAssetEntries, Npc npc, ISkyrimMod outputMod)
     {
-        foreach (var combination in assignedCombinations)
+        foreach (var entry in assignedAssetEntries)
         {
-            foreach (var subgroup in combination.ContainedSubgroups)
+            foreach (var keyword in entry.KeywordsToApply)
             {
-                foreach (var keyword in subgroup.AddKeywords)
+                if (!string.IsNullOrWhiteSpace(keyword))
                 {
-                    if (!string.IsNullOrWhiteSpace(keyword))
-                    {
-                        AddKeywordToNPC(npc, keyword, outputMod);
-                    }
+                    AddKeywordToNPC(npc, keyword, outputMod);
                 }
             }
         }

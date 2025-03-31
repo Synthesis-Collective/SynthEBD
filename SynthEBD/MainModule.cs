@@ -115,7 +115,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SkinPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartFunctions>().AsSelf().SingleInstance();
         builder.RegisterType<NPCProvider>().AsSelf().SingleInstance();
-        builder.RegisterType<AssetAssignmentDB>().AsSelf().SingleInstance();
+        builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();

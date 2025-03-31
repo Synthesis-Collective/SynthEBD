@@ -149,7 +149,8 @@ public class CombinationLog
         }
     }
 
-    public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
+    //public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
+    public void LogCombinationSelections(NPCInfo npcInfo, List<SubgroupCombination> combinations)
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
@@ -187,23 +188,62 @@ public class CombinationLog
             }
 
             currentCombinationRecord.NPCsAssignedTo.Add(npcInfo.LogIDstring);
-
-            var pathsForThisCombination = assignedPaths.Where(x => x.ParentCombination.Signature == combination.Signature).ToArray();
-            foreach (var recordSet in pathsForThisCombination.Select(x => x.TraversedRecords).ToArray())
-            {
-                foreach (var recordInfo in recordSet)
-                {
-                    if (currentCombinationRecord.AssignedFormKeys.Contains(recordInfo.FormKey)) { continue; }
-
-                    currentCombinationRecord.AssignedRecords.Add(recordInfo);
-                    currentCombinationRecord.AssignedFormKeys.Add(recordInfo.FormKey);
-                }
-            }
-
+            
             combination.AssetPack.AssignmentCount++;
             foreach (var subgroup in combination.ContainedSubgroups)
             {
                 subgroup.AssignmentCount++;
+            }
+        }
+    }
+
+    public void LogAssignedRecords(NPCInfo npcInfo, List<Patcher.SelectedAssetContainer> containers)
+    {
+        foreach (var container in containers)
+        {
+            foreach (var pathAssignment in container.Paths)
+            {
+                Dictionary<string, List<CombinationInfo>> combinationDict = null;
+                switch (container.CombinationType)
+                {
+                    case FlattenedAssetPack.AssetPackType.Primary: combinationDict = AssignedPrimaryCombinations; break;
+                    case FlattenedAssetPack.AssetPackType.MixIn: combinationDict = AssignedMixInCombinations; break;
+                    case FlattenedAssetPack.AssetPackType.ReplacerVirtual:
+                        combinationDict = AssignedReplacerCombinations; break;
+                    default: return;
+                }
+
+                List<CombinationInfo> currentAssetPackCombinations = null;
+                if (combinationDict.ContainsKey(container.LoggingLabel))
+                {
+                    currentAssetPackCombinations = combinationDict[container.LoggingLabel];
+                }
+                else
+                {
+                    currentAssetPackCombinations = new List<CombinationInfo>();
+                    combinationDict.Add(container.LoggingLabel, currentAssetPackCombinations);
+                }
+
+                string currentSubgroupIDs = container.Signature.Split(':')[1];
+
+                var currentCombinationRecord = currentAssetPackCombinations
+                    .Where(x => x.SubgroupIDs == currentSubgroupIDs)
+                    .FirstOrDefault();
+                if (currentCombinationRecord == null)
+                {
+                    return;
+                }
+
+                foreach (var recordInfo in container.TraversedRecords.ToArray())
+                {
+                    if (currentCombinationRecord.AssignedFormKeys.Contains(recordInfo.FormKey))
+                    {
+                        continue;
+                    }
+
+                    currentCombinationRecord.AssignedRecords.Add(recordInfo);
+                    currentCombinationRecord.AssignedFormKeys.Add(recordInfo.FormKey);
+                }
             }
         }
     }

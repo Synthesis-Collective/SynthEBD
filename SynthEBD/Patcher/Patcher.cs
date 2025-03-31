@@ -42,11 +42,8 @@ public class Patcher
     private readonly DictionaryMapper _dictionaryMapper;
     private readonly UpdateHandler _updateHandler;
     private readonly MiscValidation _miscValidation;
-    private readonly PatcherIO _patcherIO;
     private readonly NPCInfo.Factory _npcInfoFactory;
     private readonly VanillaBodyPathSetter _vanillaBodyPathSetter;
-    private readonly ArmorPatcher _armorPatcher;
-    private readonly SkinPatcher _skinPatcher;
     private readonly UniqueNPCData _uniqueNPCData;
     private readonly Converters _converters;
     private readonly BodySlideAnnotator _bodySlideAnnotator;
@@ -54,12 +51,14 @@ public class Patcher
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
     private readonly NPCProvider _npcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
-    private readonly AssetAssignmentDB _assetAssignmentDB;
+    private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
+
+    private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers; // Storage for moving assignments between selection (to be parallelized) and application (serial).
+    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> _generatedHeadPartAssignmentTransfers; // storage for moving assignments between selection and application
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
-    private List<Npc> _patchedNpcs { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentDB assetAssignmentDb)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -92,11 +91,8 @@ public class Patcher
         _dictionaryMapper = dictionaryMapper;
         _updateHandler = updateHandler;
         _miscValidation = miscValidation;    
-        _patcherIO = patcherIO;
         _npcInfoFactory = npcInfoFactory;  
         _vanillaBodyPathSetter = vanillaBodyPathSetter;
-        _armorPatcher = armorPatcher;
-        _skinPatcher = skinPatcher;
         _uniqueNPCData = uniqueNPCData;
         _converters = converters;
         _bodySlideAnnotator = bodySlideAnnotator;
@@ -104,7 +100,7 @@ public class Patcher
         _easyNPCProfileParser = easyNPCProfileParser;
         _npcProvider = npcProvider;
         _skyPatcherInterface = skyPatcherInterface;
-        _assetAssignmentDB = assetAssignmentDb;
+        _assetAssignmentJsonDictHandler = assetAssignmentJsonDictHandler;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -153,7 +149,9 @@ public class Patcher
 
         // Asset Pre-patching tasks:
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
-        _assetAssignmentDB.Reinitialize();
+        _assetAssignmentJsonDictHandler.Reinitialize();
+        _assetAssignmentTransfers = new();
+        
         var assetPacks = _patcherState.AssetPacks
             .Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName))
             .Select(x => JSONhandler<AssetPack>.CloneViaJSON(x))
@@ -174,10 +172,10 @@ public class Patcher
         gEnableTextureLoaderScript.EditorID = "SynthEBD_TextureLoaderScriptActive";
         gEnableTextureLoaderScript.Data = Convert.ToInt16(_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bPureScriptMode);
         
+        HashSet<FlattenedAssetPack> flattenedAssetPacks = new();
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
             UpdateRecordTemplateAdditonalRaces(assetPacks, _patcherState.RecordTemplateLinkCache, _patcherState.RecordTemplatePlugins);
-            HashSet<FlattenedAssetPack> flattenedAssetPacks = new HashSet<FlattenedAssetPack>();
             flattenedAssetPacks = assetPacks.Select(x => FlattenedAssetPack.FlattenAssetPack(x, _dictionaryMapper, _patcherState)).ToHashSet();
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, _patcherState.TexMeshSettings.TrimPaths.ToHashSet());
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
@@ -193,7 +191,7 @@ public class Patcher
 
             if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
             
-            _assetAssignmentDB.CreateTextureLoaderQuest(_environmentProvider.OutputMod, gEnableTextureLoaderScript, gFaceTextureVerboseMode);
+            _assetAssignmentJsonDictHandler.CreateTextureLoaderQuest(_environmentProvider.OutputMod, gEnableTextureLoaderScript, gFaceTextureVerboseMode);
 
             _assetSelector.Reinitialize();
             _recordGenerator.Reinitialize();
@@ -201,7 +199,6 @@ public class Patcher
         }
         HasAssetDerivedHeadParts = false;
         FacePartCompliance facePartComplianceMaintainer = new(_environmentProvider, _patcherState);
-        _patchedNpcs = new();
         _npcProvider.Reinitialize();
 
         // BodyGen Pre-patching tasks:
@@ -287,6 +284,7 @@ public class Patcher
 
         // HeadPart Pre-patching tasks:
         _headPartSelector.Reinitialize();
+        _generatedHeadPartAssignmentTransfers = new();
         _headPartWriter.CleanPreviousOutputs();
         var gEnableHeadParts = outputMod.Globals.AddNewShort();
         gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
@@ -348,10 +346,19 @@ public class Patcher
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
+        
+        // Selection: This section can be paralellized
+        
         // Patch main NPCs
-        MainLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
         // Finish assigning non-primary linked NPCs
-        MainLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        
+        // Application: This section must be serial 
+        _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
+            _generatedHeadPartAssignmentTransfers, headPartNPCs, _combinationLog, EBDFaceKW, EBDScriptKW,
+            synthEBDFaceKW, _assetAssignmentJsonDictHandler);
+        
         // Now that potential body modifications are complete, set vanilla mesh paths if necessary
         if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
         {
@@ -360,7 +367,7 @@ public class Patcher
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
-            _assetAssignmentDB.WriteAssignmentDictionaryScriptMode();
+            _assetAssignmentJsonDictHandler.WriteAssignmentDictionaryScriptMode();
             _combinationLog.WriteToFile(availableAssetPacks);
         }
 
@@ -461,7 +468,7 @@ public class Patcher
         public HashSet<FlattenedAssetPack> MixInFemale { get; set; }
     }
 
-    private void MainLoop(
+    private void AssignmentLoop(
         IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, ISkyrimMod outputMod,
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, 
@@ -685,69 +692,9 @@ public class Patcher
                 }
                 #endregion
 
-                #region Generate Records
-                if (assignedCombinations.Any())
-                {
-                    if (_patcherState.TexMeshSettings.bPureScriptMode)
-                    {
-                        npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
-                        currentNPCInfo.NPC = npcRecord;
-                    }
-                    else
-                    {
-                        npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                    }
-                    
-                    if (_patcherState.TexMeshSettings.StrippedSkinWNAMs.Any())
-                    {
-                        currentNPCInfo.NPC = _recordGenerator.StripSpecifiedSkinArmor(npcRecord, _environmentProvider.LinkCache, outputMod);
-                    }
-                    
-                    var npcObjectMap = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase) { { "", npcRecord } };
-                    var objectCaches = new Dictionary<FormKey, Dictionary<string, dynamic>>();
-                    var replacedRecords = new Dictionary<FormKey, FormKey>();
-                    var recordsFromTemplates = new HashSet<IMajorRecord>(); // needed for downstream quality check
-                    var assignedPaths = new List<FilePathReplacementParsed>(); // for logging only
-                    _recordGenerator.CombinationToRecords(assignedCombinations, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, outputMod, assignedPaths, generatedHeadParts);
-                    _combinationLog.LogAssignment(currentNPCInfo, assignedCombinations, assignedPaths);
-                    if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
-
-                    if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) && headTextureSourceMod.Equals(outputMod.ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
-                    {
-                        if (_patcherState.TexMeshSettings.bLegacyEBDMode)
-                        {
-                            npcRecord.Keywords.Add(EBDFaceKW);
-                            npcRecord.Keywords.Add(EBDScriptKW);
-                        }
-                        else
-                        {
-                            npcRecord.Keywords.Add(synthEBDFaceKW);
-                        }
-                    }
-                    RecordGenerator.AddCustomKeywordsToNPC(assignedCombinations, npcRecord, outputMod);
-
-                    if (assignedPaths.Where(x => x.DestinationStr.StartsWith("HeadParts")).Any())
-                    {
-                        headPartNPCs.Add(npcRecord);
-                    }
-
-                    if (_patcherState.TexMeshSettings.bPatchArmors)
-                    {
-                        _armorPatcher.PatchArmorTextures(currentNPCInfo, replacedRecords, outputMod);
-                    }
-                    if (_patcherState.TexMeshSettings.bPatchSkinAltTextures)
-                    {
-                        _skinPatcher.PatchAltTextures(currentNPCInfo, replacedRecords, outputMod);
-                    }
-                    _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, outputMod);
-
-                    if (_patcherState.TexMeshSettings.bPureScriptMode)
-                    {
-                        _skyPatcherInterface.ApplySkin(currentNPCInfo.OriginalNPC.FormKey, npcRecord.WornArmor.FormKey);
-                        _assetAssignmentDB.LogNPCAssignments(currentNPCInfo, _environmentProvider.OutputMod);
-                    }
-                }
-                #endregion
+                var assignmentTransfers = assignedCombinations.Select(x => new SelectedAssetContainer(x)).ToList();
+                _assetAssignmentTransfers.Add(currentNPCInfo, assignmentTransfers);
+                _combinationLog.LogCombinationSelections(currentNPCInfo, assignedCombinations);
             }
             #endregion
 
@@ -822,6 +769,7 @@ public class Patcher
                 _headPartSelector.ResolveConflictsWithAssetAssignments(generatedHeadParts, assignedHeadParts);
                 CheckForAssetDerivedHeadParts(generatedHeadParts); // triggers headpart output even if bChangeHeadParts is false
             }
+            _generatedHeadPartAssignmentTransfers.Add(currentNPCInfo, generatedHeadParts);
 
             HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
             #endregion
@@ -916,6 +864,27 @@ public class Patcher
                 _logger.LogError("Could not resolve template NPC " + templateFK.ToString());
             }
         }
+    }
+
+    public class SelectedAssetContainer
+    {
+        public SelectedAssetContainer(SubgroupCombination combination)
+        {
+            AssetPackName = combination.AssetPack.GroupName;
+            LoggingLabel = combination.AssignmentName;
+            Signature = combination.Signature;
+            CombinationType = combination.AssetPack.Type;
+            Paths = combination.ContainedSubgroups.SelectMany(x => x.Paths).ToList();
+            KeywordsToApply = combination.ContainedSubgroups.SelectMany(x => x.AddKeywords).ToList();
+        }
+        
+        public string AssetPackName { get; set; }
+        public string LoggingLabel { get; set; } // for logging only
+        public string Signature { get; set; }  // for logging only
+        public FlattenedAssetPack.AssetPackType CombinationType { get; set; }
+        public List<FilePathReplacement> Paths { get; set; }
+        public List<string> KeywordsToApply { get; set; }
+        public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
     }
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini

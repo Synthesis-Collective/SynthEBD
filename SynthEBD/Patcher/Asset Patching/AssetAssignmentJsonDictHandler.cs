@@ -5,7 +5,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class AssetAssignmentDB
+public class AssetAssignmentJsonDictHandler
 {
     private readonly Converters _converters;
     private readonly Logger _logger;
@@ -17,7 +17,7 @@ public class AssetAssignmentDB
     private Dictionary<string, string> _faceTextureAssignments = new();
     private Dictionary<string, string> _skinTextureAssignments = new();
 
-    public AssetAssignmentDB(Converters converters, Logger logger, SynthEBDPaths paths, PatcherState patcherState, IEnvironmentStateProvider environmentProvider, PatcherIO patcherIO)
+    public AssetAssignmentJsonDictHandler(Converters converters, Logger logger, SynthEBDPaths paths, PatcherState patcherState, IEnvironmentStateProvider environmentProvider, PatcherIO patcherIO)
     {
         _converters = converters;
         _logger = logger;           

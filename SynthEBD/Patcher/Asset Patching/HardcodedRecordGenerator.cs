@@ -27,39 +27,37 @@ public class HardcodedRecordGenerator
         _headPartSelector = headPartSelector;
     }
 
-    public void CategorizePaths(List<SubgroupCombination> combinations, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode)
+    public void CategorizePaths(List<Patcher.SelectedAssetContainer> assignments, HashSet<FlattenedAssetPack> flattenedAssetPacks, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode)
     {
         longestPathLength = 0;
-        foreach (var combination in combinations)
+        foreach (var assignment in assignments)
         {
-            foreach (var subgroup in combination.ContainedSubgroups)
+            var assetPack = flattenedAssetPacks.First(x => x.GroupName == assignment.AssetPackName);
+            foreach (var path in assignment.Paths)
             {
-                foreach (var path in subgroup.Paths)
+                var parsed = new FilePathReplacementParsed(path, npcInfo, assetPack, recordTemplateLinkCache, _logger);
+
+                if (!_patcherState.TexMeshSettings.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
+                if (!_patcherState.TexMeshSettings.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
+
+                if (doNotHardCode)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
-
-                    if (!_patcherState.TexMeshSettings.bChangeNPCTextures && path.Source.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)) { continue; }
-                    if (!_patcherState.TexMeshSettings.bChangeNPCMeshes && path.Source.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)) { continue; }
-
-                    if (doNotHardCode)
+                    nonHardcodedPaths.Add(parsed);
+                    if (parsed.Destination.Length > longestPathLength)
+                    {
+                        longestPathLength = parsed.Destination.Length;
+                    }
+                }
+                else
+                {
+                    if (path.Destination.StartsWith("WornArmor")) { wnamPaths.Add(parsed); }
+                    else if (path.Destination.StartsWith("HeadTexture")) { headtexPaths.Add(parsed); }
+                    else
                     {
                         nonHardcodedPaths.Add(parsed);
                         if (parsed.Destination.Length > longestPathLength)
                         {
                             longestPathLength = parsed.Destination.Length;
-                        }
-                    }
-                    else
-                    {
-                        if (path.Destination.StartsWith("WornArmor")) { wnamPaths.Add(parsed); }
-                        else if (path.Destination.StartsWith("HeadTexture")) { headtexPaths.Add(parsed); }
-                        else
-                        {
-                            nonHardcodedPaths.Add(parsed);
-                            if (parsed.Destination.Length > longestPathLength)
-                            {
-                                longestPathLength = parsed.Destination.Length;
-                            }
                         }
                     }
                 }
@@ -168,7 +166,7 @@ public class HardcodedRecordGenerator
 
             if (additionalGenericPaths.Any())
             {
-                recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
+                recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, patchedNPC, templateLinkCache, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
             }
         }
 
@@ -299,7 +297,7 @@ public class HardcodedRecordGenerator
             }
             if (genericArmorAddonPaths.Any())
             {
-                recordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, outputMod, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
+                recordGenerator.AssignGenericAssetPaths(npcInfo, genericArmorAddonPaths, patchedNPC, templateLinkCache, GetLongestPath(genericArmorAddonPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
             }
         }
         else // if record is one that has previously been generated, update any SynthEBD-generated armature to ensure that the current NPC's race is present within the Additional Races collection.
@@ -397,7 +395,7 @@ public class HardcodedRecordGenerator
 
         if (additionalGenericPaths.Any())
         {
-            recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, outputMod, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
+            recordGenerator.AssignGenericAssetPaths(npcInfo, additionalGenericPaths, targetNPC, templateLinkCache, GetLongestPath(additionalGenericPaths), true, false, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), Patcher.GetBlankHeadPartAssignment(), replacedRecords, recordsFromTemplates);
         }
 
         return newArmorAddon;
@@ -607,7 +605,7 @@ public class HardcodedRecordGenerator
             {
                 foreach (var path in subgroup.Paths)
                 {
-                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, combination, _logger);
+                    var parsed = new FilePathReplacementParsed(path, npcInfo, combination.AssetPack, recordTemplateLinkCache, _logger);
 
                     nonHardcodedPaths.Add(parsed);
                     if (parsed.Destination.Length > longestPath)
@@ -619,7 +617,7 @@ public class HardcodedRecordGenerator
             if (nonHardcodedPaths.Any())
             {
                 var currentNPC = outputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
-                recordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, outputMod, longestPath, false, true, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), generatedHeadParts, replacedRecords, recordsFromTemplates);
+                recordGenerator.AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, null, longestPath, false, true, npcObjectMap, objectCaches, new List<FilePathReplacementParsed>(), generatedHeadParts, replacedRecords, recordsFromTemplates);
             }
         }
         else if (combination.DestinationType != SubgroupCombination.DestinationSpecifier.Main)
