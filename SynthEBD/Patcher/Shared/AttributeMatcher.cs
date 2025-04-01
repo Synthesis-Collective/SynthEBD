@@ -249,7 +249,10 @@ public class AttributeMatcher
                                 
                                 foundContext = false;
                                 // first check if the winning context is the winning appearance context, just like for ModAttributeEnum.WinningAppearance
-                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true; }
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey))
+                                {
+                                    foundContext = true;
+                                }
                                 else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
                                     _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
                                     appearanceModKey.HasValue && 
@@ -277,13 +280,13 @@ public class AttributeMatcher
                                     }
                                     
                                     // check the appearance of each context against that of the winning context
-                                    var winningNpc = contexts.First()?.Record;
+                                    var winningNpc = contexts.First().Record;
                                     Npc.TranslationMask appearanceMask = new Npc.TranslationMask(defaultOn: false)
                                     {
                                         FaceMorph = true,
                                         FaceParts = true,
                                         HairColor = true,
-                                        HeadParts = true,
+                                        //HeadParts = true, // HeadParts equality testing is not currently working in Mutagen. Test explicitly
                                         HeadTexture = true,
                                         TextureLighting = true,
                                         TintLayers = true,
@@ -292,9 +295,23 @@ public class AttributeMatcher
 
                                     foreach (var candidate in candidateAppearanceContexts)
                                     {
-                                        if (candidate.Record.Equals(winningNpc, appearanceMask))
+                                        bool headPartsAreEqual = candidate.Record.HeadParts.Count() == winningNpc.HeadParts.Count();
+                                        if (headPartsAreEqual)
                                         {
-                                            subAttributeMatched = false;
+                                            foreach (var headPart in winningNpc.HeadParts)
+                                            {
+                                                if (!candidate.Record.HeadParts.Contains(headPart))
+                                                {
+                                                    headPartsAreEqual = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        
+                                        
+                                        if (candidate.Record.Equals(winningNpc, appearanceMask) && headPartsAreEqual)
+                                        {
+                                            foundContext = true;
                                             break;
                                         }
                                     }

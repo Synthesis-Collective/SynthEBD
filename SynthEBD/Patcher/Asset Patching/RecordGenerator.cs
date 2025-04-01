@@ -248,7 +248,7 @@ public class RecordGenerator
                     npcSetterHasObject = true;
                     if (currentObjInfo.HasFormKey) // else does not need handling - if the NPC setter already has a given non-record object along the path, no further action is needed at this path segment.
                     {
-                        if (currentObjInfo.RecordFormKey.ModKey.Equals(_environmentProvider.OutputMod.ModKey) && !IsImportedForSkyPatcher(currentObj)) // This is a subrecord of a template-derived deep copied record. Now that the path signature of the given template-derived subrecord is known, cache it
+                        if (currentObjInfo.RecordFormKey.ModKey.Equals(outputMod.ModKey) && !IsImportedForSkyPatcher(currentObj)) // This is a subrecord of a template-derived deep copied record. Now that the path signature of the given template-derived subrecord is known, cache it
                         {
                             var generatedSubRecord = templateSubRecords.Where(x => x.SubRecord == currentObj).FirstOrDefault();
                             if (generatedSubRecord != null)
@@ -634,6 +634,16 @@ public class RecordGenerator
             }
         }
         return string.Join(", ", templateNames);
+    }
+    
+    private bool IsImportedForSkyPatcher(dynamic currentObj) // determines if the given formkey is from a record merged-in from NpcProvider
+    {
+        var record = currentObj as IMajorRecord;
+        if (record != null && record.EditorID != null && record.EditorID.EndsWith(NPCProvider.importedSuffix))
+        {
+            return true;
+        }
+        return false;
     }
 
     private bool IsImportedForSkyPatcher(dynamic currentObj) // determines if the given formkey is from a record merged-in from NpcProvider
