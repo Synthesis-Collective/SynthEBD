@@ -249,7 +249,10 @@ public class AttributeMatcher
                                 
                                 foundContext = false;
                                 // first check if the winning context is the winning appearance context, just like for ModAttributeEnum.WinningAppearance
-                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true; }
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey))
+                                {
+                                    foundContext = true;
+                                }
                                 else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
                                     _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
                                     appearanceModKey.HasValue && 
@@ -294,7 +297,7 @@ public class AttributeMatcher
                                     {
                                         if (candidate.Record.Equals(winningNpc, appearanceMask))
                                         {
-                                            subAttributeMatched = false;
+                                            foundContext = true;
                                             break;
                                         }
                                     }
