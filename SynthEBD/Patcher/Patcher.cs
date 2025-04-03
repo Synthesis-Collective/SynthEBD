@@ -55,6 +55,8 @@ public class Patcher
 
     private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers; // Storage for moving assignments between selection (to be parallelized) and application (serial).
     private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> _generatedHeadPartAssignmentTransfers; // storage for moving assignments between selection and application
+    private Dictionary<NPCInfo, float> _heightAssignmentTransfers; // storage for moving assignments between selection and application
+    
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
@@ -268,6 +270,7 @@ public class Patcher
 
         // Height Pre-patching tasks:
         _heightPatcher.Reinitialize();
+        _heightAssignmentTransfers = new();
         HeightConfig currentHeightConfig = null;
         if (_patcherState.GeneralSettings.bChangeHeight)
         {
@@ -377,6 +380,8 @@ public class Patcher
         {
             _skyPatcherInterface.WriteIni();
         }
+        
+        _heightPatcher.ApplySelectedHeights(_heightAssignmentTransfers, _environmentProvider.OutputMod, _statusBar);
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
@@ -753,7 +758,11 @@ public class Patcher
             #region Height assignment
             if (_patcherState.GeneralSettings.bChangeHeight && !blockHeight && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeightRace))
             {
-                _heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                var height =_heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
+                if (height.HasValue)
+                {
+                    _heightAssignmentTransfers.Add(currentNPCInfo, height.Value);  
+                }
             }
             #endregion
 

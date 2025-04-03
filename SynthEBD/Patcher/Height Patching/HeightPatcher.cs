@@ -135,8 +135,6 @@ public class HeightPatcher
             }
         }
 
-        ApplyHeight(npcInfo, assignedHeight, outputMod);
-
         _logger.LogReport("Height set to: " + assignedHeight, false, npcInfo);
 
         if (_patcherState.GeneralSettings.bEnableConsistency)
@@ -159,7 +157,7 @@ public class HeightPatcher
         return assignedHeight;
     }
 
-    private void ApplyHeight(NPCInfo npcInfo, float assignedHeight, ISkyrimMod outputMod)
+    public void ApplyHeight(NPCInfo npcInfo, float assignedHeight, ISkyrimMod outputMod)
     {
         if (_patcherState.HeightSettings.bApplyWithoutOverride)
         {
@@ -233,6 +231,21 @@ public class HeightPatcher
                     patchedRace.Height.Female = heightRacialSetting.HeightFemale;
                 }
             }
+        }
+    }
+
+    public void ApplySelectedHeights(Dictionary<NPCInfo, float> assignedHeights, ISkyrimMod outputMod, VM_StatusBar statusBar)
+    {
+        statusBar.ProgressBarMax = assignedHeights.Count;
+        foreach (var entry in assignedHeights)
+        {
+            statusBar.ProgressBarCurrent++;
+            if (statusBar.ProgressBarCurrent % 100 == 0 || statusBar.ProgressBarCurrent == statusBar.ProgressBarMax)
+            {
+                statusBar.ProgressBarDisp = "Applied height assignment for " + statusBar.ProgressBarCurrent + " NPCs";
+            }
+            
+            ApplyHeight(entry.Key, entry.Value, outputMod);
         }
     }
     
