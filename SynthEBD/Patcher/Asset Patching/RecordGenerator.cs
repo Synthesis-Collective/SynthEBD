@@ -71,10 +71,18 @@ public class RecordGenerator
         }
     }
 
-    public void ApplySelectedAssets(Dictionary<NPCInfo, List<Patcher.SelectedAssetContainer>> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> generatedHeadPartAssignmentTransfers, HashSet<Npc> headPartNPCs, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
+    public void ApplySelectedAssets(Dictionary<NPCInfo, List<Patcher.SelectedAssetContainer>> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> generatedHeadPartAssignmentTransfers, HashSet<Npc> headPartNPCs, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
     {
+        statusBar.ProgressBarMax = selectedAssets.Count;
         foreach (var npcAssetEntry in selectedAssets)
         {
+            statusBar.ProgressBarCurrent++;
+            
+            if (statusBar.ProgressBarCurrent % 100 == 0 || statusBar.ProgressBarCurrent == statusBar.ProgressBarMax)
+            {
+                statusBar.ProgressBarDisp = "Applied selections for " + statusBar.ProgressBarCurrent + " NPCs";
+            }
+            
             var currentNPCInfo = npcAssetEntry.Key;
             var assignments = npcAssetEntry.Value;
             

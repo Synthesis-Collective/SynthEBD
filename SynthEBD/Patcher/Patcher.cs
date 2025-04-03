@@ -345,19 +345,21 @@ public class Patcher
         _patchedNpcCount = 0;
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
-        _statusBar.ProgressBarDisp = "Patched " + _statusBar.ProgressBarCurrent + " NPCs";
+        _statusBar.ProgressBarDisp = "Made seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
         
         // Selection: This section can be paralellized
         
         // Patch main NPCs
-        AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, facePartComplianceMaintainer);
         // Finish assigning non-primary linked NPCs
-        AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, synthEBDFaceKW, EBDFaceKW, EBDScriptKW, facePartComplianceMaintainer, headPartNPCs);
+        AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, facePartComplianceMaintainer);
         
+        _statusBar.ProgressBarCurrent = 0;
+        _statusBar.ProgressBarDisp = "Applied seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
         // Application: This section must be serial 
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
             _generatedHeadPartAssignmentTransfers, headPartNPCs, _combinationLog, EBDFaceKW, EBDScriptKW,
-            synthEBDFaceKW, _assetAssignmentJsonDictHandler);
+            synthEBDFaceKW, _assetAssignmentJsonDictHandler, _statusBar);
         
         // Now that potential body modifications are complete, set vanilla mesh paths if necessary
         if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
@@ -473,14 +475,12 @@ public class Patcher
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, 
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
-        Keyword synthEBDFaceKW, Keyword EBDFaceKW, Keyword EBDScriptKW, FacePartCompliance facePartComplianceMaintainer,
-        HashSet<Npc> headPartNPCs)
+        FacePartCompliance facePartComplianceMaintainer)
     {
         bool blockAssets;
         bool blockBodyShape;
         bool blockHeight;
         bool blockHeadParts;
-        bool blockVanillaBodyMeshPaths;
         bool assetsAssigned = false;
         bool bodyShapeAssigned = false;
 
@@ -547,7 +547,7 @@ public class Patcher
 
             if (_patchedNpcCount % 100 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
             {
-                _statusBar.ProgressBarDisp = "Patched " + _patchedNpcCount + " NPCs";
+                _statusBar.ProgressBarDisp = "Made selections for " + _patchedNpcCount + " NPCs";
             }
 
             #region link by name
