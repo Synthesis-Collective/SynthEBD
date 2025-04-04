@@ -410,6 +410,8 @@ public class Patcher
 
         if ((_patcherState.GeneralSettings.bChangeHeadParts && HeadPartTracker.Any()) || (_patcherState.TexMeshSettings.bChangeNPCHeadParts && HasAssetDerivedHeadParts))
         {
+            _headPartSelector.EnsureHeadPartRaceCompatibility(HeadPartTracker);
+            
             if (HasAssetDerivedHeadParts && !_patcherState.GeneralSettings.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
             {
                 bool validation = true;

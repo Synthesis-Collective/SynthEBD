@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
@@ -128,9 +129,6 @@ namespace SynthEBD
 
                 // unique NPC linkage
                 tempUniqueNPCDataRecorder[headPartType] = selection;
-
-                // add NPC's race to headpart races if necessary
-                MakeRaceCompatible(selection, npcInfo.NPC.Race.FormKey, outputMod);
             }
 
             if (consistencyReportTriggers.Any())
@@ -726,7 +724,44 @@ namespace SynthEBD
             return false;
         }
 
-        private void MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK, ISkyrimMod outputMod)
+        public void EnsureHeadPartRaceCompatibility(
+            Dictionary<FormKey, HeadPartSelection> headPartAssignments)
+        {
+            foreach (var entry in headPartAssignments)
+            {
+                var currentNpcFk = entry.Key;
+                if (entry.Value.Face != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Face.Value, out var faceGetter) && faceGetter != null)
+                {
+                    MakeRaceCompatible(faceGetter, currentNpcFk);
+                }
+                if (entry.Value.Hair != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Hair.Value, out var hairGetter) && hairGetter != null)
+                {
+                    MakeRaceCompatible(hairGetter, currentNpcFk);
+                }
+                if (entry.Value.Eyes != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Eyes.Value, out var eyesGetter) && eyesGetter != null)
+                {
+                    MakeRaceCompatible(eyesGetter, currentNpcFk);
+                }
+                if (entry.Value.Beard != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Beard.Value, out var beardGetter) && beardGetter != null)
+                {
+                    MakeRaceCompatible(beardGetter, currentNpcFk);
+                }
+                if (entry.Value.Brows != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Brows.Value, out var browsGetter) && browsGetter != null)
+                {
+                    MakeRaceCompatible(browsGetter, currentNpcFk);
+                }
+                if (entry.Value.Misc != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Misc.Value, out var miscGetter) && miscGetter != null)
+                {
+                    MakeRaceCompatible(miscGetter, currentNpcFk);
+                }
+                if (entry.Value.Scars != null && _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(entry.Value.Scars.Value, out var scarsGetter) && scarsGetter != null)
+                {
+                    MakeRaceCompatible(scarsGetter, currentNpcFk);
+                }
+            }
+        }
+
+        private void  MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK)
         {
             if (selectedHeadPartGetter == null) { return; }
 
@@ -734,18 +769,18 @@ namespace SynthEBD
             FormList raceFormList = null;
             if (selectedHeadPartGetter.ValidRaces == null || !selectedHeadPartGetter.ValidRaces.TryResolve(_environmentProvider.LinkCache, out var raceListGetter) || raceListGetter.Items == null)
             {
-                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod);
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, _environmentProvider.OutputMod);
             }
             else if (!raceListGetter.Items.Contains(currentNpcRaceFK))
             {
-                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod); // seems like Mutagen new()s this automatically
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, _environmentProvider.OutputMod); // seems like Mutagen new()s this automatically
                 raceFormList.Items.AddRange(raceListGetter.Items);
             }
             
             if (raceFormList != null)
             {
                 raceFormList.Items.Add(currentNpcRaceFK);
-                currentHeadPart = outputMod.HeadParts.GetOrAddAsOverride(selectedHeadPartGetter);
+                currentHeadPart = _environmentProvider.OutputMod.HeadParts.GetOrAddAsOverride(selectedHeadPartGetter);
                 currentHeadPart.ValidRaces.SetTo(raceFormList);
             }
         }
