@@ -129,31 +129,20 @@ namespace SynthEBD
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
         */
-        public void WriteAssignmentDictionary()
+        public void WriteAssignmentDictionary(Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> assignedHeadPartTransfers)
         {
-            if (Patcher.HeadPartTracker.Count == 0)
+            if (!assignedHeadPartTransfers.Any())
             {
                 _logger.LogMessage("No head parts were assigned to any NPCs");
                 return;
             }
 
-            // remove NPCs for which no headparts were assigned
-            Dictionary<FormKey, HeadPartSelection> populatedHeadPartTracker = new();
-            foreach (var entry in Patcher.HeadPartTracker)
+            var outputDictionary = new Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>();
+            foreach (var entry in assignedHeadPartTransfers)
             {
-                var assignments = entry.Value;
-                if (assignments.Beard != null || assignments.Brows != null || assignments.Eyes != null || assignments.Face != null || assignments.Hair != null || assignments.Misc != null || assignments.Scars != null)
-                {
-                    populatedHeadPartTracker.Add(entry.Key, entry.Value);
-                }
+                outputDictionary.TryAdd(entry.Key.NPC.FormKey.ToJContainersCompatiblityKey(), GetFullHeadPartSet(entry.Value));
             }
-
-            var outputDictionary = new Dictionary<string, HeadPartSelection>();
-            foreach (var entry in populatedHeadPartTracker)
-            {
-                outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value);
-            }
-            string outputStr = JSONhandler<Dictionary<string, HeadPartSelection>>.Serialize(outputDictionary, out bool success, out string exception);
+            string outputStr = JSONhandler<Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>>.Serialize(outputDictionary, out bool success, out string exception);
             if (!success)
             {
                 _logger.LogError("Could not save head part assignment dictionary. See log.");
@@ -174,6 +163,36 @@ namespace SynthEBD
                 _logger.LogErrorWithStatusUpdate("Could not write Head Part assignments to " + destPath, ErrorType.Error);
             }
         }
+
+        public Dictionary<HeadPart.TypeEnum, FormKey?> GetFullHeadPartSet(
+            Dictionary<HeadPart.TypeEnum, FormKey> assignments)
+        {
+            var output = GetBlankHeadPartAssignment();
+            foreach (var type in output.Keys)
+            {
+                if (assignments.ContainsKey(type))
+                {
+                    output[type] = assignments[type];
+                }
+            }
+            
+            return output;
+        }
+        
+        public static Dictionary<HeadPart.TypeEnum, FormKey?> GetBlankHeadPartAssignment()
+        {
+            return new Dictionary<HeadPart.TypeEnum, FormKey?>()
+            {
+                { HeadPart.TypeEnum.Eyebrows, null },
+                { HeadPart.TypeEnum.Eyes, null },
+                { HeadPart.TypeEnum.Face, null },
+                { HeadPart.TypeEnum.FacialHair, null },
+                { HeadPart.TypeEnum.Hair, null },
+                { HeadPart.TypeEnum.Misc, null },
+                { HeadPart.TypeEnum.Scars, null }
+            };
+        }
+        
         public void CleanPreviousOutputs()
         {
             var outputDir = Path.Combine(_paths.OutputDataFolder, "SynthEBD");

@@ -47,20 +47,20 @@ public class Patcher
     private readonly UniqueNPCData _uniqueNPCData;
     private readonly Converters _converters;
     private readonly BodySlideAnnotator _bodySlideAnnotator;
-    private readonly HeadPartFunctions _headPartFunctions;
+    private readonly HeadPartAuxFunctions _headPartAuxFunctions;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
     private readonly NPCProvider _npcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
 
     private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers; // Storage for moving assignments between selection (to be parallelized) and application (serial).
-    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, HeadPart>> _generatedHeadPartAssignmentTransfers; // storage for moving assignments between selection and application
+    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers; // for moving assignments between selection (to be parallelized) and application (serial). 
     private Dictionary<NPCInfo, float> _heightAssignmentTransfers; // storage for moving assignments between selection and application
     
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, HeadPartFunctions headPartFunctions, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -98,7 +98,6 @@ public class Patcher
         _uniqueNPCData = uniqueNPCData;
         _converters = converters;
         _bodySlideAnnotator = bodySlideAnnotator;
-        _headPartFunctions = headPartFunctions;
         _easyNPCProfileParser = easyNPCProfileParser;
         _npcProvider = npcProvider;
         _skyPatcherInterface = skyPatcherInterface;
@@ -199,8 +198,7 @@ public class Patcher
             _recordGenerator.Reinitialize();
             _combinationLog.Reinitialize();
         }
-        HasAssetDerivedHeadParts = false;
-        FacePartCompliance facePartComplianceMaintainer = new(_environmentProvider, _patcherState);
+
         _npcProvider.Reinitialize();
 
         // BodyGen Pre-patching tasks:
@@ -287,7 +285,6 @@ public class Patcher
 
         // HeadPart Pre-patching tasks:
         _headPartSelector.Reinitialize();
-        _generatedHeadPartAssignmentTransfers = new();
         _headPartWriter.CleanPreviousOutputs();
         var gEnableHeadParts = outputMod.Globals.AddNewShort();
         gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
@@ -306,8 +303,12 @@ public class Patcher
         if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { _logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
 
+        Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> configGeneratedHeadPartsDict = new();
+        
         if (_patcherState.GeneralSettings.bChangeHeadParts)
         {
+            _assignedHeadPartTransfers = new();
+            
             // remove headparts that don't exist in current load order
             bool removedHeadParts = false;
             foreach (var typeSettings in copiedHeadPartSettings.Types.Values)
@@ -336,10 +337,10 @@ public class Patcher
             _headPartPreprocessing.ConvertBodyShapeDescriptorRules(copiedHeadPartSettings);
             _headPartPreprocessing.CompileGenderedHeadParts(copiedHeadPartSettings);
         }
+        
+        
 
         // Run main patching operations
-        HashSet<Npc> headPartNPCs = new HashSet<Npc>();
-        HeadPartTracker = new Dictionary<FormKey, HeadPartSelection>(); // needs re-initialization even if headpart distribution is disabled because TexMesh settings can also produce headparts.
         
         _vanillaBodyPathSetter.Reinitialize();
         _easyNPCProfileParser.Reinitialize(_patcherState.GeneralSettings.EasyNPCprofilePath);
@@ -353,15 +354,15 @@ public class Patcher
         // Selection: This section can be paralellized
         
         // Patch main NPCs
-        AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, facePartComplianceMaintainer);
+        AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs);
         // Finish assigning non-primary linked NPCs
-        AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs, facePartComplianceMaintainer);
+        AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs);
         
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Applied seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
         // Application: This section must be serial 
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
-            _generatedHeadPartAssignmentTransfers, headPartNPCs, _combinationLog, EBDFaceKW, EBDScriptKW,
+            configGeneratedHeadPartsDict, _combinationLog, EBDFaceKW, EBDScriptKW,
             synthEBDFaceKW, _assetAssignmentJsonDictHandler, _statusBar);
         
         // Now that potential body modifications are complete, set vanilla mesh paths if necessary
@@ -408,19 +409,15 @@ public class Patcher
             _heightPatcher.WriteAssignmentDictionaryScriptMode();
         }
 
-        if ((_patcherState.GeneralSettings.bChangeHeadParts && HeadPartTracker.Any()) || (_patcherState.TexMeshSettings.bChangeNPCHeadParts && HasAssetDerivedHeadParts))
+        if ((_patcherState.GeneralSettings.bChangeHeadParts && _assignedHeadPartTransfers.Any()) || configGeneratedHeadPartsDict.Any())
         {
-            _headPartSelector.EnsureHeadPartRaceCompatibility(HeadPartTracker);
+            _headPartSelector.ResolveConflictsWithAssetAssignments(_assignedHeadPartTransfers, configGeneratedHeadPartsDict); // now _assignedHeadPartTransfers contains all winning headpart assignments
             
-            if (HasAssetDerivedHeadParts && !_patcherState.GeneralSettings.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
+            _headPartSelector.EnsureHeadPartRaceCompatibility(_assignedHeadPartTransfers);
+            
+            if (configGeneratedHeadPartsDict.Any() && !_patcherState.GeneralSettings.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
             {
                 bool validation = true;
-                /*
-                if (!MiscValidation.VerifySPIDInstalled(PatcherEnvironmentProvider.Instance.Environment.DataFolderPath, true))
-                {
-                    _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires Spell Perk Item Distributor, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
-                    validation = false;
-                }*/
 
                 if (!_miscValidation.VerifyJContainersInstalled(true))
                 {
@@ -434,9 +431,9 @@ public class Patcher
                 }
             }
 
-            _headPartFunctions.ApplyNeededFaceTextures(HeadPartTracker);
+            _headPartAuxFunctions.ApplyNeededFaceTextures(_assignedHeadPartTransfers);
             gEnableHeadParts.Data = 1;
-            _headPartWriter.WriteAssignmentDictionary();
+            _headPartWriter.WriteAssignmentDictionary(_assignedHeadPartTransfers);
         }
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
@@ -481,8 +478,7 @@ public class Patcher
         IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, ISkyrimMod outputMod,
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
         HeightConfig currentHeightConfig, Settings_Headparts headPartSettings, 
-        HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs,
-        FacePartCompliance facePartComplianceMaintainer)
+        HashSet<LinkedNPCGroupInfo> generatedLinkGroups, HashSet<INpcGetter> skippedLinkedNPCs)
     {
         bool blockAssets;
         bool blockBodyShape;
@@ -540,7 +536,6 @@ public class Patcher
             assignedCombinations = new List<SubgroupCombination>(); // Do not change to hash set - must maintain order
             List<BodySlideSetting> assignedBodySlides = new(); // can be used by headpart function
             List<BodyGenConfig.BodyGenTemplate> assignedMorphs = null; // can be used by headpart function
-            Dictionary<HeadPart.TypeEnum, HeadPart> generatedHeadParts = GetBlankHeadPartAssignment(); // head parts generated via the asset pack functionality
 
             #region Linked NPC Groups
             if (skipLinkedSecondaryNPCs && currentNPCInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Secondary)
@@ -769,36 +764,14 @@ public class Patcher
             #endregion
 
             #region Head Part assignment
-            HeadPartSelection assignedHeadParts = new();
+
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
-                assignedHeadParts = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlides, assignedMorphs, outputMod);
-            }
-
-            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures) // needs to be done regardless of _patcherState.GeneralSettings.bChangeHeadParts status
-            {
-                _headPartSelector.ResolveConflictsWithAssetAssignments(generatedHeadParts, assignedHeadParts);
-                CheckForAssetDerivedHeadParts(generatedHeadParts); // triggers headpart output even if bChangeHeadParts is false
-            }
-            _generatedHeadPartAssignmentTransfers.Add(currentNPCInfo, generatedHeadParts);
-
-            HeadPartTracker.Add(currentNPCInfo.NPC.FormKey, assignedHeadParts);
-            #endregion
-
-            #region final functions
-            if (facePartComplianceMaintainer.RequiresComplianceCheck && (assignedCombinations.Any() || assignedHeadParts.HasAssignment()))
-            {
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                var headPartAssignments = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlides, assignedMorphs);
+                if (headPartAssignments.Any())
                 {
-                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
-                    currentNPCInfo.NPC = npcRecord;
+                    _assignedHeadPartTransfers.Add(currentNPCInfo, headPartAssignments);
                 }
-                else
-                {
-                    npcRecord = outputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
-                }
-                
-                facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo, _environmentProvider.LinkCache, outputMod);
             }
             #endregion
 
@@ -900,7 +873,7 @@ public class Patcher
 
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
     public static Dictionary<FormKey, List<string>> BodySlideTracker = new Dictionary<FormKey, List<string>>(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 
-    public static Dictionary<FormKey, HeadPartSelection> HeadPartTracker = new();
+
     public class BodyGenAssignmentTracker
     {
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
@@ -1032,34 +1005,6 @@ public class Patcher
         }
     }
 
-    public static Dictionary<HeadPart.TypeEnum, HeadPart> GetBlankHeadPartAssignment()
-    {
-        return new Dictionary<HeadPart.TypeEnum, HeadPart>()
-        {
-            { HeadPart.TypeEnum.Eyebrows, null },
-            { HeadPart.TypeEnum.Eyes, null },
-            { HeadPart.TypeEnum.Face, null },
-            { HeadPart.TypeEnum.FacialHair, null },
-            { HeadPart.TypeEnum.Hair, null },
-            { HeadPart.TypeEnum.Misc, null },
-            { HeadPart.TypeEnum.Scars, null }
-        };
-    }
-
-    public void CheckForAssetDerivedHeadParts(Dictionary<HeadPart.TypeEnum, HeadPart> assignments)
-    {
-        if (HasAssetDerivedHeadParts) { return; }
-        
-        foreach (var headPart in assignments.Values)
-        {
-            if (headPart != null)
-            {
-                HasAssetDerivedHeadParts = true;
-                return;
-            }
-        }
-    }
-
     public bool IsBlockedForAssets(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.Assets)
@@ -1140,8 +1085,6 @@ public class Patcher
         }
         return false;
     }
-
-    private bool HasAssetDerivedHeadParts { get; set; } = false;
 
     private bool AppearsHumanoidByArmature(INpcGetter npc) // tries to identify creatures that are wrongly assigned a humanoid race via their armature
     {

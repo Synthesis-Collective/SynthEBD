@@ -113,9 +113,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VerboseLoggingNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<ArmorPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<SkinPatcher>().AsSelf().SingleInstance();
-        builder.RegisterType<HeadPartFunctions>().AsSelf().SingleInstance();
+        builder.RegisterType<HeadPartAuxFunctions>().AsSelf().SingleInstance();
         builder.RegisterType<NPCProvider>().AsSelf().SingleInstance();
         builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<FacePartCompliance>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();

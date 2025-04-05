@@ -3,7 +3,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class NPCInfo
+public class NPCInfo : IEquatable<NPCInfo>
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -139,5 +139,18 @@ public class NPCInfo
             }
         }
         return null;
+    }
+    
+    public bool Equals(NPCInfo other)
+    {
+        if (other == null) return false;
+        return Equals(this.OriginalNPC, other.OriginalNPC);
+    }
+
+    public override bool Equals(object obj) => Equals(obj as NPCInfo);
+
+    public override int GetHashCode()
+    {
+        return OriginalNPC?.GetHashCode() ?? 0;
     }
 }
