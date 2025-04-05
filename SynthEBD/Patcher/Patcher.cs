@@ -354,16 +354,22 @@ public class Patcher
         // Selection: This section can be paralellized
         
         // Patch main NPCs
+        var assignmentStopWatch = System.Diagnostics.Stopwatch.StartNew();
         AssignmentLoop(allNPCs, true, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs);
         // Finish assigning non-primary linked NPCs
         AssignmentLoop(skippedLinkedNPCs, false, outputMod, availableAssetPacks, copiedBodyGenConfigs, copiedOBodySettings, currentHeightConfig, copiedHeadPartSettings, generatedLinkGroups, skippedLinkedNPCs);
+        assignmentStopWatch.Stop();
+        _logger.LogMessage($"Variant selection completed in {assignmentStopWatch.Elapsed:mm\\:ss}");
         
         _statusBar.ProgressBarCurrent = 0;
         _statusBar.ProgressBarDisp = "Applied seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
         // Application: This section must be serial 
+        var recordGenStopWatch = System.Diagnostics.Stopwatch.StartNew();
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
             configGeneratedHeadPartsDict, _combinationLog, EBDFaceKW, EBDScriptKW,
             synthEBDFaceKW, _assetAssignmentJsonDictHandler, _statusBar);
+        recordGenStopWatch.Stop();
+        _logger.LogMessage($"Record generation completed in {recordGenStopWatch.Elapsed:mm\\:ss}");
         
         // Now that potential body modifications are complete, set vanilla mesh paths if necessary
         if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
