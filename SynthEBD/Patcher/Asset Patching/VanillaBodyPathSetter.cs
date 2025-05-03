@@ -119,20 +119,26 @@ public class VanillaBodyPathSetter
         }
 
         var currentNpc = npcGetter;
+        var currentArmor = currentNpc.WornArmor;
         var surrogateNpc = _npcProvider.GetNpc(currentNpc, true, false);
         if (surrogateNpc != null)
         {
             currentNpc = surrogateNpc;
+            currentArmor = currentNpc.WornArmor;
+        }
+        else if (outputMod.Npcs.Any(x => x.FormKey.Equals(npcGetter.FormKey)))
+        {
+            currentArmor = outputMod.Npcs.First(x => x.FormKey.Equals(currentNpc.FormKey)).WornArmor;
         }
         
-        if (currentNpc.WornArmor != null && !currentNpc.WornArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(currentNpc.WornArmor.FormKey, out var armorGetter))
+        if (!currentArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(currentArmor.FormKey, out var armorGetter))
         {
-            if (ArmorDuplicatedwithVanillaPaths.ContainsKey(currentNpc.WornArmor.FormKey))
+            if (ArmorDuplicatedwithVanillaPaths.ContainsKey(currentArmor.FormKey))
             {
-                var duplicatedArmor = ArmorDuplicatedwithVanillaPaths[currentNpc.WornArmor.FormKey];
+                var duplicatedArmor = ArmorDuplicatedwithVanillaPaths[currentArmor.FormKey];
                 if (duplicatedArmor == null)
                 {
-                    _logger.LogMessage($"Vanilla body path setter: duplicated armor is null. Npc {currentNpc.FormKey.ToString()} Template armor: {currentNpc.WornArmor.FormKey.ToString()}");
+                    _logger.LogMessage($"Vanilla body path setter: duplicated armor is null. Npc {currentNpc.FormKey.ToString()} Template armor: {currentArmor.FormKey.ToString()}");
                     return;
                 }
                 
