@@ -838,7 +838,7 @@ public class AssetSelector
 
         if (filteredPacks.Count == 0 && mode == AssetPackAssignmentMode.Primary)
         {
-            _logger.LogMessage("No valid asset packs could be found for NPC " + npcInfo.LogIDstring);
+            _logger.LogMessage("None of your current installed config files can be applied to " + npcInfo.LogIDstring);
         }
 
         _logger.CloseReportSubsection(npcInfo);
