@@ -47,6 +47,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1032AttributeGroups();
         UpdateV1048RaceAliases();
         UpdateV1053CotrAttributes();
+        UpdateV1055CotrAttributes();
     }
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
@@ -436,6 +437,76 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         
         _patcherState.UpdateLog.Performed1_0_5_3_CotrAttributeUpdates = true;
     }
+    
+    private void UpdateV1055CotrAttributes()
+    {
+        if (_patcherState.UpdateLog.Performed1_0_5_5_CotrAttributeUpdates)
+        {
+            return;
+        }
+
+        List<VM_NPCAttributeMod> toUpdate = new();
+        
+        var cotrAttributeGroup = _generalVM.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
+        if (cotrAttributeGroup != null)
+        {
+            foreach (var attribute in cotrAttributeGroup.Attributes)
+            {
+                foreach (var subAttribute in attribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Mod))
+                {
+                    var editable = subAttribute.Attribute as VM_NPCAttributeMod;
+                    if (editable != null)
+                    {
+                        toUpdate.Add(editable);
+                    }
+                }
+            }
+        }
+
+        foreach (var config in _texMeshVM.AssetPacks)
+        {
+            cotrAttributeGroup = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
+            if (cotrAttributeGroup != null)
+            {
+                foreach (var attribute in cotrAttributeGroup.Attributes)
+                {
+                    foreach (var subAttribute in attribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Mod))
+                    {
+                        var editable = subAttribute.Attribute as VM_NPCAttributeMod;
+                        if (editable != null)
+                        {
+                            toUpdate.Add(editable);
+                        }
+                    }
+                }
+            }
+        }
+
+        List<ModKey> newCotrKeys = new()
+        {
+            ModKey.FromNameAndExtension("MOSRefinedDawnguard.esp"),
+            ModKey.FromNameAndExtension("MOSRefinedDragonborn.esp"),
+            ModKey.FromNameAndExtension("MOSUniqueNPC.esp"),
+            ModKey.FromNameAndExtension("GoreRefined.esp"),
+            ModKey.FromNameAndExtension("LucienRefined.esp"),
+            ModKey.FromNameAndExtension("RemielRefined.esp"),
+            ModKey.FromNameAndExtension("SeranaRefined.esp"),
+            ModKey.FromNameAndExtension("0SkeeverRefined.esp")
+        };
+
+        foreach (var attribute in toUpdate)
+        {
+            foreach (var newModKey in newCotrKeys)
+            {
+                if (!attribute.ModKeys.Contains(newModKey))
+                {
+                    attribute.ModKeys.Add(newModKey);
+                }
+            }
+        }
+        
+        _patcherState.UpdateLog.Performed1_0_5_5_CotrAttributeUpdates = true;
+    }
 
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -473,4 +544,5 @@ public class UpdateLog
     public bool Performed1_0_3_2AttributeUpdate { get; set; } = false;
     public bool Performed1_0_4_8_RaceAliasCOTRUpdates { get; set; } = false;
     public bool Performed1_0_5_3_CotrAttributeUpdates { get; set; } = false;
+    public bool Performed1_0_5_5_CotrAttributeUpdates { get; set; } = false;
 }
