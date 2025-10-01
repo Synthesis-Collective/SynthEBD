@@ -7,7 +7,7 @@ namespace SynthEBD;
 public class PatcherState
 {
     // Version
-    public static string Version = "1.0.5.8";
+    public static string Version = "1.0.5.9";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }
