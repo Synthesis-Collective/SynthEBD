@@ -130,7 +130,7 @@ namespace SynthEBD
 
             if (GetTrailingInt(Label, out int selectedCloneIndex))
             {
-                Label = Label.TrimEnd(selectedCloneIndex.ToString()) + cloneIndex.ToString();
+                Label = Label.TrimEnd(selectedCloneIndex.ToString().ToArray()) + cloneIndex.ToString();
             }
             else
             {
