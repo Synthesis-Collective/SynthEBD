@@ -167,7 +167,7 @@ public class RecordGenerator
         HashSet<FilePathReplacementParsed> headtexPaths = new HashSet<FilePathReplacementParsed>();
         List<FilePathReplacementParsed> nonHardcodedPaths = new List<FilePathReplacementParsed>();
 
-        _hardcodedRecordGenerator.CategorizePaths(assignments, flattenedAssetPacks, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, true); // categorize everything as generic for now.
+        _hardcodedRecordGenerator.CategorizePaths(assignments, flattenedAssetPacks, npcInfo, recordTemplateLinkCache, wnamPaths, headtexPaths, nonHardcodedPaths, out int longestPath, false); 
 
         if (!nonHardcodedPaths.Any() && !wnamPaths.Any() && !headtexPaths.Any()) { return; } // avoid making ITM if user blocks all assets of the type assigned (see AssetSelector.BlockAssetDistributionByExistingAssets())
 
