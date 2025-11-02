@@ -155,11 +155,11 @@ public class HardcodedRecordGenerator
             {
                 switch (path.DestinationStr)
                 {
-                    case "HeadTexture.Height": headTex.Height = path.Source; break;
-                    case "HeadTexture.Diffuse": headTex.Diffuse = path.Source; break;
-                    case "HeadTexture.NormalOrGloss": headTex.NormalOrGloss = path.Source; break;
-                    case "HeadTexture.GlowOrDetailMap": headTex.GlowOrDetailMap = path.Source; break;
-                    case "HeadTexture.BacklightMaskOrSpecular": headTex.BacklightMaskOrSpecular = path.Source; break;
+                    case FilePathDestinationMap.Dest_HeadDetail: headTex.Height = path.Source; break;
+                    case FilePathDestinationMap.Dest_HeadDiffuse: headTex.Diffuse = path.Source; break;
+                    case FilePathDestinationMap.Dest_HeadNormal: headTex.NormalOrGloss = path.Source; break;
+                    case FilePathDestinationMap.Dest_HeadSubsurface: headTex.GlowOrDetailMap = path.Source; break;
+                    case FilePathDestinationMap.Dest_HeadSpecular: headTex.BacklightMaskOrSpecular = path.Source; break;
                     default: additionalGenericPaths.Add(path); break;
                 }
             }
@@ -507,73 +507,61 @@ public class HardcodedRecordGenerator
 
     private static HashSet<string> TorsoArmorAddonPaths = new HashSet<string>()
     {
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Male.GlowOrDetailMap",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Female.GlowOrDetailMap",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Male.Diffuse",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Female.Diffuse",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Male.NormalOrGloss",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Female.NormalOrGloss",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Male.BacklightMaskOrSpecular",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].SkinTexture.Female.BacklightMaskOrSpecular"
+        FilePathDestinationMap.Dest_TorsoMaleDiffuse,
+        FilePathDestinationMap.Dest_TorsoMaleNormal,
+        FilePathDestinationMap.Dest_TorsoMaleSubsurface,
+        FilePathDestinationMap.Dest_TorsoMaleSpecular,
+        FilePathDestinationMap.Dest_TorsoFemaleDiffuse,
+        FilePathDestinationMap.Dest_TorsoFemaleNormal,
+        FilePathDestinationMap.Dest_TorsoFemaleSubsurface,
+        FilePathDestinationMap.Dest_TorsoFemaleSpecular
     };
 
     private static HashSet<string> HandsArmorAddonPaths = new HashSet<string>()
     {
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Male.GlowOrDetailMap",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Female.GlowOrDetailMap",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Male.Diffuse",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Female.Diffuse",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Male.NormalOrGloss",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Female.NormalOrGloss",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Male.BacklightMaskOrSpecular",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].SkinTexture.Female.BacklightMaskOrSpecular"
+        FilePathDestinationMap.Dest_HandsMaleDiffuse,
+        FilePathDestinationMap.Dest_HandsMaleNormal,
+        FilePathDestinationMap.Dest_HandsMaleSubsurface,
+        FilePathDestinationMap.Dest_HandsMaleSpecular,
+        FilePathDestinationMap.Dest_HandsFemaleDiffuse,
+        FilePathDestinationMap.Dest_HandsFemaleNormal,
+        FilePathDestinationMap.Dest_HandsFemaleSubsurface,
+        FilePathDestinationMap.Dest_HandsFemaleSpecular
     };
 
     private static HashSet<string> FeetArmorAddonPaths = new HashSet<string>()
     {
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Male.GlowOrDetailMap",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Female.GlowOrDetailMap",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Male.Diffuse",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Female.Diffuse",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Male.NormalOrGloss",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Female.NormalOrGloss",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Male.BacklightMaskOrSpecular",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && PatchableRaces.Contains(Race)].SkinTexture.Female.BacklightMaskOrSpecular"
+        FilePathDestinationMap.Dest_FeetMaleDiffuse,
+        FilePathDestinationMap.Dest_FeetMaleNormal,
+        FilePathDestinationMap.Dest_FeetMaleSubsurface,
+        FilePathDestinationMap.Dest_FeetMaleSpecular,
+        FilePathDestinationMap.Dest_FeetFemaleDiffuse,
+        FilePathDestinationMap.Dest_FeetFemaleNormal,
+        FilePathDestinationMap.Dest_FeetFemaleSubsurface,
+        FilePathDestinationMap.Dest_FeetFemaleSpecular
     };
 
     private static HashSet<string> TailArmorAddonPaths = new HashSet<string>()
     {
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Male.GlowOrDetailMap",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Female.GlowOrDetailMap",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Male.Diffuse",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Female.Diffuse",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Male.NormalOrGloss",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Female.NormalOrGloss",
-
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Male.BacklightMaskOrSpecular",
-        "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].SkinTexture.Female.BacklightMaskOrSpecular"
+        FilePathDestinationMap.Dest_TailMaleDiffuse,
+        FilePathDestinationMap.Dest_TailMaleNormal,
+        FilePathDestinationMap.Dest_TailMaleSubsurface,
+        FilePathDestinationMap.Dest_TailMaleSpecular,
+        FilePathDestinationMap.Dest_TailFemaleDiffuse,
+        FilePathDestinationMap.Dest_TailFemaleNormal,
+        FilePathDestinationMap.Dest_TailFemaleSubsurface,
+        FilePathDestinationMap.Dest_TailFemaleSpecular
     };
 
     private static HashSet<string> WornArmorPaths = new HashSet<string>().Concat(TorsoArmorAddonPaths).Concat(HandsArmorAddonPaths).Concat(FeetArmorAddonPaths).Concat(TailArmorAddonPaths).ToHashSet();
 
     private static HashSet<string> HeadTexturePaths = new HashSet<string>()
     {
-        "HeadTexture.Height",
-        "HeadTexture.Diffuse" ,
-        "HeadTexture.NormalOrGloss",
-        "HeadTexture.GlowOrDetailMap",
-        "HeadTexture.BacklightMaskOrSpecular",
+        FilePathDestinationMap.Dest_HeadDiffuse,
+        FilePathDestinationMap.Dest_HeadNormal,
+        FilePathDestinationMap.Dest_HeadSubsurface,
+        FilePathDestinationMap.Dest_HeadSpecular,
+        FilePathDestinationMap.Dest_HeadDetail
     };
 
     private static bool TryGetGeneratedRecord<T>(HashSet<string> pathSignature, INpcGetter template, out T record) where T : class
