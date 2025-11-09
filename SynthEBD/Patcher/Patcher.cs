@@ -53,14 +53,14 @@ public class Patcher
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
 
-    private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers; // Storage for moving assignments between selection (to be parallelized) and application (serial).
-    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers; // for moving assignments between selection (to be parallelized) and application (serial). 
-    private Dictionary<NPCInfo, float> _heightAssignmentTransfers; // storage for moving assignments between selection and application
+    private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial).
+    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). 
+    private Dictionary<NPCInfo, float> _heightAssignmentTransfers = new(); // storage for moving assignments between selection and application
     
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -85,6 +85,7 @@ public class Patcher
         _headPartPreprocessing = headPartPreProcessing;
         _headPartSelector = headPartSelector;
         _headPartWriter = headPartWriter;
+        _headPartAuxFunctions = headPartAuxFunctions;
         _commonScripts = commonScripts;
         _faceTextureScriptWriter = faceTextureScriptWriter;
         _EBDScripts = ebdScripts;
