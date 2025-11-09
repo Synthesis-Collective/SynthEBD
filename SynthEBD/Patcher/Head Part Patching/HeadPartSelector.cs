@@ -662,6 +662,14 @@ namespace SynthEBD
                     _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     return;
                 }
+
+                if (dict.ContainsKey(hp.Type.Value))
+                {
+                    var entry = dict[hp.Type.Value];
+                    var exceptionString =
+                        $"Warning: Attempted to set headpart {hp.Type.Value.ToString()} for NPC {npcInfo.LogIDstring} to {Logger.GetFormLogString(hp)} but one was already assigned: {entry.ToString()}";
+                    _logger.LogReport(exceptionString, false, npcInfo);
+                }
                 dict.Add(hp.Type.Value, hp.FormKey);
             }
             else
