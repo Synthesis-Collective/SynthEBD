@@ -669,6 +669,7 @@ namespace SynthEBD
                     var exceptionString =
                         $"Warning: Attempted to set headpart {hp.Type.Value.ToString()} for NPC {npcInfo.LogIDstring} to {Logger.GetFormLogString(hp)} but one was already assigned: {entry.ToString()}";
                     _logger.LogReport(exceptionString, false, npcInfo);
+                    return;
                 }
                 dict.Add(hp.Type.Value, hp.FormKey);
             }

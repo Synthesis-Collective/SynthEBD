@@ -748,24 +748,43 @@ public static string GetNPCLogReportingString(INpcGetter npc)
         return false;
     }
 
-    public static string GetFormLogString(IMajorRecordGetter getter)
+    public static string GetFormLogString(IMajorRecordGetter getter, bool fullyQualified = false)
     {
         if (getter == null)
         {
             return "NULL";
         }
         
+        string str = string.Empty;
+
         if (getter is INamedGetter named && named.Name != null)
         {
-            return named.Name;
+            str += named.Name;
+            if (!fullyQualified)
+            {
+                return str;
+            }
         }
 
+        string qual = string.Empty;
+        
         if (getter.EditorID != null)
         {
-            return getter.EditorID;
+            qual += getter.EditorID + " | ";
+        }
+
+        qual += getter.FormKey.ToString();
+
+        if (str != string.Empty)
+        {
+            str += " (" + qual + ")";
+        }
+        else
+        {
+            str += qual;
         }
         
-        return getter.FormKey.ToString();
+        return str;
     }
 }
 
