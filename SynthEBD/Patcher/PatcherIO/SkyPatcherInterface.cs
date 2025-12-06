@@ -12,7 +12,7 @@ public class SkyPatcherInterface
     private readonly Logger _logger;
     private readonly PatcherIO _patcherIO;
 
-    private List<string> outputLines;
+    private List<string> _outputLines;
 
     public SkyPatcherInterface(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, SynthEBDPaths paths, Logger logger, PatcherIO patcherIO)
     {
@@ -27,7 +27,7 @@ public class SkyPatcherInterface
 
     public void Reinitialize()
     {
-        outputLines = new List<string>();
+        _outputLines = new List<string>();
         ClearIni();
     }
 
@@ -41,7 +41,7 @@ public class SkyPatcherInterface
         string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
         string template = BodyGenWriter.FormatFormKeyForBodyGen(faceTemplate);
         
-        outputLines.Add($"filterByNPCs={npc}:copyVisualStyle={template}");
+        _outputLines.Add($"filterByNPCs={npc}:copyVisualStyle={template}");
     }
     
     public void ApplySkin(FormKey applyTo, FormKey skinFk)
@@ -54,7 +54,7 @@ public class SkyPatcherInterface
         string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
         string skin = BodyGenWriter.FormatFormKeyForBodyGen(skinFk);
         
-        outputLines.Add($"filterByNPCs={npc}:skin={skin}");
+        _outputLines.Add($"filterByNPCs={npc}:skin={skin}");
     }
     
     public void ApplyHeight(FormKey applyTo, float heightFlt)
@@ -62,7 +62,7 @@ public class SkyPatcherInterface
         string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
         string height = heightFlt.ToString();
         
-        outputLines.Add($"filterByNPCs={npc}:height={height}");
+        _outputLines.Add($"filterByNPCs={npc}:height={height}");
     }
 
     public void WriteIni()
@@ -70,7 +70,7 @@ public class SkyPatcherInterface
         string destinationPath = Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "SkyPatcher", "npc", "SynthEBD", "SynthEBD.ini");
         PatcherIO.CreateDirectoryIfNeeded(destinationPath, PatcherIO.PathType.File);
         
-        Task.Run(() => PatcherIO.WriteTextFile(destinationPath, outputLines, _logger));
+        Task.Run(() => PatcherIO.WriteTextFile(destinationPath, _outputLines, _logger));
     }
 
     private void ClearIni()
@@ -79,8 +79,8 @@ public class SkyPatcherInterface
         _patcherIO.TryDeleteFile(destinationPath, _logger);
     }
 
-    public bool HasSkinEntries()
+    public bool HasEntries()
     {
-        return outputLines.Any();
+        return _outputLines.Any();
     }
 }

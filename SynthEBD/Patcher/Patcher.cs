@@ -383,13 +383,13 @@ public class Patcher
             _assetAssignmentJsonDictHandler.WriteAssignmentDictionaryScriptMode();
             _combinationLog.WriteToFile(availableAssetPacks);
         }
-
-        if (_skyPatcherInterface.HasSkinEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
+        
+        _heightPatcher.ApplySelectedHeights(_heightAssignmentTransfers, _environmentProvider.OutputMod, _statusBar);
+        
+        if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
         {
             _skyPatcherInterface.WriteIni();
         }
-        
-        _heightPatcher.ApplySelectedHeights(_heightAssignmentTransfers, _environmentProvider.OutputMod, _statusBar);
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
