@@ -98,6 +98,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         }).DisposeWith(this);
 
+        // Update visibility properties when AppearanceMergerType changes
+        this.WhenAnyValue(x => x.AppearanceMergerType)
+            .Subscribe(x =>
+            {
+                ShowEasyNPCPath = x == AppearanceMergeType.EasyNPC;
+                ShowNPC2Path = x == AppearanceMergeType.NPC2;
+            }).DisposeWith(this);
+
         AddRaceAlias = new RelayCommand(
             canExecute: _ => true,
             execute: _ => raceAliases.Add(_aliasFactory(new RaceAlias(), this))
@@ -203,6 +211,25 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         );
 
+        SelectNPC2Token = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "JSON Files (*.json)|*.json", "Select your NPC_Token.json file", out string path))
+                {
+                    NPC2TokenPath = path;
+                }
+            }
+        );
+
+        ClearNPC2Token = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                NPC2TokenPath = string.Empty;
+            }
+        );
+
         ToggleTroubleShootingSettingsDisplay = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -276,7 +303,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
+    public AppearanceMergeType AppearanceMergerType { get; set; } = AppearanceMergeType.None;
     public string EasyNPCprofilePath { get; set; } = "";
+    public string NPC2TokenPath { get; set; } = "";
+    public bool ShowEasyNPCPath { get; set; } = false;
+    public bool ShowNPC2Path { get; set; } = false;
     public bool bShowToolTips { get; set; } = true;
     public bool bChangeMeshesOrTextures { get; set; } = true;
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
@@ -318,6 +349,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearPortableSettingsFolder { get; }
     public RelayCommand SelectEasyNPCProfile { get; }
     public RelayCommand ClearEasyNPCProfile { get; }
+    public RelayCommand SelectNPC2Token { get; }
+    public RelayCommand ClearNPC2Token { get; }
     public bool IsStandalone { get; set; }
     public bool bFilterNPCsByArmature { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
@@ -341,7 +374,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IsCurrentlyLoading = true;
 
         OutputDataFolder = model.OutputDataFolder;
+        AppearanceMergerType = model.AppearanceMergerType;
         EasyNPCprofilePath = model.EasyNPCprofilePath;
+        NPC2TokenPath = model.NPC2TokenPath;
         bShowToolTips = model.bShowToolTips;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         BodySelectionMode = model.BodySelectionMode;
@@ -391,7 +426,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     {
         Settings_General model = new();
         model.OutputDataFolder = OutputDataFolder;
+        model.AppearanceMergerType = AppearanceMergerType;
         model.EasyNPCprofilePath = EasyNPCprofilePath;
+        model.NPC2TokenPath = NPC2TokenPath;
         model.bShowToolTips = bShowToolTips;
         model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
         model.BodySelectionMode = BodySelectionMode;

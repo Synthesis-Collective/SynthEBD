@@ -11,13 +11,15 @@ public class AttributeMatcher
     private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
-    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser, EasyNPCProfileParser easyNPCProfileParser)
+    private readonly NPC2ProfileParser _npc2ProfileParser;
+    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _recordPathParser = recordPathParser;
         _easyNPCProfileParser = easyNPCProfileParser;
+        _npc2ProfileParser = npc2ProfileParser;
     }
 
     /// <summary>
@@ -203,7 +205,7 @@ public class AttributeMatcher
                                 {
                                     if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey)) {  foundContext = true; break; }
                                 }
-                                if (_easyNPCProfileParser.GetNPCMod(npc.FormKey, out var appearanceModKey) && appearanceModKey.HasValue && ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                if (GetAppearanceMergeSourceMod(npc.FormKey, out var appearanceModKey) && appearanceModKey.HasValue && ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
                                 {
                                     foundContext = true;
                                 }
@@ -224,10 +226,9 @@ public class AttributeMatcher
                                 
                                 foundContext = false;
                                 if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true;}
-                                else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
-                                    _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
-                                    appearanceModKey.HasValue && 
-                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
+                                         appearanceModKey.HasValue && 
+                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
                                 {
                                     foundContext = true;
                                 }
@@ -253,8 +254,7 @@ public class AttributeMatcher
                                 {
                                     foundContext = true;
                                 }
-                                else if (winningContext.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower() && 
-                                    _easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) && 
+                                else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
                                     appearanceModKey.HasValue && 
                                     ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
                                 {
@@ -266,18 +266,6 @@ public class AttributeMatcher
                                     var candidateAppearanceContexts = contexts.Where(x => 
                                     ModKeyHashSetComparer.Contains(modAttribute.ModKeys, x.ModKey))
                                     .ToList();
-                                
-                                    // Add EasyNPC plugin context if necessary
-                                    if (_easyNPCProfileParser.GetNPCMod(npc.FormKey, out appearanceModKey) &&
-                                        appearanceModKey.HasValue &&
-                                        ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
-                                    {
-                                        var EasyNpcContext = contexts.FirstOrDefault(x => x.ModKey.FileName.String.ToLower() == "NPC Appearances Merged.esp".ToLower());
-                                        if (EasyNpcContext != null)
-                                        {
-                                            candidateAppearanceContexts.Insert(0, EasyNpcContext); // check this context first
-                                        }
-                                    }
                                     
                                     // check the appearance of each context against that of the winning context
                                     var winningNpc = contexts.First().Record;
@@ -601,5 +589,29 @@ public class AttributeMatcher
             default:
                 dispMessage = "Comparator not recognized"; return false;
         }
+    }
+
+    private bool GetAppearanceMergeSourceMod(FormKey npcFormKey, out ModKey? appearanceModKey)
+    {
+        appearanceModKey = null;
+        switch (_patcherState.GeneralSettings.AppearanceMergerType)
+        {
+            case AppearanceMergeType.None:
+                return false;
+            case AppearanceMergeType.EasyNPC:
+                if (_easyNPCProfileParser.GetNPCMod(npcFormKey, out appearanceModKey))
+                {
+                    return true;
+                }
+                return false;
+            case AppearanceMergeType.NPC2:
+                if (_npc2ProfileParser.GetNPCMod(npcFormKey, out appearanceModKey))
+                {
+                    return true;
+                }
+                return false;
+        }
+
+        return false;
     }
 }

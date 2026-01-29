@@ -13,7 +13,9 @@ public class Settings_General
     public bool bChangeHeadParts { get; set; } = true;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public string OutputDataFolder { get; set; } = "";
+    public AppearanceMergeType AppearanceMergerType { get; set; } = AppearanceMergeType.None;
     public string EasyNPCprofilePath { get; set; } = "";
+    public string NPC2TokenPath { get; set; } = "";
     public bool bEnableConsistency { get; set; } = true;
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
@@ -276,4 +278,11 @@ public enum BodySlideSelectionMode
 {
     OBody,
     AutoBody
+}
+
+public enum AppearanceMergeType
+{
+    None,
+    EasyNPC,
+    NPC2
 }
