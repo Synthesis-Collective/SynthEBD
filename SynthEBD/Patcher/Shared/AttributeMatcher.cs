@@ -228,6 +228,8 @@ public class AttributeMatcher
                                 if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true;}
                                 else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
                                          appearanceModKey.HasValue && 
+                                         GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) &&
+                                         winningContext.ModKey.Equals(mergeModKey.Value) &&
                                          ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
                                 {
                                     foundContext = true;
@@ -256,6 +258,8 @@ public class AttributeMatcher
                                 }
                                 else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
                                     appearanceModKey.HasValue && 
+                                    GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) &&
+                                    winningContext.ModKey.Equals(mergeModKey.Value) &&
                                     ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
                                 {
                                     foundContext = true;
@@ -266,6 +270,17 @@ public class AttributeMatcher
                                     var candidateAppearanceContexts = contexts.Where(x => 
                                     ModKeyHashSetComparer.Contains(modAttribute.ModKeys, x.ModKey))
                                     .ToList();
+                                    
+                                    // Add NPC merge context if available and make it the first to be searched
+                                    if (GetAppearanceMergeSourceMod(npc.FormKey, out mergeModKey) &&
+                                        mergeModKey.HasValue)
+                                    {
+                                        var mergeContext = contexts.FirstOrDefault(x => x.ModKey.Equals(mergeModKey.Value));
+                                        if (mergeContext != null)
+                                        {
+                                            candidateAppearanceContexts.Insert(0, mergeContext);
+                                        }
+                                    }
                                     
                                     // check the appearance of each context against that of the winning context
                                     var winningNpc = contexts.First().Record;
@@ -591,6 +606,29 @@ public class AttributeMatcher
         }
     }
 
+    private bool GetApperanceMergeDestinationMod(FormKey npcFormKey, out ModKey? mergeModKey)
+    {
+        mergeModKey = null;
+        switch (_patcherState.GeneralSettings.AppearanceMergerType)
+        {
+            case AppearanceMergeType.None:
+                mergeModKey = null;
+                return false;
+            case AppearanceMergeType.EasyNPC:
+                mergeModKey = ModKey.FromNameAndExtension("NPC Appearances Merged.esp");
+                return true;
+            case AppearanceMergeType.NPC2:
+                if (_npc2ProfileParser.GetNPCMergePlugin(npcFormKey, out mergeModKey))
+                {
+                    return true;
+                }
+
+                return false;
+        }
+
+        return false;
+    }
+    
     private bool GetAppearanceMergeSourceMod(FormKey npcFormKey, out ModKey? appearanceModKey)
     {
         appearanceModKey = null;
@@ -605,7 +643,7 @@ public class AttributeMatcher
                 }
                 return false;
             case AppearanceMergeType.NPC2:
-                if (_npc2ProfileParser.GetNPCMod(npcFormKey, out appearanceModKey))
+                if (_npc2ProfileParser.GetNPCSourcePlugin(npcFormKey, out appearanceModKey))
                 {
                     return true;
                 }

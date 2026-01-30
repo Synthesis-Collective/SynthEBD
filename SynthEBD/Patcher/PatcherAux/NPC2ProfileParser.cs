@@ -7,10 +7,12 @@ namespace SynthEBD;
 public class NPC2ProfileParser
 {
     public Dictionary<FormKey, ModKey> AppearanceDictionary { get; set; } = new();
+    public Dictionary<FormKey, ModKey> MergeDictionary { get; set; } = new();
 
     public void Reinitialize(string filepath)
     {
         AppearanceDictionary.Clear();
+        MergeDictionary.Clear();
         
         if (string.IsNullOrWhiteSpace(filepath) || !System.IO.File.Exists(filepath))
         {
@@ -42,6 +44,15 @@ public class NPC2ProfileParser
                         AppearanceDictionary.Add(formKey.Value, appearanceModKey);
                     }
                 }
+                
+                if (formKey != null && !string.IsNullOrWhiteSpace(entry.Value.OutputPlugin))
+                {
+                    var outputModKey = ModKey.FromNameAndExtension(entry.Value.OutputPlugin);
+                    if (!MergeDictionary.ContainsKey(formKey.Value))
+                    {
+                        AppearanceDictionary.Add(formKey.Value, outputModKey);
+                    }
+                }
             }
         }
         catch (Exception)
@@ -65,7 +76,7 @@ public class NPC2ProfileParser
         return FormKey.TryFactory(npc2Key);
     }
 
-    public bool GetNPCMod(FormKey npcFormKey, out ModKey? appearanceModKey)
+    public bool GetNPCSourcePlugin(FormKey npcFormKey, out ModKey? appearanceModKey)
     {
         if (AppearanceDictionary.ContainsKey(npcFormKey))
         {
@@ -75,6 +86,20 @@ public class NPC2ProfileParser
         else
         {
             appearanceModKey = null;
+            return false;
+        }
+    }
+    
+    public bool GetNPCMergePlugin(FormKey npcFormKey, out ModKey? mergeModKey)
+    {
+        if (MergeDictionary.ContainsKey(npcFormKey))
+        {
+            mergeModKey = MergeDictionary[npcFormKey];
+            return true;
+        }
+        else
+        {
+            mergeModKey = null;
             return false;
         }
     }
@@ -102,4 +127,7 @@ public class NPC2ProcessedNpcEntry
 
     [JsonPropertyName("AppearancePlugin")]
     public string AppearancePlugin { get; set; } = string.Empty;
+    
+    [JsonPropertyName("OutputPlugin")]
+    public string OutputPlugin { get; set; } = string.Empty;
 }
