@@ -205,7 +205,12 @@ public class AttributeMatcher
                                 {
                                     if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey)) {  foundContext = true; break; }
                                 }
-                                if (GetAppearanceMergeSourceMod(npc.FormKey, out var appearanceModKey) && appearanceModKey.HasValue && ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                if (GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                    mergeModKey.HasValue && // Is that plugin valid?
+                                    contexts.Any(x => x.ModKey.Equals(mergeModKey)) && // Does that plugin currently patch that NPC?
+                                    GetAppearanceMergeSourceMod(npc.FormKey, out var appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                    appearanceModKey.HasValue && // Is that plugin valid?
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
                                 {
                                     foundContext = true;
                                 }
@@ -226,11 +231,12 @@ public class AttributeMatcher
                                 
                                 foundContext = false;
                                 if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true;}
-                                else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
-                                         appearanceModKey.HasValue && 
-                                         GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) &&
-                                         winningContext.ModKey.Equals(mergeModKey.Value) &&
-                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                else if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                         mergeModKey.HasValue && // Is that plugin valid?
+                                         winningContext.ModKey.Equals(mergeModKey) && // Is that plugin the winning override?
+                                         GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                         appearanceModKey.HasValue && // Is that plugin valid?
+                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
                                 {
                                     foundContext = true;
                                 }
@@ -256,27 +262,29 @@ public class AttributeMatcher
                                 {
                                     foundContext = true;
                                 }
-                                else if (GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && 
-                                    appearanceModKey.HasValue && 
-                                    GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) &&
-                                    winningContext.ModKey.Equals(mergeModKey.Value) &&
-                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value))
+                                else if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                         mergeModKey.HasValue && // Is that plugin valid?
+                                         winningContext.ModKey.Equals(mergeModKey) && // Is that plugin the winning override?
+                                         GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                         appearanceModKey.HasValue && // Is that plugin valid?
+                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
                                 {
                                     foundContext = true;
                                 }
                                 // If not, check if the winning appearance override inherits from those in any of the allowed ModKeys
                                 else
                                 {
-                                    var candidateAppearanceContexts = contexts.Where(x => 
-                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, x.ModKey))
-                                    .ToList();
+                                    var candidateAppearanceContexts = contexts.ToList();
                                     
-                                    // Add NPC merge context if available and make it the first to be searched
-                                    if (GetAppearanceMergeSourceMod(npc.FormKey, out mergeModKey) &&
-                                        mergeModKey.HasValue)
+                                    // Add NPC merge context if available and make it the first to be searched because it's likely to match the winner
+                                    if (GetAppearanceMergeSourceMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                        mergeModKey.HasValue && // Is that plugin valid?
+                                        GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                        appearanceModKey.HasValue && // Is that plugin valid?
+                                        ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
                                     {
                                         var mergeContext = contexts.FirstOrDefault(x => x.ModKey.Equals(mergeModKey.Value));
-                                        if (mergeContext != null)
+                                        if (mergeContext != null) // Does the apppearance merge plugin data actually contain this NPC?
                                         {
                                             candidateAppearanceContexts.Insert(0, mergeContext);
                                         }

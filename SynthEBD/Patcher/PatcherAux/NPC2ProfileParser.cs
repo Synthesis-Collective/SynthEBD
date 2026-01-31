@@ -50,7 +50,7 @@ public class NPC2ProfileParser
                     var outputModKey = ModKey.FromNameAndExtension(entry.Value.OutputPlugin);
                     if (!MergeDictionary.ContainsKey(formKey.Value))
                     {
-                        AppearanceDictionary.Add(formKey.Value, outputModKey);
+                        MergeDictionary.Add(formKey.Value, outputModKey);
                     }
                 }
             }
