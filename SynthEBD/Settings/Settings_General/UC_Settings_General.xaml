@@ -112,7 +112,7 @@
                 <Button VerticalAlignment="Center" Command="{Binding ClearPortableSettingsFolder}" Foreground="Firebrick">Clear</Button>
             </StackPanel>
 
-            <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Select the type of Appearance Merge Patcher you are using, if any. This allows SynthEBD to properly identify which mod is providing each NPC's appearance." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Appearance Merge Patcher</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="13" VerticalAlignment="Center" ToolTip="Select the type of Appearance Merge Patcher you are using, if any. This allows SynthEBD to properly identify which mod is providing each NPC's appearance." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Appearance Merge Patcher</TextBlock>
             <ComboBox Grid.Column="2" Grid.Row="13" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding AppearanceMergerType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AppearanceMergeType}}}" IsSynchronizedWithCurrentItem="True"/>
 
             <TextBlock Grid.Column="0" Grid.Row="14" ToolTip="Generate this in EasyNPC by going to Profile, and click the disk icon on the top right." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowEasyNPCPath, Converter={StaticResource BoolToVis}}">EasyNPC Profile Path</TextBlock>
