@@ -277,7 +277,7 @@ public class AttributeMatcher
                                     var candidateAppearanceContexts = contexts.ToList();
                                     
                                     // Add NPC merge context if available and make it the first to be searched because it's likely to match the winner
-                                    if (GetAppearanceMergeSourceMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                    if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
                                         mergeModKey.HasValue && // Is that plugin valid?
                                         GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
                                         appearanceModKey.HasValue && // Is that plugin valid?
