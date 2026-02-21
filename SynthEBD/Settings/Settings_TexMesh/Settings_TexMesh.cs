@@ -2,8 +2,15 @@ using Newtonsoft.Json;
 
 namespace SynthEBD;
 
+public enum FacePatchingMode
+{
+    Script,
+    Mesh
+}
+
 public class Settings_TexMesh
 {
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.Script;
     public bool bChangeNPCTextures { get; set; } = true;
     public bool bChangeNPCMeshes { get; set; } = true;
     public bool bChangeNPCHeadParts { get; set; } = true;

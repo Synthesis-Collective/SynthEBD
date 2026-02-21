@@ -53,6 +53,7 @@ public class Patcher
     private readonly NPCProvider _npcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
+    private readonly FaceGenPatcher _faceGenPatcher;
 
     private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial).
     private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). 
@@ -61,7 +62,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -105,6 +106,7 @@ public class Patcher
         _npcProvider = npcProvider;
         _skyPatcherInterface = skyPatcherInterface;
         _assetAssignmentJsonDictHandler = assetAssignmentJsonDictHandler;
+        _faceGenPatcher = faceGenPatcher;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -163,18 +165,29 @@ public class Patcher
         CategorizedFlattenedAssetPacks availableAssetPacks = null;
         Keyword EBDFaceKW = null;
         Keyword EBDScriptKW = null;
+        Spell EBDHelperSpell = null;
+        Keyword synthEBDFaceKW = null;
+        Spell synthEBDHelperSpell = null;
+        GlobalShort gEnableTextureLoaderScript = null;
+        GlobalShort gFaceTextureVerboseMode = null;
 
-        // write resources for EBD face texture script even if it will be superceded by the updated version
-        EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out Spell EBDHelperSpell, _patcherState.TexMeshSettings.bLegacyEBDMode);
+        bool useFaceMeshMode = _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh;
 
-        // write resources for new face texture script even if it will be deactivated
-        (var synthEBDFaceKW, var gEnableFaceTextureScript, var gFaceTextureVerboseMode) = _faceTextureScriptWriter.InitializeToggleRecords(outputMod);
-        _faceTextureScriptWriter.CopyFaceTextureScript();
-        Spell synthEBDHelperSpell = _faceTextureScriptWriter.CreateSynthEBDFaceTextureSpell(outputMod, synthEBDFaceKW, gEnableFaceTextureScript, gFaceTextureVerboseMode, _patcherState.TexMeshSettings.TriggerEvents);
-        
-        var gEnableTextureLoaderScript = outputMod.Globals.AddNewShort();
-        gEnableTextureLoaderScript.EditorID = "SynthEBD_TextureLoaderScriptActive";
-        gEnableTextureLoaderScript.Data = Convert.ToInt16(_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bPureScriptMode);
+        if (!useFaceMeshMode)
+        {
+            // write resources for EBD face texture script even if it will be superceded by the updated version
+            EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell, _patcherState.TexMeshSettings.bLegacyEBDMode);
+
+            // write resources for new face texture script even if it will be deactivated
+            GlobalShort gEnableFaceTextureScript;
+            (synthEBDFaceKW, gEnableFaceTextureScript, gFaceTextureVerboseMode) = _faceTextureScriptWriter.InitializeToggleRecords(outputMod);
+            _faceTextureScriptWriter.CopyFaceTextureScript();
+            synthEBDHelperSpell = _faceTextureScriptWriter.CreateSynthEBDFaceTextureSpell(outputMod, synthEBDFaceKW, gEnableFaceTextureScript, gFaceTextureVerboseMode, _patcherState.TexMeshSettings.TriggerEvents);
+            
+            gEnableTextureLoaderScript = outputMod.Globals.AddNewShort();
+            gEnableTextureLoaderScript.EditorID = "SynthEBD_TextureLoaderScriptActive";
+            gEnableTextureLoaderScript.Data = Convert.ToInt16(_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bPureScriptMode);
+        }
         
         HashSet<FlattenedAssetPack> flattenedAssetPacks = new();
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
@@ -184,18 +197,21 @@ public class Patcher
             PathTrimmer.TrimFlattenedAssetPacks(flattenedAssetPacks, _patcherState.TexMeshSettings.TrimPaths.ToHashSet());
             availableAssetPacks = new CategorizedFlattenedAssetPacks(flattenedAssetPacks);
 
-            if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+            if (!useFaceMeshMode)
             {
-                ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
-            }
-            else
-            {
-                ApplyRacialSpell.ApplySpell(outputMod, synthEBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
-            }
+                if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                {
+                    ApplyRacialSpell.ApplySpell(outputMod, EBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
+                }
+                else
+                {
+                    ApplyRacialSpell.ApplySpell(outputMod, synthEBDHelperSpell, _environmentProvider.LinkCache, _patcherState);
+                }
 
-            if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
-            
-            _assetAssignmentJsonDictHandler.CreateTextureLoaderQuest(_environmentProvider.OutputMod, gEnableTextureLoaderScript, gFaceTextureVerboseMode);
+                if (_patcherState.TexMeshSettings.bApplyFixedScripts) { _EBDScripts.ApplyFixedScripts(); }
+                
+                _assetAssignmentJsonDictHandler.CreateTextureLoaderQuest(_environmentProvider.OutputMod, gEnableTextureLoaderScript, gFaceTextureVerboseMode);
+            }
 
             _assetSelector.Reinitialize();
             _recordGenerator.Reinitialize();
@@ -383,6 +399,27 @@ public class Patcher
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
             configGeneratedHeadPartsDict, _combinationLog, EBDFaceKW, EBDScriptKW,
             synthEBDFaceKW, _assetAssignmentJsonDictHandler, _statusBar);
+        if (useFaceMeshMode)
+        {
+            _logger.LogMessage("Starting FaceGen NIF patching...");
+            _statusBar.ProgressBarCurrent = 0;
+            _statusBar.ProgressBarMax = _assetAssignmentTransfers.Count;
+            _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for 0 / " + _statusBar.ProgressBarMax + " NPCs";
+
+            foreach (var kvp in _assetAssignmentTransfers)
+            {
+                var npcInfo = kvp.Key;
+                var assetContainers = kvp.Value;
+
+                _faceGenPatcher.PatchFaceGenNifs(npcInfo, assetContainers);
+                
+                _statusBar.ProgressBarCurrent++;
+                if (_statusBar.ProgressBarCurrent % 50 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
+                {
+                    _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for " + _statusBar.ProgressBarCurrent + " / " + _statusBar.ProgressBarMax + " NPCs";
+                }
+            }
+        }
         recordGenStopWatch.Stop();
         _logger.LogMessage($"Record generation completed in {recordGenStopWatch.Elapsed:mm\\:ss}");
         

@@ -73,6 +73,12 @@ public class VM_SettingsTexMesh : VM
 
         general.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
 
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.bShowTroubleshootingSettings),
+                this.WhenAnyValue(x => x.FacePatchingMode),
+                (showTroubleshooting, mode) => showTroubleshooting && mode == FacePatchingMode.Script)
+            .Subscribe(x => bShowEBDOptions = x).DisposeWith(this);
+
         AddStrippedWNAM = new RelayCommand(
             canExecute: _ => true,
             execute: _ => StrippedSkinWNAMs.Add(new VM_CollectionMemberString("", StrippedSkinWNAMs))
@@ -325,6 +331,9 @@ public class VM_SettingsTexMesh : VM
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
     public bool bPureScriptMode { get; set; } = false;
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.Script;
+    public IEnumerable<FacePatchingMode> FacePatchingModeOptions { get; } = Enum.GetValues<FacePatchingMode>();
+    public bool bShowEBDOptions { get; set; } = false;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -416,6 +425,7 @@ public class VM_SettingsTexMesh : VM
         bPatchArmors = model.bPatchArmors;
         bPatchSkinAltTextures = model.bPatchSkinAltTextures;
         bPureScriptMode = model.bPureScriptMode;
+        FacePatchingMode = model.FacePatchingMode;
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
@@ -452,6 +462,7 @@ public class VM_SettingsTexMesh : VM
         model.bPatchArmors = bPatchArmors;
         model.bPatchSkinAltTextures = bPatchSkinAltTextures;
         model.bPureScriptMode = bPureScriptMode;
+        model.FacePatchingMode = FacePatchingMode;
         return model;
     }
 

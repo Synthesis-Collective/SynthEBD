@@ -118,6 +118,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<NPCProvider>().AsSelf().SingleInstance();
         builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
         builder.RegisterType<FacePartCompliance>().AsSelf().SingleInstance();
+        builder.RegisterType<FaceGenPatcher>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();
