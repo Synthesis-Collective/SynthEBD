@@ -39,17 +39,20 @@ public class FaceGenPatcher
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly SynthEBDPaths _paths;
+    private readonly BSAHandler _bsaHandler;
     private readonly Logger _logger;
 
     public FaceGenPatcher(
         IOutputEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
         SynthEBDPaths paths,
+        BSAHandler bsaHandler,
         Logger logger)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _paths = paths;
+        _bsaHandler = bsaHandler;
         _logger = logger;
     }
 
@@ -69,16 +72,50 @@ public class FaceGenPatcher
         }
 
         string sourcePath = ResolveFaceGenNifPath(npcInfo, _environmentProvider.DataFolderPath);
+        bool foundInBsa = false;
         if (!File.Exists(sourcePath))
         {
-            _logger.LogReport(
-                "FaceGenPatcher: FaceGen NIF not found at expected path: " + sourcePath,
-                false, npcInfo);
-            return;
+            string bsaSourcePath = ResolveFaceGenNifBsaSubPath(npcInfo);
+            FormKey formKey = npcInfo.NPC.FormKey;
+            string pluginName = formKey.ModKey.FileName;
+            string formIdHex = formKey.ID.ToString("X8");
+            string extractedDestPath = Path.Combine(_patcherState.ModManagerSettings.TempExtractionFolder, pluginName + "_" + formIdHex + ".nif");
+            var contexts = _environmentProvider.LinkCache.ResolveAllContexts(npcInfo.NPC);
+            foreach (var context in contexts)
+            {
+                if (_bsaHandler.TryOpenCorrespondingArchiveReaders(context.ModKey, out var bsaReaders) &&
+                    _bsaHandler.ReadersHaveFile(bsaSourcePath, bsaReaders, out var file) &&
+                    _bsaHandler.TryExtractFileFromBSA(file, extractedDestPath))
+                {
+                    sourcePath = extractedDestPath;
+                    foundInBsa = true;
+                    break;
+                }
+            }
+
+            if (!foundInBsa)
+            {
+                _logger.LogReport(
+                    "FaceGenPatcher: FaceGen NIF not found at expected path: " + sourcePath,
+                    false, npcInfo);
+                return;
+            }
         }
 
         string outputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
         ApplyTextureSlots(sourcePath, outputPath, slotAssignments, npcInfo);
+
+        if (foundInBsa && File.Exists(sourcePath))
+        {
+            try
+            {
+                File.Delete(sourcePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogMessage($"Warning: Could not clean up temporary file at {sourcePath}. It may be in use. Error: {ex.Message}");
+            }
+        }
     }
 
     // ─── Step 1 – Collect face-texture assignments ──────────────────────────
@@ -115,6 +152,22 @@ public class FaceGenPatcher
 
         return Path.Combine(
             rootFolder,
+            "meshes",
+            "actors",
+            "character",
+            "facegendata",
+            "facegeom",
+            pluginName,
+            formIdHex + ".nif");
+    }
+
+    private static string ResolveFaceGenNifBsaSubPath(NPCInfo npcInfo)
+    {
+        FormKey formKey = npcInfo.NPC.FormKey;
+        string pluginName = formKey.ModKey.FileName;
+        string formIdHex = formKey.ID.ToString("X8");
+
+        return string.Join("\\", 
             "meshes",
             "actors",
             "character",
@@ -242,7 +295,7 @@ public class FaceGenPatcher
         Dictionary<int, string> slotAssignments,
         NPCInfo npcInfo)
     {
-        var nif = new NifFile();
+        using var nif = new NifFile();
 
         int loadResult = nif.Load(sourcePath);
         if (loadResult != 0)
