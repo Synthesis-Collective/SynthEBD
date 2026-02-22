@@ -134,7 +134,14 @@ public class Patcher
         }
 
         var outputMod = _environmentProvider.OutputMod;
-        var allNPCs = _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<INpcGetter>().OrderBy(x => _converters.FormKeyStringToFormIDString(x.FormKey.ToString())).ToArray();
+        var allNPCs = _environmentProvider
+            .LoadOrder
+            .PriorityOrder
+            .OnlyEnabledAndExisting()
+            .WinningOverrides<INpcGetter>()
+            .OrderBy(x => _converters.FormKeyStringToFormIDString(x.FormKey.ToString()))
+            .Where(x => !(x.Configuration.TemplateFlags.HasFlag(NpcConfiguration.TemplateFlag.Traits) && x.Template != null && !x.Template.IsNull))
+            .ToArray();
         _raceResolver.ResolvePatchableRaces();
         _uniqueNPCData.Reinitialize();
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
