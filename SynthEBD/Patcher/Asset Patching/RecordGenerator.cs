@@ -119,22 +119,32 @@ public class RecordGenerator
                 var generatedHeadPartFormKeys = new Dictionary<HeadPart.TypeEnum, FormKey>();
                 CombinationToRecords(assignments, flattenedAssetPacks, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, assignedPaths, generatedHeadPartFormKeys);
                 combinationLog.LogAssignedRecords(currentNPCInfo, assignments);
-                _facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo);
-                
-                if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
 
-                if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) && headTextureSourceMod.Equals(_environmentProvider.OutputMod.ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
+                if (_patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Script)
                 {
-                    if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                    _facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo);
+
+                    if (npcRecord.Keywords == null)
                     {
-                        npcRecord.Keywords.Add(EBDFaceKW);
-                        npcRecord.Keywords.Add(EBDScriptKW);
+                        npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>();
                     }
-                    else
+
+                    if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) &&
+                        headTextureSourceMod.Equals(_environmentProvider.OutputMod
+                            .ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
                     {
-                        npcRecord.Keywords.Add(synthEBDFaceKW);
+                        if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                        {
+                            npcRecord.Keywords.Add(EBDFaceKW);
+                            npcRecord.Keywords.Add(EBDScriptKW);
+                        }
+                        else
+                        {
+                            npcRecord.Keywords.Add(synthEBDFaceKW);
+                        }
                     }
                 }
+
                 AddCustomKeywordsToNPC(assignments, npcRecord, _environmentProvider.OutputMod);
 
                 if (_patcherState.TexMeshSettings.bPatchArmors)
