@@ -191,9 +191,13 @@ public class FaceGenPatcher
         var header = nif.GetHeader();
         var blockCache = new niflycpp.BlockCache(header);
 
-        var dismember = niflycpp.BlockCache.SafeClone<BSDismemberSkinInstance>(
-            blockCache.EditableBlockById<BSDismemberSkinInstance>(skinRef.index));
+        var rawBlock = blockCache.EditableBlockById<BSDismemberSkinInstance>(skinRef.index);
+        if (rawBlock == null)
+        {
+            return false;
+        }
 
+        var dismember = niflycpp.BlockCache.SafeClone<BSDismemberSkinInstance>(rawBlock);
         if (dismember == null)
         {
             return false;
