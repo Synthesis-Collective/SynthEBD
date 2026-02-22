@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
 using nifly;
 
 namespace SynthEBD;
@@ -80,7 +81,7 @@ public class FaceGenPatcher
             string pluginName = formKey.ModKey.FileName;
             string formIdHex = formKey.ID.ToString("X8");
             string extractedDestPath = Path.Combine(_patcherState.ModManagerSettings.TempExtractionFolder, pluginName + "_" + formIdHex + ".nif");
-            var contexts = _environmentProvider.LinkCache.ResolveAllContexts(npcInfo.NPC);
+            var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcInfo.NPC.FormKey);
             foreach (var context in contexts)
             {
                 if (_bsaHandler.TryOpenCorrespondingArchiveReaders(context.ModKey, out var bsaReaders) &&
@@ -95,6 +96,7 @@ public class FaceGenPatcher
 
             if (!foundInBsa)
             {
+                _logger.LogMessage("FaceGenPatcher: FaceGen NIF not found at expected path: " + sourcePath);
                 _logger.LogReport(
                     "FaceGenPatcher: FaceGen NIF not found at expected path: " + sourcePath,
                     false, npcInfo);
