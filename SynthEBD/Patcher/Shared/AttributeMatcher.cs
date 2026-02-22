@@ -274,7 +274,9 @@ public class AttributeMatcher
                                 // If not, check if the winning appearance override inherits from those in any of the allowed ModKeys
                                 else
                                 {
-                                    var candidateAppearanceContexts = contexts.ToList();
+                                    var candidateAppearanceContexts = contexts
+                                        .Where(x => modAttribute.ModKeys.Contains(x.ModKey))
+                                        .ToList();
                                     
                                     // Add NPC merge context if available and make it the first to be searched because it's likely to match the winner
                                     if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
