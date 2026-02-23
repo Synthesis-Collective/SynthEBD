@@ -40,6 +40,8 @@ namespace SynthEBD
         };
 
         public VM_Settings_Headparts ParentMenu { get; set; }
+        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.Script;
+        public IEnumerable<HeadPartPatchingMode> PatchingModeOptions { get; } = Enum.GetValues<HeadPartPatchingMode>();
         public bool bUseVerboseScripts { get; set; } = false;
         public VM_BodyGenConfig TrackedBodyGenConfigMale { get; set; }
         public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigsMale { get; set; }
@@ -92,6 +94,7 @@ namespace SynthEBD
 
         public void GetViewModelFromModel(Settings_Headparts model)
         {
+            PatchingMode = model.PatchingMode;
             foreach (var type in model.SourceConflictWinners.Keys)
             {
                 SourceConflictWinners[type].Source = model.SourceConflictWinners[type];
@@ -120,6 +123,7 @@ namespace SynthEBD
 
         public void MergeViewModelIntoModel(Settings_Headparts model)
         {
+            model.PatchingMode = PatchingMode;
             foreach (var type in model.SourceConflictWinners.Keys)
             {
                 model.SourceConflictWinners[type] = SourceConflictWinners[type].Source;

@@ -54,6 +54,7 @@ public class Patcher
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
     private readonly FaceGenPatcher _faceGenPatcher;
+    private readonly HeadPartSwapper _headPartSwapper;
 
     private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial).
     private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). 
@@ -62,7 +63,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher, HeadPartSwapper headPartSwapper)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -107,6 +108,7 @@ public class Patcher
         _skyPatcherInterface = skyPatcherInterface;
         _assetAssignmentJsonDictHandler = assetAssignmentJsonDictHandler;
         _faceGenPatcher = faceGenPatcher;
+        _headPartSwapper = headPartSwapper;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -321,9 +323,16 @@ public class Patcher
 
         _headPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
         Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
-        //HeadPartWriter.WriteHeadPartSPIDIni(headPartAssignmentSpell);
         _updateHandler.CleanSPIDiniHeadParts();
-        ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _environmentProvider.LinkCache, _patcherState);
+
+        // Check if we are using Mesh mode
+        bool useHeadPartMeshMode = _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif;
+
+        // Only apply the runtime spell if we are NOT baking into the NIFs
+        if (!useHeadPartMeshMode)
+        {
+            ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _environmentProvider.LinkCache, _patcherState);
+        }
 
         var copiedHeadPartSettings = JSONhandler<Settings_Headparts>.Deserialize(JSONhandler<Settings_Headparts>.Serialize(_patcherState.HeadPartSettings, out serializationSuccess, out serializatonException), out deserializationSuccess, out deserializationException);
         if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
@@ -497,8 +506,33 @@ public class Patcher
             }
 
             _headPartAuxFunctions.ApplyNeededFaceTextures(_assignedHeadPartTransfers);
-            gEnableHeadParts.Data = 1;
-            _headPartWriter.WriteAssignmentDictionary(_assignedHeadPartTransfers);
+            // Branch based on Patching Mode
+            if (!useHeadPartMeshMode)
+            {
+                gEnableHeadParts.Data = 1;
+                _headPartWriter.WriteAssignmentDictionary(_assignedHeadPartTransfers);
+            }
+            else
+            {
+                _logger.LogMessage("Starting Head Part NIF patching...");
+                _statusBar.ProgressBarCurrent = 0;
+                _statusBar.ProgressBarMax = _assignedHeadPartTransfers.Count;
+                _statusBar.ProgressBarDisp = "Patching Head Part NIFs for 0 / " + _statusBar.ProgressBarMax + " NPCs";
+
+                foreach (var kvp in _assignedHeadPartTransfers)
+                {
+                    var npcInfo = kvp.Key;
+                    var headPartAssignments = kvp.Value;
+
+                    _headPartSwapper.ApplyHeadPartsToFaceGen(npcInfo, headPartAssignments);
+                    
+                    _statusBar.ProgressBarCurrent++;
+                    if (_statusBar.ProgressBarCurrent % 50 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
+                    {
+                        _statusBar.ProgressBarDisp = "Patching Head Part NIFs for " + _statusBar.ProgressBarCurrent + " / " + _statusBar.ProgressBarMax + " NPCs";
+                    }
+                }
+            }
         }
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
