@@ -111,6 +111,28 @@ public class HeadPartSwapper
     private readonly BSAHandler _bsaHandler;
     private readonly Logger _logger;
 
+    // ── Debug tracing for specific NPCs ──
+    // Set of NPC FormKeys that get verbose diagnostic logging at every step.
+    // Remove or clear this set once debugging is complete.
+    private static readonly HashSet<FormKey> DebugFormKeys = new()
+    {
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.AelaTheHuntress.FormKey
+    };
+
+    private bool IsDebugNpc(NPCInfo npcInfo)
+    {
+        return npcInfo?.NPC?.FormKey != null &&
+               DebugFormKeys.Contains(npcInfo.NPC.FormKey);
+    }
+
+    private void DebugLog(NPCInfo npcInfo, string message)
+    {
+        if (IsDebugNpc(npcInfo))
+        {
+            _logger.LogMessage("[DEBUG-HPSWAP " + npcInfo.NPC.FormKey + "] " + message);
+        }
+    }
+
     public HeadPartSwapper(
         IOutputEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -143,10 +165,21 @@ public class HeadPartSwapper
         NPCInfo npcInfo,
         Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
     {
+        DebugLog(npcInfo, "=== ApplyHeadPartsToFaceGen ENTER === assignments.Count=" + headPartAssignments.Count);
+        foreach (var kvp in headPartAssignments)
+        {
+            DebugLog(npcInfo, "  Assignment: " + kvp.Key + " -> " + kvp.Value);
+        }
+
         if (headPartAssignments.Count == 0) return;
 
         // Filter out excluded types (Face) and unresolvable assignments.
         var validAssignments = ResolveHeadPartAssignments(headPartAssignments);
+        DebugLog(npcInfo, "After ResolveHeadPartAssignments: validAssignments.Count=" + validAssignments.Count);
+        foreach (var (t, hp) in validAssignments)
+        {
+            DebugLog(npcInfo, "  Valid: " + t + " -> " + (hp.EditorID ?? hp.FormKey.ToString()) + " model=" + hp.Model?.File?.DataRelativePath.Path);
+        }
         if (validAssignments.Count == 0) return;
 
         // ── Resolve and load the FaceGen NIF ──
@@ -154,19 +187,25 @@ public class HeadPartSwapper
         string faceGenSourcePath = ResolveFaceGenNifPath(npcInfo, _environmentProvider.DataFolderPath);
         bool extractedFromBsa = false;
 
+        DebugLog(npcInfo, "FaceGen source path (loose): " + faceGenSourcePath + " exists=" + File.Exists(faceGenSourcePath));
+
         if (!File.Exists(faceGenSourcePath))
         {
+            DebugLog(npcInfo, "FaceGen not loose, trying BSA extraction...");
             faceGenSourcePath = TryExtractFaceGenFromBsa(npcInfo, out extractedFromBsa);
             if (faceGenSourcePath == null)
             {
+                DebugLog(npcInfo, "FaceGen NIF NOT FOUND anywhere — returning.");
                 _logger.LogReport(
                     "HeadPartSwapper: FaceGen NIF not found for NPC. Head parts cannot be baked.",
                     false, npcInfo);
                 return;
             }
+            DebugLog(npcInfo, "FaceGen extracted from BSA: " + faceGenSourcePath);
         }
 
         string faceGenOutputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
+        DebugLog(npcInfo, "FaceGen output path: " + faceGenOutputPath);
 
         // ── Open the FaceGen NIF and apply all head part swaps ──
 
@@ -175,6 +214,7 @@ public class HeadPartSwapper
         using (var faceGenNif = new NifFile())
         {
             int loadResult = faceGenNif.Load(faceGenSourcePath);
+            DebugLog(npcInfo, "FaceGen NIF load result: " + loadResult);
             if (loadResult != 0)
             {
                 _logger.LogError(
@@ -182,8 +222,33 @@ public class HeadPartSwapper
                 return;
             }
 
+            // Dump FaceGen NIF block structure for debug NPCs.
+            if (IsDebugNpc(npcInfo))
+            {
+                var dbgHeader = faceGenNif.GetHeader();
+                uint numBlocks = dbgHeader.GetNumBlocks();
+                DebugLog(npcInfo, "FaceGen NIF block count: " + numBlocks);
+                for (uint bi = 0; bi < numBlocks && bi < 30; bi++)
+                {
+                    string btype = dbgHeader.GetBlockTypeStringById(bi);
+                    NiObject bobj = dbgHeader.GetBlockById(bi);
+                    string bname = "";
+                    try { if (bobj is NiObjectNET named) bname = named.name?.get() ?? ""; } catch { }
+                    DebugLog(npcInfo, "  Block[" + bi + "] " + btype + " \"" + bname + "\"");
+                }
+                using var dbgNodes = faceGenNif.GetNodes();
+                DebugLog(npcInfo, "FaceGen NIF node count: " + dbgNodes.Count);
+                foreach (var dn in dbgNodes)
+                {
+                    string nn = dn.name?.get() ?? "(null)";
+                    uint nid = dbgHeader.GetBlockID(dn);
+                    DebugLog(npcInfo, "  Node: \"" + nn + "\" blockId=" + nid);
+                }
+            }
+
             // Find the BSFaceGenNiNodeSkinned parent node.
             NiNode faceGenSkinNode = FindFaceGenSkinNode(faceGenNif);
+            DebugLog(npcInfo, "FindFaceGenSkinNode result: " + (faceGenSkinNode == null ? "NULL" : "found, name=\"" + (faceGenSkinNode.name?.get() ?? "") + "\""));
             if (faceGenSkinNode == null)
             {
                 _logger.LogReport(
@@ -194,9 +259,13 @@ public class HeadPartSwapper
 
             foreach (var (type, headPartGetter) in validAssignments)
             {
+                DebugLog(npcInfo, "--- SwapHeadPartType: type=" + type + " editorId=" + (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()));
                 bool changed = SwapHeadPartType(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo);
+                DebugLog(npcInfo, "--- SwapHeadPartType result: changed=" + changed);
                 anyChanges |= changed;
             }
+
+            DebugLog(npcInfo, "All swaps done. anyChanges=" + anyChanges);
 
             if (anyChanges)
             {
@@ -206,7 +275,24 @@ public class HeadPartSwapper
                     Directory.CreateDirectory(outputDir);
                 }
 
+                // Dump final block structure for debug NPCs before saving.
+                if (IsDebugNpc(npcInfo))
+                {
+                    var dbgHeader = faceGenNif.GetHeader();
+                    uint numBlocks = dbgHeader.GetNumBlocks();
+                    DebugLog(npcInfo, "=== FINAL FaceGen NIF block structure (before save) === blocks=" + numBlocks);
+                    for (uint bi = 0; bi < numBlocks && bi < 80; bi++)
+                    {
+                        string btype = dbgHeader.GetBlockTypeStringById(bi);
+                        NiObject bobj = dbgHeader.GetBlockById(bi);
+                        string bname = "";
+                        try { if (bobj is NiObjectNET named) bname = named.name?.get() ?? ""; } catch { }
+                        DebugLog(npcInfo, "  Block[" + bi + "] " + btype + " \"" + bname + "\"");
+                    }
+                }
+
                 int saveResult = faceGenNif.Save(faceGenOutputPath);
+                DebugLog(npcInfo, "Save result: " + saveResult + " path=" + faceGenOutputPath);
                 if (saveResult != 0)
                 {
                     _logger.LogError(
@@ -292,7 +378,16 @@ public class HeadPartSwapper
         bool anyChanges = false;
 
         // Process the main head part model.
-        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo);
+        // Use the headpart's EditorID as the shape name in the FaceGen NIF — the game
+        // matches headpart records to FaceGen geometry by name, so the shape must be
+        // named after the EditorID, not whatever the source mesh calls it (e.g. "group_0").
+        string mainEditorId = headPartGetter.EditorID ?? headPartGetter.FormKey.ToString();
+
+        // performRemoval=true: the main headpart's removal pass uses the union of the
+        // type's expected partitions AND the incoming model's partitions, which covers
+        // both the main shape and any extra parts. Extra parts must NOT re-trigger
+        // removal, or they'll delete the main shape we just cloned.
+        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true);
 
         // Recurse into ExtraParts (e.g., hairline parts referenced by a hair head part).
         if (headPartGetter.ExtraParts != null)
@@ -306,14 +401,15 @@ public class HeadPartSwapper
                         continue;
                     }
 
+                    string extraEditorId = extraPartGetter.EditorID ?? extraPartGetter.FormKey.ToString();
+
                     _logger.LogReport(
-                        "HeadPartSwapper: Processing ExtraPart " +
-                        (extraPartGetter.EditorID ?? extraPartGetter.FormKey.ToString()) +
-                        " for " + type,
+                        "HeadPartSwapper: Processing ExtraPart " + extraEditorId + " for " + type,
                         false, npcInfo);
 
-                    // ExtraParts share the parent type's singular/additive behavior.
-                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo);
+                    // performRemoval=false: extra parts must not trigger removal, as the
+                    // main headpart's removal pass already cleared conflicting shapes.
+                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false);
                 }
             }
         }
@@ -322,21 +418,35 @@ public class HeadPartSwapper
     }
 
     /// <summary>
-    /// Opens a single head part model NIF, removes conflicting shapes from FaceGen,
-    /// and clones the model's shapes into BSFaceGenNiNodeSkinned.
+    /// Opens a single head part model NIF, optionally removes conflicting shapes from
+    /// FaceGen, and clones the model's shapes into BSFaceGenNiNodeSkinned.
+    ///
+    /// Cloned shapes are renamed to the headpart's EditorID (so the game can match
+    /// headpart records to FaceGen geometry) and converted from NiTriShape to
+    /// BSDynamicTriShape if needed (FaceGen NIFs require BSDynamicTriShape).
+    ///
+    /// Before cloning, the source model's root node is renamed to match
+    /// BSFaceGenNiNodeSkinned so that CloneShape correctly remaps the skeleton root
+    /// reference in the BSDismemberSkinInstance.
     /// </summary>
     private bool SwapSingleHeadPartModel(
         NifFile faceGenNif,
         NiNode faceGenSkinNode,
         IHeadPartGetter headPartGetter,
         HeadPart.TypeEnum type,
-        NPCInfo npcInfo)
+        NPCInfo npcInfo,
+        string headPartEditorId,
+        bool performRemoval)
     {
         // ── Locate the head part model NIF on disk ──
 
         string modelRelPath = headPartGetter.Model.File.DataRelativePath.Path;
         string modelAbsPath = ResolveModelNifPath(modelRelPath);
         bool extractedModel = false;
+
+        DebugLog(npcInfo, "SwapSingleHeadPartModel: editorId=" + headPartEditorId +
+            " modelRelPath=" + modelRelPath + " performRemoval=" + performRemoval);
+        DebugLog(npcInfo, "  modelAbsPath=" + modelAbsPath + " exists=" + File.Exists(modelAbsPath));
 
         if (!File.Exists(modelAbsPath))
         {
@@ -357,6 +467,7 @@ public class HeadPartSwapper
         {
             using var modelNif = new NifFile();
             int loadResult = modelNif.Load(modelAbsPath);
+            DebugLog(npcInfo, "  Model NIF load result: " + loadResult);
             if (loadResult != 0)
             {
                 _logger.LogError(
@@ -364,13 +475,107 @@ public class HeadPartSwapper
                 return false;
             }
 
-            // ── Collect shapes from the model NIF and their partition IDs ──
+            // ── Ensure the model NIF uses SSE-native BSDynamicTriShape blocks ──
+            //
+            // Many modded head part NIFs (e.g., KS Hairdos) use the old Gamebryo NiTriShape
+            // format with separate NiTriShapeData blocks. FaceGen NIFs require BSDynamicTriShape,
+            // which stores geometry inline. CloneShape preserves the source block type, so we
+            // need the source to already be BSDynamicTriShape before cloning.
+            //
+            // OptimizeFor with headParts=true converts NiTriShape → BSDynamicTriShape (this is
+            // the same conversion Outfit Studio uses). Since modelNif is a temporary in-memory
+            // copy that we discard after cloning, optimizing it in-place is safe.
+
+            bool isSSE = modelNif.GetHeader().GetVersion().IsSSE();
+            DebugLog(npcInfo, "  Model NIF IsSSE=" + isSSE);
+
+            // Dump source model shape types before optimize
+            if (IsDebugNpc(npcInfo))
+            {
+                using var dbgShapes = modelNif.GetShapes();
+                DebugLog(npcInfo, "  Source model shape count (pre-optimize): " + dbgShapes.Count);
+                foreach (var ds in dbgShapes)
+                {
+                    string sn = ds.name?.get() ?? "(null)";
+                    string st = GetBlockTypeName(modelNif, ds);
+                    DebugLog(npcInfo, "    Shape: \"" + sn + "\" type=" + st);
+                }
+            }
+
+            if (!isSSE)
+            {
+                using var optOptions = new OptOptions();
+                optOptions.targetVersion = NiVersion.getSSE();
+                optOptions.headParts = true;
+                modelNif.OptimizeFor(optOptions);
+
+                _logger.LogReport(
+                    "HeadPartSwapper: Optimized model NIF to SSE format (NiTriShape → BSDynamicTriShape): " + modelRelPath,
+                    false, npcInfo);
+            }
+            else
+            {
+                // Even SSE NIFs may use BSTriShape instead of BSDynamicTriShape for head parts.
+                // OptimizeFor with headParts=true promotes BSTriShape → BSDynamicTriShape.
+                using var shapes = modelNif.GetShapes();
+                bool needsOptimize = false;
+                foreach (var shape in shapes)
+                {
+                    string blockType = GetBlockTypeName(modelNif, shape);
+                    if (blockType != "BSDynamicTriShape")
+                    {
+                        needsOptimize = true;
+                        break;
+                    }
+                }
+
+                if (needsOptimize)
+                {
+                    using var optOptions = new OptOptions();
+                    optOptions.targetVersion = NiVersion.getSSE();
+                    optOptions.headParts = true;
+                    modelNif.OptimizeFor(optOptions);
+
+                    _logger.LogReport(
+                        "HeadPartSwapper: Promoted model NIF shapes to BSDynamicTriShape: " + modelRelPath,
+                        false, npcInfo);
+                }
+            }
+
+            // NOTE: The skeleton root reference fix happens AFTER cloning in
+            // RemapClonedShapeBones() below, not before, because CloneShape copies
+            // block indices rather than doing name-based remapping for the skeleton root.
+
+            // Dump source model shape types after optimize
+            if (IsDebugNpc(npcInfo))
+            {
+                using var dbgShapes2 = modelNif.GetShapes();
+                DebugLog(npcInfo, "  Source model shape count (post-optimize): " + dbgShapes2.Count);
+                foreach (var ds in dbgShapes2)
+                {
+                    string sn = ds.name?.get() ?? "(null)";
+                    string st = GetBlockTypeName(modelNif, ds);
+                    DebugLog(npcInfo, "    Shape: \"" + sn + "\" type=" + st);
+
+                    // Also dump bone list
+                    using var boneNames = new vectorstring();
+                    uint bc = modelNif.GetShapeBoneList(ds, boneNames);
+                    DebugLog(npcInfo, "      Bones (" + bc + "): " + string.Join(", ", Enumerable.Range(0, boneNames.Count).Select(j => boneNames[j])));
+                }
+            }
+
+            // ── Collect shapes from the (now-optimized) model NIF and their partition IDs ──
 
             var modelShapeInfos = CollectModelShapes(modelNif);
+            DebugLog(npcInfo, "  CollectModelShapes returned " + modelShapeInfos.Count + " shapes.");
+            foreach (var info in modelShapeInfos)
+            {
+                DebugLog(npcInfo, "    Shape: \"" + info.Name + "\" partitions=[" + string.Join(",", info.PartitionBodyParts) + "]");
+            }
             if (modelShapeInfos.Count == 0)
             {
                 _logger.LogReport(
-                    "HeadPartSwapper: No NiTriShapes found in model: " + modelRelPath,
+                    "HeadPartSwapper: No shapes found in model: " + modelRelPath,
                     false, npcInfo);
                 return false;
             }
@@ -383,8 +588,11 @@ public class HeadPartSwapper
             }
 
             // ── Remove conflicting shapes from FaceGen (for singular types) ──
+            // Only performed for the main headpart, not for extra parts — the main
+            // headpart's removal pass already clears all conflicting shapes using
+            // the type's expected partition set.
 
-            if (SingularTypes.Contains(type))
+            if (performRemoval && SingularTypes.Contains(type))
             {
                 // Build the set of partition IDs to match against: use both the
                 // expected partitions for this type AND the actual partitions from
@@ -400,15 +608,29 @@ public class HeadPartSwapper
 
             // ── Clone shapes from model NIF into FaceGen NIF ──
 
-            foreach (var shapeInfo in modelShapeInfos)
+            for (int i = 0; i < modelShapeInfos.Count; i++)
             {
+                var shapeInfo = modelShapeInfos[i];
+
+                // Use the headpart's EditorID as the destination shape name. The game
+                // matches headpart records to FaceGen geometry by shape name, so it must
+                // be the EditorID — not whatever the source mesh calls it (e.g. "group_0").
+                // If a single NIF has multiple shapes, make subsequent names unique.
+                string destShapeName = modelShapeInfos.Count == 1
+                    ? headPartEditorId
+                    : headPartEditorId + "_" + i;
+
+                DebugLog(npcInfo, "  Cloning shape[" + i + "]: src=\"" + shapeInfo.Name +
+                    "\" -> dest=\"" + destShapeName + "\" srcType=" + GetBlockTypeName(modelNif, shapeInfo.Shape));
+
                 // Clone the shape from the model NIF into the FaceGen NIF.
                 // CloneShape handles copying geometry, shader, skin weights, and
                 // remaps bone indices between source and destination NIFs.
-                NiShape clonedShape = faceGenNif.CloneShape(shapeInfo.Shape, shapeInfo.Name, modelNif);
+                NiShape clonedShape = faceGenNif.CloneShape(shapeInfo.Shape, destShapeName, modelNif);
 
                 if (clonedShape == null)
                 {
+                    DebugLog(npcInfo, "  CloneShape returned NULL!");
                     _logger.LogReport(
                         "HeadPartSwapper: CloneShape returned null for shape \"" + shapeInfo.Name +
                         "\" from model: " + modelRelPath,
@@ -421,8 +643,35 @@ public class HeadPartSwapper
                 // part of the FaceGen subtree.
                 faceGenNif.SetParentNode(clonedShape, faceGenSkinNode);
 
+                string clonedBlockType = GetBlockTypeName(faceGenNif, clonedShape);
+                DebugLog(npcInfo, "  Cloned successfully. Cloned block type in FaceGen: " + clonedBlockType);
+                DebugLog(npcInfo, "  HasSkinInstance=" + clonedShape.HasSkinInstance());
+
+                // Dump cloned shape's bone IDs BEFORE remap
+                if (IsDebugNpc(npcInfo))
+                {
+                    using var preRemapIds = new vectorint();
+                    faceGenNif.GetShapeBoneIDList(clonedShape, preRemapIds);
+                    DebugLog(npcInfo, "  Bone IDs BEFORE remap (" + preRemapIds.Count + "): [" +
+                        string.Join(", ", Enumerable.Range(0, preRemapIds.Count).Select(j => preRemapIds[j].ToString())) + "]");
+                }
+
+                // ── Remap bone references in the cloned skin instance ──
+                DebugLog(npcInfo, "  Calling RemapClonedShapeBones...");
+                RemapClonedShapeBones(faceGenNif, clonedShape, modelNif, shapeInfo.Shape, faceGenSkinNode, npcInfo);
+
+                // Dump cloned shape's bone IDs AFTER remap
+                if (IsDebugNpc(npcInfo))
+                {
+                    using var postRemapIds = new vectorint();
+                    faceGenNif.GetShapeBoneIDList(clonedShape, postRemapIds);
+                    DebugLog(npcInfo, "  Bone IDs AFTER remap (" + postRemapIds.Count + "): [" +
+                        string.Join(", ", Enumerable.Range(0, postRemapIds.Count).Select(j => postRemapIds[j].ToString())) + "]");
+                }
+
                 _logger.LogReport(
-                    "HeadPartSwapper: Cloned shape \"" + shapeInfo.Name + "\" (" + type + ") into FaceGen NIF.",
+                    "HeadPartSwapper: Cloned shape \"" + shapeInfo.Name + "\" as \"" + destShapeName +
+                    "\" (" + type + ") into FaceGen NIF.",
                     false, npcInfo);
 
                 anyChanges = true;
@@ -446,8 +695,8 @@ public class HeadPartSwapper
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Collects all NiTriShapes from a head part model NIF, along with their
-    /// BSDismemberSkinInstance partition body-part IDs.
+    /// Collects all shapes from a head part model NIF (typically BSDynamicTriShape after
+    /// optimization), along with their BSDismemberSkinInstance partition body-part IDs.
     /// </summary>
     private List<ModelShapeInfo> CollectModelShapes(NifFile modelNif)
     {
@@ -532,9 +781,7 @@ public class HeadPartSwapper
             if (parentName != "BSFaceGenNiNodeSkinned")
             {
                 // Also check by block type (same fallback as FaceGenPatcher).
-                uint blockId = faceGenNif.GetBlockID(parent);
-                string typeName = faceGenNif.GetHeader().GetBlockTypeStringById(blockId);
-                if (typeName != "BSFaceGenNiNodeSkinned") continue;
+                if (!IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned")) continue;
             }
 
             // Check if this shape's partitions overlap with the target set.
@@ -559,6 +806,176 @@ public class HeadPartSwapper
     // ═══════════════════════════════════════════════════════════════════════════
     //  NIF STRUCTURAL HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Remaps all bone references in a cloned shape's skin instance so they
+    /// point to the correct NiNode blocks in the FaceGen NIF.
+    ///
+    /// CloneShape copies raw bone block indices from the source NIF. In the
+    /// source model NIF, "NPC Head [Head]" might be block 5; in the FaceGen
+    /// NIF, it's block 1. Without remapping, the game follows garbage block
+    /// indices into unrelated data, causing crashes (typically divide-by-zero
+    /// in NiSkinPartition processing).
+    ///
+    /// This method:
+    ///   1. Reads bone names from the source shape in the source model NIF
+    ///   2. Builds a name→blockId map of all NiNodes in the FaceGen NIF
+    ///   3. Maps the source root node name to BSFaceGenNiNodeSkinned
+    ///   4. Overwrites bone block IDs on the cloned shape via SetShapeBoneIDList
+    ///   5. Fixes the skeleton root pointer (targetRef) in the skin instance
+    /// </summary>
+    private void RemapClonedShapeBones(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        NifFile sourceNif,
+        NiShape sourceShape,
+        NiNode faceGenSkinNode,
+        NPCInfo npcInfo)
+    {
+        NiHeader faceGenHeader = faceGenNif.GetHeader();
+        uint skinNodeBlockId = faceGenHeader.GetBlockID(faceGenSkinNode);
+        string skinNodeName = faceGenSkinNode.name?.get() ?? "BSFaceGenNiNodeSkinned";
+
+        // ── Step 1: Get bone names from the source shape ──
+
+        using var sourceBoneNames = new vectorstring();
+        uint boneCount = sourceNif.GetShapeBoneList(sourceShape, sourceBoneNames);
+        if (boneCount == 0)
+        {
+            _logger.LogReport(
+                "HeadPartSwapper: Source shape has no bones, skipping bone remap.",
+                false, npcInfo);
+            return;
+        }
+
+        // ── Step 2: Build name→blockId map for all NiNodes in FaceGen NIF ──
+
+        var nodeNameToBlockId = new Dictionary<string, uint>();
+        using var faceGenNodes = faceGenNif.GetNodes();
+        foreach (var node in faceGenNodes)
+        {
+            string nodeName = node.name?.get();
+            if (!string.IsNullOrEmpty(nodeName) && !nodeNameToBlockId.ContainsKey(nodeName))
+            {
+                uint nodeBlockId = faceGenHeader.GetBlockID(node);
+                nodeNameToBlockId[nodeName] = nodeBlockId;
+            }
+        }
+
+        // Also ensure BSFaceGenNiNodeSkinned is in the map.
+        if (!string.IsNullOrEmpty(skinNodeName))
+        {
+            nodeNameToBlockId[skinNodeName] = skinNodeBlockId;
+        }
+
+        // ── Step 3: Map source root node name → BSFaceGenNiNodeSkinned ──
+        //
+        // The source model's root (e.g., "Scene Root") has no name match in
+        // the FaceGen NIF. It corresponds to BSFaceGenNiNodeSkinned, which
+        // serves as the skeleton root for FaceGen shapes.
+
+        NiNode sourceRoot = sourceNif.GetRootNode();
+        if (sourceRoot != null)
+        {
+            string sourceRootName = sourceRoot.name?.get();
+            if (!string.IsNullOrEmpty(sourceRootName) && !nodeNameToBlockId.ContainsKey(sourceRootName))
+            {
+                nodeNameToBlockId[sourceRootName] = skinNodeBlockId;
+
+                _logger.LogReport(
+                    "HeadPartSwapper: Mapping source root \"" + sourceRootName +
+                    "\" -> BSFaceGenNiNodeSkinned (block " + skinNodeBlockId + ").",
+                    false, npcInfo);
+            }
+        }
+
+        // ── Step 4: Build remapped bone ID list ──
+
+        using var remappedBoneIds = new vectorint();
+        bool allBonesFound = true;
+
+        for (int i = 0; i < sourceBoneNames.Count; i++)
+        {
+            string boneName = sourceBoneNames[i];
+
+            if (nodeNameToBlockId.TryGetValue(boneName, out uint targetBlockId))
+            {
+                remappedBoneIds.Add((int)targetBlockId);
+            }
+            else
+            {
+                // Bone not found in FaceGen NIF — map to BSFaceGenNiNodeSkinned
+                // as a fallback. This handles physics bones or custom bones that
+                // aren't part of the FaceGen skeleton. The weights for this bone
+                // will effectively be ignored.
+                remappedBoneIds.Add((int)skinNodeBlockId);
+                allBonesFound = false;
+
+                _logger.LogReport(
+                    "HeadPartSwapper: Bone \"" + boneName +
+                    "\" not found in FaceGen NIF, mapping to " + skinNodeName + ".",
+                    true, npcInfo);
+            }
+        }
+
+        // Apply the remapped bone IDs to the cloned shape.
+        faceGenNif.SetShapeBoneIDList(clonedShape, remappedBoneIds);
+
+        _logger.LogReport(
+            "HeadPartSwapper: Remapped " + sourceBoneNames.Count + " bone(s)" +
+            (allBonesFound ? " (all matched)." : " (some fallbacks used)."),
+            false, npcInfo);
+
+        // ── Step 5: Fix skeleton root pointer (targetRef) ──
+        //
+        // The skin instance's targetRef is the skeleton root — it must point
+        // to BSFaceGenNiNodeSkinned, not BSFadeNode or whatever CloneShape set.
+
+        if (!clonedShape.HasSkinInstance())
+            return;
+
+        NiBlockRefNiBoneContainer skinInstRef = clonedShape.SkinInstanceRef();
+        if (skinInstRef == null || skinInstRef.IsEmpty())
+            return;
+
+        uint skinInstBlockId = skinInstRef.index;
+        NiObject skinInstObj = faceGenHeader.GetBlockById(skinInstBlockId);
+        if (skinInstObj == null)
+            return;
+
+        NiSkinInstance skinInst = skinInstObj as NiSkinInstance;
+        if (skinInst == null)
+            return;
+
+        NiBlockRefNiNode targetRef = skinInst.targetRef;
+        if (targetRef != null && targetRef.index != skinNodeBlockId)
+        {
+            uint oldTargetId = targetRef.index;
+            targetRef.index = skinNodeBlockId;
+            _logger.LogReport(
+                "HeadPartSwapper: Fixed skeleton root: block " + oldTargetId +
+                " -> block " + skinNodeBlockId + " (" + skinNodeName + ").",
+                false, npcInfo);
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a NIF block's type string matches the expected type name.
+    /// </summary>
+    private static bool IsBlockType(NifFile nif, NiObject block, string expectedType)
+    {
+        return GetBlockTypeName(nif, block) == expectedType;
+    }
+
+    /// <summary>
+    /// Returns the block type name string for a NIF block (e.g. "NiTriShape",
+    /// "BSDynamicTriShape", "BSFaceGenNiNodeSkinned").
+    /// </summary>
+    private static string GetBlockTypeName(NifFile nif, NiObject block)
+    {
+        uint blockId = nif.GetBlockID(block);
+        return nif.GetHeader().GetBlockTypeStringById(blockId);
+    }
 
     /// <summary>
     /// Locates the BSFaceGenNiNodeSkinned node in a FaceGen NIF.
@@ -588,14 +1005,9 @@ public class HeadPartSwapper
             // Fallback: check the block type string via the header, in case the
             // NIF stores BSFaceGenNiNodeSkinned as a distinct block type rather
             // than a named NiNode. Same pattern as FaceGenPatcher.IsUnderFaceGenSkinNode.
-            uint blockId = nif.GetBlockID(parentNode);
-            if (blockId >= 0)
+            if (IsBlockType(nif, parentNode, "BSFaceGenNiNodeSkinned"))
             {
-                string typeName = nif.GetHeader().GetBlockTypeStringById(blockId);
-                if (typeName == "BSFaceGenNiNodeSkinned")
-                {
-                    return parentNode;
-                }
+                return parentNode;
             }
         }
 

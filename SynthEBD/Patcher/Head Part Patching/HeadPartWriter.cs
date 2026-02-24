@@ -13,16 +13,20 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
-        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly IOutputEnvironmentStateProvider _environmentProvider;
+        PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public HeadPartWriter(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        private readonly NPCProvider _npcProvider;
+        public HeadPartWriter(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, NPCProvider npcProvider)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _logger = logger;
             _paths = paths;
             _patcherIO = patcherIO;
+            _npcProvider = npcProvider;
         }
         public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
@@ -202,6 +206,57 @@ namespace SynthEBD
             foreach (var path in oldFiles)
             {
                 _patcherIO.TryDeleteFile(path, _logger);
+            }
+        }
+
+        // This will need to be updated to respect the "mutliple allowed" vs "only one allowed" rules for each headpart
+        // type. For now, let's start with just applying one of each
+        public void ApplyHeadPartRecords(NPCInfo npcInfo,
+            Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
+        {
+            Npc npc;
+            if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif)
+            {
+                npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+            }
+            else
+            {
+                npc = _npcProvider.GetNpc(npcInfo.NPC, false, false);
+            }
+
+            if (npc != null)
+            {
+                // Figure out which headparts of each type the NPC already has
+                Dictionary<HeadPart.TypeEnum, HashSet<IFormLinkGetter<IHeadPartGetter>>> existingHeadparts = new();
+                foreach (var hp in npc.HeadParts)
+                {
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(hp.FormKey,
+                            out var headPartGetter) && headPartGetter != null)
+                    {
+                        if (headPartGetter.Type == null)
+                        {
+                            continue;
+                        }
+
+                        if (!existingHeadparts.ContainsKey(headPartGetter.Type.Value))
+                        {
+                            existingHeadparts.Add(headPartGetter.Type.Value, new ());
+                        }
+                        
+                        existingHeadparts[headPartGetter.Type.Value].Add(hp);
+                    }
+                }
+                
+                // Add or replace assigned headparts
+                foreach (var entry in headPartAssignments)
+                {
+                    if (existingHeadparts.TryGetValue(entry.Key, out var existingHeadPartsForType))
+                    {
+                        npc.HeadParts.RemoveAll(x => existingHeadPartsForType.Contains(x));
+                    }
+
+                    npc.HeadParts.Add(entry.Value);
+                }
             }
         }
     }

@@ -525,6 +525,7 @@ public class Patcher
                     var headPartAssignments = kvp.Value;
 
                     _headPartSwapper.ApplyHeadPartsToFaceGen(npcInfo, headPartAssignments);
+                    _headPartWriter.ApplyHeadPartRecords(npcInfo, headPartAssignments);
                     
                     _statusBar.ProgressBarCurrent++;
                     if (_statusBar.ProgressBarCurrent % 50 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
