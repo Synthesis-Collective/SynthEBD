@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -476,6 +476,20 @@ public class HeadPartSwapper
     {
         bool anyChanges = false;
 
+        // ── Capture the NPC-specific hair tint color before removing anything ──
+        //
+        // Hair shapes in the FaceGen NIF carry an NPC-specific hair tint in their
+        // BSLightingShaderProperty (shader type HAIRTINT). The cloned replacement
+        // shapes bring the model's default tint (typically very dark). Capturing
+        // the original tint here lets us forward it to the cloned shapes so the
+        // NPC keeps their intended hair color.
+
+        (float R, float G, float B)? capturedHairTint = null;
+        if (type == HeadPart.TypeEnum.Hair || type == HeadPart.TypeEnum.Eyebrows)
+        {
+            capturedHairTint = CaptureHairTintColor(faceGenNif, faceGenSkinNode, npcInfo);
+        }
+
         // Process the main head part model.
         // Use the headpart's EditorID as the shape name in the FaceGen NIF — the game
         // matches headpart records to FaceGen geometry by name, so the shape must be
@@ -486,7 +500,7 @@ public class HeadPartSwapper
         // type's expected partitions AND the incoming model's partitions, which covers
         // both the main shape and any extra parts. Extra parts must NOT re-trigger
         // removal, or they'll delete the main shape we just cloned.
-        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true);
+        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true, capturedHairTint: capturedHairTint);
 
         // Recurse into ExtraParts (e.g., hairline parts referenced by a hair head part).
         if (headPartGetter.ExtraParts != null)
@@ -508,7 +522,7 @@ public class HeadPartSwapper
 
                     // performRemoval=false: extra parts must not trigger removal, as the
                     // main headpart's removal pass already cleared conflicting shapes.
-                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false);
+                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false, capturedHairTint: capturedHairTint);
                 }
             }
         }
@@ -535,7 +549,8 @@ public class HeadPartSwapper
         HeadPart.TypeEnum type,
         NPCInfo npcInfo,
         string headPartEditorId,
-        bool performRemoval)
+        bool performRemoval,
+        (float R, float G, float B)? capturedHairTint = null)
     {
         // ── Locate the head part model NIF on disk ──
 
@@ -785,6 +800,12 @@ public class HeadPartSwapper
                         string.Join(", ", Enumerable.Range(0, postRemapIds.Count).Select(j => postRemapIds[j].ToString())) + "]");
                 }
 
+                // ── Forward captured hair tint color to the cloned shape ──
+                if (capturedHairTint.HasValue)
+                {
+                    ApplyHairTintToClonedShape(faceGenNif, clonedShape, capturedHairTint.Value, npcInfo);
+                }
+
                 _logger.LogReport(
                     "HeadPartSwapper: Cloned shape \"" + shapeInfo.Name + "\" as \"" + destShapeName +
                     "\" (" + type + ") into FaceGen NIF.",
@@ -882,6 +903,87 @@ public class HeadPartSwapper
         uint skinInstBlockId = skinInstRef.index;
         string blockType = nif.GetHeader().GetBlockTypeStringById(skinInstBlockId);
         return blockType == "BSDismemberSkinInstance";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  HAIR TINT COLOR FORWARDING
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Scans shapes under BSFaceGenNiNodeSkinned for a BSLightingShaderProperty
+    /// with shader type BSLSP_HAIRTINT and captures the hairTintColor vector.
+    ///
+    /// Returns the captured color as (r, g, b) floats, or null if no hair tint
+    /// shader was found. Uses a tuple to avoid lifetime issues with nifly's
+    /// Vector3 SWIG wrapper (which may be invalidated when shapes are deleted).
+    /// </summary>
+    private (float R, float G, float B)? CaptureHairTintColor(
+        NifFile faceGenNif,
+        NiNode faceGenSkinNode,
+        NPCInfo npcInfo)
+    {
+        NiHeader header = faceGenNif.GetHeader();
+
+        using var shapes = faceGenNif.GetShapes();
+        foreach (var shape in shapes)
+        {
+            // Only consider shapes parented to BSFaceGenNiNodeSkinned.
+            var parent = faceGenNif.GetParentNode(shape);
+            if (parent == null) continue;
+
+            string parentName = parent.name.get();
+            if (parentName != "BSFaceGenNiNodeSkinned" &&
+                !IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned"))
+                continue;
+
+            // Get the shape's shader property.
+            NiBlockRefNiShader shaderRef = shape.ShaderPropertyRef();
+            if (shaderRef == null || shaderRef.IsEmpty()) continue;
+
+            NiObject shaderObj = header.GetBlockById(shaderRef.index);
+            if (shaderObj is not BSLightingShaderProperty bslsp) continue;
+
+            if (bslsp.bslspShaderType != (uint)BSLightingShaderPropertyShaderType.BSLSP_HAIRTINT) continue;
+
+            Vector3 tint = bslsp.hairTintColor;
+            if (tint == null) continue;
+
+            DebugLog(npcInfo, "  CaptureHairTintColor: Found on \"" +
+                (shape.name?.get() ?? "unnamed") + "\" = (" +
+                tint.x + ", " + tint.y + ", " + tint.z + ")");
+
+            return (tint.x, tint.y, tint.z);
+        }
+
+        DebugLog(npcInfo, "  CaptureHairTintColor: No HAIRTINT shader found.");
+        return null;
+    }
+
+    /// <summary>
+    /// Applies a previously captured hair tint color to a cloned shape's
+    /// BSLightingShaderProperty, if it uses the BSLSP_HAIRTINT shader type.
+    /// </summary>
+    private void ApplyHairTintToClonedShape(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        (float R, float G, float B) tint,
+        NPCInfo npcInfo)
+    {
+        NiHeader header = faceGenNif.GetHeader();
+
+        NiBlockRefNiShader shaderRef = clonedShape.ShaderPropertyRef();
+        if (shaderRef == null || shaderRef.IsEmpty()) return;
+
+        NiObject shaderObj = header.GetBlockById(shaderRef.index);
+        if (shaderObj is not BSLightingShaderProperty bslsp) return;
+
+        if (bslsp.bslspShaderType != (uint)BSLightingShaderPropertyShaderType.BSLSP_HAIRTINT) return;
+
+        bslsp.hairTintColor = new Vector3(tint.R, tint.G, tint.B);
+
+        DebugLog(npcInfo, "  ApplyHairTintToClonedShape: Set \"" +
+            (clonedShape.name?.get() ?? "unnamed") + "\" tint to (" +
+            tint.R + ", " + tint.G + ", " + tint.B + ")");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
