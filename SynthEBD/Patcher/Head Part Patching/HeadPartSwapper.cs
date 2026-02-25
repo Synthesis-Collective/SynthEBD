@@ -105,6 +105,38 @@ public class HeadPartSwapper
         HeadPart.TypeEnum.Face,
     };
 
+    /// <summary>
+    /// Tag written to the NIF header's ExportInfo field to identify SynthEBD outputs.
+    /// The game engine completely ignores this field — it's pure metadata used by
+    /// modding tools (e.g., Outfit Studio writes "Exported using Outfit Studio" here).
+    /// </summary>
+    private const string SynthEBDNifTag = "SynthEBD HeadPartSwapper Output";
+
+    // ─── Dark Face Bug Fix Toggles ───────────────────────────────────────────
+    //
+    // Both address the same root cause: the removal pass incorrectly deletes
+    // shapes (eyes, mouth, brows) that use plain NiSkinInstance instead of
+    // BSDismemberSkinInstance. nifly reports a synthetic partition ID of 32
+    // (SBP_32_BODY) for these shapes, which can collide with incoming head
+    // part partitions and cause false-positive deletion.
+    //
+    // FIX_A: Skip non-dismember shapes during removal.
+    //   Shapes with a plain NiSkinInstance have no real partition data, so
+    //   partition-based matching is invalid for them. When true, the removal
+    //   pass only considers shapes that have a genuine BSDismemberSkinInstance.
+    //
+    // FIX_B: Only use expected partitions for removal (not incoming).
+    //   Don't include the incoming model's actual partition IDs in the removal
+    //   set. Only use the static TypeToExpectedPartitions map, which contains
+    //   well-known partition IDs for each head part type. This avoids pulling
+    //   in collision-prone IDs (like 32) from non-standard modded NIFs.
+    //
+    // Recommended: enable both. Either one alone fixes the Hod-style bug,
+    // but together they cover a wider range of edge cases.
+
+    private const bool FIX_A_SKIP_NON_DISMEMBER_IN_REMOVAL = true;
+    private const bool FIX_B_ONLY_EXPECTED_PARTITIONS_FOR_REMOVAL = true;
+
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly SynthEBDPaths _paths;
@@ -116,7 +148,8 @@ public class HeadPartSwapper
     // Remove or clear this set once debugging is complete.
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.AelaTheHuntress.FormKey
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hod.FormKey,
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Alvor.FormKey,
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -161,7 +194,13 @@ public class HeadPartSwapper
     /// <param name="headPartAssignments">
     ///   Map of type → FormKey from HeadPartSelector.AssignHeadParts.
     /// </param>
-    public void ApplyHeadPartsToFaceGen(
+    /// <returns>
+    ///   true if the FaceGen NIF was processed normally (even if no changes were needed);
+    ///   false if the NPC was SKIPPED because the source FaceGen is a stale SynthEBD output.
+    ///   When false, the caller should also skip record modification (HeadPartWriter) for
+    ///   this NPC to avoid mismatches between the NPC record and the FaceGen NIF.
+    /// </returns>
+    public bool ApplyHeadPartsToFaceGen(
         NPCInfo npcInfo,
         Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
     {
@@ -171,7 +210,7 @@ public class HeadPartSwapper
             DebugLog(npcInfo, "  Assignment: " + kvp.Key + " -> " + kvp.Value);
         }
 
-        if (headPartAssignments.Count == 0) return;
+        if (headPartAssignments.Count == 0) return true;
 
         // Filter out excluded types (Face) and unresolvable assignments.
         var validAssignments = ResolveHeadPartAssignments(headPartAssignments);
@@ -180,7 +219,7 @@ public class HeadPartSwapper
         {
             DebugLog(npcInfo, "  Valid: " + t + " -> " + (hp.EditorID ?? hp.FormKey.ToString()) + " model=" + hp.Model?.File?.DataRelativePath.Path);
         }
-        if (validAssignments.Count == 0) return;
+        if (validAssignments.Count == 0) return true;
 
         // ── Resolve and load the FaceGen NIF ──
 
@@ -196,16 +235,32 @@ public class HeadPartSwapper
             if (faceGenSourcePath == null)
             {
                 DebugLog(npcInfo, "FaceGen NIF NOT FOUND anywhere — returning.");
-                _logger.LogReport(
+                LogAndPrint(
                     "HeadPartSwapper: FaceGen NIF not found for NPC. Head parts cannot be baked.",
                     false, npcInfo);
-                return;
+                return true;
             }
             DebugLog(npcInfo, "FaceGen extracted from BSA: " + faceGenSourcePath);
         }
 
         string faceGenOutputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
         DebugLog(npcInfo, "FaceGen output path: " + faceGenOutputPath);
+
+        // ── Tier 1: Detect stale output by path ──
+        //
+        // If the source FaceGen NIF lives inside the output folder, it's a
+        // previous SynthEBD output being fed back via MO2's VFS. The face
+        // shape textures may reference mods that are no longer active, causing
+        // dark face bug. Skip this NPC entirely.
+        if (IsPreviousOutputByPath(faceGenSourcePath))
+        {
+            LogAndPrint(
+                "HeadPartSwapper: WARNING — FaceGen source is inside the output folder (stale previous output). " +
+                "Skipping NIF editing and record modification for this NPC. " +
+                "Please clear your SynthEBD output folder and re-run. Source: " + faceGenSourcePath,
+                true, npcInfo);
+            return false;
+        }
 
         // ── Open the FaceGen NIF and apply all head part swaps ──
 
@@ -217,9 +272,26 @@ public class HeadPartSwapper
             DebugLog(npcInfo, "FaceGen NIF load result: " + loadResult);
             if (loadResult != 0)
             {
-                _logger.LogError(
-                    "HeadPartSwapper: Failed to load FaceGen NIF (error " + loadResult + "): " + faceGenSourcePath);
-                return;
+                LogAndPrint(
+                    "HeadPartSwapper: Failed to load FaceGen NIF (error " + loadResult + "): " + faceGenSourcePath, true, npcInfo);
+                return true;
+            }
+
+            // ── Tier 2: Detect stale output by NIF metadata ──
+            //
+            // Even if the source path doesn't match the current output folder
+            // (e.g., the user changed OutputDataFolder between runs), a SynthEBD
+            // tag in the NIF header's ExportInfo field identifies it as a previous
+            // output. This catches the edge case of orphaned outputs.
+            string existingExportInfo = faceGenNif.GetHeader().GetExportInfo() ?? "";
+            if (existingExportInfo.Contains(SynthEBDNifTag))
+            {
+                LogAndPrint(
+                    "HeadPartSwapper: WARNING — FaceGen NIF is tagged as a previous SynthEBD output. " +
+                    "Skipping NIF editing and record modification for this NPC. " +
+                    "Please clear your previous SynthEBD output folder and re-run. Source: " + faceGenSourcePath,
+                    true, npcInfo);
+                return false;
             }
 
             // Dump FaceGen NIF block structure for debug NPCs.
@@ -254,7 +326,7 @@ public class HeadPartSwapper
                 _logger.LogReport(
                     "HeadPartSwapper: No BSFaceGenNiNodeSkinned node found in: " + faceGenSourcePath,
                     false, npcInfo);
-                return;
+                return true;
             }
 
             foreach (var (type, headPartGetter) in validAssignments)
@@ -291,6 +363,10 @@ public class HeadPartSwapper
                     }
                 }
 
+                // Tag the output NIF so future runs can detect it as a SynthEBD output,
+                // even if the user changes their output folder path between runs.
+                faceGenNif.GetHeader().SetExportInfo(SynthEBDNifTag);
+
                 int saveResult = faceGenNif.Save(faceGenOutputPath);
                 DebugLog(npcInfo, "Save result: " + saveResult + " path=" + faceGenOutputPath);
                 if (saveResult != 0)
@@ -316,6 +392,8 @@ public class HeadPartSwapper
                 _logger.LogMessage("Warning: Could not clean up temp file: " + faceGenSourcePath + " — " + ex.Message);
             }
         }
+
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -453,7 +531,7 @@ public class HeadPartSwapper
             modelAbsPath = TryExtractModelFromBsa(modelRelPath, headPartGetter, out extractedModel);
             if (modelAbsPath == null)
             {
-                _logger.LogReport(
+                LogAndPrint(
                     "HeadPartSwapper: Model NIF not found: " + modelRelPath +
                     " for head part " + (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()),
                     true, npcInfo);
@@ -594,13 +672,30 @@ public class HeadPartSwapper
 
             if (performRemoval && SingularTypes.Contains(type))
             {
-                // Build the set of partition IDs to match against: use both the
-                // expected partitions for this type AND the actual partitions from
-                // the incoming head part (to handle non-standard modded partitions).
-                var removePartitions = new HashSet<int>(incomingPartitions);
-                if (TypeToExpectedPartitions.TryGetValue(type, out var expected))
+                // Build the set of partition IDs to match against.
+                HashSet<int> removePartitions;
+
+                if (FIX_B_ONLY_EXPECTED_PARTITIONS_FOR_REMOVAL)
                 {
-                    removePartitions.UnionWith(expected);
+                    // FIX_B: Only use the static expected partitions for this type.
+                    // Do NOT include the incoming model's actual partitions, because
+                    // modded NIFs may use non-standard IDs (e.g. SBP_32_BODY) that
+                    // collide with unrelated shapes in the FaceGen NIF.
+                    removePartitions = new HashSet<int>();
+                    if (TypeToExpectedPartitions.TryGetValue(type, out var expectedOnly))
+                    {
+                        removePartitions.UnionWith(expectedOnly);
+                    }
+                }
+                else
+                {
+                    // Original behavior: use both the expected partitions for this type
+                    // AND the actual partitions from the incoming head part.
+                    removePartitions = new HashSet<int>(incomingPartitions);
+                    if (TypeToExpectedPartitions.TryGetValue(type, out var expected))
+                    {
+                        removePartitions.UnionWith(expected);
+                    }
                 }
 
                 RemoveShapesByPartition(faceGenNif, faceGenSkinNode, removePartitions, npcInfo);
@@ -750,6 +845,24 @@ public class HeadPartSwapper
         return bodyParts;
     }
 
+    /// <summary>
+    /// Checks whether a shape's skin instance is a genuine BSDismemberSkinInstance
+    /// (as opposed to a plain NiSkinInstance). Only shapes with BSDismemberSkinInstance
+    /// have meaningful partition body-part IDs; nifly synthesizes a default partition
+    /// ID of 32 (SBP_32_BODY) for plain NiSkinInstance shapes.
+    /// </summary>
+    private static bool HasTrueDismemberSkinInstance(NifFile nif, NiShape shape)
+    {
+        if (!shape.HasSkinInstance()) return false;
+
+        NiBlockRefNiBoneContainer skinInstRef = shape.SkinInstanceRef();
+        if (skinInstRef == null || skinInstRef.IsEmpty()) return false;
+
+        uint skinInstBlockId = skinInstRef.index;
+        string blockType = nif.GetHeader().GetBlockTypeStringById(skinInstBlockId);
+        return blockType == "BSDismemberSkinInstance";
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  STEP 4 — Remove conflicting shapes from FaceGen NIF
     // ═══════════════════════════════════════════════════════════════════════════
@@ -782,6 +895,19 @@ public class HeadPartSwapper
             {
                 // Also check by block type (same fallback as FaceGenPatcher).
                 if (!IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned")) continue;
+            }
+
+            // FIX_A: Skip shapes that use a plain NiSkinInstance rather than
+            // BSDismemberSkinInstance. Plain NiSkinInstance shapes have no real
+            // partition data — nifly synthesizes a default partition ID of 32
+            // (SBP_32_BODY), which causes false-positive matches against
+            // incoming head parts that happen to use partition 32.
+            if (FIX_A_SKIP_NON_DISMEMBER_IN_REMOVAL && !HasTrueDismemberSkinInstance(faceGenNif, shape))
+            {
+                DebugLog(npcInfo, "  RemoveShapesByPartition: Skipping \"" +
+                    (shape.name?.get() ?? "unnamed") +
+                    "\" — no BSDismemberSkinInstance (FIX_A)");
+                continue;
             }
 
             // Check if this shape's partitions overlap with the target set.
@@ -1019,6 +1145,36 @@ public class HeadPartSwapper
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
+    /// Tier 1 stale output detection: checks if the source FaceGen NIF path
+    /// is inside the current SynthEBD output folder. If so, it's a previous
+    /// run's output being fed back through MO2's VFS.
+    /// </summary>
+    private bool IsPreviousOutputByPath(string sourcePath)
+    {
+        if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(_paths.OutputDataFolder))
+            return false;
+
+        try
+        {
+            string sourceFullPath = Path.GetFullPath(sourcePath);
+            string outputFullPath = Path.GetFullPath(_paths.OutputDataFolder);
+
+            // Ensure trailing separator for prefix comparison.
+            if (!outputFullPath.EndsWith(Path.DirectorySeparatorChar.ToString()) &&
+                !outputFullPath.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
+            {
+                outputFullPath += Path.DirectorySeparatorChar;
+            }
+
+            return sourceFullPath.StartsWith(outputFullPath, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Builds the absolute path to an NPC's FaceGen NIF under a given root folder.
     /// Same logic as FaceGenPatcher.ResolveFaceGenNifPath.
     /// </summary>
@@ -1130,6 +1286,12 @@ public class HeadPartSwapper
         }
 
         return null;
+    }
+
+    private void LogAndPrint(string message, bool triggerSave, NPCInfo npcInfo)
+    {
+        _logger.LogReport(message, triggerSave, npcInfo);
+        _logger.LogMessage(message);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
