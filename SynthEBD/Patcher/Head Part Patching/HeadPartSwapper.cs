@@ -148,8 +148,7 @@ public class HeadPartSwapper
     // Remove or clear this set once debugging is complete.
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hod.FormKey,
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Alvor.FormKey,
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -292,6 +291,28 @@ public class HeadPartSwapper
                     "Please clear your previous SynthEBD output folder and re-run. Source: " + faceGenSourcePath,
                     true, npcInfo);
                 return false;
+            }
+            
+            // ── Ensure FaceGen NIF uses SSE-native block types ──
+            //
+            // Modded FaceGen NIFs (e.g., Bijin) may ship in Oldrim format with
+            // NiTriShape + NiTriShapeData blocks. Cloned shapes from optimized
+            // model NIFs use BSDynamicTriShape. Mixing both formats in one NIF
+            // causes CTDs in SSE. Convert the entire FaceGen NIF to SSE format
+            // before any swap operations so all shapes are BSDynamicTriShape.
+
+            if (!faceGenNif.GetHeader().GetVersion().IsSSE())
+            {
+                using var optOptions = new OptOptions();
+                optOptions.targetVersion = NiVersion.getSSE();
+                optOptions.headParts = true;
+                faceGenNif.OptimizeFor(optOptions);
+
+                _logger.LogReport(
+                    "HeadPartSwapper: Optimized FaceGen NIF to SSE format (Oldrim → SSE): " +
+                    faceGenSourcePath,
+                    false, npcInfo);
+                DebugLog(npcInfo, "FaceGen NIF was Oldrim format — optimized to SSE.");
             }
 
             // Dump FaceGen NIF block structure for debug NPCs.
