@@ -54,7 +54,6 @@ public class Patcher
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
     private readonly FaceGenPatcher _faceGenPatcher;
-    private readonly HeadPartSwapper _headPartSwapper;
 
     private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial).
     private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). 
@@ -63,7 +62,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher, HeadPartSwapper headPartSwapper)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -108,7 +107,6 @@ public class Patcher
         _skyPatcherInterface = skyPatcherInterface;
         _assetAssignmentJsonDictHandler = assetAssignmentJsonDictHandler;
         _faceGenPatcher = faceGenPatcher;
-        _headPartSwapper = headPartSwapper;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -415,27 +413,10 @@ public class Patcher
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,
             configGeneratedHeadPartsDict, _combinationLog, EBDFaceKW, EBDScriptKW,
             synthEBDFaceKW, _assetAssignmentJsonDictHandler, _statusBar);
-        if (useFaceMeshMode)
-        {
-            _logger.LogMessage("Starting FaceGen NIF patching...");
-            _statusBar.ProgressBarCurrent = 0;
-            _statusBar.ProgressBarMax = _assetAssignmentTransfers.Count;
-            _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for 0 / " + _statusBar.ProgressBarMax + " NPCs";
-
-            foreach (var kvp in _assetAssignmentTransfers)
-            {
-                var npcInfo = kvp.Key;
-                var assetContainers = kvp.Value;
-
-                _faceGenPatcher.PatchFaceGenNifs(npcInfo, assetContainers);
-                
-                _statusBar.ProgressBarCurrent++;
-                if (_statusBar.ProgressBarCurrent % 50 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
-                {
-                    _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for " + _statusBar.ProgressBarCurrent + " / " + _statusBar.ProgressBarMax + " NPCs";
-                }
-            }
-        }
+        // NOTE: FaceGen NIF patching (face texture baking) is now deferred to the
+        // unified FaceGen loop below, which runs after both asset and headpart
+        // assignments are finalized. This ensures the NIF is opened, modified,
+        // and saved only once even when both features are active.
         recordGenStopWatch.Stop();
         _logger.LogMessage($"Record generation completed in {recordGenStopWatch.Elapsed:mm\\:ss}");
         
@@ -512,27 +493,97 @@ public class Patcher
                 gEnableHeadParts.Data = 1;
                 _headPartWriter.WriteAssignmentDictionary(_assignedHeadPartTransfers);
             }
-            else
-            {
-                _logger.LogMessage("Starting Head Part NIF patching...");
-                _statusBar.ProgressBarCurrent = 0;
-                _statusBar.ProgressBarMax = _assignedHeadPartTransfers.Count;
-                _statusBar.ProgressBarDisp = "Patching Head Part NIFs for 0 / " + _statusBar.ProgressBarMax + " NPCs";
+            // else: NIF-mode headpart records are applied in the unified FaceGen loop below.
+        }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        //  Unified FaceGen NIF Patching
+        // ═══════════════════════════════════════════════════════════════════════
+        //
+        //  Both face texture baking (useFaceMeshMode) and head part shape swapping
+        //  (useHeadPartMeshMode) now go through a single unified loop. For each NPC
+        //  that needs either (or both) forms of FaceGen patching, the NIF is opened
+        //  once, all modifications are applied, and the NIF is saved once.
+        //
+        //  This eliminates the previous issue where the HeadPartSwapper would
+        //  overwrite FaceGenPatcher's output by independently loading the original
+        //  source NIF.
+
+        if (useFaceMeshMode || useHeadPartMeshMode)
+        {
+            // Build the set of all NPCs that need any FaceGen NIF work.
+            // Each NPC maps to its texture assignments (if any) and headpart assignments (if any).
+            //
+            // IMPORTANT: We key by FormKey, not NPCInfo, because the two source dictionaries
+            // (_assetAssignmentTransfers and _assignedHeadPartTransfers) may hold different
+            // NPCInfo instances for the same NPC. This happens when headpart assignments
+            // originate from configGeneratedHeadPartsDict (populated by RecordGenerator)
+            // and are merged into _assignedHeadPartTransfers by ResolveConflictsWithAssetAssignments.
+            // NPCInfo does not override Equals/GetHashCode, so Dictionary.TryGetValue using
+            // NPCInfo keys fails silently, creating duplicate entries instead of merging.
+            var allFaceGenNpcs = new Dictionary<FormKey, (
+                NPCInfo NpcInfo,
+                List<SelectedAssetContainer> AssetContainers,
+                Dictionary<HeadPart.TypeEnum, FormKey> HeadPartAssignments
+            )>();
+
+            // Gather NPCs with face texture work.
+            if (useFaceMeshMode)
+            {
+                foreach (var kvp in _assetAssignmentTransfers)
+                {
+                    allFaceGenNpcs[kvp.Key.NPC.FormKey] = (kvp.Key, kvp.Value, null);
+                }
+            }
+
+            // Gather NPCs with head part work, merging with any existing texture entries.
+            if (useHeadPartMeshMode)
+            {
                 foreach (var kvp in _assignedHeadPartTransfers)
                 {
-                    var npcInfo = kvp.Key;
-                    var headPartAssignments = kvp.Value;
+                    var formKey = kvp.Key.NPC.FormKey;
+                    if (allFaceGenNpcs.TryGetValue(formKey, out var existing))
+                    {
+                        // NPC already has texture assignments — add headpart assignments.
+                        allFaceGenNpcs[formKey] = (existing.NpcInfo, existing.AssetContainers, kvp.Value);
+                    }
+                    else
+                    {
+                        // NPC only has headpart assignments.
+                        allFaceGenNpcs[formKey] = (kvp.Key, null, kvp.Value);
+                    }
+                }
+            }
 
-                    if (_headPartSwapper.ApplyHeadPartsToFaceGen(npcInfo, headPartAssignments))
+            if (allFaceGenNpcs.Count > 0)
+            {
+                _logger.LogMessage("Starting unified FaceGen NIF patching (" + allFaceGenNpcs.Count + " NPCs)...");
+                _statusBar.ProgressBarCurrent = 0;
+                _statusBar.ProgressBarMax = allFaceGenNpcs.Count;
+                _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for 0 / " + _statusBar.ProgressBarMax + " NPCs";
+
+                foreach (var kvp in allFaceGenNpcs)
+                {
+                    var npcInfo = kvp.Value.NpcInfo;
+                    var assetContainers = kvp.Value.AssetContainers;
+                    var headPartAssignments = kvp.Value.HeadPartAssignments;
+
+                    // PatchFaceGenNif returns false if the NPC was skipped due to stale output.
+                    // In that case, skip headpart record application to avoid mismatches.
+                    
+                    bool success = _faceGenPatcher.PatchFaceGenNif(npcInfo, assetContainers, headPartAssignments);
+
+                    // Apply headpart records only if the NIF was patched successfully and
+                    // we're in headpart mesh mode.
+                    if (success && useHeadPartMeshMode && headPartAssignments != null)
                     {
                         _headPartWriter.ApplyHeadPartRecords(npcInfo, headPartAssignments);
                     }
-                    
+
                     _statusBar.ProgressBarCurrent++;
                     if (_statusBar.ProgressBarCurrent % 50 == 0 || _statusBar.ProgressBarCurrent == _statusBar.ProgressBarMax)
                     {
-                        _statusBar.ProgressBarDisp = "Patching Head Part NIFs for " + _statusBar.ProgressBarCurrent + " / " + _statusBar.ProgressBarMax + " NPCs";
+                        _statusBar.ProgressBarDisp = "Patching FaceGen NIFs for " + _statusBar.ProgressBarCurrent + " / " + _statusBar.ProgressBarMax + " NPCs";
                     }
                 }
             }
