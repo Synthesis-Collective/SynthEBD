@@ -133,7 +133,7 @@ namespace SynthEBD
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
         */
-        public void WriteAssignmentDictionary(Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> assignedHeadPartTransfers)
+        public void WriteAssignmentDictionary(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers)
         {
             if (!assignedHeadPartTransfers.Any())
             {
@@ -144,7 +144,7 @@ namespace SynthEBD
             var outputDictionary = new Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>();
             foreach (var entry in assignedHeadPartTransfers)
             {
-                outputDictionary.TryAdd(entry.Key.NPC.FormKey.ToJContainersCompatiblityKey(), GetFullHeadPartSet(entry.Value));
+                outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), GetFullHeadPartSet(entry.Value.HeadParts));
             }
             string outputStr = JSONhandler<Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>>.Serialize(outputDictionary, out bool success, out string exception);
             if (!success)

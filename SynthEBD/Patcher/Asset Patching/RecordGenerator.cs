@@ -76,7 +76,7 @@ public class RecordGenerator
         }
     }
 
-    public void ApplySelectedAssets(Dictionary<NPCInfo, List<Patcher.SelectedAssetContainer>> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> generatedHeadPartsDictionary, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
+    public void ApplySelectedAssets(Dictionary<FormKey, (NPCInfo NpcInfo, List<Patcher.SelectedAssetContainer> Assets)> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> generatedHeadPartsDictionary, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
     {
         generatedHeadPartsDictionary.Clear();
         
@@ -90,8 +90,8 @@ public class RecordGenerator
                 statusBar.ProgressBarDisp = "Applied selections for " + statusBar.ProgressBarCurrent + " NPCs";
             }
             
-            var currentNPCInfo = npcAssetEntry.Key;
-            var assignments = npcAssetEntry.Value;
+            var currentNPCInfo = npcAssetEntry.Value.NpcInfo;
+            var assignments = npcAssetEntry.Value.Assets;
             
             if (assignments.Any())
             {
@@ -165,7 +165,18 @@ public class RecordGenerator
 
                 if (generatedHeadPartFormKeys.Any())
                 {
-                    generatedHeadPartsDictionary.Add(currentNPCInfo, generatedHeadPartFormKeys);
+                    var npcFk = currentNPCInfo.NPC.FormKey;
+                    if (generatedHeadPartsDictionary.TryGetValue(npcFk, out var existingGenHp))
+                    {
+                        foreach (var genHpKvp in generatedHeadPartFormKeys)
+                        {
+                            existingGenHp.HeadParts.TryAdd(genHpKvp.Key, genHpKvp.Value);
+                        }
+                    }
+                    else
+                    {
+                        generatedHeadPartsDictionary[npcFk] = (currentNPCInfo, generatedHeadPartFormKeys);
+                    }
                 }
             }
         }

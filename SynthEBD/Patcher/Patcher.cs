@@ -55,9 +55,9 @@ public class Patcher
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
     private readonly FaceGenPatcher _faceGenPatcher;
 
-    private Dictionary<NPCInfo, List<SelectedAssetContainer>> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial).
-    private Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). 
-    private Dictionary<NPCInfo, float> _heightAssignmentTransfers = new(); // storage for moving assignments between selection and application
+    private Dictionary<FormKey, (NPCInfo NpcInfo, List<SelectedAssetContainer> Assets)> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
+    private Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
+    private Dictionary<FormKey, (NPCInfo NpcInfo, float Height)> _heightAssignmentTransfers = new(); // storage for moving assignments between selection and application. Keyed by NPC FormKey for uniqueness.
     
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
@@ -336,7 +336,7 @@ public class Patcher
         if (!serializationSuccess) { _logger.LogMessage("Error serializing Head Part configs. Exception: " + serializatonException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
         if (!deserializationSuccess) { _logger.LogMessage("Error deserializing Head Part configs. Exception: " + deserializationException); _logger.LogErrorWithStatusUpdate("Patching aborted.", ErrorType.Error); return; }
 
-        Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> configGeneratedHeadPartsDict = new();
+        Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> configGeneratedHeadPartsDict = new();
         
         if (_patcherState.GeneralSettings.bChangeHeadParts)
         {
@@ -514,13 +514,10 @@ public class Patcher
             // Build the set of all NPCs that need any FaceGen NIF work.
             // Each NPC maps to its texture assignments (if any) and headpart assignments (if any).
             //
-            // IMPORTANT: We key by FormKey, not NPCInfo, because the two source dictionaries
-            // (_assetAssignmentTransfers and _assignedHeadPartTransfers) may hold different
-            // NPCInfo instances for the same NPC. This happens when headpart assignments
-            // originate from configGeneratedHeadPartsDict (populated by RecordGenerator)
-            // and are merged into _assignedHeadPartTransfers by ResolveConflictsWithAssetAssignments.
-            // NPCInfo does not override Equals/GetHashCode, so Dictionary.TryGetValue using
-            // NPCInfo keys fails silently, creating duplicate entries instead of merging.
+            // IMPORTANT: We key by FormKey, not NPCInfo, because the transfer dictionaries
+            // (_assetAssignmentTransfers and _assignedHeadPartTransfers) are now keyed by FormKey
+            // to guarantee uniqueness per NPC record. This avoids the previous issue where
+            // different NPCInfo instances for the same NPC could create duplicate entries.
             var allFaceGenNpcs = new Dictionary<FormKey, (
                 NPCInfo NpcInfo,
                 List<SelectedAssetContainer> AssetContainers,
@@ -532,7 +529,7 @@ public class Patcher
             {
                 foreach (var kvp in _assetAssignmentTransfers)
                 {
-                    allFaceGenNpcs[kvp.Key.NPC.FormKey] = (kvp.Key, kvp.Value, null);
+                    allFaceGenNpcs[kvp.Key] = (kvp.Value.NpcInfo, kvp.Value.Assets, null);
                 }
             }
 
@@ -541,16 +538,20 @@ public class Patcher
             {
                 foreach (var kvp in _assignedHeadPartTransfers)
                 {
-                    var formKey = kvp.Key.NPC.FormKey;
+                    var formKey = kvp.Key;
+                    if (kvp.Value.NpcInfo.Name.StartsWith("Uthgerd"))
+                    {
+                        int m = 0;
+                    }
                     if (allFaceGenNpcs.TryGetValue(formKey, out var existing))
                     {
                         // NPC already has texture assignments — add headpart assignments.
-                        allFaceGenNpcs[formKey] = (existing.NpcInfo, existing.AssetContainers, kvp.Value);
+                        allFaceGenNpcs[formKey] = (existing.NpcInfo, existing.AssetContainers, kvp.Value.HeadParts);
                     }
                     else
                     {
                         // NPC only has headpart assignments.
-                        allFaceGenNpcs[formKey] = (kvp.Key, null, kvp.Value);
+                        allFaceGenNpcs[formKey] = (kvp.Value.NpcInfo, null, kvp.Value.HeadParts);
                     }
                 }
             }
@@ -848,7 +849,15 @@ public class Patcher
                 #endregion
 
                 var assignmentTransfers = assignedCombinations.Select(x => new SelectedAssetContainer(x)).ToList();
-                _assetAssignmentTransfers.Add(currentNPCInfo, assignmentTransfers);
+                var assetFk = currentNPCInfo.NPC.FormKey;
+                if (_assetAssignmentTransfers.TryGetValue(assetFk, out var existingAssets))
+                {
+                    existingAssets.Assets.AddRange(assignmentTransfers);
+                }
+                else
+                {
+                    _assetAssignmentTransfers[assetFk] = (currentNPCInfo, assignmentTransfers);
+                }
                 _combinationLog.LogCombinationSelections(currentNPCInfo, assignedCombinations);
             }
             #endregion
@@ -911,7 +920,7 @@ public class Patcher
                 var height =_heightPatcher.AssignNPCHeight(currentNPCInfo, currentHeightConfig, outputMod);
                 if (height.HasValue)
                 {
-                    _heightAssignmentTransfers.Add(currentNPCInfo, height.Value);  
+                    _heightAssignmentTransfers[currentNPCInfo.NPC.FormKey] = (currentNPCInfo, height.Value);
                 }
             }
             #endregion
@@ -921,9 +930,24 @@ public class Patcher
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
                 var headPartAssignments = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlides, assignedMorphs);
+                if (currentNPCInfo.Name.StartsWith("Uthgerd"))
+                {
+                    int n = 0;
+                }
                 if (headPartAssignments.Any())
                 {
-                    _assignedHeadPartTransfers.Add(currentNPCInfo, headPartAssignments);
+                    var hpFk = currentNPCInfo.NPC.FormKey;
+                    if (_assignedHeadPartTransfers.TryGetValue(hpFk, out var existingHp))
+                    {
+                        foreach (var hpKvp in headPartAssignments)
+                        {
+                            existingHp.HeadParts.TryAdd(hpKvp.Key, hpKvp.Value);
+                        }
+                    }
+                    else
+                    {
+                        _assignedHeadPartTransfers[hpFk] = (currentNPCInfo, headPartAssignments);
+                    }
                 }
             }
             #endregion

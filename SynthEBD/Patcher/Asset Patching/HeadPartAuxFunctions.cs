@@ -18,19 +18,20 @@ public class HeadPartAuxFunctions
         _logger = logger;
     }
 
-    public void ApplyNeededFaceTextures(Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> assignedHeadPartTransfers) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
+    public void ApplyNeededFaceTextures(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
-        HashSet<NPCInfo> toRemove = new();
+        HashSet<FormKey> toRemove = new();
         
-        foreach (var npcInfo in assignedHeadPartTransfers.Keys)
+        foreach (var kvp in assignedHeadPartTransfers)
         {
+            var npcInfo = kvp.Value.NpcInfo;
             var npcGetter = npcInfo.NPC;
             if (npcGetter.HeadTexture == null || npcGetter.HeadTexture.IsNull)
             {
                 if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull)
                 {
                     ShowRemovalMessage_WNAM(npcGetter);
-                    toRemove.Add(npcInfo);
+                    toRemove.Add(kvp.Key);
                     continue;
                 }
 
@@ -66,7 +67,7 @@ public class HeadPartAuxFunctions
                             else
                             {
                                 ShowRemovalMessage(npcGetter);
-                                toRemove.Add(npcInfo);
+                                toRemove.Add(kvp.Key);
                             }
 
                             break;
@@ -95,7 +96,7 @@ public class HeadPartAuxFunctions
                             else
                             {
                                 ShowRemovalMessage(npcGetter);
-                                toRemove.Add(npcInfo);
+                                toRemove.Add(kvp.Key);
                             }
 
                             break;
@@ -104,14 +105,14 @@ public class HeadPartAuxFunctions
                 else
                 {
                     ShowRemovalMessage(npcGetter);
-                    toRemove.Add(npcInfo);
+                    toRemove.Add(kvp.Key);
                 }
             }
         }
 
-        foreach (var npcInfo in toRemove)
+        foreach (var fk in toRemove)
         {
-            assignedHeadPartTransfers.Remove(npcInfo);
+            assignedHeadPartTransfers.Remove(fk);
         }
     }
 
