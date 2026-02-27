@@ -45,7 +45,7 @@ namespace SynthEBD
                     valid = false;
                 }
                 
-                if (_patcherState.TexMeshSettings.bPureScriptMode && !_miscValidation.VerifySkyPatcherInstalled(false))
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets && !_miscValidation.VerifySkyPatcherInstalled(false))
                 {
                     valid = false;
                 }

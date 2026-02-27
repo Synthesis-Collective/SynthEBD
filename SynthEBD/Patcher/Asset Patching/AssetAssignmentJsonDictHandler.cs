@@ -55,7 +55,7 @@ public class AssetAssignmentJsonDictHandler
     
     public void WriteAssignmentDictionaryScriptMode()
     {
-        if (!_patcherState.TexMeshSettings.bPureScriptMode)
+        if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
         {
             return;
         }

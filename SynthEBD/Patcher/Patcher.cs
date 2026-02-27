@@ -193,7 +193,7 @@ public class Patcher
             
             gEnableTextureLoaderScript = outputMod.Globals.AddNewShort();
             gEnableTextureLoaderScript.EditorID = "SynthEBD_TextureLoaderScriptActive";
-            gEnableTextureLoaderScript.Data = Convert.ToInt16(_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bPureScriptMode);
+            gEnableTextureLoaderScript.Data = Convert.ToInt16(_patcherState.GeneralSettings.bChangeMeshesOrTextures && _patcherState.TexMeshSettings.bSkyPatcherModeAssets);
         }
         
         HashSet<FlattenedAssetPack> flattenedAssetPacks = new();

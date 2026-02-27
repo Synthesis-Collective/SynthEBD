@@ -142,7 +142,7 @@ public class VanillaBodyPathSetter
                     return;
                 }
                 
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
                 {
                     _skyPatcherInterface.ApplySkin(npcGetter.FormKey, duplicatedArmor.FormKey);
                 }
@@ -181,7 +181,7 @@ public class VanillaBodyPathSetter
             var registration = LoquiRegistration.StaticRegister.GetRegister(npcGetter.GetType());
             var contexts = _environmentStateProvider.LinkCache?.ResolveAllContexts(npcGetter.FormKey, registration.GetterType).ToList() ?? new(); // note: ResolveAllContexts directly off npcGetter returns only the context from SynthEBD.esp
 
-            if (!_patcherState.TexMeshSettings.bPureScriptMode && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
+            if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
             {
                 string raceName = "No Race";
                 if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve(npcGetter.Race, out var raceGetter))
@@ -193,7 +193,7 @@ public class VanillaBodyPathSetter
 
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
 
-            if (hasBlockedArmature || _patcherState.TexMeshSettings.bPureScriptMode && !_npcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
+            if (hasBlockedArmature || _patcherState.TexMeshSettings.bSkyPatcherModeAssets && !_npcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
             {
                 SetViaNewArmor(outputMod, armorGetter, npcGetter, currentGender);
             }
@@ -208,7 +208,7 @@ public class VanillaBodyPathSetter
     {
         Armor wornArmor;
 
-        if (_patcherState.TexMeshSettings.bPureScriptMode)
+        if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
         {
             var npc = _npcProvider.GetNpc(npcGetter, false, true);
             if(!_npcProvider.TryGetImportedFormKey(npcGetter.WornArmor.FormKey, out _))

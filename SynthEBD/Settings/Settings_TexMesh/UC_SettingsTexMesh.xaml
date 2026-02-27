@@ -100,7 +100,7 @@
             <ComboBox Grid.Row="3" Grid.Column="1" SelectedItem="{Binding FacePatchingMode}" ItemsSource="{Binding FacePatchingModeOptions}" />
 
             <TextBlock Grid.Row="4" Grid.Column="0"  VerticalAlignment="Center" ToolTip= "Use SkyPatcher to apply skin changes. Meant to help with Too Many Masters error" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">SkyPatcher Mode</TextBlock>
-            <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=bPureScriptMode, Mode=TwoWay}"></CheckBox>
+            <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=bSkyPatcherModeAssets, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="Permit config files to modify NPCs that already have custom body textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patch NPCs with custom bodies</TextBlock>
             <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=bApplyToNPCsWithCustomSkins, Mode=TwoWay}"></CheckBox>

@@ -96,7 +96,7 @@ public class RecordGenerator
             if (assignments.Any())
             {
                 Npc npcRecord;
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
                 {
                     npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
                     currentNPCInfo.NPC = npcRecord;
@@ -157,7 +157,7 @@ public class RecordGenerator
                 }
                 _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, _environmentProvider.OutputMod);
 
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
                 {
                     _skyPatcherInterface.ApplySkin(currentNPCInfo.OriginalNPC.FormKey, npcRecord.WornArmor.FormKey);
                     assetAssignmentJsonDictHandler.LogNPCAssignments(currentNPCInfo, _environmentProvider.OutputMod);

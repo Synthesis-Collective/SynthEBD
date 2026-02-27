@@ -14,6 +14,8 @@ namespace SynthEBD
 
             output = output.Replace("\"ForceIf\": false", "\"ForceMode\": \"Restrict\"");
             output = output.Replace("\"ForceIf\": true", "\"ForceMode\": \"ForceIfAndRestrict\"");
+            
+            output = output.Replace("\"bPureScriptMode\"", "\"bSkyPatcherModeAssets\"");
 
             return output;
         }
