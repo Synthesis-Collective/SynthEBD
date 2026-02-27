@@ -39,6 +39,7 @@ namespace SynthEBD
         };
 
         public bool bUseVerboseScripts { get; set; } = false;
+        public bool bSkyPatcherModeHeadparts { get; set; } = false;
         public string AssociatedBodyGenConfigNameMale { get; set; } = "";
         public string AssociatedBodyGenConfigNameFemale { get; set; } = "";
     }
