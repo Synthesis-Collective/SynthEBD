@@ -50,10 +50,11 @@ public class Patcher
     private readonly HeadPartAuxFunctions _headPartAuxFunctions;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
     private readonly NPC2ProfileParser _npc2ProfileParser;
-    private readonly NPCProvider _npcProvider;
+    private readonly SurrogateNPCProvider _surrogateNpcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
     private readonly AssetAssignmentJsonDictHandler _assetAssignmentJsonDictHandler;
     private readonly FaceGenPatcher _faceGenPatcher;
+    private readonly PatcherIO _patcherIO;
 
     private Dictionary<FormKey, (NPCInfo NpcInfo, List<SelectedAssetContainer> Assets)> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
     private Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
@@ -62,7 +63,7 @@ public class Patcher
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     private int _patchedNpcCount { get; set; }
 
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -103,10 +104,11 @@ public class Patcher
         _bodySlideAnnotator = bodySlideAnnotator;
         _easyNPCProfileParser = easyNPCProfileParser;
         _npc2ProfileParser = npc2ProfileParser;
-        _npcProvider = npcProvider;
+        _surrogateNpcProvider = surrogateNpcProvider;
         _skyPatcherInterface = skyPatcherInterface;
         _assetAssignmentJsonDictHandler = assetAssignmentJsonDictHandler;
         _faceGenPatcher = faceGenPatcher;
+        _patcherIO = patcherIO;
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
@@ -132,6 +134,11 @@ public class Patcher
                 _paths.OutputDataFolder = _patcherState.GeneralSettings.OutputDataFolder;
             }
         }
+        
+        _patcherIO.ClearPreviousScriptOutputs(
+            _paths.OutputDataFolder,
+            _environmentProvider.DataFolderPath,
+            _logger);
 
         var outputMod = _environmentProvider.OutputMod;
         var allNPCs = _environmentProvider
@@ -147,12 +154,43 @@ public class Patcher
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
-        // Script copying: All scripts are copied to the output folder even if the respective patcher functionality is unused. Script activity is controlled by a global variable. This prevents potential nastiness from missing script files if user toggles patcher functionalities
-        _commonScripts.CopyAllToOutputFolder();
-        _oBodyWriter.CopyBodySlideScript();
-        _headPartWriter.CopyHeadPartScript();
-        _jContainersDomain.CreateSynthEBDDomain();
-        _questInit.WriteQuestSeqFile();
+        // ── Determine which features are active in script mode ──
+
+        bool assetScriptMode = _patcherState.GeneralSettings.bChangeMeshesOrTextures
+                               && _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Script;
+
+        bool headpartScriptMode = _patcherState.GeneralSettings.bChangeHeadParts
+                                  && _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Script;
+
+        bool bodySlideScriptMode = _patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide
+                                   && ((_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody && 
+                                        _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Script)
+                                       || 
+                                       (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody &&
+                                        _patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON));
+
+        bool anyScriptFeatureActive = assetScriptMode || headpartScriptMode || bodySlideScriptMode;
+
+        // ── Common script infrastructure — only when any script-based feature is active ──
+
+        if (anyScriptFeatureActive)
+        {
+            _commonScripts.CopyAllToOutputFolder();
+            _jContainersDomain.CreateSynthEBDDomain();
+            _questInit.WriteQuestSeqFile();
+        }
+
+        // ── Feature-specific script outputs ──
+
+        if (bodySlideScriptMode)
+        {
+            _oBodyWriter.CopyBodySlideScript();
+        }
+
+        if (headpartScriptMode)
+        {
+            _headPartWriter.CopyHeadPartScript();
+        }
 
         // UI Pre-patching tasks:
         _logger.UpdateStatus("Patching", false);
@@ -178,9 +216,10 @@ public class Patcher
         GlobalShort gEnableTextureLoaderScript = null;
         GlobalShort gFaceTextureVerboseMode = null;
 
-        bool useFaceMeshMode = _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh;
+        bool useFaceMeshMode = _patcherState.GeneralSettings.bChangeMeshesOrTextures 
+                               && _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh;
 
-        if (!useFaceMeshMode)
+        if (assetScriptMode)
         {
             // write resources for EBD face texture script even if it will be superceded by the updated version
             EBDCoreRecords.CreateCoreRecords(outputMod, out EBDFaceKW, out EBDScriptKW, out EBDHelperSpell, _patcherState.TexMeshSettings.bLegacyEBDMode);
@@ -225,7 +264,7 @@ public class Patcher
             _combinationLog.Reinitialize();
         }
 
-        _npcProvider.Reinitialize();
+        _surrogateNpcProvider.Reinitialize();
 
         // BodyGen Pre-patching tasks:
         BodyGenTracker = new BodyGenAssignmentTracker();
@@ -238,7 +277,10 @@ public class Patcher
         var gBodySlideVerboseMode = outputMod.Globals.AddNewShort();
         gBodySlideVerboseMode.EditorID = "SynthEBD_BodySlideVerboseMode";
         gBodySlideVerboseMode.Data = Convert.ToInt16(_patcherState.OBodySettings.bUseVerboseScripts);
-        _oBodyWriter.CreateBodySlideLoaderQuest(outputMod, gEnableBodySlideScript, gBodySlideVerboseMode);
+        if (bodySlideScriptMode)
+        {
+            _oBodyWriter.CreateBodySlideLoaderQuest(outputMod, gEnableBodySlideScript, gBodySlideVerboseMode);
+        }
         Spell bodySlideAssignmentSpell = _oBodyWriter.CreateOBodyAssignmentSpell(outputMod, gBodySlideVerboseMode);
 
         // Mutual BodyGen/BodySlide Pre-patching tasks:
@@ -312,23 +354,33 @@ public class Patcher
         // HeadPart Pre-patching tasks:
         _headPartSelector.Reinitialize();
         _headPartWriter.CleanPreviousOutputs();
-        var gEnableHeadParts = outputMod.Globals.AddNewShort();
-        gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
-        gEnableHeadParts.Data = 0; // default to 0; patcher will change later if one of several conditions are met
-        var gHeadpartsVerboseMode = outputMod.Globals.AddNewShort();
-        gHeadpartsVerboseMode.EditorID = "SynthEBD_HeadPartsVerboseMode";
-        gHeadpartsVerboseMode.Data = Convert.ToInt16(_patcherState.HeadPartSettings.bUseVerboseScripts);
-
-        _headPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
-        Spell headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
         _updateHandler.CleanSPIDiniHeadParts();
-
+        
+        GlobalShort gEnableHeadParts = null;
+        Spell headPartAssignmentSpell = null;
+        
+        //  The runtime headpart spell should only be applied if we're using Script mode
+        //  (not Nif mode). Additionally, if headpart SkyPatcher mode is on with Nif mode,
+        //  the spell is not needed (shapes are baked into the nif and applied via 
+        //  CopyVisualStyle at runtime).
+        
         // Check if we are using Mesh mode
-        bool useHeadPartMeshMode = _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif;
+        bool useHeadPartMeshMode = _patcherState.GeneralSettings.bChangeHeadParts 
+                                   && _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif;
+        bool useHeadPartSkyPatcher = _patcherState.GeneralSettings.bChangeHeadParts 
+                                     && _patcherState.HeadPartSettings.bSkyPatcherModeHeadparts;
 
-        // Only apply the runtime spell if we are NOT baking into the NIFs
-        if (!useHeadPartMeshMode)
+        if (_patcherState.GeneralSettings.bChangeHeadParts && headpartScriptMode)
         {
+            gEnableHeadParts = outputMod.Globals.AddNewShort();
+            gEnableHeadParts.EditorID = "SynthEBD_HeadPartScriptActive";
+            gEnableHeadParts.Data = 0; // default to 0; patcher will change later if conditions are met
+            var gHeadpartsVerboseMode = outputMod.Globals.AddNewShort();
+            gHeadpartsVerboseMode.EditorID = "SynthEBD_HeadPartsVerboseMode";
+            gHeadpartsVerboseMode.Data = Convert.ToInt16(_patcherState.HeadPartSettings.bUseVerboseScripts);
+    
+            _headPartWriter.CreateHeadPartLoaderQuest(outputMod, gEnableHeadParts, gHeadpartsVerboseMode);
+            headPartAssignmentSpell = HeadPartWriter.CreateHeadPartAssignmentSpell(outputMod, gHeadpartsVerboseMode);
             ApplyRacialSpell.ApplySpell(outputMod, headPartAssignmentSpell, _environmentProvider.LinkCache, _patcherState);
         }
 
@@ -428,16 +480,14 @@ public class Patcher
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
-            _assetAssignmentJsonDictHandler.WriteAssignmentDictionaryScriptMode();
+            if (assetScriptMode)
+            {
+                _assetAssignmentJsonDictHandler.WriteAssignmentDictionaryScriptMode();
+            }
             _combinationLog.WriteToFile(availableAssetPacks);
         }
         
         _heightPatcher.ApplySelectedHeights(_heightAssignmentTransfers, _environmentProvider.OutputMod, _statusBar);
-        
-        if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
-        {
-            _skyPatcherInterface.WriteIni();
-        }
 
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodyGen)
         {
@@ -464,32 +514,16 @@ public class Patcher
             _heightPatcher.WriteAssignmentDictionaryScriptMode();
         }
 
-        if ((_patcherState.GeneralSettings.bChangeHeadParts && _assignedHeadPartTransfers.Any()) || configGeneratedHeadPartsDict.Any())
+        if (_patcherState.GeneralSettings.bChangeHeadParts && (_assignedHeadPartTransfers.Any() || configGeneratedHeadPartsDict.Any()))
         {
-            _headPartSelector.ResolveConflictsWithAssetAssignments(_assignedHeadPartTransfers, configGeneratedHeadPartsDict); // now _assignedHeadPartTransfers contains all winning headpart assignments
-            
+            _headPartSelector.ResolveConflictsWithAssetAssignments(_assignedHeadPartTransfers, configGeneratedHeadPartsDict);
+
             _headPartSelector.EnsureHeadPartRaceCompatibility(_assignedHeadPartTransfers);
             
-            if (configGeneratedHeadPartsDict.Any() && !_patcherState.GeneralSettings.bChangeHeadParts) // these checks not performed when running in Asset Mode only - user needs to be warned if patcher dips into the headpart distribution system while headparts are disabled
-            {
-                bool validation = true;
-
-                if (!_miscValidation.VerifyJContainersInstalled(true))
-                {
-                    _logger.LogMessage("WARNING: Your Asset Packs have generated new headparts whose distribution requires JContainers, which was not detected in your data folder. NPCs will not receive their new headparts until this is installed.");
-                    validation = false;
-                }
-
-                if (!validation)
-                {
-                    _logger.CallTimedLogErrorWithStatusUpdateAsync("WARNING: Missing dependencies for Asset-Generated Headparts. See Log.", ErrorType.Warning, 5);
-                }
-            }
-
-            _headPartAuxFunctions.ApplyNeededFaceTextures(_assignedHeadPartTransfers);
             // Branch based on Patching Mode
             if (!useHeadPartMeshMode)
             {
+                _headPartAuxFunctions.ApplyNeededFaceTextures(_assignedHeadPartTransfers);
                 gEnableHeadParts.Data = 1;
                 _headPartWriter.WriteAssignmentDictionary(_assignedHeadPartTransfers);
             }
@@ -501,23 +535,33 @@ public class Patcher
         // ═══════════════════════════════════════════════════════════════════════
         //
         //  Both face texture baking (useFaceMeshMode) and head part shape swapping
-        //  (useHeadPartMeshMode) now go through a single unified loop. For each NPC
+        //  (useHeadPartMeshMode) go through a single unified loop. For each NPC
         //  that needs either (or both) forms of FaceGen patching, the NIF is opened
         //  once, all modifications are applied, and the NIF is saved once.
         //
-        //  This eliminates the previous issue where the HeadPartSwapper would
-        //  overwrite FaceGenPatcher's output by independently loading the original
-        //  source NIF.
+        //  SkyPatcher Routing:
+        //    When Asset Nif + SkyPatcher and/or Headpart Nif + SkyPatcher is active,
+        //    the output NIF is written to the surrogate NPC's FaceGen path, and a
+        //    CopyVisualStyle command is emitted in the SkyPatcher ini to transfer the
+        //    visual changes to the original NPC at runtime.
+        //
+        //  Truth Table Cases handled here:
+        //    - Case 3  (Script/No/Nif/No):  headpart nif → original NPC path
+        //    - Case 4  (Script/No/Nif/Yes): headpart nif → surrogate path + CopyVisualStyle
+        //    - Case 7  (Script/Yes/Nif/No): headpart nif → original NPC path
+        //    - Case 8  (Script/Yes/Nif/Yes): headpart nif → surrogate path + CopyVisualStyle
+        //    - Case 9  (Nif/No/Script/No):  asset nif → original NPC path
+        //    - Case 11 (Nif/No/Nif/No):     both nif → original NPC path
+        //    - Case 13 (Nif/Yes/Script/No): asset nif → surrogate path + CopyVisualStyle
+        //    - Case 16 (Nif/Yes/Nif/Yes):   both nif → shared surrogate path + CopyVisualStyle
 
         if (useFaceMeshMode || useHeadPartMeshMode)
         {
+            // Determine mode flags for surrogate routing
+            bool assetNifToSurrogate = useFaceMeshMode && _patcherState.TexMeshSettings.bSkyPatcherModeAssets;
+            bool headpartNifToSurrogate = useHeadPartMeshMode && useHeadPartSkyPatcher;
+
             // Build the set of all NPCs that need any FaceGen NIF work.
-            // Each NPC maps to its texture assignments (if any) and headpart assignments (if any).
-            //
-            // IMPORTANT: We key by FormKey, not NPCInfo, because the transfer dictionaries
-            // (_assetAssignmentTransfers and _assignedHeadPartTransfers) are now keyed by FormKey
-            // to guarantee uniqueness per NPC record. This avoids the previous issue where
-            // different NPCInfo instances for the same NPC could create duplicate entries.
             var allFaceGenNpcs = new Dictionary<FormKey, (
                 NPCInfo NpcInfo,
                 List<SelectedAssetContainer> AssetContainers,
@@ -539,10 +583,6 @@ public class Patcher
                 foreach (var kvp in _assignedHeadPartTransfers)
                 {
                     var formKey = kvp.Key;
-                    if (kvp.Value.NpcInfo.Name.StartsWith("Uthgerd"))
-                    {
-                        int m = 0;
-                    }
                     if (allFaceGenNpcs.TryGetValue(formKey, out var existing))
                     {
                         // NPC already has texture assignments — add headpart assignments.
@@ -569,16 +609,94 @@ public class Patcher
                     var assetContainers = kvp.Value.AssetContainers;
                     var headPartAssignments = kvp.Value.HeadPartAssignments;
 
+                    // ── Determine if this NPC's FaceGen output goes to a surrogate ──
+                    //
+                    // Surrogate is needed when EITHER:
+                    //   a) Asset Nif + SkyPatcher and this NPC has texture work (Cases 13, 16)
+                    //   b) Headpart Nif + SkyPatcher and this NPC has headpart work (Cases 4, 8, 16)
+                    //
+                    // When both are active (Case 16), a single shared surrogate is used.
+
+                    bool thisNpcAssetToSurrogate = assetNifToSurrogate && assetContainers != null && assetContainers.Any();
+                    bool thisNpcHeadpartToSurrogate = headpartNifToSurrogate && headPartAssignments != null && headPartAssignments.Any();
+                    bool outputToSurrogate = thisNpcAssetToSurrogate || thisNpcHeadpartToSurrogate;
+
+                    FormKey? outputFormKey = null;
+                    Npc surrogateNpc = null;
+
+                    if (outputToSurrogate)
+                    {
+                        if (_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.OriginalNPC, out surrogateNpc))
+                        {
+                            outputFormKey = surrogateNpc.FormKey;
+                            _logger.LogReport(
+                                "FaceGen routing: NPC " + npcInfo.OriginalNPC.FormKey + 
+                                " → surrogate " + surrogateNpc.FormKey + 
+                                " (assetNif=" + thisNpcAssetToSurrogate + 
+                                ", headpartNif=" + thisNpcHeadpartToSurrogate + ")",
+                                false, npcInfo);
+                        }
+                        else
+                        {
+                            _logger.LogMessage(
+                                "WARNING: Could not create surrogate NPC for " + 
+                                npcInfo.OriginalNPC.FormKey + ". Falling back to direct NPC path.");
+                            outputToSurrogate = false;
+                        }
+                    }
+
+                    // ── Patch the FaceGen NIF ──
+                    //
                     // PatchFaceGenNif returns false if the NPC was skipped due to stale output.
                     // In that case, skip headpart record application to avoid mismatches.
-                    
-                    bool success = _faceGenPatcher.PatchFaceGenNif(npcInfo, assetContainers, headPartAssignments);
 
-                    // Apply headpart records only if the NIF was patched successfully and
-                    // we're in headpart mesh mode.
+                    bool success = _faceGenPatcher.PatchFaceGenNif(
+                        npcInfo, assetContainers, headPartAssignments, outputFormKey);
+
+                    // ── Apply headpart records ──
+                    //
+                    // HeadPartWriter.ApplyHeadPartRecords handles routing to the correct NPC 
+                    // (original or surrogate) based on HeadPartSettings.bSkyPatcherModeHeadparts.
+                    // It uses _npcProvider.GetNpc which returns the same cached surrogate.
+
                     if (success && useHeadPartMeshMode && headPartAssignments != null)
                     {
                         _headPartWriter.ApplyHeadPartRecords(npcInfo, headPartAssignments);
+                    }
+
+                    // ── Emit SkyPatcher commands for surrogate → original transfer ──
+                    //
+                    // When the asset side uses Nif + SkyPatcher, both SetSkin (body 
+                    // textures) and CopyVisualStyle (FaceGen appearance) must appear on 
+                    // the SAME ini line so SkyPatcher processes them atomically.
+                    //
+                    // RecordGenerator's standalone ApplySkin is suppressed for Mesh mode
+                    // (see FIX 3) — the combined command is emitted here instead.
+                    //
+                    // When only headpart Nif + SkyPatcher is active (no asset surrogate),
+                    // we emit CopyVisualStyle alone — SetSkin was already emitted by
+                    // RecordGenerator for the asset Script + SkyPatcher case, or isn't
+                    // needed if asset SkyPatcher is off.
+
+                    if (success && outputToSurrogate && surrogateNpc != null)
+                    {
+                        if (thisNpcAssetToSurrogate)
+                        {
+                            // Cases 13, 16: Asset Nif + SkyPatcher → combined SetSkin + CopyVisualStyle
+                            _skyPatcherInterface.ApplySkinAndVisualStyle(
+                                npcInfo.OriginalNPC.FormKey,
+                                surrogateNpc.WornArmor.FormKey,
+                                surrogateNpc.FormKey);
+                        }
+                        else
+                        {
+                            // Cases 4, 8: Headpart-only SkyPatcher → CopyVisualStyle only.
+                            // SetSkin either already emitted by RecordGenerator (asset Script
+                            // + SkyPatcher) or not needed (asset SkyPatcher off).
+                            _skyPatcherInterface.ApplyVisualStyle(
+                                npcInfo.OriginalNPC.FormKey,
+                                surrogateNpc.FormKey);
+                        }
                     }
 
                     _statusBar.ProgressBarCurrent++;
@@ -588,6 +706,15 @@ public class Patcher
                     }
                 }
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  End of unified FaceGen NIF patching
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
+        {
+            _skyPatcherInterface.WriteIni();
         }
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)

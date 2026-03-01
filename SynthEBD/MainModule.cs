@@ -115,7 +115,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<ArmorPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<SkinPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartAuxFunctions>().AsSelf().SingleInstance();
-        builder.RegisterType<NPCProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<SurrogateNPCProvider>().AsSelf().SingleInstance();
         builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
         builder.RegisterType<FacePartCompliance>().AsSelf().SingleInstance();
         builder.RegisterType<FaceGenPatcher>().AsSelf().SingleInstance();

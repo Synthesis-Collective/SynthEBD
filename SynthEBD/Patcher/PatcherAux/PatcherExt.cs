@@ -4,107 +4,35 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
-using Noggog;
 
 namespace SynthEBD;
 
-public class NPCProvider
-{
-    private readonly IOutputEnvironmentStateProvider _environmentStateProvider;
-    private readonly PatcherState _patcherState;
-    private Dictionary<FormKey, FormKey> _formKeyMap = new();
-    private Dictionary<FormKey, Npc> _importedNPCMap = new();
-
-    public const string importedSuffix = "_SynthEBD_Imported";
-
-    public NPCProvider(IOutputEnvironmentStateProvider environmentStateProvider, PatcherState patcherState)
-    {
-        _environmentStateProvider = environmentStateProvider;
-        _patcherState = patcherState;
-    }
-
-    public void Reinitialize()
-    {
-        _formKeyMap.Clear();
-    }
-
-    public Npc? GetNpc(INpcGetter npcGetter, bool onlyFromImportedNpcs, bool ignoreOutputModContext)
-    {
-        if (_importedNPCMap.TryGetValue(npcGetter.FormKey, out Npc importedNpc))
-        {
-            return importedNpc;
-        }
-        if (onlyFromImportedNpcs)
-        {
-            return null;
-        }
-        
-        var outputMod = _environmentStateProvider.OutputMod;
-        
-        _environmentStateProvider.LinkCache.TryResolveContext(npcGetter.FormKey, typeof(INpcGetter), out var context);
-        if (context.ModKey.Equals(outputMod.ModKey) && ignoreOutputModContext)
-        {
-            var allContexts = npcGetter.ToLink().ResolveAllContexts<ISkyrimMod, ISkyrimModGetter, INpc, INpcGetter>(_environmentStateProvider.LinkCache).ToArray();
-            var prePatchingWinningOverride = allContexts.FirstOrDefault(x => !x.ModKey.Equals(outputMod.ModKey));
-            if (prePatchingWinningOverride != null)
-            {
-                context = prePatchingWinningOverride;
-            }
-        }
-
-        if (context.ModKey.Equals(outputMod.ModKey))
-        {
-            return context.Record as Npc;
-        }
-        
-        Npc npcRecord = null;
-
-        if (!_patcherState.GeneralSettings.BlockedModsFromImport.Contains(context.ModKey) && !outputMod.ModKey.Equals(context.ModKey))
-        {
-            Dictionary<FormKey, FormKey> remappedNpcs = new();
-            outputMod.DuplicateFromOnlyReferencedNpcs(new List<INpcGetter>() { context.Record as INpcGetter },
-                _environmentStateProvider.LinkCache, context.ModKey, ref _formKeyMap, true, ref remappedNpcs);
-
-            var remappedNpcFk = remappedNpcs[npcGetter.FormKey];
-
-            npcRecord = outputMod.Npcs.First(x => x.FormKey.Equals(remappedNpcFk));
-            if (!npcRecord.EditorID.IsNullOrWhitespace())
-            {
-                npcRecord.EditorID += "_SynthEBD";
-            }
-            _importedNPCMap.Add(npcGetter.FormKey, npcRecord);
-        }
-        else
-        {
-            return _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
-        }
-        
-        return npcRecord;
-    }
-
-    public bool TryGetImportedFormKey(FormKey templateFormKey, out FormKey importedFormKey)
-    {
-        if (_formKeyMap.ContainsKey(templateFormKey))
-        {
-            importedFormKey = _formKeyMap[templateFormKey];
-            return true;
-        }
-        else
-        {
-            importedFormKey = default;
-            return false;
-        }
-    }
-}
 public static class PatcherExt
 {
+    /// <summary>
+    /// Creates surrogate NPC records in the output mod by duplicating appearance-related
+    /// data from source NPCs. Each surrogate gets a new FormKey and contains all visual
+    /// appearance data needed for SkyPatcher's CopyVisualStyle to transfer the look to
+    /// the original NPC at runtime.
+    ///
+    /// When <paramref name="onlyAppearance"/> is true, the surrogate includes:
+    ///   - FormLink references: Race, WornArmor (skin), HeadTexture, HairColor, HeadParts
+    ///   - Value-type data: FaceMorph, FaceParts, Height, Weight, TextureLighting, TintLayers
+    ///
+    /// Sub-records from <paramref name="modKeyToDuplicateFrom"/> are walked and duplicated
+    /// into the output mod with new FormKeys, UNLESS their source mod appears in
+    /// <paramref name="blockedMods"/>. Blocked sub-records are still referenced by the
+    /// surrogate NPC but point to the original records rather than remapped copies.
+    /// This is safe because SkyPatcher resolves these references at runtime.
+    /// </summary>
     public static void DuplicateFromOnlyReferencedNpcs<TMod, TModGetter>(
         this TMod modToDuplicateInto,
         IEnumerable<IMajorRecordGetter> recordsToDuplicate,
         ILinkCache<TMod, TModGetter> linkCache, 
         ModKey modKeyToDuplicateFrom,
-        ref Dictionary<FormKey, FormKey> mapping, bool onlySkin,
+        ref Dictionary<FormKey, FormKey> mapping, bool onlyAppearance,
         ref Dictionary<FormKey, FormKey> topLevelRemaps,
+        HashSet<ModKey> blockedMods = null,
         params Type[] typesToInspect)
         where TModGetter : class, IModGetter
         where TMod : class, TModGetter, IMod, ISkyrimMod
@@ -125,6 +53,12 @@ public static class PatcherExt
             if (!passedLinks.Add(link.FormKey)) return;
             if (implicits.RecordFormKeys.Contains(link.FormKey)) return;
 
+            // Sub-records from blocked mods are NOT duplicated. The surrogate
+            // NPC's FormLinks still reference the originals (set above in the
+            // onlyAppearance block). RemapLinks won't touch them because they
+            // never enter the mapping dictionary.
+            if (blockedMods != null && blockedMods.Contains(link.FormKey.ModKey)) return;
+
             if (!linkCache.TryResolve(link.FormKey, link.Type, out var linkRec))
             {
                 return;
@@ -142,32 +76,78 @@ public static class PatcherExt
             }
         }
 
-        if (onlySkin)
+        if (onlyAppearance)
         {
             foreach (var record in recordsToDuplicate)
             {
                 var npcGetter = record as INpcGetter;
                 if (npcGetter is null)
                 {
-                    throw new ArgumentException("When onlySkin == true, recordsToDuplicate must be of type INpcGetter" +
+                    throw new ArgumentException("When onlyAppearance == true, recordsToDuplicate must be of type INpcGetter" +
                                                 Environment.NewLine + "FormKey: " + record.FormKey.ToString());
                 }
 
                 var newNpc = new Npc(modToDuplicateInto, npcGetter.EditorID ?? npcGetter.Name?.String ?? npcGetter.FormKey.ToString() ?? "NewNpc");
-                newNpc.Race.SetTo(Skyrim.Race.DefaultRace);
                 modToDuplicateInto.Npcs.Add(newNpc);
                 topLevelRemaps.Add(record.FormKey, newNpc.FormKey);
-       
-                if (!npcGetter.HeadTexture.IsNull)
+
+                // ── FormLink properties ──
+                // Each link is set to the original value first, then AddAllLinks
+                // walks its sub-records for duplication. After RemapLinks at the
+                // end, non-blocked sub-records get remapped to their duplicates
+                // while blocked ones keep their original FormKeys.
+
+                if (!npcGetter.Race.IsNull)
                 {
-                    AddAllLinks(npcGetter.HeadTexture);
-                    newNpc.HeadTexture.SetTo(npcGetter.HeadTexture);
+                    AddAllLinks(npcGetter.Race);
+                    newNpc.Race.SetTo(npcGetter.Race);
+                }
+                else
+                {
+                    newNpc.Race.SetTo(Skyrim.Race.DefaultRace);
                 }
 
                 if (!npcGetter.WornArmor.IsNull)
                 {
                     AddAllLinks(npcGetter.WornArmor);
                     newNpc.WornArmor.SetTo(npcGetter.WornArmor);
+                }
+
+                if (!npcGetter.HeadTexture.IsNull)
+                {
+                    AddAllLinks(npcGetter.HeadTexture);
+                    newNpc.HeadTexture.SetTo(npcGetter.HeadTexture);
+                }
+
+                if (!npcGetter.HairColor.IsNull)
+                {
+                    AddAllLinks(npcGetter.HairColor);
+                    newNpc.HairColor.SetTo(npcGetter.HairColor);
+                }
+
+                newNpc.HeadParts.Clear();
+                foreach (var hp in npcGetter.HeadParts)
+                {
+                    if (!hp.IsNull)
+                    {
+                        AddAllLinks(hp);
+                        newNpc.HeadParts.Add(hp);
+                    }
+                }
+
+                // ── Value-type properties ──
+                // These contain no FormLinks and are deep-copied directly.
+
+                newNpc.FaceMorph = npcGetter.FaceMorph?.DeepCopy();
+                newNpc.FaceParts = npcGetter.FaceParts?.DeepCopy();
+                newNpc.Height = npcGetter.Height;
+                newNpc.Weight = npcGetter.Weight;
+                newNpc.TextureLighting = npcGetter.TextureLighting;
+
+                newNpc.TintLayers.Clear();
+                if (npcGetter.TintLayers != null)
+                {
+                    newNpc.TintLayers.AddRange(npcGetter.TintLayers.Select(t => t.DeepCopy()));
                 }
             }
         }
@@ -190,7 +170,7 @@ public static class PatcherExt
 
             if (!mapping.ContainsKey(rec.Record.FormKey))
             {
-                var newEdid = (rec.Record.EditorID ?? "NoEditorID") + NPCProvider.importedSuffix;
+                var newEdid = (rec.Record.EditorID ?? "NoEditorID") + SurrogateNPCProvider.SurrogateSuffix;
                 var dup = rec.DuplicateIntoAsNewRecord(modToDuplicateInto, newEdid);
                 dup.EditorID = newEdid;
                 mapping[rec.Record.FormKey] = dup.FormKey;

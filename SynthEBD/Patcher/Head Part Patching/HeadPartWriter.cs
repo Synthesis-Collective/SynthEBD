@@ -18,15 +18,15 @@ namespace SynthEBD
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        private readonly NPCProvider _npcProvider;
-        public HeadPartWriter(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, NPCProvider npcProvider)
+        private readonly SurrogateNPCProvider _surrogateNpcProvider;
+        public HeadPartWriter(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, SurrogateNPCProvider surrogateNpcProvider)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
             _logger = logger;
             _paths = paths;
             _patcherIO = patcherIO;
-            _npcProvider = npcProvider;
+            _surrogateNpcProvider = surrogateNpcProvider;
         }
         public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
@@ -211,17 +211,47 @@ namespace SynthEBD
 
         // This will need to be updated to respect the "mutliple allowed" vs "only one allowed" rules for each headpart
         // type. For now, let's start with just applying one of each
+        
+        /// <summary>
+        /// Applies head part assignments to the NPC record.
+        /// 
+        /// Routing depends on Headpart Patching Mode and SkyPatcher mode:
+        ///   - Nif + No SkyPatcher (Cases 3, 7, 11): edit original NPC record directly
+        ///   - Nif + SkyPatcher (Cases 4, 8, 16): edit surrogate NPC record
+        ///   - Script mode: edit surrogate NPC record (existing behavior, but this  
+        ///     method is only called for Nif mode per the unified FaceGen loop)
+        /// </summary>
         public void ApplyHeadPartRecords(NPCInfo npcInfo,
             Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
         {
             Npc npc;
             if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif)
             {
-                npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                if (_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
+                {
+                    // Nif + SkyPatcher: edit the surrogate's headpart records
+                    if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.NPC, out npc))
+                    {
+                        _logger.LogMessage("WARNING: Could not get surrogate for headpart records on NPC " +
+                                           npcInfo.NPC.FormKey + ". Falling back to direct override.");
+                        npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                    }
+                }
+                else
+                {
+                    // Nif without SkyPatcher: edit the original NPC directly
+                    npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                }
             }
             else
             {
-                npc = _npcProvider.GetNpc(npcInfo.NPC, false, false);
+                // Script mode: always uses surrogate
+                if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.NPC, out npc))
+                {
+                    _logger.LogMessage("WARNING: Could not create surrogate for headpart script assignment on NPC " +
+                                       npcInfo.NPC.FormKey + ". Headpart records will not be applied.");
+                    return;
+                }
             }
 
             if (npc != null)

@@ -191,7 +191,7 @@ public class FaceGenPatcher
     // Remove or clear this set once debugging is complete.
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
-        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -245,6 +245,11 @@ public class FaceGenPatcher
     ///   Head part assignments for shape swapping (from head part selection). May be
     ///   null or empty if head part NIF patching is not active.
     /// </param>
+    /// <param name="outputFormKey">
+    ///   When non-null, the output FaceGen NIF is saved to the path corresponding to 
+    ///   this FormKey (the surrogate NPC) instead of the original NPC's FormKey.
+    ///   The source NIF is still read from the original NPC's path via OriginalNPC.
+    /// </param>
     /// <returns>
     ///   true if the FaceGen NIF was processed normally (even if no changes were needed);
     ///   false if the NPC was SKIPPED because the source FaceGen is a stale SynthEBD output.
@@ -254,7 +259,8 @@ public class FaceGenPatcher
     public bool PatchFaceGenNif(
         NPCInfo npcInfo,
         List<Patcher.SelectedAssetContainer> assetContainers,
-        Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
+        Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments,
+        FormKey? outputFormKey = null)
     {
         // ── Step 1: Determine what work needs to be done ──
 
@@ -290,6 +296,7 @@ public class FaceGenPatcher
 
         // ── Step 2: Resolve and load the source FaceGen NIF ──
 
+        // Source path: always uses OriginalNPC (handled by the fixed ResolveFaceGenNifPath)
         string sourcePath = ResolveFaceGenNifPath(npcInfo, _environmentProvider.DataFolderPath);
         bool extractedFromBsa = false;
 
@@ -311,8 +318,20 @@ public class FaceGenPatcher
             DebugLog(npcInfo, "FaceGen extracted from BSA: " + sourcePath);
         }
 
-        string outputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
-        DebugLog(npcInfo, "FaceGen output path: " + outputPath);
+        string outputPath;
+        if (outputFormKey.HasValue && !outputFormKey.Value.IsNull)
+        {
+            // SkyPatcher mode: output nif goes to the surrogate NPC's path
+            outputPath = ResolveFaceGenNifPathForFormKey(outputFormKey.Value, _paths.OutputDataFolder);
+        }
+        else
+        {
+            // Direct mode: output nif goes to the original NPC's path
+            outputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
+        }
+
+        DebugLog(npcInfo, "FaceGen output path: " + outputPath +
+                          (outputFormKey.HasValue ? " (surrogate: " + outputFormKey.Value + ")" : " (original NPC)"));
 
         // ── Step 3: Stale output detection ──
         //
@@ -588,6 +607,10 @@ public class FaceGenPatcher
                 // Tag the output NIF so future runs can detect it as a SynthEBD output,
                 // even if the user changes their output folder path between runs.
                 nif.GetHeader().SetExportInfo(SynthEBDNifTag);
+                
+                /*_logger.LogMessage("FaceGenPatcher SAVE: " + outputPath + 
+                                   " | outputFormKey=" + (outputFormKey.HasValue ? outputFormKey.Value.ToString() : "null") +
+                                   " | originalNPC=" + npcInfo.OriginalNPC.FormKey); */
 
                 int saveResult = nif.Save(outputPath);
                 DebugLog(npcInfo, "Save result: " + saveResult + " path=" + outputPath);
@@ -1646,7 +1669,25 @@ public class FaceGenPatcher
     /// </summary>
     private static string ResolveFaceGenNifPath(NPCInfo npcInfo, string rootFolder)
     {
-        FormKey formKey = npcInfo.NPC.FormKey;
+        FormKey formKey = npcInfo.OriginalNPC.FormKey; // Changed: use OriginalNPC for source resolution
+        string pluginName = formKey.ModKey.FileName;
+        string formIdHex = formKey.ID.ToString("X8");
+
+        return Path.Combine(
+            rootFolder,
+            "meshes", "actors", "character",
+            "facegendata", "facegeom",
+            pluginName,
+            formIdHex + ".nif");
+    }
+    
+    /// <summary>
+    /// Resolves the FaceGen NIF path for a given FormKey and root folder.
+    /// Used when the output NIF must be written to a surrogate NPC's path
+    /// rather than the original NPC's path (SkyPatcher mode).
+    /// </summary>
+    public static string ResolveFaceGenNifPathForFormKey(FormKey formKey, string rootFolder)
+    {
         string pluginName = formKey.ModKey.FileName;
         string formIdHex = formKey.ID.ToString("X8");
 
@@ -1663,7 +1704,7 @@ public class FaceGenPatcher
     /// </summary>
     private static string ResolveFaceGenNifBsaSubPath(NPCInfo npcInfo)
     {
-        FormKey formKey = npcInfo.NPC.FormKey;
+        FormKey formKey = npcInfo.OriginalNPC.FormKey; // Changed: use OriginalNPC for BSA lookup
         string pluginName = formKey.ModKey.FileName;
         string formIdHex = formKey.ID.ToString("X8");
 
@@ -1725,12 +1766,12 @@ public class FaceGenPatcher
     {
         extracted = false;
         string bsaSubPath = ResolveFaceGenNifBsaSubPath(npcInfo);
-        FormKey formKey = npcInfo.NPC.FormKey;
+        FormKey formKey = npcInfo.OriginalNPC.FormKey; // Changed: use OriginalNPC
         string extractedPath = Path.Combine(
             _patcherState.ModManagerSettings.TempExtractionFolder,
             formKey.ModKey.FileName + "_" + formKey.ID.ToString("X8") + "_facegen.nif");
 
-        var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcInfo.NPC.FormKey);
+        var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npcInfo.OriginalNPC.FormKey); // Changed: use OriginalNPC
         foreach (var context in contexts)
         {
             if (_bsaHandler.TryOpenCorrespondingArchiveReaders(context.ModKey, out var bsaReaders) &&

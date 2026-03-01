@@ -31,6 +31,8 @@ public class SkyPatcherInterface
         ClearIni();
     }
 
+    // ── Existing methods (unchanged) ──────────────────────────────────────────
+
     public void ApplyFace(FormKey applyTo, FormKey faceTemplate) // This doesn't work if the face texture isn't baked into the facegen nif. Not useful for SynthEBD.
     {
         if (applyTo.IsNull || faceTemplate.IsNull)
@@ -64,6 +66,53 @@ public class SkyPatcherInterface
         
         _outputLines.Add($"filterByNPCs={npc}:height={height}");
     }
+
+    // ── New methods for truth table compliance ────────────────────────────────
+
+    /// <summary>
+    /// Emits a CopyVisualStyle command to transfer FaceGen appearance (face textures
+    /// baked into the nif and/or headpart shapes) from a surrogate NPC to the original.
+    /// 
+    /// Used when:
+    ///   - Asset Nif mode + SkyPatcher (Cases 13, 16): transfers baked face textures
+    ///   - Headpart Nif mode + SkyPatcher (Cases 4, 8, 16): transfers baked headpart shapes
+    ///   - Both (Case 16): single CopyVisualStyle transfers everything from the shared surrogate
+    /// </summary>
+    public void ApplyVisualStyle(FormKey applyTo, FormKey faceTemplate)
+    {
+        if (applyTo.IsNull || faceTemplate.IsNull)
+        {
+            return;
+        }
+        
+        string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
+        string template = BodyGenWriter.FormatFormKeyForBodyGen(faceTemplate);
+        
+        _outputLines.Add($"filterByNPCs={npc}:copyVisualStyle={template}");
+    }
+
+    /// <summary>
+    /// Emits a combined SetSkin + CopyVisualStyle command on a single ini line.
+    /// Used when both body textures (via SetSkin) and FaceGen appearance (via 
+    /// CopyVisualStyle) need to be transferred from a surrogate to the original NPC.
+    /// 
+    /// Applicable to Cases 13 and 16 where Asset mode is Nif + SkyPatcher.
+    /// </summary>
+    public void ApplySkinAndVisualStyle(FormKey applyTo, FormKey skinFk, FormKey faceTemplate)
+    {
+        if (applyTo.IsNull || skinFk.IsNull || faceTemplate.IsNull)
+        {
+            return;
+        }
+        
+        string npc = BodyGenWriter.FormatFormKeyForBodyGen(applyTo); 
+        string skin = BodyGenWriter.FormatFormKeyForBodyGen(skinFk);
+        string template = BodyGenWriter.FormatFormKeyForBodyGen(faceTemplate);
+        
+        _outputLines.Add($"filterByNPCs={npc}:skin={skin}:copyVisualStyle={template}");
+    }
+
+    // ── Output ────────────────────────────────────────────────────────────────
 
     public void WriteIni()
     {
