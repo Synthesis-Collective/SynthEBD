@@ -696,33 +696,41 @@ public class Patcher
                 foreach (var kvp in _assignedHeadPartTransfers)
                 {
                     var formKey = kvp.Key;
-        
-                    // Config-generated headparts (from RecordGenerator) may be keyed by the 
-                    // surrogate FormKey rather than the original NPC FormKey. Resolve back to
-                    // the original so they merge with the NPC's other FaceGen work.
                     var mergeKey = formKey;
-                    var npcInfo = kvp.Value.NpcInfo;
-        
-                    if (formKey.ModKey.Equals(_environmentProvider.OutputMod.ModKey))
+
+                    // Config-generated headparts (from asset replacer scar/marks patching)
+                    // are stored under the surrogate NPC's FormKey because RecordGenerator
+                    // operates on the surrogate's records. Resolve back to the original NPC
+                    // FormKey so they merge with hair/eye/brow assignments for the same NPC
+                    // instead of creating a second FaceGen loop entry that overwrites the first.
+                    if (formKey.ModKey.Equals(outputMod.ModKey))
                     {
-                        // This entry is keyed by a surrogate FormKey — use OriginalNPC's key
-                        // so it merges with asset/hair entries for the same NPC.
-                        mergeKey = npcInfo.OriginalNPC.FormKey;
+                        mergeKey = kvp.Value.NpcInfo.OriginalNPC.FormKey;
                     }
-        
+
                     if (allFaceGenNpcs.TryGetValue(mergeKey, out var existing))
                     {
-                        // Merge: combine headpart assignments with existing entry
-                        var mergedHeadParts = existing.HeadPartAssignments ?? new Dictionary<HeadPart.TypeEnum, FormKey>();
-                        foreach (var hp in kvp.Value.HeadParts)
+                        // Merge headpart assignments into the existing entry.
+                        // Always build a fresh dictionary to avoid mutating source collections
+                        // and to be iteration-order independent — either the original-keyed
+                        // Hair entry or the surrogate-keyed Scar entry may arrive first.
+                        var merged = new Dictionary<HeadPart.TypeEnum, FormKey>();
+                        if (existing.HeadPartAssignments != null)
                         {
-                            mergedHeadParts.TryAdd(hp.Key, hp.Value);
+                            foreach (var hp in existing.HeadPartAssignments)
+                                merged[hp.Key] = hp.Value;
                         }
-                        allFaceGenNpcs[mergeKey] = (existing.NpcInfo, existing.AssetContainers, mergedHeadParts);
+                        foreach (var hp in kvp.Value.HeadParts)
+                            merged.TryAdd(hp.Key, hp.Value);
+
+                        allFaceGenNpcs[mergeKey] = (existing.NpcInfo, existing.AssetContainers, merged);
                     }
                     else
                     {
-                        allFaceGenNpcs[mergeKey] = (npcInfo, null, kvp.Value.HeadParts);
+                        // No prior entry — create a new one under the resolved key.
+                        // Copy the dictionary so later merges don't mutate the source.
+                        allFaceGenNpcs[mergeKey] = (kvp.Value.NpcInfo, null,
+                            new Dictionary<HeadPart.TypeEnum, FormKey>(kvp.Value.HeadParts));
                     }
                 }
             }
