@@ -312,7 +312,7 @@ public class FaceGenPatcher
             if (sourcePath == null)
             {
                 DebugLog(npcInfo, "FaceGen NIF NOT FOUND anywhere — returning.");
-                string message = "FaceGenPatcher: FaceGen NIF not found for NPC.";
+                string message = $"FaceGenPatcher: FaceGen NIF not found for {npcInfo.LogIDstring}.";
                 if (hasTextureWork) message += " Face textures cannot be baked.";
                 if (hasHeadPartWork) message += " Head parts cannot be baked.";
                 LogAndPrint(message, false, npcInfo);

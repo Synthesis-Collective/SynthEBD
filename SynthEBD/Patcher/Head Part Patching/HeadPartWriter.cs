@@ -230,10 +230,10 @@ namespace SynthEBD
                 if (_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
                 {
                     // Nif + SkyPatcher: edit the surrogate's headpart records
-                    if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.NPC, out npc))
+                    if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.OriginalNPC, out npc))
                     {
                         _logger.LogMessage("WARNING: Could not get surrogate for headpart records on NPC " +
-                                           npcInfo.NPC.FormKey + ". Falling back to direct override.");
+                                           npcInfo.LogIDstring + ". Falling back to direct override.");
                         npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
                     }
                 }
@@ -246,10 +246,10 @@ namespace SynthEBD
             else
             {
                 // Script mode: always uses surrogate
-                if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.NPC, out npc))
+                if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.OriginalNPC, out npc))
                 {
                     _logger.LogMessage("WARNING: Could not create surrogate for headpart script assignment on NPC " +
-                                       npcInfo.NPC.FormKey + ". Headpart records will not be applied.");
+                                       npcInfo.LogIDstring + ". Headpart records will not be applied.");
                     return;
                 }
             }
