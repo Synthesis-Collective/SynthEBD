@@ -696,15 +696,33 @@ public class Patcher
                 foreach (var kvp in _assignedHeadPartTransfers)
                 {
                     var formKey = kvp.Key;
-                    if (allFaceGenNpcs.TryGetValue(formKey, out var existing))
+        
+                    // Config-generated headparts (from RecordGenerator) may be keyed by the 
+                    // surrogate FormKey rather than the original NPC FormKey. Resolve back to
+                    // the original so they merge with the NPC's other FaceGen work.
+                    var mergeKey = formKey;
+                    var npcInfo = kvp.Value.NpcInfo;
+        
+                    if (formKey.ModKey.Equals(_environmentProvider.OutputMod.ModKey))
                     {
-                        // NPC already has texture assignments — add headpart assignments.
-                        allFaceGenNpcs[formKey] = (existing.NpcInfo, existing.AssetContainers, kvp.Value.HeadParts);
+                        // This entry is keyed by a surrogate FormKey — use OriginalNPC's key
+                        // so it merges with asset/hair entries for the same NPC.
+                        mergeKey = npcInfo.OriginalNPC.FormKey;
+                    }
+        
+                    if (allFaceGenNpcs.TryGetValue(mergeKey, out var existing))
+                    {
+                        // Merge: combine headpart assignments with existing entry
+                        var mergedHeadParts = existing.HeadPartAssignments ?? new Dictionary<HeadPart.TypeEnum, FormKey>();
+                        foreach (var hp in kvp.Value.HeadParts)
+                        {
+                            mergedHeadParts.TryAdd(hp.Key, hp.Value);
+                        }
+                        allFaceGenNpcs[mergeKey] = (existing.NpcInfo, existing.AssetContainers, mergedHeadParts);
                     }
                     else
                     {
-                        // NPC only has headpart assignments.
-                        allFaceGenNpcs[formKey] = (kvp.Value.NpcInfo, null, kvp.Value.HeadParts);
+                        allFaceGenNpcs[mergeKey] = (npcInfo, null, kvp.Value.HeadParts);
                     }
                 }
             }
