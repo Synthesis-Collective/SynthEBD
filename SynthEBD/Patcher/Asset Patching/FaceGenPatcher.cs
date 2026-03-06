@@ -185,6 +185,7 @@ public class FaceGenPatcher
     private readonly SynthEBDPaths _paths;
     private readonly BSAHandler _bsaHandler;
     private readonly Logger _logger;
+    private readonly SurrogateNPCProvider _surrogateNpcProvider;
 
     // ─── Debug tracing for specific NPCs ────────────────────────────────────
     // Set of NPC FormKeys that get verbose diagnostic logging at every step.
@@ -213,13 +214,15 @@ public class FaceGenPatcher
         PatcherState patcherState,
         SynthEBDPaths paths,
         BSAHandler bsaHandler,
-        Logger logger)
+        Logger logger,
+        SurrogateNPCProvider surrogateNpcProvider)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _paths = paths;
         _bsaHandler = bsaHandler;
         _logger = logger;
+        _surrogateNpcProvider = surrogateNpcProvider;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -468,6 +471,19 @@ public class FaceGenPatcher
             }
 
             // ──────────────────────────────────────────────────────────────────
+            //  Phase C: Surrogate Shape Name Reconciliation
+            // ──────────────────────────────────────────────────────────────────
+            //
+            // When outputting to a surrogate, head part sub-records may have been
+            // duplicated with new EditorIDs. Rename NIF shapes to match so the
+            // engine can pair head part records with their FaceGen geometry.
+            //
+            // Must run after Phase A (all shapes are cloned) but before Phase B
+            // opens its GetShapes() scope, to avoid overlapping SWIG scopes.
+
+            ReconcileSurrogateShapeNames(nif, faceGenSkinNode, npcInfo, headPartAssignments, outputFormKey);
+
+            // ──────────────────────────────────────────────────────────────────
             //  Phase B: Face Texture Baking  (data writes on stable layout)
             // ──────────────────────────────────────────────────────────────────
             //
@@ -484,15 +500,13 @@ public class FaceGenPatcher
             // one method / one `using var shapes` scope.
 
             // Open a single GetShapes() scope that covers both Phase B and Save.
-            using var phaseBShapes = hasTextureWork ? nif.GetShapes() : null;
+            bool needsTintRemap = outputFormKey.HasValue && !outputFormKey.Value.IsNull;
+            using var phaseBShapes = (hasTextureWork || needsTintRemap) ? nif.GetShapes() : null;
 
-            if (hasTextureWork && phaseBShapes != null)
+            NiShape headShape = null;
+
+            if (phaseBShapes != null)
             {
-                DebugLog(npcInfo, "--- Phase B: Face Texture Baking ---");
-
-                // ── Find the head shape via structural traversal ──
-
-                NiShape headShape = null;
                 NiShape sbp30Fallback = null;
                 int shapeIndex = 0;
 
@@ -535,6 +549,13 @@ public class FaceGenPatcher
                 }
 
                 headShape ??= sbp30Fallback;
+            }
+
+            // ── Phase B: Face Texture Baking ──
+
+            if (hasTextureWork)
+            {
+                DebugLog(npcInfo, "--- Phase B: Face Texture Baking ---");
 
                 if (headShape == null)
                 {
@@ -581,6 +602,44 @@ public class FaceGenPatcher
                         DebugLog(npcInfo, "Phase B: done. anyChanges=" + anyChanges);
                     }
                 }
+            }
+            
+            // ──────────────────────────────────────────────────────────────────
+            //  Phase D: Surrogate Face Tint Remapping
+            // ──────────────────────────────────────────────────────────────────
+            //
+            // The engine generates the FaceTint DDS lookup path at runtime from
+            // the NPC's FormKey: FaceGenData\FaceTint\<plugin>\<formId>.dds.
+            // For a surrogate, this resolves to a path that doesn't exist because
+            // the tint was generated for the original NPC, not the surrogate.
+            //
+            // Fix: remap the tint texture slot (slot 6) in the NIF to use the
+            // surrogate's expected tint path, and copy the original tint DDS to
+            // that path so the engine can find it.
+
+            if (needsTintRemap && headShape != null)
+            {
+                var originalFk = npcInfo.OriginalNPC.FormKey;
+                var surrogateFk = outputFormKey.Value;
+
+                // Slot 6 = Subsurface Tint in BSLightingShaderMaterialFacegen
+                const uint FaceTintSlot = 6;
+
+                string surrogateTintRelPath = string.Join("\\",
+                    "textures", "actors", "character",
+                    "facegendata", "facetint",
+                    surrogateFk.ModKey.FileName,
+                    surrogateFk.ID.ToString("X8") + ".dds");
+
+                DebugLog(npcInfo, "Phase D: Remapping tint slot " + FaceTintSlot +
+                                  " → \"" + surrogateTintRelPath + "\"");
+
+                nif.SetTextureSlot(headShape, surrogateTintRelPath, FaceTintSlot);
+                anyChanges = true;
+
+                // Copy (or extract from BSA) the original NPC's face tint DDS
+                // to the surrogate's expected path in the output folder.
+                CopySurrogateFaceTint(npcInfo, originalFk, surrogateFk);
             }
 
             // ── Save the modified NIF ──
@@ -1349,7 +1408,7 @@ public class FaceGenPatcher
         bslsp.hairTintColor = new Vector3(tint.R, tint.G, tint.B);
 
         DebugLog(npcInfo, "  ApplyHairTintToClonedShape: Set \"" +
-            (clonedShape.name?.get() ?? "unnamed") + "\" tint to (" +
+            (clonedShape.name?.get() ?? "unnamed") + " tint to (" +
             tint.R + ", " + tint.G + ", " + tint.B + ")");
     }
 
@@ -1661,6 +1720,203 @@ public class FaceGenPatcher
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  SURROGATE SHAPE NAME RECONCILIATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// When outputting a FaceGen NIF for a surrogate NPC, the shapes are named
+    /// after the ORIGINAL head part EditorIDs. But the surrogate's head part list
+    /// may reference DUPLICATED head parts with modified EditorIDs (e.g. with
+    /// "_SynthEBD_Imported" suffix). The engine matches head part records to
+    /// FaceGen shapes by name, so mismatched names cause rendering failures.
+    ///
+    /// This method builds a mapping from original → imported EditorIDs for all
+    /// head parts that were duplicated during surrogate creation, then renames
+    /// the corresponding shapes in the FaceGen NIF to match.
+    ///
+    /// Head parts from blocked mods (which were NOT duplicated) keep their
+    /// original names — no rename needed since the surrogate references the
+    /// original FormKeys for those.
+    /// </summary>
+    private void ReconcileSurrogateShapeNames(
+        NifFile nif,
+        NiNode faceGenSkinNode,
+        NPCInfo npcInfo,
+        Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments,
+        FormKey? outputFormKey)
+    {
+        // Only applies when outputting to a surrogate
+        if (!outputFormKey.HasValue || outputFormKey.Value.IsNull)
+        {
+            return;
+        }
+
+        // ── Build the EditorID rename mapping ──
+        //
+        // Collect all head part FormKeys that could have shapes in the NIF:
+        //   a) Assigned head parts (cloned by Phase A from headPartAssignments)
+        //   b) Original NPC's existing head parts (already in the source FaceGen NIF)
+        //
+        // For each, check if the FormKey was remapped during surrogate creation.
+        // If so, the shape needs renaming from the original EditorID to the
+        // imported EditorID.
+
+        var editorIdRenameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var linkCache = _environmentProvider.LinkCache;
+
+        // Collect candidate FormKeys from both sources
+        var candidateFormKeys = new HashSet<FormKey>();
+
+        if (headPartAssignments != null)
+        {
+            foreach (var kvp in headPartAssignments)
+            {
+                if (!kvp.Value.IsNull) candidateFormKeys.Add(kvp.Value);
+            }
+        }
+
+        if (npcInfo.OriginalNPC?.HeadParts != null)
+        {
+            foreach (var hp in npcInfo.OriginalNPC.HeadParts)
+            {
+                if (!hp.IsNull) candidateFormKeys.Add(hp.FormKey);
+            }
+        }
+
+        // For each candidate, check if it was remapped and build the rename entry
+        foreach (var originalFk in candidateFormKeys)
+        {
+            if (!_surrogateNpcProvider.TryGetImportedFormKey(originalFk, out var importedFk))
+            {
+                continue; // Not remapped (blocked mod, different source mod, etc.) — no rename needed
+            }
+
+            if (!linkCache.TryResolve<IHeadPartGetter>(originalFk, out var originalHp))
+            {
+                continue;
+            }
+
+            if (!linkCache.TryResolve<IHeadPartGetter>(importedFk, out var importedHp))
+            {
+                continue;
+            }
+
+            string originalEditorId = originalHp.EditorID ?? originalHp.FormKey.ToString();
+            string importedEditorId = importedHp.EditorID ?? importedHp.FormKey.ToString();
+
+            if (!originalEditorId.Equals(importedEditorId, StringComparison.OrdinalIgnoreCase))
+            {
+                editorIdRenameMap.TryAdd(originalEditorId, importedEditorId);
+            }
+
+            // Also handle ExtraParts — each extra part gets its own shape in the NIF
+            BuildExtraPartRenames(originalHp, editorIdRenameMap);
+        }
+
+        if (editorIdRenameMap.Count == 0)
+        {
+            DebugLog(npcInfo, "ReconcileSurrogateShapeNames: no renames needed");
+            return;
+        }
+
+        DebugLog(npcInfo, "ReconcileSurrogateShapeNames: " + editorIdRenameMap.Count + " rename(s) to apply");
+
+        // ── Apply renames to shapes under BSFaceGenNiNodeSkinned ──
+
+        using var shapes = nif.GetShapes();
+        foreach (var shape in shapes)
+        {
+            if (!IsUnderFaceGenSkinNode(nif, shape))
+            {
+                continue;
+            }
+
+            string currentName = shape.name?.get();
+            if (string.IsNullOrEmpty(currentName))
+            {
+                continue;
+            }
+
+            // Check for exact match first
+            if (editorIdRenameMap.TryGetValue(currentName, out var newName))
+            {
+                shape.name = new NiStringRef(newName);
+
+                _logger.LogReport(
+                    "FaceGenPatcher: Renamed surrogate shape \"" + currentName +
+                    "\" → \"" + newName + "\"",
+                    false, npcInfo);
+                continue;
+            }
+
+            // Check for indexed names (multi-shape head parts: "EditorId_0", "EditorId_1", etc.)
+            // SwapSingleHeadPartModel appends "_N" when a head part model has multiple shapes.
+            int lastUnderscore = currentName.LastIndexOf('_');
+            if (lastUnderscore > 0 && int.TryParse(currentName.Substring(lastUnderscore + 1), out _))
+            {
+                string baseName = currentName.Substring(0, lastUnderscore);
+                string suffix = currentName.Substring(lastUnderscore); // includes the underscore
+
+                if (editorIdRenameMap.TryGetValue(baseName, out var newBaseName))
+                {
+                    string newIndexedName = newBaseName + suffix;
+                    shape.name = new NiStringRef(newIndexedName);
+
+                    _logger.LogReport(
+                        "FaceGenPatcher: Renamed surrogate shape \"" + currentName +
+                        "\" → \"" + newIndexedName + "\"",
+                        false, npcInfo);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Recursively adds ExtraPart renames to the mapping. Each extra part
+    /// referenced by a head part can also have its sub-records duplicated,
+    /// resulting in a renamed EditorID that needs reconciliation.
+    /// </summary>
+    private void BuildExtraPartRenames(
+        IHeadPartGetter headPartGetter,
+        Dictionary<string, string> editorIdRenameMap)
+    {
+        if (headPartGetter.ExtraParts == null) return;
+
+        var linkCache = _environmentProvider.LinkCache;
+
+        foreach (var extraPartLink in headPartGetter.ExtraParts)
+        {
+            if (extraPartLink.IsNull) continue;
+
+            if (!_surrogateNpcProvider.TryGetImportedFormKey(extraPartLink.FormKey, out var importedExtraFk))
+            {
+                continue;
+            }
+
+            if (!linkCache.TryResolve<IHeadPartGetter>(extraPartLink.FormKey, out var originalExtra))
+            {
+                continue;
+            }
+
+            if (!linkCache.TryResolve<IHeadPartGetter>(importedExtraFk, out var importedExtra))
+            {
+                continue;
+            }
+
+            string originalExtraEditorId = originalExtra.EditorID ?? originalExtra.FormKey.ToString();
+            string importedExtraEditorId = importedExtra.EditorID ?? importedExtra.FormKey.ToString();
+
+            if (!originalExtraEditorId.Equals(importedExtraEditorId, StringComparison.OrdinalIgnoreCase))
+            {
+                editorIdRenameMap.TryAdd(originalExtraEditorId, importedExtraEditorId);
+            }
+
+            // Recurse — extra parts can reference their own extra parts
+            BuildExtraPartRenames(originalExtra, editorIdRenameMap);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  PATH RESOLUTION
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1822,6 +2078,85 @@ public class FaceGenPatcher
         }
 
         return null;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  SURROGATE FACE TINT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Copies the original NPC's face tint DDS to the surrogate NPC's expected
+    /// tint path in the output folder. Tries loose files first, then BSA extraction.
+    ///
+    /// The engine looks up FaceTint textures at runtime using the NPC's own FormKey:
+    ///   textures\actors\character\FaceGenData\FaceTint\{plugin}\{formId}.dds
+    /// Since the surrogate has a different FormKey, it needs its own copy of the
+    /// tint texture at the surrogate's expected path.
+    /// </summary>
+    private void CopySurrogateFaceTint(NPCInfo npcInfo, FormKey originalFk, FormKey surrogateFk)
+    {
+        string originalTintRelPath = ResolveFaceTintRelPath(originalFk);
+        string surrogateTintRelPath = ResolveFaceTintRelPath(surrogateFk);
+
+        string surrogateTintAbsPath = Path.Combine(_paths.OutputDataFolder, surrogateTintRelPath);
+
+        // Already copied (e.g. from a previous call for the same surrogate)
+        if (File.Exists(surrogateTintAbsPath))
+        {
+            return;
+        }
+
+        // Try loose file first
+        string originalTintAbsPath = Path.Combine(_environmentProvider.DataFolderPath, originalTintRelPath);
+
+        if (File.Exists(originalTintAbsPath))
+        {
+            string dir = Path.GetDirectoryName(surrogateTintAbsPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            File.Copy(originalTintAbsPath, surrogateTintAbsPath, true);
+            _logger.LogReport(
+                "FaceGenPatcher: Copied face tint DDS to surrogate path: " + surrogateTintAbsPath,
+                false, npcInfo);
+            return;
+        }
+
+        // Try BSA extraction
+        string bsaSubPath = originalTintRelPath.Replace('/', '\\');
+
+        var contexts = _environmentProvider.LinkCache
+            .ResolveAllContexts<INpc, INpcGetter>(originalFk);
+
+        foreach (var context in contexts)
+        {
+            if (_bsaHandler.TryOpenCorrespondingArchiveReaders(context.ModKey, out var bsaReaders) &&
+                _bsaHandler.ReadersHaveFile(bsaSubPath, bsaReaders, out var file) &&
+                _bsaHandler.TryExtractFileFromBSA(file, surrogateTintAbsPath))
+            {
+                _logger.LogReport(
+                    "FaceGenPatcher: Extracted face tint DDS from BSA to surrogate path: " +
+                    surrogateTintAbsPath,
+                    false, npcInfo);
+                return;
+            }
+        }
+
+        _logger.LogReport(
+            "FaceGenPatcher: WARNING — Face tint DDS not found for " + originalFk +
+            " (loose or BSA). Surrogate " + surrogateFk + " may have missing tint.",
+            true, npcInfo);
+    }
+
+    /// <summary>
+    /// Builds the Data-relative path for an NPC's face tint DDS.
+    /// </summary>
+    private static string ResolveFaceTintRelPath(FormKey formKey)
+    {
+        return string.Join("\\",
+            "textures", "actors", "character",
+            "facegendata", "facetint",
+            formKey.ModKey.FileName,
+            formKey.ID.ToString("X8") + ".dds");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

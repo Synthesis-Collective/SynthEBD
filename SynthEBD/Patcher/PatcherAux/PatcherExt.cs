@@ -149,6 +149,15 @@ public static class PatcherExt
                 {
                     newNpc.TintLayers.AddRange(npcGetter.TintLayers.Select(t => t.DeepCopy()));
                 }
+
+                if (npcGetter.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
+                {
+                    newNpc.Configuration.Flags |= NpcConfiguration.Flag.Female;
+                }
+                else
+                {
+                    newNpc.Configuration.Flags &= ~NpcConfiguration.Flag.Female;
+                }
             }
         }
         else

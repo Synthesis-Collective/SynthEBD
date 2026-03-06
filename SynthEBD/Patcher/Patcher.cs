@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Documents;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
@@ -112,6 +113,118 @@ public class Patcher
 
         _assetsStatsTracker = new(_patcherState, _logger, _environmentProvider.LinkCache);
     }
+    
+    /// <summary>
+    /// Main patcher entry point. Runs asset selection, headpart selection, height
+    /// assignment, body shape assignment, and all post-selection application steps
+    /// including record generation, FaceGen NIF patching, and SkyPatcher ini emission.
+    ///
+    /// <para><b>Configuration Axes</b></para>
+    ///
+    /// Two independent feature systems — asset patching (body/face textures) and
+    /// headpart patching — each have two configuration axes:
+    ///
+    ///   <b>Patching Mode</b> — how visual changes reach the NPC at runtime:
+    ///     • Script: a Papyrus script applies textures/headparts at runtime via
+    ///       JSON dictionaries. The FaceGen NIF is not modified.
+    ///     • Nif (Mesh): textures are baked into the FaceGen NIF's shader texture
+    ///       set, and/or headpart shapes are cloned into the NIF. The NIF file IS
+    ///       the delivery mechanism — no runtime script needed for that feature.
+    ///
+    ///   <b>SkyPatcher Mode</b> — whether SkyPatcher handles record-level changes:
+    ///     • Off: the patcher writes an override record for the NPC directly in
+    ///       SynthEBD.esp (e.g. setting WornArmor, HeadParts on the NPC record).
+    ///     • On:  the patcher creates a <i>surrogate</i> NPC record in SynthEBD.esp
+    ///       with the desired appearance, then emits SkyPatcher ini commands to
+    ///       transfer that appearance to the original NPC at runtime. This avoids
+    ///       touching the original NPC's plugin record, improving compatibility
+    ///       with other mods that also edit NPC records.
+    ///
+    /// For assets, SkyPatcher uses <c>skin=</c> (SetSkin) to swap the WornArmor
+    /// at runtime, and <c>copyVisualStyle=</c> (CopyVisualStyle) to transfer the
+    /// surrogate's baked FaceGen NIF (face textures and/or headpart shapes) to the
+    /// original NPC. When both are needed, they must appear on the same ini line.
+    ///
+    /// <para><b>Truth Table</b></para>
+    ///
+    /// The four boolean axes produce 16 configurations. Each row describes what
+    /// the patcher does for that combination. "Case N" labels are referenced by
+    /// comments throughout the codebase.
+    ///
+    /// <code>
+    /// Case  Asset    Asset     Headpart  Headpart  │ Asset Outputs             │ Headpart Outputs          │ SkyPatcher ini
+    ///       Mode     SkyPatch  Mode      SkyPatch  │                           │                           │
+    /// ───── ──────── ───────── ───────── ───────── │ ───────────────────────── │ ───────────────────────── │ ────────────────────────
+    ///  1    Script   No        Script    No        │ Script JSON               │ Script JSON               │ (none)
+    ///  2    Script   No        Script    Yes       │ Script JSON               │ Script JSON (a)           │ (none)
+    ///  3    Script   No        Nif       No        │ Script JSON               │ NIF → original path       │ (none)
+    ///                                              │                           │ HP records on NPC         │
+    ///  4    Script   No        Nif       Yes       │ Script JSON               │ NIF → surrogate path      │ copyVisualStyle
+    ///                                              │                           │ HP records on surrogate   │
+    ///  5    Script   Yes       Script    No        │ WNAM on surrogate         │ Script JSON               │ skin
+    ///  6    Script   Yes       Script    Yes       │ WNAM on surrogate         │ Script JSON (a)           │ skin
+    ///  7    Script   Yes       Nif       No        │ WNAM on surrogate         │ NIF → original path       │ skin
+    ///                                              │                           │ HP records on NPC         │
+    ///  8    Script   Yes       Nif       Yes       │ WNAM on surrogate         │ NIF → surrogate path      │ skin + copyVisualStyle (b)
+    ///                                              │                           │ HP records on surrogate   │
+    ///  9    Nif      No        Script    No        │ NIF → original path       │ Script JSON               │ (none)
+    /// 10    Nif      No        Script    Yes       │ NIF → original path       │ Script JSON (a)           │ (none)
+    /// 11    Nif      No        Nif       No        │ NIF → original path       │ NIF → original path       │ (none)
+    ///                                              │ (unified single NIF)      │ (unified single NIF)      │
+    /// 12    Nif      No        Nif       Yes       │ NIF → original path       │ NIF → original path (c)   │ (none) (c)
+    ///                                              │ (unified single NIF)      │ HP records on NPC         │
+    /// 13    Nif      Yes       Script    No        │ NIF → surrogate path      │ Script JSON               │ skin + copyVisualStyle
+    /// 14    Nif      Yes       Script    Yes       │ NIF → surrogate path      │ Script JSON (a)           │ skin + copyVisualStyle
+    /// 15    Nif      Yes       Nif       No        │ NIF → surrogate path      │ NIF → surrogate path (c)  │ skin + copyVisualStyle (c)
+    ///                                              │ (unified single NIF)      │ HP records on NPC         │
+    /// 16    Nif      Yes       Nif       Yes       │ NIF → surrogate path      │ NIF → surrogate path      │ skin + copyVisualStyle
+    ///                                              │ (unified single NIF)      │ HP records on surrogate   │
+    /// </code>
+    ///
+    /// Notes:
+    ///   (a) Headpart SkyPatcher=Yes with Script mode is a no-op — the SkyPatcher
+    ///       flag only has effect when headpart mode is Nif. Script-mode headparts
+    ///       are always applied via JSON/script regardless of the SkyPatcher flag.
+    ///   (b) In Case 8 the asset SetSkin is emitted by RecordGenerator (Script mode
+    ///       assets don't go through the FaceGen loop), while CopyVisualStyle is
+    ///       emitted by the FaceGen loop. These appear as separate ini lines since
+    ///       they target different surrogates (asset surrogate for skin, headpart
+    ///       surrogate for visual style).
+    ///   (c) Cases 12 and 15 are asymmetric: one axis wants a surrogate (SkyPatcher=Yes)
+    ///       while the other does not. The NIF is written to the original path because
+    ///       the non-SkyPatcher Nif axis requires it there, and the SkyPatcher axis
+    ///       cannot use a surrogate path without breaking the other axis. Headpart
+    ///       records are written to the original NPC. No surrogate is created.
+    ///
+    /// <para><b>Key Implementation Details</b></para>
+    ///
+    /// • <b>Surrogate NPC</b>: A new NPC record in SynthEBD.esp with a new FormKey,
+    ///   created by <see cref="SurrogateNPCProvider"/>. Holds duplicated WornArmor,
+    ///   HeadTexture, and full appearance data (Race, HairColor, HeadParts, FaceMorph,
+    ///   FaceParts, Height, Weight, TextureLighting, TintLayers). One surrogate per
+    ///   original NPC, shared across all features.
+    ///
+    /// • <b>Unified FaceGen loop</b>: When either or both Nif modes are active, a
+    ///   single loop iterates all NPCs needing FaceGen work. For each NPC, the NIF is
+    ///   opened once, Phase A (headpart shape swapping) and Phase B (face texture baking)
+    ///   are applied, Phase D (surrogate tint path remapping) adjusts the face tint
+    ///   texture slot and copies the DDS, then the NIF is saved once. This avoids the
+    ///   double-open/double-save problem when both features modify the same NIF.
+    ///
+    /// • <b>Face tint DDS</b>: The engine resolves FaceTint textures at runtime from
+    ///   the NPC's FormKey. For surrogates, the original NPC's tint DDS is copied to
+    ///   the surrogate's expected path, and the NIF's tint texture slot is remapped.
+    ///
+    /// • <b>SkyPatcher ini emission</b>: SetSkin and CopyVisualStyle for the same NPC
+    ///   are combined on a single ini line via <see cref="SkyPatcherInterface.ApplySkinAndVisualStyle"/>
+    ///   when both are needed (Cases 13–16 with asset Nif + SkyPatcher). WriteIni()
+    ///   runs after the FaceGen loop to capture all entries.
+    ///
+    /// • <b>RecordGenerator interaction</b>: In asset Nif + SkyPatcher mode,
+    ///   RecordGenerator suppresses its standalone ApplySkin call. The combined
+    ///   skin + copyVisualStyle command is instead emitted by the FaceGen loop.
+    ///   In asset Script + SkyPatcher mode, RecordGenerator emits ApplySkin normally.
+    /// </summary>
 
     //Synchronous version for debugging only
     //public static void RunPatcher(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, List<HeightConfig> heightConfigs, Dictionary<string, NPCAssignment> consistency, HashSet<NPCAssignment> specificNPCAssignments, BlockList blockList, HashSet<string> linkedNPCNameExclusions, HashSet<LinkedNPCGroup> linkedNPCGroups, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins, VM_StatusBar statusBar)
@@ -610,12 +723,6 @@ public class Patcher
                     var headPartAssignments = kvp.Value.HeadPartAssignments;
 
                     // ── Determine if this NPC's FaceGen output goes to a surrogate ──
-                    //
-                    // Surrogate is needed when EITHER:
-                    //   a) Asset Nif + SkyPatcher and this NPC has texture work (Cases 13, 16)
-                    //   b) Headpart Nif + SkyPatcher and this NPC has headpart work (Cases 4, 8, 16)
-                    //
-                    // When both are active (Case 16), a single shared surrogate is used.
 
                     bool thisNpcAssetToSurrogate = assetNifToSurrogate && assetContainers != null && assetContainers.Any();
                     bool thisNpcHeadpartToSurrogate = headpartNifToSurrogate && headPartAssignments != null && headPartAssignments.Any();
@@ -646,43 +753,31 @@ public class Patcher
                     }
 
                     // ── Patch the FaceGen NIF ──
-                    //
-                    // PatchFaceGenNif returns false if the NPC was skipped due to stale output.
-                    // In that case, skip headpart record application to avoid mismatches.
 
                     bool success = _faceGenPatcher.PatchFaceGenNif(
                         npcInfo, assetContainers, headPartAssignments, outputFormKey);
 
                     // ── Apply headpart records ──
-                    //
-                    // HeadPartWriter.ApplyHeadPartRecords handles routing to the correct NPC 
-                    // (original or surrogate) based on HeadPartSettings.bSkyPatcherModeHeadparts.
-                    // It uses _npcProvider.GetNpc which returns the same cached surrogate.
 
                     if (success && useHeadPartMeshMode && headPartAssignments != null)
                     {
                         _headPartWriter.ApplyHeadPartRecords(npcInfo, headPartAssignments);
                     }
 
-                    // ── Emit SkyPatcher commands for surrogate → original transfer ──
+                    // ── Emit SkyPatcher commands ──
                     //
-                    // When the asset side uses Nif + SkyPatcher, both SetSkin (body 
-                    // textures) and CopyVisualStyle (FaceGen appearance) must appear on 
-                    // the SAME ini line so SkyPatcher processes them atomically.
+                    // When asset Nif + SkyPatcher (Cases 13, 16): emit combined
+                    // SetSkin + CopyVisualStyle. RecordGenerator suppressed its
+                    // ApplySkin call in Mesh mode so it must be emitted here.
                     //
-                    // RecordGenerator's standalone ApplySkin is suppressed for Mesh mode
-                    // (see FIX 3) — the combined command is emitted here instead.
-                    //
-                    // When only headpart Nif + SkyPatcher is active (no asset surrogate),
-                    // we emit CopyVisualStyle alone — SetSkin was already emitted by
-                    // RecordGenerator for the asset Script + SkyPatcher case, or isn't
-                    // needed if asset SkyPatcher is off.
+                    // When headpart-only SkyPatcher (Cases 4, 8): emit
+                    // CopyVisualStyle only. SetSkin was already emitted by
+                    // RecordGenerator (or is not applicable).
 
                     if (success && outputToSurrogate && surrogateNpc != null)
                     {
                         if (thisNpcAssetToSurrogate)
                         {
-                            // Cases 13, 16: Asset Nif + SkyPatcher → combined SetSkin + CopyVisualStyle
                             _skyPatcherInterface.ApplySkinAndVisualStyle(
                                 npcInfo.OriginalNPC.FormKey,
                                 surrogateNpc.WornArmor.FormKey,
@@ -690,9 +785,6 @@ public class Patcher
                         }
                         else
                         {
-                            // Cases 4, 8: Headpart-only SkyPatcher → CopyVisualStyle only.
-                            // SetSkin either already emitted by RecordGenerator (asset Script
-                            // + SkyPatcher) or not needed (asset SkyPatcher off).
                             _skyPatcherInterface.ApplyVisualStyle(
                                 npcInfo.OriginalNPC.FormKey,
                                 surrogateNpc.FormKey);
