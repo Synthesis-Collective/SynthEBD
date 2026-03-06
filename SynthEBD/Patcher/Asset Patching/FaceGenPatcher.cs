@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -192,13 +192,15 @@ public class FaceGenPatcher
     // Remove or clear this set once debugging is complete.
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey,
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Saadia.FormKey,
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hulda.FormKey,
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
     {
         return npcInfo?.NPC?.FormKey != null &&
-               DebugFormKeys.Contains(npcInfo.NPC.FormKey);
+               DebugFormKeys.Contains(npcInfo.OriginalNPC.FormKey);
     }
 
     private void DebugLog(NPCInfo npcInfo, string message)
