@@ -240,7 +240,7 @@ namespace SynthEBD
                 else
                 {
                     // Nif without SkyPatcher: edit the original NPC directly
-                    npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                    npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.OriginalNPC);
                 }
             }
             else
