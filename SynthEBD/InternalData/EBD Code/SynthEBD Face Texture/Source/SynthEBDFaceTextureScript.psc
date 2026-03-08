@@ -13,11 +13,23 @@ string[] property TriggerEventNames auto
 Spell property SynthEBDFaceTextureSpell Auto
 string property ScriptEditorIdMode Auto
 
-State Busy
+string SCRIPT_VERSION = "1.1.0" ; Bump this when making changes so users can verify the correct .pex is loaded in-game
 
+float lastTextureApplyTime = 0.0 ; Tracks when textures were last applied to suppress self-triggered OnNiNodeUpdate feedback loops
+float NPC_COOLDOWN = 3.0 ; Cooldown in seconds for NPCs after texture application before accepting another OnNiNodeUpdate
+float PLAYER_COOLDOWN = 10.0 ; Longer cooldown for the player, who receives far more NiNodeUpdate events from other mods (RaceMenu, camera, animations, etc.)
+
+State Busy
+	; While Busy, silently drop all incoming events to prevent re-entrant calls
+	Event OnNiNodeUpdate(ObjectReference akActorRef)
+	EndEvent
+
+	Event OnSynthEBDSubscribedEvent(string eventName, string strArg, float numArg, Form sender)
+	EndEvent
 EndState
 
 EVENT OnEffectStart(Actor akTarget, Actor akActor)
+	debug.Trace("SynthEBD: FaceTextureScript v" + SCRIPT_VERSION + " loaded")
 	RegisterForNiNodeUpdate() ; Registers for the NiNodeUpdate event
 	RegisterForCustomEvents() ; Registers for additional events via the SynthEBD UI
 	RegisterForModEvent("SynthEBD_ReloadFaces", "OnGameHasLoaded")
@@ -26,8 +38,16 @@ EVENT OnEffectStart(Actor akTarget, Actor akActor)
 EndEvent
 
 Event OnNiNodeUpdate(ObjectReference akActorRef) ; Other scripts calling QueNiNodeUpdate overrides the SynthEBD-applied face texture, so the texture needs to be re-applied on this event.
+	; Suppress self-triggered feedback: SetNodeTextureSet fires OnNiNodeUpdate,
+	; which would re-enter SetTextures, causing a rapid-fire loop.
+	float elapsed = Utility.GetCurrentRealTime() - lastTextureApplyTime
 	Actor akActor = akActorRef as Actor
 	if (akActor)
+		if (akActor == PlayerREF && elapsed < PLAYER_COOLDOWN)
+			return
+		elseif (akActor != PlayerREF && elapsed < NPC_COOLDOWN)
+			return
+		endIf
 		SetTextures(akActor, "OnNiNodeUpdate")
 	else
 		VerboseLogger("SynthEBD: " + akActorRef  + "received an NiNodeUpdate but is not an actor", VerboseMode.GetValue(), true)	
@@ -67,7 +87,6 @@ Event OnPlayerLoadGame() ; Fix actors in current cell when player reloads game.
 EndEvent
 
 function SetTextures(Actor akActor, string eventName)
-	;ClearActorEffect(akActor, GetBaseObject(), SynthEBDFaceTextureSpell) ; EBD SSE used spell dispelling to fix texture application on game load, but dispelling prevents this script from detecting events after OnEffectStart. This functionality has been replaced by repurposing FixDeadActors() as FixDeadActors(). 
 	if (akActor && isSKSEinstalled() && FaceTextureScriptActive.getValue() == 1)
 		If (akActor == PlayerREF)
 			FixDeadActors()	; Still necessary here, as well as OnPlayerLoadGame, to fix dead actor faces when the player changes cells
@@ -163,8 +182,8 @@ function SetTextures(Actor akActor, string eventName)
 				faceEDID = getEDID(akActorFaceTexSet)
 			EndIf
 			
+			lastTextureApplyTime = Utility.GetCurrentRealTime() ; Record when we finished so OnNiNodeUpdate can suppress the self-triggered event
 			GoToState("")
-			;VerboseLogger("SynthEBD: " + akActorBase.GetName()  + " got the following FaceTextureSet: " + faceEDID + "; Skin: " + skinEDID, VerboseMode.GetValue(), true)
 			VerboseLogger("SynthEBD: " + akActorBase.GetName()  + " got the following FaceTextureSet: " + faceEDID, VerboseMode.GetValue(), true)			
 		EndIf					
 	EndIf
@@ -195,8 +214,6 @@ string[] Function GetTextureAssignmentInfo(ActorBase akActorBase)
 			outputs[0] = "False"
 		EndIf
 	EndIf
-	
-	;VerboseLogger(akActorBase.getName() + " " + outputs[0] + " "  + outputs[1] + " "  + outputs[2], true, true)
 	
 	return outputs
 EndFunction
@@ -269,4 +286,3 @@ Function FixFaceTextureNew(Actor akActor, ActorBase akActorBase, TextureSet akAc
 		EndIf
 	EndIf	
 EndFunction
-
