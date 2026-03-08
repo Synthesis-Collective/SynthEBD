@@ -81,6 +81,7 @@ function SetTextures(Actor akActor, string eventName)
 		
 		if (IsTextureEligible(textureAssignmentInfo))
 			VerboseLogger("SynthEBD: " + akActorBase.GetName() + ": " + eventName  + " called  FaceTexture script", VerboseMode.GetValue(), true)	
+			VerboseLogger("SynthEBD: " + akActorBase.GetName() + ": " + "Face Assignment: " + faceDbAssignment + " | Skin Assignment: " + skinDbAssignment, VerboseMode.GetValue(), false)	
 		
 			GoToState("Busy")
 			Utility.Wait(getWaitTimeByDistance(PlayerREF.GetDistance(akActor)))	; Apply textures to other NPCs first if they're closer to the player	
@@ -135,6 +136,9 @@ function SetTextures(Actor akActor, string eventName)
 				form faceTextureForm = SynthEBDCommonFuncs.FormKeyToForm(faceDbAssignment, false, false)
 				if (faceTextureForm)
 					akActorFaceTexSet = faceTextureForm as TextureSet
+					VerboseLogger("SynthEBD: " + akActorBase.GetName() + ": Face Texture form is: " + akActorFaceTexSet, VerboseMode.GetValue(), true)	
+				else
+					VerboseLogger("SynthEBD: " + akActorBase.GetName() + ": Could not resolve form from string: " + faceDbAssignment, VerboseMode.GetValue(), true)
 				EndIf
 			EndIf
 			
