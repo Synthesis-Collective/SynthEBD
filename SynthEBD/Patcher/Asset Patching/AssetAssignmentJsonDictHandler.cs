@@ -55,11 +55,6 @@ public class AssetAssignmentJsonDictHandler
     
     public void WriteAssignmentDictionaryScriptMode()
     {
-        if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
-        {
-            return;
-        }
-        
         if (!_faceTextureAssignments.Any() && !_skinTextureAssignments.Any())
         {
             _logger.LogMessage("No assets were assigned to any NPCs. Asset Database will not be generated.");
@@ -92,6 +87,11 @@ public class AssetAssignmentJsonDictHandler
         
         if (_skinTextureAssignments.Any())
         {
+            if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
+            {
+                return; // skin is handled by SkyPatcher in SkyPatcher Mode
+            }
+            
             string outputStr = JSONhandler<Dictionary<string, string>>.Serialize((_skinTextureAssignments), out bool success, out string exception);
             if (!success)
             {
