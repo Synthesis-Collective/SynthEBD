@@ -36,7 +36,10 @@ public class RecordPathParser
     private static Interpreter CreateInterpreter()
     {
         var interp = new Interpreter();
-        interp.Reference(typeof(Mutagen.Bethesda.Skyrim.BipedObjectFlag));
+        var skyrimTypes = typeof(Mutagen.Bethesda.Skyrim.BipedObjectFlag).Assembly
+            .GetExportedTypes()
+            .Select(t => new ReferenceType(t));
+        interp.Reference(skyrimTypes);
         return interp;
     }
 
