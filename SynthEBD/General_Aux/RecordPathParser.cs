@@ -40,6 +40,8 @@ public class RecordPathParser
         return interp;
     }
 
+    private static readonly Dictionary<string, Lambda> _lambdaCache = new();
+
     private static bool EvalBoolExpression(string expression, List<dynamic> parameters)
     {
         var dynParams = new Parameter[parameters.Count];
@@ -48,7 +50,21 @@ public class RecordPathParser
             object val = (object)parameters[i];
             dynParams[i] = new Parameter("_" + i, val.GetType(), val);
         }
-        return _dynExpInterpreter.Eval<bool>(expression, dynParams);
+
+        // Build a cache key from the expression text + the parameter type signature
+        string cacheKey = expression;
+        for (int i = 0; i < dynParams.Length; i++)
+        {
+            cacheKey += "|" + dynParams[i].Type.FullName;
+        }
+
+        if (!_lambdaCache.TryGetValue(cacheKey, out Lambda lambda))
+        {
+            lambda = _dynExpInterpreter.Parse(expression, dynParams);
+            _lambdaCache[cacheKey] = lambda;
+        }
+
+        return (bool)lambda.Invoke(dynParams);
     }
 
     //note: To allow the most flexibility in alternative usages, rootRecord can be any IMajorRecordGetter, but in SynthEBD it should always be the root INpcGetter.
