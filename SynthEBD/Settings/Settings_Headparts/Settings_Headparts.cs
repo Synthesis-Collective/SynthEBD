@@ -10,12 +10,12 @@ namespace SynthEBD
     public enum HeadPartPatchingMode
     {
         Script,
-        Nif
+        NifEdit
     }
     
     public class Settings_Headparts
     {
-        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.Script;
+        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.NifEdit;
         public Dictionary<HeadPart.TypeEnum, Settings_HeadPartType> Types { get; set; } = new()
         {
             { HeadPart.TypeEnum.Eyebrows, new() },

@@ -40,7 +40,7 @@ namespace SynthEBD
         };
 
         public VM_Settings_Headparts ParentMenu { get; set; }
-        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.Script;
+        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.NifEdit;
         public IEnumerable<HeadPartPatchingMode> PatchingModeOptions { get; } = Enum.GetValues<HeadPartPatchingMode>();
         public bool bUseVerboseScripts { get; set; } = false;
         public bool bSkyPatcherModeHeadparts { get; set; } = false;

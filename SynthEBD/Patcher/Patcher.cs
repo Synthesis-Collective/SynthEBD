@@ -330,7 +330,7 @@ public class Patcher
         GlobalShort gFaceTextureVerboseMode = null;
 
         bool useFaceMeshMode = _patcherState.GeneralSettings.bChangeMeshesOrTextures 
-                               && _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh;
+                               && _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.NifEdit;
 
         if (assetScriptMode)
         {
@@ -481,7 +481,7 @@ public class Patcher
         
         // Check if we are using Mesh mode
         bool useHeadPartMeshMode = _patcherState.GeneralSettings.bChangeHeadParts 
-                                   && _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif;
+                                   && _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit;
         bool useHeadPartSkyPatcher = _patcherState.GeneralSettings.bChangeHeadParts 
                                      && _patcherState.HeadPartSettings.bSkyPatcherModeHeadparts;
 

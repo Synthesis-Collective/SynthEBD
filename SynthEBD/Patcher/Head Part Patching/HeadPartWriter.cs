@@ -225,7 +225,7 @@ namespace SynthEBD
             Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
         {
             Npc npc;
-            if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif)
+            if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit)
             {
                 if (_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
                 {
