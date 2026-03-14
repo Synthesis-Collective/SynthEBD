@@ -173,6 +173,7 @@ public class HardcodedRecordGenerator
         npcObjectMap.Add("HeadTexture", headTex);
 
         patchedNPC.HeadTexture.SetTo(headTex);
+        RecordGenerator.LogRecordAlongPaths(paths, headTex);
         return headTex;
     }
 
@@ -189,6 +190,7 @@ public class HardcodedRecordGenerator
         if (npcInfo.NPC.WornArmor != null && !npcInfo.NPC.WornArmor.IsNull && RecordGenerator.TryGetModifiedRecord(pathSignature, npcInfo.NPC.WornArmor.FormKey, out newSkin))
         {
             assignedFromDictionary = true;
+            RecordGenerator.LogRecordAlongPaths(paths, newSkin);
         }
         else if (!npcInfo.NPC.WornArmor.IsNull && mainLinkCache.TryResolve<IArmorGetter>(npcInfo.NPC.WornArmor.FormKey, out var existingWNAM))
         {
@@ -200,6 +202,7 @@ public class HardcodedRecordGenerator
         else if (TryGetGeneratedRecord(pathSignature, templateNPC, out newSkin))
         {
             assignedFromDictionary = true;
+            RecordGenerator.LogRecordAlongPaths(paths, newSkin);
         }
         else if (templateNPC != null && !templateNPC.WornArmor.IsNull && templateLinkCache.TryResolve<IArmorGetter>(templateNPC.WornArmor.FormKey, out var templateWNAM))
         {

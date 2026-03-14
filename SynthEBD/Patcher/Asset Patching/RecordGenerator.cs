@@ -240,15 +240,19 @@ public class RecordGenerator
 
         _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, this);
 
+        // snapshot before AssignGenericAssetPaths modifies the list (removes paths as they complete or hit cache)
+        var allNonHardcodedPaths = nonHardcodedPaths.ToList();
+
         if (nonHardcodedPaths.Any())
         {
             AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths, generatedHeadParts, replacedRecords, recordsFromTemplates);
         }
-        
-        //logging: compile traversed records
-        foreach (var p in nonHardcodedPaths)
+
+        //logging: compile traversed records from all original paths (nonHardcodedPaths is partially/fully cleared by AssignGenericAssetPaths)
+        foreach (var p in allNonHardcodedPaths)
         {
-            var entry = assignments.First(x => x.AssetPackName == p.AssetPackName);
+            var entry = assignments.FirstOrDefault(x => x.AssetPackName == p.AssetPackName);
+            if (entry == null) { continue; }
             foreach (var record in p.TraversedRecords)
             {
                 entry.TraversedRecords.Add(record);
@@ -830,10 +834,19 @@ public class RecordGenerator
 
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
-        HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
         var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
 
         foreach (var entry in group)
+        {
+            entry.TraversedRecords.Add(recordEntry);
+        }
+    }
+
+    public static void LogRecordAlongPaths(IEnumerable<FilePathReplacementParsed> paths, IMajorRecord record)
+    {
+        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+
+        foreach (var entry in paths)
         {
             entry.TraversedRecords.Add(recordEntry);
         }

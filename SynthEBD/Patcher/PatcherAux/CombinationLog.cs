@@ -117,9 +117,8 @@ public class CombinationLog
                 {
                     ResolveSubRecords(assignedRecord, resolvedSubRecords);
                 }
-                combination.AssignedRecords.UnionWith(resolvedSubRecords);
 
-                foreach (var record in combination.AssignedRecords)
+                foreach (var record in resolvedSubRecords)
                 {
                     if (_converters.TryFormKeyStringToFormIDString(record.FormKey, out string formID))
                     {
@@ -139,12 +138,10 @@ public class CombinationLog
             {
                 var loggedSubRecord = new GeneratedRecordInfo() { EditorID =  EditorIDHandler.GetEditorIDSafely(resolvedSubRecord), FormKey = resolvedSubRecord.FormKey.ToString(), SubRecords = resolvedSubRecord.EnumerateFormLinks().Where(x => x.FormKey.ModKey == resolvedSubRecord.FormKey.ModKey).ToHashSet() };
                     
-                if (!subRecords.Contains(loggedSubRecord))
+                if (subRecords.Add(loggedSubRecord))
                 {
-                    subRecords.Add(loggedSubRecord);
+                    ResolveSubRecords(loggedSubRecord, subRecords);
                 }
-
-                ResolveSubRecords(loggedSubRecord, subRecords);
             }
         }
     }
