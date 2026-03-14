@@ -1,6 +1,7 @@
 using System.IO;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -234,7 +235,7 @@ public class HeightPatcher
         }
     }
 
-    public void ApplySelectedHeights(Dictionary<NPCInfo, float> assignedHeights, ISkyrimMod outputMod, VM_StatusBar statusBar)
+    public void ApplySelectedHeights(Dictionary<FormKey, (NPCInfo NpcInfo, float Height)> assignedHeights, ISkyrimMod outputMod, VM_StatusBar statusBar)
     {
         statusBar.ProgressBarMax = assignedHeights.Count;
         foreach (var entry in assignedHeights)
@@ -245,7 +246,7 @@ public class HeightPatcher
                 statusBar.ProgressBarDisp = "Applied height assignment for " + statusBar.ProgressBarCurrent + " NPCs";
             }
             
-            ApplyHeight(entry.Key, entry.Value, outputMod);
+            ApplyHeight(entry.Value.NpcInfo, entry.Value.Height, outputMod);
         }
     }
     

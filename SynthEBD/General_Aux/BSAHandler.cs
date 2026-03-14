@@ -23,6 +23,12 @@ public class BSAHandler : ViewModel
     private readonly Logger _logger;
     private HashSet<ModKey> _enabledMods = new();
     private HashSet<string> _enabledModNames = new();
+
+    public ConcurrentDictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new();
+    
+    // NEW: The core cache mechanism
+    private readonly ConcurrentDictionary<IArchiveReader, Dictionary<string, IArchiveFile>> _archiveFileCache = new();
+
     public BSAHandler(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -33,13 +39,26 @@ public class BSAHandler : ViewModel
                 _enabledMods = x.ListedOrder.Where(x => x.Enabled).Select(y => y.ModKey).ToHashSet();
                 _enabledModNames = _enabledMods.Select(x => x.FileName.String).ToHashSet();
             }).DisposeWith(this);
-        
     }
 
-    //This function expects a FilePathReplacement-formatted expectedFilePath (e.g. one that starts with the mod name, such as "Skyrim.esm\textures\myTextures.dds"
-    //Do not use for searching all archive readers at a particular destination path.
+    // Helper method to populate the cache immediately upon opening a reader
+    private void CacheReaderFiles(IArchiveReader reader)
+    {
+        if (!_archiveFileCache.ContainsKey(reader))
+        {
+            var fileDict = new Dictionary<string, IArchiveFile>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in reader.Files)
+            {
+                // TryAdd ignores duplicates if a malformed BSA has overlapping internal paths
+                fileDict.TryAdd(file.Path, file); 
+            }
+            _archiveFileCache.TryAdd(reader, fileDict);
+        }
+    }
+
     public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
     {
+        // ... (Unchanged logic) ...
         archiveExists = false;
         modName = "";
 
@@ -75,18 +94,12 @@ public class BSAHandler : ViewModel
 
         var subPath = Path.Join(splitPath.ToList().GetRange(1, splitPath.Length - 1).ToArray());
 
-        if (ReadersHaveFile(subPath, archiveReaders, out _))
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return ReadersHaveFile(subPath, archiveReaders, out _);
     }
 
     public bool ReferencedPathExists(string expectedFilePath, IEnumerable<ModKey> candidateMods, out bool archiveExists, out string modName)
     {
+        // ... (Unchanged logic) ...
         archiveExists = false;
         modName = "";
 
@@ -117,33 +130,33 @@ public class BSAHandler : ViewModel
     public bool TryOpenCorrespondingArchiveReaders(ModKey modKey, out HashSet<IArchiveReader> archiveReaders)
     {
         archiveReaders = new HashSet<IArchiveReader>();
-        if (OpenReaders.ContainsKey(modKey))
+        if (OpenReaders.TryGetValue(modKey, out var cachedReaders))
         {
-            archiveReaders = OpenReaders[modKey];
+            archiveReaders = cachedReaders;
             return true;
         }
-        else
+        
+        foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), _environmentProvider.DataFolderPath, modKey))
         {
-            foreach (var bsaFile in Archive.GetApplicableArchivePaths(_environmentProvider.SkyrimVersion.ToGameRelease(), _environmentProvider.DataFolderPath, modKey))
+            try
             {
-                try
+                var reader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
+                if (reader != null)
                 {
-                    var reader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
-                    if (reader != null)
-                    {
-                        archiveReaders.Add(reader);
-                    }
-                }
-                catch
-                {
-                    _logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
+                    CacheReaderFiles(reader); // NEW: Cache the files immediately
+                    archiveReaders.Add(reader);
                 }
             }
-            if (archiveReaders.Any() && !OpenReaders.ContainsKey(modKey))
+            catch
             {
-                OpenReaders.TryAdd(modKey, archiveReaders);
-                return true;
+                _logger.LogError("Unable to open archive reader to BSA file " + bsaFile.Path);
             }
+        }
+        
+        if (archiveReaders.Any() && !OpenReaders.ContainsKey(modKey))
+        {
+            OpenReaders.TryAdd(modKey, archiveReaders);
+            return true;
         }
 
         return false;
@@ -165,7 +178,11 @@ public class BSAHandler : ViewModel
             try
             {
                 var bsaReader = Archive.CreateReader(_environmentProvider.SkyrimVersion.ToGameRelease(), bsaFile);
-                readers.Add(new PathedArchiveReader() { Reader = bsaReader, FilePath = bsaFile });
+                if (bsaReader != null)
+                {
+                    CacheReaderFiles(bsaReader); // NEW: Cache the files immediately
+                    readers.Add(new PathedArchiveReader() { Reader = bsaReader, FilePath = bsaFile });
+                }
             }
             catch
             {
@@ -175,52 +192,65 @@ public class BSAHandler : ViewModel
         return readers;
     }
 
-    public void ExtractFileFromBSA(IArchiveFile file, string destPath)
+    public bool TryExtractFileFromBSA(IArchiveFile file, string destPath)
     {
+        // ... (Includes the leak fixes applied previously) ...
         string? dirPath = Path.GetDirectoryName(destPath);
-        if (dirPath != null)
+    
+        if (string.IsNullOrEmpty(dirPath))
         {
-            if (Directory.Exists(dirPath) == false)
-            {
-                try
-                {
-                    Directory.CreateDirectory(dirPath);
-                }
-                catch
-                {
-                    _logger.LogError("Could not create directory at " + dirPath + ". Check path length and permissions.");
-                }
-            }
+            _logger.LogError("Could not determine the output directory for " + destPath);
+            return false;
+        }
+
+        if (!Directory.Exists(dirPath))
+        {
             try
             {
-                using var fileStream = File.Create(destPath);
-                file.AsStream().CopyTo(fileStream);
+                Directory.CreateDirectory(dirPath);
             }
-            catch
+            catch (Exception ex)
             {
-                _logger.LogError("Could not extract file from BSA: " + file.Path + " to " + destPath + ". Check path length and permissions.");
+                _logger.LogError($"Could not create directory at {dirPath}. Error: {ex.Message}");
+                return false; 
             }
         }
-        else
+
+        try
         {
-            throw new Exception("Could not create the output directory at " + dirPath);
+            using var sourceStream = file.AsStream();
+            using var fileStream = File.Create(destPath);
+            sourceStream.CopyTo(fileStream);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Could not extract file from BSA: {file.Path} to {destPath}. Error: {ex.Message}");
+            return false;
+        }
+    
+        return File.Exists(destPath);
     }
 
     public bool TryGetFile(string subpath, IArchiveReader bsaReader, out IArchiveFile file)
     {
         file = null;
         if (bsaReader == null) { return false; }
+
+        // NEW: Check the dictionary cache instead of iterating IEnumerable
+        if (_archiveFileCache.TryGetValue(bsaReader, out var fileCache))
+        {
+            return fileCache.TryGetValue(subpath, out file);
+        }
+
+        // Fallback safety net (if a reader bypassed CacheReaderFiles somehow)
         var files = bsaReader.Files.Where(candidate => candidate.Path.Equals(subpath, StringComparison.OrdinalIgnoreCase)).ToArray();
         if (files.Any())
         {
             file = files.First();
             return true;
         }
-        else
-        {
-            return false;
-        }
+
+        return false;
     }
 
     public bool ReadersHaveFile(string subpath, HashSet<IArchiveReader> bsaReaders, out IArchiveFile archiveFile)
@@ -236,6 +266,4 @@ public class BSAHandler : ViewModel
         archiveFile = null;
         return false;
     }
-
-    public ConcurrentDictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new();
 }

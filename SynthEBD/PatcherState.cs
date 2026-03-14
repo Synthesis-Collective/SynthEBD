@@ -64,7 +64,7 @@ public class PatcherState
             if (GeneralSettings != null && TexMeshSettings != null &&
                 (TexMeshSettings.bForceVanillaBodyMeshPath || GeneralSettings.bChangeMeshesOrTextures))
             {
-                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bPureScriptMode);
+                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bSkyPatcherModeAssets);
             }
             
             if (GeneralSettings != null && GeneralSettings.bChangeMeshesOrTextures)

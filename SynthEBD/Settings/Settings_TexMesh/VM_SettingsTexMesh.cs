@@ -73,6 +73,12 @@ public class VM_SettingsTexMesh : VM
 
         general.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
 
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.bShowTroubleshootingSettings),
+                this.WhenAnyValue(x => x.FacePatchingMode),
+                (showTroubleshooting, mode) => showTroubleshooting && mode == FacePatchingMode.Script)
+            .Subscribe(x => bShowEBDOptions = x).DisposeWith(this);
+
         AddStrippedWNAM = new RelayCommand(
             canExecute: _ => true,
             execute: _ => StrippedSkinWNAMs.Add(new VM_CollectionMemberString("", StrippedSkinWNAMs))
@@ -291,7 +297,7 @@ public class VM_SettingsTexMesh : VM
            }
        );
 
-        this.WhenAnyValue(x => x.bPureScriptMode).Subscribe(_ => ValidatePureScriptMode()).DisposeWith(this);
+        this.WhenAnyValue(x => x.bSkyPatcherModeAssets).Subscribe(_ => ValidatePureScriptMode()).DisposeWith(this);
         this.WhenAnyValue(x => x.bLegacyEBDMode).Subscribe(_ => ValidateLegacyEBDMode()).DisposeWith(this);
     }
 
@@ -324,7 +330,10 @@ public class VM_SettingsTexMesh : VM
     public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
-    public bool bPureScriptMode { get; set; } = false;
+    public bool bSkyPatcherModeAssets { get; set; } = false;
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.Script;
+    public IEnumerable<FacePatchingMode> FacePatchingModeOptions { get; } = Enum.GetValues<FacePatchingMode>();
+    public bool bShowEBDOptions { get; set; } = false;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -415,7 +424,8 @@ public class VM_SettingsTexMesh : VM
         bCacheRecords = model.bCacheRecords;
         bPatchArmors = model.bPatchArmors;
         bPatchSkinAltTextures = model.bPatchSkinAltTextures;
-        bPureScriptMode = model.bPureScriptMode;
+        bSkyPatcherModeAssets = model.bSkyPatcherModeAssets;
+        FacePatchingMode = model.FacePatchingMode;
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
@@ -451,7 +461,8 @@ public class VM_SettingsTexMesh : VM
         model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         model.bPatchArmors = bPatchArmors;
         model.bPatchSkinAltTextures = bPatchSkinAltTextures;
-        model.bPureScriptMode = bPureScriptMode;
+        model.bSkyPatcherModeAssets = bSkyPatcherModeAssets;
+        model.FacePatchingMode = FacePatchingMode;
         return model;
     }
 
@@ -776,7 +787,7 @@ public class VM_SettingsTexMesh : VM
             }
         }
 
-        if (bPureScriptMode)
+        if (bSkyPatcherModeAssets)
         {
             if (preparationMode)
             {
@@ -784,7 +795,7 @@ public class VM_SettingsTexMesh : VM
             }
             else
             {
-                bPureScriptMode = false;
+                bSkyPatcherModeAssets = false;
             }
         }
 
@@ -793,7 +804,7 @@ public class VM_SettingsTexMesh : VM
 
     private void ValidatePureScriptMode()
     {
-        if (bPureScriptMode)
+        if (bSkyPatcherModeAssets)
         {
             if (bLegacyEBDMode)
             {
@@ -803,7 +814,7 @@ public class VM_SettingsTexMesh : VM
                 }
                 else
                 {
-                    bPureScriptMode = false;
+                    bSkyPatcherModeAssets = false;
                 }
             }
         }
@@ -813,11 +824,11 @@ public class VM_SettingsTexMesh : VM
     {
         if (bLegacyEBDMode)
         {
-            if (bPureScriptMode)
+            if (bSkyPatcherModeAssets)
             {
                 if (MessageWindow.DisplayNotificationYesNo("Confirm Modification", "This setting prevents you from using Override-free Patching Mode. Would you like to make this change?"))
                 {
-                    bPureScriptMode = false;
+                    bSkyPatcherModeAssets = false;
                 }
                 else
                 {

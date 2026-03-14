@@ -183,6 +183,27 @@ public class PatcherIO
         return true;
     }
 
+    /// <summary>
+    /// Deletes the Scripts, Seq, SKSE, and SynthEBD subfolders under the output
+    /// data folder. Skipped entirely when the output folder is the same as the
+    /// game Data folder to avoid destroying game files.
+    /// </summary>
+    public void ClearPreviousScriptOutputs(string outputDataFolder, string dataFolderPath, Logger logger)
+    {
+        if (string.Equals(Path.GetFullPath(outputDataFolder), Path.GetFullPath(dataFolderPath), StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogMessage("Output folder matches the Data folder — skipping script output cleanup to avoid deleting game files.");
+            return;
+        }
+
+        string[] subfolders = { "Scripts", "Seq", "SKSE", "SynthEBD" };
+        foreach (var subfolder in subfolders)
+        {
+            string path = Path.Combine(outputDataFolder, subfolder);
+            TryDeleteDirectory(path, logger);
+        }
+    }
+
     public bool TryDeleteDirectory(string path, Logger logger)
     {
         if (Directory.Exists(path))

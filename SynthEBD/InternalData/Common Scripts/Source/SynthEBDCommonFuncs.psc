@@ -25,7 +25,8 @@ Function ReloadSynthEBDDataBase(string jsonPath, string dbSubPath, bool verbose,
 			ModEvent.Send(handle)
 		endif
 	else
-		VerboseLogger("SynthEBD: Can't find expected json file at " + jsonPath, verbose, true)
+		JDB_solveObjSetter(dbSubPath, 0, true) ; Clear any stale data from a previous run / mode switch
+		VerboseLogger("SynthEBD: Can't find expected json file at " + jsonPath + ". Cleared existing DB entries at " + dbSubPath, verbose, true)
 	endif	
 EndFunction
 
@@ -43,7 +44,7 @@ EndFunction
 
 form Function FormKeyToForm(string formKeyStr, bool bJCPathCompatibility, bool bVerbose) global
 	if (bJCPathCompatibility)
-		formKeyStr = StrReplace(formKeyStr, ".", "*")
+		formKeyStr = StrReplace(formKeyStr, "*", ".") ; reverse the "." -> "*" encoding from FormKeyFromForm
 	endIf
 	
 	string[] split = StringUtil.Split(formKeyStr, ":")
@@ -142,7 +143,6 @@ Function LoadJFormKeyMapsToJFormDB(string jsonDirectory, string dbSubPath, bool 
 				else
 					VerboseLogger("SynthEBD: NPC " + currentNPCstr + " was not found in the current load order", verbose, false)
 				endIf				
-				currentNPCstr = JMap_nextKey(assignmentDict)
 				keyIndex += 1
 			endwhile
 		else
@@ -199,8 +199,8 @@ int Function SetFormDBStr(int assignmentDict, string currentNPCstr, form current
 EndFunction
 
 int Function SetFormDBInt(int assignmentDict, string currentNPCstr, form currentNPC, string entryType, string dbSubPath, int keyIndex, bool verbose) global
-	int entry = JMap_getInt(assignmentDict, currentNPCstr)
-	if (entry)
+	if (JMap_hasKey(assignmentDict, currentNPCstr))
+		int entry = JMap_getInt(assignmentDict, currentNPCstr)
 		VerboseLogger("SynthEBD: JSON has " + entryType + " entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")", verbose, false)
 		if (JFormDB_solveIntSetter(currentNPC, dbSubPath, entry, true))
 			;VerboseLogger("SynthEBD: Set object for " + currentNPC as string + " at path " + dbSubPath + " to "+ entry as string, verbose, false)
@@ -215,8 +215,8 @@ int Function SetFormDBInt(int assignmentDict, string currentNPCstr, form current
 EndFunction
 
 int Function SetFormDBFlt(int assignmentDict, string currentNPCstr, form currentNPC, string entryType, string dbSubPath, int keyIndex, bool verbose) global
-	float entry = JMap_getFlt(assignmentDict, currentNPCstr)
-	if (entry)
+	if (JMap_hasKey(assignmentDict, currentNPCstr))
+		float entry = JMap_getFlt(assignmentDict, currentNPCstr)
 		VerboseLogger("SynthEBD: JSON has " + entryType + " entry for Key " + keyIndex as string + ": " + currentNPCstr + " (" + currentNPC + ")", verbose, false)
 		if (JFormDB_solveFltSetter(currentNPC, dbSubPath, entry, true))
 			;VerboseLogger("SynthEBD: Set object for " + currentNPC as string + " at path " + dbSubPath + " to "+ entry as string, verbose, false)
