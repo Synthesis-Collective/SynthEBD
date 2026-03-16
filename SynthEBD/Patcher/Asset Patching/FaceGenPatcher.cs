@@ -870,29 +870,35 @@ public class FaceGenPatcher
 
         // ── Capture the NPC-specific hair tint color before removing anything ──
         //
-        // Hair shapes in the FaceGen NIF carry an NPC-specific hair tint in their
-        // BSLightingShaderProperty (shader type HAIRTINT). The cloned replacement
-        // shapes bring the model's default tint (typically very dark). Capturing
-        // the original tint here lets us forward it to the cloned shapes so the
-        // NPC keeps their intended hair color.
+        // Hair, eyebrow, and facial hair shapes in the FaceGen NIF carry an
+        // NPC-specific hair tint in their BSLightingShaderProperty (shader type
+        // HAIRTINT). The cloned replacement shapes bring the model's default tint
+        // (typically very dark). Capturing the original tint here lets us forward
+        // it to the cloned shapes so the NPC keeps their intended color.
 
         (float R, float G, float B)? capturedHairTint = null;
-        if (type == HeadPart.TypeEnum.Hair || type == HeadPart.TypeEnum.Eyebrows)
+        if (type == HeadPart.TypeEnum.Hair ||
+            type == HeadPart.TypeEnum.Eyebrows ||
+            type == HeadPart.TypeEnum.FacialHair)
         {
             capturedHairTint = CaptureHairTintColor(faceGenNif, faceGenSkinNode, npcInfo);
         }
 
-        // ── Capture the NPC-specific eye bone transforms before removing anything ──
+        // ── Capture the NPC-specific bone transforms before removing anything ──
         //
-        // Eye shapes in the FaceGen NIF carry NPC-specific skin-to-bone transforms
-        // that position the eyes correctly in the NPC's unique eye sockets. The
-        // cloned replacement shapes bring the model's generic default transforms,
-        // causing eyes to appear offset. Capturing the original transforms here
-        // lets us forward them to the cloned shapes.
+        // The Creation Kit bakes NPC-specific vertex positions into every FaceGen
+        // shape — not just eyes, but also eyebrows, facial hair, and scars. These
+        // morphed vertices position each shape to fit the NPC's unique facial
+        // geometry. The cloned replacement shapes bring the model's generic default
+        // vertex positions, causing them to appear offset or misaligned. Capturing
+        // the original transforms here lets us forward them to the cloned shapes.
         CapturedBoneTransforms capturedEyeTransforms = null;
-        if (type == HeadPart.TypeEnum.Eyes)
+        if (type == HeadPart.TypeEnum.Eyes ||
+            type == HeadPart.TypeEnum.Eyebrows ||
+            type == HeadPart.TypeEnum.FacialHair ||
+            type == HeadPart.TypeEnum.Scars)
         {
-            capturedEyeTransforms = CaptureEyeBoneTransforms(faceGenNif, faceGenSkinNode, existingShapeTypes, npcInfo);
+            capturedEyeTransforms = CaptureEyeBoneTransforms(faceGenNif, faceGenSkinNode, existingShapeTypes, type, npcInfo);
         }
 
         // ── Capture the NPC-specific eye shader properties before removing anything ──
@@ -1769,22 +1775,27 @@ public class FaceGenPatcher
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Scans shapes under BSFaceGenNiNodeSkinned for the existing eye shape and
-    /// captures its global-to-skin and per-bone skin-to-bone transforms.
+    /// Scans shapes under BSFaceGenNiNodeSkinned for the existing shape of the
+    /// specified type and captures its global-to-skin and per-bone skin-to-bone
+    /// transforms, as well as the morphed vertex positions.
     ///
     /// These NPC-specific transforms are baked by the Creation Kit to position
-    /// the eyes correctly in the NPC's unique eye sockets. Without capturing
-    /// and re-applying them, cloned replacement eyes land at the generic head
+    /// shapes correctly on the NPC's unique face. Without capturing and
+    /// re-applying them, cloned replacement shapes land at the generic head
     /// part model's default position.
     ///
-    /// Identifies eye shapes by matching shape names against the NPC's head part
-    /// records of type Eyes (via existingShapeTypes), consistent with the
-    /// name-based identification used throughout the head part swapping system.
+    /// Identifies shapes by matching shape names against the NPC's head part
+    /// records of the specified type (via existingShapeTypes), consistent with
+    /// the name-based identification used throughout the head part swapping system.
+    ///
+    /// Used for eyes, eyebrows, facial hair, and scars — all of which have
+    /// CK-morphed vertices in FaceGen NIFs.
     /// </summary>
     private CapturedBoneTransforms CaptureEyeBoneTransforms(
         NifFile faceGenNif,
         NiNode faceGenSkinNode,
         Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
+        HeadPart.TypeEnum targetType,
         NPCInfo npcInfo)
     {
         using var shapes = faceGenNif.GetShapes();
@@ -1799,13 +1810,13 @@ public class FaceGenPatcher
                 !IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned"))
                 continue;
 
-            // Identify eye shapes by matching name against the NPC's head part
-            // records, same approach as RemoveShapesByHeadPartType.
+            // Identify shapes by matching name against the NPC's head part
+            // records of the target type, same approach as RemoveShapesByHeadPartType.
             string shapeName = shape.name?.get();
             if (string.IsNullOrEmpty(shapeName)) continue;
 
             if (!existingShapeTypes.TryGetValue(shapeName, out var shapeType) ||
-                shapeType != HeadPart.TypeEnum.Eyes)
+                shapeType != targetType)
                 continue;
 
             // Found the existing eye shape — capture its transforms.
@@ -1885,7 +1896,7 @@ public class FaceGenPatcher
             }
         }
 
-        DebugLog(npcInfo, "  CaptureEyeBoneTransforms: No existing eye shape found to capture from.");
+        DebugLog(npcInfo, "  CaptureEyeBoneTransforms: No existing " + targetType + " shape found to capture from.");
         return null;
     }
 
