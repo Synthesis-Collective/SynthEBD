@@ -46,9 +46,10 @@ namespace SynthEBD;
 ///     2. Open the model NIF; collect all NiTriShapes and their partition body-part IDs
 ///     3. In the FaceGen NIF, find BSFaceGenNiNodeSkinned and:
 ///        a. For SINGULAR types (Hair, Eyes, Eyebrows, Face*, FacialHair):
-///           remove existing shapes whose partitions overlap with the new head part's
+///           remove existing shapes whose names match head part EditorIDs of the
+///           same type on the NPC record
 ///        b. For ADDITIVE types (Scars, Misc):
-///           remove only exact matches (same head part being re-applied), not all of that type
+///           skip removal — multiple head parts of the same type may coexist
 ///     4. Clone new shapes into BSFaceGenNiNodeSkinned via nifly's CloneShape
 ///     5. Recurse into IHeadPartGetter.ExtraParts (e.g., hairline parts)
 ///
@@ -99,28 +100,6 @@ public class FaceGenPatcher
             { FilePathDestinationMap.Dest_HeadSpecular,   7 },  // Backlight Mask / Specular
         };
 
-    // ─── Head part type → expected partition mappings ────────────────────────
-
-    /// <summary>
-    /// Maps each HeadPart.TypeEnum to the set of body-part partition IDs that type
-    /// is expected to occupy. Used to identify which existing FaceGen shapes should
-    /// be removed when doing a SINGULAR replacement.
-    ///
-    /// NOTE: These mappings reflect vanilla Skyrim conventions. Modded head parts
-    /// may use non-standard partition IDs — the code falls back to reading the
-    /// actual partition IDs from the source head part NIF to handle this.
-    /// </summary>
-    private static readonly Dictionary<HeadPart.TypeEnum, HashSet<int>> TypeToExpectedPartitions = new()
-    {
-        { HeadPart.TypeEnum.Hair,       new HashSet<int> { SBP_31_HAIR, SBP_131_HAIR, SBP_41_LONGHAIR, SBP_141_LONGHAIR } },
-        { HeadPart.TypeEnum.Eyes,       new HashSet<int> { SBP_43_EARS, SBP_143_EARS } }, // Eyes often share partition with ears
-        { HeadPart.TypeEnum.Eyebrows,   new HashSet<int> { SBP_42_CIRCLET, SBP_142_CIRCLET } },
-        { HeadPart.TypeEnum.Face,       new HashSet<int> { SBP_30_HEAD, SBP_130_HEAD, SBP_230_HEAD } },
-        { HeadPart.TypeEnum.FacialHair, new HashSet<int> { SBP_44_MOUTH } },
-        { HeadPart.TypeEnum.Scars,      new HashSet<int> { } },  // Additive — no automatic removal by partition
-        { HeadPart.TypeEnum.Misc,       new HashSet<int> { } },  // Additive — no automatic removal by partition
-    };
-
     /// <summary>
     /// Types where only one head part should exist at a time. Existing shapes with
     /// overlapping partitions are removed before the new head part is applied.
@@ -151,31 +130,6 @@ public class FaceGenPatcher
     /// </summary>
     private const string SynthEBDNifTag = "SynthEBD FaceGenPatcher Output";
 
-    // ─── Dark Face Bug Fix Toggles ──────────────────────────────────────────
-    //
-    // Both address the same root cause: the removal pass incorrectly deletes
-    // shapes (eyes, mouth, brows) that use plain NiSkinInstance instead of
-    // BSDismemberSkinInstance. nifly reports a synthetic partition ID of 32
-    // (SBP_32_BODY) for these shapes, which can collide with incoming head
-    // part partitions and cause false-positive deletion.
-    //
-    // FIX_A: Skip non-dismember shapes during removal.
-    //   Shapes with a plain NiSkinInstance have no real partition data, so
-    //   partition-based matching is invalid for them. When true, the removal
-    //   pass only considers shapes that have a genuine BSDismemberSkinInstance.
-    //
-    // FIX_B: Only use expected partitions for removal (not incoming).
-    //   Don't include the incoming model's actual partition IDs in the removal
-    //   set. Only use the static TypeToExpectedPartitions map, which contains
-    //   well-known partition IDs for each head part type. This avoids pulling
-    //   in collision-prone IDs (like 32) from non-standard modded NIFs.
-    //
-    // Recommended: enable both. Either one alone fixes the Hod-style bug,
-    // but together they cover a wider range of edge cases.
-
-    private const bool FIX_A_SKIP_NON_DISMEMBER_IN_REMOVAL = true;
-    private const bool FIX_B_ONLY_EXPECTED_PARTITIONS_FOR_REMOVAL = true;
-
     // ═══════════════════════════════════════════════════════════════════════════
     //  DEPENDENCIES
     // ═══════════════════════════════════════════════════════════════════════════
@@ -193,8 +147,9 @@ public class FaceGenPatcher
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
         Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey,
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Saadia.FormKey,
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hulda.FormKey,
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Saadia.FormKey,
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hulda.FormKey,
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Ysolda.FormKey,
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -462,11 +417,19 @@ public class FaceGenPatcher
             if (hasHeadPartWork)
             {
                 DebugLog(npcInfo, "--- Phase A: Head Part Shape Swapping ---");
+
+                // Build a map of shape name (EditorID) → type for all head parts
+                // currently on the NPC record. This lets the removal pass identify
+                // existing FaceGen shapes by their authoritative record type instead
+                // of relying on NIF partition data (which is absent on shapes using
+                // plain NiSkinInstance rather than BSDismemberSkinInstance).
+                var existingShapeTypes = BuildExistingHeadPartTypeMap(npcInfo);
+
                 foreach (var (type, headPartGetter) in validHeadPartAssignments)
                 {
                     DebugLog(npcInfo, "--- SwapHeadPartType: type=" + type +
                         " editorId=" + (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()));
-                    bool changed = SwapHeadPartType(nif, faceGenSkinNode, headPartGetter, type, npcInfo);
+                    bool changed = SwapHeadPartType(nif, faceGenSkinNode, headPartGetter, type, npcInfo, existingShapeTypes);
                     DebugLog(npcInfo, "--- SwapHeadPartType result: changed=" + changed);
                     anyChanges |= changed;
                 }
@@ -900,7 +863,8 @@ public class FaceGenPatcher
         NiNode faceGenSkinNode,
         IHeadPartGetter headPartGetter,
         HeadPart.TypeEnum type,
-        NPCInfo npcInfo)
+        NPCInfo npcInfo,
+        Dictionary<string, HeadPart.TypeEnum> existingShapeTypes)
     {
         bool anyChanges = false;
 
@@ -918,17 +882,59 @@ public class FaceGenPatcher
             capturedHairTint = CaptureHairTintColor(faceGenNif, faceGenSkinNode, npcInfo);
         }
 
+        // ── Capture the NPC-specific eye bone transforms before removing anything ──
+        //
+        // Eye shapes in the FaceGen NIF carry NPC-specific skin-to-bone transforms
+        // that position the eyes correctly in the NPC's unique eye sockets. The
+        // cloned replacement shapes bring the model's generic default transforms,
+        // causing eyes to appear offset. Capturing the original transforms here
+        // lets us forward them to the cloned shapes.
+        CapturedBoneTransforms capturedEyeTransforms = null;
+        if (type == HeadPart.TypeEnum.Eyes)
+        {
+            capturedEyeTransforms = CaptureEyeBoneTransforms(faceGenNif, faceGenSkinNode, existingShapeTypes, npcInfo);
+        }
+
+        // ── Capture the NPC-specific eye shader properties before removing anything ──
+        //
+        // Eye shapes in the FaceGen NIF carry NPC-specific shader properties
+        // (specular color, glossiness, emissive, cubemap scale, reflection
+        // centers, etc.) on their BSLSP_EYE BSLightingShaderProperty. The cloned
+        // replacement shapes bring the model's default values, causing all NPCs
+        // to end up with the same eye color. Capturing here lets us forward
+        // the original values to the cloned shapes.
+        CapturedEyeShaderProperties capturedEyeShader = null;
+        if (type == HeadPart.TypeEnum.Eyes)
+        {
+            capturedEyeShader = CaptureEyeShaderProperties(faceGenNif, faceGenSkinNode, existingShapeTypes, npcInfo);
+        }
+
+        // ── Resolve the head part's TNAM texture set for eye texture baking ──
+        //
+        // Eye shapes cloned from the model NIF carry the model's default textures
+        // (e.g., EyeBrown.dds) in their BSShaderTextureSet. The actual eye textures
+        // are defined in the head part's TNAM record (a TXST texture set). At runtime,
+        // the engine would normally resolve TNAM and apply those textures, but since
+        // we're writing a pre-baked FaceGen NIF, the engine uses whatever textures
+        // are already in the NIF. We must therefore bake the TNAM textures into the
+        // cloned shape's BSShaderTextureSet ourselves.
+        Dictionary<uint, string> resolvedEyeTextures = null;
+        if (type == HeadPart.TypeEnum.Eyes)
+        {
+            resolvedEyeTextures = ResolveHeadPartTextureSet(headPartGetter, npcInfo);
+        }
+
         // Process the main head part model.
         // Use the headpart's EditorID as the shape name in the FaceGen NIF — the game
         // matches headpart records to FaceGen geometry by name, so the shape must be
         // named after the EditorID, not whatever the source mesh calls it (e.g. "group_0").
         string mainEditorId = headPartGetter.EditorID ?? headPartGetter.FormKey.ToString();
 
-        // performRemoval=true: the main headpart's removal pass uses the union of the
-        // type's expected partitions AND the incoming model's partitions, which covers
-        // both the main shape and any extra parts. Extra parts must NOT re-trigger
-        // removal, or they'll delete the main shape we just cloned.
-        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true, capturedHairTint: capturedHairTint);
+        // performRemoval=true: the main headpart's removal pass removes all existing
+        // shapes of this type (identified by matching shape names against the NPC's
+        // head part records). Extra parts must NOT re-trigger removal, or they'll
+        // delete the main shape we just cloned.
+        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true, existingShapeTypes: existingShapeTypes, capturedHairTint: capturedHairTint, capturedEyeTransforms: capturedEyeTransforms, capturedEyeShader: capturedEyeShader, resolvedEyeTextures: resolvedEyeTextures);
 
         // Recurse into ExtraParts (e.g., hairline parts referenced by a hair head part).
         if (headPartGetter.ExtraParts != null)
@@ -950,7 +956,7 @@ public class FaceGenPatcher
 
                     // performRemoval=false: extra parts must not trigger removal, as the
                     // main headpart's removal pass already cleared conflicting shapes.
-                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false, capturedHairTint: capturedHairTint);
+                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false, existingShapeTypes: existingShapeTypes, capturedHairTint: capturedHairTint, capturedEyeTransforms: capturedEyeTransforms, capturedEyeShader: capturedEyeShader, resolvedEyeTextures: resolvedEyeTextures);
                 }
             }
         }
@@ -978,7 +984,11 @@ public class FaceGenPatcher
         NPCInfo npcInfo,
         string headPartEditorId,
         bool performRemoval,
-        (float R, float G, float B)? capturedHairTint = null)
+        Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
+        (float R, float G, float B)? capturedHairTint = null,
+        CapturedBoneTransforms capturedEyeTransforms = null,
+        CapturedEyeShaderProperties capturedEyeShader = null,
+        Dictionary<uint, string> resolvedEyeTextures = null)
     {
         // ── Locate the head part model NIF on disk ──
 
@@ -1122,47 +1132,19 @@ public class FaceGenPatcher
                 return false;
             }
 
-            // Gather all partition body-part IDs used by the new head part's shapes.
-            var incomingPartitions = new HashSet<int>();
-            foreach (var info in modelShapeInfos)
-            {
-                incomingPartitions.UnionWith(info.PartitionBodyParts);
-            }
-
             // ── Remove conflicting shapes from FaceGen (for singular types) ──
             // Only performed for the main headpart, not for extra parts — the main
-            // headpart's removal pass already clears all conflicting shapes using
-            // the type's expected partition set.
+            // headpart's removal pass already clears all shapes of this type.
+            //
+            // Removal is driven by matching shape names in the FaceGen NIF against the
+            // NPC's existing head part records (via existingShapeTypes). This correctly
+            // identifies shapes regardless of whether they use BSDismemberSkinInstance
+            // or plain NiSkinInstance — fixing the dark face bug caused by eyes and
+            // other shapes that lack real dismember partition data.
 
             if (performRemoval && SingularTypes.Contains(type))
             {
-                // Build the set of partition IDs to match against.
-                HashSet<int> removePartitions;
-
-                if (FIX_B_ONLY_EXPECTED_PARTITIONS_FOR_REMOVAL)
-                {
-                    // FIX_B: Only use the static expected partitions for this type.
-                    // Do NOT include the incoming model's actual partitions, because
-                    // modded NIFs may use non-standard IDs (e.g. SBP_32_BODY) that
-                    // collide with unrelated shapes in the FaceGen NIF.
-                    removePartitions = new HashSet<int>();
-                    if (TypeToExpectedPartitions.TryGetValue(type, out var expectedOnly))
-                    {
-                        removePartitions.UnionWith(expectedOnly);
-                    }
-                }
-                else
-                {
-                    // Original behavior: use both the expected partitions for this type
-                    // AND the actual partitions from the incoming head part.
-                    removePartitions = new HashSet<int>(incomingPartitions);
-                    if (TypeToExpectedPartitions.TryGetValue(type, out var expected))
-                    {
-                        removePartitions.UnionWith(expected);
-                    }
-                }
-
-                RemoveShapesByPartition(faceGenNif, faceGenSkinNode, removePartitions, npcInfo);
+                RemoveShapesByHeadPartType(faceGenNif, faceGenSkinNode, type, existingShapeTypes, npcInfo);
             }
 
             // ── Clone shapes from model NIF into FaceGen NIF ──
@@ -1232,6 +1214,115 @@ public class FaceGenPatcher
                 if (capturedHairTint.HasValue)
                 {
                     ApplyHairTintToClonedShape(faceGenNif, clonedShape, capturedHairTint.Value, npcInfo);
+                }
+
+                // ── Forward captured eye shader properties to the cloned shape ──
+                if (capturedEyeShader != null)
+                {
+                    ApplyEyeShaderToClonedShape(faceGenNif, clonedShape, capturedEyeShader, npcInfo);
+                }
+
+                // ── Bake TNAM texture set into the cloned eye shape ──
+                //
+                // The cloned shape's BSShaderTextureSet carries the model NIF's default
+                // textures (e.g., EyeBrown.dds). The actual eye textures are defined by
+                // the head part's TNAM record. At runtime the engine would resolve TNAM
+                // and apply those textures, but since this is a pre-baked FaceGen NIF,
+                // the engine uses whatever is already in the NIF. We must bake the TNAM
+                // textures here so the correct eye color appears in-game.
+                if (resolvedEyeTextures != null && resolvedEyeTextures.Count > 0)
+                {
+                    ApplyEyeTexturesToClonedShape(faceGenNif, clonedShape, resolvedEyeTextures, npcInfo);
+                }
+
+                // ── Apply NPC-specific eye positioning ──
+                //
+                // Three strategies in priority order:
+                //
+                //   1. DIRECT VERTEX COPY: If the original and replacement shapes
+                //      have the same vertex count (same base mesh topology — common
+                //      for texture-only eye swaps), copy the CK-morphed vertices
+                //      directly. Pixel-perfect, no approximation.
+                //
+                //   2. TRI MORPH: If vertex counts differ but the NPC has chargen
+                //      slider data (NAM9), apply the CharGen .tri morphs to deform
+                //      the replacement mesh. CK-equivalent per-vertex morphing.
+                //
+                //   3. CENTROID OFFSET: Last resort — rigid translation based on
+                //      centroid delta. Handles custom-sculpted NPCs (Bijin etc.)
+                //      where NAM9 is null and topologies differ.
+
+                bool positioned = false;
+
+                // Strategy 1: Direct vertex copy (same topology)
+                if (!positioned && capturedEyeTransforms?.MorphedVertices != null)
+                {
+                    using var clonedVerts = faceGenNif.GetVertsForShape(clonedShape);
+                    if (clonedVerts != null && clonedVerts.Count == capturedEyeTransforms.MorphedVertices.Length)
+                    {
+                        // Same vertex count = same base mesh. Copy directly.
+                        for (int vi = 0; vi < clonedVerts.Count; vi++)
+                        {
+                            var src = capturedEyeTransforms.MorphedVertices[vi];
+                            var dst = clonedVerts[vi];
+                            dst.x = src.X;
+                            dst.y = src.Y;
+                            dst.z = src.Z;
+                        }
+                        faceGenNif.SetVertsForShape(clonedShape, clonedVerts);
+                        positioned = true;
+
+                        DebugLog(npcInfo, "  EyePositioning: DIRECT VERTEX COPY — copied " +
+                            clonedVerts.Count + " CK-morphed vertices (pixel-perfect)");
+                    }
+                    else
+                    {
+                        DebugLog(npcInfo, "  EyePositioning: Vertex count mismatch — original=" +
+                            capturedEyeTransforms.MorphedVertices.Length + " cloned=" +
+                            (clonedVerts?.Count ?? 0) + " (trying other strategies)");
+                    }
+                }
+
+                // Strategy 2: TRI morph (different topology, has chargen data)
+                if (!positioned)
+                {
+                    positioned = TryApplyTriMorphToClonedShape(
+                        faceGenNif, clonedShape, headPartGetter, type, npcInfo);
+                    if (positioned)
+                    {
+                        DebugLog(npcInfo, "  EyePositioning: TRI MORPH applied");
+                    }
+                }
+
+                // Strategy 3: Centroid offset (fallback — also applies bone transforms)
+                if (!positioned && capturedEyeTransforms != null)
+                {
+                    DebugLog(npcInfo, "  EyePositioning: CENTROID OFFSET fallback");
+                    // ApplyEyeBoneTransformsToClonedShape handles both vertex
+                    // offset AND GlobalToSkin/SkinToBone transforms.
+                    ApplyEyeBoneTransformsToClonedShape(faceGenNif, clonedShape, capturedEyeTransforms, npcInfo);
+                    positioned = true;
+                }
+
+                // Apply bone transforms for all strategies.
+                // (Strategy 3 already set these inside ApplyEyeBoneTransformsToClonedShape,
+                // but re-setting the same values is harmless and keeps the code simple.)
+                if (capturedEyeTransforms != null)
+                {
+                    if (capturedEyeTransforms.GlobalToSkin != null)
+                    {
+                        faceGenNif.SetShapeTransformGlobalToSkin(clonedShape, capturedEyeTransforms.GlobalToSkin);
+                    }
+                    using var bonesToApply = new vectorstring();
+                    faceGenNif.GetShapeBoneList(clonedShape, bonesToApply);
+                    for (uint bi = 0; bi < (uint)bonesToApply.Count; bi++)
+                    {
+                        string boneName = bonesToApply[(int)bi];
+                        if (capturedEyeTransforms.SkinToBone.TryGetValue(boneName, out var bt))
+                        {
+                            faceGenNif.SetShapeTransformSkinToBone(clonedShape, bi, bt);
+                        }
+                    }
                 }
 
                 _logger.LogReport(
@@ -1313,24 +1404,6 @@ public class FaceGenPatcher
         }
 
         return bodyParts;
-    }
-
-    /// <summary>
-    /// Checks whether a shape's skin instance is a genuine BSDismemberSkinInstance
-    /// (as opposed to a plain NiSkinInstance). Only shapes with BSDismemberSkinInstance
-    /// have meaningful partition body-part IDs; nifly synthesizes a default partition
-    /// ID of 32 (SBP_32_BODY) for plain NiSkinInstance shapes.
-    /// </summary>
-    private static bool HasTrueDismemberSkinInstance(NifFile nif, NiShape shape)
-    {
-        if (!shape.HasSkinInstance()) return false;
-
-        NiBlockRefNiBoneContainer skinInstRef = shape.SkinInstanceRef();
-        if (skinInstRef == null || skinInstRef.IsEmpty()) return false;
-
-        uint skinInstBlockId = skinInstRef.index;
-        string blockType = nif.GetHeader().GetBlockTypeStringById(skinInstBlockId);
-        return blockType == "BSDismemberSkinInstance";
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1415,22 +1488,593 @@ public class FaceGenPatcher
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  HEAD PART SWAPPING — Eye Shader Property Forwarding
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Scans shapes under BSFaceGenNiNodeSkinned for the existing eye shape's
+    /// BSLightingShaderProperty (shader type BSLSP_EYE) and captures the
+    /// NPC-specific shader properties that determine eye color and appearance.
+    ///
+    /// Eye color in Skyrim is primarily driven by the specular color, glossiness,
+    /// emissive color/multiple, cubemap scale, and reflection centers stored on
+    /// the BSLSP_EYE shader. These values are baked per-NPC in FaceGen NIFs.
+    /// Without capturing and re-applying them, cloned replacement eyes use the
+    /// head part model's default values — causing all NPCs to share the same
+    /// eye color.
+    ///
+    /// Identifies eye shapes by matching shape names against the NPC's head part
+    /// records of type Eyes (via existingShapeTypes), consistent with the
+    /// name-based identification used throughout the head part swapping system.
+    ///
+    /// Returns null if no BSLSP_EYE shader was found. Uses plain value types
+    /// to avoid lifetime issues with nifly's SWIG wrappers (which may be
+    /// invalidated when shapes are deleted during removal).
+    /// </summary>
+    private CapturedEyeShaderProperties CaptureEyeShaderProperties(
+        NifFile faceGenNif,
+        NiNode faceGenSkinNode,
+        Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
+        NPCInfo npcInfo)
+    {
+        NiHeader header = faceGenNif.GetHeader();
+
+        using var shapes = faceGenNif.GetShapes();
+        foreach (var shape in shapes)
+        {
+            // Only consider shapes parented to BSFaceGenNiNodeSkinned.
+            var parent = faceGenNif.GetParentNode(shape);
+            if (parent == null) continue;
+
+            string parentName = parent.name.get();
+            if (parentName != "BSFaceGenNiNodeSkinned" &&
+                !IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned"))
+                continue;
+
+            // Identify eye shapes by name match against the NPC's head part records.
+            string shapeName = shape.name?.get();
+            if (shapeName == null) continue;
+            if (!existingShapeTypes.TryGetValue(shapeName, out var shapeType)) continue;
+            if (shapeType != HeadPart.TypeEnum.Eyes) continue;
+
+            // Get the shape's shader property.
+            NiBlockRefNiShader shaderRef = shape.ShaderPropertyRef();
+            if (shaderRef == null || shaderRef.IsEmpty()) continue;
+
+            NiObject shaderObj = header.GetBlockById(shaderRef.index);
+            if (shaderObj is not BSLightingShaderProperty bslsp) continue;
+
+            if (bslsp.bslspShaderType != (uint)BSLightingShaderPropertyShaderType.BSLSP_EYE) continue;
+
+            // Capture all eye-relevant shader properties into plain value types.
+            Vector3 ec = bslsp.emissiveColor;
+            Vector3 sc = bslsp.specularColor;
+            Vector3 elrc = bslsp.eyeLeftReflectionCenter;
+            Vector3 errc = bslsp.eyeRightReflectionCenter;
+
+            var captured = new CapturedEyeShaderProperties
+            {
+                EmissiveColor = (ec?.x ?? 0f, ec?.y ?? 0f, ec?.z ?? 0f),
+                EmissiveMultiple = bslsp.emissiveMultiple,
+                SpecularColor = (sc?.x ?? 0f, sc?.y ?? 0f, sc?.z ?? 0f),
+                SpecularStrength = bslsp.specularStrength,
+                Glossiness = bslsp.glossiness,
+                Alpha = bslsp.alpha,
+                Softlighting = bslsp.softlighting,
+                RimlightPower = bslsp.rimlightPower,
+                EyeCubemapScale = bslsp.eyeCubemapScale,
+                EyeLeftReflectionCenter = (elrc?.x ?? 0f, elrc?.y ?? 0f, elrc?.z ?? 0f),
+                EyeRightReflectionCenter = (errc?.x ?? 0f, errc?.y ?? 0f, errc?.z ?? 0f),
+            };
+
+            DebugLog(npcInfo, "  CaptureEyeShaderProperties: Found on \"" + shapeName +
+                "\" — specularColor=(" + captured.SpecularColor.R + ", " +
+                captured.SpecularColor.G + ", " + captured.SpecularColor.B +
+                ") glossiness=" + captured.Glossiness +
+                " emissiveMultiple=" + captured.EmissiveMultiple +
+                " eyeCubemapScale=" + captured.EyeCubemapScale);
+
+            return captured;
+        }
+
+        DebugLog(npcInfo, "  CaptureEyeShaderProperties: No BSLSP_EYE shader found.");
+        return null;
+    }
+
+    /// <summary>
+    /// Applies previously captured eye shader properties to a cloned shape's
+    /// BSLightingShaderProperty, if it uses the BSLSP_EYE shader type.
+    ///
+    /// This preserves the NPC's original eye color, glossiness, emissive glow,
+    /// cubemap scale, and reflection center positioning when the eye mesh is
+    /// swapped for a different head part model.
+    /// </summary>
+    private void ApplyEyeShaderToClonedShape(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        CapturedEyeShaderProperties props,
+        NPCInfo npcInfo)
+    {
+        NiHeader header = faceGenNif.GetHeader();
+
+        NiBlockRefNiShader shaderRef = clonedShape.ShaderPropertyRef();
+        if (shaderRef == null || shaderRef.IsEmpty()) return;
+
+        NiObject shaderObj = header.GetBlockById(shaderRef.index);
+        if (shaderObj is not BSLightingShaderProperty bslsp) return;
+
+        if (bslsp.bslspShaderType != (uint)BSLightingShaderPropertyShaderType.BSLSP_EYE) return;
+
+        bslsp.emissiveColor = new Vector3(props.EmissiveColor.R, props.EmissiveColor.G, props.EmissiveColor.B);
+        bslsp.emissiveMultiple = props.EmissiveMultiple;
+        bslsp.specularColor = new Vector3(props.SpecularColor.R, props.SpecularColor.G, props.SpecularColor.B);
+        bslsp.specularStrength = props.SpecularStrength;
+        bslsp.glossiness = props.Glossiness;
+        bslsp.alpha = props.Alpha;
+        bslsp.softlighting = props.Softlighting;
+        bslsp.rimlightPower = props.RimlightPower;
+        bslsp.eyeCubemapScale = props.EyeCubemapScale;
+        bslsp.eyeLeftReflectionCenter = new Vector3(
+            props.EyeLeftReflectionCenter.X,
+            props.EyeLeftReflectionCenter.Y,
+            props.EyeLeftReflectionCenter.Z);
+        bslsp.eyeRightReflectionCenter = new Vector3(
+            props.EyeRightReflectionCenter.X,
+            props.EyeRightReflectionCenter.Y,
+            props.EyeRightReflectionCenter.Z);
+
+        DebugLog(npcInfo, "  ApplyEyeShaderToClonedShape: Set \"" +
+            (clonedShape.name?.get() ?? "unnamed") +
+            "\" — specularColor=(" + props.SpecularColor.R + ", " +
+            props.SpecularColor.G + ", " + props.SpecularColor.B +
+            ") glossiness=" + props.Glossiness +
+            " emissiveMultiple=" + props.EmissiveMultiple +
+            " eyeCubemapScale=" + props.EyeCubemapScale);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  HEAD PART SWAPPING — Eye Texture Set Baking (TNAM Resolution)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves the texture paths from a head part's TNAM (Texture Set) record.
+    ///
+    /// In Skyrim's data model, each HDPT (Head Part) record has a TNAM field
+    /// that references a TXST (Texture Set) record. The TXST record contains
+    /// up to 9 texture slots (TX00–TX08) that define the textures the engine
+    /// should use for that head part at runtime.
+    ///
+    /// For eye head parts, the TXST typically contains:
+    ///   TX00 = Diffuse (the eye color texture, e.g., eyenordic.dds)
+    ///   TX01 = Normal/Gloss
+    ///   TX02 = Environment Mask / Subsurface Tint
+    ///   TX05 = Environment (cubemap)
+    ///
+    /// When writing pre-baked FaceGen NIFs, the engine does NOT re-resolve TNAM
+    /// at runtime — it uses whatever textures are already in the NIF's
+    /// BSShaderTextureSet. So we must bake TNAM's textures into the NIF ourselves.
+    ///
+    /// Returns a dictionary of slot index → texture path for all non-empty slots,
+    /// or an empty dictionary if the texture set could not be resolved.
+    /// </summary>
+    private Dictionary<uint, string> ResolveHeadPartTextureSet(
+        IHeadPartGetter headPartGetter,
+        NPCInfo npcInfo)
+    {
+        var result = new Dictionary<uint, string>();
+
+        // TNAM is the texture set link on the head part record.
+        var textureSetLink = headPartGetter.TextureSet;
+        if (textureSetLink == null || textureSetLink.IsNull)
+        {
+            DebugLog(npcInfo, "  ResolveHeadPartTextureSet: No TNAM on head part \"" +
+                (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()) + "\"");
+            return result;
+        }
+
+        if (!_environmentProvider.LinkCache.TryResolve<ITextureSetGetter>(textureSetLink.FormKey, out var textureSet))
+        {
+            DebugLog(npcInfo, "  ResolveHeadPartTextureSet: Could not resolve TNAM " +
+                textureSetLink.FormKey + " for head part \"" +
+                (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()) + "\"");
+            return result;
+        }
+
+        string txstEditorId = textureSet.EditorID ?? textureSet.FormKey.ToString();
+        DebugLog(npcInfo, "  ResolveHeadPartTextureSet: Resolved TNAM \"" + txstEditorId +
+            "\" [" + textureSet.FormKey + "]");
+
+        // Read each texture slot from the TXST record.
+        // Mutagen exposes these as Diffuse, NormalOrGloss, GlowOrDetailMap, etc.
+        // Map them to BSShaderTextureSet slot indices (TX00=0, TX01=1, ..., TX07=7).
+        //
+        // NOTE: The accessor `.DataRelativePath.Path` assumes Mutagen asset link
+        // properties. If your Mutagen version exposes these as plain strings,
+        // replace with e.g. `textureSet.Diffuse` directly. If it uses `.RawPath`
+        // or `.GivenPath`, adjust accordingly.
+        var texturePaths = new (uint Slot, string Path)[]
+        {
+            (0, textureSet.Diffuse?.DataRelativePath.Path),
+            (1, textureSet.NormalOrGloss?.DataRelativePath.Path),
+            (2, textureSet.EnvironmentMaskOrSubsurfaceTint?.DataRelativePath.Path),
+            (3, textureSet.GlowOrDetailMap?.DataRelativePath.Path),
+            (4, textureSet.Height?.DataRelativePath.Path),
+            (5, textureSet.Environment?.DataRelativePath.Path),
+            (6, textureSet.Multilayer?.DataRelativePath.Path),
+            (7, textureSet.BacklightMaskOrSpecular?.DataRelativePath.Path),
+        };
+
+        foreach (var (slot, path) in texturePaths)
+        {
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                // Ensure the path includes the "textures\" prefix expected by BSShaderTextureSet.
+                // TXST records in plugins store paths relative to Data\textures (e.g.,
+                // "Actors\Character\eyes\eyenordic.dds"), but BSShaderTextureSet paths in
+                // NIFs are stored relative to Data with the prefix (e.g.,
+                // "textures\actors\character\eyes\eyenordic.dds"). The engine handles both
+                // forms, but we match the existing NIF convention for consistency.
+                string normalizedPath = path;
+                if (!normalizedPath.StartsWith("textures\\", StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedPath.StartsWith("textures/", StringComparison.OrdinalIgnoreCase))
+                {
+                    normalizedPath = "textures\\" + normalizedPath;
+                }
+
+                result[slot] = normalizedPath;
+                DebugLog(npcInfo, "    TX0" + slot + " (slot " + slot + ") = \"" + normalizedPath + "\"" +
+                    (normalizedPath != path ? " (prefixed from \"" + path + "\")" : ""));
+            }
+        }
+
+        DebugLog(npcInfo, "  ResolveHeadPartTextureSet: " + result.Count + " non-empty slot(s)");
+        return result;
+    }
+
+    /// <summary>
+    /// Bakes resolved TNAM texture paths into a cloned eye shape's BSShaderTextureSet.
+    ///
+    /// This overwrites the model NIF's default textures (e.g., EyeBrown.dds) with
+    /// the textures defined by the head part's TNAM record (e.g., eyenordic.dds),
+    /// ensuring the correct eye color appears in the pre-baked FaceGen NIF.
+    ///
+    /// Only writes to slots that have non-empty paths in the resolved texture set.
+    /// Slots not present in the TNAM are left unchanged (preserving the model's
+    /// defaults for any slots the TXST record doesn't override).
+    /// </summary>
+    private void ApplyEyeTexturesToClonedShape(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        Dictionary<uint, string> eyeTextures,
+        NPCInfo npcInfo)
+    {
+        string shapeName = clonedShape.name?.get() ?? "unnamed";
+
+        foreach (var (slot, texturePath) in eyeTextures)
+        {
+            faceGenNif.SetTextureSlot(clonedShape, texturePath, slot);
+
+            DebugLog(npcInfo, "  ApplyEyeTexturesToClonedShape: \"" + shapeName +
+                "\" slot " + slot + " -> \"" + texturePath + "\"");
+        }
+
+        _logger.LogReport(
+            "FaceGenPatcher: Baked " + eyeTextures.Count + " TNAM texture slot(s) into eye shape \"" +
+            shapeName + "\".",
+            false, npcInfo);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  HEAD PART SWAPPING — Eye Bone Transform Forwarding
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Scans shapes under BSFaceGenNiNodeSkinned for the existing eye shape and
+    /// captures its global-to-skin and per-bone skin-to-bone transforms.
+    ///
+    /// These NPC-specific transforms are baked by the Creation Kit to position
+    /// the eyes correctly in the NPC's unique eye sockets. Without capturing
+    /// and re-applying them, cloned replacement eyes land at the generic head
+    /// part model's default position.
+    ///
+    /// Identifies eye shapes by matching shape names against the NPC's head part
+    /// records of type Eyes (via existingShapeTypes), consistent with the
+    /// name-based identification used throughout the head part swapping system.
+    /// </summary>
+    private CapturedBoneTransforms CaptureEyeBoneTransforms(
+        NifFile faceGenNif,
+        NiNode faceGenSkinNode,
+        Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
+        NPCInfo npcInfo)
+    {
+        using var shapes = faceGenNif.GetShapes();
+        foreach (var shape in shapes)
+        {
+            // Only consider shapes parented to BSFaceGenNiNodeSkinned.
+            var parent = faceGenNif.GetParentNode(shape);
+            if (parent == null) continue;
+
+            string parentName = parent.name.get();
+            if (parentName != "BSFaceGenNiNodeSkinned" &&
+                !IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned"))
+                continue;
+
+            // Identify eye shapes by matching name against the NPC's head part
+            // records, same approach as RemoveShapesByHeadPartType.
+            string shapeName = shape.name?.get();
+            if (string.IsNullOrEmpty(shapeName)) continue;
+
+            if (!existingShapeTypes.TryGetValue(shapeName, out var shapeType) ||
+                shapeType != HeadPart.TypeEnum.Eyes)
+                continue;
+
+            // Found the existing eye shape — capture its transforms.
+            var captured = new CapturedBoneTransforms();
+
+            // ── Capture vertex centroid (PRIMARY eye positioning data) ──
+            //
+            // The CK bakes NPC-specific eye positioning into the actual vertex
+            // positions, NOT into any transform. All transforms (TransformToParent,
+            // GlobalToSkin, SkinToBone) are identity for vanilla eye shapes.
+            //
+            // By computing the centroid (average position) of the morphed vertices
+            // here and comparing to the cloned shape's centroid later, we can
+            // derive a translation offset that repositions the new eye mesh into
+            // the correct NPC-specific location.
+            using (var verts = faceGenNif.GetVertsForShape(shape))
+            {
+                if (verts != null && verts.Count > 0)
+                {
+                    // Store ALL morphed vertices for direct copy when topology matches.
+                    captured.MorphedVertices = new (float, float, float)[verts.Count];
+                    double cx = 0, cy = 0, cz = 0;
+                    for (int vi = 0; vi < verts.Count; vi++)
+                    {
+                        var v = verts[vi];
+                        captured.MorphedVertices[vi] = (v.x, v.y, v.z);
+                        cx += v.x;
+                        cy += v.y;
+                        cz += v.z;
+                    }
+                    float n = verts.Count;
+                    captured.VertexCentroid = ((float)(cx / n), (float)(cy / n), (float)(cz / n));
+
+                    DebugLog(npcInfo, "  CaptureEyeBoneTransforms: Captured " + verts.Count +
+                        " morphed vertices from \"" + shapeName + "\" (centroid: " +
+                        captured.VertexCentroid.Value.X + ", " +
+                        captured.VertexCentroid.Value.Y + ", " +
+                        captured.VertexCentroid.Value.Z + ")");
+                }
+            }
+
+            // Capture global-to-skin transform.
+            var globalToSkin = new MatTransform();
+            if (faceGenNif.GetShapeTransformGlobalToSkin(shape, globalToSkin))
+            {
+                captured.GlobalToSkin = globalToSkin;
+                DebugLog(npcInfo, "  CaptureEyeBoneTransforms: GlobalToSkin captured from \"" +
+                    shapeName + "\"");
+            }
+
+            // Capture per-bone skin-to-bone transforms.
+            using var boneNames = new vectorstring();
+            uint boneCount = faceGenNif.GetShapeBoneList(shape, boneNames);
+
+            for (int i = 0; i < boneNames.Count; i++)
+            {
+                string boneName = boneNames[i];
+                var skinToBone = new MatTransform();
+
+                if (faceGenNif.GetShapeTransformSkinToBone(shape, boneName, skinToBone))
+                {
+                    captured.SkinToBone[boneName] = skinToBone;
+                    DebugLog(npcInfo, "  CaptureEyeBoneTransforms: Bone \"" + boneName +
+                        "\" transform captured (translation: " +
+                        skinToBone.translation.x + ", " +
+                        skinToBone.translation.y + ", " +
+                        skinToBone.translation.z + ")");
+                }
+            }
+
+            if (captured.VertexCentroid.HasValue || captured.SkinToBone.Count > 0)
+            {
+                DebugLog(npcInfo, "  CaptureEyeBoneTransforms: Captured from \"" + shapeName +
+                    "\": Centroid=" + (captured.VertexCentroid.HasValue ? "yes" : "no") +
+                    ", " + captured.SkinToBone.Count + " bone transform(s)");
+                return captured;
+            }
+        }
+
+        DebugLog(npcInfo, "  CaptureEyeBoneTransforms: No existing eye shape found to capture from.");
+        return null;
+    }
+
+    /// <summary>
+    /// Applies previously captured NPC-specific eye positioning to a cloned eye shape.
+    ///
+    /// The CK bakes NPC-specific eye positioning by morphing actual vertex positions
+    /// in the FaceGen NIF — NOT via transforms (which are all identity for eye shapes).
+    /// Since we can't transfer per-vertex morphs between meshes with different topology,
+    /// we compute the centroid (average vertex position) of both the original morphed
+    /// mesh and the cloned generic mesh, then shift all cloned vertices by the delta.
+    ///
+    /// This effectively translates the new eye mesh into the NPC's eye sockets without
+    /// requiring vertex-for-vertex correspondence between the old and new meshes.
+    ///
+    /// Also applies captured GlobalToSkin and SkinToBone transforms (typically identity
+    /// for vanilla eyes, but may carry meaningful data for modded eye meshes).
+    /// </summary>
+    private void ApplyEyeBoneTransformsToClonedShape(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        CapturedBoneTransforms captured,
+        NPCInfo npcInfo)
+    {
+        // ── Apply vertex centroid offset (PRIMARY eye positioning fix) ──
+        //
+        // The original FaceGen eye shape had CK-morphed vertices positioned in the
+        // NPC's eye sockets. The cloned shape has generic model vertices at the
+        // "default head" position. Shift all cloned vertices by the centroid delta
+        // to reposition the new eyes into the NPC's actual eye sockets.
+        if (captured.VertexCentroid.HasValue)
+        {
+            using var clonedVerts = faceGenNif.GetVertsForShape(clonedShape);
+            if (clonedVerts != null && clonedVerts.Count > 0)
+            {
+                // Compute centroid of the cloned (generic) shape.
+                double cx = 0, cy = 0, cz = 0;
+                for (int vi = 0; vi < clonedVerts.Count; vi++)
+                {
+                    var v = clonedVerts[vi];
+                    cx += v.x;
+                    cy += v.y;
+                    cz += v.z;
+                }
+                float n = clonedVerts.Count;
+                float clonedCX = (float)(cx / n);
+                float clonedCY = (float)(cy / n);
+                float clonedCZ = (float)(cz / n);
+
+                // Delta = original morphed centroid - cloned generic centroid
+                float dx = captured.VertexCentroid.Value.X - clonedCX;
+                float dy = captured.VertexCentroid.Value.Y - clonedCY;
+                float dz = captured.VertexCentroid.Value.Z - clonedCZ;
+
+                DebugLog(npcInfo, "  ApplyEyeBoneTransforms: Centroid offset for \"" +
+                    (clonedShape.name?.get() ?? "unnamed") + "\": original=(" +
+                    captured.VertexCentroid.Value.X + ", " +
+                    captured.VertexCentroid.Value.Y + ", " +
+                    captured.VertexCentroid.Value.Z + ") cloned=(" +
+                    clonedCX + ", " + clonedCY + ", " + clonedCZ + ") delta=(" +
+                    dx + ", " + dy + ", " + dz + ")");
+
+                // Apply the offset to every vertex in-place.
+                // clonedVerts[vi] returns a non-owning reference into the native
+                // vector's storage, so setting .x/.y/.z directly modifies the
+                // underlying data without allocating temporary Vector3 objects.
+                for (int vi = 0; vi < clonedVerts.Count; vi++)
+                {
+                    var v = clonedVerts[vi];
+                    v.x += dx;
+                    v.y += dy;
+                    v.z += dz;
+                }
+
+                // Write the shifted vertices back to the shape.
+                faceGenNif.SetVertsForShape(clonedShape, clonedVerts);
+
+                DebugLog(npcInfo, "  ApplyEyeBoneTransforms: Shifted " + clonedVerts.Count +
+                    " vertices by delta (" + dx + ", " + dy + ", " + dz + ")");
+            }
+        }
+
+        // Apply global-to-skin transform.
+        if (captured.GlobalToSkin != null)
+        {
+            faceGenNif.SetShapeTransformGlobalToSkin(clonedShape, captured.GlobalToSkin);
+            DebugLog(npcInfo, "  ApplyEyeBoneTransforms: Set GlobalToSkin on \"" +
+                (clonedShape.name?.get() ?? "unnamed") + "\"");
+        }
+
+        // Apply per-bone skin-to-bone transforms.
+        using var clonedBoneNames = new vectorstring();
+        uint boneCount = faceGenNif.GetShapeBoneList(clonedShape, clonedBoneNames);
+
+        int applied = 0;
+        for (uint i = 0; i < (uint)clonedBoneNames.Count; i++)
+        {
+            string boneName = clonedBoneNames[(int)i];
+
+            if (captured.SkinToBone.TryGetValue(boneName, out var capturedTransform))
+            {
+                faceGenNif.SetShapeTransformSkinToBone(clonedShape, i, capturedTransform);
+                applied++;
+
+                DebugLog(npcInfo, "  ApplyEyeBoneTransforms: Bone[" + i + "] \"" + boneName +
+                    "\" -> captured transform (translation: " +
+                    capturedTransform.translation.x + ", " +
+                    capturedTransform.translation.y + ", " +
+                    capturedTransform.translation.z + ")");
+            }
+        }
+
+        DebugLog(npcInfo, "  ApplyEyeBoneTransforms: Applied " + applied + "/" +
+            clonedBoneNames.Count + " bone transforms to \"" +
+            (clonedShape.name?.get() ?? "unnamed") + "\"");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  HEAD PART SWAPPING — Remove Conflicting Shapes
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Removes all shapes under BSFaceGenNiNodeSkinned whose BSDismemberSkinInstance
-    /// partitions overlap with the given set of body-part IDs.
+    /// Builds a map of shape name (EditorID) → HeadPart.TypeEnum for all head parts
+    /// currently on the NPC record, including ExtraParts (e.g., hairlines).
+    ///
+    /// Used by the removal pass to identify which existing FaceGen shapes belong to
+    /// which head part type by consulting the authoritative record data, rather than
+    /// inspecting NIF partition data. This correctly handles shapes that use plain
+    /// NiSkinInstance (no BSDismemberSkinInstance) — notably eyes, brows, and mouth
+    /// shapes in vanilla FaceGen NIFs — which the previous partition-based approach
+    /// could not identify.
     /// </summary>
-    private void RemoveShapesByPartition(
+    private Dictionary<string, HeadPart.TypeEnum> BuildExistingHeadPartTypeMap(NPCInfo npcInfo)
+    {
+        var map = new Dictionary<string, HeadPart.TypeEnum>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var hpLink in npcInfo.OriginalNPC.HeadParts)
+        {
+            if (!_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(hpLink.FormKey, out var hpGetter))
+                continue;
+            if (hpGetter.Type == null)
+                continue;
+
+            var type = hpGetter.Type.Value;
+            string editorId = hpGetter.EditorID;
+            if (!string.IsNullOrEmpty(editorId))
+                map.TryAdd(editorId, type);
+
+            // Recurse into ExtraParts (hairlines, highlights, etc.).
+            // Each extra part has its own EditorID and a Type that matches the parent
+            // (e.g., a hairline extra part is also HeadPart.TypeEnum.Hair), so they
+            // are covered automatically without special-casing.
+            if (hpGetter.ExtraParts != null)
+            {
+                foreach (var extraLink in hpGetter.ExtraParts)
+                {
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(extraLink.FormKey, out var extraGetter)
+                        && extraGetter.Type != null
+                        && !string.IsNullOrEmpty(extraGetter.EditorID))
+                    {
+                        map.TryAdd(extraGetter.EditorID, extraGetter.Type.Value);
+                    }
+                }
+            }
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Removes existing FaceGen shapes that belong to the specified head part type,
+    /// identified by matching shape names against the NPC's head part EditorIDs
+    /// (provided via <paramref name="existingShapeTypes"/>).
+    ///
+    /// This replaces the previous partition-based RemoveShapesByPartition approach,
+    /// which failed for shapes using plain NiSkinInstance (no BSDismemberSkinInstance).
+    /// nifly synthesizes a default partition ID of 32 (SBP_32_BODY) for such shapes,
+    /// causing either false-positive deletion of unrelated shapes or — when guarded
+    /// against — failure to remove the shapes that actually needed replacing (e.g.,
+    /// eyes, brows). By identifying shapes through their record type instead of
+    /// partition data, this approach works uniformly regardless of skin instance type.
+    /// </summary>
+    private void RemoveShapesByHeadPartType(
         NifFile faceGenNif,
         NiNode faceGenSkinNode,
-        HashSet<int> targetPartitions,
+        HeadPart.TypeEnum typeToRemove,
+        Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
         NPCInfo npcInfo)
     {
-        if (targetPartitions.Count == 0) return;
-
-        // Collect shapes to remove first (avoid modifying collection during iteration).
         var shapesToRemove = new List<(NiShape Shape, string Name)>();
 
         using var shapes = faceGenNif.GetShapes();
@@ -1440,42 +2084,30 @@ public class FaceGenPatcher
             var parent = faceGenNif.GetParentNode(shape);
             if (parent == null) continue;
 
-            // Compare parent by reference to the known faceGenSkinNode, or by name.
             string parentName = parent.name.get();
-            if (parentName != "BSFaceGenNiNodeSkinned")
-            {
-                // Also check by block type (same fallback as face texture patching).
-                if (!IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned")) continue;
-            }
-
-            // FIX_A: Skip shapes that use a plain NiSkinInstance rather than
-            // BSDismemberSkinInstance. Plain NiSkinInstance shapes have no real
-            // partition data — nifly synthesizes a default partition ID of 32
-            // (SBP_32_BODY), which causes false-positive matches against
-            // incoming head parts that happen to use partition 32.
-            if (FIX_A_SKIP_NON_DISMEMBER_IN_REMOVAL && !HasTrueDismemberSkinInstance(faceGenNif, shape))
-            {
-                DebugLog(npcInfo, "  RemoveShapesByPartition: Skipping \"" +
-                    (shape.name?.get() ?? "unnamed") +
-                    "\" — no BSDismemberSkinInstance (FIX_A)");
+            if (parentName != "BSFaceGenNiNodeSkinned"
+                && !IsBlockType(faceGenNif, parent, "BSFaceGenNiNodeSkinned"))
                 continue;
-            }
 
-            // Check if this shape's partitions overlap with the target set.
-            var shapeBodyParts = GetDismemberBodyParts(faceGenNif, shape);
-            if (shapeBodyParts.Overlaps(targetPartitions))
+            string shapeName = shape.name?.get();
+            if (string.IsNullOrEmpty(shapeName)) continue;
+
+            if (existingShapeTypes.TryGetValue(shapeName, out var shapeType)
+                && shapeType == typeToRemove)
             {
-                shapesToRemove.Add((shape, shape.name.get() ?? "unnamed"));
+                shapesToRemove.Add((shape, shapeName));
             }
         }
 
-        // Delete the shapes.
         foreach (var (shape, name) in shapesToRemove)
         {
             faceGenNif.DeleteShape(shape);
 
+            DebugLog(npcInfo, "  RemoveShapesByHeadPartType: Removed \"" + name +
+                "\" (type=" + typeToRemove + ")");
+
             _logger.LogReport(
-                "FaceGenPatcher: Removed existing shape \"" + name + "\" (partition conflict).",
+                "FaceGenPatcher: Removed existing shape \"" + name + "\" (type " + typeToRemove + " conflict).",
                 false, npcInfo);
         }
     }
@@ -1634,6 +2266,428 @@ public class FaceGenPatcher
                 " -> block " + skinNodeBlockId + " (" + skinNodeName + ").",
                 false, npcInfo);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  HEAD PART SWAPPING — TRI File Morph Application
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Attempts to apply NPC-specific FaceGen morphs to a cloned head part
+    /// shape by reading the head part's CharGen .tri file and applying the
+    /// NPC's slider values as morph weights.
+    ///
+    /// This produces CK-equivalent per-vertex morphing — the exact same
+    /// deformation the Creation Kit would bake when generating FaceGen data.
+    /// Unlike the centroid approximation (which only translates the mesh
+    /// rigidly), this correctly handles rotation, asymmetric deformation,
+    /// and per-vertex conforming to the NPC's specific face shape.
+    ///
+    /// Returns true if morphing was successfully applied, false if the .tri
+    /// file could not be found or parsed (caller should fall back to the
+    /// centroid approximation in that case).
+    /// </summary>
+    private bool TryApplyTriMorphToClonedShape(
+        NifFile faceGenNif,
+        NiShape clonedShape,
+        IHeadPartGetter headPartGetter,
+        HeadPart.TypeEnum type,
+        NPCInfo npcInfo)
+    {
+        // ── Step 1: Locate the CharGen .tri file for this head part ──
+        //
+        // The CharGen .tri file sits alongside the head part's NIF with a
+        // naming convention: if the NIF is "EyesFemaleHumanPassion.nif",
+        // the chargen TRI is "EyesFemaleChargen.tri" (shared across eye
+        // variants within a gender/race), or sometimes "<basename>Chargen.tri".
+        //
+        // We try multiple resolution strategies:
+        //   1. Direct .tri path: replace .nif extension with .tri
+        //      (some head parts have their own per-model .tri)
+        //   2. CharGen variant: replace the model filename with the
+        //      corresponding CharGen TRI filename from the game's
+        //      standard naming pattern
+
+        string modelRelPath = null;
+        if (headPartGetter.Model != null)
+        {
+            modelRelPath = headPartGetter.Model.File.DataRelativePath.Path;
+        }
+
+        if (string.IsNullOrEmpty(modelRelPath))
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: No model path on head part");
+            return false;
+        }
+
+        string triAbsPath = ResolveCharGenTriPath(modelRelPath, headPartGetter, npcInfo);
+        if (triAbsPath == null)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: CharGen .tri not found for " + modelRelPath);
+            return false;
+        }
+
+        // ── Step 2: Parse the .tri file ──
+
+        var triData = TriFileParser.Load(triAbsPath, out string parseError);
+        if (triData == null)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: Failed to parse .tri: " + parseError);
+            // Try cleaning up if it was extracted
+            return false;
+        }
+
+        DebugLog(npcInfo, "  TryApplyTriMorph: Parsed \"" + triAbsPath +
+            "\": " + triData.VertexCount + " verts, " +
+            triData.Morphs.Count + " morphs [" +
+            string.Join(", ", triData.MorphNames) + "]");
+
+        // ── Step 3: Verify vertex count matches the cloned shape ──
+        //
+        // The .tri file must have the same vertex count as the NIF mesh
+        // it was built for. If they don't match, the morph deltas would
+        // be applied to the wrong vertices.
+
+        using var clonedVerts = faceGenNif.GetVertsForShape(clonedShape);
+        if (clonedVerts == null || clonedVerts.Count == 0)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: Cloned shape has no vertices");
+            return false;
+        }
+
+        if (clonedVerts.Count != triData.VertexCount)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: Vertex count mismatch — " +
+                "shape has " + clonedVerts.Count + " verts but .tri has " +
+                triData.VertexCount + ". Cannot apply morphs.");
+            return false;
+        }
+
+        // ── Step 4: Read the NPC's chargen slider values from Mutagen ──
+
+        var morphWeights = BuildNpcMorphWeights(npcInfo);
+        if (morphWeights.Count == 0)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: NPC has no face morph data");
+            return false;
+        }
+
+        DebugLog(npcInfo, "  TryApplyTriMorph: NPC has " + morphWeights.Count + " morph weights");
+
+        // ── Step 5: Compute per-vertex morph offsets ──
+
+        var offsets = TriFileParser.ComputeMorphOffsets(triData, morphWeights);
+
+        // Check if any offsets are non-zero (worth applying).
+        bool hasNonZeroOffset = false;
+        float maxOffset = 0;
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            float mag = Math.Abs(offsets[i].X) + Math.Abs(offsets[i].Y) + Math.Abs(offsets[i].Z);
+            if (mag > maxOffset) maxOffset = mag;
+            if (mag > 1e-6f) hasNonZeroOffset = true;
+        }
+
+        if (!hasNonZeroOffset)
+        {
+            DebugLog(npcInfo, "  TryApplyTriMorph: All morph offsets are zero (sliders may not match .tri morph names)");
+            return false;
+        }
+
+        DebugLog(npcInfo, "  TryApplyTriMorph: Max offset magnitude: " + maxOffset);
+
+        // ── Step 6: Apply offsets to the cloned vertices ──
+
+        for (int i = 0; i < clonedVerts.Count; i++)
+        {
+            var v = clonedVerts[i];
+            v.x += offsets[i].X;
+            v.y += offsets[i].Y;
+            v.z += offsets[i].Z;
+        }
+
+        faceGenNif.SetVertsForShape(clonedShape, clonedVerts);
+
+        DebugLog(npcInfo, "  TryApplyTriMorph: Applied per-vertex morphs to " +
+            clonedVerts.Count + " vertices on \"" +
+            (clonedShape.name?.get() ?? "unnamed") + "\"");
+
+        _logger.LogReport(
+            "FaceGenPatcher: Applied CharGen .tri morphs (" + triData.Morphs.Count +
+            " morphs, " + morphWeights.Count + " active weights) to \"" +
+            (clonedShape.name?.get() ?? "unnamed") + "\" (" + type + ").",
+            false, npcInfo);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Reads the NPC's chargen slider values (FaceMorph / NAM9) and preset
+    /// indices (FaceParts / NAMA) from the winning override.
+    ///
+    /// If FaceMorph is null, returns EMPTY weights. Both the continuous
+    /// sliders AND presets are meaningless for a face that wasn't built
+    /// with the chargen system (Bijin etc.), so the centroid fallback
+    /// should handle positioning instead.
+    /// </summary>
+    private Dictionary<string, float> BuildNpcMorphWeights(NPCInfo npcInfo)
+    {
+        var npcGetter = npcInfo.OriginalNPC;
+
+        if (npcGetter.FaceMorph == null)
+        {
+            DebugLog(npcInfo, "    BuildNpcMorphWeights: FaceMorph is NULL — " +
+                "custom-sculpted face, returning empty weights (centroid fallback).");
+            return new Dictionary<string, float>();
+        }
+
+        var sliderValues = ExtractFaceMorphSliders(npcGetter.FaceMorph);
+
+        DebugLog(npcInfo, "    BuildNpcMorphWeights: FaceMorph present — " +
+            sliderValues.Count + " sliders");
+
+        if (IsDebugNpc(npcInfo))
+        {
+            for (int i = 0; i < sliderValues.Count; i++)
+            {
+                string morphName = ChargenSliderMap.GetSliderMorphName(i) ?? ("index" + i);
+                DebugLog(npcInfo, "      Slider[" + i + "] " + morphName + " = " + sliderValues[i]);
+            }
+        }
+
+        uint? nosePreset = null, browPreset = null, eyePreset = null, mouthPreset = null;
+        if (npcGetter.FaceParts != null)
+        {
+            nosePreset  = npcGetter.FaceParts.Nose;
+            browPreset  = npcGetter.FaceParts.Unknown;
+            eyePreset   = npcGetter.FaceParts.Eyes;
+            mouthPreset = npcGetter.FaceParts.Mouth;
+
+            DebugLog(npcInfo, "    BuildNpcMorphWeights: FaceParts: Nose=" + nosePreset +
+                " Brow=" + browPreset + " Eyes=" + eyePreset + " Mouth=" + mouthPreset);
+        }
+
+        var weights = ChargenSliderMap.BuildMorphWeights(
+            sliderValues, nosePreset, browPreset, eyePreset, mouthPreset);
+
+        if (IsDebugNpc(npcInfo))
+        {
+            DebugLog(npcInfo, "    BuildNpcMorphWeights: Final weight count=" + weights.Count);
+            foreach (var (name, weight) in weights)
+            {
+                DebugLog(npcInfo, "    MorphWeight: \"" + name + "\" = " + weight);
+            }
+        }
+
+        return weights;
+    }
+
+    /// <summary>
+    /// Extracts the 19 chargen slider float values from Mutagen's NpcFaceMorph.
+    /// Filters sentinel values: Mutagen returns float.MaxValue for missing fields.
+    /// </summary>
+    private static List<float> ExtractFaceMorphSliders(Mutagen.Bethesda.Skyrim.INpcFaceMorphGetter morphGetter)
+    {
+        var result = new List<float>(19);
+
+        result.Add(morphGetter.NoseLongVsShort);       // 0
+        result.Add(morphGetter.NoseUpVsDown);          // 1
+        result.Add(morphGetter.JawUpVsDown);           // 2
+        result.Add(morphGetter.JawNarrowVsWide);       // 3
+        result.Add(morphGetter.JawForwardVsBack);      // 4
+        result.Add(morphGetter.CheeksUpVsDown);        // 5
+        result.Add(morphGetter.CheeksForwardVsBack);   // 6
+        result.Add(morphGetter.EyesUpVsDown);          // 7
+        result.Add(morphGetter.EyesInVsOut);           // 8
+        result.Add(morphGetter.BrowsUpVsDown);         // 9
+        result.Add(morphGetter.BrowsInVsOut);          // 10
+        result.Add(morphGetter.BrowsForwardVsBack);    // 11
+        result.Add(morphGetter.LipsUpVsDown);          // 12
+        result.Add(morphGetter.LipsInVsOut);           // 13
+        result.Add(morphGetter.ChinNarrowVsWide);      // 14
+        result.Add(morphGetter.ChinUpVsDown);          // 15
+        result.Add(morphGetter.ChinUnderbiteVsOverbite); // 16
+        result.Add(morphGetter.EyesForwardVsBack);     // 17
+        result.Add(morphGetter.Unknown);               // 18
+
+        // Sanitize: Mutagen returns float.MaxValue (3.4E+38) for missing fields.
+        // Chargen sliders are always in [-1, 1]. Anything beyond ±10 is a sentinel.
+        for (int i = 0; i < result.Count; i++)
+        {
+            float v = result[i];
+            if (float.IsNaN(v) || float.IsInfinity(v) || Math.Abs(v) > 10f)
+            {
+                result[i] = 0f;
+            }
+        }
+
+        return result;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TRI FILE PATH RESOLUTION
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves the CharGen .tri file path for a head part model.
+    ///
+    /// Skyrim's CharGen .tri naming conventions:
+    ///
+    ///   Model NIF path                          → CharGen TRI path
+    ///   ──────────────────────────────────────   ──────────────────────────────
+    ///   EyesFemaleHumanPassion.nif              → EyesFemaleChargen.tri
+    ///   FemaleHead.nif                          → FemaleHeadCharGen.tri
+    ///   Mouth\MouthHumanF.nif                   → Mouth\MouthHumanFChargen.tri
+    ///   FaceParts\FemaleHeadBrows.nif           → FaceParts\FemaleHeadBrowsCharGen.tri
+    ///   <anything>.nif                          → <anything>.tri   (direct match)
+    ///   <anything>.nif                          → <anything>Chargen.tri
+    ///   <anything>.nif                          → <anything>CharGen.tri
+    ///
+    /// We try in priority order:
+    ///   1. Direct .tri replacement (model.nif → model.tri)
+    ///   2. CharGen suffix variants (model.nif → modelChargen.tri, modelCharGen.tri)
+    ///   3. Known game-standard CharGen TRI paths for the head part type
+    ///
+    /// Returns the absolute path of the first match found, or null.
+    /// </summary>
+    private string ResolveCharGenTriPath(
+        string modelRelPath,
+        IHeadPartGetter headPartGetter,
+        NPCInfo npcInfo)
+    {
+        string dataFolder = _environmentProvider.DataFolderPath;
+
+        // Strip .nif extension to get the base name
+        string basePath = modelRelPath;
+        if (basePath.EndsWith(".nif", StringComparison.OrdinalIgnoreCase))
+        {
+            basePath = basePath.Substring(0, basePath.Length - 4);
+        }
+
+        var candidates = new List<string>();
+
+        // Priority 1: Standard game CharGen TRI paths (most reliable)
+        AddStandardCharGenTriCandidates(candidates, modelRelPath, headPartGetter);
+
+        // Priority 2: CharGen suffix on the specific model name
+        candidates.Add(basePath + "Chargen.tri");
+        candidates.Add(basePath + "CharGen.tri");
+        candidates.Add(basePath + "chargen.tri");
+
+        // DO NOT add basePath + ".tri" — that's the expression TRI
+        // (BlinkLeft, DialogueAnger), not the CharGen TRI.
+
+        // De-duplicate
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var uniqueCandidates = new List<string>();
+        foreach (var c in candidates)
+        {
+            if (seen.Add(c)) uniqueCandidates.Add(c);
+        }
+
+        DebugLog(npcInfo, "  ResolveCharGenTriPath: " + uniqueCandidates.Count +
+            " candidates for " + modelRelPath);
+
+        foreach (string candidate in uniqueCandidates)
+        {
+            string absPath = Path.Combine(dataFolder, candidate);
+            bool exists = File.Exists(absPath);
+            DebugLog(npcInfo, "    Loose: " + candidate + " → " + (exists ? "FOUND" : "miss"));
+            if (exists) return absPath;
+        }
+
+        foreach (string candidate in uniqueCandidates)
+        {
+            string bsaSubPath = candidate.Replace('/', '\\');
+            string extractedPath = TryExtractTriFromBsa(bsaSubPath, headPartGetter);
+            DebugLog(npcInfo, "    BSA: " + candidate + " → " + (extractedPath != null ? "EXTRACTED" : "miss"));
+            if (extractedPath != null) return extractedPath;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Adds standard game CharGen TRI paths based on the head part type and
+    /// the NPC's gender/race. These are the shared CharGen TRI files that
+    /// Skyrim uses for all head parts of a given type within a gender/race.
+    ///
+    /// For example, ALL female human eye meshes share "EyesFemaleChargen.tri"
+    /// regardless of which specific eye model (Passion, Default, etc.) is used.
+    /// </summary>
+    private void AddStandardCharGenTriCandidates(
+        List<string> candidates,
+        string modelRelPath,
+        IHeadPartGetter headPartGetter)
+    {
+        // Detect gender from model path (crude but effective for vanilla)
+        string pathLower = modelRelPath.ToLowerInvariant();
+        bool isFemale = pathLower.Contains("female");
+        string genderPrefix = isFemale ? "Female" : "Male";
+
+        string charAssetsBase = Path.Combine("meshes", "actors", "character", "character assets");
+
+        var type = headPartGetter.Type;
+
+        // Standard Skyrim CharGen TRI files:
+        if (type == HeadPart.TypeEnum.Eyes)
+        {
+            candidates.Add(Path.Combine(charAssetsBase, "Eyes" + genderPrefix + "Chargen.tri"));
+            candidates.Add(Path.Combine(charAssetsBase, "Eyes" + genderPrefix + "CharGen.tri"));
+        }
+        else if (type == HeadPart.TypeEnum.Eyebrows)
+        {
+            candidates.Add(Path.Combine(charAssetsBase, "FaceParts",
+                genderPrefix + "HeadBrowsCharGen.tri"));
+        }
+        else if (type == HeadPart.TypeEnum.Face)
+        {
+            candidates.Add(Path.Combine(charAssetsBase, genderPrefix + "HeadCharGen.tri"));
+        }
+        else if (type == HeadPart.TypeEnum.Hair)
+        {
+            // Hair typically doesn't have CharGen morphs (it's positioned
+            // by bones, not vertex morphs), but some modded hair does.
+            // No standard candidates to add.
+        }
+
+        // Mouth parts
+        if (pathLower.Contains("mouth"))
+        {
+            candidates.Add(Path.Combine(charAssetsBase, "Mouth",
+                "MouthHuman" + (isFemale ? "F" : "M") + "Chargen.tri"));
+            candidates.Add(Path.Combine(charAssetsBase, "Mouth",
+                "MouthHuman" + (isFemale ? "F" : "M") + "CharGen.tri"));
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract a .tri file from BSAs. Similar to TryExtractModelFromBsa
+    /// but for .tri files.
+    /// </summary>
+    private string TryExtractTriFromBsa(string bsaSubPath, IHeadPartGetter headPartGetter)
+    {
+        string safeFileName = Path.GetFileNameWithoutExtension(bsaSubPath)
+            .Replace(Path.DirectorySeparatorChar, '_')
+            .Replace(Path.AltDirectorySeparatorChar, '_');
+        string extractedPath = Path.Combine(
+            _patcherState.ModManagerSettings.TempExtractionFolder,
+            "TRI_" + safeFileName + ".tri");
+
+        var contexts = _environmentProvider.LinkCache
+            .ResolveAllContexts<IHeadPart, IHeadPartGetter>(headPartGetter.FormKey);
+
+        foreach (var context in contexts)
+        {
+            if (_bsaHandler.TryOpenCorrespondingArchiveReaders(context.ModKey, out var bsaReaders) &&
+                _bsaHandler.ReadersHaveFile(bsaSubPath, bsaReaders, out var file) &&
+                _bsaHandler.TryExtractFileFromBSA(file, extractedPath))
+            {
+                return extractedPath;
+            }
+        }
+
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -2198,5 +3252,70 @@ public class FaceGenPatcher
         public NiShape Shape { get; set; }
         public string Name { get; set; }
         public HashSet<int> PartitionBodyParts { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Holds captured NPC-specific bone transforms from the original FaceGen eye
+    /// shape, so they can be transferred to the cloned replacement shape.
+    ///
+    /// This preserves the CK-baked eye positioning that accounts for each NPC's
+    /// unique facial morphs (eye socket depth, spacing, height, etc.).
+    /// </summary>
+    private class CapturedBoneTransforms
+    {
+        /// <summary>
+        /// The overall global-to-skin transform from NiSkinData.skinTransform.
+        /// </summary>
+        public MatTransform GlobalToSkin { get; set; }
+
+        /// <summary>
+        /// Per-bone skin-to-bone transforms, keyed by bone name.
+        /// </summary>
+        public Dictionary<string, MatTransform> SkinToBone { get; set; } = new();
+
+        /// <summary>
+        /// The centroid (average vertex position) of the original FaceGen eye shape.
+        /// Used as a fallback for rigid translation when vertex copy isn't possible.
+        /// </summary>
+        public (float X, float Y, float Z)? VertexCentroid { get; set; }
+
+        /// <summary>
+        /// ALL morphed vertex positions from the original FaceGen eye shape,
+        /// stored as plain float tuples to avoid SWIG lifetime issues.
+        ///
+        /// When the replacement head part uses the same base mesh NIF as the
+        /// original (common for texture-only eye swaps), the cloned shape has
+        /// identical vertex topology. In that case we can copy these vertices
+        /// directly onto the clone for pixel-perfect positioning — no centroid
+        /// approximation or .tri morph math needed.
+        ///
+        /// The vertex count serves as the topology match check: if
+        /// MorphedVertices.Length == clonedShape vertex count, it's safe to copy.
+        /// </summary>
+        public (float X, float Y, float Z)[] MorphedVertices { get; set; }
+    }
+
+    /// <summary>
+    /// Holds captured BSLightingShaderProperty values from the original FaceGen
+    /// eye shape so they can be transferred to the cloned replacement shape.
+    ///
+    /// Eye color in Skyrim is primarily driven by the specular color and related
+    /// properties on the BSLSP_EYE shader. Without forwarding these, cloned eye
+    /// meshes use the default shader values from the head part model NIF, causing
+    /// all NPCs to end up with the same eye color.
+    /// </summary>
+    private class CapturedEyeShaderProperties
+    {
+        public (float R, float G, float B) EmissiveColor { get; set; }
+        public float EmissiveMultiple { get; set; }
+        public (float R, float G, float B) SpecularColor { get; set; }
+        public float SpecularStrength { get; set; }
+        public float Glossiness { get; set; }
+        public float Alpha { get; set; }
+        public float Softlighting { get; set; }       // "Lighting Effect 1" in NifSkope
+        public float RimlightPower { get; set; }       // "Lighting Effect 2" in NifSkope
+        public float EyeCubemapScale { get; set; }
+        public (float X, float Y, float Z) EyeLeftReflectionCenter { get; set; }
+        public (float X, float Y, float Z) EyeRightReflectionCenter { get; set; }
     }
 }
