@@ -266,4 +266,44 @@ public class BSAHandler : ViewModel
         archiveFile = null;
         return false;
     }
+
+    /// <summary>
+    /// Opens BSA archives for ALL enabled mods in the load order.
+    /// 
+    /// Call this once before using <see cref="TryFindFileInAnyArchive"/> to ensure
+    /// full coverage. Without this, only BSAs for mods that have already been queried
+    /// via <see cref="TryOpenCorrespondingArchiveReaders"/> will be searchable.
+    ///
+    /// This is idempotent — already-opened readers are cached and won't be reopened.
+    /// </summary>
+    public void EnsureAllArchivesOpened()
+    {
+        foreach (var modKey in _enabledMods)
+        {
+            // TryOpenCorrespondingArchiveReaders caches results in OpenReaders,
+            // so repeat calls for the same ModKey are a no-op dictionary lookup.
+            TryOpenCorrespondingArchiveReaders(modKey, out _);
+        }
+    }
+
+    /// <summary>
+    /// Searches ALL opened BSA archive readers for a file at the given sub-path.
+    ///
+    /// This is a broad fallback for cases where the file's owning mod isn't known
+    /// (e.g., a head part record in plugin A references a mesh that ships in plugin B's
+    /// BSA). Call <see cref="EnsureAllArchivesOpened"/> first to guarantee full coverage.
+    /// </summary>
+    public bool TryFindFileInAnyArchive(string subpath, out IArchiveFile archiveFile)
+    {
+        foreach (var kvp in OpenReaders)
+        {
+            if (ReadersHaveFile(subpath, kvp.Value, out archiveFile))
+            {
+                return true;
+            }
+        }
+
+        archiveFile = null;
+        return false;
+    }
 }

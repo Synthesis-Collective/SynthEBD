@@ -141,15 +141,31 @@ public class FaceGenPatcher
     private readonly Logger _logger;
     private readonly SurrogateNPCProvider _surrogateNpcProvider;
 
+    // ─── Head part model validation cache ────────────────────────────────────
+    //
+    // Caches the result of PreValidateHeadPartModels by the top-level head part's
+    // FormKey. Since many NPCs share the same head part assignment, this avoids
+    // redundant file-existence checks and BSA searches for every NPC.
+    //
+    // Values:
+    //   non-null list  → validation passed; contains pre-resolved model paths
+    //   null           → validation failed; all models for this head part are known missing
+    //
+    // BSA-extracted temp files referenced by cached entries are NOT cleaned up
+    // per-NPC — they persist in the temp folder for the duration of the run.
+    // This is safe because the temp folder is ephemeral between runs.
+    private readonly Dictionary<FormKey, List<ResolvedHeadPartModel>> _headPartValidationCache = new();
+
     // ─── Debug tracing for specific NPCs ────────────────────────────────────
     // Set of NPC FormKeys that get verbose diagnostic logging at every step.
     // Remove or clear this set once debugging is complete.
     private static readonly HashSet<FormKey> DebugFormKeys = new()
     {
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey,
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey,
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Saadia.FormKey,
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hulda.FormKey,
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Ysolda.FormKey,
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.IdolafBattleBorn.FormKey
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -425,6 +441,11 @@ public class FaceGenPatcher
                 // plain NiSkinInstance rather than BSDismemberSkinInstance).
                 var existingShapeTypes = BuildExistingHeadPartTypeMap(npcInfo);
 
+                // Track types that failed pre-validation so we can remove them from
+                // headPartAssignments. This prevents the caller from applying NPC
+                // record changes for head part types whose NIF swap was aborted.
+                var failedTypes = new List<HeadPart.TypeEnum>();
+
                 foreach (var (type, headPartGetter) in validHeadPartAssignments)
                 {
                     DebugLog(npcInfo, "--- SwapHeadPartType: type=" + type +
@@ -432,6 +453,25 @@ public class FaceGenPatcher
                     bool changed = SwapHeadPartType(nif, faceGenSkinNode, headPartGetter, type, npcInfo, existingShapeTypes);
                     DebugLog(npcInfo, "--- SwapHeadPartType result: changed=" + changed);
                     anyChanges |= changed;
+
+                    if (!changed)
+                    {
+                        failedTypes.Add(type);
+                    }
+                }
+
+                // Remove failed types from headPartAssignments so the caller
+                // (Patcher.ApplyHeadPartRecords) doesn't set NPC record entries
+                // for types whose NIF swap was aborted. This prevents the
+                // record/NIF mismatch that causes the dark face bug.
+                if (headPartAssignments != null)
+                {
+                    foreach (var failedType in failedTypes)
+                    {
+                        headPartAssignments.Remove(failedType);
+                        DebugLog(npcInfo, "Removed failed type " + failedType +
+                            " from headPartAssignments to prevent record mismatch.");
+                    }
                 }
             }
 
@@ -850,13 +890,220 @@ public class FaceGenPatcher
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  HEAD PART SWAPPING — Pre-Validation
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolves the absolute path for a head part's model NIF, checking:
+    ///   1. Loose files in the Data folder
+    ///   2. BSAs associated with the head part's defining/overriding plugins
+    ///   3. ALL loaded BSAs (broad fallback for cross-mod mesh references)
+    ///
+    /// Returns the absolute path and whether it was extracted from a BSA,
+    /// or (null, false) if the model cannot be found anywhere.
+    /// </summary>
+    private (string AbsPath, bool ExtractedFromBsa) ResolveModelNifToAbsPath(
+        IHeadPartGetter headPartGetter, NPCInfo npcInfo)
+    {
+        string modelRelPath = headPartGetter.Model.File.DataRelativePath.Path;
+        string modelAbsPath = ResolveModelNifPath(modelRelPath);
+
+        if (File.Exists(modelAbsPath))
+        {
+            return (modelAbsPath, false);
+        }
+
+        // Not loose — try BSA extraction (plugin-scoped, then broad fallback).
+        string extracted = TryExtractModelFromBsa(modelRelPath, headPartGetter, out bool wasExtracted);
+        if (extracted != null)
+        {
+            return (extracted, wasExtracted);
+        }
+
+        return (null, false);
+    }
+
+    /// <summary>
+    /// Pre-validates that ALL model NIFs required by a head part assignment
+    /// (main model + all ExtraParts, recursively) are available on disk or
+    /// in BSAs before any NIF editing begins.
+    ///
+    /// Results are cached by head part FormKey so that repeated assignments of
+    /// the same head part across multiple NPCs only perform file/BSA lookups once.
+    ///
+    /// Returns a list of <see cref="ResolvedHeadPartModel"/> entries with
+    /// pre-resolved absolute paths, or null if ANY model is missing. When
+    /// null is returned, no NIF editing should take place — the entire swap
+    /// for this head part type must be aborted to avoid the partial-swap
+    /// state that causes the dark face bug.
+    ///
+    /// Any BSA-extracted temp files from a failed validation are cleaned up
+    /// before returning null.
+    /// </summary>
+    private List<ResolvedHeadPartModel> PreValidateHeadPartModels(
+        IHeadPartGetter headPartGetter,
+        HeadPart.TypeEnum type,
+        NPCInfo npcInfo)
+    {
+        FormKey cacheKey = headPartGetter.FormKey;
+
+        // ── Cache hit: return previously computed result ──
+
+        if (_headPartValidationCache.TryGetValue(cacheKey, out var cached))
+        {
+            if (cached == null)
+            {
+                // Known invalid — skip without re-logging the missing model message
+                // (it was already logged on the first NPC that triggered validation).
+                DebugLog(npcInfo, "PreValidate: CACHE HIT (invalid) for " +
+                    (headPartGetter.EditorID ?? cacheKey.ToString()));
+                return null;
+            }
+
+            DebugLog(npcInfo, "PreValidate: CACHE HIT (valid, " + cached.Count +
+                " models) for " + (headPartGetter.EditorID ?? cacheKey.ToString()));
+
+            // Return the cached entries but with ExtractedFromBsa = false so
+            // the downstream SwapSingleHeadPartModel won't try to delete the
+            // temp files — they're shared across all NPCs using this head part.
+            return cached;
+        }
+
+        // ── Cache miss: perform full validation ──
+
+        DebugLog(npcInfo, "PreValidate: CACHE MISS for " +
+            (headPartGetter.EditorID ?? cacheKey.ToString()) + " — resolving models...");
+
+        var results = PreValidateHeadPartModelsUncached(headPartGetter, type, npcInfo);
+
+        // Store in cache. null = known invalid.
+        _headPartValidationCache[cacheKey] = results;
+
+        if (results != null)
+        {
+            // Mark all entries as non-extracted so future consumers (including
+            // the current one) won't attempt cleanup. The temp files persist
+            // for the duration of the patching run.
+            foreach (var model in results)
+            {
+                model.ExtractedFromBsa = false;
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Uncached implementation of head part model validation.
+    /// Called by <see cref="PreValidateHeadPartModels"/> on cache miss.
+    /// </summary>
+    private List<ResolvedHeadPartModel> PreValidateHeadPartModelsUncached(
+        IHeadPartGetter headPartGetter,
+        HeadPart.TypeEnum type,
+        NPCInfo npcInfo)
+    {
+        var results = new List<ResolvedHeadPartModel>();
+
+        string mainEditorId = headPartGetter.EditorID ?? headPartGetter.FormKey.ToString();
+
+        // ── Validate main model ──
+
+        var (mainPath, mainExtracted) = ResolveModelNifToAbsPath(headPartGetter, npcInfo);
+        if (mainPath == null)
+        {
+            LogAndPrint(
+                "FaceGenPatcher: Model NIF not found: " +
+                headPartGetter.Model.File.DataRelativePath.Path +
+                " for head part " + mainEditorId +
+                ". Aborting entire " + type + " swap for " + npcInfo.LogIDstring + ".",
+                true, npcInfo);
+            return null;
+        }
+
+        results.Add(new ResolvedHeadPartModel
+        {
+            HeadPart = headPartGetter,
+            EditorId = mainEditorId,
+            ModelAbsPath = mainPath,
+            ExtractedFromBsa = mainExtracted,
+            IsMainPart = true,
+        });
+
+        DebugLog(npcInfo, "PreValidate: main model OK — " + mainEditorId + " -> " + mainPath);
+
+        // ── Validate ExtraParts (recursively) ──
+
+        if (headPartGetter.ExtraParts != null)
+        {
+            foreach (var extraPartLink in headPartGetter.ExtraParts)
+            {
+                if (!_environmentProvider.LinkCache.TryResolve(extraPartLink, out var extraPartGetter))
+                    continue;
+
+                if (extraPartGetter.Model?.File == null ||
+                    string.IsNullOrWhiteSpace(extraPartGetter.Model.File))
+                    continue;
+
+                string extraEditorId = extraPartGetter.EditorID ?? extraPartGetter.FormKey.ToString();
+
+                var (extraPath, extraExtracted) = ResolveModelNifToAbsPath(extraPartGetter, npcInfo);
+                if (extraPath == null)
+                {
+                    LogAndPrint(
+                        "FaceGenPatcher: Model NIF not found: " +
+                        extraPartGetter.Model.File.DataRelativePath.Path +
+                        " for extra part " + extraEditorId +
+                        " (parent: " + mainEditorId + ")" +
+                        ". Aborting entire " + type + " swap for " + npcInfo.LogIDstring + ".",
+                        true, npcInfo);
+
+                    // Clean up any BSA-extracted temp files from earlier in this validation.
+                    CleanupResolvedModels(results);
+                    return null;
+                }
+
+                results.Add(new ResolvedHeadPartModel
+                {
+                    HeadPart = extraPartGetter,
+                    EditorId = extraEditorId,
+                    ModelAbsPath = extraPath,
+                    ExtractedFromBsa = extraExtracted,
+                    IsMainPart = false,
+                });
+
+                DebugLog(npcInfo, "PreValidate: extra part OK — " + extraEditorId + " -> " + extraPath);
+            }
+        }
+
+        DebugLog(npcInfo, "PreValidate: all " + results.Count + " model(s) validated for " + mainEditorId);
+        return results;
+    }
+
+    /// <summary>
+    /// Cleans up BSA-extracted temp files from a list of resolved models.
+    /// Used when pre-validation fails partway through to avoid leaking temp files.
+    /// </summary>
+    private void CleanupResolvedModels(List<ResolvedHeadPartModel> models)
+    {
+        foreach (var model in models)
+        {
+            CleanupTempFile(model.ModelAbsPath, model.ExtractedFromBsa);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  HEAD PART SWAPPING — Per-Type Processing
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Processes a single head part assignment: opens the source model NIF, removes
-    /// conflicting shapes from the FaceGen NIF, and clones new shapes in.
+    /// Processes a single head part assignment: validates all required models exist,
+    /// then removes conflicting shapes from the FaceGen NIF and clones new shapes in.
     /// Also recurses into ExtraParts.
+    ///
+    /// This is an all-or-nothing operation: if ANY model (main or extra) cannot be
+    /// found, the entire swap for this head part type is aborted. No shapes are
+    /// removed and no shapes are cloned, avoiding the partial-swap state where old
+    /// shapes coexist with new ones and cause the dark face bug.
     /// </summary>
     private bool SwapHeadPartType(
         NifFile faceGenNif,
@@ -867,6 +1114,20 @@ public class FaceGenPatcher
         Dictionary<string, HeadPart.TypeEnum> existingShapeTypes)
     {
         bool anyChanges = false;
+
+        // ── Step 0: Pre-validate all models before touching the NIF ──
+        //
+        // Resolve paths for the main head part model AND all ExtraParts.
+        // If ANY model is missing, abort the entire swap cleanly — no removal,
+        // no cloning. This prevents the partial-swap state that causes dark face.
+
+        var resolvedModels = PreValidateHeadPartModels(headPartGetter, type, npcInfo);
+        if (resolvedModels == null)
+        {
+            DebugLog(npcInfo, "SwapHeadPartType: Pre-validation FAILED for " + type +
+                " — aborting entire swap (no NIF edits made).");
+            return false;
+        }
 
         // ── Capture the NPC-specific hair tint color before removing anything ──
         //
@@ -930,57 +1191,63 @@ public class FaceGenPatcher
             resolvedEyeTextures = ResolveHeadPartTextureSet(headPartGetter, npcInfo);
         }
 
-        // Process the main head part model.
-        // Use the headpart's EditorID as the shape name in the FaceGen NIF — the game
-        // matches headpart records to FaceGen geometry by name, so the shape must be
-        // named after the EditorID, not whatever the source mesh calls it (e.g. "group_0").
-        string mainEditorId = headPartGetter.EditorID ?? headPartGetter.FormKey.ToString();
+        // ── Remove conflicting shapes BEFORE any cloning ──
+        //
+        // Removal is now the caller's responsibility (moved out of SwapSingleHeadPartModel)
+        // so it always executes regardless of individual model load outcomes. Since we've
+        // already validated all models above, this is safe.
 
-        // performRemoval=true: the main headpart's removal pass removes all existing
-        // shapes of this type (identified by matching shape names against the NPC's
-        // head part records). Extra parts must NOT re-trigger removal, or they'll
-        // delete the main shape we just cloned.
-        anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, headPartGetter, type, npcInfo, mainEditorId, performRemoval: true, existingShapeTypes: existingShapeTypes, capturedHairTint: capturedHairTint, capturedEyeTransforms: capturedEyeTransforms, capturedEyeShader: capturedEyeShader, resolvedEyeTextures: resolvedEyeTextures);
-
-        // Recurse into ExtraParts (e.g., hairline parts referenced by a hair head part).
-        if (headPartGetter.ExtraParts != null)
+        if (SingularTypes.Contains(type))
         {
-            foreach (var extraPartLink in headPartGetter.ExtraParts)
+            RemoveShapesByHeadPartType(faceGenNif, faceGenSkinNode, type, existingShapeTypes, npcInfo);
+        }
+
+        // ── Clone all pre-validated models into the FaceGen NIF ──
+        //
+        // Iterate the resolved models (main first, then extras) and clone each one.
+        // All models were validated above so failures here are unexpected — but if one
+        // does fail (e.g., corrupt NIF), we log it and continue with the rest rather
+        // than leaving a half-removed NIF.
+
+        foreach (var resolved in resolvedModels)
+        {
+            if (!resolved.IsMainPart)
             {
-                if (_environmentProvider.LinkCache.TryResolve(extraPartLink, out var extraPartGetter))
-                {
-                    if (extraPartGetter.Model?.File == null || string.IsNullOrWhiteSpace(extraPartGetter.Model.File))
-                    {
-                        continue;
-                    }
-
-                    string extraEditorId = extraPartGetter.EditorID ?? extraPartGetter.FormKey.ToString();
-
-                    _logger.LogReport(
-                        "FaceGenPatcher: Processing ExtraPart " + extraEditorId + " for " + type,
-                        false, npcInfo);
-
-                    // performRemoval=false: extra parts must not trigger removal, as the
-                    // main headpart's removal pass already cleared conflicting shapes.
-                    anyChanges |= SwapSingleHeadPartModel(faceGenNif, faceGenSkinNode, extraPartGetter, type, npcInfo, extraEditorId, performRemoval: false, existingShapeTypes: existingShapeTypes, capturedHairTint: capturedHairTint, capturedEyeTransforms: capturedEyeTransforms, capturedEyeShader: capturedEyeShader, resolvedEyeTextures: resolvedEyeTextures);
-                }
+                _logger.LogReport(
+                    "FaceGenPatcher: Processing ExtraPart " + resolved.EditorId + " for " + type,
+                    false, npcInfo);
             }
+
+            anyChanges |= SwapSingleHeadPartModel(
+                faceGenNif, faceGenSkinNode, resolved.HeadPart, type, npcInfo,
+                resolved.EditorId,
+                resolvedModelAbsPath: resolved.ModelAbsPath,
+                resolvedModelExtracted: resolved.ExtractedFromBsa,
+                isMainPart: resolved.IsMainPart,
+                existingShapeTypes: existingShapeTypes,
+                capturedHairTint: capturedHairTint,
+                capturedEyeTransforms: capturedEyeTransforms,
+                capturedEyeShader: capturedEyeShader,
+                resolvedEyeTextures: resolvedEyeTextures);
         }
 
         return anyChanges;
     }
 
     /// <summary>
-    /// Opens a single head part model NIF, optionally removes conflicting shapes from
-    /// FaceGen, and clones the model's shapes into BSFaceGenNiNodeSkinned.
+    /// Opens a single head part model NIF and clones its shapes into
+    /// BSFaceGenNiNodeSkinned.
+    ///
+    /// Shape removal is NOT performed here — it is the caller's responsibility
+    /// (SwapHeadPartType handles removal before any cloning begins, ensuring
+    /// the all-or-nothing invariant).
+    ///
+    /// The model path is pre-resolved by PreValidateHeadPartModels, so this
+    /// method does not perform any path resolution or BSA extraction.
     ///
     /// Cloned shapes are renamed to the headpart's EditorID (so the game can match
     /// headpart records to FaceGen geometry) and converted from NiTriShape to
     /// BSDynamicTriShape if needed (FaceGen NIFs require BSDynamicTriShape).
-    ///
-    /// Before cloning, the source model's root node is renamed to match
-    /// BSFaceGenNiNodeSkinned so that CloneShape correctly remaps the skeleton root
-    /// reference in the BSDismemberSkinInstance.
     /// </summary>
     private bool SwapSingleHeadPartModel(
         NifFile faceGenNif,
@@ -989,35 +1256,24 @@ public class FaceGenPatcher
         HeadPart.TypeEnum type,
         NPCInfo npcInfo,
         string headPartEditorId,
-        bool performRemoval,
+        string resolvedModelAbsPath,
+        bool resolvedModelExtracted,
+        bool isMainPart,
         Dictionary<string, HeadPart.TypeEnum> existingShapeTypes,
         (float R, float G, float B)? capturedHairTint = null,
         CapturedBoneTransforms capturedEyeTransforms = null,
         CapturedEyeShaderProperties capturedEyeShader = null,
         Dictionary<uint, string> resolvedEyeTextures = null)
     {
-        // ── Locate the head part model NIF on disk ──
+        // ── Model path was pre-resolved by PreValidateHeadPartModels ──
 
         string modelRelPath = headPartGetter.Model.File.DataRelativePath.Path;
-        string modelAbsPath = ResolveModelNifPath(modelRelPath);
-        bool extractedModel = false;
+        string modelAbsPath = resolvedModelAbsPath;
+        bool extractedModel = resolvedModelExtracted;
 
         DebugLog(npcInfo, "SwapSingleHeadPartModel: editorId=" + headPartEditorId +
-            " modelRelPath=" + modelRelPath + " performRemoval=" + performRemoval);
-        DebugLog(npcInfo, "  modelAbsPath=" + modelAbsPath + " exists=" + File.Exists(modelAbsPath));
-
-        if (!File.Exists(modelAbsPath))
-        {
-            modelAbsPath = TryExtractModelFromBsa(modelRelPath, headPartGetter, out extractedModel);
-            if (modelAbsPath == null)
-            {
-                LogAndPrint(
-                    "FaceGenPatcher: Model NIF not found: " + modelRelPath +
-                    " for head part " + (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()),
-                    true, npcInfo);
-                return false;
-            }
-        }
+            " modelRelPath=" + modelRelPath + " (pre-resolved)");
+        DebugLog(npcInfo, "  modelAbsPath=" + modelAbsPath);
 
         bool anyChanges = false;
 
@@ -1138,22 +1394,11 @@ public class FaceGenPatcher
                 return false;
             }
 
-            // ── Remove conflicting shapes from FaceGen (for singular types) ──
-            // Only performed for the main headpart, not for extra parts — the main
-            // headpart's removal pass already clears all shapes of this type.
-            //
-            // Removal is driven by matching shape names in the FaceGen NIF against the
-            // NPC's existing head part records (via existingShapeTypes). This correctly
-            // identifies shapes regardless of whether they use BSDismemberSkinInstance
-            // or plain NiSkinInstance — fixing the dark face bug caused by eyes and
-            // other shapes that lack real dismember partition data.
-
-            if (performRemoval && SingularTypes.Contains(type))
-            {
-                RemoveShapesByHeadPartType(faceGenNif, faceGenSkinNode, type, existingShapeTypes, npcInfo);
-            }
-
             // ── Clone shapes from model NIF into FaceGen NIF ──
+            //
+            // NOTE: Shape removal for singular types is handled by the caller
+            // (SwapHeadPartType) BEFORE any cloning begins, ensuring the
+            // all-or-nothing invariant.
 
             for (int i = 0; i < modelShapeInfos.Count; i++)
             {
@@ -1259,9 +1504,12 @@ public class FaceGenPatcher
                 //      where NAM9 is null and topologies differ.
 
                 bool positioned = false;
+                bool usedDirectVertexCopy = false;
 
                 // Strategy 1: Direct vertex copy (same topology)
-                if (!positioned && capturedEyeTransforms?.MorphedVertices != null)
+                // Only for the main part — extra parts have no relationship to the
+                // original shape's morphed vertices.
+                if (!positioned && isMainPart && capturedEyeTransforms?.MorphedVertices != null)
                 {
                     using var clonedVerts = faceGenNif.GetVertsForShape(clonedShape);
                     if (clonedVerts != null && clonedVerts.Count == capturedEyeTransforms.MorphedVertices.Length)
@@ -1277,6 +1525,7 @@ public class FaceGenPatcher
                         }
                         faceGenNif.SetVertsForShape(clonedShape, clonedVerts);
                         positioned = true;
+                        usedDirectVertexCopy = true;
 
                         DebugLog(npcInfo, "  EyePositioning: DIRECT VERTEX COPY — copied " +
                             clonedVerts.Count + " CK-morphed vertices (pixel-perfect)");
@@ -1290,18 +1539,32 @@ public class FaceGenPatcher
                 }
 
                 // Strategy 2: TRI morph (different topology, has chargen data)
+                //
+                // When TRI morph succeeds, the mesh's own bone transforms are correct
+                // for the deformed geometry. Captured bone transforms from the OLD shape
+                // must NOT be applied — they're from a different mesh with a different
+                // coordinate space, and overwriting them corrupts the positioning.
                 if (!positioned)
                 {
                     positioned = TryApplyTriMorphToClonedShape(
                         faceGenNif, clonedShape, headPartGetter, type, npcInfo);
                     if (positioned)
                     {
-                        DebugLog(npcInfo, "  EyePositioning: TRI MORPH applied");
+                        DebugLog(npcInfo, "  EyePositioning: TRI MORPH applied (bone transforms kept from model)");
                     }
                 }
 
                 // Strategy 3: Centroid offset (fallback — also applies bone transforms)
-                if (!positioned && capturedEyeTransforms != null)
+                //
+                // IMPORTANT: This is ONLY applied to the main head part shape, NOT to
+                // extra parts (accessories, ornaments, braids, beads, etc.). Extra parts
+                // are authored by the mod creator to sit correctly relative to their bone
+                // references at their model-default positions. The centroid offset compares
+                // against the OLD shape that was replaced, which has no spatial relationship
+                // to ornamental sub-parts. Applying it to extras produces wildly wrong
+                // offsets (e.g., a chest-dangling statuette shifted -111 Z units because
+                // the old chin beard was at Z=-2).
+                if (!positioned && capturedEyeTransforms != null && isMainPart)
                 {
                     DebugLog(npcInfo, "  EyePositioning: CENTROID OFFSET fallback");
                     // ApplyEyeBoneTransformsToClonedShape handles both vertex
@@ -1309,11 +1572,27 @@ public class FaceGenPatcher
                     ApplyEyeBoneTransformsToClonedShape(faceGenNif, clonedShape, capturedEyeTransforms, npcInfo);
                     positioned = true;
                 }
+                else if (!positioned && capturedEyeTransforms != null && !isMainPart)
+                {
+                    DebugLog(npcInfo, "  EyePositioning: SKIPPED centroid offset for extra part \"" +
+                        destShapeName + "\" — keeping model-default positions");
+                }
 
-                // Apply bone transforms for all strategies.
-                // (Strategy 3 already set these inside ApplyEyeBoneTransformsToClonedShape,
-                // but re-setting the same values is harmless and keeps the code simple.)
-                if (capturedEyeTransforms != null)
+                // Apply captured bone transforms ONLY for Strategy 1 (direct vertex copy).
+                //
+                // Strategy 1 copies the old shape's CK-morphed vertices wholesale, so the
+                // old shape's GlobalToSkin and SkinToBone transforms must also be forwarded
+                // to maintain the correct vertex↔bone relationship.
+                //
+                // Strategy 2 (TRI morph) deforms the REPLACEMENT mesh's own vertices using
+                // the NPC's chargen sliders. The replacement mesh's bone transforms are
+                // already correct for its own geometry — overwriting them with the old
+                // shape's transforms corrupts positioning (different mesh, different
+                // coordinate space).
+                //
+                // Strategy 3 (centroid offset) already applies bone transforms internally
+                // inside ApplyEyeBoneTransformsToClonedShape.
+                if (capturedEyeTransforms != null && usedDirectVertexCopy)
                 {
                     if (capturedEyeTransforms.GlobalToSkin != null)
                     {
@@ -2685,6 +2964,7 @@ public class FaceGenPatcher
             _patcherState.ModManagerSettings.TempExtractionFolder,
             "TRI_" + safeFileName + ".tri");
 
+        // Pass 1: Search BSAs associated with the head part's defining/overriding plugins.
         var contexts = _environmentProvider.LinkCache
             .ResolveAllContexts<IHeadPart, IHeadPartGetter>(headPartGetter.FormKey);
 
@@ -2696,6 +2976,14 @@ public class FaceGenPatcher
             {
                 return extractedPath;
             }
+        }
+
+        // Pass 2: Broad fallback — search ALL loaded BSA archives.
+        _bsaHandler.EnsureAllArchivesOpened();
+        if (_bsaHandler.TryFindFileInAnyArchive(bsaSubPath, out var broadFile) &&
+            _bsaHandler.TryExtractFileFromBSA(broadFile, extractedPath))
+        {
+            return extractedPath;
         }
 
         return null;
@@ -3130,8 +3418,9 @@ public class FaceGenPatcher
             _patcherState.ModManagerSettings.TempExtractionFolder,
             "HP_" + safeFileName + ".nif");
 
-        // Try the head part's own mod first, then all mods in the load order
-        // that override this head part.
+        // ── Pass 1: Search BSAs associated with the head part's defining/overriding plugins ──
+        //
+        // This is the fast, targeted search — most models ship in the same mod's BSA.
         var contexts = _environmentProvider.LinkCache.ResolveAllContexts<IHeadPart, IHeadPartGetter>(headPartGetter.FormKey);
         foreach (var context in contexts)
         {
@@ -3142,6 +3431,26 @@ public class FaceGenPatcher
                 extracted = true;
                 return extractedPath;
             }
+        }
+
+        // ── Pass 2: Broad fallback — search ALL loaded BSA archives ──
+        //
+        // Handles the common case where a head part record in plugin A (e.g.,
+        // "Beards of Power.esp") references a mesh that ships in plugin B's BSA
+        // (e.g., "KS Hairdos.bsa" or "High Poly Head.bsa"). The plugin-scoped
+        // search above misses these cross-mod references.
+        //
+        // EnsureAllArchivesOpened() is idempotent and fast after the first call
+        // (just dictionary lookups for already-opened readers).
+        _bsaHandler.EnsureAllArchivesOpened();
+        if (_bsaHandler.TryFindFileInAnyArchive(bsaSubPath, out var broadFile) &&
+            _bsaHandler.TryExtractFileFromBSA(broadFile, extractedPath))
+        {
+            extracted = true;
+            _logger.LogMessage(
+                "FaceGenPatcher: Model NIF found via broad BSA search: " + modelRelativePath +
+                " (not in head part plugin's own BSA)");
+            return extractedPath;
         }
 
         return null;
@@ -3263,6 +3572,25 @@ public class FaceGenPatcher
         public NiShape Shape { get; set; }
         public string Name { get; set; }
         public HashSet<int> PartitionBodyParts { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Holds the pre-resolved absolute path for a head part model NIF (main or extra),
+    /// used by the pre-validation pass to ensure all required models are available
+    /// before any NIF editing begins.
+    /// </summary>
+    private class ResolvedHeadPartModel
+    {
+        public IHeadPartGetter HeadPart { get; set; }
+        public string EditorId { get; set; }
+        public string ModelAbsPath { get; set; }
+        public bool ExtractedFromBsa { get; set; }
+
+        /// <summary>
+        /// True for the primary head part, false for entries from ExtraParts.
+        /// The main part drives shape removal; extras are additive only.
+        /// </summary>
+        public bool IsMainPart { get; set; }
     }
 
     /// <summary>
