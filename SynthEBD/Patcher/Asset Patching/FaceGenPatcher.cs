@@ -2325,18 +2325,19 @@ public class FaceGenPatcher
                 map.TryAdd(editorId, type);
 
             // Recurse into ExtraParts (hairlines, highlights, etc.).
-            // Each extra part has its own EditorID and a Type that matches the parent
-            // (e.g., a hairline extra part is also HeadPart.TypeEnum.Hair), so they
-            // are covered automatically without special-casing.
+            // ExtraParts are subordinate to the parent and are always removed/replaced
+            // as a group, so they are mapped under the PARENT's type regardless of
+            // their own PNAM type. Some ExtraParts (e.g., hairlines) may have a
+            // different PNAM type than their parent, which would cause
+            // RemoveShapesByHeadPartType to miss them if we used the extra part's own type.
             if (hpGetter.ExtraParts != null)
             {
                 foreach (var extraLink in hpGetter.ExtraParts)
                 {
                     if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(extraLink.FormKey, out var extraGetter)
-                        && extraGetter.Type != null
                         && !string.IsNullOrEmpty(extraGetter.EditorID))
                     {
-                        map.TryAdd(extraGetter.EditorID, extraGetter.Type.Value);
+                        map.TryAdd(extraGetter.EditorID, type);
                     }
                 }
             }
