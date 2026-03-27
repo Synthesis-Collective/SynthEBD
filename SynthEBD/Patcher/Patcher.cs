@@ -672,6 +672,9 @@ public class Patcher
 
         if (useFaceMeshMode || useHeadPartMeshMode)
         {
+            // ── Load BSA index cache to speed up archive lookups ──
+            _faceGenPatcher.LoadBsaIndexCache();
+
             // Determine mode flags for surrogate routing
             bool assetNifToSurrogate = useFaceMeshMode && _patcherState.TexMeshSettings.bSkyPatcherModeAssets;
             bool headpartNifToSurrogate = useHeadPartMeshMode && useHeadPartSkyPatcher;
@@ -831,6 +834,10 @@ public class Patcher
         // ═══════════════════════════════════════════════════════════════════════
         //  End of unified FaceGen NIF patching
         // ═══════════════════════════════════════════════════════════════════════
+        
+        _faceGenPatcher.DumpProfilingStats();
+        _faceGenPatcher.DisposeCaches();
+        _faceGenPatcher.SaveBsaIndexCache();
         
         if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
         {
