@@ -199,7 +199,8 @@ public class FaceGenPatcher
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Saadia.FormKey,
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Hulda.FormKey,
         //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Ysolda.FormKey,
-        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.IdolafBattleBorn.FormKey
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.IdolafBattleBorn.FormKey
+        Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.OlfridBattleBorn.FormKey
     };
 
     private bool IsDebugNpc(NPCInfo npcInfo)
@@ -440,6 +441,26 @@ public class FaceGenPatcher
             var validHeadPartAssignments = (headPartAssignments != null && headPartAssignments.Count > 0)
                 ? ResolveHeadPartAssignments(headPartAssignments)
                 : new List<(HeadPart.TypeEnum Type, IHeadPartGetter HeadPart)>();
+
+            // Remove head parts that failed validation from the caller's dictionary
+            // so ApplyHeadPartRecords won't write them to the NPC record (which would
+            // cause a record/NIF mismatch → dark face bug). Must run unconditionally —
+            // if ALL assignments fail, hasHeadPartWork will be false and the Phase A
+            // failedTypes cleanup (which is gated on hasHeadPartWork) would be skipped.
+            if (headPartAssignments != null && validHeadPartAssignments.Count < headPartAssignments.Count)
+            {
+                var validTypes = new HashSet<HeadPart.TypeEnum>(
+                    validHeadPartAssignments.Select(v => v.Type));
+                var invalidTypes = headPartAssignments.Keys
+                    .Where(k => !validTypes.Contains(k) && !ExcludedTypes.Contains(k))
+                    .ToList();
+                foreach (var t in invalidTypes)
+                {
+                    headPartAssignments.Remove(t);
+                    DebugLog(npcInfo, "Removed invalid type " + t +
+                        " from headPartAssignments — failed validation.");
+                }
+            }
 
             bool hasHeadPartWork = validHeadPartAssignments.Count > 0;
 
@@ -1061,10 +1082,14 @@ public class FaceGenPatcher
                 continue;
             }
 
-            if (headPartGetter.Model?.File == null || string.IsNullOrWhiteSpace(headPartGetter.Model.File))
+            bool hasOwnModel = headPartGetter.Model?.File != null
+                && !string.IsNullOrWhiteSpace(headPartGetter.Model.File);
+            bool hasExtraParts = headPartGetter.ExtraParts != null && headPartGetter.ExtraParts.Count > 0;
+
+            if (!hasOwnModel && !hasExtraParts)
             {
                 _logger.LogMessage(
-                    "FaceGenPatcher: Head part " + formKey + " (" + type + ") has no model NIF path.");
+                    "FaceGenPatcher: Head part " + formKey + " (" + type + ") has no model NIF path and no ExtraParts.");
                 continue;
             }
 
@@ -1191,30 +1216,41 @@ public class FaceGenPatcher
 
         string mainEditorId = headPartGetter.EditorID ?? headPartGetter.FormKey.ToString();
 
-        // ── Validate main model ──
+        // ── Validate main model (optional — head parts may be ExtraParts-only containers) ──
 
-        var (mainPath, mainExtracted) = ResolveModelNifToAbsPath(headPartGetter, npcInfo);
-        if (mainPath == null)
+        bool hasOwnModel = headPartGetter.Model?.File != null
+            && !string.IsNullOrWhiteSpace(headPartGetter.Model.File);
+
+        if (hasOwnModel)
         {
-            LogAndPrint(
-                "FaceGenPatcher: Model NIF not found: " +
-                headPartGetter.Model.File.DataRelativePath.Path +
-                " for head part " + mainEditorId +
-                ". Aborting entire " + type + " swap for " + npcInfo.LogIDstring + ".",
-                true, npcInfo);
-            return null;
+            var (mainPath, mainExtracted) = ResolveModelNifToAbsPath(headPartGetter, npcInfo);
+            if (mainPath == null)
+            {
+                LogAndPrint(
+                    "FaceGenPatcher: Model NIF not found: " +
+                    headPartGetter.Model.File.DataRelativePath.Path +
+                    " for head part " + mainEditorId +
+                    ". Aborting entire " + type + " swap for " + npcInfo.LogIDstring + ".",
+                    true, npcInfo);
+                return null;
+            }
+
+            results.Add(new ResolvedHeadPartModel
+            {
+                HeadPart = headPartGetter,
+                EditorId = mainEditorId,
+                ModelAbsPath = mainPath,
+                ExtractedFromBsa = mainExtracted,
+                IsMainPart = true,
+            });
+
+            DebugLog(npcInfo, "PreValidate: main model OK — " + mainEditorId + " -> " + mainPath);
         }
-
-        results.Add(new ResolvedHeadPartModel
+        else
         {
-            HeadPart = headPartGetter,
-            EditorId = mainEditorId,
-            ModelAbsPath = mainPath,
-            ExtractedFromBsa = mainExtracted,
-            IsMainPart = true,
-        });
-
-        DebugLog(npcInfo, "PreValidate: main model OK — " + mainEditorId + " -> " + mainPath);
+            DebugLog(npcInfo, "PreValidate: head part " + mainEditorId +
+                " has no direct model — will process ExtraParts only.");
+        }
 
         // ── Validate ExtraParts (recursively) ──
 
@@ -1258,6 +1294,17 @@ public class FaceGenPatcher
 
                 DebugLog(npcInfo, "PreValidate: extra part OK — " + extraEditorId + " -> " + extraPath);
             }
+        }
+
+        // ── Ensure at least one model was resolved ──
+        // A head part with no direct model AND no valid ExtraParts has nothing to swap.
+        if (results.Count == 0)
+        {
+            LogAndPrint(
+                "FaceGenPatcher: Head part " + mainEditorId + " has no model and no valid ExtraParts." +
+                " Aborting " + type + " swap for " + npcInfo.LogIDstring + ".",
+                true, npcInfo);
+            return null;
         }
 
         DebugLog(npcInfo, "PreValidate: all " + results.Count + " model(s) validated for " + mainEditorId);
