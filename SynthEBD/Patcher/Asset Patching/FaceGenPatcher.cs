@@ -190,6 +190,20 @@ public class FaceGenPatcher
     private readonly Dictionary<string, string> _triPathCache
         = new(StringComparer.OrdinalIgnoreCase);
 
+    // ─── Model NIF path resolution cache ────────────────────────────────────
+    //
+    // Caches the result of ResolveModelNifToAbsPath by the model's relative
+    // NIF path. Multiple head parts can reference the same model NIF (e.g.,
+    // several beard head parts all pointing to HumanBeardLong12.nif). The
+    // head-part-level cache (_headPartValidationCache) is keyed by FormKey,
+    // so it doesn't deduplicate across head parts sharing a model. This
+    // cache avoids redundant File.Exists checks and BSA extractions for the
+    // same model path.
+    //
+    // null values are cached intentionally to record known-missing models.
+    private readonly Dictionary<string, (string? AbsPath, bool ExtractedFromBsa)> _modelPathCache
+        = new(StringComparer.OrdinalIgnoreCase);
+
     // ─── Debug tracing for specific NPCs ────────────────────────────────────
     // Set of NPC FormKeys that get verbose diagnostic logging at every step.
     // Remove or clear this set once debugging is complete.
@@ -1119,25 +1133,34 @@ public class FaceGenPatcher
     /// Returns the absolute path and whether it was extracted from a BSA,
     /// or (null, false) if the model cannot be found anywhere.
     /// </summary>
-    private (string AbsPath, bool ExtractedFromBsa) ResolveModelNifToAbsPath(
+    private (string? AbsPath, bool ExtractedFromBsa) ResolveModelNifToAbsPath(
         IHeadPartGetter headPartGetter, NPCInfo npcInfo)
     {
         string modelRelPath = headPartGetter.Model.File.DataRelativePath.Path;
+
+        // Check the model path cache first — multiple head parts can share the
+        // same model NIF, and we don't want to repeat File.Exists / BSA scans.
+        if (_modelPathCache.TryGetValue(modelRelPath, out var cached))
+        {
+            return cached;
+        }
+
         string modelAbsPath = ResolveModelNifPath(modelRelPath);
 
+        (string, bool) result;
         if (File.Exists(modelAbsPath))
         {
-            return (modelAbsPath, false);
+            result = (modelAbsPath, false);
         }
-
-        // Not loose — try BSA extraction (plugin-scoped, then broad fallback).
-        string extracted = TryExtractModelFromBsa(modelRelPath, headPartGetter, out bool wasExtracted);
-        if (extracted != null)
+        else
         {
-            return (extracted, wasExtracted);
+            // Not loose — try BSA extraction (plugin-scoped, then broad fallback).
+            string extracted = TryExtractModelFromBsa(modelRelPath, headPartGetter, out bool wasExtracted);
+            result = extracted != null ? (extracted, wasExtracted) : (null, false);
         }
 
-        return (null, false);
+        _modelPathCache[modelRelPath] = result;
+        return result;
     }
 
     /// <summary>
