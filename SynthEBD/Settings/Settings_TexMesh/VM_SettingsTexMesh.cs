@@ -331,7 +331,7 @@ public class VM_SettingsTexMesh : VM
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
     public bool bSkyPatcherModeAssets { get; set; } = false;
-    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.Script;
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.NifEdit;
     public IEnumerable<FacePatchingMode> FacePatchingModeOptions { get; } = Enum.GetValues<FacePatchingMode>();
     public bool bShowEBDOptions { get; set; } = false;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();

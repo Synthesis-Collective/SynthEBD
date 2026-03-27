@@ -5,12 +5,12 @@ namespace SynthEBD;
 public enum FacePatchingMode
 {
     Script,
-    Mesh
+    NifEdit
 }
 
 public class Settings_TexMesh
 {
-    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.Script;
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.NifEdit;
     public bool bChangeNPCTextures { get; set; } = true;
     public bool bChangeNPCMeshes { get; set; } = true;
     public bool bChangeNPCHeadParts { get; set; } = true;

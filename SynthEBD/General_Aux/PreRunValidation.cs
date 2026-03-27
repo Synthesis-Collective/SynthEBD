@@ -197,9 +197,9 @@ namespace SynthEBD
             // surrogate, which would overwrite those direct edits.
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures &&
                 _patcherState.GeneralSettings.bChangeHeadParts &&
-                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh &&
+                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.NifEdit &&
                 !_patcherState.TexMeshSettings.bSkyPatcherModeAssets &&
-                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif &&
+                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit &&
                 _patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
             {
                 _logger.LogMessage("Invalid configuration: Asset Nif mode without SkyPatcher cannot be combined with Headpart Nif + SkyPatcher mode. CopyVisualStyle from the headpart surrogate would overwrite the face texture edits baked directly into the original NPC's FaceGen nif.");
@@ -213,9 +213,9 @@ namespace SynthEBD
             // those direct headpart edits.
             if (_patcherState.GeneralSettings.bChangeMeshesOrTextures &&
                 _patcherState.GeneralSettings.bChangeHeadParts &&
-                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Mesh &&
+                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.NifEdit &&
                 _patcherState.TexMeshSettings.bSkyPatcherModeAssets &&
-                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Nif &&
+                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit &&
                 !_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
             {
                 _logger.LogMessage("Invalid configuration: Asset Nif + SkyPatcher mode cannot be combined with Headpart Nif mode without SkyPatcher. CopyVisualStyle from the asset surrogate would overwrite the headpart edits baked directly into the original NPC's FaceGen nif.");
