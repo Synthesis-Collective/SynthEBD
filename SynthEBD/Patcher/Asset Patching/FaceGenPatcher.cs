@@ -211,15 +211,22 @@ public class FaceGenPatcher
 
     private void DebugLog(NPCInfo npcInfo, string message)
     {
-        if (IsDebugNpc(npcInfo))
+        if (LOGFACEGENDEBUG && IsDebugNpc(npcInfo))
         {
             _logger.LogMessage("[DEBUG-FGPATCH " + npcInfo.NPC.FormKey + "] " + message);
         }
+    }
+
+    private void WarnLog(NPCInfo npcInfo, string message)
+    {
+        _logger.LogMessage("[WARN-FGPATCH " + npcInfo.NPC.FormKey + "] " + message);
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
     //  PROFILING FRAMEWORK
     // ═══════════════════════════════════════════════════════════════════════════
+
+    private const bool LOGFACEGENDEBUG = false; // Toggle this to turn verbose FaceGen debug logging on/off
 
     private const bool EnableProfiling = true; // Toggle this to turn performance logging on/off
 
@@ -1358,7 +1365,7 @@ public class FaceGenPatcher
             var resolvedModels = PreValidateHeadPartModels(headPartGetter, type, npcInfo);
             if (resolvedModels == null)
             {
-                DebugLog(npcInfo, "SwapHeadPartType: Pre-validation FAILED for " + type +
+                WarnLog(npcInfo, "SwapHeadPartType: Pre-validation FAILED for " + type +
                     " — aborting entire swap (no NIF edits made).");
                 return false;
             }
@@ -2215,7 +2222,7 @@ public class FaceGenPatcher
 
         if (!_environmentProvider.LinkCache.TryResolve<ITextureSetGetter>(textureSetLink.FormKey, out var textureSet))
         {
-            DebugLog(npcInfo, "  ResolveHeadPartTextureSet: Could not resolve TNAM " +
+            WarnLog(npcInfo, "  ResolveHeadPartTextureSet: Could not resolve TNAM " +
                 textureSetLink.FormKey + " for head part \"" +
                 (headPartGetter.EditorID ?? headPartGetter.FormKey.ToString()) + "\"");
             return result;
@@ -2912,7 +2919,7 @@ public class FaceGenPatcher
                 triData = TriFileParser.Load(triAbsPath, out string parseError);
                 if (triData == null)
                 {
-                    DebugLog(npcInfo, "  TryApplyTriMorph: Failed to parse .tri: " + parseError);
+                    WarnLog(npcInfo, "  TryApplyTriMorph: Failed to parse .tri: " + parseError);
                     return false;
                 }
 
@@ -2943,7 +2950,7 @@ public class FaceGenPatcher
 
             if (clonedVerts.Count != triData.VertexCount)
             {
-                DebugLog(npcInfo, "  TryApplyTriMorph: Vertex count mismatch — " +
+                WarnLog(npcInfo, "  TryApplyTriMorph: Vertex count mismatch — " +
                     "shape has " + clonedVerts.Count + " verts but .tri has " +
                     triData.VertexCount + ". Cannot apply morphs.");
                 return false;
@@ -3744,9 +3751,10 @@ public class FaceGenPatcher
             _bsaHandler.TryExtractFileFromBSA(broadFile, extractedPath))
         {
             extracted = true;
-            _logger.LogMessage(
-                "FaceGenPatcher: Model NIF found via broad BSA search: " + modelRelativePath +
-                " (not in head part plugin's own BSA)");
+            if (LOGFACEGENDEBUG)
+                _logger.LogMessage(
+                    "FaceGenPatcher: Model NIF found via broad BSA search: " + modelRelativePath +
+                    " (not in head part plugin's own BSA)");
             return extractedPath;
         }
 
