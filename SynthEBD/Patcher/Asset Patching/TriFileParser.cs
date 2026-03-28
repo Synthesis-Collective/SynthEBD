@@ -573,7 +573,7 @@ public class TriFileParser
 /// </summary>
 public static class ChargenSliderMap
 {
-    private static readonly (string Positive, string Negative)[] SliderMorphNames = new[]
+    private static readonly (string Negative, string Positive)[] SliderMorphNames = new[]
     {
         ("NoseLong",       "NoseShort"),        //  0 - NoseLongVsShort
         ("NoseUp",         "NoseDown"),          //  1 - NoseUpVsDown
@@ -621,7 +621,7 @@ public static class ChargenSliderMap
                 float value = faceMorphSliders[i];
                 if (Math.Abs(value) < 1e-7f) continue;
 
-                var (positiveName, negativeName) = SliderMorphNames[i];
+                var (negativeName, positiveName) = SliderMorphNames[i];
                 if (value > 0) weights[positiveName] = value;
                 else weights[negativeName] = Math.Abs(value);
             }
@@ -638,8 +638,8 @@ public static class ChargenSliderMap
     public static string GetSliderMorphName(int sliderIndex)
     {
         if (sliderIndex < 0 || sliderIndex >= SliderMorphNames.Length) return null;
-        var (pos, neg) = SliderMorphNames[sliderIndex];
-        return pos + "/" + neg;
+        var (neg, pos) = SliderMorphNames[sliderIndex];
+        return neg + "/" + pos;
     }
 
     public static int SliderCount => SliderMorphNames.Length;
