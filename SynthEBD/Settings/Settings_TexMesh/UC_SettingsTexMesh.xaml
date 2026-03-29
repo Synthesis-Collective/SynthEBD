@@ -201,6 +201,9 @@
             <CheckBox Grid.Row="15" Grid.Column="1"  IsChecked="{Binding Path=bPatchArmors, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
+            <StackPanel Grid.Row="16" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="MediumPurple" Margin="5 0 5 0" ToolTip="Restore default asset path trimming entries" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Restore Defaults</Button>
+            </StackPanel>
             <Expander Grid.Row="16" Grid.Column="1" >
                 <StackPanel>
                     <ItemsControl ItemsSource="{Binding TrimPaths, UpdateSourceTrigger=Default}">

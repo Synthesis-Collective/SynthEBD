@@ -147,6 +147,17 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: x => TrimPaths.Remove((TrimPath)x)
         );
+        RestoreDefaultTrimPaths = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                TrimPaths.Clear();
+                foreach (var trimPath in new Settings_TexMesh().TrimPaths)
+                {
+                    TrimPaths.Add(new TrimPath { Extension = trimPath.Extension, PathToTrim = trimPath.PathToTrim });
+                }
+            }
+        );
         ValidateAll = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -342,6 +353,7 @@ public class VM_SettingsTexMesh : VM
     public IEnumerable<ModKey> LoadOrder { get; private set; }
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
+    public RelayCommand RestoreDefaultTrimPaths { get; }
     public RelayCommand ValidateAll { get; }
     public RelayCommand AddNewAssetPackConfigFile { get; }
     public IReactiveCommand InstallFromArchive { get; }
