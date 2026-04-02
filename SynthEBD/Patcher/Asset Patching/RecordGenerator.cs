@@ -16,7 +16,7 @@ public class RecordGenerator
     private readonly HardcodedRecordGenerator _hardcodedRecordGenerator;
     private readonly HeadPartSelector _headPartSelector;
     private readonly RecordPathParser _recordPathParser;
-    private readonly NPCProvider _npcProvider;
+    private readonly SurrogateNPCProvider _surrogateNpcProvider;
     private readonly ArmorPatcher _armorPatcher;
     private readonly SkinPatcher _skinPatcher;
     private readonly FacePartCompliance _facePartComplianceMaintainer;
@@ -24,7 +24,7 @@ public class RecordGenerator
     private readonly HeadPartAuxFunctions _headPartAuxFunctions;
     private HashSet<FormKey> skinWNAMsToStrip;
     
-    public RecordGenerator(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser, NPCProvider npcProvider, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, FacePartCompliance facePartComplianceMaintainer, SkyPatcherInterface skyPatcherInterface, HeadPartAuxFunctions headPartAuxFunctions)
+    public RecordGenerator(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser, SurrogateNPCProvider surrogateNpcProvider, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, FacePartCompliance facePartComplianceMaintainer, SkyPatcherInterface skyPatcherInterface, HeadPartAuxFunctions headPartAuxFunctions)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -32,7 +32,7 @@ public class RecordGenerator
         _hardcodedRecordGenerator = hardcodedRecordGenerator;
         _headPartSelector = headPartSelector;
         _recordPathParser = recordPathParser;
-        _npcProvider = npcProvider;
+        _surrogateNpcProvider = surrogateNpcProvider;
         _armorPatcher = armorPatcher;
         _skinPatcher = skinPatcher;
         _facePartComplianceMaintainer = facePartComplianceMaintainer;
@@ -76,9 +76,10 @@ public class RecordGenerator
         }
     }
 
-    public void ApplySelectedAssets(Dictionary<NPCInfo, List<Patcher.SelectedAssetContainer>> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> generatedHeadPartsDictionary, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
+    public void ApplySelectedAssets(Dictionary<FormKey, (NPCInfo NpcInfo, List<Patcher.SelectedAssetContainer> Assets)> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> generatedHeadPartsDictionary, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
     {
         generatedHeadPartsDictionary.Clear();
+        HashSet<string> suppressedHeadPartPackNames = new();
         
         statusBar.ProgressBarMax = selectedAssets.Count;
         foreach (var npcAssetEntry in selectedAssets)
@@ -90,16 +91,25 @@ public class RecordGenerator
                 statusBar.ProgressBarDisp = "Applied selections for " + statusBar.ProgressBarCurrent + " NPCs";
             }
             
-            var currentNPCInfo = npcAssetEntry.Key;
-            var assignments = npcAssetEntry.Value;
+            var currentNPCInfo = npcAssetEntry.Value.NpcInfo;
+            var assignments = npcAssetEntry.Value.Assets;
             
             if (assignments.Any())
             {
                 Npc npcRecord;
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
                 {
-                    npcRecord = _npcProvider.GetNpc(currentNPCInfo.NPC, false, false);
-                    currentNPCInfo.NPC = npcRecord;
+                    if (_surrogateNpcProvider.TryGetSurrogateNpc(currentNPCInfo.NPC, out var surrogateNpc))
+                    {
+                        npcRecord = surrogateNpc;
+                        currentNPCInfo.NPC = npcRecord;
+                    }
+                    else
+                    {
+                        _logger.LogMessage("WARNING: Could not create surrogate for NPC " +
+                                           currentNPCInfo.NPC.FormKey + ". Falling back to direct override.");
+                        npcRecord = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(currentNPCInfo.NPC);
+                    }
                 }
                 else
                 {
@@ -119,22 +129,32 @@ public class RecordGenerator
                 var generatedHeadPartFormKeys = new Dictionary<HeadPart.TypeEnum, FormKey>();
                 CombinationToRecords(assignments, flattenedAssetPacks, currentNPCInfo, _patcherState.RecordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, assignedPaths, generatedHeadPartFormKeys);
                 combinationLog.LogAssignedRecords(currentNPCInfo, assignments);
-                _facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo);
-                
-                if (npcRecord.Keywords == null) { npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>(); }
 
-                if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) && headTextureSourceMod.Equals(_environmentProvider.OutputMod.ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
+                if (_patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Script)
                 {
-                    if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                    _facePartComplianceMaintainer.CheckAndFixFaceName(currentNPCInfo);
+
+                    if (npcRecord.Keywords == null)
                     {
-                        npcRecord.Keywords.Add(EBDFaceKW);
-                        npcRecord.Keywords.Add(EBDScriptKW);
+                        npcRecord.Keywords = new Noggog.ExtendedList<IFormLinkGetter<IKeywordGetter>>();
                     }
-                    else
+
+                    if (npcRecord.HeadTexture.TryGetModKey(out var headTextureSourceMod) &&
+                        headTextureSourceMod.Equals(_environmentProvider.OutputMod
+                            .ModKey)) // if the patcher tried to patch but didn't set a head texture, don't apply the headpart script to this NPC
                     {
-                        npcRecord.Keywords.Add(synthEBDFaceKW);
+                        if (_patcherState.TexMeshSettings.bLegacyEBDMode)
+                        {
+                            npcRecord.Keywords.Add(EBDFaceKW);
+                            npcRecord.Keywords.Add(EBDScriptKW);
+                        }
+                        else
+                        {
+                            npcRecord.Keywords.Add(synthEBDFaceKW);
+                        }
                     }
                 }
+
                 AddCustomKeywordsToNPC(assignments, npcRecord, _environmentProvider.OutputMod);
 
                 if (_patcherState.TexMeshSettings.bPatchArmors)
@@ -147,17 +167,61 @@ public class RecordGenerator
                 }
                 _skinPatcher.ValidateArmorFlags(npcRecord, recordsFromTemplates, _environmentProvider.OutputMod);
 
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets && _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.Script)
                 {
+                    // Script mode: emit standalone SetSkin here. CopyVisualStyle is not
+                    // needed because face textures are applied by script at runtime.
+                    // Mesh mode: SetSkin is deferred to the unified FaceGen loop where it
+                    // is combined with CopyVisualStyle via ApplySkinAndVisualStyle on a
+                    // single ini line.
                     _skyPatcherInterface.ApplySkin(currentNPCInfo.OriginalNPC.FormKey, npcRecord.WornArmor.FormKey);
-                    assetAssignmentJsonDictHandler.LogNPCAssignments(currentNPCInfo, _environmentProvider.OutputMod);
                 }
-
+                
+                assetAssignmentJsonDictHandler.LogNPCAssignments(currentNPCInfo, _environmentProvider.OutputMod);
+                
                 if (generatedHeadPartFormKeys.Any())
                 {
-                    generatedHeadPartsDictionary.Add(currentNPCInfo, generatedHeadPartFormKeys);
+                    if (_patcherState.GeneralSettings.bChangeHeadParts)
+                    {
+                        // Headpart patching is enabled — add to dictionary for downstream processing
+                        var npcFk = currentNPCInfo.NPC.FormKey;
+                        if (generatedHeadPartsDictionary.TryGetValue(npcFk, out var existingGenHp))
+                        {
+                            foreach (var genHpKvp in generatedHeadPartFormKeys)
+                            {
+                                existingGenHp.HeadParts.TryAdd(genHpKvp.Key, genHpKvp.Value);
+                            }
+                        }
+                        else
+                        {
+                            generatedHeadPartsDictionary[npcFk] = (currentNPCInfo, generatedHeadPartFormKeys);
+                        }
+                    }
+                    else
+                    {
+                        // Headpart patching is disabled — suppress these headparts and
+                        // record which asset packs tried to generate them
+                        foreach (var a in assignments)
+                        {
+                            suppressedHeadPartPackNames.Add(a.AssetPackName);
+                        }
+                    }
                 }
             }
+        }
+        
+        if (suppressedHeadPartPackNames.Any())
+        {
+            var sortedPackNames = suppressedHeadPartPackNames.OrderBy(n => n).ToList();
+            _logger.LogMessage("");
+            _logger.LogMessage("=======================Warning========================");
+            _logger.LogMessage("The following config files are attempting to patch headparts, but headpart patching is disabled in your General Settings. These headparts will not be applied in-game unless you enable headpart patching");
+            foreach (var packName in sortedPackNames)
+            {
+                _logger.LogMessage("* " + packName);
+            }
+            _logger.LogMessage("=====================================================");
+            _logger.LogMessage("");
         }
     }
 
@@ -176,15 +240,19 @@ public class RecordGenerator
 
         _hardcodedRecordGenerator.AssignHardcodedRecords(wnamPaths, headtexPaths, npcInfo, recordTemplateLinkCache, npcObjectMap, objectCaches, replacedRecords, recordsFromTemplates, this);
 
+        // snapshot before AssignGenericAssetPaths modifies the list (removes paths as they complete or hit cache)
+        var allNonHardcodedPaths = nonHardcodedPaths.ToList();
+
         if (nonHardcodedPaths.Any())
         {
             AssignGenericAssetPaths(npcInfo, nonHardcodedPaths, currentNPC, recordTemplateLinkCache, longestPath, true, false, npcObjectMap, objectCaches, assignedPaths, generatedHeadParts, replacedRecords, recordsFromTemplates);
         }
-        
-        //logging: compile traversed records
-        foreach (var p in nonHardcodedPaths)
+
+        //logging: compile traversed records from all original paths (nonHardcodedPaths is partially/fully cleared by AssignGenericAssetPaths)
+        foreach (var p in allNonHardcodedPaths)
         {
-            var entry = assignments.First(x => x.AssetPackName == p.AssetPackName);
+            var entry = assignments.FirstOrDefault(x => x.AssetPackName == p.AssetPackName);
+            if (entry == null) { continue; }
             foreach (var record in p.TraversedRecords)
             {
                 entry.TraversedRecords.Add(record);
@@ -655,7 +723,7 @@ public class RecordGenerator
     private bool IsImportedForSkyPatcher(dynamic currentObj) // determines if the given formkey is from a record merged-in from NpcProvider
     {
         var record = currentObj as IMajorRecord;
-        if (record != null && record.EditorID != null && record.EditorID.EndsWith(NPCProvider.importedSuffix))
+        if (record != null && record.EditorID != null && record.EditorID.EndsWith(SurrogateNPCProvider.SurrogateSuffix))
         {
             return true;
         }
@@ -766,10 +834,19 @@ public class RecordGenerator
 
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
-        HashSet<GeneratedRecordInfo> assignedRecords = new HashSet<GeneratedRecordInfo>();
         var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
 
         foreach (var entry in group)
+        {
+            entry.TraversedRecords.Add(recordEntry);
+        }
+    }
+
+    public static void LogRecordAlongPaths(IEnumerable<FilePathReplacementParsed> paths, IMajorRecord record)
+    {
+        var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
+
+        foreach (var entry in paths)
         {
             entry.TraversedRecords.Add(recordEntry);
         }

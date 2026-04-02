@@ -606,24 +606,29 @@ namespace SynthEBD
         }
 
         // Assign conflict-winning headpart assignements back to the headPartAssignments dictionary
-        public void ResolveConflictsWithAssetAssignments(Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> mainHeadPartNpcs, Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> assetHeadPartNpcs)
+        public void ResolveConflictsWithAssetAssignments(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> mainHeadPartNpcs, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assetHeadPartNpcs)
         {
             foreach (var entry in mainHeadPartNpcs.Where(x => assetHeadPartNpcs.ContainsKey(x.Key)))
             {
-                var headPartAssignments = entry.Value;
-                var assetAssignments = assetHeadPartNpcs[entry.Key];
+                var headPartAssignments = entry.Value.HeadParts;
+                var assetAssignments = assetHeadPartNpcs[entry.Key].HeadParts;
                 
                 foreach (var type in _patcherState.HeadPartSettings.SourceConflictWinners.Keys)
                 {
-                    if (!headPartAssignments.ContainsKey(type) && assetAssignments.ContainsKey(type))
+                    bool mainHas = headPartAssignments.ContainsKey(type);
+                    bool assetHas = assetAssignments.ContainsKey(type);
+                    
+                    if (!mainHas && assetHas)
                     {
                         headPartAssignments.Add(type, assetAssignments[type]);
                     }
-                    else if (headPartAssignments[type] != null || assetAssignments[type] != null)
+                    else if (mainHas && assetHas)
                     {
                         headPartAssignments[type] =
                             ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments[type], type);
                     }
+                    // If mainHas && !assetHas: keep existing headPartAssignment as-is
+                    // If !mainHas && !assetHas: nothing to do
                 }
             }
             
@@ -735,12 +740,12 @@ namespace SynthEBD
         }
 
         public void EnsureHeadPartRaceCompatibility(
-            Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> headPartAssignments)
+            Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> headPartAssignments)
         {
             foreach (var entry in headPartAssignments)
             {
-                var currentNpcInfo = entry.Key;
-                var currentHeadPartFks = entry.Value;
+                var currentNpcInfo = entry.Value.NpcInfo;
+                var currentHeadPartFks = entry.Value.HeadParts;
 
                 foreach (var type in currentHeadPartFks.Keys)
                 {

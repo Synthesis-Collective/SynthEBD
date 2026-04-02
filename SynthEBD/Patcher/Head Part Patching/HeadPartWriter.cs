@@ -13,16 +13,20 @@ namespace SynthEBD
 {
     public class HeadPartWriter
     {
-        private readonly IEnvironmentStateProvider _environmentProvider;
+        private readonly IOutputEnvironmentStateProvider _environmentProvider;
+        PatcherState _patcherState;
         private readonly Logger _logger;
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
-        public HeadPartWriter(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO)
+        private readonly SurrogateNPCProvider _surrogateNpcProvider;
+        public HeadPartWriter(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, SurrogateNPCProvider surrogateNpcProvider)
         {
             _environmentProvider = environmentProvider;
+            _patcherState = patcherState;
             _logger = logger;
             _paths = paths;
             _patcherIO = patcherIO;
+            _surrogateNpcProvider = surrogateNpcProvider;
         }
         public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
@@ -129,7 +133,7 @@ namespace SynthEBD
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
         */
-        public void WriteAssignmentDictionary(Dictionary<NPCInfo, Dictionary<HeadPart.TypeEnum, FormKey>> assignedHeadPartTransfers)
+        public void WriteAssignmentDictionary(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers)
         {
             if (!assignedHeadPartTransfers.Any())
             {
@@ -140,7 +144,7 @@ namespace SynthEBD
             var outputDictionary = new Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>();
             foreach (var entry in assignedHeadPartTransfers)
             {
-                outputDictionary.TryAdd(entry.Key.NPC.FormKey.ToJContainersCompatiblityKey(), GetFullHeadPartSet(entry.Value));
+                outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), GetFullHeadPartSet(entry.Value.HeadParts));
             }
             string outputStr = JSONhandler<Dictionary<string, Dictionary<HeadPart.TypeEnum, FormKey?>>>.Serialize(outputDictionary, out bool success, out string exception);
             if (!success)
@@ -202,6 +206,87 @@ namespace SynthEBD
             foreach (var path in oldFiles)
             {
                 _patcherIO.TryDeleteFile(path, _logger);
+            }
+        }
+
+        // This will need to be updated to respect the "mutliple allowed" vs "only one allowed" rules for each headpart
+        // type. For now, let's start with just applying one of each
+        
+        /// <summary>
+        /// Applies head part assignments to the NPC record.
+        /// 
+        /// Routing depends on Headpart Patching Mode and SkyPatcher mode:
+        ///   - Nif + No SkyPatcher (Cases 3, 7, 11): edit original NPC record directly
+        ///   - Nif + SkyPatcher (Cases 4, 8, 16): edit surrogate NPC record
+        ///   - Script mode: edit surrogate NPC record (existing behavior, but this  
+        ///     method is only called for Nif mode per the unified FaceGen loop)
+        /// </summary>
+        public void ApplyHeadPartRecords(NPCInfo npcInfo,
+            Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments)
+        {
+            Npc npc;
+            if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit)
+            {
+                if (_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
+                {
+                    // Nif + SkyPatcher: edit the surrogate's headpart records
+                    if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.OriginalNPC, out npc))
+                    {
+                        _logger.LogMessage("WARNING: Could not get surrogate for headpart records on NPC " +
+                                           npcInfo.LogIDstring + ". Falling back to direct override.");
+                        npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
+                    }
+                }
+                else
+                {
+                    // Nif without SkyPatcher: edit the original NPC directly
+                    npc = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.OriginalNPC);
+                }
+            }
+            else
+            {
+                // Script mode: always uses surrogate
+                if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcInfo.OriginalNPC, out npc))
+                {
+                    _logger.LogMessage("WARNING: Could not create surrogate for headpart script assignment on NPC " +
+                                       npcInfo.LogIDstring + ". Headpart records will not be applied.");
+                    return;
+                }
+            }
+
+            if (npc != null)
+            {
+                // Figure out which headparts of each type the NPC already has
+                Dictionary<HeadPart.TypeEnum, HashSet<IFormLinkGetter<IHeadPartGetter>>> existingHeadparts = new();
+                foreach (var hp in npc.HeadParts)
+                {
+                    if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(hp.FormKey,
+                            out var headPartGetter) && headPartGetter != null)
+                    {
+                        if (headPartGetter.Type == null)
+                        {
+                            continue;
+                        }
+
+                        if (!existingHeadparts.ContainsKey(headPartGetter.Type.Value))
+                        {
+                            existingHeadparts.Add(headPartGetter.Type.Value, new ());
+                        }
+                        
+                        existingHeadparts[headPartGetter.Type.Value].Add(hp);
+                    }
+                }
+                
+                // Add or replace assigned headparts
+                foreach (var entry in headPartAssignments)
+                {
+                    if (existingHeadparts.TryGetValue(entry.Key, out var existingHeadPartsForType))
+                    {
+                        npc.HeadParts.RemoveAll(x => existingHeadPartsForType.Contains(x));
+                    }
+
+                    npc.HeadParts.Add(entry.Value);
+                }
             }
         }
     }

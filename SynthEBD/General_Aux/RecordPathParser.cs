@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Z.Expressions;
+using DynamicExpresso;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
@@ -30,6 +30,44 @@ public class RecordPathParser
         _environmentProvider = environmentProvider;
         _logger = logger;
         _raceResolver = raceResolver;
+    }
+
+    private static readonly Interpreter _dynExpInterpreter = CreateInterpreter();
+    private static Interpreter CreateInterpreter()
+    {
+        var interp = new Interpreter();
+        var skyrimTypes = typeof(Mutagen.Bethesda.Skyrim.BipedObjectFlag).Assembly
+            .GetExportedTypes()
+            .Select(t => new ReferenceType(t));
+        interp.Reference(skyrimTypes);
+        return interp;
+    }
+
+    private static readonly Dictionary<string, Lambda> _lambdaCache = new();
+
+    private static bool EvalBoolExpression(string expression, List<dynamic> parameters)
+    {
+        var dynParams = new Parameter[parameters.Count];
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            object val = (object)parameters[i];
+            dynParams[i] = new Parameter("_" + i, val.GetType(), val);
+        }
+
+        // Build a cache key from the expression text + the parameter type signature
+        string cacheKey = expression;
+        for (int i = 0; i < dynParams.Length; i++)
+        {
+            cacheKey += "|" + dynParams[i].Type.FullName;
+        }
+
+        if (!_lambdaCache.TryGetValue(cacheKey, out Lambda lambda))
+        {
+            lambda = _dynExpInterpreter.Parse(expression, dynParams);
+            _lambdaCache[cacheKey] = lambda;
+        }
+
+        return (bool)lambda.Invoke(dynParams);
     }
 
     //note: To allow the most flexibility in alternative usages, rootRecord can be any IMajorRecordGetter, but in SynthEBD it should always be the root INpcGetter.
@@ -634,7 +672,7 @@ public class RecordPathParser
 
         foreach (var condition in arrayMatchConditions)
         {
-            string argStr = '{' + argIndex.ToString() + '}';
+            string argStr = "_" + argIndex;
 
             for (int i = 0; i < matchConditionStr.Length - condition.ReplacerTemplate.Length; i++)
             {
@@ -780,7 +818,7 @@ public class RecordPathParser
 
                 if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.PatchableRaces)
                 {
-                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
+                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", "_" + patchableRaceArgIndex);
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
                     evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
@@ -796,19 +834,15 @@ public class RecordPathParser
 
             try
             {
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                if (EvalBoolExpression(matchConditionStr, evalParameters))
                 {
                     outputObj = candidateObj;
                     indexInParent = i;
                     return true;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                if (ex.Message.StartsWith("ERROR_005") && !MainWindow_ViewModel.EvalMessageTriggered)
-                {
-                    MessageWindow.DisplayNotificationOK("Eval-Expression License Expired", MainWindow_ViewModel.EvalExpiredMessage);
-                }
                 return false; // should only happen when user is screwing around with UI
             }
         }
@@ -881,7 +915,7 @@ public class RecordPathParser
 
                 if (condition.SpecialHandling == ArrayPathCondition.SpecialHandlingType.PatchableRaces)
                 {
-                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", '{' + patchableRaceArgIndex.ToString() + "}");
+                    matchConditionStr = matchConditionStr.Replace("PatchableRaces", "_" + patchableRaceArgIndex);
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
                     evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
@@ -897,7 +931,7 @@ public class RecordPathParser
 
             try
             {
-                if (Eval.Execute<bool>(matchConditionStr, evalParameters.ToArray()))
+                if (EvalBoolExpression(matchConditionStr, evalParameters))
                 {
                     matchedObjects.Add(candidateObj);
                 }

@@ -7,8 +7,15 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    public enum HeadPartPatchingMode
+    {
+        Script,
+        NifEdit
+    }
+    
     public class Settings_Headparts
     {
+        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.NifEdit;
         public Dictionary<HeadPart.TypeEnum, Settings_HeadPartType> Types { get; set; } = new()
         {
             { HeadPart.TypeEnum.Eyebrows, new() },
@@ -32,6 +39,7 @@ namespace SynthEBD
         };
 
         public bool bUseVerboseScripts { get; set; } = false;
+        public bool bSkyPatcherModeHeadparts { get; set; } = false;
         public string AssociatedBodyGenConfigNameMale { get; set; } = "";
         public string AssociatedBodyGenConfigNameFemale { get; set; } = "";
     }

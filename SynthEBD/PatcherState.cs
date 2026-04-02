@@ -7,7 +7,7 @@ namespace SynthEBD;
 public class PatcherState
 {
     // Version
-    public static string Version = "1.0.6.7";
+    public static string Version = "1.0.6.8";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }
@@ -64,7 +64,7 @@ public class PatcherState
             if (GeneralSettings != null && TexMeshSettings != null &&
                 (TexMeshSettings.bForceVanillaBodyMeshPath || GeneralSettings.bChangeMeshesOrTextures))
             {
-                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bPureScriptMode);
+                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bSkyPatcherModeAssets);
             }
             
             if (GeneralSettings != null && GeneralSettings.bChangeMeshesOrTextures)

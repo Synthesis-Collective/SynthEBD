@@ -102,11 +102,15 @@ The different SynthEBD modules have their own requirements, in addition to the c
 
 - No dependencies
 
-###### Head Part Distribution:
+###### Head Part Distribution (Script Mode):
 
 - Everybody's Different Redone SSE
-- JContainers  
+- JContainers
 - Spell Perk Item Distributor
+
+###### Head Part Distribution (NifEdit Mode):
+
+- SkyPatcher *(if using SkyPatcher mode)*
 
 ### Getting Started (For New Users)
 
@@ -557,7 +561,62 @@ This menu enables customization of NPC and racial heights.
   
 
 ### Head Part Distribution
-To use the head part distribution feature, you must first import the head parts that you wish to distribute. 
+
+#### Patching Modes
+
+Head part distribution supports two patching modes:
+
+- **Script Mode**: A Papyrus script applies headparts at runtime via JSON dictionaries. The FaceGen NIF is not modified. **Warning:** Script mode has a known bug that near-guarantees custom sculpt corruption. It is not recommended for use with NPCs that have custom sculpts.
+
+- **NifEdit Mode** *(Experimental)*: Headpart shapes are cloned directly into the FaceGen NIF. This mode does **not** suffer from the same custom sculpt corruption bug as Script mode. However, because NifEdit mode is still experimental, you should examine patcher outputs (particularly FaceGen NIFs) before starting a playthrough to verify that your NPCs look as expected.
+
+#### Patching Mode / SkyPatcher Truth Table
+
+The patcher supports two independent feature systems — **asset patching** (body/face textures) and **headpart patching** — each with two configuration axes:
+
+- **Patching Mode**: *Script* (runtime Papyrus script) or *Nif* (baked into FaceGen NIF)
+- **SkyPatcher Mode**: *Off* (direct NPC record override) or *On* (surrogate NPC + SkyPatcher ini commands)
+
+These four boolean axes produce 16 configurations:
+
+```
+Case  Asset    Asset     Headpart  Headpart  │ Asset Outputs             │ Headpart Outputs          │ SkyPatcher ini
+      Mode     SkyPatch  Mode      SkyPatch  │                           │                           │
+───── ──────── ───────── ───────── ───────── │ ───────────────────────── │ ───────────────────────── │ ────────────────────────
+ 1    Script   No        Script    No        │ Script JSON               │ Script JSON               │ (none)
+ 2    Script   No        Script    Yes       │ Script JSON               │ Script JSON (a)           │ (none)
+ 3    Script   No        Nif       No        │ Script JSON               │ NIF → original path       │ (none)
+                                             │                           │ HP records on NPC         │
+ 4    Script   No        Nif       Yes       │ Script JSON               │ NIF → surrogate path      │ copyVisualStyle
+                                             │                           │ HP records on surrogate   │
+ 5    Script   Yes       Script    No        │ WNAM on surrogate         │ Script JSON               │ skin
+ 6    Script   Yes       Script    Yes       │ WNAM on surrogate         │ Script JSON (a)           │ skin
+ 7    Script   Yes       Nif       No        │ WNAM on surrogate         │ NIF → original path       │ skin
+                                             │                           │ HP records on NPC         │
+ 8    Script   Yes       Nif       Yes       │ WNAM on surrogate         │ NIF → surrogate path      │ skin + copyVisualStyle (b)
+                                             │                           │ HP records on surrogate   │
+ 9    Nif      No        Script    No        │ NIF → original path       │ Script JSON               │ (none)
+10    Nif      No        Script    Yes       │ NIF → original path       │ Script JSON (a)           │ (none)
+11    Nif      No        Nif       No        │ NIF → original path       │ NIF → original path       │ (none)
+                                             │ (unified single NIF)      │ (unified single NIF)      │
+12    Nif      No        Nif       Yes       │ NIF → original path       │ NIF → original path (c)   │ (none) (c)
+                                             │ (unified single NIF)      │ HP records on NPC         │
+13    Nif      Yes       Script    No        │ NIF → surrogate path      │ Script JSON               │ skin + copyVisualStyle
+14    Nif      Yes       Script    Yes       │ NIF → surrogate path      │ Script JSON (a)           │ skin + copyVisualStyle
+15    Nif      Yes       Nif       No        │ NIF → surrogate path      │ NIF → surrogate path (c)  │ skin + copyVisualStyle (c)
+                                             │ (unified single NIF)      │ HP records on NPC         │
+16    Nif      Yes       Nif       Yes       │ NIF → surrogate path      │ NIF → surrogate path      │ skin + copyVisualStyle
+                                             │ (unified single NIF)      │ HP records on surrogate   │
+```
+
+**Notes:**
+- **(a)** Headpart SkyPatcher=Yes with Script mode is a no-op — the SkyPatcher flag only has effect when headpart mode is Nif. Script-mode headparts are always applied via JSON/script regardless of the SkyPatcher flag.
+- **(b)** In Case 8 the asset SetSkin is emitted by RecordGenerator (Script mode assets don't go through the FaceGen loop), while CopyVisualStyle is emitted by the FaceGen loop. These appear as separate ini lines since they target different surrogates (asset surrogate for skin, headpart surrogate for visual style).
+- **(c)** Cases 12 and 15 are asymmetric: one axis wants a surrogate (SkyPatcher=Yes) while the other does not. The NIF is written to the original path because the non-SkyPatcher Nif axis requires it there, and the SkyPatcher axis cannot use a surrogate path without breaking the other axis. Headpart records are written to the original NPC. No surrogate is created.
+
+#### Importing Head Parts
+
+To use the head part distribution feature, you must first import the head parts that you wish to distribute.
 - After clicking "Head Parts" in the left navigation pane, it should default to the *Import* tab. 
 - Click in the "Import from: " box and select the mod from which you would like to import head parts
 -- Note: there may be some lag if you select a large plugin such as Skyrim.esm

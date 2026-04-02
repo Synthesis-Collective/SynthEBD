@@ -18,11 +18,12 @@ public partial class UC_DownloadCoordinator : UserControl
     {
         Hyperlink hl = (Hyperlink)sender;
         string navigateUri = hl.NavigateUri.ToString();
-        var sInfo = new System.Diagnostics.ProcessStartInfo(navigateUri)
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
-            UseShellExecute = true,
-        };
-        System.Diagnostics.Process.Start(sInfo);
+            FileName = "explorer.exe",
+            Arguments = $"\"{navigateUri}\"",
+            UseShellExecute = false
+        });
         e.Handled = true;
     }
 }

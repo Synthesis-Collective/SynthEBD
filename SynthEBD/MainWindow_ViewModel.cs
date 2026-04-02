@@ -59,34 +59,10 @@ public class MainWindow_ViewModel : VM
     public void Init()
     {
         Application.Current.Exit += MainWindow_Closing;
-        ValidateEval();
     }
 
     void MainWindow_Closing(object sender, ExitEventArgs e)
     {
         _viewModelLoader.SaveViewModelsToDrive();
     }
-
-    void ValidateEval() // users should never see this but this will remind developer to update the Eval-Expression NuGet when the monthly trial expires. Unfortunately this function doesn't seeem to work - hence the static trigger that allows the Eval function in RecordPathParser to trigger the message box if necessary.
-    {
-        bool trueVar = false;
-        List<dynamic> evalParameters = new List<dynamic>() { true, true };
-        string evalExpression = "{0} == {1}";
-
-        try
-        {
-            trueVar = Z.Expressions.Eval.Execute<bool>(evalExpression, evalParameters.ToArray());
-        }
-        catch (Exception ex)
-        {
-            //pass
-        }
-
-        if (!trueVar)
-        {
-            MessageWindow.DisplayNotificationOK("Eval-Expression License Expired", EvalExpiredMessage);
-        }
-    }
-
-    public const string EvalExpiredMessage = "SynthEBD's asset distribution functionality depends on a month-to-month license of Eval-Expression.NET, and it appears this license has expired for the current build of SynthEBD. Please check the GitHub or Nexus page to see if an updated version has been released, and install the update if so. Otherwise, please contact Piranha91 or another member of the Synthesis Collective to refresh this license by updating the Eval-Expression NuGet package.";
 }

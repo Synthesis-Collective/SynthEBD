@@ -24,16 +24,16 @@ public class VanillaBodyPathSetter
     private readonly Logger _logger;
     private readonly VM_StatusBar _statusBar;
     private readonly PatchableRaceResolver _raceResolver;
-    private readonly NPCProvider _npcProvider;
+    private readonly SurrogateNPCProvider _surrogateNpcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
-    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, NPCProvider npcProvider, SkyPatcherInterface skyPatcherInterface)
+    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentStateProvider = environmentStateProvider;
         _patcherState = patcherState;
         _logger = logger;
         _statusBar = statusBar;
         _raceResolver = raceResolver;
-        _npcProvider = npcProvider;
+        _surrogateNpcProvider = surrogateNpcProvider;
         _skyPatcherInterface = skyPatcherInterface;
     }
 
@@ -110,7 +110,7 @@ public class VanillaBodyPathSetter
     }
     
 
-    private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod) // npcGetter and originalNpcGetter are same unless in SkyPatcher mode
+    private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
         if (npcGetter == null)
         {
@@ -120,15 +120,15 @@ public class VanillaBodyPathSetter
 
         var currentNpc = npcGetter;
         var currentArmor = currentNpc.WornArmor;
-        var surrogateNpc = _npcProvider.GetNpc(currentNpc, true, false);
-        if (surrogateNpc != null)
+
+        if (_surrogateNpcProvider.TryGetCachedSurrogate(npcGetter.FormKey, out var surrogateNpc))
         {
             currentNpc = surrogateNpc;
-            currentArmor = currentNpc.WornArmor;
+            currentArmor = surrogateNpc.WornArmor;
         }
         else if (outputMod.Npcs.Any(x => x.FormKey.Equals(npcGetter.FormKey)))
         {
-            currentArmor = outputMod.Npcs.First(x => x.FormKey.Equals(currentNpc.FormKey)).WornArmor;
+            currentArmor = outputMod.Npcs.First(x => x.FormKey.Equals(npcGetter.FormKey)).WornArmor;
         }
         
         if (!currentArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(currentArmor.FormKey, out var armorGetter))
@@ -142,7 +142,7 @@ public class VanillaBodyPathSetter
                     return;
                 }
                 
-                if (_patcherState.TexMeshSettings.bPureScriptMode)
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
                 {
                     _skyPatcherInterface.ApplySkin(npcGetter.FormKey, duplicatedArmor.FormKey);
                 }
@@ -181,7 +181,7 @@ public class VanillaBodyPathSetter
             var registration = LoquiRegistration.StaticRegister.GetRegister(npcGetter.GetType());
             var contexts = _environmentStateProvider.LinkCache?.ResolveAllContexts(npcGetter.FormKey, registration.GetterType).ToList() ?? new(); // note: ResolveAllContexts directly off npcGetter returns only the context from SynthEBD.esp
 
-            if (!_patcherState.TexMeshSettings.bPureScriptMode && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
+            if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
             {
                 string raceName = "No Race";
                 if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve(npcGetter.Race, out var raceGetter))
@@ -193,7 +193,7 @@ public class VanillaBodyPathSetter
 
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
 
-            if (hasBlockedArmature || _patcherState.TexMeshSettings.bPureScriptMode && !_npcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
+            if (hasBlockedArmature || _patcherState.TexMeshSettings.bSkyPatcherModeAssets && !_surrogateNpcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
             {
                 SetViaNewArmor(outputMod, armorGetter, npcGetter, currentGender);
             }
@@ -207,20 +207,40 @@ public class VanillaBodyPathSetter
     private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter npcGetter, Gender currentGender)
     {
         Armor wornArmor;
+        var implicits = Implicits.Get(outputMod.GameRelease);
 
-        if (_patcherState.TexMeshSettings.bPureScriptMode)
+        if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
         {
-            var npc = _npcProvider.GetNpc(npcGetter, false, true);
-            if(!_npcProvider.TryGetImportedFormKey(npcGetter.WornArmor.FormKey, out _))
+            if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcGetter, out var surrogateNpc))
+            {
+                _logger.LogMessage($"Cannot set vanilla body paths for NPC {npcGetter.FormKey} because surrogate creation failed.");
+                return;
+            }
+            
+            if (surrogateNpc.WornArmor == null || surrogateNpc.WornArmor.IsNull ||
+                implicits.BaseMasters.Contains(surrogateNpc.WornArmor.FormKey.ModKey))
+            {
+                // This NPC already has vanilla armor paths. No need to warn user.
+                return;
+            }
+            
+            if (!_surrogateNpcProvider.TryGetImportedFormKey(npcGetter.WornArmor.FormKey, out _))
             {
                 _logger.LogMessage($"Cannot set vanilla body paths in armor {npcGetter.WornArmor.FormKey} of NPC {npcGetter.FormKey} because the armor's source mod is blocked from import in Avoid Override Mode");
                 return;
             }
-            _skyPatcherInterface.ApplySkin(npcGetter.FormKey, npc.WornArmor.FormKey);
-            wornArmor = outputMod.Armors.GetOrAddAsOverride(npc.WornArmor, _environmentStateProvider.LinkCache);
+            _skyPatcherInterface.ApplySkin(npcGetter.FormKey, surrogateNpc.WornArmor.FormKey);
+            wornArmor = outputMod.Armors.GetOrAddAsOverride(surrogateNpc.WornArmor, _environmentStateProvider.LinkCache);
         }
         else
         {
+            if (npcGetter.WornArmor == null || npcGetter.WornArmor.IsNull ||
+                implicits.BaseMasters.Contains(npcGetter.WornArmor.FormKey.ModKey))
+            {
+                // This NPC already has vanilla armor paths. No need to warn user.
+                return;
+            }
+            
             wornArmor = outputMod.Armors.AddNew();
             wornArmor.DeepCopyIn(templateArmorGetter);
             var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
