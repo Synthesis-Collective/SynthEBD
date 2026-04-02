@@ -40,6 +40,13 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
         ProgramVersion currentVersion = PatcherState.Version;
 
+        // Fresh install — no prior settings to migrate, so stamp the current version and skip all updates.
+        if (_patcherState.GeneralSettings.bFirstRun)
+        {
+            _patcherState.UpdateLog.LastAppliedVersion = PatcherState.Version;
+            return;
+        }
+
         // Migrate from the old boolean-based UpdateLog if LastAppliedVersion has not yet been set.
         // Inspect the booleans to infer the highest version the user has already applied.
         if (string.IsNullOrEmpty(_patcherState.UpdateLog.LastAppliedVersion))
