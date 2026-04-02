@@ -140,6 +140,14 @@ public class FaceGenPatcher
     private readonly BSAHandler _bsaHandler;
     private readonly Logger _logger;
     private readonly SurrogateNPCProvider _surrogateNpcProvider;
+    private readonly SourceResolverProvider _sourceResolverProvider;
+
+    /// <summary>
+    /// The active source resolver for the current mod manager, or null if unsupported.
+    /// Initialized lazily on the first re-run detection to avoid unnecessary overhead.
+    /// </summary>
+    private ISourceResolver _sourceResolver;
+    private bool _sourceResolverInitialized;
 
     // ─── Head part model validation cache ────────────────────────────────────
     //
@@ -235,7 +243,27 @@ public class FaceGenPatcher
     {
         _logger.LogMessage("[WARN-FGPATCH " + npcInfo.NPC.FormKey + "] " + message);
     }
-    
+
+    // ─── Source resolver debug tracing for specific NPCs ─────────────────────
+    // Populate with FormKeys to get verbose [DEBUG-SRCRESOLVE] logging for
+    // those NPCs in TryResolveUpstreamSource (mod folder iteration + BSA fallback).
+    private static readonly HashSet<FormKey> SourceResolverDebugFormKeys = new()
+    {
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Uthgerd.FormKey,
+        //Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Npc.Alvor.FormKey
+    };
+
+    private bool IsSourceResolverDebugNpc(NPCInfo npcInfo)
+    {
+        return npcInfo?.NPC?.FormKey != null &&
+               SourceResolverDebugFormKeys.Contains(npcInfo.OriginalNPC.FormKey);
+    }
+
+    private void SourceResolverLog(NPCInfo npcInfo, string message)
+    {
+        _logger.LogMessage("[DEBUG-SRCRESOLVE " + npcInfo.NPC.FormKey + "] " + message);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  PROFILING FRAMEWORK
     // ═══════════════════════════════════════════════════════════════════════════
@@ -346,7 +374,8 @@ public class FaceGenPatcher
         SynthEBDPaths paths,
         BSAHandler bsaHandler,
         Logger logger,
-        SurrogateNPCProvider surrogateNpcProvider)
+        SurrogateNPCProvider surrogateNpcProvider,
+        SourceResolverProvider sourceResolverProvider)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -354,6 +383,7 @@ public class FaceGenPatcher
         _bsaHandler = bsaHandler;
         _logger = logger;
         _surrogateNpcProvider = surrogateNpcProvider;
+        _sourceResolverProvider = sourceResolverProvider;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -535,23 +565,26 @@ public class FaceGenPatcher
             DebugLog(npcInfo, "FaceGen output path: " + outputPath +
                               (outputFormKey.HasValue ? " (surrogate: " + outputFormKey.Value + ")" : " (original NPC)"));
 
-            // ── Step 3: Stale output detection ──
+            // ── Step 3: Stale output detection (Tier 1 — path-based) ──
             //
             // If the source FaceGen NIF lives inside the output folder, it's a
-            // previous SynthEBD output being fed back via MO2's VFS. The face
-            // shape textures may reference mods that are no longer active, causing
-            // dark face bug. Skip this NPC entirely.
+            // previous SynthEBD output being fed back via MO2's VFS. Invoke the
+            // source resolver to find the true upstream NIF.
 
-            if (hasHeadPartWork)
+            if (hasHeadPartWork && IsPreviousOutputByPath(sourcePath))
             {
-                // Tier 1: Detect stale output by path.
-                if (IsPreviousOutputByPath(sourcePath))
+                DebugLog(npcInfo, "Tier 1 stale output detected (path inside output folder). Attempting source resolution...");
+                string resolvedPath = TryResolveUpstreamSource(npcInfo);
+                if (resolvedPath != null)
                 {
-                    LogAndPrint(
-                        "FaceGenPatcher: WARNING — FaceGen source is inside the output folder (stale previous output). " +
-                        "Skipping NIF editing and record modification for this NPC. " +
-                        "Please clear your SynthEBD output folder and re-run. Source: " + sourcePath,
-                        true, npcInfo);
+                    DebugLog(npcInfo, "Source resolver found upstream NIF: " + resolvedPath);
+                    CleanupTempFile(sourcePath, extractedFromBsa);
+                    sourcePath = resolvedPath;
+                    extractedFromBsa = false; // resolved path is a loose file in a mod folder
+                }
+                else
+                {
+                    // Resolver unavailable or no upstream source exists — abort.
                     CleanupTempFile(sourcePath, extractedFromBsa);
                     return false;
                 }
@@ -584,13 +617,31 @@ public class FaceGenPatcher
                     string existingExportInfo = nif.GetHeader().GetExportInfo() ?? "";
                     if (existingExportInfo.Contains(SynthEBDNifTag))
                     {
-                        LogAndPrint(
-                            "FaceGenPatcher: WARNING — FaceGen NIF is tagged as a previous SynthEBD output. " +
-                            "Skipping NIF editing and record modification for this NPC. " +
-                            "Please clear your previous SynthEBD output folder and re-run. Source: " + sourcePath,
-                            true, npcInfo);
-                        CleanupTempFile(sourcePath, extractedFromBsa);
-                        return false;
+                        DebugLog(npcInfo, "Tier 2 stale output detected (NIF metadata tag). Attempting source resolution...");
+                        string resolvedPath = TryResolveUpstreamSource(npcInfo);
+                        if (resolvedPath != null)
+                        {
+                            DebugLog(npcInfo, "Source resolver found upstream NIF: " + resolvedPath);
+                            // Close the current (stale) NIF, reload from the resolved upstream source.
+                            CleanupTempFile(sourcePath, extractedFromBsa);
+                            sourcePath = resolvedPath;
+                            extractedFromBsa = false;
+
+                            int reloadResult = nif.Load(sourcePath);
+                            if (reloadResult != 0)
+                            {
+                                _logger.LogError(
+                                    "FaceGenPatcher: nifly failed to load resolved upstream NIF (error " +
+                                    reloadResult + "): " + sourcePath);
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            // Resolver unavailable or no upstream source exists — abort.
+                            CleanupTempFile(sourcePath, extractedFromBsa);
+                            return false;
+                        }
                     }
                 }
 
@@ -3660,6 +3711,91 @@ public class FaceGenPatcher
     private string ResolveModelNifPath(string modelRelativePath)
     {
         return Path.Combine(_environmentProvider.DataFolderPath, modelRelativePath);
+    }
+
+    /// <summary>
+    /// Attempts to resolve the true upstream FaceGen NIF for an NPC via the
+    /// mod-manager-specific <see cref="ISourceResolver"/>. Lazily initializes
+    /// the resolver on first call (zero overhead when no re-run is detected).
+    ///
+    /// On failure, logs an actionable error message directing the user to either
+    /// configure their mod manager path or manually delete the output directory.
+    /// </summary>
+    /// <returns>
+    /// The absolute path to the upstream NIF, or null if resolution failed.
+    /// </returns>
+    private string TryResolveUpstreamSource(NPCInfo npcInfo)
+    {
+        bool verboseResolve = IsSourceResolverDebugNpc(npcInfo);
+
+        // Lazy initialization: only set up the resolver when we actually need it.
+        if (!_sourceResolverInitialized)
+        {
+            _sourceResolverInitialized = true;
+            _sourceResolver = _sourceResolverProvider.GetResolver();
+            if (_sourceResolver != null)
+            {
+                _sourceResolver.Initialize();
+                if (!_sourceResolver.IsAvailable)
+                {
+                    _sourceResolver = null;
+                }
+            }
+        }
+
+        if (_sourceResolver == null)
+        {
+            LogAndPrint(
+                "FaceGenPatcher: ERROR — FaceGen NIF is a previous SynthEBD output but no source resolver is available. " +
+                "Either configure your mod manager (MO2/Vortex) executable path in Settings → Mod Manager Integration, " +
+                "or manually delete the FaceGen files in your SynthEBD output mod folder before re-running. " +
+                "NPC: " + npcInfo.LogIDstring,
+                true, npcInfo);
+            return null;
+        }
+
+        // Build the relative Data path for this NPC's FaceGen NIF.
+        string relPath = ResolveFaceGenNifBsaSubPath(npcInfo);
+
+        if (verboseResolve)
+            SourceResolverLog(npcInfo, "Attempting loose file resolution for: " + relPath);
+
+        if (_sourceResolver.TryResolve(relPath, out string absolutePath, verboseResolve))
+        {
+            if (verboseResolve)
+                SourceResolverLog(npcInfo, "Loose file resolved: " + absolutePath);
+            _logger.LogReport(
+                "FaceGenPatcher: Re-run source resolved via " + _sourceResolver.GetType().Name +
+                ": " + absolutePath,
+                false, npcInfo);
+            return absolutePath;
+        }
+
+        // Resolver is available but couldn't find an upstream source. This means
+        // no other mod provides a FaceGen NIF for this NPC — the only copy is our
+        // previous output. Fall back to BSA extraction.
+        if (verboseResolve)
+            SourceResolverLog(npcInfo, "No loose upstream NIF found. Trying BSA fallback...");
+        DebugLog(npcInfo, "Source resolver found no loose upstream NIF. Trying BSA fallback...");
+        string bsaPath = TryExtractFaceGenFromBsa(npcInfo, out bool extracted);
+        if (bsaPath != null)
+        {
+            if (verboseResolve)
+                SourceResolverLog(npcInfo, "BSA fallback resolved: " + bsaPath);
+            _logger.LogReport(
+                "FaceGenPatcher: Re-run source resolved via BSA fallback: " + bsaPath,
+                false, npcInfo);
+            return bsaPath;
+        }
+
+        if (verboseResolve)
+            SourceResolverLog(npcInfo, "BSA fallback also failed — no upstream source found anywhere");
+        LogAndPrint(
+            "FaceGenPatcher: WARNING — FaceGen NIF is a previous SynthEBD output and no upstream source " +
+            "could be found (not in any mod folder or BSA). Skipping this NPC. " +
+            "NPC: " + npcInfo.LogIDstring,
+            true, npcInfo);
+        return null;
     }
 
     /// <summary>

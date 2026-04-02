@@ -119,6 +119,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
         builder.RegisterType<FacePartCompliance>().AsSelf().SingleInstance();
         builder.RegisterType<FaceGenPatcher>().AsSelf().SingleInstance();
+        builder.RegisterType<MO2SourceResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<VortexSourceResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<SourceResolverProvider>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();
