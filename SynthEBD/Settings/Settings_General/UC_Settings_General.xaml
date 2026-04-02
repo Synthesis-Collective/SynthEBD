@@ -46,7 +46,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"   x:Name="row20"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" />
+                <RowDefinition Height="auto"/>
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto" x:Name="row25"/>
