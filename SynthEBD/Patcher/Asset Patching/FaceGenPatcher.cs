@@ -1015,7 +1015,23 @@ public class FaceGenPatcher
                             DebugLog(npcInfo, "      Slot " + slot + " already assigned \"" +
                                 result[slot] + "\" — overwriting with \"" + path.Source + "\"");
                         }
-                        result[slot] = path.Source;
+
+                        // Ensure the path includes the "textures\" prefix. Empirical
+                        // testing shows that paths without this prefix fail to resolve
+                        // when they are long or contain special characters like '(', '## ', or '+'.
+                        // Our working theory is that the engine's internal normalization
+                        // routine chokes on these paths, and that the prefix causes it
+                        // to be bypassed — but this is conjecture consistent with observed
+                        // behavior, not verified against engine code.
+                        string normalizedSource = path.Source;
+                        if (!normalizedSource.StartsWith("textures\\", StringComparison.OrdinalIgnoreCase) &&
+                            !normalizedSource.StartsWith("textures/", StringComparison.OrdinalIgnoreCase))
+                        {
+                            normalizedSource = "textures\\" + normalizedSource;
+                            DebugLog(npcInfo, "      Slot " + slot + " path prefixed: \"" +
+                                path.Source + "\" → \"" + normalizedSource + "\"");
+                        }
+                        result[slot] = normalizedSource;
                     }
                     else
                     {
