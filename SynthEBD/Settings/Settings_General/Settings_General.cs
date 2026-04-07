@@ -13,6 +13,9 @@ public class Settings_General
     public bool bChangeHeadParts { get; set; } = true;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public string OutputDataFolder { get; set; } = "";
+    public AppearanceMergeType AppearanceMergerType { get; set; } = AppearanceMergeType.None;
+    public string EasyNPCprofilePath { get; set; } = "";
+    public string NPC2TokenPath { get; set; } = "";
     public bool bEnableConsistency { get; set; } = true;
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
@@ -176,17 +179,23 @@ public class Settings_General
 
     public List<RaceAlias> RaceAliases { get; set; } = new()
     {
-        new RaceAlias()
-        {
-            Race = Skyrim.Race.DA13AfflictedRace.FormKey,
-            AliasRace = Skyrim.Race.BretonRace.FormKey,
-            bMale = true,
-            bFemale = true,
-            bApplyToAssets = false,
-            bApplyToBodyGen = true,
-            bApplyToHeight = true,
-            bApplyToHeadParts = true
-        },
+        DefaultRaceAliases.RaceAliasAfflicted,
+        DefaultRaceAliases.RaceAliasCotR_Breton,
+        DefaultRaceAliases.RaceAliasCotR_BretonVampire,
+        DefaultRaceAliases.RaceAliasCotR_DarkElf,
+        DefaultRaceAliases.RaceAliasCotR_DarkElfVampire,
+        DefaultRaceAliases.RaceAliasCotR_HighElf,
+        DefaultRaceAliases.RaceAliasCotR_HighElfVampire,
+        DefaultRaceAliases.RaceAliasCotR_Imperial,
+        DefaultRaceAliases.RaceAliasCotR_Imperial,
+        DefaultRaceAliases.RaceAliasCotR_Nord,
+        DefaultRaceAliases.RaceAliasCotR_NordVampire,
+        DefaultRaceAliases.RaceAliasCotR_Orc,
+        DefaultRaceAliases.RaceAliasCotR_OrcVampire,
+        DefaultRaceAliases.RaceAliasCotR_Redguard,
+        DefaultRaceAliases.RaceAliasCotR_RedguardVampire,
+        DefaultRaceAliases.RaceAliasCotR_WoodElf,
+        DefaultRaceAliases.RaceAliasCotR_WoodElfVampire
     };
 
     public List<RaceGrouping> RaceGroupings { get; set; } = new()
@@ -234,7 +243,8 @@ public class Settings_General
         DefaultAttributeGroups.Age50,
         DefaultAttributeGroups.Freckles,
         DefaultAttributeGroups.Rough01,
-        DefaultAttributeGroups.Rough02
+        DefaultAttributeGroups.Rough02,
+        DefaultAttributeGroups.CharmersOfTheReachHeads
     };
 
     public bool OverwritePluginAttGroups { get; set; } = true;
@@ -248,6 +258,13 @@ public class Settings_General
     public bool bTroubleShootingWarningDisplayed { get; set; } = false;
     public bool bHeadPartWarningDisplayed { get; set; } = false;
     public bool bUIopened { get; set; } = false;
+    public List<ModKey> BlockedModsFromImport { get; set; } = new()
+    {
+        ModKey.FromNameAndExtension("Skyrim.esm"),
+        ModKey.FromNameAndExtension("Dawnguard.esm"),
+        ModKey.FromNameAndExtension("Dragonborn.esm"),
+        ModKey.FromNameAndExtension("Hearthfires.esm"),
+    }; // do not import these mods in SkyPatcher mode.
 }
 
 public enum BodyShapeSelectionMode
@@ -261,4 +278,11 @@ public enum BodySlideSelectionMode
 {
     OBody,
     AutoBody
+}
+
+public enum AppearanceMergeType
+{
+    None,
+    EasyNPC,
+    NPC2
 }

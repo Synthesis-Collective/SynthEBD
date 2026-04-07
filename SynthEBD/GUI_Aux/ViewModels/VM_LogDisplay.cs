@@ -103,6 +103,7 @@ public class VM_LogDisplay : VM
 
     public void PrintState()
     {
+        _logger.LogMessage("Patcher Mode: " + GetPatcherModeString());
         _logger.LogMessage(_patcherState.GetStateLogStr());
         _logger.LogMessage("Data Folder: " + _environmentProvider.DataFolderPath);
         _logger.LogMessage("Load Order Source: " + _environmentProvider.LoadOrderFilePath);
@@ -124,6 +125,15 @@ public class VM_LogDisplay : VM
             }
             dispStr += mod.ModKey.FileName;
             _logger.LogMessage(dispStr);
+        }
+    }
+
+    private string GetPatcherModeString()
+    {
+        switch (_environmentProvider.RunMode) {
+            case EnvironmentMode.Standalone: return "Standalone";
+            case EnvironmentMode.Synthesis: return "Synthesis";
+            default: return "Unknown";
         }
     }
 

@@ -745,4 +745,72 @@ public class DefaultAttributeGroups
             }
         }
     };
+
+    public static AttributeGroup CharmersOfTheReachHeads = new()
+    {
+        Label = "Has CotR Head",
+        Attributes = new()
+        {
+            new NPCAttribute()
+            {
+                SubAttributes = new()
+                {
+                    new NPCAttributeMod()
+                    {
+                        ModKeys = new()
+                        {
+                            ModKey.FromNameAndExtension("Refined Volkihars.esp"),
+                            ModKey.FromNameAndExtension("Refined Auri.esp"),
+                            ModKey.FromNameAndExtension("BjornRefined.esp"),
+                            ModKey.FromNameAndExtension("KaidanRefined.esp"),
+                            ModKey.FromNameAndExtension("GorrRefined.esp"),
+                            ModKey.FromNameAndExtension("GoreRefined.esp"),
+                            ModKey.FromNameAndExtension("LucienRefined.esp"),
+                            ModKey.FromNameAndExtension("SofiaRefined.esp"),
+                            ModKey.FromNameAndExtension("RemielRefined.esp"),
+                            ModKey.FromNameAndExtension("SeranaRefined.esp"),
+                            ModKey.FromNameAndExtension("0SkeeverRefined.esp"),
+                            ModKey.FromNameAndExtension("GeneralTulliusRefined.esp"),
+                            ModKey.FromNameAndExtension("MarcurioRefined.esp"),
+                            ModKey.FromNameAndExtension("MarcusTheKnightRefined.esp"),
+                            ModKey.FromNameAndExtension("Vigilant NPCs Refined.esp"),
+                            ModKey.FromNameAndExtension("Glenmoril NPCs Refined.esp"),
+                            ModKey.FromNameAndExtension("KW_UnslaadNPCsRefined.esp"),
+                            ModKey.FromNameAndExtension("MOSRefined.esp"),
+                            ModKey.FromNameAndExtension("MOSRefinedDawnguard.esp"),
+                            ModKey.FromNameAndExtension("MOSRefinedDragonborn.esp"),
+                            ModKey.FromNameAndExtension("MOSUniqueNPC.esp"),
+                            ModKey.FromNameAndExtension("TSOSRefined.esp"),
+                            ModKey.FromNameAndExtension("TSOSRefinedDawnguard.esp"),
+                            ModKey.FromNameAndExtension("TSOSRefinedDragonborn.esp"),
+                            ModKey.FromNameAndExtension("TSOSRefinedHearthfire.esp"),
+                            ModKey.FromNameAndExtension("TSOSRefinedStenvar.esp"),
+                            ModKey.FromNameAndExtension("TSOSMFMiraak.esp"),
+                            ModKey.FromNameAndExtension("0TSOSRefinedDwarfofSkyrim.esp"),
+                            ModKey.FromNameAndExtension("TSOS_Apachii_Store_Patch.esp"),
+                            ModKey.FromNameAndExtension("TSOS_Aesir_Weaponry_Patch.esp"),
+                            ModKey.FromNameAndExtension("TDOSRefined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Companions Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Dark Brotherhood Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Cicero Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Brynjolf Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Thieves Guild Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Daedric Princes Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Ordinary People Refined.esp"),
+                            ModKey.FromNameAndExtension("Karura's Ordinary People Refined BUVARP Patch.esp"),
+                            ModKey.FromNameAndExtension("Mythos Followers Refined.esp"),
+                            ModKey.FromNameAndExtension("TaliesinReplacer.esp"), // 
+                            ModKey.FromNameAndExtension("LucienReplacer.esp"),
+                            ModKey.FromNameAndExtension("0SeranaReplacer.esp"),
+                            ModKey.FromNameAndExtension("0LordHarkonandValericaReplacer.esp"),
+                            ModKey.FromNameAndExtension("0BrynjolfReplacer.esp"),
+                            ModKey.FromNameAndExtension("0KaidanReplacer.esp"),
+                            ModKey.FromNameAndExtension("0AuriReplacer.esp"),
+                            ModKey.FromNameAndExtension("Gentle Auri.esp")
+                        }
+                    }
+                }
+            }
+        }
+    };
 }

@@ -39,4 +39,29 @@ public class ProbabilityWeighting
 
         return inputList[new Random().Next(weightedSet.Count)];
     }
+    
+    public static T SelectByProbability<T>(IEnumerable<T> inputs, Func<T, double> weightSelector)
+    {
+        if (inputs == null || !inputs.Any())
+        {
+            return default(T);
+        }
+
+        double totalWeight = inputs.Sum(weightSelector);
+        Random random = new Random();
+        double randomThreshold = random.NextDouble() * totalWeight;
+
+        double cumulativeWeight = 0;
+        foreach (var input in inputs)
+        {
+            cumulativeWeight += weightSelector(input);
+            if (cumulativeWeight >= randomThreshold)
+            {
+                return input;
+            }
+        }
+
+        // Fallback if due to rounding no element was returned
+        return inputs.Last();
+    }
 }

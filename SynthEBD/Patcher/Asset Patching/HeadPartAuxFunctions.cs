@@ -5,104 +5,118 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class HeadPartFunctions
+public class HeadPartAuxFunctions
 {
     private readonly PatcherState _patcherState;
     private readonly IOutputEnvironmentStateProvider _environmentStateProvider;
     private readonly Logger _logger;
 
-    public HeadPartFunctions(PatcherState patcherState, IOutputEnvironmentStateProvider environmentStateProvider, Logger logger)
+    public HeadPartAuxFunctions(PatcherState patcherState, IOutputEnvironmentStateProvider environmentStateProvider, Logger logger)
     {
         _patcherState = patcherState;
         _environmentStateProvider = environmentStateProvider;
         _logger = logger;
-
     }
 
-    public void ApplyNeededFaceTextures(Dictionary<FormKey, HeadPartSelection> headPartAssignemnts) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
+    public void ApplyNeededFaceTextures(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
-        HashSet<FormKey> npcsToRemove = new();
-        foreach (var npcFormKey in headPartAssignemnts.Keys)
+        HashSet<FormKey> toRemove = new();
+        
+        foreach (var kvp in assignedHeadPartTransfers)
         {
-            if (headPartAssignemnts[npcFormKey] == null || !headPartAssignemnts[npcFormKey].HasAssignment())
-            {
-                continue;
-            }
-
-            if(!_environmentStateProvider.LinkCache.TryResolve<INpcGetter>(npcFormKey, out var npcGetter))
-            {
-                continue; // this pretty much can't happen
-            }
-
+            var npcInfo = kvp.Value.NpcInfo;
+            var npcGetter = npcInfo.NPC;
             if (npcGetter.HeadTexture == null || npcGetter.HeadTexture.IsNull)
             {
                 if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull)
                 {
-                    AddNPCtoRemovalList_WNAM(npcGetter, npcsToRemove);
+                    ShowRemovalMessage_WNAM(npcGetter);
+                    toRemove.Add(kvp.Key);
+                    continue;
                 }
-                if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey, out var raceGetter))
+
+                if (npcGetter.Race != null &&
+                    _environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey,
+                        out var raceGetter))
                 {
                     var gender = NPCInfo.GetGender(npcGetter);
                     switch (gender)
                     {
                         case Gender.Male:
-                            if (raceGetter.HeadData != null && raceGetter.HeadData.Male != null && raceGetter.HeadData.Male.DefaultFaceTexture != null && raceGetter.HeadData.Male.DefaultFaceTexture.IsNull == false)
+                            if (raceGetter.HeadData != null && raceGetter.HeadData.Male != null &&
+                                raceGetter.HeadData.Male.DefaultFaceTexture != null &&
+                                raceGetter.HeadData.Male.DefaultFaceTexture.IsNull == false)
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
                                 npc.HeadTexture.SetTo(raceGetter.HeadData.Male.DefaultFaceTexture.FormKey);
                             }
-                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
+                            else if (raceGetter.HeadData != null &&
+                                     raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadMaleKhajiit);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet
+                                    .SkinHeadMaleKhajiit);
                             }
-                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
+                            else if (raceGetter.HeadData != null &&
+                                     raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadMaleArgonian);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet
+                                    .SkinHeadMaleArgonian);
                             }
                             else
                             {
-                                AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                                ShowRemovalMessage(npcGetter);
+                                toRemove.Add(kvp.Key);
                             }
+
                             break;
                         case Gender.Female:
-                            if (raceGetter.HeadData != null && raceGetter.HeadData.Female != null && raceGetter.HeadData.Female.DefaultFaceTexture != null && raceGetter.HeadData.Female.DefaultFaceTexture.IsNull == false)
+                            if (raceGetter.HeadData != null && raceGetter.HeadData.Female != null &&
+                                raceGetter.HeadData.Female.DefaultFaceTexture != null &&
+                                raceGetter.HeadData.Female.DefaultFaceTexture.IsNull == false)
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
                                 npc.HeadTexture.SetTo(raceGetter.HeadData.Female.DefaultFaceTexture.FormKey);
                             }
-                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
+                            else if (raceGetter.HeadData != null &&
+                                     raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.KhajiitRace))
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadFemaleKhajiit);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet
+                                    .SkinHeadFemaleKhajiit);
                             }
-                            else if (raceGetter.HeadData != null && raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
+                            else if (raceGetter.HeadData != null &&
+                                     raceGetter.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace))
                             {
                                 var npc = _environmentStateProvider.OutputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet.SkinHeadFemaleArgonian);
+                                npc.HeadTexture.SetTo(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.TextureSet
+                                    .SkinHeadFemaleArgonian);
                             }
                             else
                             {
-                                AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                                ShowRemovalMessage(npcGetter);
+                                toRemove.Add(kvp.Key);
                             }
+
                             break;
                     }
                 }
                 else
                 {
-                    AddNPCtoRemovalList(npcGetter, npcsToRemove);
+                    ShowRemovalMessage(npcGetter);
+                    toRemove.Add(kvp.Key);
                 }
             }
         }
 
-        foreach (var npcFK in npcsToRemove)
+        foreach (var fk in toRemove)
         {
-            headPartAssignemnts.Remove(npcFK);
+            assignedHeadPartTransfers.Remove(fk);
         }
     }
 
-    public void AddNPCtoRemovalList(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove)
+    public void ShowRemovalMessage(INpcGetter npcGetter)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
         if (IsForced(npcGetter))
@@ -112,11 +126,10 @@ public class HeadPartFunctions
         else
         {
             _logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD and no default face texture exists in its RACE record.");
-            npcsToRemove.Add(npcGetter.FormKey);
         }
     }
 
-    public void AddNPCtoRemovalList_WNAM(INpcGetter npcGetter, HashSet<FormKey> npcsToRemove)
+    public void ShowRemovalMessage_WNAM(INpcGetter npcGetter)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
 
@@ -127,7 +140,6 @@ public class HeadPartFunctions
         else
         {
             _logger.LogMessage("Reverting headparts of NPC " + npcString + " because no face texture was assigned by SynthEBD or its original plugin, but the NPC has a WNAM so SynthEBD HeadPart assignment would cause a neck seam.");
-            npcsToRemove.Add(npcGetter.FormKey);
         }
     }
 

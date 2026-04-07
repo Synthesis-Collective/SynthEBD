@@ -3,7 +3,7 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
-public class NPCInfo
+public class NPCInfo : IEquatable<NPCInfo>
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -22,6 +22,7 @@ public class NPCInfo
         _uniqueNPCData = uniqueNPCData;
 
         NPC = npc;
+        OriginalNPC = npc;
         LogIDstring = _logger.GetNPCLogNameString(npc);
         Gender = GetGender(npc);
         AssetsRace = _aliasHandler.GetAliasTexMesh(npc.Race.FormKey);
@@ -90,6 +91,7 @@ public class NPCInfo
     }
 
     public INpcGetter NPC { get; set; }
+    public INpcGetter OriginalNPC { get; set; } // NPC may be changed if patcer deep copies in the NPC
     public string Name { get; set; }
     public string LogIDstring { get; set; }
     public Gender Gender { get; set; }
@@ -137,5 +139,18 @@ public class NPCInfo
             }
         }
         return null;
+    }
+    
+    public bool Equals(NPCInfo other)
+    {
+        if (other == null) return false;
+        return Equals(this.OriginalNPC, other.OriginalNPC);
+    }
+
+    public override bool Equals(object obj) => Equals(obj as NPCInfo);
+
+    public override int GetHashCode()
+    {
+        return OriginalNPC?.GetHashCode() ?? 0;
     }
 }

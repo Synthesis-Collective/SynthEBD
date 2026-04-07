@@ -368,9 +368,9 @@ String   function cGetHexSubID(Int decForm, String hexForm = "", Form aForm = No
       endif
     endif
     if cIsLight(returnString)
-      returnString = cStringSubString(hexForm, 5) ; 3rd arg default == 'rest of string'
+      returnString = cStringSubString(returnString, 5) ; 3rd arg default == 'rest of string'
     else
-      returnString = cStringSubString(hexForm, 2) ; 3rd arg default == 'rest of string'
+      returnString = cStringSubString(returnString, 2) ; 3rd arg default == 'rest of string'
     endif
   endif
   return returnString
@@ -1606,9 +1606,9 @@ Bool function cArrayArgumentValidation(Int indices, Bool outputTrace, String typ
       String msg = "cArrayCreate" + type + "::Arg 'indices' (" + indices + ") out of bounds! (>128) Returning ArrayNone"
       Debug.Trace(msg, 2)
     endif
-    return TRUE
+    return False
   endif
-  return False
+  return TRUE
 endfunction
 
 Bool function cIsBetweenInt(Int aValue, Int minV, Int maxV) global

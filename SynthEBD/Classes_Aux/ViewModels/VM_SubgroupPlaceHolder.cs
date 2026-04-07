@@ -196,13 +196,34 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
         }
     }
 
-    public void Refresh()
+    public void RefreshID(bool recursive)
     {
         ID = AssociatedModel.ID;
-        foreach (var sg in Subgroups)
+        if (recursive)
         {
-            sg.Refresh();
+            foreach (var sg in Subgroups)
+            {
+                sg.RefreshID(recursive);
+            }
         }
+    }
+
+    public void RefreshName(bool recursive)
+    {
+        Name = AssociatedModel.Name;
+        if (recursive)
+        {
+            foreach (var sg in Subgroups)
+            {
+                sg.RefreshName(recursive);
+            }
+        }
+    }
+
+    public void Refresh(bool recursive)
+    {
+        RefreshID(recursive);
+        RefreshName(recursive);
     }
 
     public static VM_SubgroupPlaceHolder GetSubgroupByID(ObservableCollection<VM_SubgroupPlaceHolder> subgroups, string id)
@@ -684,6 +705,24 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
                             return true;
                         case UpdateMode.Perform:
                             path.Destination = MiscFunctions.ReplaceLastOccurrence(path.Destination, lastClass, _updateHandler.V09PathReplacements[lastClass]);
+                            break;
+                    }
+                }
+            }
+        }
+
+        if (version == Version.v1038)
+        {
+            foreach (var path in AssociatedModel.Paths)
+            {
+                if (path.Destination.Contains(".RawPath"))
+                {
+                    switch (updateAction)
+                    {
+                        case UpdateMode.Check:
+                            return true;
+                        case UpdateMode.Perform:
+                            path.Destination = path.Destination.Replace(".RawPath", ".GivenPath");
                             break;
                     }
                 }

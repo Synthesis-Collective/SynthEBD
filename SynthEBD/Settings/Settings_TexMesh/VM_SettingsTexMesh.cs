@@ -19,6 +19,7 @@ public class VM_SettingsTexMesh : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Func<ViewModelLoader> _getVMLoader;
+    private readonly Func<VM_TexMeshBatchActions> _getBatchActionsMenu;
 
     public VM_SettingsTexMesh(
         PatcherState patcherState,
@@ -36,7 +37,8 @@ public class VM_SettingsTexMesh : VM
         ConfigInstaller configInstaller,
         SettingsIO_AssetPack assetIO,
         VM_AssetDistributionSimulator.Factory simulatorFactory,
-        VM_Manifest.Factory manifestFactory)
+        VM_Manifest.Factory manifestFactory,
+        Func<VM_TexMeshBatchActions> getBatchActionsMenu)
     {
         _logger = logger;
         _paths = paths;
@@ -45,6 +47,7 @@ public class VM_SettingsTexMesh : VM
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _getVMLoader = getVMLoader;
+        _getBatchActionsMenu = getBatchActionsMenu;
 
         AssetOrderingMenu = new(this);
 
@@ -55,7 +58,7 @@ public class VM_SettingsTexMesh : VM
                 this.WhenAnyValue(x => x.bApplyFixedScripts),
                 _environmentProvider.WhenAnyValue(x => x.SkyrimVersion),
                 (_, _) => { return 0; })
-            .Subscribe(_ => UpdateSKSESelectionVisibility()).DisposeWith(this);
+            .Subscribe(_ => UpdateEBDOptionsVisibility()).DisposeWith(this);
 
         AssetPacks
             .ToObservableChangeSet()
@@ -69,6 +72,12 @@ public class VM_SettingsTexMesh : VM
         AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
 
         general.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
+
+        Observable.CombineLatest(
+                this.WhenAnyValue(x => x.bShowTroubleshootingSettings),
+                this.WhenAnyValue(x => x.FacePatchingMode),
+                (showTroubleshooting, mode) => showTroubleshooting && mode == FacePatchingMode.Script)
+            .Subscribe(x => bShowEBDOptions = x).DisposeWith(this);
 
         AddStrippedWNAM = new RelayCommand(
             canExecute: _ => true,
@@ -137,6 +146,17 @@ public class VM_SettingsTexMesh : VM
         RemoveTrimPath = new RelayCommand(
             canExecute: _ => true,
             execute: x => TrimPaths.Remove((TrimPath)x)
+        );
+        RestoreDefaultTrimPaths = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                TrimPaths.Clear();
+                foreach (var trimPath in new Settings_TexMesh().TrimPaths)
+                {
+                    TrimPaths.Add(new TrimPath { Extension = trimPath.Extension, PathToTrim = trimPath.PathToTrim });
+                }
+            }
         );
         ValidateAll = new RelayCommand(
             canExecute: _ => true,
@@ -277,6 +297,19 @@ public class VM_SettingsTexMesh : VM
                }
            }
        );
+
+        ShowBatchActionsMenu = new RelayCommand(
+           canExecute: _ => true,
+           execute: _ =>
+           {
+               var window = new Window_TexMeshBatchActions();
+               window.DataContext = _getBatchActionsMenu();
+               window.ShowDialog();
+           }
+       );
+
+        this.WhenAnyValue(x => x.bSkyPatcherModeAssets).Subscribe(_ => ValidatePureScriptMode()).DisposeWith(this);
+        this.WhenAnyValue(x => x.bLegacyEBDMode).Subscribe(_ => ValidateLegacyEBDMode()).DisposeWith(this);
     }
 
     public bool bChangeNPCTextures { get; set; } = true;
@@ -298,7 +331,9 @@ public class VM_SettingsTexMesh : VM
     private static string oldSKSEversion = "< 1.5.97";
     private static string newSKSEversion = "1.5.97 or higher";
     public string SKSEversionSSE { get; set; } = newSKSEversion;
+    public bool bPO3ModeForVR { get; set; } = true;
     public bool bShowSKSEversionOptions { get; set; } = false;
+    public bool bShowPO3Options { get; set; } = false;
     public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
     public bool bShowPreviewImages { get; set; } = true;
     public int MaxPreviewImageSize { get; set; } = 1024;
@@ -306,6 +341,10 @@ public class VM_SettingsTexMesh : VM
     public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
+    public bool bSkyPatcherModeAssets { get; set; } = false;
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.NifEdit;
+    public IEnumerable<FacePatchingMode> FacePatchingModeOptions { get; } = Enum.GetValues<FacePatchingMode>();
+    public bool bShowEBDOptions { get; set; } = false;
     public ObservableCollection<TrimPath> TrimPaths { get; set; } = new();
     public ObservableCollection<VM_AssetPack> AssetPacks { get; set; } = new();
 
@@ -314,6 +353,7 @@ public class VM_SettingsTexMesh : VM
     public IEnumerable<ModKey> LoadOrder { get; private set; }
     public RelayCommand AddTrimPath { get; }
     public RelayCommand RemoveTrimPath { get; }
+    public RelayCommand RestoreDefaultTrimPaths { get; }
     public RelayCommand ValidateAll { get; }
     public RelayCommand AddNewAssetPackConfigFile { get; }
     public IReactiveCommand InstallFromArchive { get; }
@@ -334,7 +374,7 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand SelectConfigsAll { get; }
     public RelayCommand SelectConfigsNone { get; }
     public RelayCommand SimulateDistribution { get; }
-
+    public RelayCommand ShowBatchActionsMenu { get; }
     public VM_AssetOrderingMenu AssetOrderingMenu { get; set; }
 
     private List<ObservableCollection<VM_CollectionMemberString>> StrippedSkinWNAMsHistory = new();
@@ -381,6 +421,7 @@ public class VM_SettingsTexMesh : VM
         bApplyFixedScripts = model.bApplyFixedScripts;
         bLegacyEBDMode = model.bLegacyEBDMode;
         bNewEBDModeVerbose = model.bNewEBDModeVerbose;
+        bPO3ModeForVR = model.bPO3ModeForVR;
         TriggerEvents = VM_CollectionMemberString.InitializeObservableCollectionFromICollection(model.TriggerEvents);
 
         if (model.bFixedScriptsOldSKSEversion)
@@ -395,6 +436,8 @@ public class VM_SettingsTexMesh : VM
         bCacheRecords = model.bCacheRecords;
         bPatchArmors = model.bPatchArmors;
         bPatchSkinAltTextures = model.bPatchSkinAltTextures;
+        bSkyPatcherModeAssets = model.bSkyPatcherModeAssets;
+        FacePatchingMode = model.FacePatchingMode;
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
@@ -425,10 +468,13 @@ public class VM_SettingsTexMesh : VM
         model.bCacheRecords = bCacheRecords;
         model.bLegacyEBDMode = bLegacyEBDMode;
         model.bNewEBDModeVerbose = bNewEBDModeVerbose;
+        model.bPO3ModeForVR = bPO3ModeForVR;
         model.AssetOrder = AssetOrderingMenu.DumpToModel();
         model.TriggerEvents = TriggerEvents.Select(x => x.Content).ToList();
         model.bPatchArmors = bPatchArmors;
         model.bPatchSkinAltTextures = bPatchSkinAltTextures;
+        model.bSkyPatcherModeAssets = bSkyPatcherModeAssets;
+        model.FacePatchingMode = FacePatchingMode;
         return model;
     }
 
@@ -458,15 +504,22 @@ public class VM_SettingsTexMesh : VM
         simWindow.ShowDialog();
     }
 
-    private void UpdateSKSESelectionVisibility()
+    private void UpdateEBDOptionsVisibility()
     {
         if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
         {
             bShowSKSEversionOptions = true;
+            bShowPO3Options = false;
+        }
+        else if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR)
+        {
+            bShowPO3Options = true;
+            bShowSKSEversionOptions = false;
         }
         else
         {
             bShowSKSEversionOptions = false;
+            bShowPO3Options = false;
         }
     }
 
@@ -502,7 +555,7 @@ public class VM_SettingsTexMesh : VM
 
         if (toUpdate.Any())
         {
-            string messageStr = "The following Config Files appear to have been generated prior to Version " + version + "." +
+            string messageStr = "The following Config Files appear to have been generated prior to Version " + GetVersionString(version) + "." +
                 Environment.NewLine + "Do you want to update them for compatibility with the current SynthEBD version?" +
                 Environment.NewLine + string.Join(Environment.NewLine, toUpdate.Select(x => x.GroupName)) +
                 Environment.NewLine + Environment.NewLine + "Press Yes unless you know what you're doing or SynthEBD may not be able to use these config files.";
@@ -515,6 +568,17 @@ public class VM_SettingsTexMesh : VM
                 }
             }
         }
+    }
+
+    private string GetVersionString(Version version)
+    {
+        var verStr = version.ToString();
+        if (verStr.StartsWith('v'))
+        {
+            verStr = verStr.Substring(1);
+        }
+
+        return string.Join('.', verStr.ToArray());
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)
@@ -606,7 +670,7 @@ public class VM_SettingsTexMesh : VM
         {
             if (preparationMode)
             {
-                changes.Add("Fix EBD Script: False --> True");
+                changes.Add("Fix EBD Global Script: False --> True");
             }
             else
             {
@@ -614,11 +678,23 @@ public class VM_SettingsTexMesh : VM
             }
         }
 
+        if (!bPO3ModeForVR)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Use PO3 Extender and Tweaks for Fixed EBD Global Script: False --> True");
+            }
+            else
+            {
+                bPO3ModeForVR = true;
+            }
+        }
+
         if (bLegacyEBDMode)
         {
             if (preparationMode)
             {
-                changes.Add("Use Original EBD Script: True --> False");
+                changes.Add("Use Original EBD Face Texture Script: True --> False");
             }
             else
             {
@@ -663,7 +739,7 @@ public class VM_SettingsTexMesh : VM
         {
             if (preparationMode)
             {
-                changes.Add("Face Textre Script Verbose Mode: True --> False");
+                changes.Add("Face Texture Script Verbose Mode: True --> False");
             }
             else
             {
@@ -723,6 +799,54 @@ public class VM_SettingsTexMesh : VM
             }
         }
 
+        if (bSkyPatcherModeAssets)
+        {
+            if (preparationMode)
+            {
+                changes.Add("Pure Script Mode: True --> False");
+            }
+            else
+            {
+                bSkyPatcherModeAssets = false;
+            }
+        }
+
         return changes;
+    }
+
+    private void ValidatePureScriptMode()
+    {
+        if (bSkyPatcherModeAssets)
+        {
+            if (bLegacyEBDMode)
+            {
+                if (MessageWindow.DisplayNotificationYesNo("Confirm Modification", "This setting requires you to use SynthEBD's updated Face Texture Script rather than the original EBD version. Would you like to make this change?"))
+                {
+                    bLegacyEBDMode = false;
+                }
+                else
+                {
+                    bSkyPatcherModeAssets = false;
+                }
+            }
+        }
+    }
+    
+    private void ValidateLegacyEBDMode()
+    {
+        if (bLegacyEBDMode)
+        {
+            if (bSkyPatcherModeAssets)
+            {
+                if (MessageWindow.DisplayNotificationYesNo("Confirm Modification", "This setting prevents you from using Override-free Patching Mode. Would you like to make this change?"))
+                {
+                    bSkyPatcherModeAssets = false;
+                }
+                else
+                {
+                    bLegacyEBDMode = false;
+                }
+            }
+        }
     }
 }

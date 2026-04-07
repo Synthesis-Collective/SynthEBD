@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Starfield;
 using Noggog;
 using System.IO;
 using System.Text;
@@ -32,11 +33,14 @@ public class PatcherSettingsSourceProvider : VM
             {
                 SettingsLog.AppendLine("Source Settings: "); ;
                 SettingsLog.AppendLine("Load Settings from Portable Folder: " + source.UsePortableSettings);
-                SettingsLog.AppendLine("Portable Folder Location: " + source.PortableSettingsFolder);
+                SettingsLog.AppendLine("Portable Settings Folder Location: " + source.PortableSettingsFolder);
                 Initialized = source.Initialized;
                 UsePortableSettings = source.UsePortableSettings;
-                if (source.PortableSettingsFolder != null && !source.PortableSettingsFolder.IsNullOrWhitespace() && Directory.Exists(source.PortableSettingsFolder))
-                PortableSettingsFolder = source.PortableSettingsFolder;
+                if (PortableSettingsFolderValid(source.PortableSettingsFolder))
+                {
+                    PortableSettingsFolder = source.PortableSettingsFolder;
+                    SettingsLog.AppendLine("Portable Settings Folder is valid");
+                }
             }
             else
             {
@@ -51,6 +55,24 @@ public class PatcherSettingsSourceProvider : VM
         }
         Initialized = true;
     }
+
+    public string GetCurrentSettingsRootPath()
+    {
+        if (UsePortableSettings && PortableSettingsFolderValid(PortableSettingsFolder))
+        {
+            return PortableSettingsFolder;
+        }
+        else
+        {
+            return DefaultSettingsRootPath;
+        }
+    }
+
+    public bool PortableSettingsFolderValid(string folderDir)
+    {
+        return folderDir != null && !folderDir.IsNullOrWhitespace() && Directory.Exists(folderDir);
+    }
+
     public void SaveSettingsSource(out bool saveSuccess, out string exceptionStr)
     {
         PatcherSettingsSource source = new PatcherSettingsSource()

@@ -157,4 +157,27 @@ public class FlattenedAssetPack
         }
         return output;
     }
+
+    public string GetSubgroupPositionString(int index, bool includeFormatting = true)
+    {
+        string output = string.Empty;
+
+        if (Source is not null && Source.Subgroups.Count >= index && Source.Subgroups[index] != null)
+        {
+            var sg = Source.Subgroups[index];
+            if (includeFormatting)
+            {
+                output += " (";
+            }
+
+            output += sg.ID + ": " + sg.Name;
+
+            if (includeFormatting)
+            {
+                output += ")";
+            }
+        }
+
+        return output;
+    }
 }

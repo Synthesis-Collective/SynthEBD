@@ -1,0 +1,32 @@
+<UserControl x:Class="SynthEBD.UC_ConfigRemapperAssetComparer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_ConfigRemapperAssetComparer}"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Button Grid.Row="0" Grid.Column="0" Content="Select File 1" Command="{Binding SetPath1}" Foreground="Aqua"/>
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Path1}" Foreground="White"/>
+
+        <Button Grid.Row="1" Grid.Column="0" Content="Select File 2" Command="{Binding SetPath2}" Foreground="Aqua"/>
+        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Path2}" Foreground="White"/>
+
+        <Button Grid.Row="2" Grid.Column="0" Content="Compare Files" Command="{Binding ComparePaths}" Foreground="MediumPurple"/>
+        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding DisplayStr}" Foreground="{Binding DisplayColor}"/>
+    </Grid>
+</UserControl>

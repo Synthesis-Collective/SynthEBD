@@ -209,7 +209,7 @@ public class VM_ConfigSelector : VM
                 }
             }
         }
-        parentVM.DownloadMenu = new VM_DownloadCoordinator(Manifest.DownloadInfo, AssociatedWindow, parentVM);
+        parentVM.DownloadMenu = new VM_DownloadCoordinator(Manifest.DownloadInfo, parentVM);
         parentVM.DisplayedViewModel = parentVM.DownloadMenu;
     }
 }

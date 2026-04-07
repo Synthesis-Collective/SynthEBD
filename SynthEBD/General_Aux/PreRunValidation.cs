@@ -39,6 +39,16 @@ namespace SynthEBD
                 {
                     valid = false;
                 }
+                
+                if (_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && _patcherState.TexMeshSettings.bPO3ModeForVR && !(_miscValidation.VerifyPO3ExtenderInstalled() && _miscValidation.VerifyPO3TweaksInstalled()))
+                {
+                    valid = false;
+                }
+                
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets && !_miscValidation.VerifySkyPatcherInstalled(false))
+                {
+                    valid = false;
+                }
 
                 List<string> assetPackErrors = new();
                 foreach (var assetPack in _patcherState.AssetPacks.Where(x => _patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).ToArray())
@@ -56,7 +66,7 @@ namespace SynthEBD
 
             if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
             {
-                if (!_miscValidation.VerifyRaceMenuInstalled(_environmentProvider.DataFolderPath))
+                if (!_miscValidation.VerifyRaceMenuInstalled())
                 {
                     valid = false;
                 }
@@ -73,29 +83,29 @@ namespace SynthEBD
                 {
                     if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody)
                     {
-                        if (!_miscValidation.VerifyOBodyInstalled(_environmentProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyOBodyInstalled())
                         {
                             valid = false;
                         }
 
-                        if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                        if (!_miscValidation.VerifyJContainersInstalled(false))
                         {
                             valid = false;
                         }
 
-                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits(_environmentProvider.DataFolderPath))
+                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits())
                         {
                             valid = false;
                         }
                     }
                     else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {
-                        if (!_miscValidation.VerifyAutoBodyInstalled(_environmentProvider.DataFolderPath))
+                        if (!_miscValidation.VerifyAutoBodyInstalled())
                         {
                             valid = false;
                         }
 
-                        if (_patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                        if (_patcherState.OBodySettings.AutoBodySelectionMode == AutoBodySelectionMode.JSON && !_miscValidation.VerifyJContainersInstalled(false))
                         {
                             valid = false;
                         }
@@ -130,22 +140,86 @@ namespace SynthEBD
                 }
             }
 
+            if (_patcherState.GeneralSettings.bChangeHeight && _patcherState.HeightSettings.bApplyWithoutOverride && !_miscValidation.VerifySkyPatcherInstalled(false))
+            {
+                valid = false;
+            }
+
             if (_patcherState.GeneralSettings.bChangeHeadParts)
             {
-                if (!_miscValidation.VerifyEBDInstalled())
+                // Headpart Script mode requires EBD scripts and JContainers
+                if (_patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Script)
                 {
-                    valid = false;
+                    if (!_miscValidation.VerifyEBDInstalled())
+                    {
+                        valid = false;
+                    }
+
+                    if (!_miscValidation.VerifyJContainersInstalled(false))
+                    {
+                        valid = false;
+                    }
                 }
-
-                //if (!MiscValidation.VerifySPIDInstalled(env.DataFolderPath, false))
-                //{
-                //    valid = false;
-                //}
-
-                if (!_miscValidation.VerifyJContainersInstalled(_environmentProvider.DataFolderPath, false))
+                
+                // Headpart SkyPatcher mode requires SkyPatcher
+                if (_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
                 {
-                    valid = false;
+                    if (!_miscValidation.VerifySkyPatcherInstalled(false))
+                    {
+                        valid = false;
+                    }
                 }
+            }
+            
+            // ══════════════════════════════════════════════════════════════════
+            //  Truth Table: Invalid Configuration Detection
+            //
+            //  The combination of Asset patching mode, Asset SkyPatcher mode,
+            //  Headpart patching mode, and Headpart SkyPatcher mode creates
+            //  16 possible configurations. Several are invalid and must be
+            //  caught before patching begins.
+            // ══════════════════════════════════════════════════════════════════
+
+            // Invalid: Headpart Script mode + Headpart SkyPatcher (Cases 2, 6, 10, 14)
+            // SkyPatcher surrogate distribution requires Nif mode to bake headparts 
+            // into the FaceGen nif; script mode cannot provide this.
+            if (_patcherState.GeneralSettings.bChangeHeadParts &&
+                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.Script &&
+                _patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
+            {
+                _logger.LogMessage("Invalid configuration: Headpart SkyPatcher mode is incompatible with Headpart Script mode. SkyPatcher headpart distribution requires headparts to be baked into FaceGen nifs (Nif mode).");
+                valid = false;
+            }
+
+            // Invalid: Asset Nif/No SkyPatcher + Headpart Nif/SkyPatcher (Case 12)
+            // Asset Nif mode without SkyPatcher edits the original NPC's FaceGen nif 
+            // directly. Headpart Nif + SkyPatcher would use CopyVisualStyle from a 
+            // surrogate, which would overwrite those direct edits.
+            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures &&
+                _patcherState.GeneralSettings.bChangeHeadParts &&
+                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.NifEdit &&
+                !_patcherState.TexMeshSettings.bSkyPatcherModeAssets &&
+                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit &&
+                _patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
+            {
+                _logger.LogMessage("Invalid configuration: Asset Nif mode without SkyPatcher cannot be combined with Headpart Nif + SkyPatcher mode. CopyVisualStyle from the headpart surrogate would overwrite the face texture edits baked directly into the original NPC's FaceGen nif.");
+                valid = false;
+            }
+
+            // Invalid: Asset Nif/SkyPatcher + Headpart Nif/No SkyPatcher (Case 15)
+            // Asset Nif + SkyPatcher uses CopyVisualStyle from a surrogate to transfer
+            // baked face textures. Headpart Nif mode without SkyPatcher edits the 
+            // original NPC's FaceGen nif directly. The CopyVisualStyle would overwrite
+            // those direct headpart edits.
+            if (_patcherState.GeneralSettings.bChangeMeshesOrTextures &&
+                _patcherState.GeneralSettings.bChangeHeadParts &&
+                _patcherState.TexMeshSettings.FacePatchingMode == FacePatchingMode.NifEdit &&
+                _patcherState.TexMeshSettings.bSkyPatcherModeAssets &&
+                _patcherState.HeadPartSettings.PatchingMode == HeadPartPatchingMode.NifEdit &&
+                !_patcherState.HeadPartSettings.bSkyPatcherModeHeadparts)
+            {
+                _logger.LogMessage("Invalid configuration: Asset Nif + SkyPatcher mode cannot be combined with Headpart Nif mode without SkyPatcher. CopyVisualStyle from the asset surrogate would overwrite the headpart edits baked directly into the original NPC's FaceGen nif.");
+                valid = false;
             }
 
             List<string> itemsWithBlankAttributes = new();

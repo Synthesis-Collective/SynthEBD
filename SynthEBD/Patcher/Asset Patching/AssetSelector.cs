@@ -241,20 +241,24 @@ public class AssetSelector
                 return null;
             }
 
-            _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
+            _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
 
-            if (iterationInfo.AvailableSeeds[0].ForceIfMatchCount > 0)
+            if (iterationInfo.AvailableSeeds.Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
-                iterationInfo.ChosenSeed = ChooseForceIfSubgroup(iterationInfo.AvailableSeeds);
-                iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
+                var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
+                    x.ForceIfMatchCount == matchedForceIfCount);
+
+                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups);
+                
+                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
-                iterationInfo.ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.AvailableSeeds);
-                iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds);
+                
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
+            iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
 
             _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
 
@@ -319,9 +323,11 @@ public class AssetSelector
             #endregion
 
             #region Pick next subgroup
-            if (iterationInfo.ChosenAssetPack.Subgroups[i][0].ForceIfMatchCount > 0)
+            if (iterationInfo.ChosenAssetPack.Subgroups[i].Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
-                nextSubgroup = ChooseForceIfSubgroup(iterationInfo.ChosenAssetPack.Subgroups[i]);
+                var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
+                    x.ForceIfMatchCount == matchedForceIfCount);
+                nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups);
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
@@ -381,13 +387,6 @@ public class AssetSelector
         GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
-    }
-
-    private static FlattenedSubgroup ChooseForceIfSubgroup(List<FlattenedSubgroup> availableSeeds)
-    {
-        int maxMatchedForceIfCount = availableSeeds[0].ForceIfMatchCount;
-        var candidateSubgroups = availableSeeds.Where(x => x.ForceIfMatchCount == maxMatchedForceIfCount).ToList(); // input list is sorted so that the subgroup with the most matched ForceIf attributes is first. Get other subgroups with the same number of matched ForceIf attributes (if any)
-        return (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(candidateSubgroups);
     }
 
     private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
@@ -608,7 +607,7 @@ public class AssetSelector
                 _logger.LogReport("Skipped evaluation of Whole Config Distribution Rules for Asset Pack " + ap.GroupName + " because it is forced by Specific NPC Assignments.", false, npcInfo);
                 filteredByMainConfigRules.Add(candidatePack);
             }
-            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Config File")) // check distribution rules for whole config
+            else if (!SubgroupValidForCurrentNPC(candidatePack.DistributionRules, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Config File " + candidatePack.GroupName)) // check distribution rules for whole config
             {
                 _logger.LogReport("Asset Pack " + ap.GroupName + " is invalid due to its main distribution rules.", false, npcInfo);
             }
@@ -652,7 +651,7 @@ public class AssetSelector
                 for (int j = 0; j < candidatePack.Subgroups[i].Count; j++)
                 {
                     bool isSpecificNPCAssignment = forcedAssetPack != null && forcedAssignments[i].Any();
-                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup"))
+                    if (!isSpecificNPCAssignment && !SubgroupValidForCurrentNPC(candidatePack.Subgroups[i][j], npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup" + " " + candidatePack.Subgroups[i][j].GetDetailedID_NameString(false)))
                     {
                         candidatePack.Subgroups[i].RemoveAt(j);
                         j--;
@@ -815,7 +814,7 @@ public class AssetSelector
                                     {
                                         _logger.LogReport("The consistency subgroup " + consistencySubgroupIDs[i] + " was either filtered out or no longer exists within the config file. Choosing a different subgroup at this position.", true, npcInfo);
                                     }
-                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup"))
+                                    else if (!SubgroupValidForCurrentNPC(consistencySubgroup, npcInfo, mode, assignedBodyGen, assignedBodySlides, "Subgroup" + " " + consistencySubgroup.GetDetailedID_NameString(false)))
                                     {
                                         _logger.LogReport("Consistency subgroup " + consistencySubgroup.Id + " (" + consistencySubgroup.Name + ") is no longer valid for this NPC. Choosing a different subgroup at this position", true, npcInfo);
                                         consistencyAssetPack.Subgroups[i].Remove(consistencySubgroup);
@@ -839,7 +838,7 @@ public class AssetSelector
 
         if (filteredPacks.Count == 0 && mode == AssetPackAssignmentMode.Primary)
         {
-            _logger.LogMessage("No valid asset packs could be found for NPC " + npcInfo.LogIDstring);
+            _logger.LogMessage("None of your current installed config files can be applied to " + npcInfo.LogIDstring);
         }
 
         _logger.CloseReportSubsection(npcInfo);
@@ -925,7 +924,7 @@ public class AssetSelector
 
                 if (!assetPack.Subgroups[i].Any())
                 {
-                    _logger.LogReport("Asset Pack " + assetPack.GroupName + " is invalid because no subgroups are available at position " + i + ".", false, npcInfo);
+                    _logger.LogReport("Asset Pack " + assetPack.GroupName + " is invalid because no subgroups are available at position " + i + assetPack.GetSubgroupPositionString(i) + ".", false, npcInfo);
                     return false;
                 }
             }
@@ -941,47 +940,48 @@ public class AssetSelector
     /// <param name="npcInfo"></param>
     /// <param name="forceIfAttributeCount">The number of ForceIf attributes within this subgroup that were matched by the current NPC</param>
     /// <returns></returns>
-    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, string reportStringType)
+    private bool SubgroupValidForCurrentNPC(FlattenedSubgroup subgroup, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, string reportStringPrefix)
     {
-        var reportString = reportStringType + " " + subgroup.GetDetailedID_NameString(false) + " ";
+        reportStringPrefix += " ";
+
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.SubgroupIDs.Contains(subgroup.Id))
         {
-            _logger.LogReport(reportString + "is valid because it is specifically assigned by user.", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is valid because it is specifically assigned by user.", false, npcInfo);
             return true;
         }
 
         // Allow unique NPCs
         if (!subgroup.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            _logger.LogReport(reportString + "is invalid because it is disallowed for unique NPCs", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because it is disallowed for unique NPCs", false, npcInfo);
             return false;
         }
 
         // Allow non-unique NPCs
         if (!subgroup.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
-            _logger.LogReport(reportString + "is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
             return false;
         }
 
         // Allowed Races
         if (!subgroup.AllowedRacesIsEmpty && !subgroup.AllowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because its allowed races (" + Logger.GetRaceListLogStrings(subgroup.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
             return false;
         }
 
         // Disallowed Races
         if (subgroup.DisallowedRaces.Contains(npcInfo.AssetsRace))
         {
-            _logger.LogReport(reportString + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(subgroup.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race (" + Logger.GetRaceLogString(npcInfo.AssetsRace, _environmentProvider.LinkCache, _patcherState) + ")", false, npcInfo);
             return false;
         }
 
         // Weight Range
         if (npcInfo.NPC.Weight < subgroup.WeightRange.Lower || npcInfo.NPC.Weight > subgroup.WeightRange.Upper)
         {
-            _logger.LogReport(reportString + "is invalid because the current NPC's weight falls outside of the morph's allowed weight range", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because the current NPC's weight falls outside of the morph's allowed weight range", false, npcInfo);
             return false;
         }
 
@@ -990,7 +990,7 @@ public class AssetSelector
         _attributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, npcInfo.AssetsRace, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
-            _logger.LogReport(reportString + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
+            _logger.LogReport(reportStringPrefix + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
             return false;
         }
         else
@@ -1000,14 +1000,14 @@ public class AssetSelector
 
         if (subgroup.ForceIfMatchCount > 0)
         {
-            _logger.LogReport(reportString + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
+            _logger.LogReport(reportStringPrefix + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
 
         // Disallowed Attributes
         _attributeMatcher.MatchNPCtoAttributeList(subgroup.DisallowedAttributes, npcInfo.NPC, npcInfo.AssetsRace, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
         if (hasAttributeRestrictions && matchesAttributeRestrictions)
         {
-            _logger.LogReport(reportString + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
+            _logger.LogReport(reportStringPrefix + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
             return false;
         }
 
@@ -1016,7 +1016,7 @@ public class AssetSelector
         // Distribution Enabled
         if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)
         {
-            _logger.LogReport(reportString + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match any of its ForceIf attributes.", false, npcInfo);
+            _logger.LogReport(reportStringPrefix + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match any of its ForceIf attributes.", false, npcInfo);
             return false;
         }
 
@@ -1031,13 +1031,13 @@ public class AssetSelector
                         {
                             if (subgroup.AllowedBodyGenDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors, subgroup.AllowedBodyGenMatchMode, out _))
                             {
-                                _logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned morph " + bodyGenTemplate.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
+                                _logger.LogReport(reportStringPrefix + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned morph " + bodyGenTemplate.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                                 return false;
                             }
 
                             if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, bodyGenTemplate.BodyShapeDescriptors, subgroup.DisallowedBodyGenMatchMode, out string matchedDescriptor))
                             {
-                                _logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned morph " + bodyGenTemplate.Label + "'s descriptors", false, npcInfo);
+                                _logger.LogReport(reportStringPrefix + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned morph " + bodyGenTemplate.Label + "'s descriptors", false, npcInfo);
                                 return false;
                             }
                         }
@@ -1050,13 +1050,13 @@ public class AssetSelector
                         {
                             if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.AllowedBodySlideMatchMode, out _))
                             {
-                                _logger.LogReport(reportString + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned bodyslide " + assignedBodySlide.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
+                                _logger.LogReport(reportStringPrefix + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned bodyslide " + assignedBodySlide.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                                 return false;
                             }
 
                             if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, assignedBodySlide.BodyShapeDescriptors, subgroup.DisallowedBodySlideMatchMode, out string matchedDescriptor))
                             {
-                                _logger.LogReport(reportString + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + assignedBodySlide.Label + "'s descriptors", false, npcInfo);
+                                _logger.LogReport(reportStringPrefix + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + assignedBodySlide.Label + "'s descriptors", false, npcInfo);
                                 return false;
                             }
                         }

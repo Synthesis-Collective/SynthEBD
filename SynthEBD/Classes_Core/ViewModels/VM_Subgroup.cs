@@ -96,7 +96,8 @@ public class VM_Subgroup : VM
         this.WhenAnyValue(vm => vm.ID)
          .Buffer(2, 1)
          .Select(b => (Previous: b[0], Current: b[1]))
-         .Subscribe(t => {
+         .Subscribe(t =>
+         {
              if (t.Previous != null && t.Previous != _defaultID)
              {
                  foreach (var subgroup in ParentAssetPack.Subgroups)
@@ -119,7 +120,8 @@ public class VM_Subgroup : VM
 
         AutoGenerateID_Children_Command = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: _ => {
+            execute: _ =>
+            {
                 if (AssociatedPlaceHolder != null)
                 {
                     AssociatedPlaceHolder.AutoGenerateID(true, 1);
@@ -154,7 +156,8 @@ public class VM_Subgroup : VM
 
         LinkRequiredSubgroups = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => {
+            execute: x =>
+            {
                 Window_SubgroupLinker window = new();
                 VM_SubgroupLinker windowVM = new(ParentAssetPack, this, window);
                 window.DataContext = windowVM;
@@ -169,7 +172,8 @@ public class VM_Subgroup : VM
 
         ApplyBulkRename = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => {
+            execute: x =>
+            {
                 if (RenameTo.IsNullOrWhitespace())
                 {
                     MessageWindow.DisplayNotificationOK("Renaming Error", "Subgroup Names cannot be blank or empty");

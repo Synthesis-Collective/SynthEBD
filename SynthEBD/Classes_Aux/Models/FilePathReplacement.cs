@@ -13,7 +13,7 @@ public class FilePathReplacement
 public class FilePathReplacementParsed
 {
     private Logger _logger;
-    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, SubgroupCombination parentCombination, Logger logger)
+    public FilePathReplacementParsed(FilePathReplacement pathTemplate, NPCInfo npcInfo, FlattenedAssetPack sourceAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Logger logger)
     {
         _logger = logger;
 
@@ -21,15 +21,15 @@ public class FilePathReplacementParsed
         Destination = RecordPathParser.SplitPath(pathTemplate.Destination);
         DestinationStr = pathTemplate.Destination;
         TemplateNPC = GetTemplateNPC(npcInfo, sourceAssetPack, recordTemplateLinkCache);
-        ParentCombination = parentCombination;
+        AssetPackName = sourceAssetPack.GroupName;
     }
 
     public string Source { get; set; }
     public string[] Destination { get; set; }
     public string DestinationStr { get; set; }
     public INpcGetter TemplateNPC { get; set; }
-    public SubgroupCombination ParentCombination { get; set; } // for logging only
     public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
+    public string AssetPackName { get; set; }  // for logging only
 
     private INpcGetter GetTemplateNPC(NPCInfo npcInfo, FlattenedAssetPack chosenAssetPack, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache)
     {

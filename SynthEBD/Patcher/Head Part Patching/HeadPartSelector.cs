@@ -9,6 +9,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
@@ -33,12 +35,12 @@ namespace SynthEBD
             headPartFormLists = new();
         }
 
-        public HeadPartSelection AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, ISkyrimMod outputMod)
+        public Dictionary<HeadPart.TypeEnum, FormKey> AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs)
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
             _logger.LogReport("Selecting Head Parts for Current NPC", false, npcInfo);
 
-            HeadPartSelection selectedHeadParts = new();
+            Dictionary<HeadPart.TypeEnum, FormKey> selectedHeadParts = new();
 
             List<string> consistencyReportTriggers = new();
 
@@ -68,8 +70,11 @@ namespace SynthEBD
                 }
                 IHeadPartGetter selection = AssignHeadPartType(settings.Types[headPartType], _patcherState.GeneralSettings.AttributeGroups, headPartType, npcInfo, assignedBodySlides, assignedBodyGenMorphs, currentConsistency, out bool randomizedToNone);
                 FormKey? selectedFK = null;
-                if (selection != null) { selectedFK = selection.FormKey; }
-                AllocateHeadPartSelection(selectedFK, headPartType, selectedHeadParts);
+                if (selection != null)
+                {
+                    selectedFK = selection.FormKey;
+                    selectedHeadParts.Add(headPartType, selectedFK.Value);
+                }
 
                 // record consistency mismatches
                 if (currentConsistency != null && currentConsistency.Initialized)
@@ -128,9 +133,6 @@ namespace SynthEBD
 
                 // unique NPC linkage
                 tempUniqueNPCDataRecorder[headPartType] = selection;
-
-                // add NPC's race to headpart races if necessary
-                MakeRaceCompatible(selection, npcInfo.NPC.Race.FormKey, outputMod);
             }
 
             if (consistencyReportTriggers.Any())
@@ -146,21 +148,7 @@ namespace SynthEBD
             _logger.CloseReportSubsectionsToParentOf("HeadParts", npcInfo);
             return selectedHeadParts;
         }
-
-        public static void AllocateHeadPartSelection(FormKey? selection, HeadPart.TypeEnum type, HeadPartSelection assignments)
-        {
-            switch(type)
-            {
-                case HeadPart.TypeEnum.Eyebrows: assignments.Brows = selection; break;
-                case HeadPart.TypeEnum.Eyes: assignments.Eyes = selection; break;
-                case HeadPart.TypeEnum.Face: assignments.Face = selection; break;
-                case HeadPart.TypeEnum.FacialHair: assignments.Beard = selection; break;
-                case HeadPart.TypeEnum.Hair: assignments.Hair = selection; break;
-                case HeadPart.TypeEnum.Misc: assignments.Misc = selection; break;
-                case HeadPart.TypeEnum.Scars: assignments.Scars = selection; break;
-            }
-        }
-
+        
         public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
@@ -617,39 +605,55 @@ namespace SynthEBD
             return true;
         }
 
-        public void ResolveConflictsWithAssetAssignments(Dictionary<HeadPart.TypeEnum, HeadPart> assetAssignments, HeadPartSelection headPartAssignments)
+        // Assign conflict-winning headpart assignements back to the headPartAssignments dictionary
+        public void ResolveConflictsWithAssetAssignments(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> mainHeadPartNpcs, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assetHeadPartNpcs)
         {
-            foreach (var type in _patcherState.HeadPartSettings.SourceConflictWinners.Keys)
+            foreach (var entry in mainHeadPartNpcs.Where(x => assetHeadPartNpcs.ContainsKey(x.Key)))
             {
-                if (assetAssignments[type] == null) { continue; }
+                var headPartAssignments = entry.Value.HeadParts;
+                var assetAssignments = assetHeadPartNpcs[entry.Key].HeadParts;
                 
-                switch(type)
+                foreach (var type in _patcherState.HeadPartSettings.SourceConflictWinners.Keys)
                 {
-                    case HeadPart.TypeEnum.Eyebrows: headPartAssignments.Misc = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Brows, type); break;
-                    case HeadPart.TypeEnum.Eyes: headPartAssignments.Eyes = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Eyes, type); break;
-                    case HeadPart.TypeEnum.Face: headPartAssignments.Face = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Face, type); break;
-                    case HeadPart.TypeEnum.FacialHair: headPartAssignments.Beard = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Beard, type); break;
-                    case HeadPart.TypeEnum.Hair: headPartAssignments.Hair = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Hair, type); break;
-                    case HeadPart.TypeEnum.Misc: headPartAssignments.Misc = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Misc, type); break;
-                    case HeadPart.TypeEnum.Scars: headPartAssignments.Scars = ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments.Scars, type); break;
+                    bool mainHas = headPartAssignments.ContainsKey(type);
+                    bool assetHas = assetAssignments.ContainsKey(type);
+                    
+                    if (!mainHas && assetHas)
+                    {
+                        headPartAssignments.Add(type, assetAssignments[type]);
+                    }
+                    else if (mainHas && assetHas)
+                    {
+                        headPartAssignments[type] =
+                            ResolveConflictWithAssetAssignment(assetAssignments[type], headPartAssignments[type], type);
+                    }
+                    // If mainHas && !assetHas: keep existing headPartAssignment as-is
+                    // If !mainHas && !assetHas: nothing to do
                 }
+            }
+            
+            // make sure NPCs that ONLY get headparts from config files get those assignements transferred to the main dictionary
+            foreach (var entry in assetHeadPartNpcs.Where(x => !mainHeadPartNpcs.ContainsKey(x.Key)))
+            {
+                mainHeadPartNpcs.Add(entry.Key, entry.Value);
             }
         }
 
-        public FormKey? ResolveConflictWithAssetAssignment(HeadPart assetAssignment, FormKey? headPartAssignment, HeadPart.TypeEnum type)
+        public FormKey ResolveConflictWithAssetAssignment(FormKey assetAssignment, FormKey headPartAssignment, HeadPart.TypeEnum type)
         {
-            if (headPartAssignment == null && assetAssignment != null) { return assetAssignment.FormKey; }
-            else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment.Value; }
+            if (headPartAssignment == null && assetAssignment != null) { return assetAssignment; }
+            else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment; }
 
             var conflictWinner = _patcherState.HeadPartSettings.SourceConflictWinners[type];
             switch (conflictWinner)
             {
-                case HeadPartSourceCandidate.AssetPack: return assetAssignment.FormKey; 
-                case HeadPartSourceCandidate.HeadPartsMenu: return headPartAssignment.Value;
-                default: return null;
+                case HeadPartSourceCandidate.AssetPack: return assetAssignment; 
+                case HeadPartSourceCandidate.HeadPartsMenu: return headPartAssignment;
+                default: return headPartAssignment;
             }
         }
-        public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, HeadPart> dict, NPCInfo npcInfo)
+        
+        public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, FormKey> dict, NPCInfo npcInfo)
         {
             if (hp.Type != null)
             {
@@ -663,7 +667,16 @@ namespace SynthEBD
                     _logger.LogReport(hp.Type.Value.ToString() + " assignment is blocked for current NPC's plugin.", false, npcInfo);
                     return;
                 }
-                dict[hp.Type.Value] = hp;
+
+                if (dict.ContainsKey(hp.Type.Value))
+                {
+                    var entry = dict[hp.Type.Value];
+                    var exceptionString =
+                        $"Warning: Attempted to set headpart {hp.Type.Value.ToString()} for NPC {npcInfo.LogIDstring} to {Logger.GetFormLogString(hp)} but one was already assigned: {entry.ToString()}";
+                    _logger.LogReport(exceptionString, false, npcInfo);
+                    return;
+                }
+                dict.Add(hp.Type.Value, hp.FormKey);
             }
             else
             {
@@ -726,7 +739,29 @@ namespace SynthEBD
             return false;
         }
 
-        private void MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK, ISkyrimMod outputMod)
+        public void EnsureHeadPartRaceCompatibility(
+            Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> headPartAssignments)
+        {
+            foreach (var entry in headPartAssignments)
+            {
+                var currentNpcInfo = entry.Value.NpcInfo;
+                var currentHeadPartFks = entry.Value.HeadParts;
+
+                foreach (var type in currentHeadPartFks.Keys)
+                {
+                    if (currentHeadPartFks[type] != null &&
+                        !currentHeadPartFks[type].IsNull &&
+                        _environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(currentHeadPartFks[type],
+                            out var headPartGetter) &&
+                        headPartGetter != null)
+                    {
+                        MakeRaceCompatible(headPartGetter, currentNpcInfo.NPC.Race.FormKey);
+                    }
+                }
+            }
+        }
+
+        private void  MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK)
         {
             if (selectedHeadPartGetter == null) { return; }
 
@@ -734,18 +769,18 @@ namespace SynthEBD
             FormList raceFormList = null;
             if (selectedHeadPartGetter.ValidRaces == null || !selectedHeadPartGetter.ValidRaces.TryResolve(_environmentProvider.LinkCache, out var raceListGetter) || raceListGetter.Items == null)
             {
-                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod);
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, _environmentProvider.OutputMod);
             }
             else if (!raceListGetter.Items.Contains(currentNpcRaceFK))
             {
-                raceFormList = GetRaceFormList(selectedHeadPartGetter, outputMod); // seems like Mutagen new()s this automatically
+                raceFormList = GetRaceFormList(selectedHeadPartGetter, _environmentProvider.OutputMod); // seems like Mutagen new()s this automatically
                 raceFormList.Items.AddRange(raceListGetter.Items);
             }
             
             if (raceFormList != null)
             {
                 raceFormList.Items.Add(currentNpcRaceFK);
-                currentHeadPart = outputMod.HeadParts.GetOrAddAsOverride(selectedHeadPartGetter);
+                currentHeadPart = _environmentProvider.OutputMod.HeadParts.GetOrAddAsOverride(selectedHeadPartGetter);
                 currentHeadPart.ValidRaces.SetTo(raceFormList);
             }
         }
@@ -766,29 +801,5 @@ namespace SynthEBD
         }
 
         private Dictionary<IHeadPartGetter, FormList> headPartFormLists = new();
-    }
-
-    public class HeadPartSelection // intentionally formatted this way rather than using HeadPart.TypeEnum to match EBD Papyrus formatting
-    {
-        public FormKey? Face { get; set; } = null;
-        public FormKey? Eyes { get; set; } = null;
-        public FormKey? Beard { get; set; } = null;
-        public FormKey? Scars { get; set; } = null;
-        public FormKey? Brows { get; set; } = null;
-        public FormKey? Hair { get; set; } = null;
-        public FormKey? Misc { get; set; } = null;
-
-        public bool HasAssignment()
-        {
-            if (Hair != null && !Hair.Value.IsNull) { return true; }
-            if (Face != null && !Face.Value.IsNull) { return true; }
-            if (Eyes != null && !Eyes.Value.IsNull) { return true; }
-            if (Beard != null && !Beard.Value.IsNull) { return true; }
-            if (Scars != null && !Scars.Value.IsNull) { return true; }
-            if (Brows != null && !Brows.Value.IsNull) { return true; }
-            if (Misc != null && !Misc.Value.IsNull) { return true; }
-
-            return false;
-        }
     }
 }

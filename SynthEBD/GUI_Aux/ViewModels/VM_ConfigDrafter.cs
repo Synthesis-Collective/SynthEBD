@@ -537,7 +537,7 @@ public class VM_ConfigDrafter : VM
         {
             progress.Report((currentGroupingIndex, maxGroupings, fileGrouping.Key));
 
-            var checksumGroupings = fileGrouping.GroupBy(x => CalculateMD5(x)).ToArray();
+            var checksumGroupings = fileGrouping.GroupBy(x => MiscFunctions.CalculateMD5(x)).ToArray();
             int groupCount = 0;
             foreach (var sharedChecksumGroup in checksumGroupings.Where(group => group.Count() > 1).ToArray())
             {
@@ -565,19 +565,6 @@ public class VM_ConfigDrafter : VM
         }
 
         return multipletTextureGroups;
-    }
-
-    //https://stackoverflow.com/a/10520086
-    private static string CalculateMD5(string filename)
-    {
-        using (var md5 = MD5.Create())
-        {
-            using (var stream = File.OpenRead(filename))
-            {
-                var hash = md5.ComputeHash(stream);
-                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            }
-        }
     }
 
     private bool PreVerifyMultiplets(IEnumerable<VM_FileDuplicateContainer> multiples, out string failureNames)

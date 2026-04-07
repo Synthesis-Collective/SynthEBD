@@ -1,5 +1,6 @@
 using Autofac;
 using static SynthEBD.VM_BodyShapeDescriptor;
+using static SynthEBD.VM_ConfigPathRemapper;
 using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
@@ -31,6 +32,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<OBodyWriter>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenWriter>().AsSelf().SingleInstance();
         builder.RegisterType<FirstLaunch>().AsSelf().SingleInstance();
+        builder.RegisterType<SkyPatcherInterface>().AsSelf().SingleInstance();
 
         // UI components (main)
         builder.RegisterType<MainWindow_ViewModel>().AsSelf().SingleInstance();
@@ -63,6 +65,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_AssetReplicateTextureRemover>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyTrainer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyTrainerExporter>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_TexMeshBatchActions>().AsSelf().SingleInstance();
 
         // UI Infrastructure
         builder.RegisterType<VM_NPCAttributeCreator>().AsSelf().SingleInstance();
@@ -98,6 +101,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<RecordIntellisense>().AsSelf().SingleInstance();
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideAnnotator>().AsSelf().SingleInstance();
+        builder.RegisterType<EasyNPCProfileParser>().AsSelf().SingleInstance();
+        builder.RegisterType<NPC2ProfileParser>().AsSelf().SingleInstance();
 
         //Patcher components
         builder.RegisterType<AssetAndBodyShapeSelector>().AsSelf().SingleInstance();
@@ -111,7 +116,14 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VerboseLoggingNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<ArmorPatcher>().AsSelf().SingleInstance();
         builder.RegisterType<SkinPatcher>().AsSelf().SingleInstance();
-        builder.RegisterType<HeadPartFunctions>().AsSelf().SingleInstance();
+        builder.RegisterType<HeadPartAuxFunctions>().AsSelf().SingleInstance();
+        builder.RegisterType<SurrogateNPCProvider>().AsSelf().SingleInstance();
+        builder.RegisterType<AssetAssignmentJsonDictHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<FacePartCompliance>().AsSelf().SingleInstance();
+        builder.RegisterType<FaceGenPatcher>().AsSelf().SingleInstance();
+        builder.RegisterType<MO2SourceResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<VortexSourceResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<SourceResolverProvider>().AsSelf().SingleInstance();
 
         //Asset copiers
         builder.RegisterType<EBDScripts>().AsSelf().SingleInstance();
@@ -188,6 +200,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_7ZipInterface>().AsSelf();
         builder.RegisterType<VM_AdditionalRecordTemplate>().AsSelf();
         builder.RegisterType<VM_PositionalSubgroupContainerCollection>().AsSelf();
+        builder.RegisterType<VM_ConfigPathRemapper>().AsSelf();
+        builder.RegisterType<VM_ConfigInstaller>().AsSelf();
+        builder.RegisterType<VM_DestinationFolderSelector>().AsSelf();
+        builder.RegisterType<RemappedPath>().AsSelf();
 
         // DTOs with factories
         builder.RegisterType<CombinationLog>().AsSelf();

@@ -58,10 +58,17 @@ public class VM_NPCAttribute : VM
     public VM_NPCAttributeShell MostRecentlyEditedShell { get; set; }
     public IObservable<Unit> NeedsRefresh { get; set; }
 
-    public VM_NPCAttribute Clone(ObservableCollection<VM_NPCAttribute> parentCollection)
+    public VM_NPCAttribute CloneInto(ObservableCollection<VM_NPCAttribute> parentCollection)
     {
         var model = DumpViewModelToModel();
         var clone = _creator.GetViewModelFromModel(model, parentCollection, _subscribedAttributeGroups, DisplayForceIfOption, DisplayForceIfWeight);
+        return clone;
+    }
+
+    public VM_NPCAttribute CloneInto(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> subscribedAttributeGroups)
+    {
+        var model = DumpViewModelToModel();
+        var clone = _creator.GetViewModelFromModel(model, parentCollection, subscribedAttributeGroups, DisplayForceIfOption, DisplayForceIfWeight);
         return clone;
     }
 

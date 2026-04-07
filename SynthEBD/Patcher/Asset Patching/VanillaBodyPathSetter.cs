@@ -1,3 +1,4 @@
+using Loqui;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
@@ -12,6 +13,7 @@ using System.DirectoryServices.ActiveDirectory;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace SynthEBD;
 
@@ -22,13 +24,17 @@ public class VanillaBodyPathSetter
     private readonly Logger _logger;
     private readonly VM_StatusBar _statusBar;
     private readonly PatchableRaceResolver _raceResolver;
-    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver)
+    private readonly SurrogateNPCProvider _surrogateNpcProvider;
+    private readonly SkyPatcherInterface _skyPatcherInterface;
+    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentStateProvider = environmentStateProvider;
         _patcherState = patcherState;
         _logger = logger;
         _statusBar = statusBar;
         _raceResolver = raceResolver;
+        _surrogateNpcProvider = surrogateNpcProvider;
+        _skyPatcherInterface = skyPatcherInterface;
     }
 
     public void SetVanillaBodyMeshPaths(ISkyrimMod outputMod, IEnumerable<INpcGetter> allNPCs)
@@ -55,17 +61,12 @@ public class VanillaBodyPathSetter
             {
                 continue;
             }
-
-            var patchedNPC = outputMod.Npcs.Where(x => x.FormKey.Equals(npc.FormKey)).FirstOrDefault();
-            if (patchedNPC != null)
-            {
-                npc = patchedNPC;
-            }
-
+            
             if (BlockedNPCs.Contains(npc.FormKey))
             {
                 continue;
             }
+            
             SetVanillaBodyPath(npc, outputMod);
         }
     }
@@ -77,6 +78,7 @@ public class VanillaBodyPathSetter
         BlockedNPCs.Clear();
         ArmatureDuplicatedWithVanillaPath.Clear();
         ArmorDuplicatedwithVanillaPaths.Clear();
+        ArmatureNifsFromAssets.Clear();
 
         InitializeDefaultMeshPaths();
     }
@@ -85,6 +87,7 @@ public class VanillaBodyPathSetter
     private HashSet<FormKey> BlockedNPCs = new();
     private Dictionary<FormKey, IArmorAddonGetter> ArmatureDuplicatedWithVanillaPath = new();
     private Dictionary<FormKey, IArmorGetter> ArmorDuplicatedwithVanillaPaths = new();
+    private HashSet<string> ArmatureNifsFromAssets = new();
 
     public void RegisterBlockedFromVanillaBodyPaths(NPCInfo currentNPCinfo)
     {
@@ -96,7 +99,8 @@ public class VanillaBodyPathSetter
             {
                 if (!BlockedArmatures.ContainsKey(armaLink.FormKey) && 
                     armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) && 
+                    IsValidBodyArmature(armaGetter, armorGetter, npcWinningRecord, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, currentNPCinfo.Gender) &&
                     !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentNPCinfo.Gender, npcWinningRecord, out _))
                 {
                     BlockedArmatures.Add(armaGetter.FormKey, primaryBodyPart);
@@ -104,15 +108,49 @@ public class VanillaBodyPathSetter
             }
         }
     }
+    
 
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
-        if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
+        if (npcGetter == null)
         {
-            if (ArmorDuplicatedwithVanillaPaths.ContainsKey(npcGetter.WornArmor.FormKey))
+            _logger.LogMessage("npc is null. Can't process vanilla body path.");
+            return;
+        }
+
+        var currentNpc = npcGetter;
+        var currentArmor = currentNpc.WornArmor;
+
+        if (_surrogateNpcProvider.TryGetCachedSurrogate(npcGetter.FormKey, out var surrogateNpc))
+        {
+            currentNpc = surrogateNpc;
+            currentArmor = surrogateNpc.WornArmor;
+        }
+        else if (outputMod.Npcs.Any(x => x.FormKey.Equals(npcGetter.FormKey)))
+        {
+            currentArmor = outputMod.Npcs.First(x => x.FormKey.Equals(npcGetter.FormKey)).WornArmor;
+        }
+        
+        if (!currentArmor.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(currentArmor.FormKey, out var armorGetter))
+        {
+            if (ArmorDuplicatedwithVanillaPaths.ContainsKey(currentArmor.FormKey))
             {
-                var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-                npc.WornArmor.SetTo(ArmorDuplicatedwithVanillaPaths[npcGetter.WornArmor.FormKey]);
+                var duplicatedArmor = ArmorDuplicatedwithVanillaPaths[currentArmor.FormKey];
+                if (duplicatedArmor == null)
+                {
+                    _logger.LogMessage($"Vanilla body path setter: duplicated armor is null. Npc {currentNpc.FormKey.ToString()} Template armor: {currentArmor.FormKey.ToString()}");
+                    return;
+                }
+                
+                if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
+                {
+                    _skyPatcherInterface.ApplySkin(npcGetter.FormKey, duplicatedArmor.FormKey);
+                }
+                else
+                {
+                    var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+                    npc.WornArmor.SetTo(duplicatedArmor.FormKey);
+                }
                 return;
             }
 
@@ -124,8 +162,10 @@ public class VanillaBodyPathSetter
             foreach (var armaLink in armorGetter.Armature)
             {
                 if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) && 
-                    IsValidBodyArmature(armaGetter, armorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) && 
-                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out _))
+                    IsValidBodyArmature(armaGetter, armorGetter, currentNpc, out BipedObjectFlag primaryBodyPart) &&
+                    ArmatureHasWorldModel(armaGetter, NPCInfo.GetGender(currentNpc)) &&
+                    !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpc, out _) &&
+                    !ArmaturePathAssignedFromConfig(armaGetter, currentGender))
                 {
                     hasNonVanillaBodyPaths = true;
                     break;
@@ -137,9 +177,23 @@ public class VanillaBodyPathSetter
                 return;
             }
 
+            
+            var registration = LoquiRegistration.StaticRegister.GetRegister(npcGetter.GetType());
+            var contexts = _environmentStateProvider.LinkCache?.ResolveAllContexts(npcGetter.FormKey, registration.GetterType).ToList() ?? new(); // note: ResolveAllContexts directly off npcGetter returns only the context from SynthEBD.esp
+
+            if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
+            {
+                string raceName = "No Race";
+                if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve(npcGetter.Race, out var raceGetter))
+                {
+                    raceName = EditorIDHandler.GetEditorIDSafely(raceGetter);
+                }
+                _logger.LogMessage(_logger.GetNPCLogNameString(npcGetter) + " is getting its body mesh path set to that of its race (" + raceName + ") despite having no overriding appearance mods. Make sure this NPC does not need to be blocked from vanilla body paths.");
+            }
+
             bool hasBlockedArmature = BlockedArmatures.Keys.Intersect(armorGetter.Armature.Select(x => x.FormKey).ToArray()).Any();
 
-            if (hasBlockedArmature)
+            if (hasBlockedArmature || _patcherState.TexMeshSettings.bSkyPatcherModeAssets && !_surrogateNpcProvider.TryGetImportedFormKey(armorGetter.FormKey, out _))
             {
                 SetViaNewArmor(outputMod, armorGetter, npcGetter, currentGender);
             }
@@ -150,10 +204,49 @@ public class VanillaBodyPathSetter
         }
     }
 
-    private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
+    private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter npcGetter, Gender currentGender)
     {
-        var wornArmor = outputMod.Armors.AddNew();
-        wornArmor.DeepCopyIn(templateArmorGetter);
+        Armor wornArmor;
+        var implicits = Implicits.Get(outputMod.GameRelease);
+
+        if (_patcherState.TexMeshSettings.bSkyPatcherModeAssets)
+        {
+            if (!_surrogateNpcProvider.TryGetSurrogateNpc(npcGetter, out var surrogateNpc))
+            {
+                _logger.LogMessage($"Cannot set vanilla body paths for NPC {npcGetter.FormKey} because surrogate creation failed.");
+                return;
+            }
+            
+            if (surrogateNpc.WornArmor == null || surrogateNpc.WornArmor.IsNull ||
+                implicits.BaseMasters.Contains(surrogateNpc.WornArmor.FormKey.ModKey))
+            {
+                // This NPC already has vanilla armor paths. No need to warn user.
+                return;
+            }
+            
+            if (!_surrogateNpcProvider.TryGetImportedFormKey(npcGetter.WornArmor.FormKey, out _))
+            {
+                _logger.LogMessage($"Cannot set vanilla body paths in armor {npcGetter.WornArmor.FormKey} of NPC {npcGetter.FormKey} because the armor's source mod is blocked from import in Avoid Override Mode");
+                return;
+            }
+            _skyPatcherInterface.ApplySkin(npcGetter.FormKey, surrogateNpc.WornArmor.FormKey);
+            wornArmor = outputMod.Armors.GetOrAddAsOverride(surrogateNpc.WornArmor, _environmentStateProvider.LinkCache);
+        }
+        else
+        {
+            if (npcGetter.WornArmor == null || npcGetter.WornArmor.IsNull ||
+                implicits.BaseMasters.Contains(npcGetter.WornArmor.FormKey.ModKey))
+            {
+                // This NPC already has vanilla armor paths. No need to warn user.
+                return;
+            }
+            
+            wornArmor = outputMod.Armors.AddNew();
+            wornArmor.DeepCopyIn(templateArmorGetter);
+            var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
+            npc.WornArmor.SetTo(wornArmor);
+        }
+        
         if (wornArmor.EditorID == null)
         {
             wornArmor.EditorID = "_VanillaBodyPath";
@@ -162,9 +255,7 @@ public class VanillaBodyPathSetter
         {
             wornArmor.EditorID += "_VanillaBodyPath";
         }
-
-        var npc = outputMod.Npcs.GetOrAddAsOverride(currentNpcGetter);
-        npc.WornArmor.SetTo(wornArmor);
+        
         ArmorDuplicatedwithVanillaPaths.Add(templateArmorGetter.FormKey, wornArmor);
 
         for (int i = 0; i < wornArmor.Armature.Count; i++)
@@ -180,7 +271,7 @@ public class VanillaBodyPathSetter
                 newSetter.SetTo(ArmatureDuplicatedWithVanillaPath[armaLinkGetter.FormKey]);
                 wornArmor.Armature[i] = newSetter;
             }
-            else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey) && GetArmatureVanillaPath(BlockedArmatures[armaLinkGetter.FormKey], currentGender, currentNpcGetter, out string vanillaPath))
+            else if (BlockedArmatures.ContainsKey(armaLinkGetter.FormKey) && GetArmatureVanillaPath(BlockedArmatures[armaLinkGetter.FormKey], currentGender, npcGetter, out string vanillaPath))
             {
                 ArmorAddon clonedArmature = outputMod.ArmorAddons.AddNew();
                 clonedArmature.DeepCopyIn(armaGetter);
@@ -198,7 +289,9 @@ public class VanillaBodyPathSetter
                 SetArmatureVanillaPath(clonedArmature, currentGender, vanillaPath);
                 ArmatureDuplicatedWithVanillaPath.Add(armaGetter.FormKey, clonedArmature);
             }
-            else if (IsValidBodyArmature(armaGetter, wornArmor, currentNpcGetter, out BipedObjectFlag primaryBodyPart) && !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPathB))
+            else if (IsValidBodyArmature(armaGetter, wornArmor, npcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender) &&
+                !ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out string vanillaPathB))
             {
                 var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                 SetArmatureVanillaPath(armature, currentGender, vanillaPathB);
@@ -206,7 +299,7 @@ public class VanillaBodyPathSetter
         }
     }
 
-    private void SetInExistingArmor(ISkyrimMod outputMod, IArmorGetter currentArmorGetter, INpcGetter currentNpcGetter, Gender currentGender)
+    private void SetInExistingArmor(ISkyrimMod outputMod, IArmorGetter currentArmorGetter, INpcGetter npcGetter, Gender currentGender)
     {
         for (int i = 0; i < currentArmorGetter.Armature.Count; i++)
         {
@@ -216,9 +309,10 @@ public class VanillaBodyPathSetter
                 _logger.LogMessage("Warning: Could not evaluate armature " + armaLinkGetter.FormKey.ToString() + " for vanilla body mesh path - armature could not be resolved.");
                 continue;
             }
-            else if (IsValidBodyArmature(armaGetter, currentArmorGetter, currentNpcGetter, out BipedObjectFlag primaryBodyPart))
+            if (IsValidBodyArmature(armaGetter, currentArmorGetter, npcGetter, out BipedObjectFlag primaryBodyPart) &&
+                ArmatureHasWorldModel(armaGetter, currentGender))
             {
-                if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, currentNpcGetter, out string vanillaPath))
+                if (!ArmatureHasVanillaPath(armaGetter, primaryBodyPart, currentGender, npcGetter, out string vanillaPath))
                 {
                     var armature = outputMod.ArmorAddons.GetOrAddAsOverride(armaGetter);
                     SetArmatureVanillaPath(armature, currentGender, vanillaPath);
@@ -274,24 +368,50 @@ public class VanillaBodyPathSetter
 
         switch (currentGender)
         {
-            case Gender.Female: return armaGetter.WorldModel.Female.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
-            case Gender.Male: return armaGetter.WorldModel.Male.File.RawPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase);
+            case Gender.Female: return armaGetter.WorldModel?.Female?.File.GivenPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
+            case Gender.Male: return armaGetter.WorldModel?.Male?.File.GivenPath.ToString().Equals(vanillaPath, StringComparison.OrdinalIgnoreCase) ?? true;
             default: return true;
+        }
+    }
+
+    public void RegisterAssetAssignedMeshes(List<SubgroupCombination> assignedCombinations)
+    {
+        ArmatureNifsFromAssets.UnionWith(assignedCombinations.SelectMany(x => x.ContainedSubgroups).SelectMany(x => x.Paths).Select(x => x.Source).Where(x => x.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private bool ArmaturePathAssignedFromConfig(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        if (currentGender == Gender.Female && armaGetter.WorldModel?.Female?.File.GivenPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Female.File.GivenPath) ||
+            (currentGender == Gender.Male && armaGetter.WorldModel?.Male?.File.GivenPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Male.File.GivenPath)))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private bool ArmatureHasWorldModel(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        if (armaGetter.WorldModel == null)
+        {
+            return false;
+        }
+        switch (currentGender)
+        {
+            case Gender.Female: return armaGetter.WorldModel.Female != null;
+            case Gender.Male: return armaGetter.WorldModel.Male != null;
+            default: return false;
         }
     }
 
     private bool IsValidBodyArmature(IArmorAddonGetter armaGetter, IArmorGetter armorGetter, INpcGetter currentNPC, out BipedObjectFlag primaryBodyPart)
     {
-        return IsBodyPart(armaGetter, out primaryBodyPart) &&
+        return IsBodyPart(armaGetter, out primaryBodyPart, currentNPC) &&
             (armorGetter.Keywords == null || !armorGetter.Keywords.Contains(Skyrim.Keyword.ArmorClothing)) &&
-            armaGetter.WorldModel != null &&
-            (
-                (armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
-                (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race))
-                );
+            ((armaGetter.Race != null && armaGetter.Race.Equals(currentNPC.Race)) ||
+            (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race)));
     }
     
-    private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart)
+    private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart, INpcGetter currentNpcGetter)
     {
         primaryBodyPart = 0;
         if (armaGetter.BodyTemplate != null)

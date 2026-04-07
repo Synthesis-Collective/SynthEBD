@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -30,10 +31,15 @@ namespace SynthEBD
                 _logger.LogMessage("Applying fixed EBD script (for SSE 1.5.97 or newer)");
                 sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "SSE", "EBDGlobalFuncs.pex");
             }
+            else if (_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && _patcherState.TexMeshSettings.bPO3ModeForVR)
+            {
+                _logger.LogMessage("Applying fixed EBD script (for VR via powerofthree's Papyrus Extender & Tweaks)");
+                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "PO3", "EBDGlobalFuncs.pex");
+            }
             else
             {
-                _logger.LogMessage("Applying fixed EBD script (for VR or SSE < 1.5.97)");
-                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "EBDGlobalFuncs.pex");
+                _logger.LogMessage("Applying fixed EBD script (for SSE < 1.5.97 or VR without powerofthree's Papyrus Extender & Tweaks)");
+                sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "VR", "Non-PO3", "EBDGlobalFuncs.pex");
             }
             string destPath = Path.Combine(_paths.OutputDataFolder, "Scripts", "EBDGlobalFuncs.pex");
             _patcherIO.TryCopyResourceFile(sourcePath, destPath, _logger);

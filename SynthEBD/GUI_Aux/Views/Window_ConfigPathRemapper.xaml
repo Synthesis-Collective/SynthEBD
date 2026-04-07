@@ -1,0 +1,91 @@
+<Window x:Class="SynthEBD.Window_ConfigPathRemapper"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        d:DataContext="{d:DesignInstance Type=local:VM_ConfigPathRemapper}"
+        mc:Ignorable="d"
+        Title="Config Path Updater" Height="800" Width="1200">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid x:Name="MainGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="New Asset Root Directory" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
+        <Button Grid.Row="0" Grid.Column="1" Content="Select" Command="{Binding SelectNewAssetDirectory}" Foreground="LightGreen" Margin="5 0 5 0"/>
+        <TextBox Text="{Binding NewAssetDirectory}" Grid.Row="0" Grid.Column="2"/>
+
+        <WrapPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
+            <TextBlock Text="If multiple matching textures exist, choose the one with the " Foreground="White" VerticalAlignment="Center"/>
+            <ComboBox SelectedItem="{Binding HashMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:PathMatchModeHash}}}" MaxWidth="250" Margin="5 0 5 0"/>
+            <TextBlock Text="path." Foreground="White" VerticalAlignment="Center"/>
+            <TextBlock Text="Match same file names only" VerticalAlignment="Center" Margin="150 0 5 0" Foreground="White"/>
+            <CheckBox IsChecked="{Binding LimitHashMatchingByFileName}"/>
+        </WrapPanel>
+
+        <Button Content="Remap Paths" Command="{Binding RemapPaths}" Foreground="MediumPurple" Grid.Row="2" Grid.Column="0" Visibility="{Binding ShowRemapButton, Converter={StaticResource BoolToVis}}"/>
+
+        <ProgressBar Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Value="{Binding ProgressCurrent}" Maximum="{Binding ProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressDigits, Converter={StaticResource BoolToVis}}">
+            <TextBlock.Text>
+                <MultiBinding StringFormat="{}Proccessed {0} of {1} files">
+                    <Binding Path="ProgressCurrent"/>
+                    <Binding Path="ProgressMax"/>
+                </MultiBinding>
+            </TextBlock.Text>
+        </TextBlock>
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Center" Foreground="White" Visibility="{Binding ShowProgressEndMessage, Converter={StaticResource BoolToVis}}" Text="Finalizing. Please wait."/>
+
+        <WrapPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Stretch" Visibility="{Binding ProcessingComplete, Converter={StaticResource BoolToVis}}" >
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayHashMatches}" Visibility="{Binding ShowRemappedByHashList, Converter={StaticResource BoolToVis}}">100% Confidence</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayPathPredictionMatches}" Visibility="{Binding ShowPredictedPathUpdateList, Converter={StaticResource BoolToVis}}">Predicted Changes - Review These</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayFailedRemapping}" Visibility="{Binding ShowUnpredictedPathUpdateList, Converter={StaticResource BoolToVis}}">Failed Predictions - Review These</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayMissingPaths}" Visibility="{Binding ShowMissingSubgroups, Converter={StaticResource BoolToVis}}">Missing Files - Review These</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayDeprecatedPathSubgroups}" Visibility="{Binding ShowDeprecatedPathSubgroups, Converter={StaticResource BoolToVis}}">Deprecated Files - Review These</RadioButton>
+            <RadioButton GroupName="Nav" Style="{StaticResource {x:Type ToggleButton}}" VerticalAlignment="Center" VerticalContentAlignment="Center" BorderBrush="White" BorderThickness="1" Margin="1" Command="{Binding DisplayAssetComparer}" Visibility="{Binding ShowDeprecatedPathSubgroups, Converter={StaticResource BoolToVis}}">Asset Comparer</RadioButton>
+        </WrapPanel>
+
+        <ContentPresenter Content="{Binding DisplayedSubMenu}" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
+            <ContentPresenter.Resources>
+                <DataTemplate DataType="{x:Type local:VM_ConfigRemapperPathSubstitutions}">
+                    <local:UC_ConfigRemapperPathSubstitutions/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_ConfigRemapperFailedRemappings}">
+                    <local:UC_ConfigRemapperFailedRemappings/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_ConfigRemapperMissingPaths}">
+                    <local:UC_ConfigRemapperMissingPaths/>
+                </DataTemplate>
+                <DataTemplate DataType="{x:Type local:VM_ConfigRemapperAssetComparer}">
+                    <local:UC_ConfigRemapperAssetComparer/>
+                </DataTemplate>
+            </ContentPresenter.Resources>
+        </ContentPresenter>
+
+        <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Visibility="{Binding ProcessingComplete, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Search Subgroup: " VerticalAlignment="Center" Foreground="White"/>
+            <TextBox Text="{Binding SubgroupSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
+            <TextBlock Text="Case-sensitive" VerticalAlignment="Center" Foreground="White"/>
+            <CheckBox IsChecked="{Binding SubgroupSearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 50 0"/>
+            <TextBlock Text="Search Path: " VerticalAlignment="Center" Foreground="White"/>
+            <TextBox Text="{Binding PathSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="150" Margin="5 0 5 0"/>
+            <TextBlock Text="Case-sensitive" VerticalAlignment="Center" Foreground="White"/>
+            <CheckBox IsChecked="{Binding PathSearchCaseSensitive, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 0 0"/>
+        </StackPanel>
+    </Grid>
+</Window>

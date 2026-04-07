@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
@@ -77,6 +78,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+        
+        _environmentProvider.WhenAnyValue(x => x.LoadOrder)
+            .Subscribe(x => LoadOrder = x)
+            .DisposeWith(this);
 
         this.WhenAnyValue(x => x.bChangeHeadParts).Subscribe(y =>
         {
@@ -92,6 +97,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 }
             }
         }).DisposeWith(this);
+
+        // Update visibility properties when AppearanceMergerType changes
+        this.WhenAnyValue(x => x.AppearanceMergerType)
+            .Subscribe(x =>
+            {
+                ShowEasyNPCPath = x == AppearanceMergeType.EasyNPC;
+                ShowNPC2Path = x == AppearanceMergeType.NPC2;
+            }).DisposeWith(this);
 
         AddRaceAlias = new RelayCommand(
             canExecute: _ => true,
@@ -179,6 +192,44 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         );
 
+        SelectEasyNPCProfile= new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "Text Files (*.txt)|*.txt", "Select your exported EasyNPC Profile",  out string path))
+                    {
+                        EasyNPCprofilePath = path;
+                    }
+                }
+                );
+
+        ClearEasyNPCProfile = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                EasyNPCprofilePath = string.Empty;
+            }
+        );
+
+        SelectNPC2Token = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFile(environmentProvider.DataFolderPath, "JSON Files (*.json)|*.json", "Select your NPC_Token.json file", out string path))
+                {
+                    NPC2TokenPath = path;
+                }
+            }
+        );
+
+        ClearNPC2Token = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                NPC2TokenPath = string.Empty;
+            }
+        );
+
         ToggleTroubleShootingSettingsDisplay = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -252,6 +303,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
 
     public VM_Settings_Environment EnvironmentSettingsVM { get; set; }
     public string OutputDataFolder { get; set; } = "";
+    public AppearanceMergeType AppearanceMergerType { get; set; } = AppearanceMergeType.None;
+    public string EasyNPCprofilePath { get; set; } = "";
+    public string NPC2TokenPath { get; set; } = "";
+    public bool ShowEasyNPCPath { get; set; } = false;
+    public bool ShowNPC2Path { get; set; } = false;
     public bool bShowToolTips { get; set; } = true;
     public bool bChangeMeshesOrTextures { get; set; } = true;
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
@@ -291,6 +347,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearOutputFolder { get; }
     public RelayCommand SelectPortableSettingsFolder { get; }
     public RelayCommand ClearPortableSettingsFolder { get; }
+    public RelayCommand SelectEasyNPCProfile { get; }
+    public RelayCommand ClearEasyNPCProfile { get; }
+    public RelayCommand SelectNPC2Token { get; }
+    public RelayCommand ClearNPC2Token { get; }
     public bool IsStandalone { get; set; }
     public bool bFilterNPCsByArmature { get; set; } = true;
     public bool bShowTroubleshootingSettings { get; set; } = false;
@@ -301,6 +361,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     private const string _troubleShootingSettingsShowText = "Show Troubleshooting Settings";
     private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
     private bool _bHeadPartWarningDisplayed { get; set; } = false;
+    public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
+    public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
@@ -312,6 +374,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IsCurrentlyLoading = true;
 
         OutputDataFolder = model.OutputDataFolder;
+        AppearanceMergerType = model.AppearanceMergerType;
+        EasyNPCprofilePath = model.EasyNPCprofilePath;
+        NPC2TokenPath = model.NPC2TokenPath;
         bShowToolTips = model.bShowToolTips;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         BodySelectionMode = model.BodySelectionMode;
@@ -342,6 +407,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         DetailedReportSelector.CopyInFromModel(model.DetailedReportSelector);
         bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         Close7ZipWhenFinished = model.Close7ZipWhenFinished;
+        BlockedModsFromImport = new(model.BlockedModsFromImport);
         bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
         if (bShowTroubleshootingSettings)
@@ -360,6 +426,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     {
         Settings_General model = new();
         model.OutputDataFolder = OutputDataFolder;
+        model.AppearanceMergerType = AppearanceMergerType;
+        model.EasyNPCprofilePath = EasyNPCprofilePath;
+        model.NPC2TokenPath = NPC2TokenPath;
         model.bShowToolTips = bShowToolTips;
         model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
         model.BodySelectionMode = BodySelectionMode;
@@ -395,6 +464,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         model.Close7ZipWhenFinished = Close7ZipWhenFinished;
         model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
+        model.BlockedModsFromImport = new(BlockedModsFromImport);
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
 

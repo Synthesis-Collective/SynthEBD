@@ -52,6 +52,7 @@ public class VM_SettingsHeight : VM
     public bool bChangeNPCHeight { get; set; } = true;
     public bool bChangeRaceHeight { get; set; } = true;
     public bool bOverwriteNonDefaultNPCHeights { get; set; } = true;
+    public bool bApplyWithoutOverride { get; set; } = false;
 
     public VM_HeightConfig SelectedHeightConfig { get; set; }
 
@@ -75,6 +76,7 @@ public class VM_SettingsHeight : VM
         bChangeNPCHeight = model.bChangeNPCHeight;
         bChangeRaceHeight = model.bChangeRaceHeight;
         bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
+        bApplyWithoutOverride = model.bApplyWithoutOverride;
 
         foreach (var hconfig in AvailableHeightConfigs)
         {
@@ -99,6 +101,7 @@ public class VM_SettingsHeight : VM
         model.bChangeRaceHeight = bChangeRaceHeight;
         model.bOverwriteNonDefaultNPCHeights = bOverwriteNonDefaultNPCHeights;
         model.SelectedHeightConfig = SelectedHeightConfig.Label;
+        model.bApplyWithoutOverride = bApplyWithoutOverride;
         return model;
     }
 }

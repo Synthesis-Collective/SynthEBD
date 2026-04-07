@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Windows;
+using Mutagen.Bethesda;
 
 namespace SynthEBD;
 
@@ -145,7 +146,10 @@ public partial class App : Application
         }
         //
 
+        var patcher = container.Resolve<Patcher>();
+
         // Output folder setting is handled via an Rx subscription in standalone mode; must be explicitly set in patcher mode
+        // patcher must be resolved before _paths.OutputDataFolder is set here; otherwise the constructor resets the OutputDataFolder.
         if (!_patcherState.GeneralSettings.OutputDataFolder.IsNullOrEmpty() && Directory.Exists(_patcherState.GeneralSettings.OutputDataFolder))
         {
             var paths = container.Resolve<SynthEBDPaths>();
@@ -157,11 +161,10 @@ public partial class App : Application
             _logger.LogMessage("Warning: outputting SynthEBD-associated files to data folder because no output folder was found in settings");
         }
 
-        var patcher = container.Resolve<Patcher>();
         await patcher.RunPatcher();
     }
 
-    private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    private async void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();
         sb.AppendLine("SynthEBD has crashed with the following error:");
@@ -209,11 +212,21 @@ public partial class App : Application
             if (_logger.CurrentNPCInfo != null)
             {
                 string id = "No ID";
-                if (_logger.CurrentNPCInfo.LogIDstring != null) { id = _logger.CurrentNPCInfo.LogIDstring; }
-                else if (_logger.CurrentNPCInfo.NPC.FormKey != null) { id = _logger.CurrentNPCInfo.NPC.FormKey.ToString(); }
+                if (_logger.CurrentNPCInfo?.LogIDstring != null) { id = _logger.CurrentNPCInfo.LogIDstring; }
+                else if (_logger.CurrentNPCInfo?.NPC?.FormKey != null) { id = _logger.CurrentNPCInfo.NPC.FormKey.ToString(); }
                 sb.AppendLine("Current NPC: " + id);
 
-                if (_logger.CurrentNPCInfo.Report != null)
+                if (_logger.CurrentNPCInfo?.NPC != null && 
+                    _environmentStateProvider != null && 
+                    _environmentStateProvider?.LinkCache != null)
+                {
+                    var contexts = _logger.CurrentNPCInfo.NPC.ToLink().ResolveAllContexts<ISkyrimMod, ISkyrimModGetter, INpc, INpcGetter>(_environmentStateProvider.LinkCache).ToArray();
+                    var sourcePlugins = "NPC Override Order: " + Environment.NewLine +
+                                        string.Join(Environment.NewLine, contexts.Select(x => x.ModKey.ToString()));
+                    sb.AppendLine(sourcePlugins);
+                }
+
+                if (_logger.CurrentNPCInfo?.Report != null)
                 {
                     try
                     {
@@ -242,11 +255,13 @@ public partial class App : Application
         }
 
         var errorMessage = sb.ToString();
+
+        var path = Path.Combine(_settingsSourceProvider.GetCurrentSettingsRootPath(), "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+
+
+        Task.Run(() => PatcherIO.WriteTextFile(path, errorMessage, _logger)).Wait();
+
         MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
-
-
-        var path = Path.Combine(_settingsSourceProvider.DefaultSettingsRootPath, "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
-        PatcherIO.WriteTextFileStatic(path, errorMessage).Wait();
 
         e.Handled = true;
 

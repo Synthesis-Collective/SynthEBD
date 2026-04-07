@@ -2,8 +2,15 @@ using Newtonsoft.Json;
 
 namespace SynthEBD;
 
+public enum FacePatchingMode
+{
+    Script,
+    NifEdit
+}
+
 public class Settings_TexMesh
 {
+    public FacePatchingMode FacePatchingMode { get; set; } = FacePatchingMode.NifEdit;
     public bool bChangeNPCTextures { get; set; } = true;
     public bool bChangeNPCMeshes { get; set; } = true;
     public bool bChangeNPCHeadParts { get; set; } = true;
@@ -28,6 +35,7 @@ public class Settings_TexMesh
     public bool bCacheRecords { get; set; } = true;
     public bool bLegacyEBDMode { get; set; } = false;
     public bool bNewEBDModeVerbose { get; set; } = false;
+    public bool bPO3ModeForVR { get; set; } = true;
     public List<TrimPath> TrimPaths { get; set; } = new()
     {
         new TrimPath()
@@ -50,4 +58,5 @@ public class Settings_TexMesh
     public List<string> TriggerEvents { get; set; } = new() { "OStim_PreStart", "OStim_Start", "OStim_End" };
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
+    public bool bSkyPatcherModeAssets { get; set; } = false;
 }

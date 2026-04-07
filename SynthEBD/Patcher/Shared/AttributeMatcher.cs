@@ -10,12 +10,16 @@ public class AttributeMatcher
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly RecordPathParser _recordPathParser;
-    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser)
+    private readonly EasyNPCProfileParser _easyNPCProfileParser;
+    private readonly NPC2ProfileParser _npc2ProfileParser;
+    public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _recordPathParser = recordPathParser;
+        _easyNPCProfileParser = easyNPCProfileParser;
+        _npc2ProfileParser = npc2ProfileParser;
     }
 
     /// <summary>
@@ -190,9 +194,10 @@ public class AttributeMatcher
                         var modAttribute = (NPCAttributeMod)subAttribute;
                         switch(modAttribute.ModActionType)
                         {
-                            case ModAttributeEnum.From: 
+                            case ModAttributeEnum.CreatedBy: 
                                 if (!ModKeyHashSetComparer.Contains(modAttribute.ModKeys, npc.FormKey.ModKey)) { subAttributeMatched = false; }
                                 break;
+                            
                             case ModAttributeEnum.PatchedBy:
                                 var contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).Where(x => !x.ModKey.Equals(npc.FormKey.ModKey)).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Omit the source plugin
                                 bool foundContext = false;
@@ -200,6 +205,131 @@ public class AttributeMatcher
                                 {
                                     if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, context.ModKey)) {  foundContext = true; break; }
                                 }
+                                if (GetApperanceMergeDestinationMod(npc.FormKey, out var mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                    mergeModKey.HasValue && // Is that plugin valid?
+                                    contexts.Any(x => x.ModKey.Equals(mergeModKey)) && // Does that plugin currently patch that NPC?
+                                    GetAppearanceMergeSourceMod(npc.FormKey, out var appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                    appearanceModKey.HasValue && // Is that plugin valid?
+                                    ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
+                                {
+                                    foundContext = true;
+                                }
+                                if (!foundContext)
+                                {
+                                    subAttributeMatched = false;
+                                }
+                                break;
+                            
+                            case ModAttributeEnum.WinningOverrideIsFrom:
+                                contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Do NOT omit the source plugin
+                                var winningContext = contexts.FirstOrDefault();
+                                if (winningContext == null)
+                                {
+                                    subAttributeMatched = false;
+                                    break;
+                                }
+                                
+                                foundContext = false;
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey)) {  foundContext = true;}
+                                else if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                         mergeModKey.HasValue && // Is that plugin valid?
+                                         winningContext.ModKey.Equals(mergeModKey) && // Is that plugin the winning override?
+                                         GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                         appearanceModKey.HasValue && // Is that plugin valid?
+                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
+                                {
+                                    foundContext = true;
+                                }
+                                
+                                if (!foundContext)
+                                {
+                                    subAttributeMatched = false;
+                                }
+                                break;
+                            
+                            case ModAttributeEnum.WinningAppearanceIsFrom:
+                                contexts = _environmentProvider.LinkCache.ResolveAllContexts<INpc, INpcGetter>(npc.FormKey).ToArray(); // contexts[0] is winning override. [Last] is source plugin. Do NOT omit the source plugin
+                                winningContext = contexts.FirstOrDefault();
+                                if (winningContext == null)
+                                {
+                                    subAttributeMatched = false;
+                                    break;
+                                }
+                                
+                                foundContext = false;
+                                // first check if the winning context is the winning appearance context, just like for ModAttributeEnum.WinningAppearance
+                                if (ModKeyHashSetComparer.Contains(modAttribute.ModKeys, winningContext.ModKey))
+                                {
+                                    foundContext = true;
+                                }
+                                else if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                         mergeModKey.HasValue && // Is that plugin valid?
+                                         winningContext.ModKey.Equals(mergeModKey) && // Is that plugin the winning override?
+                                         GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                         appearanceModKey.HasValue && // Is that plugin valid?
+                                         ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
+                                {
+                                    foundContext = true;
+                                }
+                                // If not, check if the winning appearance override inherits from those in any of the allowed ModKeys
+                                else
+                                {
+                                    var candidateAppearanceContexts = contexts
+                                        .Where(x => modAttribute.ModKeys.Contains(x.ModKey))
+                                        .ToList();
+                                    
+                                    // Add NPC merge context if available and make it the first to be searched because it's likely to match the winner
+                                    if (GetApperanceMergeDestinationMod(npc.FormKey, out mergeModKey) && // Which appearance merge plugin contains this NPC?
+                                        mergeModKey.HasValue && // Is that plugin valid?
+                                        GetAppearanceMergeSourceMod(npc.FormKey, out appearanceModKey) && // Which original appearance plugin was used for this NPC's merge entry?
+                                        appearanceModKey.HasValue && // Is that plugin valid?
+                                        ModKeyHashSetComparer.Contains(modAttribute.ModKeys, appearanceModKey.Value)) // Was that plugin included in the current search list?
+                                    {
+                                        var mergeContext = contexts.FirstOrDefault(x => x.ModKey.Equals(mergeModKey.Value));
+                                        if (mergeContext != null) // Does the apppearance merge plugin data actually contain this NPC?
+                                        {
+                                            candidateAppearanceContexts.Insert(0, mergeContext);
+                                        }
+                                    }
+                                    
+                                    // check the appearance of each context against that of the winning context
+                                    var winningNpc = contexts.First().Record;
+                                    Npc.TranslationMask appearanceMask = new Npc.TranslationMask(defaultOn: false)
+                                    {
+                                        FaceMorph = true,
+                                        FaceParts = true,
+                                        HairColor = true,
+                                        //HeadParts = true, // HeadParts equality testing is not currently working in Mutagen. Test explicitly
+                                        HeadTexture = true,
+                                        TextureLighting = true,
+                                        TintLayers = true,
+                                        WornArmor = true
+                                    };
+
+                                    foreach (var candidate in candidateAppearanceContexts)
+                                    {
+                                        bool headPartsAreEqual = candidate.Record.HeadParts.Count() == winningNpc.HeadParts.Count();
+                                        if (headPartsAreEqual)
+                                        {
+                                            foreach (var headPart in winningNpc.HeadParts)
+                                            {
+                                                if (!candidate.Record.HeadParts.Contains(headPart))
+                                                {
+                                                    headPartsAreEqual = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        
+                                        
+                                        if (candidate.Record.Equals(winningNpc, appearanceMask) && headPartsAreEqual)
+                                        {
+                                            foundContext = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                                                
                                 if (!foundContext)
                                 {
                                     subAttributeMatched = false;
@@ -484,5 +614,52 @@ public class AttributeMatcher
             default:
                 dispMessage = "Comparator not recognized"; return false;
         }
+    }
+
+    private bool GetApperanceMergeDestinationMod(FormKey npcFormKey, out ModKey? mergeModKey)
+    {
+        mergeModKey = null;
+        switch (_patcherState.GeneralSettings.AppearanceMergerType)
+        {
+            case AppearanceMergeType.None:
+                mergeModKey = null;
+                return false;
+            case AppearanceMergeType.EasyNPC:
+                mergeModKey = ModKey.FromNameAndExtension("NPC Appearances Merged.esp");
+                return true;
+            case AppearanceMergeType.NPC2:
+                if (_npc2ProfileParser.GetNPCMergePlugin(npcFormKey, out mergeModKey))
+                {
+                    return true;
+                }
+
+                return false;
+        }
+
+        return false;
+    }
+    
+    private bool GetAppearanceMergeSourceMod(FormKey npcFormKey, out ModKey? appearanceModKey)
+    {
+        appearanceModKey = null;
+        switch (_patcherState.GeneralSettings.AppearanceMergerType)
+        {
+            case AppearanceMergeType.None:
+                return false;
+            case AppearanceMergeType.EasyNPC:
+                if (_easyNPCProfileParser.GetNPCMod(npcFormKey, out appearanceModKey))
+                {
+                    return true;
+                }
+                return false;
+            case AppearanceMergeType.NPC2:
+                if (_npc2ProfileParser.GetNPCSourcePlugin(npcFormKey, out appearanceModKey))
+                {
+                    return true;
+                }
+                return false;
+        }
+
+        return false;
     }
 }

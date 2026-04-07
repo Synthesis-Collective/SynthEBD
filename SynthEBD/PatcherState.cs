@@ -1,13 +1,13 @@
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
+using System.Windows.Forms;
 
 namespace SynthEBD;
 
 public class PatcherState
 {
     // Version
-    public static string Version = "1.0.2.8";
-
+    public static string Version = "1.0.6.9";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }
@@ -52,10 +52,44 @@ public class PatcherState
             sb.AppendLine("Apply Height: " + GeneralSettings.bChangeHeight);
             sb.AppendLine("Apply Head Parts: " + GeneralSettings.bChangeHeadParts);
             sb.AppendLine("Use Consistency: " + GeneralSettings.bEnableConsistency);
+            sb.AppendLine("Output Folder: " + GeneralSettings.OutputDataFolder);
+            sb.AppendLine("Output File Name: " + GeneralSettings.PatchFileName);
         }
         if (TexMeshSettings == null)
         {
             sb.AppendLine("Asset Settings: Null");
+        }
+        else
+        {
+            if (GeneralSettings != null && TexMeshSettings != null &&
+                (TexMeshSettings.bForceVanillaBodyMeshPath || GeneralSettings.bChangeMeshesOrTextures))
+            {
+                sb.AppendLine("SkyPatcher Mode for Skins: " + TexMeshSettings.bSkyPatcherModeAssets);
+            }
+            
+            if (GeneralSettings != null && GeneralSettings.bChangeMeshesOrTextures)
+            {
+                sb.AppendLine("Fix EBD's Global Script: " + TexMeshSettings.bApplyFixedScripts);
+                
+                if (TexMeshSettings.bApplyFixedScripts)
+                {
+                    string fixedScriptVer = string.Empty;
+                    switch(TexMeshSettings.bFixedScriptsOldSKSEversion)
+                    {
+                        case false: fixedScriptVer = "1.5.9.7 or Higher"; break;
+                        case true: fixedScriptVer = "<1.5.9.7"; break;
+                    }
+                    sb.AppendLine("Using Fixed Global Script For " + fixedScriptVer);
+                }
+
+                switch (TexMeshSettings.bLegacyEBDMode)
+                {
+                    case true: sb.AppendLine("Using original EBD face texture script"); break;
+                    case false: sb.AppendLine("Using SynthEBD's updated face texture script"); break;
+                }
+
+                sb.AppendLine("VR Only: Use PO3 script version: " + TexMeshSettings.bPO3ModeForVR);
+            }
         }
         if (BodyGenSettings == null)
         {
@@ -86,7 +120,7 @@ public class PatcherState
                 {
                     if (System.IO.File.Exists(ModManagerSettings.MO2Settings.ExecutablePath))
                     {
-                        sb.AppendLine("MO2 Path exists");
+                        sb.AppendLine("MO2 Path exists: " + ModManagerSettings.MO2Settings.ExecutablePath);
                     }
                     else
                     {
@@ -94,7 +128,7 @@ public class PatcherState
                     }
                     if (System.IO.Directory.Exists(ModManagerSettings.MO2Settings.ModFolderPath))
                     {
-                        sb.AppendLine("Mod Folder exists");
+                        sb.AppendLine("Mod Folder exists: " + ModManagerSettings.MO2Settings.ModFolderPath);
                     }
                     else
                     {
@@ -127,12 +161,30 @@ public class PatcherState
             sb.AppendLine("Primary Config Files");
             foreach (var primary in AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary))
             {
-                sb.AppendLine("\t" + primary.GroupName);
+                string symbol = string.Empty;
+                if (TexMeshSettings.SelectedAssetPacks.Contains(primary.GroupName))
+                {
+                    symbol = "(+) ";
+                }
+                else
+                {
+                    symbol = "(-) ";
+                }
+                sb.AppendLine("\t" + symbol + primary.GroupName);
             }
             sb.AppendLine(("MixIn Config Files"));
             foreach (var mixin in AssetPacks.Where(x => x.ConfigType == AssetPackType.MixIn))
             {
-                sb.AppendLine("\t" + mixin.GroupName);
+                string symbol = string.Empty;
+                if (TexMeshSettings.SelectedAssetPacks.Contains(mixin.GroupName))
+                {
+                    symbol = "(+) ";
+                }
+                else
+                {
+                    symbol = "(-) ";
+                }
+                sb.AppendLine("\t" + symbol + mixin.GroupName);
             }
         }
         else
@@ -198,6 +250,11 @@ public class PatcherState
         else
         {
             sb.AppendLine("Height Configs: " + HeightConfigs.Count);
+        }
+
+        if (GeneralSettings != null && GeneralSettings.bChangeHeight && HeightSettings != null)
+        {
+            sb.AppendLine("SkyPatcher Mode for Height: " + HeightSettings.bApplyWithoutOverride);
         }
 
         if (HeadPartSettings == null)

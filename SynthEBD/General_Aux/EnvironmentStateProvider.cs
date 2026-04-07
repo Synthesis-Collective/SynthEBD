@@ -150,8 +150,14 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
                     RemoveModAndDependents(OutputModName, verbose: true, out notificationStr))
                     .WithOutputMod(OutputMod)
                 .Build();
-            built = true;
             
+            if (!_environment.LoadOrderFilePath.Exists)
+            {
+                throw new Exception("Load order file patha at " + _environment.LoadOrderFilePath.Path + " does not exist"); // prevent successful initialization in the wrong mode.
+            }
+
+            built = true;
+
             if (!notificationStr.IsNullOrEmpty())
             {
                 LogEnvironmentEvent(notificationStr);

@@ -1,25 +1,25 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
+using Noggog;
 
 namespace SynthEBD;
 
 public class VM_DownloadCoordinator : VM
 {
-    public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
+    public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, VM_ConfigInstaller parentVM)
     {
         foreach (var di in downloadInfo)
         {
             DownloadInfo.Add(VM_DownloadInfo.GetViewModelFromModel(di));
         }
 
-        AssociatedWindow = window;
-
         Cancel = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
                 parentVM.Cancelled = true;
-                AssociatedWindow.Close();
+                parentVM.ConcludeInstallation();
             }
         );
 
@@ -46,7 +46,24 @@ public class VM_DownloadCoordinator : VM
                 if(allFound)
                 {
                     parentVM.Completed = true;
-                    AssociatedWindow.Close();
+                    parentVM.ConcludeInstallation();
+                }
+            }
+        );
+
+        SelectFromFolder = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                if (IO_Aux.SelectFolder("", out var sourceFolder) && sourceFolder != null)
+                {
+                    if (!Directory.Exists(sourceFolder))
+                    {
+                        MessageWindow.DisplayNotificationOK("Error", "Directory " + sourceFolder + " does not exist.");
+                        return;
+                    }
+
+                    PopulateDownloadInfo(sourceFolder, DownloadInfo, SelectFromFolderRecursive);
                 }
             }
         );
@@ -55,7 +72,29 @@ public class VM_DownloadCoordinator : VM
     public ObservableCollection<VM_DownloadInfo> DownloadInfo { get; set; } = new();
     public RelayCommand Cancel { get; }
     public RelayCommand OK { get; }
-    Window_ConfigInstaller AssociatedWindow { get; set; }
+    public RelayCommand SelectFromFolder { get; }
+    public bool SelectFromFolderRecursive { get; set; }
+
+    public static void PopulateDownloadInfo(string folderPath, ObservableCollection<VM_DownloadInfo> DownloadInfo, bool recursive)
+    {
+        foreach (var DI in DownloadInfo.Where(x => x.Path.IsNullOrWhitespace()).ToArray())
+        {
+            var trialPath = Path.Combine(folderPath, DI.ExpectedFileName);
+            if (File.Exists(trialPath))
+            {
+                DI.Path = trialPath;
+            }
+        }
+
+        if (recursive)
+        {
+            var directories = Directory.GetDirectories(folderPath);
+            foreach (var directory in directories)
+            {
+                PopulateDownloadInfo(directory, DownloadInfo, recursive);
+            }
+        }
+    }
 
     public class VM_DownloadInfo : VM
     {
@@ -71,6 +110,17 @@ public class VM_DownloadCoordinator : VM
                     }
                 }
             );
+            
+            CopyURL = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ =>
+                {
+                    if (!URL.IsNullOrWhitespace())
+                    {
+                        Clipboard.SetText(URL);
+                    }
+                }
+            );
         }
         public string ModName { get; set; } = "";
         public string ModDownloadName { get; set; }
@@ -79,6 +129,7 @@ public class VM_DownloadCoordinator : VM
         public string Path { get; set; }
         public string ExtractionSubPath { get; set; } = "";
         public RelayCommand FindPath { get; set; }
+        public RelayCommand CopyURL { get; set; }
 
         public static VM_DownloadInfo GetViewModelFromModel(Manifest.DownloadInfoContainer downloadInfo)
         {

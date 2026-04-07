@@ -124,7 +124,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
 
             if (parent.Id != AssetPack.ConfigDistributionRules.SubgroupIDString)
             {
-                flattened.ProbabilityWeighting *= parent.ProbabilityWeighting; // handled by calling function for the "fake" Distribution Rules subgroup
+                flattened.ProbabilityWeighting *= parent.ProbabilityWeighting;
                 flattened.ContainedSubgroupIDs.InsertRange(0, parent.ContainedSubgroupIDs);
                 flattened.ContainedSubgroupNames.InsertRange(0, parent.ContainedSubgroupNames);
                 flattened.ParentSubgroupIDs.Add(parent.Id);

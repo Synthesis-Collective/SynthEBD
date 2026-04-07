@@ -8,8 +8,11 @@ public class ExceptionLogger
     }
     private static string GetExceptionStack(Exception e, string error, int layer)
     {
-        error += Environment.NewLine + "======= Layer " + layer.ToString() + ": " + Environment.NewLine + e.Message + Environment.NewLine + e.StackTrace + Environment.NewLine + Environment.NewLine;
-
+        if (e is not ReactiveUI.UnhandledErrorException || e.InnerException is null) // skip logging the top layer since it is not specific to SynthEBD
+        {
+            error += Environment.NewLine + "======= Layer " + layer.ToString() + ": " + Environment.NewLine + e.Message + Environment.NewLine + e.StackTrace + Environment.NewLine + Environment.NewLine;
+        }
+        
         if (e as Mutagen.Bethesda.Plugins.Exceptions.TooManyMastersException != null)
         {
             var tooManyMastersEx = e as Mutagen.Bethesda.Plugins.Exceptions.TooManyMastersException;

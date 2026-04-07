@@ -104,6 +104,23 @@ public class FaceTextureScriptWriter
         ScriptObjectProperty faceTextureSpellProperty = new() { Name = "SynthEBDFaceTextureSpell", Flags = ScriptProperty.Flag.Edited };
         faceTextureSpellProperty.Object.SetTo(SPELFixFaceTexture);
         scriptApplyFaceTexture.Properties.Add(faceTextureSpellProperty);
+        
+        ScriptStringProperty scriptEditorIdModeProperty = new() { Name = "ScriptEditorIdMode", Flags = ScriptProperty.Flag.Edited };
+        
+        if ((_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE && !_patcherState.TexMeshSettings.bFixedScriptsOldSKSEversion) || _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.EnderalSE)
+        {
+            scriptEditorIdModeProperty.Data = "ModernSKSE";
+        }
+        else if (_environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimVR && _patcherState.TexMeshSettings.bPO3ModeForVR)
+        {
+            scriptEditorIdModeProperty.Data = "PO3";
+        }
+        else
+        {
+            scriptEditorIdModeProperty.Data = "OldSKSE";
+        }
+
+        scriptApplyFaceTexture.Properties.Add(scriptEditorIdModeProperty);
 
         MGEFFixFaceTexture.VirtualMachineAdapter.Scripts.Add(scriptApplyFaceTexture);
 

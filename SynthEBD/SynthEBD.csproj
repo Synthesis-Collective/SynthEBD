@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     <UseWPF>true</UseWPF>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <ApplicationIcon>InternalData\Visual\SynthEBDicon.ico</ApplicationIcon>
@@ -37,6 +38,10 @@
     <None Remove="InternalData\7Zip\x86\7z.exe" />
     <None Remove="InternalData\EBD Code\SynthEBD Face Texture\Source\SynthEBDFaceTextureScript.psc" />
     <None Remove="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex" />
+    <None Remove="InternalData\EBD Code\VR\Non-PO3\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\VR\Non-PO3\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\EBD Code\VR\PO3\EBDGlobalFuncs.pex" />
+    <None Remove="InternalData\EBD Code\VR\PO3\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\FirstLaunchResources\Default Config.json" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - 3BA - pamonha.esp" />
     <None Remove="InternalData\FirstLaunchResources\Record Templates - BHUNP - pamonha.esp" />
@@ -65,7 +70,7 @@
     <None Remove="InternalData\EBD Code\SSE\EBDGlobalFuncs.pex" />
     <None Remove="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\EBD Code\VR\EBDGlobalFuncs.pex" />
-    <None Remove="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc" />
+    <None Remove="InternalData\EBD Code\VR\Deprecated\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc" />
     <None Remove="InternalData\HeadPartScripts\Source\SynthEBDHeadPartScript.psc" />
     <None Remove="InternalData\HeadPartScripts\SynthEBDHeadPartLoaderPAScript - Copy.pex" />
@@ -98,6 +103,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDFaceTextureScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\Non-PO3\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\Non-PO3\Source\EBDGlobalFuncs.psc">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\PO3\EBDGlobalFuncs.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="InternalData\EBD Code\VR\PO3\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\FirstLaunchResources\Default Config.json">
@@ -166,10 +183,10 @@
     <Content Include="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="InternalData\EBD Code\VR\EBDGlobalFuncs.pex">
+    <Content Include="InternalData\EBD Code\VR\Deprecated\EBDGlobalFuncs.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="InternalData\EBD Code\VR\Source\EBDGlobalFuncs.psc">
+    <Content Include="InternalData\EBD Code\VR\Deprecated\Source\EBDGlobalFuncs.psc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\HeadPartScripts\Source\SynthEBDHeadPartLoaderPAScript.psc">
@@ -213,21 +230,21 @@
 
   <ItemGroup>
     <PackageReference Include="AlphaFS" Version="2.2.6" />
-    <PackageReference Include="Extended.Wpf.Toolkit" Version="4.5.1" />
-    <PackageReference Include="gong-wpf-dragdrop" Version="3.2.1" />
+    <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
+    <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
+    <PackageReference Include="gong-wpf-dragdrop" Version="4.0.0" />
     <PackageReference Include="Microsoft.ML" Version="3.0.0" />
-    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
-    <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.2.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.43.0.1-nightly-20231127-015852" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.43.0.1-nightly-20231127-015852" />
-    <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.27.0-pr003" />
-    <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.27.0-pr003" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.43.0.1-nightly-20231127-015852" />
-    <PackageReference Include="Noggog.Autofac" Version="2.60.0.1-nightly-20231103-212929" />
-    <PackageReference Include="Pfim" Version="0.11.2" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.51.0" />
+    <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.4.0" />
+    <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.35.0" />
+    <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.35.0" />
+    <PackageReference Include="niflysharp" Version="1.3.0" />
+    <PackageReference Include="Pfim" Version="0.11.4" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
-    <PackageReference Include="SharpCompress" Version="0.34.2" />
-    <PackageReference Include="Z.Expressions.Eval" Version="6.0.0" />
+    <PackageReference Include="ReactiveUI.Events.WPF" Version="15.1.1" />
+    <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
+    <PackageReference Include="SharpCompress" Version="0.42.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -256,6 +273,13 @@
 
   <ItemGroup>
     <NativeLibs Remove="InternalData\7Zip\x64\7zxa.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDTextureLoaderPAScript.pex" />
+    <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDTextureLoaderPAScript.pex">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

@@ -9,6 +9,8 @@ using Noggog;
 using System.Reflection;
 using System.IO;
 using System.Collections.ObjectModel;
+using Mutagen.Bethesda.Plugins.Aspects;
+using Mutagen.Bethesda.Plugins.Records;
 
 namespace SynthEBD;
 
@@ -745,6 +747,45 @@ public static string GetNPCLogReportingString(INpcGetter npc)
             return true;
         }
         return false;
+    }
+
+    public static string GetFormLogString(IMajorRecordGetter getter, bool fullyQualified = false)
+    {
+        if (getter == null)
+        {
+            return "NULL";
+        }
+        
+        string str = string.Empty;
+
+        if (getter is INamedGetter named && named.Name != null)
+        {
+            str += named.Name;
+            if (!fullyQualified)
+            {
+                return str;
+            }
+        }
+
+        string qual = string.Empty;
+        
+        if (getter.EditorID != null)
+        {
+            qual += getter.EditorID + " | ";
+        }
+
+        qual += getter.FormKey.ToString();
+
+        if (str != string.Empty)
+        {
+            str += " (" + qual + ")";
+        }
+        else
+        {
+            str += qual;
+        }
+        
+        return str;
     }
 }
 

@@ -40,7 +40,10 @@ namespace SynthEBD
         };
 
         public VM_Settings_Headparts ParentMenu { get; set; }
+        public HeadPartPatchingMode PatchingMode { get; set; } = HeadPartPatchingMode.NifEdit;
+        public IEnumerable<HeadPartPatchingMode> PatchingModeOptions { get; } = Enum.GetValues<HeadPartPatchingMode>();
         public bool bUseVerboseScripts { get; set; } = false;
+        public bool bSkyPatcherModeHeadparts { get; set; } = false;
         public VM_BodyGenConfig TrackedBodyGenConfigMale { get; set; }
         public ObservableCollection<VM_BodyGenConfig> AvailableBodyGenConfigsMale { get; set; }
         public VM_BodyGenConfig TrackedBodyGenConfigFemale { get; set; }
@@ -92,6 +95,7 @@ namespace SynthEBD
 
         public void GetViewModelFromModel(Settings_Headparts model)
         {
+            PatchingMode = model.PatchingMode;
             foreach (var type in model.SourceConflictWinners.Keys)
             {
                 SourceConflictWinners[type].Source = model.SourceConflictWinners[type];
@@ -116,16 +120,19 @@ namespace SynthEBD
             }
 
             bUseVerboseScripts = model.bUseVerboseScripts;
+            bSkyPatcherModeHeadparts = model.bSkyPatcherModeHeadparts;
         }
 
         public void MergeViewModelIntoModel(Settings_Headparts model)
         {
+            model.PatchingMode = PatchingMode;
             foreach (var type in model.SourceConflictWinners.Keys)
             {
                 model.SourceConflictWinners[type] = SourceConflictWinners[type].Source;
             }
 
             model.bUseVerboseScripts = bUseVerboseScripts;
+            model.bSkyPatcherModeHeadparts = bSkyPatcherModeHeadparts;
 
             model.AssociatedBodyGenConfigNameMale = TrackedBodyGenConfigMale?.Label ?? string.Empty;
             model.AssociatedBodyGenConfigNameFemale = TrackedBodyGenConfigFemale?.Label ?? string.Empty;
