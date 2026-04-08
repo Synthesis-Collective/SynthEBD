@@ -65,7 +65,7 @@ namespace SynthEBD
 
         private void InitializeAnnotation()
         {
-            bool hasAnnotations = AssociatedModel.BodyShapeDescriptors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
+            bool hasAnnotations = AssociatedModel.EnumerateAllDescriptors().Any(x => x.Source == BodyShapeAnnotationSource.Manual);
             if (hasAnnotations)
             {
                 AssociatedModel.AnnotationState = BodyShapeAnnotationState.Manual;

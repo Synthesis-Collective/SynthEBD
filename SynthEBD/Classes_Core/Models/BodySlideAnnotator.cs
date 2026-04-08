@@ -33,7 +33,8 @@ public class BodySlideAnnotator
             return annotatedDescriptors;
         }
 
-        bodySlide.AnnotationState = bodySlide.BodyShapeDescriptors.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any()? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
+        bool hasManual = bodySlide.EnumerateAllDescriptors().Any(x => x.Source == BodyShapeAnnotationSource.Manual);
+        bodySlide.AnnotationState = hasManual ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
 
         if (bodySlideClassificationRules == null || bodySlide.SliderGroup == null || bodySlide.SliderValues == null || !bodySlideClassificationRules.ContainsKey(bodySlide.SliderGroup) || bodySlideClassificationRules[bodySlide.SliderGroup] == null)
         {
@@ -56,10 +57,12 @@ public class BodySlideAnnotator
 
             if (overwriteExistingAutoAnnotations)
             {
-                bodySlide.BodyShapeDescriptors.RemoveWhere(x => x.Category == ruleSet.DescriptorCategory && x.AnnotationState != BodyShapeAnnotationState.Manual); // remove all auto-annotated descriptors from this category if they are to be refreshed
+                // remove all auto-annotated descriptors from this category across every slot so they can be refreshed
+                bodySlide.RemoveDescriptorsFromAllSlots(x => x.Category == ruleSet.DescriptorCategory && x.Source != BodyShapeAnnotationSource.Manual);
             }
 
-            if (bodySlide.BodyShapeDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory && x.AnnotationState == BodyShapeAnnotationState.Manual).Any()) // skip over the category if it's already manually annotated
+            // skip over the category if it's already manually annotated in any slot
+            if (bodySlide.EnumerateAllDescriptors().Any(x => x.Category == ruleSet.DescriptorCategory && x.Source == BodyShapeAnnotationSource.Manual))
             {
                 continue;
             }
@@ -97,7 +100,7 @@ public class BodySlideAnnotator
             if (EvaluateDescriptorValueRule(bodySlide, rule))
             {
                 var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue };
-                bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, BodyShapeAnnotationState.RulesBased));
+                bodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
                 _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString());
                 ruleApplied = true;
                 annotatedDescriptors.Add(descriptorSignature);
@@ -107,7 +110,7 @@ public class BodySlideAnnotator
         if (!ruleApplied && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace() && currentValues.Contains(ruleSet.DefaultDescriptorValue))
         {
             var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
-            bodySlide.BodyShapeDescriptors.Add(new(descriptorSignature, BodyShapeAnnotationState.RulesBased));
+            bodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
             _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString());
             annotatedDescriptors.Add(descriptorSignature);
         }

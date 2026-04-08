@@ -174,7 +174,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         // clear auto-annotated descriptors
         foreach (var preset in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
         {
-            preset.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.AnnotationState != BodyShapeAnnotationState.Manual);
+            preset.AssociatedModel.RemoveDescriptorsFromAllSlots(x => x.Source != BodyShapeAnnotationSource.Manual);
         }
 
         foreach (var preset in BodySlidesUI.BodySlidesMale)
@@ -209,7 +209,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         foreach (var bodySlide in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
         {
-            UpdateDescriptors(bodySlide.AssociatedModel.BodyShapeDescriptors, oldCategory, oldValue, newCategory, newValue);   
+            foreach (var slot in bodySlide.AssociatedModel.BodyShapeDescriptorsByWeight.Values)
+            {
+                UpdateDescriptors(slot, oldCategory, oldValue, newCategory, newValue);
+            }
         }
 
         foreach (var subgroup in _texMeshSettings().AssetPacks.SelectMany(x => x.GetAllSubgroups()).ToArray())
@@ -228,7 +231,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
             foreach(var bs in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToArray())
             {
-                bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.Category == category);
+                bs.AssociatedModel.RemoveDescriptorsFromAllSlots(x => x.Category == category);
             }
 
             foreach (var ap in _texMeshSettings().AssetPacks)
@@ -254,7 +257,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
             foreach (var bs in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToArray())
             {
-                bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.ToLabelSignature().ToString() == decriptorSignature);
+                bs.AssociatedModel.RemoveDescriptorsFromAllSlots(x => x.ToLabelSignature().ToString() == decriptorSignature);
             }
 
             foreach (var ap in _texMeshSettings().AssetPacks)

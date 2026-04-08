@@ -375,7 +375,7 @@ public class TrainerExportLearningDTO
         foreach (var bodySlide in SelectedBodySlides)
         {
             BodyslideData bsEntry = new() { BodyslideName = bodySlide.Label };
-            var descriptors = bodySlide.BodyShapeDescriptors.Where(x => x.Category == descriptorCategory).ToList();
+            var descriptors = bodySlide.EnumerateAllDescriptors().Where(x => x.Category == descriptorCategory).Distinct().ToList();
             if (descriptors.Any())
             {
                 bsEntry.Classification = String.Join("|", descriptors.Select(x => x.Value));

@@ -115,7 +115,8 @@ namespace SynthEBD
             foreach (var fullModel in bodySlides.Where(x => !x.IsHidden).Select(x => x.AssociatedModel).ToArray())
             {
                 var model = new BodySlideSetting();
-                model.BodyShapeDescriptors = fullModel.BodyShapeDescriptors;
+                model.BodyShapeDescriptorsByWeight = fullModel.BodyShapeDescriptorsByWeight;
+                model.RemovedDefaultWeightSlots = fullModel.RemovedDefaultWeightSlots;
 
                 if (ExchangeRules)
                 {
@@ -158,7 +159,7 @@ namespace SynthEBD
                     }
                 }
 
-                foreach (var descriptor in fullModel.BodyShapeDescriptors)
+                foreach (var descriptor in fullModel.EnumerateAllDescriptors())
                 {
                     if (!descriptor.CollectionContainsThisDescriptor(referencedDescriptors))
                     {
@@ -330,7 +331,8 @@ namespace SynthEBD
             }
             else
             {
-                targetPlaceHolder.AssociatedModel.BodyShapeDescriptors = importedBS.BodyShapeDescriptors;
+                targetPlaceHolder.AssociatedModel.BodyShapeDescriptorsByWeight = importedBS.BodyShapeDescriptorsByWeight;
+                targetPlaceHolder.AssociatedModel.RemovedDefaultWeightSlots = importedBS.RemovedDefaultWeightSlots;
             }
 
             if (ExchangeNotes)

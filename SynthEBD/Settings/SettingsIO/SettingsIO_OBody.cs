@@ -8,12 +8,14 @@ public class SettingsIO_OBody
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
-    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths)
+    private readonly BodySlideSettingMigrator _bodySlideSettingMigrator;
+    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
+        _bodySlideSettingMigrator = bodySlideSettingMigrator;
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {
@@ -43,6 +45,9 @@ public class SettingsIO_OBody
         {
             oBodySettings = new();
         }
+
+        // Drain any legacy flat-descriptor data into the per-weight model. Safe no-op once SchemaVersion >= 1.
+        _bodySlideSettingMigrator.MigrateIfNeeded(oBodySettings);
 
         foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
         {

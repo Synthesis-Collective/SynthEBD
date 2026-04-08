@@ -274,7 +274,9 @@ public class VM_BodySlideSetting : VM
         SliderGroup = model.SliderGroup;
         Notes = model.Notes;
 
-        DescriptorsSelectionMenu.CopyInFromHashSet(model.BodyShapeDescriptors);
+        // Stage 1 single-pane UI: project the union of all weight slots into the descriptor menu.
+        // Per-weight UI lands in stage 2.
+        DescriptorsSelectionMenu.CopyInFromHashSet(model.GetDescriptorUnion());
 
         AllowedRaces.AddRange(model.AllowedRaces);
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
@@ -330,7 +332,20 @@ public class VM_BodySlideSetting : VM
         model.Label = Label;
         model.ReferencedBodySlide = ReferencedBodySlide;
         model.Notes = Notes;
-        model.BodyShapeDescriptors = DescriptorsSelectionMenu.DumpToOBodySettingsHashSet();
+        // Stage 1 single-pane UI: write the menu's descriptors uniformly into every existing weight slot.
+        // Stage 2 introduces per-slot UI and replaces this call with per-slot dumps.
+        // Carry over the existing slot layout (and any user-removed default slots) from the place holder model.
+        var sourceModel = AssociatedPlaceHolder?.AssociatedModel;
+        if (sourceModel != null)
+        {
+            model.BodyShapeDescriptorsByWeight = new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>();
+            foreach (var slotKey in sourceModel.BodyShapeDescriptorsByWeight.Keys)
+            {
+                model.BodyShapeDescriptorsByWeight[slotKey] = new HashSet<AnnotatedDescriptorSignature>();
+            }
+            model.RemovedDefaultWeightSlots = new HashSet<int>(sourceModel.RemovedDefaultWeightSlots ?? new HashSet<int>());
+        }
+        model.SetUniformDescriptors(DescriptorsSelectionMenu.DumpToOBodySettingsHashSet());
         model.AllowedRaces = AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = DisallowedRaces.ToHashSet();

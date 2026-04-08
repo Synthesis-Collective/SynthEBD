@@ -159,7 +159,7 @@ public class VM_BodySlideAnnotator : VM
 
         foreach (var targetVM in targetVMs)
         {
-            if (targetVM.AssociatedModel.BodyShapeDescriptors.Any())
+            if (targetVM.AssociatedModel.HasAnyDescriptors())
             {
                 targetVM.InitializeBorderColor();
             }

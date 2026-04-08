@@ -447,7 +447,7 @@ public class MiscValidation
         foreach (var bs in bodySlidesInSettings)
         {
             if (!bodySlideNamesInDataFolder.Contains(bs.Label)) { continue; } // don't validate bodyslides that aren't currently loaded because they won't be distributed anyway
-            if (bs.AllowRandom && !bs.BodyShapeDescriptors.Any())
+            if (bs.AllowRandom && !bs.HasAnyDescriptors())
             {
                 bsMissingDescriptors.Add(bs.Label);
             }

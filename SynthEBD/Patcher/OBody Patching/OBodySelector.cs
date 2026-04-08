@@ -305,7 +305,7 @@ public class OBodySelector
         }
 
         // Repeat the above checks for the preset's descriptor rules
-        foreach (var descriptorLabel in candidatePreset.BodyShapeDescriptors)
+        foreach (var descriptorLabel in candidatePreset.GetDescriptorUnion())
         {
             var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
@@ -331,14 +331,14 @@ public class OBodySelector
             // check whole config rules
             if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors.Any())
             {
-                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideMatchMode, out _))
+                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideMatchMode, out _))
                 {
                     _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssignmentName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors), false, npcInfo);
                     return false;
                 }
             }
 
-            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideMatchMode, out string matchedDescriptor))
             {
                 _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssignmentName, false, npcInfo);
                 return false;
@@ -349,14 +349,14 @@ public class OBodySelector
             {
                 if (subgroup.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, subgroup.AllowedBodySlideMatchMode, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), subgroup.AllowedBodySlideMatchMode, out _))
                     {
                         _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodySlideDescriptors), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.BodyShapeDescriptors, subgroup.DisallowedBodySlideMatchMode, out matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), subgroup.DisallowedBodySlideMatchMode, out matchedDescriptor))
                 {
                     _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;
@@ -420,7 +420,7 @@ public class OBodySelector
             while(priorities.Any())
             {
                 var currentSignature = priorities.First();
-                var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(x.BodyShapeDescriptors)).ToList();
+                var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(x.GetDescriptorUnion())).ToList();
                 if (trialBodySlides.Any())
                 {
                     _logger.LogReport("The following BodySlides match descriptor " + currentSignature.ToString() + Environment.NewLine + string.Join(Environment.NewLine, trialBodySlides.Select(x => "-" + x.Label).ToArray()), false, npcInfo);
@@ -499,7 +499,7 @@ public class OBodySelector
     {
         foreach(var bodySlide in bodySlides)
         {
-            string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.BodyShapeDescriptors);
+            string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.GetDescriptorUnion());
 
             string descriptorLogStr = string.Empty;
             if (bodySlides.Count > 1)

@@ -73,7 +73,7 @@ public class VM_OBodyMiscSettings : VM
 
                 foreach (var bs in parentMenu.BodySlidesUI.BodySlidesMale.And(parentMenu.BodySlidesUI.BodySlidesFemale).ToArray())
                 {
-                    bs.AssociatedModel.BodyShapeDescriptors.RemoveWhere(d => toRemove.Contains(d.ToLabelSignature().ToString()));
+                    bs.AssociatedModel.RemoveDescriptorsFromAllSlots(d => toRemove.Contains(d.ToLabelSignature().ToString()));
                 }
 
                 StashedDescriptors.RemoveWhere(x => x.IsSelected);
@@ -127,7 +127,7 @@ public class VM_OBodyMiscSettings : VM
 
         foreach (var bs in parentMenu.BodySlidesUI.BodySlidesMale.And(parentMenu.BodySlidesUI.BodySlidesFemale))
         {
-            foreach (var descriptor in bs.AssociatedModel.BodyShapeDescriptors)
+            foreach (var descriptor in bs.AssociatedModel.EnumerateAllDescriptors())
             {
                 var str = descriptor.ToLabelSignature().ToString();
                 if (!uiDescriptors.Contains(str) && !stashedDescriptorSignatures.Contains(str))

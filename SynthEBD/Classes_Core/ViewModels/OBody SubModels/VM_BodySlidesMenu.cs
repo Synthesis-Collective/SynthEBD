@@ -55,7 +55,7 @@ public class VM_BodySlidesMenu : VM
                 {
                     for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
                     {
-                        if (!CurrentlyDisplayedBodySlides[i].AssociatedModel.BodyShapeDescriptors.Any())
+                        if (!CurrentlyDisplayedBodySlides[i].AssociatedModel.HasAnyDescriptors())
                         {
                             CurrentlyDisplayedBodySlides.RemoveAt(i);
                             i--;
@@ -199,7 +199,7 @@ public class VM_BodySlidesMenu : VM
                 continue;
             }
 
-            if (_selectedDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(_selectedDescriptors, b.AssociatedModel.BodyShapeDescriptors, DescriptorFilter.MatchMode, out _))
+            if (_selectedDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(_selectedDescriptors, b.AssociatedModel.GetDescriptorUnion(), DescriptorFilter.MatchMode, out _))
             {
                 b.IsVisible = false;
                 continue;

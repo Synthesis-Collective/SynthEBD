@@ -426,5 +426,16 @@ public enum BodyShapeAnnotationState
     None,
     Manual,
     RulesBased,
-    Mix_Manual_RulesBased
+    Mix_Manual_RulesBased,
+    Library,
+    Classifier,
+    Mixed
+}
+
+public enum BodyShapeAnnotationSource
+{
+    Manual,
+    Library,
+    RulesBased,
+    Classifier
 }

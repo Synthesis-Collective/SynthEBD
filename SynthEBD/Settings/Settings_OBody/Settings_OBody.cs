@@ -21,6 +21,8 @@ public enum OBodySelectionMode
 
 public class Settings_OBody
 {
+    public int SchemaVersion { get; set; } = 0; // bumped to 1 once BodySlideSettingMigrator has run
+    public List<int> DefaultWeightSlots { get; set; } = new() { 0, 25, 50, 75, 100 };
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
     public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
@@ -130,7 +132,8 @@ public class Settings_OBody
                                     var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                                     if (descriptor != null)
                                     {
-                                        newPreset.BodyShapeDescriptors.Add(new(descriptor.ID, BodyShapeAnnotationState.Manual));
+                                        // Default CSV-shipped annotations are treated as Library-sourced (Tier 1).
+                                        newPreset.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptor.ID, BodyShapeAnnotationSource.Library));
                                     }
                                 }
                             }
@@ -194,9 +197,9 @@ public class Settings_OBody
             int numCopies = 0;
             var currentBodySlide = BodySlidesMale[i];
             // skip processing if the user has pre-existing multiple entries for this bodyslide; they've probably already handled this manually
-            if (HIMBOPresetsToUpdate_0.Contains(currentBodySlide.ReferencedBodySlide) && BodySlidesMale.Where(x => x.ReferencedBodySlide == currentBodySlide.ReferencedBodySlide).Count() == 1)  
+            if (HIMBOPresetsToUpdate_0.Contains(currentBodySlide.ReferencedBodySlide) && BodySlidesMale.Where(x => x.ReferencedBodySlide == currentBodySlide.ReferencedBodySlide).Count() == 1)
             {
-                currentBodySlide.BodyShapeDescriptors.Clear();
+                currentBodySlide.ClearAllDescriptorSlots();
                 var copiedBodySlide = JSONhandler<BodySlideSetting>.CloneViaJSON(currentBodySlide);
 
                 if (copiedBodySlide.ReferencedBodySlide == "HIMBO Daddy")
@@ -204,30 +207,30 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new(){ Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Jack")
                 {
                     numCopies = 2;
 
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.WeightRange.Upper = 44;
                     copiedBodySlide.Label += " (Low Weight)";
 
                     var copiedBodySlide2 = JSONhandler<BodySlideSetting>.CloneViaJSON(currentBodySlide);
-                    copiedBodySlide2.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide2.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide2.WeightRange.Lower = 56;
                     copiedBodySlide2.WeightRange.Upper = 100;
                     copiedBodySlide2.Label += " (High Weight)";
 
                     currentBodySlide.WeightRange.Lower = 45;
                     currentBodySlide.WeightRange.Upper = 55;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (Medium Weight)";
 
                     BodySlidesMale.Insert(i + 1, copiedBodySlide2);
@@ -237,11 +240,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 40;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 41;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Sultry")
@@ -249,11 +252,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hugh")
@@ -261,11 +264,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 59;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 60;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (High Weight)";
                 }
                 else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hideo")
@@ -273,11 +276,11 @@ public class Settings_OBody
                     numCopies = 1;
 
                     copiedBodySlide.WeightRange.Upper = 66;
-                    copiedBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationState.Manual));
+                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
                     copiedBodySlide.Label += " (Low Weight)";
 
                     currentBodySlide.WeightRange.Lower = 67;
-                    currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationState.Manual));
+                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
                     currentBodySlide.Label += " (High Weight)";
                 }
 
@@ -286,8 +289,8 @@ public class Settings_OBody
             }
             else if (currentBodySlide.ReferencedBodySlide == "HIMBO Mike")
             {
-                currentBodySlide.BodyShapeDescriptors.Clear();
-                currentBodySlide.BodyShapeDescriptors.Add(new(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationState.Manual));
+                currentBodySlide.ClearAllDescriptorSlots();
+                currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
             }
         }
         HIMBOAnnotationVersion = 1;
@@ -310,7 +313,37 @@ public class BodySlideSetting : IProbabilityWeighted
     public string Label { get; set; } = "";
     public string ReferencedBodySlide { get; set; } = "";
     public string Notes { get; set; } = "";
-    public HashSet<AnnotatedDescriptorSignature> BodyShapeDescriptors { get; set; } = new();
+
+    /// <summary>
+    /// Per-weight descriptors. Keys are integer weight slots (0-100). Default install slots are 0/25/50/75/100.
+    /// Source of truth for descriptors after schema v1.
+    /// </summary>
+    public Dictionary<int, HashSet<AnnotatedDescriptorSignature>> BodyShapeDescriptorsByWeight { get; set; }
+        = new()
+        {
+            { 0, new() },
+            { 25, new() },
+            { 50, new() },
+            { 75, new() },
+            { 100, new() },
+        };
+
+    /// <summary>
+    /// Default weight slots the user has explicitly removed from this preset.
+    /// Tracked so the migrator/UI can preserve the deletion across reloads.
+    /// </summary>
+    public HashSet<int> RemovedDefaultWeightSlots { get; set; } = new();
+
+    /// <summary>
+    /// Legacy backing field. Captured by Newtonsoft when reading pre-v1 settings files;
+    /// the migrator drains this into <see cref="BodyShapeDescriptorsByWeight"/>.
+    /// Marked NeverSerialize so freshly written files only contain the new shape.
+    /// </summary>
+    [JsonProperty("BodyShapeDescriptors", NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public HashSet<AnnotatedDescriptorSignature> LegacyBodyShapeDescriptors { get; set; } = null;
+
+    public bool ShouldSerializeLegacyBodyShapeDescriptors() => false;
+
     public HashSet<FormKey> AllowedRaces { get; set; } = new();
     public HashSet<FormKey> DisallowedRaces { get; set; } = new();
     public HashSet<string> AllowedRaceGroupings { get; set; } = new();
@@ -348,6 +381,15 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
         Category = template.Category;
         Value = template.Value;
         AnnotationState = annotationState;
+        Source = AnnotationStateToSource(annotationState);
+    }
+
+    public AnnotatedDescriptorSignature(BodyShapeDescriptor.LabelSignature template, BodyShapeAnnotationSource source)
+    {
+        Category = template.Category;
+        Value = template.Value;
+        Source = source;
+        AnnotationState = SourceToAnnotationState(source);
     }
 
     [JsonConstructor]
@@ -356,8 +398,18 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
         Category = category;
         Value = value;
         AnnotationState = BodyShapeAnnotationState.Manual;
+        Source = BodyShapeAnnotationSource.Manual;
     }
 
+    /// <summary>
+    /// Annotation provenance for this entry. Persisted alongside Category/Value so the UI can
+    /// surface where each (weight, descriptor) pair came from.
+    /// </summary>
+    public BodyShapeAnnotationSource Source { get; set; } = BodyShapeAnnotationSource.Manual;
+
+    /// <summary>
+    /// Legacy/UI-facing annotation state. Kept in sync with Source via the constructors and helper methods.
+    /// </summary>
     [JsonIgnore]
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.Manual;
 
@@ -368,7 +420,32 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
 
     public override string ToString()
     {
-        return this.ToLabelSignature() + " (" + AnnotationState.ToString() + ")";
+        return this.ToLabelSignature() + " (" + Source.ToString() + ")";
+    }
+
+    public static BodyShapeAnnotationSource AnnotationStateToSource(BodyShapeAnnotationState state)
+    {
+        switch (state)
+        {
+            case BodyShapeAnnotationState.Manual: return BodyShapeAnnotationSource.Manual;
+            case BodyShapeAnnotationState.Library: return BodyShapeAnnotationSource.Library;
+            case BodyShapeAnnotationState.RulesBased: return BodyShapeAnnotationSource.RulesBased;
+            case BodyShapeAnnotationState.Classifier: return BodyShapeAnnotationSource.Classifier;
+            // Mixed/None/legacy mix: fall back to Manual since a single descriptor must have exactly one source.
+            default: return BodyShapeAnnotationSource.Manual;
+        }
+    }
+
+    public static BodyShapeAnnotationState SourceToAnnotationState(BodyShapeAnnotationSource source)
+    {
+        switch (source)
+        {
+            case BodyShapeAnnotationSource.Manual: return BodyShapeAnnotationState.Manual;
+            case BodyShapeAnnotationSource.Library: return BodyShapeAnnotationState.Library;
+            case BodyShapeAnnotationSource.RulesBased: return BodyShapeAnnotationState.RulesBased;
+            case BodyShapeAnnotationSource.Classifier: return BodyShapeAnnotationState.Classifier;
+            default: return BodyShapeAnnotationState.None;
+        }
     }
 }
 
@@ -422,4 +499,108 @@ public enum BodySliderType
     Either,
     Small,
     Big
+}
+
+/// <summary>
+/// Helpers for working with the per-weight descriptor model on <see cref="BodySlideSetting"/>.
+/// Centralizes flatten/iteration/mutation logic so call sites don't have to know the slot layout.
+/// </summary>
+public static class BodySlideSettingExtensions
+{
+    /// <summary>
+    /// Returns every descriptor across every weight slot. Duplicates are not deduplicated --
+    /// callers that need uniqueness should project into a HashSet themselves.
+    /// </summary>
+    public static IEnumerable<AnnotatedDescriptorSignature> EnumerateAllDescriptors(this BodySlideSetting bs)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null) yield break;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            if (slot == null) continue;
+            foreach (var d in slot)
+            {
+                yield return d;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the union of descriptors across all weight slots, deduplicated by Category/Value.
+    /// </summary>
+    public static HashSet<AnnotatedDescriptorSignature> GetDescriptorUnion(this BodySlideSetting bs)
+    {
+        var result = new HashSet<AnnotatedDescriptorSignature>();
+        foreach (var d in bs.EnumerateAllDescriptors())
+        {
+            result.Add(d);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// True if any weight slot has at least one descriptor.
+    /// </summary>
+    public static bool HasAnyDescriptors(this BodySlideSetting bs)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null) return false;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            if (slot != null && slot.Count > 0) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Adds a descriptor to every existing slot. Used for "applies to whole preset" semantics
+    /// (rule-based annotations with TargetWeight == null, manual UI in stage 1).
+    /// </summary>
+    public static void AddDescriptorToAllSlots(this BodySlideSetting bs, AnnotatedDescriptorSignature descriptor)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null || descriptor == null) return;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            slot.Add(new AnnotatedDescriptorSignature(descriptor.ToLabelSignature(), descriptor.Source));
+        }
+    }
+
+    /// <summary>
+    /// Removes descriptors matching <paramref name="match"/> from every weight slot.
+    /// </summary>
+    public static int RemoveDescriptorsFromAllSlots(this BodySlideSetting bs, Predicate<AnnotatedDescriptorSignature> match)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null) return 0;
+        int removed = 0;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            removed += slot.RemoveWhere(match);
+        }
+        return removed;
+    }
+
+    /// <summary>
+    /// Clears every slot but preserves the slot keys themselves.
+    /// </summary>
+    public static void ClearAllDescriptorSlots(this BodySlideSetting bs)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null) return;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            slot.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Replaces the entire per-weight payload with a single set of descriptors duplicated across every existing slot.
+    /// Used by stage 1 single-pane UI dump and by VM_BodySlideExchange when a per-weight payload is unavailable.
+    /// </summary>
+    public static void SetUniformDescriptors(this BodySlideSetting bs, IEnumerable<AnnotatedDescriptorSignature> descriptors)
+    {
+        if (bs == null) return;
+        bs.ClearAllDescriptorSlots();
+        if (descriptors == null) return;
+        foreach (var d in descriptors)
+        {
+            bs.AddDescriptorToAllSlots(d);
+        }
+    }
 }
