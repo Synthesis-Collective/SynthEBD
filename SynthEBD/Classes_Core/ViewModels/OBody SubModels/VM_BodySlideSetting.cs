@@ -9,6 +9,9 @@ using static SynthEBD.VM_NPCAttribute;
 using ControlzEx.Standard;
 using System.Diagnostics;
 using System.Linq;
+using DynamicData;
+using DynamicData.Binding;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -24,9 +27,10 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    private readonly PatcherState _patcherState;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -41,15 +45,18 @@ public class VM_BodySlideSetting : VM
         _selfFactory = selfFactory;
         _placeHolderFactory = placeHolderFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
-
-        DescriptorsSelectionMenu = _descriptorSelectionFactory(_bodyShapeDescriptors, raceGroupingVMs, oBodySettingsVM, false, DescriptorMatchMode.Any, false);
-        DescriptorsSelectionMenu.AnnotationState = associatedPlaceHolder.AssociatedModel.AnnotationState; // if true will be set to false as soon as user makes a selection
+        _patcherState = patcherState;
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
+            .DisposeWith(this);
+
+        // Recompute aggregate rollup whenever slot membership changes.
+        WeightSlots.ToObservableChangeSet()
+            .Subscribe(_ => UpdateAggregateAnnotationState())
             .DisposeWith(this);
 
         ToggleLock = new RelayCommand(
@@ -108,27 +115,21 @@ public class VM_BodySlideSetting : VM
         AcceptAutoAnnotations = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
-                bool hasSelected = false;
-                foreach (var category in DescriptorsSelectionMenu.DescriptorShells)
+                foreach (var slot in WeightSlots)
                 {
-                    foreach (var value in category.DescriptorSelectors)
-                    {
-                        value.AnnotationState = BodyShapeAnnotationState.Manual;
-                        value.TextColor = CommonColors.White;
-                    }
-                    category.AnnotationState = category.DescriptorSelectors.Where(x => x.IsSelected).Any()? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
-                    if (category.AnnotationState == BodyShapeAnnotationState.Manual)
-                    {
-                        hasSelected = true;
-                    }
+                    AcceptAutoAnnotationsForMenu(slot.DescriptorsSelectionMenu);
                 }
-                DescriptorsSelectionMenu.AnnotationState = hasSelected? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
+                UpdateAggregateAnnotationState();
             }
         );
 
-        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.Header).Subscribe(x => UpdateStatusDisplay()).DisposeWith(this);
+        AddWeightSlotCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => AddWeightSlot(NewSlotWeight)
+        );
+
         this.WhenAnyValue(x => x.ReferencedBodySlide).Subscribe(_ => UpdateStatusDisplay()).DisposeWith(this);
-        this.WhenAnyValue(x => x.DescriptorsSelectionMenu.AnnotationState).Subscribe(state =>
+        this.WhenAnyValue(x => x.AggregateAnnotationState).Subscribe(state =>
         {
             ShowAcceptAnnotationsButton = state != BodyShapeAnnotationState.None && state != BodyShapeAnnotationState.Manual;
             UpdateStatusDisplay();
@@ -139,7 +140,16 @@ public class VM_BodySlideSetting : VM
     public string ReferencedBodySlide { get; set; } = "";
     public string SliderGroup { get; set; } = "";
     public string Notes { get; set; } = "";
-    public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; set; }
+
+    /// <summary>Per-weight descriptor selection menus, sorted by weight ascending.</summary>
+    public ObservableCollection<VM_BodySlideWeightSlot> WeightSlots { get; } = new();
+    public VM_BodySlideWeightSlot SelectedWeightSlot { get; set; }
+    public int NewSlotWeight { get; set; } = 50;
+    public BodyShapeAnnotationState AggregateAnnotationState { get; private set; } = BodyShapeAnnotationState.None;
+
+    /// <summary>Default weight slots that the user removed for this preset; persisted via DumpToModel.</summary>
+    public HashSet<int> RemovedDefaultWeightSlots { get; private set; } = new();
+
     public ObservableCollection<FormKey> AllowedRaces { get; set; } = new();
     public ObservableCollection<FormKey> DisallowedRaces { get; set; } = new();
     public VM_RaceGroupingCheckboxList AllowedRaceGroupings { get; set; }
@@ -169,6 +179,7 @@ public class VM_BodySlideSetting : VM
     public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
     public RelayCommand AcceptAutoAnnotations { get; }
+    public RelayCommand AddWeightSlotCommand { get; }
     public bool ShowAcceptAnnotationsButton { get; set; }
     public SolidColorBrush BorderColor { get; set; }
 
@@ -212,6 +223,118 @@ public class VM_BodySlideSetting : VM
         var model = DumpToModel();
         return _placeHolderFactory(model, parentCollection);
     }
+
+    private VM_BodySlideWeightSlot CreateSlot(int weight, HashSet<AnnotatedDescriptorSignature> descriptors)
+    {
+        var menu = _descriptorSelectionFactory(_bodyShapeDescriptors, _raceGroupingVMs, ParentMenuVM, false, DescriptorMatchMode.Any, false);
+        if (descriptors != null)
+        {
+            menu.CopyInFromHashSet(descriptors);
+        }
+        var slot = new VM_BodySlideWeightSlot(weight, menu, this);
+        // Bubble menu state changes up to the aggregate rollup.
+        slot.DescriptorsSelectionMenu
+            .WhenAnyValue(x => x.AnnotationState)
+            .Subscribe(_ => UpdateAggregateAnnotationState())
+            .DisposeWith(slot);
+        return slot;
+    }
+
+    public void AddWeightSlot(int weight)
+    {
+        if (weight < 0 || weight > 100) return;
+        if (WeightSlots.Any(s => s.Weight == weight)) return;
+
+        var slot = CreateSlot(weight, new HashSet<AnnotatedDescriptorSignature>());
+
+        // Insert in sorted order so the tab strip stays ordered.
+        int insertAt = 0;
+        while (insertAt < WeightSlots.Count && WeightSlots[insertAt].Weight < weight) insertAt++;
+        WeightSlots.Insert(insertAt, slot);
+
+        // If the user is re-adding a default slot they previously removed, take it back off the removed list.
+        if (RemovedDefaultWeightSlots.Contains(weight))
+        {
+            RemovedDefaultWeightSlots.Remove(weight);
+        }
+
+        SelectedWeightSlot = slot;
+        UpdateAggregateAnnotationState();
+    }
+
+    public void RemoveWeightSlot(VM_BodySlideWeightSlot slot)
+    {
+        if (slot == null || !WeightSlots.Contains(slot)) return;
+
+        bool isDefault = _patcherState?.OBodySettings?.DefaultWeightSlots?.Contains(slot.Weight) == true;
+        bool hasContent = slot.DescriptorsSelectionMenu?.IsAnnotated() == true;
+
+        if (hasContent || isDefault)
+        {
+            string msg = isDefault
+                ? $"Weight slot {slot.Weight} is one of the default weight slots. Removing it will skip annotation at this weight for this preset only. Continue?"
+                : $"Weight slot {slot.Weight} contains descriptors. Remove it?";
+            if (!MessageWindow.DisplayNotificationYesNo("Remove Weight Slot", msg))
+            {
+                return;
+            }
+        }
+
+        WeightSlots.Remove(slot);
+        if (isDefault)
+        {
+            RemovedDefaultWeightSlots.Add(slot.Weight);
+        }
+        slot.Dispose();
+        UpdateAggregateAnnotationState();
+    }
+
+    public void UpdateAggregateAnnotationState()
+    {
+        var states = WeightSlots
+            .Select(s => s.DescriptorsSelectionMenu?.AnnotationState ?? BodyShapeAnnotationState.None)
+            .Where(s => s != BodyShapeAnnotationState.None)
+            .Distinct()
+            .ToList();
+
+        if (states.Count == 0)
+        {
+            AggregateAnnotationState = BodyShapeAnnotationState.None;
+        }
+        else if (states.Count == 1)
+        {
+            AggregateAnnotationState = states[0];
+        }
+        else
+        {
+            // Treat any cross-slot or cross-source mix as the legacy Mix state so the existing
+            // color brush table still applies until stage 5/6 introduces dedicated colors.
+            AggregateAnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
+        }
+    }
+
+    private static void AcceptAutoAnnotationsForMenu(VM_BodyShapeDescriptorSelectionMenu menu)
+    {
+        if (menu == null) return;
+        bool hasSelected = false;
+        foreach (var category in menu.DescriptorShells)
+        {
+            foreach (var value in category.DescriptorSelectors)
+            {
+                value.AnnotationState = BodyShapeAnnotationState.Manual;
+                value.TextColor = CommonColors.White;
+            }
+            category.AnnotationState = category.DescriptorSelectors.Any(x => x.IsSelected)
+                ? BodyShapeAnnotationState.Manual
+                : BodyShapeAnnotationState.None;
+            if (category.AnnotationState == BodyShapeAnnotationState.Manual)
+            {
+                hasSelected = true;
+            }
+        }
+        menu.AnnotationState = hasSelected ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
+    }
+
     public void UpdateStatusDisplay() // this should follow the same logic as VM_BodySlidePlaceHolder.InitializeBorderColor()
     {
         if (!ParentMenuVM.BodySlidesUI.CurrentlyExistingBodySlides.Contains(this.ReferencedBodySlide))
@@ -220,38 +343,51 @@ public class VM_BodySlideSetting : VM
             StatusHeader = "Warning:";
             StatusText = "Source BodySlide XML files are missing. Will not be assigned.";
             ShowStatus = true;
+            return;
         }
-        else if (AssociatedPlaceHolder.IsHidden)
+
+        if (AssociatedPlaceHolder.IsHidden)
         {
             BorderColor = BorderColorHidden;
-        }
-        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.None)
-        {
-            BorderColor = AnnotationToColor[BodyShapeAnnotationState.None];
-            StatusHeader = "Warning:";
-            StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
-            ShowStatus = true;
-        }
-        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.RulesBased)
-        {
-            BorderColor = AnnotationToColor[BodyShapeAnnotationState.RulesBased];
-            StatusHeader = "Note:";
-            StatusText = "Bodyslide has been automatically annotated using slider rules";
-            ShowStatus = true;
-        }
-        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.Mix_Manual_RulesBased)
-        {
-            BorderColor = AnnotationToColor[BodyShapeAnnotationState.Mix_Manual_RulesBased];
-            StatusHeader = "Note:";
-            StatusText = "Bodyslide has both manual and automatical slider rules-based annotations";
-            ShowStatus = true;
-        }
-        else if (DescriptorsSelectionMenu.AnnotationState == BodyShapeAnnotationState.Manual)
-        {
-            BorderColor = AnnotationToColor[BodyShapeAnnotationState.Manual];
             StatusHeader = string.Empty;
             StatusText = string.Empty;
-            ShowStatus = false;   
+            ShowStatus = false;
+            return;
+        }
+
+        switch (AggregateAnnotationState)
+        {
+            case BodyShapeAnnotationState.None:
+                BorderColor = AnnotationToColor[BodyShapeAnnotationState.None];
+                StatusHeader = "Warning:";
+                StatusText = "Bodyslide has not been annotated with descriptors. May not pair correctly with textures.";
+                ShowStatus = true;
+                break;
+            case BodyShapeAnnotationState.RulesBased:
+                BorderColor = AnnotationToColor[BodyShapeAnnotationState.RulesBased];
+                StatusHeader = "Note:";
+                StatusText = "Bodyslide has been automatically annotated using slider rules";
+                ShowStatus = true;
+                break;
+            case BodyShapeAnnotationState.Mix_Manual_RulesBased:
+            case BodyShapeAnnotationState.Mixed:
+                BorderColor = AnnotationToColor[BodyShapeAnnotationState.Mix_Manual_RulesBased];
+                StatusHeader = "Note:";
+                StatusText = "Bodyslide has annotations from multiple sources or weight slots";
+                ShowStatus = true;
+                break;
+            case BodyShapeAnnotationState.Manual:
+                BorderColor = AnnotationToColor[BodyShapeAnnotationState.Manual];
+                StatusHeader = string.Empty;
+                StatusText = string.Empty;
+                ShowStatus = false;
+                break;
+            default:
+                BorderColor = AnnotationToColor.TryGetValue(AggregateAnnotationState, out var c) ? c : BorderColorValid;
+                StatusHeader = string.Empty;
+                StatusText = string.Empty;
+                ShowStatus = false;
+                break;
         }
     }
 
@@ -274,11 +410,23 @@ public class VM_BodySlideSetting : VM
         SliderGroup = model.SliderGroup;
         Notes = model.Notes;
 
-        // Stage 1 single-pane UI: project the union of all weight slots into the descriptor menu.
-        // Per-weight UI lands in stage 2.
-        DescriptorsSelectionMenu.CopyInFromHashSet(model.GetDescriptorUnion());
+        // Rebuild the weight slot UI from the model dictionary.
+        foreach (var existing in WeightSlots) { existing.Dispose(); }
+        WeightSlots.Clear();
+        RemovedDefaultWeightSlots = new HashSet<int>(model.RemovedDefaultWeightSlots ?? new HashSet<int>());
 
-        AllowedRaces.AddRange(model.AllowedRaces);
+        if (model.BodyShapeDescriptorsByWeight != null)
+        {
+            foreach (var pair in model.BodyShapeDescriptorsByWeight.OrderBy(p => p.Key))
+            {
+                var slot = CreateSlot(pair.Key, pair.Value ?? new HashSet<AnnotatedDescriptorSignature>());
+                WeightSlots.Add(slot);
+            }
+        }
+        SelectedWeightSlot = WeightSlots.FirstOrDefault();
+        UpdateAggregateAnnotationState();
+
+        foreach (var fk in model.AllowedRaces) { AllowedRaces.Add(fk); }
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, _raceGroupingVMs);
         foreach (var grouping in AllowedRaceGroupings.RaceGroupingSelections)
         {
@@ -289,7 +437,7 @@ public class VM_BodySlideSetting : VM
             else { grouping.IsSelected = false; }
         }
 
-        DisallowedRaces.AddRange(model.DisallowedRaces);
+        foreach (var fk in model.DisallowedRaces) { DisallowedRaces.Add(fk); }
         DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, _raceGroupingVMs);
 
         foreach (var grouping in DisallowedRaceGroupings.RaceGroupingSelections)
@@ -332,20 +480,15 @@ public class VM_BodySlideSetting : VM
         model.Label = Label;
         model.ReferencedBodySlide = ReferencedBodySlide;
         model.Notes = Notes;
-        // Stage 1 single-pane UI: write the menu's descriptors uniformly into every existing weight slot.
-        // Stage 2 introduces per-slot UI and replaces this call with per-slot dumps.
-        // Carry over the existing slot layout (and any user-removed default slots) from the place holder model.
-        var sourceModel = AssociatedPlaceHolder?.AssociatedModel;
-        if (sourceModel != null)
+
+        // Stage 2: dump each slot's selection menu directly into the matching weight key.
+        model.BodyShapeDescriptorsByWeight = new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>();
+        foreach (var slot in WeightSlots)
         {
-            model.BodyShapeDescriptorsByWeight = new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>();
-            foreach (var slotKey in sourceModel.BodyShapeDescriptorsByWeight.Keys)
-            {
-                model.BodyShapeDescriptorsByWeight[slotKey] = new HashSet<AnnotatedDescriptorSignature>();
-            }
-            model.RemovedDefaultWeightSlots = new HashSet<int>(sourceModel.RemovedDefaultWeightSlots ?? new HashSet<int>());
+            model.BodyShapeDescriptorsByWeight[slot.Weight] = slot.DescriptorsSelectionMenu.DumpToOBodySettingsHashSet();
         }
-        model.SetUniformDescriptors(DescriptorsSelectionMenu.DumpToOBodySettingsHashSet());
+        model.RemovedDefaultWeightSlots = new HashSet<int>(RemovedDefaultWeightSlots);
+
         model.AllowedRaces = AllowedRaces.ToHashSet();
         model.AllowedRaceGroupings = AllowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.DisallowedRaces = DisallowedRaces.ToHashSet();
@@ -362,7 +505,29 @@ public class VM_BodySlideSetting : VM
         // also copy JSonIgnored values because they're needed by the patcher or if returning to this VM
         model.SliderGroup = AssociatedPlaceHolder.AssociatedModel.SliderGroup;
         model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues);
-        model.AnnotationState = DescriptorsSelectionMenu.AnnotationState;
+        model.AnnotationState = AggregateAnnotationState;
         return model;
     }
+}
+
+[DebuggerDisplay("Weight {Weight}")]
+public class VM_BodySlideWeightSlot : VM
+{
+    public VM_BodySlideWeightSlot(int weight, VM_BodyShapeDescriptorSelectionMenu menu, VM_BodySlideSetting parent)
+    {
+        Weight = weight;
+        DescriptorsSelectionMenu = menu;
+        Parent = parent;
+        Header = "Weight " + weight;
+        RemoveCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => Parent.RemoveWeightSlot(this)
+        );
+    }
+
+    public int Weight { get; }
+    public string Header { get; }
+    public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; }
+    public VM_BodySlideSetting Parent { get; }
+    public RelayCommand RemoveCommand { get; }
 }

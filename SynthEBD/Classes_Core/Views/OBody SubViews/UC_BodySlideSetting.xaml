@@ -66,16 +66,40 @@
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="More information about this preset (not used by patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
                 <TextBox Grid.Row="5" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Notes, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Descriptors that describe this BodySlide preset" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Descriptors</TextBlock>
-                <ContentPresenter Grid.Row="6" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">
-                    <ContentPresenter.Resources>
-                        <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
-                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black"/>
-                        </DataTemplate>
-                    </ContentPresenter.Resources>
-                </ContentPresenter>
-                
-                <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding ShowAcceptAnnotationsButton, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Per-weight descriptors that describe this BodySlide preset. Each tab is a weight slot (0-100); the closest annotated slot is used at distribution time." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Descriptors</TextBlock>
+                <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal" Margin="0 0 0 5">
+                        <TextBlock VerticalAlignment="Center" Margin="0 0 5 0" Foreground="LightGray">Add slot at weight:</TextBlock>
+                        <TextBox MinWidth="40" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding NewSlotWeight, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Margin="5 0 0 0" Foreground="LightGreen" Content="Add Slot" Command="{Binding AddWeightSlotCommand}"
+                                ToolTip="Add a new descriptor slot for the specified NPC weight (0-100)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                    </StackPanel>
+                    <TabControl ItemsSource="{Binding WeightSlots}" SelectedItem="{Binding SelectedWeightSlot}" Background="Black" MinHeight="100">
+                        <TabControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:VM_BodySlideWeightSlot}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                                    <Button Content="x" Foreground="Red" Background="Transparent" BorderThickness="0" Padding="3 0 3 0"
+                                            Command="{Binding RemoveCommand}"
+                                            ToolTip="Remove this weight slot for this preset" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+                        <TabControl.ContentTemplate>
+                            <DataTemplate DataType="{x:Type local:VM_BodySlideWeightSlot}">
+                                <ContentPresenter Content="{Binding DescriptorsSelectionMenu}">
+                                    <ContentPresenter.Resources>
+                                        <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
+                                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black"/>
+                                        </DataTemplate>
+                                    </ContentPresenter.Resources>
+                                </ContentPresenter>
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
+                    </TabControl>
+                </StackPanel>
+
+                <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors (All Slots)" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding ShowAcceptAnnotationsButton, Converter={StaticResource BoolToVis}}"/>
 
                 <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
                 <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
