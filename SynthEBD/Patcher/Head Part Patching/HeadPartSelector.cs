@@ -403,19 +403,20 @@ namespace SynthEBD
                 return false;
             }
 
-            // Descriptors
+            // Descriptors -- match against the descriptors annotated at the NPC's weight slot
             foreach (var assignedBodySlide in assignedBodySlides)
             {
+                var assignedDescriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(assignedBodySlide, npcInfo.NPC.Weight);
                 if (currentSettings.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(currentSettings.AllowedBodySlideDescriptorDictionary, assignedBodySlide.GetDescriptorUnion(), currentSettings.AllowedBodySlideMatchMode, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(currentSettings.AllowedBodySlideDescriptorDictionary, assignedDescriptorsAtWeight, currentSettings.AllowedBodySlideMatchMode, out _))
                     {
                         _logger.LogReport(type + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label + ")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(currentSettings.AllowedBodySlideDescriptorDictionary), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(currentSettings.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.GetDescriptorUnion(), currentSettings.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(currentSettings.DisallowedBodySlideDescriptorDictionary, assignedDescriptorsAtWeight, currentSettings.DisallowedBodySlideMatchMode, out string matchedDescriptor))
                 {
                     _logger.LogReport(type + "is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
                     return false;
@@ -544,16 +545,17 @@ namespace SynthEBD
 
             foreach (var assignedBodySlide in assignedBodySlides)
             {
+                var assignedDescriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(assignedBodySlide, npcInfo.NPC.Weight);
                 if (candidateHeadPart.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedBodySlide.GetDescriptorUnion(), candidateHeadPart.AllowedBodySlideMatchMode, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.AllowedBodySlideDescriptorDictionary, assignedDescriptorsAtWeight, candidateHeadPart.AllowedBodySlideMatchMode, out _))
                     {
                         _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its allowed descriptors do not include those of the assigned BodySlide Preset (" + assignedBodySlide.Label +")" + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(candidateHeadPart.AllowedBodySlideDescriptorDictionary), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedBodySlide.GetDescriptorUnion(), candidateHeadPart.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(candidateHeadPart.DisallowedBodySlideDescriptorDictionary, assignedDescriptorsAtWeight, candidateHeadPart.DisallowedBodySlideMatchMode, out string matchedDescriptor))
                 {
                     _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because its descriptor [" + matchedDescriptor + "] disallows the assigned BodySlide Preset (" + assignedBodySlide.Label + ")", false, npcInfo);
                     return false;

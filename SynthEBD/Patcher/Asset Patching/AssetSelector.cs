@@ -1048,13 +1048,14 @@ public class AssetSelector
                     {
                         foreach (var assignedBodySlide in assignedBodySlides)
                         {
-                            if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, assignedBodySlide.GetDescriptorUnion(), subgroup.AllowedBodySlideMatchMode, out _))
+                            var assignedDescriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(assignedBodySlide, npcInfo.NPC.Weight);
+                            if (subgroup.AllowedBodySlideDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, assignedDescriptorsAtWeight, subgroup.AllowedBodySlideMatchMode, out _))
                             {
                                 _logger.LogReport(reportStringPrefix + " is invalid because its allowed descriptors do not include any of those annotated in the descriptors of assigned bodyslide " + assignedBodySlide.Label + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
                                 return false;
                             }
 
-                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, assignedBodySlide.GetDescriptorUnion(), subgroup.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+                            if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, assignedDescriptorsAtWeight, subgroup.DisallowedBodySlideMatchMode, out string matchedDescriptor))
                             {
                                 _logger.LogReport(reportStringPrefix + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned bodyslide " + assignedBodySlide.Label + "'s descriptors", false, npcInfo);
                                 return false;

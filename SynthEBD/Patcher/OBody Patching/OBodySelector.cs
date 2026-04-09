@@ -304,8 +304,12 @@ public class OBodySelector
             return false;
         }
 
-        // Repeat the above checks for the preset's descriptor rules
-        foreach (var descriptorLabel in candidatePreset.GetDescriptorUnion())
+        // Repeat the above checks for the preset's descriptor rules.
+        // Use only the descriptors annotated at the NPC's weight slot so per-weight presets
+        // (e.g. HIMBO Daddy "Slight" at low weight / "Powerful" at high) don't get spuriously
+        // rejected by rules that only apply to the other slot.
+        var descriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(candidatePreset, npcInfo.NPC.Weight);
+        foreach (var descriptorLabel in descriptorsAtWeight)
         {
             var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
@@ -331,14 +335,14 @@ public class OBodySelector
             // check whole config rules
             if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors.Any())
             {
-                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideMatchMode, out _))
+                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, descriptorsAtWeight, assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideMatchMode, out _))
                 {
                     _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssignmentName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors), false, npcInfo);
                     return false;
                 }
             }
 
-            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideMatchMode, out string matchedDescriptor))
+            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, descriptorsAtWeight, assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideMatchMode, out string matchedDescriptor))
             {
                 _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssignmentName, false, npcInfo);
                 return false;
@@ -349,14 +353,14 @@ public class OBodySelector
             {
                 if (subgroup.AllowedBodySlideDescriptors.Any())
                 {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), subgroup.AllowedBodySlideMatchMode, out _))
+                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, descriptorsAtWeight, subgroup.AllowedBodySlideMatchMode, out _))
                     {
                         _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodySlideDescriptors), false, npcInfo);
                         return false;
                     }
                 }
 
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, candidatePreset.GetDescriptorUnion(), subgroup.DisallowedBodySlideMatchMode, out matchedDescriptor))
+                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, descriptorsAtWeight, subgroup.DisallowedBodySlideMatchMode, out matchedDescriptor))
                 {
                     _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
                     return false;
@@ -420,7 +424,7 @@ public class OBodySelector
             while(priorities.Any())
             {
                 var currentSignature = priorities.First();
-                var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(x.GetDescriptorUnion())).ToList();
+                var trialBodySlides = currentBodySlides.Where(x => currentSignature.CollectionContainsThisDescriptor(PerWeightDescriptorLookup.GetDescriptorsForWeight(x, npcInfo.NPC.Weight))).ToList();
                 if (trialBodySlides.Any())
                 {
                     _logger.LogReport("The following BodySlides match descriptor " + currentSignature.ToString() + Environment.NewLine + string.Join(Environment.NewLine, trialBodySlides.Select(x => "-" + x.Label).ToArray()), false, npcInfo);
@@ -499,7 +503,9 @@ public class OBodySelector
     {
         foreach(var bodySlide in bodySlides)
         {
-            string descriptorStr = Logger.GetBodyShapeDescriptorString(bodySlide.GetDescriptorUnion());
+            // Log the descriptors that actually drove distribution for this NPC -- the per-weight
+            // slot closest to the NPC's weight -- rather than the full union across every slot.
+            string descriptorStr = Logger.GetBodyShapeDescriptorString(PerWeightDescriptorLookup.GetDescriptorsForWeight(bodySlide, npcInfo.NPC.Weight));
 
             string descriptorLogStr = string.Empty;
             if (bodySlides.Count > 1)
