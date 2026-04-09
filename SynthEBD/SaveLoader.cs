@@ -80,8 +80,11 @@ public class SaveLoader
         _patcherState.TexMeshSettings = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
         _patcherState.BodyGenSettings = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
         _patcherState.OBodySettings = _oBodyIO.LoadOBodySettings(out loadSuccess);
+        // Stage 4: load slider catalogs and seed the classifier before importing presets so that
+        // catalog-driven group/gender detection (instead of <Group> tag matching) is in effect.
+        var bodySlideClassifier = _oBodyIO.LoadSliderCatalogs(_patcherState.OBodySettings);
         // load OBody settings before asset packs - asset packs depend on BodyGen but not vice versa
-        _patcherState.OBodySettings.ImportBodySlides(_patcherState.OBodySettings.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath, _logger);
+        _patcherState.OBodySettings.ImportBodySlides(_patcherState.OBodySettings.TemplateDescriptors, _oBodyIO, _environmentProvider.DataFolderPath, _logger, bodySlideClassifier);
         _patcherState.HeadPartSettings = _headpartIO.LoadHeadPartSettings(out loadSuccess); // load head part settings
         _patcherState.HeightSettings = _heightIO.LoadHeightSettings(out loadSuccess); // load heights
         _patcherState.BlockList = _blockListIO.LoadBlockList(out loadSuccess); // load BlockList

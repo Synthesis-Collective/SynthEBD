@@ -102,6 +102,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideAnnotator>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideSettingMigrator>().AsSelf().SingleInstance();
+        builder.RegisterType<SliderCatalogLoader>().AsSelf().SingleInstance();
+        builder.RegisterType<BodySlideGroupClassifier>().AsSelf().SingleInstance();
         builder.RegisterType<EasyNPCProfileParser>().AsSelf().SingleInstance();
         builder.RegisterType<NPC2ProfileParser>().AsSelf().SingleInstance();
 

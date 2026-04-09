@@ -28,6 +28,8 @@
             <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
@@ -91,6 +93,39 @@
                             <TextBlock Text="{Binding Text}"/>
                         </StackPanel>
                     </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+                   ToolTip="Override the SliderCategories XML used to classify presets per body type. Falls back to shipped JSON when unset."
+                   ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Slider Catalog Overrides</TextBlock>
+        <Button Grid.Row="6" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
+        <ItemsControl Grid.Row="6" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_SliderCatalogOverride}">
+                    <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
+                        <TextBox Text="{Binding BodyType, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" ToolTip="Body type name (e.g. CBBE)"/>
+                        <TextBox Text="{Binding Path, UpdateSourceTrigger=PropertyChanged}" MinWidth="320" Margin="5 0 0 0" ToolTip="Path to SliderCategories.xml"/>
+                        <Button Content="Browse" Margin="3 0 0 0" Command="{Binding BrowseCommand}"/>
+                        <Button Content="X" Margin="3 0 0 0" Foreground="FireBrick" Command="{Binding DeleteCommand}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+                   ToolTip="Map a canonical body type to a comma-separated list of aliases the classifier should treat as equivalent."
+                   ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Body Type Family Compatibility</TextBlock>
+        <Button Grid.Row="7" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddBodyTypeFamily}">Add New</Button>
+        <ItemsControl Grid.Row="7" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_BodyTypeFamily}">
+                    <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
+                        <TextBox Text="{Binding CanonicalBodyType, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" ToolTip="Canonical body type (e.g. CBBE)"/>
+                        <TextBox Text="{Binding AliasesCsv, UpdateSourceTrigger=PropertyChanged}" MinWidth="320" Margin="5 0 0 0" ToolTip="Comma-separated aliases (e.g. 3BA, 3BBB, CBAdvanced)"/>
+                        <Button Content="X" Margin="3 0 0 0" Foreground="FireBrick" Command="{Binding DeleteCommand}"/>
+                    </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

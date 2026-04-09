@@ -9,13 +9,33 @@ public class SettingsIO_OBody
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly BodySlideSettingMigrator _bodySlideSettingMigrator;
-    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator)
+    private readonly SliderCatalogLoader _sliderCatalogLoader;
+    private readonly BodySlideGroupClassifier _bodySlideGroupClassifier;
+    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator, SliderCatalogLoader sliderCatalogLoader, BodySlideGroupClassifier bodySlideGroupClassifier)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _paths = paths;
         _bodySlideSettingMigrator = bodySlideSettingMigrator;
+        _sliderCatalogLoader = sliderCatalogLoader;
+        _bodySlideGroupClassifier = bodySlideGroupClassifier;
+    }
+
+    /// <summary>
+    /// Stage 4: load slider catalogs (override XMLs + shipped JSON fallbacks) and seed the
+    /// <see cref="BodySlideGroupClassifier"/>. Safe to call repeatedly; replaces any previously loaded catalog.
+    /// Must run before <see cref="Settings_OBody.ImportBodySlides"/>.
+    /// </summary>
+    public BodySlideGroupClassifier LoadSliderCatalogs(Settings_OBody settings)
+    {
+        var catalog = _sliderCatalogLoader.LoadCatalogs(settings);
+        _bodySlideGroupClassifier.SetCatalog(catalog);
+        if (catalog.BodyTypes.Count > 0)
+        {
+            _logger.LogMessage($"Loaded {catalog.BodyTypes.Count} BodySlide slider catalog(s) for classification.");
+        }
+        return _bodySlideGroupClassifier;
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {

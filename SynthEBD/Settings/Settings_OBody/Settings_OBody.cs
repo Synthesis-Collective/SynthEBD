@@ -41,6 +41,21 @@ public class Settings_OBody
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public HashSet<string> MaleSliderGroups { get; set; } = new();
     public HashSet<string> FemaleSliderGroups { get; set; } = new();
+
+    /// <summary>
+    /// User overrides for SliderCategories.xml lookup, keyed by body-type name (e.g. "CBBE").
+    /// When set and the file exists, takes precedence over the shipped fallback in InternalData/SliderCatalogs/.
+    /// Stage 4: feeds <see cref="BodySlideGroupClassifier"/>.
+    /// </summary>
+    public Dictionary<string, string> SliderCatalogOverridePaths { get; set; } = new();
+
+    /// <summary>
+    /// User-editable family relationships between body types. Key is the canonical body type the user
+    /// prefers; value is the set of alias names that should resolve to that key during classification.
+    /// Example: {"CBBE": ["3BA", "3BBB", "CBAdvanced"]}.
+    /// Stage 4: consumed by <see cref="BodySlideGroupClassifier"/>.
+    /// </summary>
+    public Dictionary<string, HashSet<string>> BodyTypeFamilyCompatibility { get; set; } = new();
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
@@ -52,11 +67,13 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
-    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger)
+    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
         if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
         if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
+
+        bool classifierActive = classifier != null && classifier.HasCatalogs;
 
         var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
@@ -81,24 +98,48 @@ public class Settings_OBody
 
                         CurrentlyExistingBodySlides.Add(presetName);
 
-                        var groups = preset.Elements("Group");
-                        if (groups == null) { continue; }
-
                         bool genderFound = false;
-                        foreach (var group in groups)
+
+                        if (classifierActive)
                         {
-                            groupName = group.Attribute("name").Value.ToString();
-                            if (MaleSliderGroups.Contains(groupName))
+                            // Stage 4: classify by slider intersection against shipped/override catalogs.
+                            var presetSliderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var ss in preset.Elements("SetSlider"))
                             {
-                                currentBodySlides = BodySlidesMale;
-                                genderFound = true;
-                                break;
+                                var sn = ss.Attribute("name");
+                                if (sn != null && !string.IsNullOrEmpty(sn.Value)) presetSliderNames.Add(sn.Value);
                             }
-                            else if (FemaleSliderGroups.Contains(groupName))
+
+                            var classification = classifier.Classify(presetName, presetSliderNames);
+                            if (classification != null)
                             {
-                                currentBodySlides = BodySlidesFemale;
+                                groupName = classification.BodyType;
+                                currentBodySlides = classification.Gender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
                                 genderFound = true;
-                                break;
+                            }
+                        }
+
+                        if (!genderFound)
+                        {
+                            // Legacy fallback: match against the user-configured Male/Female slider group lists.
+                            var groups = preset.Elements("Group");
+                            if (groups == null) { continue; }
+
+                            foreach (var group in groups)
+                            {
+                                groupName = group.Attribute("name").Value.ToString();
+                                if (MaleSliderGroups.Contains(groupName))
+                                {
+                                    currentBodySlides = BodySlidesMale;
+                                    genderFound = true;
+                                    break;
+                                }
+                                else if (FemaleSliderGroups.Contains(groupName))
+                                {
+                                    currentBodySlides = BodySlidesFemale;
+                                    genderFound = true;
+                                    break;
+                                }
                             }
                         }
                         if (!genderFound) { continue; }

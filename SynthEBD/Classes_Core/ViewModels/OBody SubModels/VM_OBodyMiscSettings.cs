@@ -2,6 +2,8 @@ using Mutagen.Bethesda.Fallout4;
 using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 
 namespace SynthEBD;
 
@@ -46,6 +48,16 @@ public class VM_OBodyMiscSettings : VM
         AddFemaleSliderGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => FemaleBodySlideGroups.Add(new VM_CollectionMemberString("", FemaleBodySlideGroups))
+        );
+
+        AddSliderCatalogOverride = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => SliderCatalogOverrides.Add(new VM_SliderCatalogOverride("", "", SliderCatalogOverrides))
+        );
+
+        AddBodyTypeFamily = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => BodyTypeFamilies.Add(new VM_BodyTypeFamily("", "", BodyTypeFamilies))
         );
 
         SetRaceMenuINI = new(
@@ -101,6 +113,12 @@ public class VM_OBodyMiscSettings : VM
     public RelayCommand RemoveStashedDescriptors { get; }
     public bool ShowRemoveStashedDescriptorsButton { get; set; } = false;
 
+    // Stage 4: slider catalog overrides + body type family compatibility
+    public ObservableCollection<VM_SliderCatalogOverride> SliderCatalogOverrides { get; set; } = new();
+    public RelayCommand AddSliderCatalogOverride { get; }
+    public ObservableCollection<VM_BodyTypeFamily> BodyTypeFamilies { get; set; } = new();
+    public RelayCommand AddBodyTypeFamily { get; }
+
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
         MaleBodySlideGroups.Clear();
@@ -144,6 +162,25 @@ public class VM_OBodyMiscSettings : VM
         }
 
         ShowRemoveStashedDescriptorsButton = StashedDescriptors.Any();
+
+        SliderCatalogOverrides.Clear();
+        if (model.SliderCatalogOverridePaths != null)
+        {
+            foreach (var kv in model.SliderCatalogOverridePaths)
+            {
+                SliderCatalogOverrides.Add(new VM_SliderCatalogOverride(kv.Key, kv.Value, SliderCatalogOverrides));
+            }
+        }
+
+        BodyTypeFamilies.Clear();
+        if (model.BodyTypeFamilyCompatibility != null)
+        {
+            foreach (var kv in model.BodyTypeFamilyCompatibility)
+            {
+                var aliases = kv.Value != null ? string.Join(", ", kv.Value) : string.Empty;
+                BodyTypeFamilies.Add(new VM_BodyTypeFamily(kv.Key, aliases, BodyTypeFamilies));
+            }
+        }
     }
 
     public void DumpViewModelToModel(Settings_OBody model)
@@ -155,6 +192,26 @@ public class VM_OBodyMiscSettings : VM
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
         model.OBodySelectionMode = OBodySelectionMode;
         model.OBodyEnableMultipleAssignments = OBodyEnableMultipleAssignments;
+
+        model.SliderCatalogOverridePaths = new System.Collections.Generic.Dictionary<string, string>();
+        foreach (var entry in SliderCatalogOverrides)
+        {
+            var bt = entry.BodyType?.Trim();
+            if (string.IsNullOrEmpty(bt)) continue;
+            model.SliderCatalogOverridePaths[bt] = entry.Path?.Trim() ?? string.Empty;
+        }
+
+        model.BodyTypeFamilyCompatibility = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>();
+        foreach (var entry in BodyTypeFamilies)
+        {
+            var bt = entry.CanonicalBodyType?.Trim();
+            if (string.IsNullOrEmpty(bt)) continue;
+            var aliases = (entry.AliasesCsv ?? string.Empty)
+                .Split(',')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrEmpty(s));
+            model.BodyTypeFamilyCompatibility[bt] = new System.Collections.Generic.HashSet<string>(aliases);
+        }
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)
@@ -175,4 +232,59 @@ public class VM_OBodyMiscSettings : VM
 
         return changes;
     }
+}
+
+/// <summary>
+/// Stage 4: row VM for the Slider Catalog Override list. Each row maps a body type name to a
+/// SliderCategories.xml path on disk that the user wants <see cref="SliderCatalogLoader"/> to use
+/// instead of the shipped fallback JSON.
+/// </summary>
+public class VM_SliderCatalogOverride : VM
+{
+    public VM_SliderCatalogOverride(string bodyType, string path, ObservableCollection<VM_SliderCatalogOverride> parent)
+    {
+        BodyType = bodyType;
+        Path = path;
+        ParentCollection = parent;
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parent.Remove(this));
+        BrowseCommand = new RelayCommand(canExecute: _ => true, execute: _ =>
+        {
+            var dlg = LongPathHandler.CreateLongPathOpenFileDialog();
+            dlg.Filter = "SliderCategories XML (*.xml)|*.xml|All files (*.*)|*.*";
+            if (!string.IsNullOrEmpty(Path) && File.Exists(Path))
+            {
+                dlg.InitialDirectory = System.IO.Path.GetDirectoryName(Path);
+            }
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                Path = dlg.FileName;
+            }
+        });
+    }
+
+    public string BodyType { get; set; }
+    public string Path { get; set; }
+    public ObservableCollection<VM_SliderCatalogOverride> ParentCollection { get; }
+    public RelayCommand DeleteCommand { get; }
+    public RelayCommand BrowseCommand { get; }
+}
+
+/// <summary>
+/// Stage 4: row VM for the Body Type Family compatibility list. Maps a canonical body type to a
+/// comma-separated list of aliases that <see cref="BodySlideGroupClassifier"/> should collapse onto it.
+/// </summary>
+public class VM_BodyTypeFamily : VM
+{
+    public VM_BodyTypeFamily(string canonicalBodyType, string aliasesCsv, ObservableCollection<VM_BodyTypeFamily> parent)
+    {
+        CanonicalBodyType = canonicalBodyType;
+        AliasesCsv = aliasesCsv;
+        ParentCollection = parent;
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parent.Remove(this));
+    }
+
+    public string CanonicalBodyType { get; set; }
+    public string AliasesCsv { get; set; }
+    public ObservableCollection<VM_BodyTypeFamily> ParentCollection { get; }
+    public RelayCommand DeleteCommand { get; }
 }
