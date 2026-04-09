@@ -101,6 +101,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<RecordIntellisense>().AsSelf().SingleInstance();
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideAnnotator>().AsSelf().SingleInstance();
+        builder.RegisterType<AnnotationLibraryLoader>().AsSelf().SingleInstance();
+        builder.RegisterType<AnnotationLibraryAnnotator>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideSettingMigrator>().AsSelf().SingleInstance();
         builder.RegisterType<SliderCatalogLoader>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideGroupClassifier>().AsSelf().SingleInstance();

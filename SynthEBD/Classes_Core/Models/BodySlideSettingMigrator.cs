@@ -1,25 +1,33 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
 /// <summary>
-/// Migrates legacy <see cref="BodySlideSetting"/> data (flat <c>BodyShapeDescriptors</c> hashset)
-/// into the per-weight model (<see cref="BodySlideSetting.BodyShapeDescriptorsByWeight"/>).
+/// Migrates legacy <see cref="BodySlideSetting"/> data into the per-weight model.
 ///
-/// Stage 1 only implements the "decline library defaults" path: each preset's legacy descriptors
-/// are placed into the single default weight slot closest to the mean of <see cref="NPCWeightRange"/>
-/// (ties round down). The accept-library path is implemented in stage 5 alongside the annotation
-/// library loader.
+/// Two migration passes run at schema v0:
+///   1. Flat-descriptor migration: legacy <c>BodyShapeDescriptors</c> are placed into the closest
+///      default weight slot (the "decline" path from Stage 1).
+///   2. HIMBO clone coalescing: presets that share a <c>ReferencedBodySlide</c> and have a
+///      matching annotation-library entry are merged into a single preset with the per-weight
+///      descriptors from the library (Stage 5).  Presets with no library entry are left unchanged.
 /// </summary>
 public class BodySlideSettingMigrator
 {
     private readonly Logger _logger;
+    private readonly AnnotationLibraryAnnotator _libraryAnnotator;
 
-    public BodySlideSettingMigrator(Logger logger)
+    // Strips trailing clone suffixes added by InitialHIMBOSetup, e.g. " (Low Weight)".
+    private static readonly Regex _cloneSuffixRegex =
+        new Regex(@"\s*\((Low|Medium|High)\s+Weight\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public BodySlideSettingMigrator(Logger logger, AnnotationLibraryAnnotator libraryAnnotator)
     {
         _logger = logger;
+        _libraryAnnotator = libraryAnnotator;
     }
 
     /// <summary>
@@ -45,6 +53,15 @@ public class BodySlideSettingMigrator
             {
                 migratedPresets++;
             }
+        }
+
+        // Stage 5: coalesce HIMBO-style clones that the annotation library can now express
+        // as per-weight entries on a single preset.
+        int coalesced = CoalesceLibraryCoveredClones(settings.BodySlidesMale)
+                      + CoalesceLibraryCoveredClones(settings.BodySlidesFemale);
+        if (coalesced > 0)
+        {
+            _logger.LogMessage($"Coalesced {coalesced} HIMBO-style clone preset(s) into per-weight annotated presets.");
         }
 
         settings.SchemaVersion = 1;
@@ -121,6 +138,60 @@ public class BodySlideSettingMigrator
     {
         if (range == null) return 50;
         return (range.Lower + range.Upper) / 2;
+    }
+
+    /// <summary>
+    /// For each group of presets that share a <c>ReferencedBodySlide</c> AND have a matching
+    /// annotation-library entry, replaces the group with a single preset covering weight 0-100.
+    /// The surviving preset gets the base label (clone suffixes stripped), cleared descriptor slots,
+    /// and library annotations applied.  Presets with no library match are left untouched.
+    /// Returns the number of clone entries removed.
+    /// </summary>
+    private int CoalesceLibraryCoveredClones(List<BodySlideSetting> presets)
+    {
+        if (presets == null || presets.Count == 0) return 0;
+
+        // Group by ReferencedBodySlide; only care about groups with >1 entry.
+        var groups = presets
+            .GroupBy(p => p.ReferencedBodySlide, System.StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        if (groups.Count == 0) return 0;
+
+        int removedTotal = 0;
+
+        foreach (var group in groups)
+        {
+            var clones = group.ToList();
+
+            // Build a temporary preset to test whether the library has an entry for this name.
+            var probe = new BodySlideSetting { ReferencedBodySlide = group.Key };
+            bool hasLibraryEntry = _libraryAnnotator.Annotate(probe);
+            if (!hasLibraryEntry) continue;
+
+            // Keep the first clone as the surviving entry; remove the rest.
+            var survivor = clones[0];
+
+            // Reset to full weight range.
+            survivor.WeightRange = new NPCWeightRange { Lower = 0, Upper = 100 };
+
+            // Strip clone suffix from the label.
+            survivor.Label = _cloneSuffixRegex.Replace(survivor.Label, "").TrimEnd();
+
+            // Clear all descriptor slots and apply fresh library annotations.
+            survivor.ClearAllDescriptorSlots();
+            _libraryAnnotator.Annotate(survivor);
+
+            // Remove the other clones from the list.
+            for (int i = 1; i < clones.Count; i++)
+            {
+                presets.Remove(clones[i]);
+                removedTotal++;
+            }
+        }
+
+        return removedTotal;
     }
 
     /// <summary>

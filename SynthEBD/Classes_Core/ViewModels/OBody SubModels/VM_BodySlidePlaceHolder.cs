@@ -17,13 +17,15 @@ namespace SynthEBD
         private readonly PatcherState _patcherState;
         private readonly VM_SettingsOBody _obodyVM;
         private readonly BodySlideAnnotator _bodySlideAnnotator;
+        private readonly AnnotationLibraryAnnotator _libraryAnnotator;
         public delegate VM_BodySlidePlaceHolder Factory(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection);
 
-        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM, BodySlideAnnotator bodySlideAnnotator)
+        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM, BodySlideAnnotator bodySlideAnnotator, AnnotationLibraryAnnotator libraryAnnotator)
         {
             _patcherState = patcherState;
             _obodyVM = oBodySettingsVM;
             _bodySlideAnnotator = bodySlideAnnotator;
+            _libraryAnnotator = libraryAnnotator;
 
             AssociatedModel = model;
             Label = model.Label;
@@ -73,6 +75,10 @@ namespace SynthEBD
 
             if (_patcherState.OBodySettings.AutoApplyMissingAnnotations) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
             {
+                // Tier 1: annotation library (per-weight descriptors shipped with SynthEBD or provided by the user)
+                _libraryAnnotator.Annotate(AssociatedModel);
+
+                // Tier 2: rule-based annotator
                 _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, _patcherState.OBodySettings.TemplateDescriptors.Select(x => x.ID).ToHashSet(), false, null);
             }
         }

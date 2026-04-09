@@ -59,7 +59,6 @@ public class Settings_OBody
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
-    public int HIMBOAnnotationVersion { get; set; } = 0; // increment as necessary to update HIMBO versions
     public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
     public bool AutoApplyMissingAnnotations { get; set; } = true;
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
@@ -224,128 +223,7 @@ public class Settings_OBody
             }
         }
         logger.LogStartupEventEnd("Detecting currently installed BodySlides");
-
-        if (HIMBOAnnotationVersion == 0)
-        {
-            InitialHIMBOSetup();
-        }
     }
-
-    public void InitialHIMBOSetup() // Some default HIMBO presets are of the "different descriptors at different weights" variety. Clone presets here to reflect this.
-    {
-        for (int i = 0; i < BodySlidesMale.Count; i++)
-        {
-            int numCopies = 0;
-            var currentBodySlide = BodySlidesMale[i];
-            // skip processing if the user has pre-existing multiple entries for this bodyslide; they've probably already handled this manually
-            if (HIMBOPresetsToUpdate_0.Contains(currentBodySlide.ReferencedBodySlide) && BodySlidesMale.Where(x => x.ReferencedBodySlide == currentBodySlide.ReferencedBodySlide).Count() == 1)
-            {
-                currentBodySlide.ClearAllDescriptorSlots();
-                var copiedBodySlide = JSONhandler<BodySlideSetting>.CloneViaJSON(currentBodySlide);
-
-                if (copiedBodySlide.ReferencedBodySlide == "HIMBO Daddy")
-                {
-                    numCopies = 1;
-
-                    copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (High Weight)";
-                }
-                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Jack")
-                {
-                    numCopies = 2;
-
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.WeightRange.Upper = 44;
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    var copiedBodySlide2 = JSONhandler<BodySlideSetting>.CloneViaJSON(currentBodySlide);
-                    copiedBodySlide2.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide2.WeightRange.Lower = 56;
-                    copiedBodySlide2.WeightRange.Upper = 100;
-                    copiedBodySlide2.Label += " (High Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 45;
-                    currentBodySlide.WeightRange.Upper = 55;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (Medium Weight)";
-
-                    BodySlidesMale.Insert(i + 1, copiedBodySlide2);
-                }
-                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Simple")
-                {
-                    numCopies = 1;
-
-                    copiedBodySlide.WeightRange.Upper = 40;
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 41;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (High Weight)";
-                }
-                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Sultry")
-                {
-                    numCopies = 1;
-
-                    copiedBodySlide.WeightRange.Upper = 19;
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 20;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (High Weight)";
-                }
-                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hugh")
-                {
-                    numCopies = 1;
-
-                    copiedBodySlide.WeightRange.Upper = 59;
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 60;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Chubby" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (High Weight)";
-                }
-                else if (copiedBodySlide.ReferencedBodySlide == "HIMBO Hideo")
-                {
-                    numCopies = 1;
-
-                    copiedBodySlide.WeightRange.Upper = 66;
-                    copiedBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Slight" }, BodyShapeAnnotationSource.Library));
-                    copiedBodySlide.Label += " (Low Weight)";
-
-                    currentBodySlide.WeightRange.Lower = 67;
-                    currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Medium" }, BodyShapeAnnotationSource.Library));
-                    currentBodySlide.Label += " (High Weight)";
-                }
-
-                BodySlidesMale.Insert(i, copiedBodySlide);
-                i+= numCopies;
-            }
-            else if (currentBodySlide.ReferencedBodySlide == "HIMBO Mike")
-            {
-                currentBodySlide.ClearAllDescriptorSlots();
-                currentBodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(new() { Category = "Build", Value = "Powerful" }, BodyShapeAnnotationSource.Library));
-            }
-        }
-        HIMBOAnnotationVersion = 1;
-    }
-
-    private static HashSet<string> HIMBOPresetsToUpdate_0 = new()
-    {
-        "HIMBO Daddy",
-        "HIMBO Jack",
-        "HIMBO Simple",
-        "HIMBO Hugh",
-        "HIMBO Hideo",
-        "HIMBO Sultry"
-    };
 }
 
 [DebuggerDisplay("{Label}")]

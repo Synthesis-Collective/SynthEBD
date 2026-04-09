@@ -1,0 +1,68 @@
+{
+  "BodyType": "HIMBO",
+  "Entries": [
+    {
+      "PresetName": "HIMBO Daddy",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Medium" } ],
+        "19":  [ { "Category": "Build", "Value": "Medium" } ],
+        "20":  [ { "Category": "Build", "Value": "Chubby" } ],
+        "100": [ { "Category": "Build", "Value": "Chubby" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Jack",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Slight" } ],
+        "44":  [ { "Category": "Build", "Value": "Slight" } ],
+        "45":  [ { "Category": "Build", "Value": "Medium" } ],
+        "55":  [ { "Category": "Build", "Value": "Medium" } ],
+        "56":  [ { "Category": "Build", "Value": "Chubby" } ],
+        "100": [ { "Category": "Build", "Value": "Chubby" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Simple",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Slight" } ],
+        "40":  [ { "Category": "Build", "Value": "Slight" } ],
+        "41":  [ { "Category": "Build", "Value": "Powerful" } ],
+        "100": [ { "Category": "Build", "Value": "Powerful" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Sultry",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Medium" } ],
+        "19":  [ { "Category": "Build", "Value": "Medium" } ],
+        "20":  [ { "Category": "Build", "Value": "Powerful" } ],
+        "100": [ { "Category": "Build", "Value": "Powerful" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Hugh",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Medium" } ],
+        "59":  [ { "Category": "Build", "Value": "Medium" } ],
+        "60":  [ { "Category": "Build", "Value": "Chubby" } ],
+        "100": [ { "Category": "Build", "Value": "Chubby" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Hideo",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Slight" } ],
+        "66":  [ { "Category": "Build", "Value": "Slight" } ],
+        "67":  [ { "Category": "Build", "Value": "Medium" } ],
+        "100": [ { "Category": "Build", "Value": "Medium" } ]
+      }
+    },
+    {
+      "PresetName": "HIMBO Mike",
+      "DescriptorsByWeight": {
+        "0":   [ { "Category": "Build", "Value": "Powerful" } ],
+        "100": [ { "Category": "Build", "Value": "Powerful" } ]
+      }
+    }
+  ]
+}
