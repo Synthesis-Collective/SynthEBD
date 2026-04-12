@@ -371,3 +371,5 @@ FodyWeavers.xsd
 .idea/
 
 SynthEBD/SynthesisMeta.json.bak
+
+.claude/
