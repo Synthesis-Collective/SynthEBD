@@ -1,0 +1,235 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using HelixToolkit;
+using SysVector3 = System.Numerics.Vector3;
+
+namespace SynthEBD;
+
+/// <summary>
+/// Applies BodySlide slider deformations to mesh vertex positions using OSD
+/// data and preset slider values.
+///
+/// Algorithm (from BodySlide source — BodySlideApp::ComputeMorphedShapeData):
+///   1. Start from base vertex positions
+///   2. Apply slider diffs with Big values  → vertsHigh
+///   3. Apply slider diffs with Small values → vertsLow
+///   4. Interpolate: final = vertsHigh * (weight/100) + vertsLow * ((100-weight)/100)
+///
+/// OSD deltas are in NIF coordinate space (Z-up). Mesh positions in the viewer
+/// are in HelixToolkit Y-up space (X stays, Y=Z_nif, Z=-Y_nif). The deltas
+/// are converted to Y-up before application.
+/// </summary>
+public class BodySlideDeformer
+{
+    private readonly Logger _logger;
+
+    public BodySlideDeformer(Logger logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Applies BodySlide deformations to mesh positions in-place.
+    /// </summary>
+    /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
+    /// <param name="preset">The BodySlide preset containing slider names and Big/Small values.</param>
+    /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
+    /// <param name="osdFiles">Parsed OSD files containing vertex deltas for this body type.</param>
+    /// <param name="shapeName">The target shape name to match against OSD file ShapeNames. If null, applies all OSD files.</param>
+    public void ApplyDeformation(
+        Vector3Collection positions,
+        BodySlideSetting preset,
+        int weight,
+        List<OsdFile> osdFiles,
+        string? shapeName = null)
+    {
+        if (positions == null || positions.Count == 0 || preset == null || osdFiles == null || osdFiles.Count == 0)
+        {
+            return;
+        }
+
+        weight = Math.Clamp(weight, 0, 100);
+
+        // Build a combined lookup: slider data name → vertex deltas
+        // from all OSD files matching the target shape
+        var sliderDeltaMap = BuildSliderDeltaMap(osdFiles, shapeName);
+
+        if (sliderDeltaMap.Count == 0)
+        {
+            _logger.LogMessage("CharacterViewer: No matching OSD slider data found for shape '" +
+                (shapeName ?? "(any)") + "'");
+            return;
+        }
+
+        int vertCount = positions.Count;
+        int slidersApplied = 0;
+        int vertsModified = 0;
+
+        // We need separate high/low accumulators for weight interpolation.
+        // Start from a copy of the original positions, accumulate Big diffs → high,
+        // Small diffs → low, then interpolate.
+        var deltasHigh = new SysVector3[vertCount]; // accumulated Big diffs (all start at zero)
+        var deltasLow = new SysVector3[vertCount];  // accumulated Small diffs
+
+        // Track which vertices were touched
+        var touchedVerts = new HashSet<int>();
+
+        foreach (var kvp in preset.SliderValues)
+        {
+            string sliderName = kvp.Key;
+            BodySlideSlider slider = kvp.Value;
+
+            if (slider.Big == 0 && slider.Small == 0)
+            {
+                continue;
+            }
+
+            if (!sliderDeltaMap.TryGetValue(sliderName, out var deltas))
+            {
+                continue;
+            }
+
+            float bigPercent = slider.Big / 100f;
+            float smallPercent = slider.Small / 100f;
+
+            foreach (var delta in deltas)
+            {
+                int vertIndex = delta.Key;
+                if (vertIndex >= vertCount)
+                {
+                    continue;
+                }
+
+                // Convert OSD delta from NIF Z-up to HelixToolkit Y-up:
+                // X stays, Y = Z_nif, Z = -Y_nif
+                SysVector3 nifDelta = delta.Value;
+                SysVector3 yUpDelta = new SysVector3(nifDelta.X, nifDelta.Z, -nifDelta.Y);
+
+                if (slider.Big != 0)
+                {
+                    deltasHigh[vertIndex] += yUpDelta * bigPercent;
+                }
+
+                if (slider.Small != 0)
+                {
+                    deltasLow[vertIndex] += yUpDelta * smallPercent;
+                }
+
+                touchedVerts.Add(vertIndex);
+            }
+
+            slidersApplied++;
+        }
+
+        if (touchedVerts.Count == 0)
+        {
+            _logger.LogMessage("CharacterViewer: BodySlide preset '" + preset.Label +
+                "' matched 0 vertices (no slider data overlap)");
+            return;
+        }
+
+        // Apply weight interpolation:
+        // final = (basePos + deltasHigh) * (weight/100) + (basePos + deltasLow) * ((100-weight)/100)
+        //       = basePos + deltasHigh * (weight/100) + deltasLow * ((100-weight)/100)
+        float weightHigh = weight / 100f;
+        float weightLow = (100 - weight) / 100f;
+
+        foreach (int vi in touchedVerts)
+        {
+            SysVector3 combinedDelta = deltasHigh[vi] * weightHigh + deltasLow[vi] * weightLow;
+            SysVector3 original = positions[vi];
+            positions[vi] = original + combinedDelta;
+        }
+
+        vertsModified = touchedVerts.Count;
+
+        _logger.LogMessage("CharacterViewer: Applied preset '" + preset.Label +
+            "' (" + slidersApplied + " sliders, " + vertsModified + " vertices modified, weight=" + weight + ")");
+    }
+
+    /// <summary>
+    /// Recalculates face normals after deformation. Computes area-weighted
+    /// vertex normals from triangle face normals.
+    /// </summary>
+    public static void RecalculateNormals(Vector3Collection positions, IntCollection indices, Vector3Collection normals)
+    {
+        if (positions == null || indices == null || normals == null)
+        {
+            return;
+        }
+
+        int vertCount = positions.Count;
+
+        // Zero out all normals
+        for (int i = 0; i < vertCount; i++)
+        {
+            normals[i] = SysVector3.Zero;
+        }
+
+        // Accumulate face normals (area-weighted via cross product magnitude)
+        for (int i = 0; i + 2 < indices.Count; i += 3)
+        {
+            int i0 = indices[i];
+            int i1 = indices[i + 1];
+            int i2 = indices[i + 2];
+
+            if (i0 >= vertCount || i1 >= vertCount || i2 >= vertCount)
+            {
+                continue;
+            }
+
+            SysVector3 v0 = positions[i0];
+            SysVector3 v1 = positions[i1];
+            SysVector3 v2 = positions[i2];
+
+            SysVector3 edge1 = v1 - v0;
+            SysVector3 edge2 = v2 - v0;
+            SysVector3 faceNormal = SysVector3.Cross(edge1, edge2);
+
+            // The cross product magnitude is proportional to triangle area,
+            // giving natural area-weighted normals
+            normals[i0] += faceNormal;
+            normals[i1] += faceNormal;
+            normals[i2] += faceNormal;
+        }
+
+        // Normalize
+        for (int i = 0; i < vertCount; i++)
+        {
+            SysVector3 n = normals[i];
+            float length = n.Length();
+            normals[i] = length > 1e-8f ? n / length : SysVector3.UnitY;
+        }
+    }
+
+    /// <summary>
+    /// Builds a combined lookup of slider data name → vertex deltas from all
+    /// matching OSD files. OSD files are matched by ShapeName if specified.
+    /// Uses case-insensitive key matching for slider names.
+    /// </summary>
+    private Dictionary<string, Dictionary<ushort, SysVector3>> BuildSliderDeltaMap(
+        List<OsdFile> osdFiles, string? shapeName)
+    {
+        var map = new Dictionary<string, Dictionary<ushort, SysVector3>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var osd in osdFiles)
+        {
+            // If a shape name filter is specified, check if this OSD file's shape matches
+            if (shapeName != null &&
+                !osd.ShapeName.Contains(shapeName, StringComparison.OrdinalIgnoreCase) &&
+                !shapeName.Contains(osd.ShapeName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var slider in osd.Sliders)
+            {
+                // Later OSD files override earlier ones for the same slider name
+                map[slider.Name] = slider.VertexDeltas;
+            }
+        }
+
+        return map;
+    }
+}
