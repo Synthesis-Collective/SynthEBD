@@ -83,6 +83,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<UpdateHandler>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();
