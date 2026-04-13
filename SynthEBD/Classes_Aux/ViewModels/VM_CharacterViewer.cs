@@ -1,17 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media.Media3D;
 using HelixToolkit.Maths;
 using HelixToolkit.Wpf.SharpDX;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using HelixToolkit.SharpDX;
 using HxMeshGeometry3D = HelixToolkit.SharpDX.MeshGeometry3D;
+using MediaColor = System.Windows.Media.Color;
 
 namespace SynthEBD;
 
@@ -54,6 +57,11 @@ public class VM_CharacterViewer : VM
     private readonly Dictionary<string, MeshGeometryModel3D> _modelsByBodyPart = new();
 
     /// <summary>
+    /// Tracks first BuiltMesh per body part for MSN normal map resampling on overrides.
+    /// </summary>
+    private readonly Dictionary<string, NifMeshBuilder.BuiltMesh> _builtMeshesByBodyPart = new();
+
+    /// <summary>
     /// Cached built meshes (with original undeformed positions) for reapplying BodySlide without reloading.
     /// </summary>
     private readonly Dictionary<string, NifMeshBuilder.BuiltMesh> _cachedBodyMeshes = new();
@@ -72,7 +80,7 @@ public class VM_CharacterViewer : VM
         IEnvironmentStateProvider environmentProvider,
         Logger logger)
     {
-        _meshBuilder = new NifMeshBuilder();
+        _meshBuilder = new NifMeshBuilder(logger);
         _npcMeshResolver = npcMeshResolver;
         _textureLoader = textureLoader;
         _bodySlideDeformer = bodySlideDeformer;
@@ -113,6 +121,163 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public int NpcWeight { get; set; } = 50;
 
+    /// <summary>
+    /// Available texture loading strategies for the debug dropdown.
+    /// </summary>
+    public TextureLoadStrategy[] AvailableStrategies { get; } = Enum.GetValues<TextureLoadStrategy>();
+
+    /// <summary>
+    /// Currently selected texture loading strategy. Changing this reloads textures.
+    /// </summary>
+    public TextureLoadStrategy SelectedStrategy
+    {
+        get => _textureLoader.LoadStrategy;
+        set
+        {
+            if (_textureLoader.LoadStrategy != value)
+            {
+                _textureLoader.LoadStrategy = value;
+                _logger.LogMessage("CharacterViewer: Texture strategy changed to " + value);
+                ReapplyAllTextures();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Viewport background color, bound to Viewport3DX.BackgroundColor.
+    /// </summary>
+    public System.Windows.Media.Color BackgroundColor { get; set; } = System.Windows.Media.Color.FromRgb(105, 105, 105); // DimGray
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  LIGHTING CONTROLS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private double _ambientIntensity = 20;
+    /// <summary>Ambient light intensity 0–100. Default 20.</summary>
+    public double AmbientIntensity
+    {
+        get => _ambientIntensity;
+        set { _ambientIntensity = Math.Clamp(value, 0, 100); UpdateLightingColors(); }
+    }
+
+    private double _keyLightIntensity = 100;
+    /// <summary>Key (main directional) light intensity 0–100. Default 100.</summary>
+    public double KeyLightIntensity
+    {
+        get => _keyLightIntensity;
+        set { _keyLightIntensity = Math.Clamp(value, 0, 100); UpdateLightingColors(); }
+    }
+
+    private double _keyLightAzimuth = -30;
+    /// <summary>Key light horizontal angle in degrees. -180 to 180, 0 = front. Default -30 (slight left).</summary>
+    public double KeyLightAzimuth
+    {
+        get => _keyLightAzimuth;
+        set { _keyLightAzimuth = Math.Clamp(value, -180, 180); UpdateKeyLightDirection(); }
+    }
+
+    private double _keyLightElevation = -45;
+    /// <summary>Key light vertical angle in degrees. -90 (straight down) to 90 (straight up). Default -45.</summary>
+    public double KeyLightElevation
+    {
+        get => _keyLightElevation;
+        set { _keyLightElevation = Math.Clamp(value, -90, 90); UpdateKeyLightDirection(); }
+    }
+
+    // Computed colors/directions for XAML binding
+    public MediaColor AmbientLightColor { get; set; } = IntensityToGray(20);
+    public MediaColor KeyLightColor { get; set; } = IntensityToGray(100);
+    public MediaColor FillLightColor { get; set; } = IntensityToGray(38); // ~38% of key
+    public MediaColor RimLightColor { get; set; } = IntensityToGray(25);  // ~25% of key
+    public Vector3D KeyLightDirection { get; set; } = AzElToDirection(-30, -45);
+    public Vector3D FillLightDirection { get; set; } = new Vector3D(0.5, 0.3, 1);
+    public Vector3D RimLightDirection { get; set; } = new Vector3D(0, 0.5, -1);
+
+    private static MediaColor IntensityToGray(double intensity)
+    {
+        byte v = (byte)Math.Clamp(intensity * 2.55, 0, 255);
+        return MediaColor.FromRgb(v, v, v);
+    }
+
+    private static Vector3D AzElToDirection(double azimuthDeg, double elevationDeg)
+    {
+        double az = azimuthDeg * Math.PI / 180.0;
+        double el = elevationDeg * Math.PI / 180.0;
+        return new Vector3D(
+            Math.Cos(el) * Math.Sin(az),
+            Math.Sin(el),
+            Math.Cos(el) * Math.Cos(az));
+    }
+
+    private void UpdateLightingColors()
+    {
+        AmbientLightColor = IntensityToGray(_ambientIntensity);
+        KeyLightColor = IntensityToGray(_keyLightIntensity);
+        FillLightColor = IntensityToGray(_keyLightIntensity * 0.38);
+        RimLightColor = IntensityToGray(_keyLightIntensity * 0.25);
+    }
+
+    private void UpdateKeyLightDirection()
+    {
+        KeyLightDirection = AzElToDirection(_keyLightAzimuth, _keyLightElevation);
+    }
+
+    /// <summary>
+    /// Logs current lighting settings so the user can record good defaults.
+    /// </summary>
+    public void LogLightingSettings()
+    {
+        _logger.LogMessage($"CharacterViewer: LIGHTING — Ambient={_ambientIntensity:F0}%, " +
+            $"KeyLight={_keyLightIntensity:F0}%, Azimuth={_keyLightAzimuth:F0}°, Elevation={_keyLightElevation:F0}°");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TEXTURE BENCHMARK
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Benchmarks all three texture loading strategies by timing ReapplyAllTextures for each.
+    /// Returns results via StatusText and logger.
+    /// </summary>
+    public void BenchmarkTextureStrategies()
+    {
+        if (MeshModels.Count == 0 || _builtMeshesByBodyPart.Count == 0)
+        {
+            StatusText = "Load an NPC first before benchmarking";
+            return;
+        }
+
+        var results = new List<(TextureLoadStrategy Strategy, long Ms)>();
+        var originalStrategy = _textureLoader.LoadStrategy;
+
+        foreach (var strategy in Enum.GetValues<TextureLoadStrategy>())
+        {
+            _textureLoader.LoadStrategy = strategy;
+
+            // Warm up once
+            ReapplyAllTextures();
+
+            // Timed run
+            var sw = Stopwatch.StartNew();
+            const int iterations = 3;
+            for (int i = 0; i < iterations; i++)
+                ReapplyAllTextures();
+            sw.Stop();
+
+            long avgMs = sw.ElapsedMilliseconds / iterations;
+            results.Add((strategy, avgMs));
+            _logger.LogMessage($"CharacterViewer: BENCHMARK — {strategy}: {avgMs}ms avg over {iterations} iterations");
+        }
+
+        // Restore original strategy
+        _textureLoader.LoadStrategy = originalStrategy;
+        ReapplyAllTextures();
+
+        var summary = string.Join(" | ", results.Select(r => $"{r.Strategy}: {r.Ms}ms"));
+        StatusText = "Benchmark: " + summary;
+        _logger.LogMessage("CharacterViewer: BENCHMARK RESULTS — " + summary);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  LOADING — Single NIF
     // ═══════════════════════════════════════════════════════════════════════
@@ -124,6 +289,7 @@ public class VM_CharacterViewer : VM
     {
         IsLoading = true;
         StatusText = "Loading...";
+        _logger.LogMessage("CharacterViewer: LoadNifAsync starting for '" + nifPath + "'");
 
         try
         {
@@ -138,11 +304,12 @@ public class VM_CharacterViewer : VM
             StatusText = meshes.Count > 0
                 ? $"Loaded {meshes.Count} shape(s) from {Path.GetFileName(nifPath)}"
                 : "No renderable shapes found";
+            _logger.LogMessage("CharacterViewer: LoadNifAsync completed — " + meshes.Count + " shapes");
         }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
-            _logger.LogMessage($"CharacterViewer: Failed to load {nifPath}: {ex}");
+            _logger.LogError("CharacterViewer: Failed to load " + nifPath + ": " + ex);
         }
         finally
         {
@@ -211,17 +378,71 @@ public class VM_CharacterViewer : VM
             {
                 ClearScene();
                 _modelsByBodyPart.Clear();
+                _builtMeshesByBodyPart.Clear();
                 _cachedBodyMeshes.Clear();
 
                 int totalShapes = 0;
+                int msnShapes = 0;
                 foreach (var (bodyPart, meshes) in loadResults)
                 {
+                    // Log full resolution chain for each texture slot
+                    string? chainPrefix = meshPaths.ResolutionChains.TryGetValue(bodyPart, out var chain) ? chain : null;
+
                     foreach (var built in meshes)
                     {
+                        if (chainPrefix != null)
+                        {
+                            foreach (var (slot, texPath) in built.TexturePaths)
+                            {
+                                string slotName = slot switch
+                                {
+                                    0 => "Diffuse", 1 => "Normal", 2 => "Glow/Detail",
+                                    3 => "Height", 7 => "Specular", _ => "Slot" + slot
+                                };
+                                _logger.LogMessage("CharacterViewer: Resolution: " + chainPrefix +
+                                    " → Shape:" + built.ShapeName + " → " + slotName + ": " + texPath);
+                            }
+                        }
+
                         var model = CreateModelFromMesh(built);
 
-                        // Apply textures from NIF
+                        // Apply diffuse textures from NIF
                         _textureLoader.ApplyTexturesToModel(model, built.TexturePaths);
+
+                        // Verify material identity — is model.Material the same object we modified?
+                        if (model.Material is PhongMaterial matCheck)
+                        {
+                            var coreCheck = matCheck.Core as HelixToolkit.SharpDX.Model.PhongMaterialCore;
+                            _logger.LogMessage("CharacterViewer: Pre-add DIAG — model.Material.DiffuseMap=" +
+                                (matCheck.DiffuseMap != null ? "SET" : "NULL") +
+                                ", Core.DiffuseMap=" +
+                                (coreCheck?.DiffuseMap != null ? "SET" : "NULL") +
+                                ", DiffuseColor=" + matCheck.DiffuseColor.ToString() +
+                                ", RenderDiffuseMap=" + matCheck.RenderDiffuseMap.ToString());
+                        }
+
+                        // Apply MSN normal maps: sample texture at vertex UVs and replace vertex normals
+                        if (built.IsModelSpaceNormals &&
+                            built.TexturePaths.TryGetValue(1, out string? normalMapPath) &&
+                            model.Geometry is HxMeshGeometry3D geo)
+                        {
+                            _logger.LogMessage("CharacterViewer: Shape '" + built.ShapeName +
+                                "' is MSN — sampling normal map '" + normalMapPath + "'");
+                            var msnNormals = _textureLoader.SampleMsnNormalsAtVertices(
+                                normalMapPath, built.TextureCoordinates);
+                            if (msnNormals != null)
+                            {
+                                geo.Normals = msnNormals;
+                                msnShapes++;
+                                _logger.LogMessage("CharacterViewer: Applied MSN normals to '" +
+                                    built.ShapeName + "' (" + msnNormals.Count + " vertices)");
+                            }
+                            else
+                            {
+                                _logger.LogMessage("CharacterViewer: MSN sampling failed for '" +
+                                    built.ShapeName + "', keeping geometry normals");
+                            }
+                        }
 
                         MeshModels.Add(model);
 
@@ -229,6 +450,12 @@ public class VM_CharacterViewer : VM
                         if (!_modelsByBodyPart.ContainsKey(bodyPart))
                         {
                             _modelsByBodyPart[bodyPart] = model;
+                        }
+
+                        // Track built mesh per body part for override resampling
+                        if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                        {
+                            _builtMeshesByBodyPart[bodyPart] = built;
                         }
 
                         // Cache body mesh for BodySlide reapplication
@@ -241,9 +468,11 @@ public class VM_CharacterViewer : VM
                     }
                 }
 
+                string msnInfo = msnShapes > 0 ? $", {msnShapes} MSN normal map(s) applied" : "";
                 StatusText = totalShapes > 0
-                    ? $"Loaded {totalShapes} shape(s) for NPC"
+                    ? $"Loaded {totalShapes} shape(s) for NPC{msnInfo}"
                     : "No renderable shapes found for NPC";
+                _logger.LogMessage("CharacterViewer: Scene loaded — " + totalShapes + " shapes" + msnInfo);
             });
         }
         catch (OperationCanceledException)
@@ -270,16 +499,65 @@ public class VM_CharacterViewer : VM
 
     /// <summary>
     /// Applies texture overrides from forced subgroup FilePathReplacement entries
-    /// to the appropriate mesh models and texture slots.
+    /// to the appropriate mesh models and texture slots. For normal map overrides
+    /// on MSN shapes, resamples vertex normals from the new texture.
     /// </summary>
     public void ApplyTextureOverrides(IEnumerable<FilePathReplacement> overrides)
     {
         if (_modelsByBodyPart.Count == 0)
         {
+            _logger.LogMessage("CharacterViewer: ApplyTextureOverrides called but no models loaded");
             return;
         }
 
-        _textureLoader.ApplyTextureOverrides(_modelsByBodyPart, overrides);
+        _textureLoader.ApplyTextureOverrides(_modelsByBodyPart, overrides, _builtMeshesByBodyPart);
+    }
+
+    /// <summary>
+    /// Reapplies diffuse textures to all loaded models using the current texture loading strategy.
+    /// Called when <see cref="SelectedStrategy"/> changes.
+    /// </summary>
+    private void ReapplyAllTextures()
+    {
+        if (MeshModels.Count == 0) return;
+
+        _logger.LogMessage("CharacterViewer: Reapplying textures with strategy " + _textureLoader.LoadStrategy);
+
+        // Rebuild _modelsByBodyPart if needed — reapply from cached built meshes
+        foreach (var model in MeshModels)
+        {
+            // Find the matching built mesh by matching vertex count
+            NifMeshBuilder.BuiltMesh? matchingMesh = null;
+            foreach (var kvp in _builtMeshesByBodyPart)
+            {
+                if (_modelsByBodyPart.TryGetValue(kvp.Key, out var partModel) && partModel == model)
+                {
+                    matchingMesh = kvp.Value;
+                    break;
+                }
+            }
+
+            // Also check cached body meshes
+            if (matchingMesh == null)
+            {
+                foreach (var kvp in _cachedBodyMeshes)
+                {
+                    if (model.Geometry is HxMeshGeometry3D geo &&
+                        geo.Positions?.Count == kvp.Value.Positions.Count)
+                    {
+                        matchingMesh = kvp.Value;
+                        break;
+                    }
+                }
+            }
+
+            if (matchingMesh != null && matchingMesh.TexturePaths.Count > 0)
+            {
+                _textureLoader.ApplyTexturesToModel(model, matchingMesh.TexturePaths);
+            }
+        }
+
+        StatusText = "Textures reloaded (" + _textureLoader.LoadStrategy + ")";
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -362,6 +640,7 @@ public class VM_CharacterViewer : VM
             model.Dispose();
         MeshModels.Clear();
         _modelsByBodyPart.Clear();
+        _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();
         _cachedOsdFiles = null;
     }
@@ -413,7 +692,7 @@ public class VM_CharacterViewer : VM
             DiffuseColor = new Color4(0.8f, 0.75f, 0.7f, 1.0f),
             SpecularColor = new Color4(0.2f, 0.2f, 0.2f, 1.0f),
             SpecularShininess = 20f,
-            AmbientColor = new Color4(0.15f, 0.15f, 0.15f, 1.0f),
+            AmbientColor = new Color4(0.1f, 0.1f, 0.1f, 1.0f),
         };
 
         return new MeshGeometryModel3D
@@ -428,7 +707,25 @@ public class VM_CharacterViewer : VM
     {
         foreach (var built in meshes)
         {
-            MeshModels.Add(CreateModelFromMesh(built));
+            var model = CreateModelFromMesh(built);
+
+            // Apply textures
+            _textureLoader.ApplyTexturesToModel(model, built.TexturePaths);
+
+            // Apply MSN normals if applicable
+            if (built.IsModelSpaceNormals &&
+                built.TexturePaths.TryGetValue(1, out string? normalMapPath) &&
+                model.Geometry is HxMeshGeometry3D geo)
+            {
+                var msnNormals = _textureLoader.SampleMsnNormalsAtVertices(
+                    normalMapPath, built.TextureCoordinates);
+                if (msnNormals != null)
+                {
+                    geo.Normals = msnNormals;
+                }
+            }
+
+            MeshModels.Add(model);
         }
     }
 

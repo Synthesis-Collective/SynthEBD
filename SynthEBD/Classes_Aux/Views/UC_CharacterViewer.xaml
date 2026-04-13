@@ -15,13 +15,113 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Toolbar row 1: Texture & Background -->
+        <Border Grid.Row="0" Background="#FF2A2A2A" Padding="6 3">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Texture Strategy:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox ItemsSource="{Binding AvailableStrategies}"
+                          SelectedItem="{Binding SelectedStrategy}"
+                          Width="120" FontSize="11" VerticalAlignment="Center"/>
+
+                <TextBlock Text="Background:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,5,0"/>
+                <ComboBox x:Name="BgColorCombo" Width="110" FontSize="11" VerticalAlignment="Center"
+                          SelectionChanged="BgColorCombo_SelectionChanged" SelectedIndex="0">
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FF696969" Margin="0,0,5,0"/>
+                            <TextBlock Text="Dim Gray"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FF333333" Margin="0,0,5,0"/>
+                            <TextBlock Text="Dark Gray"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FF000000" Margin="0,0,5,0"/>
+                            <TextBlock Text="Black"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FFFFFFFF" Margin="0,0,5,0"/>
+                            <TextBlock Text="White"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FF4A6A8A" Margin="0,0,5,0"/>
+                            <TextBlock Text="Steel Blue"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                    <ComboBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <Rectangle Width="14" Height="14" Fill="#FF2D5A27" Margin="0,0,5,0"/>
+                            <TextBlock Text="Forest"/>
+                        </StackPanel>
+                    </ComboBoxItem>
+                </ComboBox>
+
+                <Button Content="Benchmark Textures" FontSize="11" Margin="15,0,0,0"
+                        Padding="8 2" VerticalAlignment="Center"
+                        Click="BenchmarkButton_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Toolbar row 2: Lighting controls -->
+        <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 2" BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Ambient:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <Slider x:Name="AmbientSlider" Width="80" Minimum="0" Maximum="100"
+                        Value="{Binding AmbientIntensity}" VerticalAlignment="Center"
+                        SmallChange="1" LargeChange="10"/>
+                <TextBlock Text="{Binding AmbientIntensity, StringFormat={}{0:F0}%}"
+                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                <TextBlock Text="Key Light:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <Slider Width="80" Minimum="0" Maximum="100"
+                        Value="{Binding KeyLightIntensity}" VerticalAlignment="Center"
+                        SmallChange="1" LargeChange="10"/>
+                <TextBlock Text="{Binding KeyLightIntensity, StringFormat={}{0:F0}%}"
+                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                <TextBlock Text="Azimuth:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <Slider Width="80" Minimum="-180" Maximum="180"
+                        Value="{Binding KeyLightAzimuth}" VerticalAlignment="Center"
+                        SmallChange="1" LargeChange="15"/>
+                <TextBlock Text="{Binding KeyLightAzimuth, StringFormat={}{0:F0}°}"
+                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                <TextBlock Text="Elevation:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <Slider Width="80" Minimum="-90" Maximum="90"
+                        Value="{Binding KeyLightElevation}" VerticalAlignment="Center"
+                        SmallChange="1" LargeChange="15"/>
+                <TextBlock Text="{Binding KeyLightElevation, StringFormat={}{0:F0}°}"
+                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
+                        Padding="6 1" VerticalAlignment="Center"
+                        Click="LogLightingButton_Click"/>
+            </WrapPanel>
+        </Border>
+
         <!-- 3D Viewport -->
         <hx:Viewport3DX
-            Grid.Row="0"
+            Grid.Row="2"
             x:Name="Viewport"
             EffectsManager="{Binding EffectsManager}"
             BackgroundColor="DimGray"
@@ -34,22 +134,23 @@
             <!-- Camera -->
             <hx:Viewport3DX.Camera>
                 <hx:PerspectiveCamera
-                    Position="0,100,300"
-                    LookDirection="0,-0.2,-1"
+                    Position="0,100,-300"
+                    LookDirection="0,-0.2,1"
                     UpDirection="0,1,0"
                     FieldOfView="45"
                     NearPlaneDistance="1"
                     FarPlaneDistance="10000"/>
             </hx:Viewport3DX.Camera>
 
-            <!-- Lighting: 3-point setup -->
-            <hx:AmbientLight3D Color="#4D4D4D"/>
-            <hx:DirectionalLight3D Color="#D9D9D9" Direction="-0.5,-1,-0.5"/>
-            <hx:DirectionalLight3D Color="#40404D" Direction="0.5,0.5,1"/>
+            <!-- Lighting: bound to VM for live adjustment -->
+            <hx:AmbientLight3D Color="{Binding AmbientLightColor}"/>
+            <hx:DirectionalLight3D Color="{Binding KeyLightColor}" Direction="{Binding KeyLightDirection}"/>
+            <hx:DirectionalLight3D Color="{Binding FillLightColor}" Direction="{Binding FillLightDirection}"/>
+            <hx:DirectionalLight3D Color="{Binding RimLightColor}" Direction="{Binding RimLightDirection}"/>
         </hx:Viewport3DX>
 
         <!-- Loading overlay -->
-        <Border Grid.Row="0"
+        <Border Grid.Row="2"
                 Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Stretch"
@@ -62,7 +163,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="3"
                 Background="#FF333333"
                 Padding="6 3">
             <TextBlock Text="{Binding StatusText}"

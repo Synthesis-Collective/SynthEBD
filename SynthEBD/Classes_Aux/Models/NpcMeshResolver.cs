@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -29,6 +30,13 @@ public class NpcMeshResolver
         public string? FeetMeshPath { get; init; }
         public string? HeadMeshPath { get; init; }
         public Gender Gender { get; init; }
+
+        /// <summary>
+        /// Maps body part name ("Body", "Hands", "Feet", "Head") to a human-readable
+        /// string describing the record traversal chain used to resolve its mesh path.
+        /// E.g. "NPC:Astrid → WornArmor:000D2B5A → Armature(Body):000D2B5B → Female → femalebody_1.nif"
+        /// </summary>
+        public Dictionary<string, string> ResolutionChains { get; init; } = new();
     }
 
     /// <summary>
@@ -50,11 +58,13 @@ public class NpcMeshResolver
         _logger.LogMessage("CharacterViewer: Resolving NPC " + npcName + " (" + npcFormKey + ")");
 
         // Resolve the armor providing skin meshes (WornArmor, or Race.Skin fallback)
-        IArmorGetter? armorGetter = ResolveWornArmor(npcGetter, linkCache, npcName);
+        var (armorGetter, armorSource) = ResolveWornArmor(npcGetter, linkCache, npcName);
 
         string? bodyPath = null;
         string? handsPath = null;
         string? feetPath = null;
+        var chains = new Dictionary<string, string>();
+        string genderLabel = gender == Gender.Female ? "Female" : "Male";
 
         if (armorGetter?.Armature != null)
         {
@@ -78,21 +88,29 @@ public class NpcMeshResolver
                     continue;
                 }
 
+                string meshFileName = Path.GetFileName(meshPath);
+
                 if (bodyPath == null && flags.HasFlag(BipedObjectFlag.Body))
                 {
                     bodyPath = meshPath;
+                    chains["Body"] = npcName + " → " + armorSource + " → Armature(Body):" + armaLink.FormKey +
+                        " → " + genderLabel + " → " + meshFileName;
                     _logger.LogMessage("CharacterViewer: Armature[Body]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                 }
 
                 if (handsPath == null && flags.HasFlag(BipedObjectFlag.Hands))
                 {
                     handsPath = meshPath;
+                    chains["Hands"] = npcName + " → " + armorSource + " → Armature(Hands):" + armaLink.FormKey +
+                        " → " + genderLabel + " → " + meshFileName;
                     _logger.LogMessage("CharacterViewer: Armature[Hands]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                 }
 
                 if (feetPath == null && flags.HasFlag(BipedObjectFlag.Feet))
                 {
                     feetPath = meshPath;
+                    chains["Feet"] = npcName + " → " + armorSource + " → Armature(Feet):" + armaLink.FormKey +
+                        " → " + genderLabel + " → " + meshFileName;
                     _logger.LogMessage("CharacterViewer: Armature[Feet]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                 }
             }
@@ -100,6 +118,7 @@ public class NpcMeshResolver
 
         // FaceGen NIF: meshes/actors/character/FaceGenData/FaceGeom/{plugin}/{formID}.nif
         string headPath = BuildFaceGenPath(npcFormKey);
+        chains["Head"] = npcName + " → FaceGen → " + Path.GetFileName(headPath);
         _logger.LogMessage("CharacterViewer: FaceGen head mesh=" + headPath);
 
         return new NpcMeshPaths
@@ -108,18 +127,19 @@ public class NpcMeshResolver
             HandsMeshPath = handsPath,
             FeetMeshPath = feetPath,
             HeadMeshPath = headPath,
-            Gender = gender
+            Gender = gender,
+            ResolutionChains = chains
         };
     }
 
-    private IArmorGetter? ResolveWornArmor(INpcGetter npcGetter, ILinkCache linkCache, string npcName)
+    private (IArmorGetter? armor, string source) ResolveWornArmor(INpcGetter npcGetter, ILinkCache linkCache, string npcName)
     {
         // Primary: NPC.WornArmor
         if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull &&
             linkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
         {
             _logger.LogMessage("CharacterViewer: WornArmor=" + npcGetter.WornArmor.FormKey);
-            return armorGetter;
+            return (armorGetter, "WornArmor:" + npcGetter.WornArmor.FormKey);
         }
 
         // Fallback: Race.Skin
@@ -129,11 +149,11 @@ public class NpcMeshResolver
             linkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var raceSkinArmor))
         {
             _logger.LogMessage("CharacterViewer: No WornArmor for " + npcName + ", falling back to Race.Skin=" + raceGetter.Skin.FormKey);
-            return raceSkinArmor;
+            return (raceSkinArmor, "Race.Skin:" + raceGetter.Skin.FormKey);
         }
 
         _logger.LogMessage("CharacterViewer: No WornArmor or Race.Skin found for " + npcName);
-        return null;
+        return (null, "(none)");
     }
 
     private static string? GetWorldModelPath(IArmorAddonGetter armaGetter, Gender gender)

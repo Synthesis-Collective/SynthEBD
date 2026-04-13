@@ -4,6 +4,8 @@ using HelixToolkit;
 using nifly;
 using SysVector2 = System.Numerics.Vector2;
 using SysVector3 = System.Numerics.Vector3;
+using NiHeader = nifly.NiHeader;
+using NiObject = nifly.NiObject;
 
 namespace SynthEBD;
 
@@ -13,6 +15,12 @@ namespace SynthEBD;
 /// </summary>
 public class NifMeshBuilder
 {
+    private readonly Logger _logger;
+
+    public NifMeshBuilder(Logger logger)
+    {
+        _logger = logger;
+    }
     /// <summary>
     /// Result of building a single NIF shape into renderable data.
     /// </summary>
@@ -29,7 +37,22 @@ public class NifMeshBuilder
         /// Slot 0 = diffuse, 1 = normal, 2 = glow/skin tint, 7 = specular, etc.
         /// </summary>
         public Dictionary<int, string> TexturePaths { get; init; } = new();
+
+        /// <summary>
+        /// True if this shape's BSLightingShaderProperty has the SLSF1_Model_Space_Normals
+        /// flag set (bit 28 of shaderFlags1). MSN textures encode normals in the mesh's
+        /// model coordinate space rather than tangent space.
+        /// </summary>
+        public bool IsModelSpaceNormals { get; init; }
     }
+
+    /// <summary>
+    /// Bit 12 of BSLightingShaderProperty.shaderFlags1 — SLSF1_Model_Space_Normals.
+    /// The NPC Portrait Creator's ParseShaderFlags incorrectly mapped this to bit 28,
+    /// but its actual detection used nifly's NiShader::IsModelSpace() which checks bit 12.
+    /// Verified: skin shapes have shaderFlags1=0x82601303, and 0x1303 has bit 12 set.
+    /// </summary>
+    private const uint SLSF1_ModelSpaceNormals = 1u << 12;
 
     /// <summary>
     /// Loads all renderable shapes from a NIF file and converts them to HelixToolkit geometry.
@@ -178,7 +201,51 @@ public class NifMeshBuilder
                 texturePaths[(int)slot] = texPath;
         }
 
+        // Extract shader flags to detect model-space normals
+        bool isModelSpaceNormals = false;
+        try
+        {
+            NiHeader header = nif.GetHeader();
+            NiBlockRefNiShader shaderRef = shape.ShaderPropertyRef();
+            if (shaderRef != null && !shaderRef.IsEmpty())
+            {
+                NiObject shaderObj = header.GetBlockById(shaderRef.index);
+                if (shaderObj is BSLightingShaderProperty bslsp)
+                {
+                    isModelSpaceNormals = (bslsp.shaderFlags1 & SLSF1_ModelSpaceNormals) != 0;
+                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
+                        "' shaderFlags1=0x" + bslsp.shaderFlags1.ToString("X8") +
+                        " shaderType=" + bslsp.bslspShaderType +
+                        " isModelSpaceNormals=" + isModelSpaceNormals);
+                }
+                else
+                {
+                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
+                        "' shader is not BSLightingShaderProperty (type: " +
+                        (shaderObj?.GetType().Name ?? "null") + ")");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage("CharacterViewer: Could not read shader flags for shape '" +
+                (shape.name?.get() ?? "?") + "': " + ex.Message);
+        }
+
+        // If normals are all zero (missing or unreadable), compute from geometry
+        if (AreNormalsAllZero(normals))
+        {
+            _logger.LogMessage("CharacterViewer: Normals all zero for shape '" +
+                (shape.name?.get() ?? "?") + "', computing from geometry");
+            ComputeNormalsFromGeometry(positions, indices, normals);
+        }
+
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Count}v";
+
+        _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
+            "': " + positions.Count + " verts, " + (indices.Count / 3) + " tris" +
+            ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
+            ", MSN=" + isModelSpaceNormals);
 
         return new BuiltMesh
         {
@@ -187,7 +254,8 @@ public class NifMeshBuilder
             Indices = indices,
             TextureCoordinates = uvs,
             ShapeName = shapeName,
-            TexturePaths = texturePaths
+            TexturePaths = texturePaths,
+            IsModelSpaceNormals = isModelSpaceNormals
         };
     }
 
@@ -232,5 +300,52 @@ public class NifMeshBuilder
     {
         const float eps = 0.0001f;
         return Math.Abs(v.x) < eps && Math.Abs(v.y) < eps && Math.Abs(v.z) < eps;
+    }
+
+    private static bool AreNormalsAllZero(Vector3Collection normals)
+    {
+        const float eps = 0.0001f;
+        foreach (var n in normals)
+        {
+            if (Math.Abs(n.X) > eps || Math.Abs(n.Y) > eps || Math.Abs(n.Z) > eps)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Computes smooth vertex normals by averaging face normals of adjacent triangles.
+    /// </summary>
+    private static void ComputeNormalsFromGeometry(Vector3Collection positions, IntCollection indices,
+        Vector3Collection normals)
+    {
+        // Zero out existing normals
+        for (int i = 0; i < normals.Count; i++)
+            normals[i] = SysVector3.Zero;
+
+        // Accumulate face normals onto vertices
+        for (int i = 0; i < indices.Count; i += 3)
+        {
+            int i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+            var v0 = positions[i0];
+            var v1 = positions[i1];
+            var v2 = positions[i2];
+
+            var edge1 = v1 - v0;
+            var edge2 = v2 - v0;
+            var faceNormal = SysVector3.Cross(edge1, edge2);
+
+            normals[i0] += faceNormal;
+            normals[i1] += faceNormal;
+            normals[i2] += faceNormal;
+        }
+
+        // Normalize
+        for (int i = 0; i < normals.Count; i++)
+        {
+            var n = normals[i];
+            float len = n.Length();
+            normals[i] = len > 0.0001f ? n / len : new SysVector3(0, 1, 0);
+        }
     }
 }

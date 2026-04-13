@@ -71,4 +71,32 @@ public partial class UC_CharacterViewer : UserControl
                 Viewport.Items.RemoveAt(i);
         }
     }
+
+    private static readonly System.Windows.Media.Color[] BgColors =
+    {
+        System.Windows.Media.Color.FromRgb(105, 105, 105), // Dim Gray
+        System.Windows.Media.Color.FromRgb(51, 51, 51),    // Dark Gray
+        System.Windows.Media.Color.FromRgb(0, 0, 0),       // Black
+        System.Windows.Media.Color.FromRgb(255, 255, 255), // White
+        System.Windows.Media.Color.FromRgb(74, 106, 138),  // Steel Blue
+        System.Windows.Media.Color.FromRgb(45, 90, 39),    // Forest
+    };
+
+    private void BgColorCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (Viewport != null && BgColorCombo.SelectedIndex >= 0 && BgColorCombo.SelectedIndex < BgColors.Length)
+        {
+            Viewport.BackgroundColor = BgColors[BgColorCombo.SelectedIndex];
+        }
+    }
+
+    private void BenchmarkButton_Click(object sender, RoutedEventArgs e)
+    {
+        (_vm ?? DataContext as VM_CharacterViewer)?.BenchmarkTextureStrategies();
+    }
+
+    private void LogLightingButton_Click(object sender, RoutedEventArgs e)
+    {
+        (_vm ?? DataContext as VM_CharacterViewer)?.LogLightingSettings();
+    }
 }
