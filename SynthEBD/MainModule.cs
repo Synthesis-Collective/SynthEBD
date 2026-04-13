@@ -85,6 +85,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         builder.RegisterType<NifTextureLoader>().AsSelf().SingleInstance();
+        builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
+        builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_CharacterViewer>().AsSelf();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();
