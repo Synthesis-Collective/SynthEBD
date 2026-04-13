@@ -16,8 +16,15 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:MaxHeightConverter x:Key="MaxHeightConverter"/>
     </UserControl.Resources>
-    <ScrollViewer>
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Column 0: Existing assignment controls -->
+        <ScrollViewer Grid.Column="0">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="*"/>
@@ -342,6 +349,37 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+        </Grid>
+        </ScrollViewer>
+
+        <!-- Column 1: 3D Character Viewer (collapsible) -->
+        <Border Grid.Column="1" Width="350" BorderBrush="#5844b4" BorderThickness="1 0 0 0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <ToggleButton Grid.Row="0" x:Name="ViewerToggle" IsChecked="True"
+                              HorizontalAlignment="Stretch" Padding="4 2"
+                              Background="#FF333333" Foreground="White" BorderThickness="0">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton">
+                            <Setter Property="Content" Value="▼ 3D Preview"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter Property="Content" Value="► 3D Preview"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ToggleButton.Style>
+                </ToggleButton>
+
+                <local:UC_CharacterViewer Grid.Row="1"
+                                          DataContext="{Binding CharacterViewer}"
+                                          MinHeight="400"
+                                          Visibility="{Binding IsChecked, ElementName=ViewerToggle, Converter={StaticResource BoolToVis}}"/>
+            </Grid>
+        </Border>
     </Grid>
-    </ScrollViewer>
 </UserControl>
