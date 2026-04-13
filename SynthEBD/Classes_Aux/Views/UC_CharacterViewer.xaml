@@ -23,6 +23,7 @@
         <hx:Viewport3DX
             Grid.Row="0"
             x:Name="Viewport"
+            EffectsManager="{Binding EffectsManager}"
             BackgroundColor="DimGray"
             ShowCoordinateSystem="True"
             CoordinateSystemLabelForeground="White"
@@ -32,7 +33,7 @@
 
             <!-- Camera -->
             <hx:Viewport3DX.Camera>
-                <PerspectiveCamera
+                <hx:PerspectiveCamera
                     Position="0,100,300"
                     LookDirection="0,-0.2,-1"
                     UpDirection="0,1,0"

@@ -10,6 +10,7 @@ using HelixToolkit.Maths;
 using HelixToolkit.Wpf.SharpDX;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using HelixToolkit.SharpDX;
 using HxMeshGeometry3D = HelixToolkit.SharpDX.MeshGeometry3D;
 
 namespace SynthEBD;
@@ -84,6 +85,11 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
     //  SCENE DATA
     // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// HelixToolkit rendering pipeline — must be bound to Viewport3DX.EffectsManager.
+    /// </summary>
+    public IEffectsManager EffectsManager { get; } = new DefaultEffectsManager();
 
     /// <summary>
     /// All mesh models currently displayed in the viewport.

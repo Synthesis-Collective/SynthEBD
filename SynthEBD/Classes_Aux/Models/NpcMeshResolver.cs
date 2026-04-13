@@ -153,7 +153,17 @@ public class NpcMeshResolver
         }
 
         string path = model.File.GivenPath;
-        return string.IsNullOrWhiteSpace(path) ? null : path;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        // WorldModel paths in NIF records are relative to Data\meshes\ but
+        // GameAssetResolver expects paths relative to Data\, so prepend "meshes\".
+        if (!path.StartsWith("meshes\\", StringComparison.OrdinalIgnoreCase) &&
+            !path.StartsWith("meshes/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = "meshes\\" + path;
+        }
+
+        return path;
     }
 
     private static string BuildFaceGenPath(FormKey formKey)
