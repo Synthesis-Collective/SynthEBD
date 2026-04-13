@@ -1,0 +1,72 @@
+<UserControl x:Class="SynthEBD.UC_CharacterViewer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+             mc:Ignorable="d"
+             d:DesignHeight="500" d:DesignWidth="600"
+             d:DataContext="{d:DesignInstance Type=local:VM_CharacterViewer}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 3D Viewport -->
+        <hx:Viewport3DX
+            Grid.Row="0"
+            x:Name="Viewport"
+            BackgroundColor="DimGray"
+            ShowCoordinateSystem="True"
+            CoordinateSystemLabelForeground="White"
+            ZoomExtentsWhenLoaded="True"
+            ShowFrameRate="False"
+            FXAALevel="Medium">
+
+            <!-- Camera -->
+            <hx:Viewport3DX.Camera>
+                <PerspectiveCamera
+                    Position="0,100,300"
+                    LookDirection="0,-0.2,-1"
+                    UpDirection="0,1,0"
+                    FieldOfView="45"
+                    NearPlaneDistance="1"
+                    FarPlaneDistance="10000"/>
+            </hx:Viewport3DX.Camera>
+
+            <!-- Lighting: 3-point setup -->
+            <hx:AmbientLight3D Color="#4D4D4D"/>
+            <hx:DirectionalLight3D Color="#D9D9D9" Direction="-0.5,-1,-0.5"/>
+            <hx:DirectionalLight3D Color="#40404D" Direction="0.5,0.5,1"/>
+        </hx:Viewport3DX>
+
+        <!-- Loading overlay -->
+        <Border Grid.Row="0"
+                Background="#80000000"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <TextBlock Text="Loading..."
+                       Foreground="White"
+                       FontSize="18"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="1"
+                Background="#FF333333"
+                Padding="6 3">
+            <TextBlock Text="{Binding StatusText}"
+                       Foreground="#FFCCCCCC"
+                       FontSize="11"/>
+        </Border>
+    </Grid>
+</UserControl>

@@ -233,6 +233,7 @@
     <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
     <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
     <PackageReference Include="gong-wpf-dragdrop" Version="4.0.0" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="3.1.2" />
     <PackageReference Include="Microsoft.ML" Version="3.0.0" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
     <PackageReference Include="Mutagen.Bethesda" Version="0.51.0" />
