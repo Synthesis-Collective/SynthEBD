@@ -44,6 +44,19 @@ public class NifMeshBuilder
         /// model coordinate space rather than tangent space.
         /// </summary>
         public bool IsModelSpaceNormals { get; init; }
+
+        /// <summary>
+        /// True if this shape uses the Greyscale-to-Palette hair tint shader
+        /// (BSLightingShaderProperty.bslspShaderType == BSLSP_HAIRTINT).
+        /// The diffuse texture is a greyscale mask that should be multiplied by the tint color.
+        /// </summary>
+        public bool IsHairTintShader { get; init; }
+
+        /// <summary>
+        /// Hair tint color from BSLightingShaderProperty.hairTintColor (RGB, 0–1 range).
+        /// Only valid when <see cref="IsHairTintShader"/> is true.
+        /// </summary>
+        public (float R, float G, float B)? HairTintColor { get; init; }
     }
 
     /// <summary>
@@ -65,16 +78,7 @@ public class NifMeshBuilder
         if (nif.Load(nifPath) != 0)
             return results;
 
-        using var shapes = nif.GetShapes();
-        for (int si = 0; si < shapes.Count; si++)
-        {
-            var shape = shapes[si];
-            var built = BuildShape(nif, shape);
-            if (built != null)
-                results.Add(built);
-        }
-
-        return results;
+        return BuildAllShapes(nif);
     }
 
     /// <summary>
@@ -83,13 +87,30 @@ public class NifMeshBuilder
     /// </summary>
     public List<BuiltMesh> BuildFromNif(NifFile nif)
     {
-        var results = new List<BuiltMesh>();
+        return BuildAllShapes(nif);
+    }
 
+    /// <summary>
+    /// Shared implementation: finds the primary head shape (if any), computes accessory
+    /// offset transforms, and builds all shapes with correct positioning.
+    /// </summary>
+    private List<BuiltMesh> BuildAllShapes(NifFile nif)
+    {
+        var results = new List<BuiltMesh>();
         using var shapes = nif.GetShapes();
+        if (shapes.Count == 0) return results;
+
+        // --- Pre-pass: Find the primary head shape for accessory positioning ---
+        // FaceGen NIFs contain a main face mesh plus accessories (brow, eyes, mouth, scars)
+        // that may have identity transforms with vertices near the origin. We detect the
+        // primary head (tallest mesh among head-partition shapes) and use its global transform
+        // to correctly position accessories that would otherwise appear at the feet.
+        var accessoryOffset = FindAccessoryOffset(nif, shapes);
+
         for (int si = 0; si < shapes.Count; si++)
         {
             var shape = shapes[si];
-            var built = BuildShape(nif, shape);
+            var built = BuildShape(nif, shape, accessoryOffset);
             if (built != null)
                 results.Add(built);
         }
@@ -97,7 +118,106 @@ public class NifMeshBuilder
         return results;
     }
 
-    private BuiltMesh? BuildShape(NifFile nif, NiShape shape)
+    /// <summary>
+    /// Skyrim head dismember partition IDs: SBP_30_HEAD, SBP_130_HEAD, SBP_230_HEAD.
+    /// </summary>
+    private static bool IsHeadDismemberPartition(ushort partId)
+    {
+        return partId == 30 || partId == 130 || partId == 230;
+    }
+
+    /// <summary>
+    /// Walks the NIF scene graph from an object up to the root, composing transforms
+    /// to get the object's transform in NIF root space (Z-up).
+    /// Equivalent to NPC Portrait Creator's GetAVObjectTransformToGlobal.
+    /// </summary>
+    private static MatTransform GetTransformToGlobal(NifFile nif, NiAVObject obj)
+    {
+        // GetTransformToParent returns a non-owning wrapper (cMemoryOwn=false),
+        // ComposeTransforms returns an owning copy (cMemoryOwn=true).
+        // Intermediate objects are small and will be cleaned up by the GC finalizer.
+        var result = obj.GetTransformToParent();
+        var parent = nif.GetParentNode(obj);
+
+        while (parent != null)
+        {
+            var parentXform = parent.GetTransformToParent();
+            result = parentXform.ComposeTransforms(result);
+            parent = nif.GetParentNode(parent);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Pre-pass to find the primary head shape's global transform for accessory positioning.
+    /// Returns null if no head shapes are found (e.g. body NIFs).
+    /// </summary>
+    private MatTransform? FindAccessoryOffset(NifFile nif, vectorNiShape shapes)
+    {
+        NiHeader header = nif.GetHeader();
+
+        // Collect head-partition candidate shapes with their local Z extent (height)
+        NiShape? primaryHead = null;
+        float primaryHeadHeight = -1f;
+
+        for (int si = 0; si < shapes.Count; si++)
+        {
+            var shape = shapes[si];
+            var skinRef = shape.SkinInstanceRef();
+            if (skinRef == null || skinRef.IsEmpty()) continue;
+
+            NiObject skinObj = header.GetBlockById(skinRef.index);
+            if (skinObj is not BSDismemberSkinInstance dismember) continue;
+
+            // Check if any partition is a head partition
+            bool isHeadCandidate = false;
+            using var partitions = dismember.partitions;
+            if (partitions != null)
+            {
+                using var items = partitions.items();
+                for (int pi = 0; pi < items.Count; pi++)
+                {
+                    if (IsHeadDismemberPartition(items[pi].partID))
+                    {
+                        isHeadCandidate = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isHeadCandidate) continue;
+
+            // Measure local Z extent to find the tallest (primary) head shape
+            using var verts = nif.GetVertsForShape(shape);
+            if (verts == null || verts.Count == 0) continue;
+
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            for (int vi = 0; vi < verts.Count; vi++)
+            {
+                float z = verts[vi].z;
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+            }
+
+            float height = maxZ - minZ;
+            if (height > primaryHeadHeight)
+            {
+                primaryHeadHeight = height;
+                primaryHead = shape;
+            }
+        }
+
+        if (primaryHead == null) return null;
+
+        _logger.LogMessage("CharacterViewer: Primary head shape identified: '" +
+            (primaryHead.name?.get() ?? "?") + "' (height=" + primaryHeadHeight.ToString("F1") + ")");
+
+        var offset = GetTransformToGlobal(nif, primaryHead);
+        return offset;
+    }
+
+    private BuiltMesh? BuildShape(NifFile nif, NiShape shape, MatTransform? accessoryOffset)
     {
         // Extract vertices
         using var nifVerts = nif.GetVertsForShape(shape);
@@ -117,8 +237,11 @@ public class NifMeshBuilder
         // Extract UVs (may be null)
         using var nifUvs = nif.GetUvsForShape(shape);
 
-        // Get shape transform (local to NIF root, in NIF Z-up space)
-        var shapeTransform = shape.transform;
+        // Compute the effective transform for this shape.
+        // For most shapes, this is the composed transform from shape to NIF root.
+        // For FaceGen accessories with near-zero translation, we use the primary head's
+        // transform so they're positioned correctly instead of appearing at the feet.
+        var shapeTransform = ComputeEffectiveTransform(nif, shape, accessoryOffset);
         bool hasTransform = shapeTransform != null
                             && (shapeTransform.scale != 1.0f
                                 || !shapeTransform.rotation.IsIdentity()
@@ -201,8 +324,10 @@ public class NifMeshBuilder
                 texturePaths[(int)slot] = texPath;
         }
 
-        // Extract shader flags to detect model-space normals
+        // Extract shader flags to detect model-space normals and hair tint
         bool isModelSpaceNormals = false;
+        bool isHairTintShader = false;
+        (float R, float G, float B)? hairTintColor = null;
         try
         {
             NiHeader header = nif.GetHeader();
@@ -213,16 +338,27 @@ public class NifMeshBuilder
                 if (shaderObj is BSLightingShaderProperty bslsp)
                 {
                     isModelSpaceNormals = (bslsp.shaderFlags1 & SLSF1_ModelSpaceNormals) != 0;
+
+                    // Detect hair tint shader (BSLSP_HAIRTINT = 6)
+                    if (bslsp.bslspShaderType == (uint)BSLightingShaderPropertyShaderType.BSLSP_HAIRTINT)
+                    {
+                        isHairTintShader = true;
+                        var tint = bslsp.hairTintColor;
+                        if (tint != null)
+                        {
+                            hairTintColor = (tint.x, tint.y, tint.z);
+                        }
+                    }
+
                     _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
-                        "' shaderFlags1=0x" + bslsp.shaderFlags1.ToString("X8") +
-                        " shaderType=" + bslsp.bslspShaderType +
-                        " isModelSpaceNormals=" + isModelSpaceNormals);
-                }
-                else
-                {
-                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
-                        "' shader is not BSLightingShaderProperty (type: " +
-                        (shaderObj?.GetType().Name ?? "null") + ")");
+                        "' shaderType=" + bslsp.bslspShaderType +
+                        " isModelSpaceNormals=" + isModelSpaceNormals +
+                        " isHairTint=" + isHairTintShader +
+                        (hairTintColor.HasValue
+                            ? " tintColor=(" + hairTintColor.Value.R.ToString("F2") + "," +
+                              hairTintColor.Value.G.ToString("F2") + "," +
+                              hairTintColor.Value.B.ToString("F2") + ")"
+                            : ""));
                 }
             }
         }
@@ -255,8 +391,45 @@ public class NifMeshBuilder
             TextureCoordinates = uvs,
             ShapeName = shapeName,
             TexturePaths = texturePaths,
-            IsModelSpaceNormals = isModelSpaceNormals
+            IsModelSpaceNormals = isModelSpaceNormals,
+            IsHairTintShader = isHairTintShader,
+            HairTintColor = hairTintColor
         };
+    }
+
+    /// <summary>
+    /// Computes the effective transform for a shape, applying the accessory positioning
+    /// heuristic from NPC Portrait Creator. For shapes whose composed global transform
+    /// has near-zero translation (accessories like brow, eyes, mouth in FaceGen NIFs),
+    /// the primary head's global transform is used instead.
+    /// </summary>
+    private MatTransform ComputeEffectiveTransform(NifFile nif, NiShape shape, MatTransform? accessoryOffset)
+    {
+        // Get the full composed transform from shape to NIF root
+        var globalTransform = GetTransformToGlobal(nif, shape);
+
+        // If no accessory offset was found (not a head NIF), use the global transform as-is
+        if (accessoryOffset == null)
+            return globalTransform;
+
+        // Accessory heuristic: if this shape's global transform has near-zero translation,
+        // it's likely a FaceGen accessory (brow, eyes, mouth) whose vertices are in local
+        // bone space. Apply the primary head's transform to position it correctly.
+        const float ZERO_TRANSLATION_THRESHOLD = 0.1f;
+        float translationLength = (float)Math.Sqrt(
+            globalTransform.translation.x * globalTransform.translation.x +
+            globalTransform.translation.y * globalTransform.translation.y +
+            globalTransform.translation.z * globalTransform.translation.z);
+
+        if (translationLength < ZERO_TRANSLATION_THRESHOLD)
+        {
+            _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
+                "' has near-zero translation (" + translationLength.ToString("F3") +
+                "), applying primary head offset for correct positioning");
+            return accessoryOffset;
+        }
+
+        return globalTransform;
     }
 
     /// <summary>

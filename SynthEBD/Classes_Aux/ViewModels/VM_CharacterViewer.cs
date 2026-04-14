@@ -71,6 +71,11 @@ public class VM_CharacterViewer : VM
     /// </summary>
     private List<OsdFile>? _cachedOsdFiles;
 
+    /// <summary>
+    /// Cached NPC mesh paths from the most recent LoadNpcAsync call, including TXST textures.
+    /// </summary>
+    private NpcMeshResolver.NpcMeshPaths? _cachedMeshPaths;
+
     public VM_CharacterViewer(
         NpcMeshResolver npcMeshResolver,
         NifTextureLoader textureLoader,
@@ -365,6 +370,8 @@ public class VM_CharacterViewer : VM
                 return;
             }
 
+            _cachedMeshPaths = meshPaths;
+
             cts.Token.ThrowIfCancellationRequested();
 
             // Step 2: Resolve asset paths and build meshes (off-thread)
@@ -385,62 +392,78 @@ public class VM_CharacterViewer : VM
                 int msnShapes = 0;
                 foreach (var (bodyPart, meshes) in loadResults)
                 {
-                    // Log full resolution chain for each texture slot
-                    string? chainPrefix = meshPaths.ResolutionChains.TryGetValue(bodyPart, out var chain) ? chain : null;
+                    // Resolve effective texture paths: TXST overrides NIF for body parts (not Head)
+                    Dictionary<int, string>? txstOverrides = null;
+                    if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
+                    {
+                        txstOverrides = txst;
+                    }
 
                     foreach (var built in meshes)
                     {
-                        if (chainPrefix != null)
+                        var model = CreateModelFromMesh(built);
+
+                        // Determine the effective texture paths for this shape:
+                        // For body/hands/feet: TXST textures override NIF BSShaderTextureSet
+                        // For head: NIF paths are ground truth (FaceGen baked)
+                        var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
+                        if (txstOverrides != null)
                         {
-                            foreach (var (slot, texPath) in built.TexturePaths)
+                            foreach (var (slot, path) in txstOverrides)
                             {
-                                string slotName = slot switch
-                                {
-                                    0 => "Diffuse", 1 => "Normal", 2 => "Glow/Detail",
-                                    3 => "Height", 7 => "Specular", _ => "Slot" + slot
-                                };
-                                _logger.LogMessage("CharacterViewer: Resolution: " + chainPrefix +
-                                    " → Shape:" + built.ShapeName + " → " + slotName + ": " + texPath);
+                                effectiveTextures[slot] = path;
                             }
                         }
 
-                        var model = CreateModelFromMesh(built);
-
-                        // Apply diffuse textures from NIF
-                        _textureLoader.ApplyTexturesToModel(model, built.TexturePaths);
-
-                        // Verify material identity — is model.Material the same object we modified?
-                        if (model.Material is PhongMaterial matCheck)
+                        // Apply textures — with special handling for hair tint and face tint
+                        if (built.IsHairTintShader && built.HairTintColor.HasValue &&
+                            effectiveTextures.TryGetValue(0, out string? hairDiffuse))
                         {
-                            var coreCheck = matCheck.Core as HelixToolkit.SharpDX.Model.PhongMaterialCore;
-                            _logger.LogMessage("CharacterViewer: Pre-add DIAG — model.Material.DiffuseMap=" +
-                                (matCheck.DiffuseMap != null ? "SET" : "NULL") +
-                                ", Core.DiffuseMap=" +
-                                (coreCheck?.DiffuseMap != null ? "SET" : "NULL") +
-                                ", DiffuseColor=" + matCheck.DiffuseColor.ToString() +
-                                ", RenderDiffuseMap=" + matCheck.RenderDiffuseMap.ToString());
+                            // Hair: apply greyscale-to-palette tint on CPU
+                            var (tR, tG, tB) = built.HairTintColor.Value;
+                            var hairTexture = _textureLoader.LoadDdsTextureWithHairTint(hairDiffuse, tR, tG, tB);
+                            if (hairTexture != null && model.Material is PhongMaterial hairMat)
+                            {
+                                hairMat.DiffuseMap = hairTexture;
+                                hairMat.DiffuseColor = new Color4(1f, 1f, 1f, 1f);
+                            }
+                        }
+                        else if (bodyPart == "Head" && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
+                                 meshPaths.FaceTintPath != null)
+                        {
+                            // Head: blend face tint onto diffuse
+                            var blendedTexture = _textureLoader.LoadDdsTextureWithFaceTint(
+                                headDiffuse, meshPaths.FaceTintPath);
+                            if (blendedTexture != null && model.Material is PhongMaterial headMat)
+                            {
+                                headMat.DiffuseMap = blendedTexture;
+                                headMat.DiffuseColor = new Color4(1f, 1f, 1f, 1f);
+                                _logger.LogMessage("CharacterViewer: Applied face tint blend to head diffuse");
+                            }
+                            // Apply remaining non-diffuse textures normally
+                            var nonDiffuse = effectiveTextures
+                                .Where(kv => kv.Key != 0)
+                                .ToDictionary(kv => kv.Key, kv => kv.Value);
+                            if (nonDiffuse.Count > 0)
+                                _textureLoader.ApplyTexturesToModel(model, nonDiffuse);
+                        }
+                        else
+                        {
+                            // Standard texture application
+                            _textureLoader.ApplyTexturesToModel(model, effectiveTextures);
                         }
 
                         // Apply MSN normal maps: sample texture at vertex UVs and replace vertex normals
                         if (built.IsModelSpaceNormals &&
-                            built.TexturePaths.TryGetValue(1, out string? normalMapPath) &&
+                            effectiveTextures.TryGetValue(1, out string? normalMapPath) &&
                             model.Geometry is HxMeshGeometry3D geo)
                         {
-                            _logger.LogMessage("CharacterViewer: Shape '" + built.ShapeName +
-                                "' is MSN — sampling normal map '" + normalMapPath + "'");
                             var msnNormals = _textureLoader.SampleMsnNormalsAtVertices(
                                 normalMapPath, built.TextureCoordinates);
                             if (msnNormals != null)
                             {
                                 geo.Normals = msnNormals;
                                 msnShapes++;
-                                _logger.LogMessage("CharacterViewer: Applied MSN normals to '" +
-                                    built.ShapeName + "' (" + msnNormals.Count + " vertices)");
-                            }
-                            else
-                            {
-                                _logger.LogMessage("CharacterViewer: MSN sampling failed for '" +
-                                    built.ShapeName + "', keeping geometry normals");
                             }
                         }
 
@@ -643,6 +666,7 @@ public class VM_CharacterViewer : VM
         _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();
         _cachedOsdFiles = null;
+        _cachedMeshPaths = null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
