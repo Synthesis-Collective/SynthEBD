@@ -131,7 +131,7 @@ public class NifMeshBuilder
     /// to get the object's transform in NIF root space (Z-up).
     /// Equivalent to NPC Portrait Creator's GetAVObjectTransformToGlobal.
     /// </summary>
-    private static MatTransform GetTransformToGlobal(NifFile nif, NiAVObject obj)
+    private MatTransform GetTransformToGlobal(NifFile nif, NiAVObject obj, string? shapeName = null)
     {
         // GetTransformToParent returns a non-owning wrapper (cMemoryOwn=false),
         // ComposeTransforms returns an owning copy (cMemoryOwn=true).
@@ -139,11 +139,38 @@ public class NifMeshBuilder
         var result = obj.GetTransformToParent();
         var parent = nif.GetParentNode(obj);
 
+        if (shapeName != null)
+        {
+            _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+                "' local: T=(" + result.translation.x.ToString("F2") + ", " +
+                result.translation.y.ToString("F2") + ", " + result.translation.z.ToString("F2") +
+                ") S=" + result.scale.ToString("F3") +
+                " rotIdentity=" + result.rotation.IsIdentity());
+        }
+
         while (parent != null)
         {
             var parentXform = parent.GetTransformToParent();
+            if (shapeName != null)
+            {
+                string parentName = (parent as NiAVObject)?.name?.get() ?? "?";
+                _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+                    "' parent '" + parentName +
+                    "': T=(" + parentXform.translation.x.ToString("F2") + ", " +
+                    parentXform.translation.y.ToString("F2") + ", " + parentXform.translation.z.ToString("F2") +
+                    ") S=" + parentXform.scale.ToString("F3") +
+                    " rotIdentity=" + parentXform.rotation.IsIdentity());
+            }
             result = parentXform.ComposeTransforms(result);
             parent = nif.GetParentNode(parent);
+        }
+
+        if (shapeName != null)
+        {
+            _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+                "' composed global: T=(" + result.translation.x.ToString("F2") + ", " +
+                result.translation.y.ToString("F2") + ", " + result.translation.z.ToString("F2") +
+                ") S=" + result.scale.ToString("F3"));
         }
 
         return result;
@@ -172,19 +199,25 @@ public class NifMeshBuilder
 
             // Check if any partition is a head partition
             bool isHeadCandidate = false;
+            var partIdList = new List<ushort>();
             using var partitions = dismember.partitions;
             if (partitions != null)
             {
                 using var items = partitions.items();
                 for (int pi = 0; pi < items.Count; pi++)
                 {
+                    partIdList.Add(items[pi].partID);
                     if (IsHeadDismemberPartition(items[pi].partID))
                     {
                         isHeadCandidate = true;
-                        break;
                     }
                 }
             }
+
+            string sName = shape.name?.get() ?? "?";
+            _logger.LogMessage("CharacterViewer: [Skinning] Shape '" + sName +
+                "' partitions=[" + string.Join(",", partIdList) +
+                "] isHeadCandidate=" + isHeadCandidate);
 
             if (!isHeadCandidate) continue;
 
@@ -210,10 +243,15 @@ public class NifMeshBuilder
 
         if (primaryHead == null) return null;
 
+        string headName = primaryHead.name?.get() ?? "?";
         _logger.LogMessage("CharacterViewer: Primary head shape identified: '" +
-            (primaryHead.name?.get() ?? "?") + "' (height=" + primaryHeadHeight.ToString("F1") + ")");
+            headName + "' (height=" + primaryHeadHeight.ToString("F1") + ")");
 
-        var offset = GetTransformToGlobal(nif, primaryHead);
+        var offset = GetTransformToGlobal(nif, primaryHead, headName + " [primary head]");
+        _logger.LogMessage("CharacterViewer: Accessory offset transform: T=(" +
+            offset.translation.x.ToString("F2") + ", " +
+            offset.translation.y.ToString("F2") + ", " + offset.translation.z.ToString("F2") +
+            ") S=" + offset.scale.ToString("F3"));
         return offset;
     }
 
@@ -405,17 +443,52 @@ public class NifMeshBuilder
     /// </summary>
     private MatTransform ComputeEffectiveTransform(NifFile nif, NiShape shape, MatTransform? accessoryOffset)
     {
+        string shapeName = shape.name?.get() ?? "?";
+
+        // Log vertex bounds in local space (before any transform) for diagnostics
+        using var diagVerts = nif.GetVertsForShape(shape);
+        if (diagVerts != null && diagVerts.Count > 0)
+        {
+            float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+            float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+            float sumX = 0, sumY = 0, sumZ = 0;
+            for (int i = 0; i < diagVerts.Count; i++)
+            {
+                var v = diagVerts[i];
+                sumX += v.x; sumY += v.y; sumZ += v.z;
+                if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+                if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y;
+                if (v.z < minZ) minZ = v.z; if (v.z > maxZ) maxZ = v.z;
+            }
+            int n = diagVerts.Count;
+            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                "' localVerts(" + n + "): centroid=(" +
+                (sumX / n).ToString("F1") + ", " + (sumY / n).ToString("F1") + ", " + (sumZ / n).ToString("F1") +
+                ") bounds=[(" + minX.ToString("F1") + "," + minY.ToString("F1") + "," + minZ.ToString("F1") +
+                ")..(" + maxX.ToString("F1") + "," + maxY.ToString("F1") + "," + maxZ.ToString("F1") + ")]");
+        }
+
         // Get the full composed transform from shape to NIF root
-        var globalTransform = GetTransformToGlobal(nif, shape);
+        var globalTransform = GetTransformToGlobal(nif, shape, shapeName);
 
         // If no accessory offset was found (not a head NIF), use the global transform as-is
         if (accessoryOffset == null)
+        {
+            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                "' → using own global transform (no head NIF detected)");
             return globalTransform;
+        }
 
         // Accessory heuristic: if this shape's global transform has near-zero translation,
         // it's likely a FaceGen accessory (brow, eyes, mouth) whose vertices are in local
         // bone space. Apply the primary head's transform to position it correctly.
+        //
+        // However, some shapes (like hair) have identity transforms but their vertices are
+        // already pre-translated to world space. For these, applying the head offset would
+        // double the translation. We detect this by checking if the vertex centroid is far
+        // from the origin (>10 units), matching NPC Portrait Creator's PRETRANSLATED_THRESHOLD.
         const float ZERO_TRANSLATION_THRESHOLD = 0.1f;
+        const float PRETRANSLATED_THRESHOLD = 10.0f;
         float translationLength = (float)Math.Sqrt(
             globalTransform.translation.x * globalTransform.translation.x +
             globalTransform.translation.y * globalTransform.translation.y +
@@ -423,12 +496,38 @@ public class NifMeshBuilder
 
         if (translationLength < ZERO_TRANSLATION_THRESHOLD)
         {
-            _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
-                "' has near-zero translation (" + translationLength.ToString("F3") +
-                "), applying primary head offset for correct positioning");
+            // Check if vertices are already pre-translated to world space
+            float centroidLength = 0f;
+            if (diagVerts != null && diagVerts.Count > 0)
+            {
+                float sumX = 0, sumY = 0, sumZ = 0;
+                for (int i = 0; i < diagVerts.Count; i++)
+                {
+                    var v = diagVerts[i];
+                    sumX += v.x; sumY += v.y; sumZ += v.z;
+                }
+                int n = diagVerts.Count;
+                float cx = sumX / n, cy = sumY / n, cz = sumZ / n;
+                centroidLength = (float)Math.Sqrt(cx * cx + cy * cy + cz * cz);
+            }
+
+            if (centroidLength > PRETRANSLATED_THRESHOLD)
+            {
+                _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                    "' → using identity (pre-translated vertices, centroidLen=" +
+                    centroidLength.ToString("F1") + " > threshold=" + PRETRANSLATED_THRESHOLD.ToString("F1") + ")");
+                return globalTransform;
+            }
+
+            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                "' → APPLYING accessory offset (translationLen=" + translationLength.ToString("F3") +
+                ", centroidLen=" + centroidLength.ToString("F1") +
+                " ≤ threshold=" + PRETRANSLATED_THRESHOLD.ToString("F1") + ")");
             return accessoryOffset;
         }
 
+        _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+            "' → using own global transform (translationLen=" + translationLength.ToString("F2") + ")");
         return globalTransform;
     }
 
