@@ -32,6 +32,14 @@ public class NpcMeshResolver
         public Gender Gender { get; init; }
 
         /// <summary>
+        /// The NPC's race-specific skeleton NIF path (Data-relative), resolved from
+        /// Race.SkeletalModel. Used for CPU-side bone-weight skinning to close the
+        /// neck gap between head and body meshes.
+        /// E.g. "meshes\actors\character\character assets female\skeleton_female.nif"
+        /// </summary>
+        public string? SkeletonPath { get; init; }
+
+        /// <summary>
         /// Maps body part name ("Body", "Hands", "Feet", "Head") to a human-readable
         /// string describing the record traversal chain used to resolve its mesh path.
         /// E.g. "NPC:Astrid → WornArmor:000D2B5A → Armature(Body):000D2B5B → Female → femalebody_1.nif"
@@ -145,6 +153,9 @@ public class NpcMeshResolver
         // FaceTint DDS: textures/actors/character/FaceGenData/FaceTint/{plugin}/{formID}.dds
         string faceTintPath = BuildFaceTintPath(npcFormKey);
 
+        // Skeleton NIF: resolve from Race.SkeletalModel for CPU-side skinning
+        string? skeletonPath = ResolveSkeletonPath(npcGetter, gender, linkCache);
+
         return new NpcMeshPaths
         {
             BodyMeshPath = bodyPath,
@@ -154,7 +165,8 @@ public class NpcMeshResolver
             Gender = gender,
             ResolutionChains = chains,
             TxstTextures = txstTextures,
-            FaceTintPath = faceTintPath
+            FaceTintPath = faceTintPath,
+            SkeletonPath = skeletonPath
         };
     }
 
@@ -294,6 +306,45 @@ public class NpcMeshResolver
         string plugin = formKey.ModKey.FileName;
         string formId = formKey.ID.ToString("X8");
         return "textures\\actors\\character\\FaceGenData\\FaceTint\\" + plugin + "\\" + formId + ".dds";
+    }
+
+    /// <summary>
+    /// Resolves the skeleton NIF path from the NPC's Race.SkeletalModel, selecting
+    /// the gender-appropriate variant.
+    /// </summary>
+    private string? ResolveSkeletonPath(INpcGetter npcGetter, Gender gender, ILinkCache linkCache)
+    {
+        if (npcGetter.Race == null || npcGetter.Race.IsNull)
+            return null;
+
+        if (!linkCache.TryResolve<IRaceGetter>(npcGetter.Race.FormKey, out var raceGetter))
+            return null;
+
+        if (raceGetter.SkeletalModel == null)
+            return null;
+
+        var skelModel = gender == Gender.Female
+            ? raceGetter.SkeletalModel.Female
+            : raceGetter.SkeletalModel.Male;
+
+        if (skelModel?.File == null)
+            return null;
+
+        string path = skelModel.File.GivenPath;
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        // Ensure path is Data-relative with "meshes\" prefix
+        if (!path.StartsWith("meshes\\", StringComparison.OrdinalIgnoreCase) &&
+            !path.StartsWith("meshes/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = "meshes\\" + path;
+        }
+
+        _logger.LogMessage("CharacterViewer: Skeleton=" + path +
+            " (Race=" + npcGetter.Race.FormKey + ", " + gender + ")");
+
+        return path;
     }
 
     private static Gender GetGender(INpcGetter npc)

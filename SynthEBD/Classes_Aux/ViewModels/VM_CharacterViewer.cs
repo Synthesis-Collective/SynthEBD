@@ -628,23 +628,32 @@ public class VM_CharacterViewer : VM
                 continue;
             }
 
-            // Start from a fresh copy of original positions
-            var positions = new HelixToolkit.Vector3Collection(originalMesh.Positions.Count);
-            foreach (var pos in originalMesh.Positions)
+            // Start from bind-pose positions (pre-skinning) for BodySlide deformation.
+            // BodySlide deltas are in bind-pose space and must be applied before skinning.
+            var sourcePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
+            var positions = new HelixToolkit.Vector3Collection(sourcePositions.Count);
+            foreach (var pos in sourcePositions)
             {
                 positions.Add(pos);
             }
 
-            // Apply deformation
+            // Apply deformation in bind-pose Y-up space
             _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles, shapeName);
 
-            // Recalculate normals
-            var normals = new HelixToolkit.Vector3Collection(originalMesh.Normals.Count);
-            foreach (var n in originalMesh.Normals)
+            // Recalculate normals from deformed geometry
+            var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
+            var normals = new HelixToolkit.Vector3Collection(sourceNormals.Count);
+            foreach (var n in sourceNormals)
             {
                 normals.Add(n);
             }
             BodySlideDeformer.RecalculateNormals(positions, originalMesh.Indices, normals);
+
+            // Re-apply bone-weight skinning to the deformed positions
+            if (originalMesh.Skinning != null)
+            {
+                NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
+            }
 
             // Update geometry
             geometry.Positions = positions;
@@ -678,25 +687,55 @@ public class VM_CharacterViewer : VM
     {
         var results = new List<(string, List<NifMeshBuilder.BuiltMesh>)>();
 
-        void TryLoad(string bodyPart, string? gamePath)
+        // Load skeleton NIF for CPU-side bone-weight skinning (closes neck gap).
+        // The skeleton provides real bone world transforms that position head and body
+        // vertices correctly relative to each other.
+        nifly.NifFile? skeletonNif = null;
+        if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath))
         {
-            if (string.IsNullOrWhiteSpace(gamePath)) return;
-
-            string? diskPath = _assetResolver.ResolveAssetPath(gamePath);
-            if (diskPath == null) return;
-
-            var meshes = _meshBuilder.BuildFromFile(diskPath);
-            if (meshes.Count > 0)
+            string? skelDiskPath = _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath);
+            if (skelDiskPath != null)
             {
-                results.Add((bodyPart, meshes));
-                _logger.LogMessage($"CharacterViewer: Loaded {meshes.Count} shape(s) from {bodyPart} mesh");
+                skeletonNif = new nifly.NifFile();
+                if (skeletonNif.Load(skelDiskPath) != 0)
+                {
+                    _logger.LogMessage("CharacterViewer: Failed to load skeleton NIF: " + skelDiskPath);
+                    skeletonNif.Dispose();
+                    skeletonNif = null;
+                }
+                else
+                {
+                    _logger.LogMessage("CharacterViewer: Loaded skeleton: " + meshPaths.SkeletonPath);
+                }
             }
         }
 
-        TryLoad("Body", meshPaths.BodyMeshPath);
-        TryLoad("Hands", meshPaths.HandsMeshPath);
-        TryLoad("Feet", meshPaths.FeetMeshPath);
-        TryLoad("Head", meshPaths.HeadMeshPath);
+        try
+        {
+            void TryLoad(string bodyPart, string? gamePath)
+            {
+                if (string.IsNullOrWhiteSpace(gamePath)) return;
+
+                string? diskPath = _assetResolver.ResolveAssetPath(gamePath);
+                if (diskPath == null) return;
+
+                var meshes = _meshBuilder.BuildFromFile(diskPath, skeletonNif);
+                if (meshes.Count > 0)
+                {
+                    results.Add((bodyPart, meshes));
+                    _logger.LogMessage($"CharacterViewer: Loaded {meshes.Count} shape(s) from {bodyPart} mesh");
+                }
+            }
+
+            TryLoad("Body", meshPaths.BodyMeshPath);
+            TryLoad("Hands", meshPaths.HandsMeshPath);
+            TryLoad("Feet", meshPaths.FeetMeshPath);
+            TryLoad("Head", meshPaths.HeadMeshPath);
+        }
+        finally
+        {
+            skeletonNif?.Dispose();
+        }
 
         return results;
     }
