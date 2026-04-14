@@ -149,6 +149,9 @@ public class VM_SpecificNPCAssignmentsUI : VM
             }
         );
 
+        Show3DPreview = generalSettingsVM.bShow3DPreview;
+        PreviewerWidth = generalSettingsVM.SpecificNPCPreviewerWidth;
+
         Alphabetizer = new(Assignments, x => x.DispName, new(System.Windows.Media.Colors.MediumPurple));
 
         this.WhenAnyValue(vm => vm.SelectedPlaceHolder)
@@ -186,6 +189,9 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public RelayCommand ImportBodyGenMorphsIni { get; set; }
     public RelayCommand Save { get; }
 
+    public bool Show3DPreview { get; set; } = true;
+    public double PreviewerWidth { get; set; } = 525;
+
     public void GetViewModelFromModels(HashSet<NPCAssignment> models)
     {
         if (models == null)
@@ -211,6 +217,10 @@ public class VM_SpecificNPCAssignmentsUI : VM
 
     public HashSet<NPCAssignment> DumpViewModelToModels()
     {
+        // Sync preview settings back to general settings for persistence
+        SubscribedGeneralSettings.bShow3DPreview = Show3DPreview;
+        SubscribedGeneralSettings.SpecificNPCPreviewerWidth = PreviewerWidth;
+
         if (CurrentlyDisplayedAssignment != null)
         {
             CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel();

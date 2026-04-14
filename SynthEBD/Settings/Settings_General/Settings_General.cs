@@ -258,6 +258,8 @@ public class Settings_General
     public bool bTroubleShootingWarningDisplayed { get; set; } = false;
     public bool bHeadPartWarningDisplayed { get; set; } = false;
     public bool bUIopened { get; set; } = false;
+    public bool bShow3DPreview { get; set; } = true;
+    public double SpecificNPCPreviewerWidth { get; set; } = 525;
     public List<ModKey> BlockedModsFromImport { get; set; } = new()
     {
         ModKey.FromNameAndExtension("Skyrim.esm"),

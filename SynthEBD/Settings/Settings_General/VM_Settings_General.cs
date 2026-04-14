@@ -362,6 +362,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
     private bool _bHeadPartWarningDisplayed { get; set; } = false;
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
+    public bool bShow3DPreview { get; set; } = true;
+    public double SpecificNPCPreviewerWidth { get; set; } = 525;
     public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
@@ -410,6 +412,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         BlockedModsFromImport = new(model.BlockedModsFromImport);
         bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
+        bShow3DPreview = model.bShow3DPreview;
+        SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
         if (bShowTroubleshootingSettings)
         {
             TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
@@ -467,6 +471,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.BlockedModsFromImport = new(BlockedModsFromImport);
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
+        model.bShow3DPreview = bShow3DPreview;
+        model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
 
         model.bUIopened = true;
         return model;

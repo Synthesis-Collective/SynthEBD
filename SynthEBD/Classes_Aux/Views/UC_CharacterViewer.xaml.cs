@@ -90,6 +90,17 @@ public partial class UC_CharacterViewer : UserControl
         }
     }
 
+    private void ResetViewButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Viewport?.Camera is HelixToolkit.Wpf.SharpDX.PerspectiveCamera cam)
+        {
+            cam.Position = new System.Windows.Media.Media3D.Point3D(0, 100, -300);
+            cam.LookDirection = new System.Windows.Media.Media3D.Vector3D(0, -0.2, 1);
+            cam.UpDirection = new System.Windows.Media.Media3D.Vector3D(0, 1, 0);
+            cam.FieldOfView = 45;
+        }
+    }
+
     private void BenchmarkButton_Click(object sender, RoutedEventArgs e)
     {
         (_vm ?? DataContext as VM_CharacterViewer)?.BenchmarkTextureStrategies();
