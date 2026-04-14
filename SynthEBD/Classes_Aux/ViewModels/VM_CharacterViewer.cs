@@ -76,6 +76,24 @@ public class VM_CharacterViewer : VM
     /// </summary>
     private NpcMeshResolver.NpcMeshPaths? _cachedMeshPaths;
 
+    /// <summary>
+    /// Cached texture application info per model, so ReapplyAllTextures can replay the
+    /// exact same texture logic (including TXST overrides, hair tint, face tint) that
+    /// was used during the initial load.
+    /// </summary>
+    private readonly Dictionary<MeshGeometryModel3D, TextureApplyInfo> _textureApplyInfoByModel = new();
+
+    private record TextureApplyInfo(
+        Dictionary<int, string> EffectiveTextures,
+        bool IsHairTint,
+        float HairTintR,
+        float HairTintG,
+        float HairTintB,
+        bool IsFaceTint,
+        string? FaceTintPath);
+
+    private readonly VM_Settings_General _generalSettings;
+
     public VM_CharacterViewer(
         NpcMeshResolver npcMeshResolver,
         NifTextureLoader textureLoader,
@@ -83,6 +101,7 @@ public class VM_CharacterViewer : VM
         BsdFileParser bsdFileParser,
         GameAssetResolver assetResolver,
         IEnvironmentStateProvider environmentProvider,
+        VM_Settings_General generalSettings,
         Logger logger)
     {
         _meshBuilder = new NifMeshBuilder(logger);
@@ -92,7 +111,14 @@ public class VM_CharacterViewer : VM
         _bsdFileParser = bsdFileParser;
         _assetResolver = assetResolver;
         _environmentProvider = environmentProvider;
+        _generalSettings = generalSettings;
         _logger = logger;
+
+        // Initialize texture strategy from persisted settings
+        if (Enum.TryParse<TextureLoadStrategy>(generalSettings.TextureLoadStrategy, out var savedStrategy))
+        {
+            _textureLoader.LoadStrategy = savedStrategy;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -142,6 +168,7 @@ public class VM_CharacterViewer : VM
             if (_textureLoader.LoadStrategy != value)
             {
                 _textureLoader.LoadStrategy = value;
+                _generalSettings.TextureLoadStrategy = value.ToString();
                 _logger.LogMessage("CharacterViewer: Texture strategy changed to " + value);
                 ReapplyAllTextures();
             }
@@ -387,6 +414,7 @@ public class VM_CharacterViewer : VM
                 _modelsByBodyPart.Clear();
                 _builtMeshesByBodyPart.Clear();
                 _cachedBodyMeshes.Clear();
+                _textureApplyInfoByModel.Clear();
 
                 int totalShapes = 0;
                 int msnShapes = 0;
@@ -416,11 +444,18 @@ public class VM_CharacterViewer : VM
                         }
 
                         // Apply textures — with special handling for hair tint and face tint
+                        bool isHairTint = false;
+                        float hairR = 0, hairG = 0, hairB = 0;
+                        bool isFaceTint = false;
+                        string? faceTintPath = null;
+
                         if (built.IsHairTintShader && built.HairTintColor.HasValue &&
                             effectiveTextures.TryGetValue(0, out string? hairDiffuse))
                         {
                             // Hair: apply greyscale-to-palette tint on CPU
                             var (tR, tG, tB) = built.HairTintColor.Value;
+                            isHairTint = true;
+                            hairR = tR; hairG = tG; hairB = tB;
                             var hairTexture = _textureLoader.LoadDdsTextureWithHairTint(hairDiffuse, tR, tG, tB);
                             if (hairTexture != null && model.Material is PhongMaterial hairMat)
                             {
@@ -428,10 +463,12 @@ public class VM_CharacterViewer : VM
                                 hairMat.DiffuseColor = new Color4(1f, 1f, 1f, 1f);
                             }
                         }
-                        else if (bodyPart == "Head" && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
+                        else if (built.IsPrimaryHeadShape && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
                                  meshPaths.FaceTintPath != null)
                         {
-                            // Head: blend face tint onto diffuse
+                            // Primary head only: blend face tint onto diffuse
+                            isFaceTint = true;
+                            faceTintPath = meshPaths.FaceTintPath;
                             var blendedTexture = _textureLoader.LoadDdsTextureWithFaceTint(
                                 headDiffuse, meshPaths.FaceTintPath);
                             if (blendedTexture != null && model.Material is PhongMaterial headMat)
@@ -453,6 +490,12 @@ public class VM_CharacterViewer : VM
                             _textureLoader.ApplyTexturesToModel(model, effectiveTextures);
                         }
 
+                        // Cache texture info for ReapplyAllTextures
+                        _textureApplyInfoByModel[model] = new TextureApplyInfo(
+                            new Dictionary<int, string>(effectiveTextures),
+                            isHairTint, hairR, hairG, hairB,
+                            isFaceTint, faceTintPath);
+
                         // Apply MSN normal maps: sample texture at vertex UVs and replace vertex normals
                         if (built.IsModelSpaceNormals &&
                             effectiveTextures.TryGetValue(1, out string? normalMapPath) &&
@@ -467,16 +510,52 @@ public class VM_CharacterViewer : VM
                             }
                         }
 
+                        // Enable alpha test for shapes with NiAlphaProperty (brows, hair)
+                        if (built.HasAlphaTest && model.Material is PhongMaterial alphaMat)
+                        {
+                            if (alphaMat.DiffuseMap != null)
+                            {
+                                alphaMat.RenderDiffuseAlphaMap = true;
+                                model.IsTransparent = true;
+                                _logger.LogMessage("CharacterViewer: Enabled alpha test on '" + built.ShapeName +
+                                    "' threshold=" + built.AlphaThreshold.ToString("F2"));
+                            }
+                            else
+                            {
+                                // No diffuse texture loaded — hide the shape to avoid opaque white blobs
+                                // (e.g. brow meshes whose textures are in unresolvable BSAs)
+                                model.IsRendering = false;
+                                _logger.LogMessage("CharacterViewer: Hiding alpha-test shape '" + built.ShapeName +
+                                    "' — no diffuse texture loaded");
+                            }
+                        }
+
                         MeshModels.Add(model);
 
-                        // Track body part mapping (first model per part)
-                        if (!_modelsByBodyPart.ContainsKey(bodyPart))
+                        // Track body part mapping — for Head, prefer the primary head shape
+                        // so that texture overrides target the actual head mesh, not mouth/brow/eyes
+                        if (bodyPart == "Head")
+                        {
+                            if (built.IsPrimaryHeadShape || !_modelsByBodyPart.ContainsKey(bodyPart))
+                            {
+                                _modelsByBodyPart[bodyPart] = model;
+                            }
+                        }
+                        else if (!_modelsByBodyPart.ContainsKey(bodyPart))
                         {
                             _modelsByBodyPart[bodyPart] = model;
                         }
 
-                        // Track built mesh per body part for override resampling
-                        if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                        // Track built mesh per body part — for Head, prefer the primary head shape
+                        // so that MSN normal override resampling uses the correct mesh
+                        if (bodyPart == "Head")
+                        {
+                            if (built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                            {
+                                _builtMeshesByBodyPart[bodyPart] = built;
+                            }
+                        }
+                        else if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
                         {
                             _builtMeshesByBodyPart[bodyPart] = built;
                         }
@@ -533,11 +612,14 @@ public class VM_CharacterViewer : VM
             return;
         }
 
-        _textureLoader.ApplyTextureOverrides(_modelsByBodyPart, overrides, _builtMeshesByBodyPart);
+        _textureLoader.ApplyTextureOverrides(_modelsByBodyPart, overrides, _builtMeshesByBodyPart,
+            _cachedMeshPaths?.FaceTintPath);
     }
 
     /// <summary>
-    /// Reapplies diffuse textures to all loaded models using the current texture loading strategy.
+    /// Reapplies textures to all loaded models using the current texture loading strategy.
+    /// Replays the same texture logic (TXST overrides, hair tint, face tint) that was
+    /// used during the initial load via cached <see cref="TextureApplyInfo"/>.
     /// Called when <see cref="SelectedStrategy"/> changes.
     /// </summary>
     private void ReapplyAllTextures()
@@ -546,37 +628,40 @@ public class VM_CharacterViewer : VM
 
         _logger.LogMessage("CharacterViewer: Reapplying textures with strategy " + _textureLoader.LoadStrategy);
 
-        // Rebuild _modelsByBodyPart if needed — reapply from cached built meshes
         foreach (var model in MeshModels)
         {
-            // Find the matching built mesh by matching vertex count
-            NifMeshBuilder.BuiltMesh? matchingMesh = null;
-            foreach (var kvp in _builtMeshesByBodyPart)
+            if (!_textureApplyInfoByModel.TryGetValue(model, out var info))
+                continue;
+
+            if (info.IsHairTint && info.EffectiveTextures.TryGetValue(0, out string? hairDiffuse))
             {
-                if (_modelsByBodyPart.TryGetValue(kvp.Key, out var partModel) && partModel == model)
+                var hairTexture = _textureLoader.LoadDdsTextureWithHairTint(
+                    hairDiffuse, info.HairTintR, info.HairTintG, info.HairTintB);
+                if (hairTexture != null && model.Material is PhongMaterial hairMat)
                 {
-                    matchingMesh = kvp.Value;
-                    break;
+                    hairMat.DiffuseMap = hairTexture;
+                    hairMat.DiffuseColor = new Color4(1f, 1f, 1f, 1f);
                 }
             }
-
-            // Also check cached body meshes
-            if (matchingMesh == null)
+            else if (info.IsFaceTint && info.FaceTintPath != null &&
+                     info.EffectiveTextures.TryGetValue(0, out string? headDiffuse))
             {
-                foreach (var kvp in _cachedBodyMeshes)
+                var blendedTexture = _textureLoader.LoadDdsTextureWithFaceTint(
+                    headDiffuse, info.FaceTintPath);
+                if (blendedTexture != null && model.Material is PhongMaterial headMat)
                 {
-                    if (model.Geometry is HxMeshGeometry3D geo &&
-                        geo.Positions?.Count == kvp.Value.Positions.Count)
-                    {
-                        matchingMesh = kvp.Value;
-                        break;
-                    }
+                    headMat.DiffuseMap = blendedTexture;
+                    headMat.DiffuseColor = new Color4(1f, 1f, 1f, 1f);
                 }
+                var nonDiffuse = info.EffectiveTextures
+                    .Where(kv => kv.Key != 0)
+                    .ToDictionary(kv => kv.Key, kv => kv.Value);
+                if (nonDiffuse.Count > 0)
+                    _textureLoader.ApplyTexturesToModel(model, nonDiffuse);
             }
-
-            if (matchingMesh != null && matchingMesh.TexturePaths.Count > 0)
+            else if (info.EffectiveTextures.Count > 0)
             {
-                _textureLoader.ApplyTexturesToModel(model, matchingMesh.TexturePaths);
+                _textureLoader.ApplyTexturesToModel(model, info.EffectiveTextures);
             }
         }
 
@@ -674,8 +759,11 @@ public class VM_CharacterViewer : VM
         _modelsByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();
+        _textureApplyInfoByModel.Clear();
         _cachedOsdFiles = null;
-        _cachedMeshPaths = null;
+        // Note: _cachedMeshPaths is intentionally NOT cleared here — it is set before
+        // ClearScene is called in LoadNpcAsync, and is needed by ApplyTextureOverrides
+        // after the scene is rebuilt. It is only invalidated when a new NPC is loaded.
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -364,6 +364,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
     public bool bShow3DPreview { get; set; } = true;
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public string TextureLoadStrategy { get; set; } = "BmpStream";
     public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
@@ -414,6 +415,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
         bShow3DPreview = model.bShow3DPreview;
         SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
+        TextureLoadStrategy = model.TextureLoadStrategy;
         if (bShowTroubleshootingSettings)
         {
             TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
@@ -473,6 +475,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
         model.bShow3DPreview = bShow3DPreview;
         model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
+        model.TextureLoadStrategy = TextureLoadStrategy;
 
         model.bUIopened = true;
         return model;

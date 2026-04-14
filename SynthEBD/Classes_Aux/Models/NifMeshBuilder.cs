@@ -74,6 +74,24 @@ public class NifMeshBuilder
         /// Null for unskinned shapes. Used to re-skin after BodySlide deformation.
         /// </summary>
         public SkinningInfo? Skinning { get; init; }
+
+        /// <summary>
+        /// True if this shape is the primary head mesh in a FaceGen NIF (tallest head-partition shape).
+        /// Used to target head diffuse overrides and face tint blending to the correct shape.
+        /// </summary>
+        public bool IsPrimaryHeadShape { get; init; }
+
+        /// <summary>
+        /// True if this shape's NiAlphaProperty has the alpha test flag set (bit 9 of flags).
+        /// Shapes with alpha test discard pixels below <see cref="AlphaThreshold"/>.
+        /// </summary>
+        public bool HasAlphaTest { get; init; }
+
+        /// <summary>
+        /// Alpha test threshold from NiAlphaProperty (0–1 range, converted from byte 0–255).
+        /// Only meaningful when <see cref="HasAlphaTest"/> is true.
+        /// </summary>
+        public float AlphaThreshold { get; init; }
     }
 
     /// <summary>
@@ -176,12 +194,12 @@ public class NifMeshBuilder
         // that may have identity transforms with vertices near the origin. We detect the
         // primary head (tallest mesh among head-partition shapes) and use its global transform
         // to correctly position accessories that would otherwise appear at the feet.
-        var accessoryOffset = FindAccessoryOffset(nif, shapes);
+        var (accessoryOffset, primaryHeadName) = FindAccessoryOffsetAndPrimaryHead(nif, shapes);
 
         for (int si = 0; si < shapes.Count; si++)
         {
             var shape = shapes[si];
-            var built = BuildShape(nif, shape, accessoryOffset, skeletonNif);
+            var built = BuildShape(nif, shape, accessoryOffset, skeletonNif, primaryHeadName);
             if (built != null)
                 results.Add(built);
         }
@@ -249,9 +267,10 @@ public class NifMeshBuilder
 
     /// <summary>
     /// Pre-pass to find the primary head shape's global transform for accessory positioning.
-    /// Returns null if no head shapes are found (e.g. body NIFs).
+    /// Also returns the primary head shape's name for tagging in BuiltMesh.
+    /// Returns null transform if no head shapes are found (e.g. body NIFs).
     /// </summary>
-    private MatTransform? FindAccessoryOffset(NifFile nif, vectorNiShape shapes)
+    private (MatTransform? offset, string? primaryHeadName) FindAccessoryOffsetAndPrimaryHead(NifFile nif, vectorNiShape shapes)
     {
         NiHeader header = nif.GetHeader();
 
@@ -312,7 +331,7 @@ public class NifMeshBuilder
             }
         }
 
-        if (primaryHead == null) return null;
+        if (primaryHead == null) return (null, null);
 
         string headName = primaryHead.name?.get() ?? "?";
         _logger.LogMessage("CharacterViewer: Primary head shape identified: '" +
@@ -323,11 +342,11 @@ public class NifMeshBuilder
             offset.translation.x.ToString("F2") + ", " +
             offset.translation.y.ToString("F2") + ", " + offset.translation.z.ToString("F2") +
             ") S=" + offset.scale.ToString("F3"));
-        return offset;
+        return (offset, headName);
     }
 
     private BuiltMesh? BuildShape(NifFile nif, NiShape shape, MatTransform? accessoryOffset,
-        NifFile? skeletonNif = null)
+        NifFile? skeletonNif = null, string? primaryHeadName = null)
     {
         // Extract vertices
         using var nifVerts = nif.GetVertsForShape(shape);
@@ -524,6 +543,41 @@ public class NifMeshBuilder
                 (shape.name?.get() ?? "?") + "': " + ex.Message);
         }
 
+        // Read NiAlphaProperty for alpha test (brow, hair, and other transparent shapes)
+        bool hasAlphaTest = false;
+        float alphaThreshold = 0f;
+        try
+        {
+            if (shape.HasAlphaProperty())
+            {
+                NiHeader alphaHeader = nif.GetHeader();
+                var alphaRef = shape.AlphaPropertyRef();
+                if (alphaRef != null && !alphaRef.IsEmpty())
+                {
+                    NiObject alphaObj = alphaHeader.GetBlockById(alphaRef.index);
+                    if (alphaObj is NiAlphaProperty alphaProp)
+                    {
+                        ushort flags = alphaProp.flags;
+                        // Bit 9 of NiAlphaProperty flags = alpha test enable
+                        hasAlphaTest = (flags & (1 << 9)) != 0;
+                        alphaThreshold = alphaProp.threshold / 255f;
+
+                        // If alpha property exists but no flags set, default to alpha test
+                        // (matches NPC Portrait Creator behavior)
+                        if (!hasAlphaTest && (flags & 1) == 0)
+                        {
+                            hasAlphaTest = true;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage("CharacterViewer: Could not read NiAlphaProperty for shape '" +
+                (shape.name?.get() ?? "?") + "': " + ex.Message);
+        }
+
         // If normals are all zero (missing or unreadable), compute from geometry
         if (AreNormalsAllZero(normals))
         {
@@ -534,10 +588,13 @@ public class NifMeshBuilder
 
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Count}v";
 
+        bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Count + " verts, " + (indices.Count / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
-            ", MSN=" + isModelSpaceNormals);
+            ", MSN=" + isModelSpaceNormals +
+            (hasAlphaTest ? ", alphaTest=True threshold=" + alphaThreshold.ToString("F2") : "") +
+            (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
 
         return new BuiltMesh
         {
@@ -553,6 +610,9 @@ public class NifMeshBuilder
             BindPosePositions = bindPosePositionsYUp,
             BindPoseNormals = bindPoseNormalsYUp,
             Skinning = skinning,
+            IsPrimaryHeadShape = primaryHeadName != null && shapeName == primaryHeadName,
+            HasAlphaTest = hasAlphaTest,
+            AlphaThreshold = alphaThreshold,
         };
     }
 

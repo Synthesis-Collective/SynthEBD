@@ -86,7 +86,8 @@ public class NifTextureLoader
     public void ApplyTextureOverrides(
         Dictionary<string, MeshGeometryModel3D> modelsByBodyPart,
         IEnumerable<FilePathReplacement> overrides,
-        Dictionary<string, NifMeshBuilder.BuiltMesh>? builtMeshesByBodyPart = null)
+        Dictionary<string, NifMeshBuilder.BuiltMesh>? builtMeshesByBodyPart = null,
+        string? faceTintPath = null)
     {
         foreach (var replacement in overrides)
         {
@@ -118,14 +119,40 @@ public class NifTextureLoader
 
             if (slot.Value == 0)
             {
-                // Diffuse override
-                var texture = LoadDdsTexture(replacement.Source);
-                if (texture == null) continue;
+                // Diffuse override — re-blend face tint for head
+                if (bodyPart == "Head" && faceTintPath != null)
+                {
+                    var blended = LoadDdsTextureWithFaceTint(replacement.Source, faceTintPath);
+                    if (blended != null)
+                    {
+                        material.DiffuseMap = blended;
+                        material.DiffuseColor = new HelixToolkit.Maths.Color4(1f, 1f, 1f, 1f);
+                        _logger.LogMessage("CharacterViewer: Override diffuse '" + replacement.Source +
+                            "' -> " + bodyPart + " (with face tint re-blend)");
+                    }
+                    else
+                    {
+                        // Fallback: apply without tint if blending fails
+                        var fallback = LoadDdsTexture(replacement.Source);
+                        if (fallback != null)
+                        {
+                            material.DiffuseMap = fallback;
+                            material.DiffuseColor = new HelixToolkit.Maths.Color4(1f, 1f, 1f, 1f);
+                            _logger.LogMessage("CharacterViewer: Override diffuse '" + replacement.Source +
+                                "' -> " + bodyPart + " (face tint blend failed, unblended)");
+                        }
+                    }
+                }
+                else
+                {
+                    var texture = LoadDdsTexture(replacement.Source);
+                    if (texture == null) continue;
 
-                material.DiffuseMap = texture;
-                material.DiffuseColor = new HelixToolkit.Maths.Color4(1f, 1f, 1f, 1f);
-                _logger.LogMessage("CharacterViewer: Override diffuse '" + replacement.Source +
-                    "' -> " + bodyPart);
+                    material.DiffuseMap = texture;
+                    material.DiffuseColor = new HelixToolkit.Maths.Color4(1f, 1f, 1f, 1f);
+                    _logger.LogMessage("CharacterViewer: Override diffuse '" + replacement.Source +
+                        "' -> " + bodyPart);
+                }
             }
             else if (slot.Value == 1)
             {
@@ -281,8 +308,10 @@ public class NifTextureLoader
         if (dw != tw || dh != th)
         {
             _logger.LogMessage("CharacterViewer: FaceTint size mismatch — diffuse=" +
-                dw + "x" + dh + " tint=" + tw + "x" + th + ", using unblended diffuse");
-            return CreateTextureModelFromPixels(diffusePixels, dw, dh, diffusePath);
+                dw + "x" + dh + " tint=" + tw + "x" + th + ", resampling tint to match diffuse");
+            tintPixels = BilinearResample(tintPixels, tw, th, dw, dh);
+            tw = dw;
+            th = dh;
         }
 
         // Blend: finalColor = mix(baseColor, baseColor * tintSample.rgb, tintSample.a)
@@ -409,6 +438,57 @@ public class NifTextureLoader
                 "': " + ex.Message);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resamples BGRA pixel data from (srcW x srcH) to (dstW x dstH) using bilinear interpolation.
+    /// Used when face tint and diffuse textures have different resolutions.
+    /// </summary>
+    private static byte[] BilinearResample(byte[] src, int srcW, int srcH, int dstW, int dstH)
+    {
+        byte[] dst = new byte[dstW * dstH * 4];
+        float xRatio = (float)srcW / dstW;
+        float yRatio = (float)srcH / dstH;
+
+        for (int dy = 0; dy < dstH; dy++)
+        {
+            float srcY = dy * yRatio;
+            int y0 = (int)srcY;
+            int y1 = Math.Min(y0 + 1, srcH - 1);
+            float fy = srcY - y0;
+            float fy1 = 1f - fy;
+
+            for (int dx = 0; dx < dstW; dx++)
+            {
+                float srcX = dx * xRatio;
+                int x0 = (int)srcX;
+                int x1 = Math.Min(x0 + 1, srcW - 1);
+                float fx = srcX - x0;
+                float fx1 = 1f - fx;
+
+                int i00 = (y0 * srcW + x0) * 4;
+                int i10 = (y0 * srcW + x1) * 4;
+                int i01 = (y1 * srcW + x0) * 4;
+                int i11 = (y1 * srcW + x1) * 4;
+                int iDst = (dy * dstW + dx) * 4;
+
+                float w00 = fx1 * fy1;
+                float w10 = fx * fy1;
+                float w01 = fx1 * fy;
+                float w11 = fx * fy;
+
+                for (int c = 0; c < 4; c++)
+                {
+                    dst[iDst + c] = (byte)(
+                        src[i00 + c] * w00 +
+                        src[i10 + c] * w10 +
+                        src[i01 + c] * w01 +
+                        src[i11 + c] * w11 + 0.5f);
+                }
+            }
+        }
+
+        return dst;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -552,50 +632,28 @@ public class NifTextureLoader
     }
 
     /// <summary>
-    /// Creates a TextureModel by encoding BGRA pixel data as a 32-bit BMP in a MemoryStream,
-    /// then using TextureModel(Stream). This routes through HelixToolkit's WIC decoder path
-    /// (TextureLoader.FromMemoryAsShaderResource) instead of ByteArrayLoader, which silently
-    /// fails to render real texture data despite accepting it without error.
+    /// Creates a TextureModel by encoding BGRA pixel data as a PNG in a MemoryStream,
+    /// then using TextureModel(Stream). PNG preserves the alpha channel (unlike BMP with
+    /// BI_RGB compression), which is essential for hair/brow transparency. This routes
+    /// through HelixToolkit's WIC decoder path (TextureLoader.FromMemoryAsShaderResource).
     /// </summary>
     private TextureModel CreateTextureModelViaBmp(byte[] pixelData, int width, int height, string label)
     {
-        int rowBytes = width * 4;
-        int pixelDataSize = height * rowBytes;
-        int fileSize = 54 + pixelDataSize;
+        int stride = width * 4;
+        var source = System.Windows.Media.Imaging.BitmapSource.Create(
+            width, height, 96, 96,
+            System.Windows.Media.PixelFormats.Bgra32,
+            null, pixelData, stride);
 
-        var ms = new MemoryStream(fileSize);
-        using (var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
-        {
-            // BITMAPFILEHEADER (14 bytes)
-            bw.Write((byte)'B');
-            bw.Write((byte)'M');
-            bw.Write(fileSize);
-            bw.Write(0);              // reserved
-            bw.Write(54);             // pixel data offset
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(source));
 
-            // BITMAPINFOHEADER (40 bytes)
-            bw.Write(40);             // header size
-            bw.Write(width);
-            bw.Write(height);         // positive = bottom-up row order
-            bw.Write((short)1);       // planes
-            bw.Write((short)32);      // bits per pixel (BGRA)
-            bw.Write(0);              // compression (BI_RGB)
-            bw.Write(pixelDataSize);
-            bw.Write(0);              // x ppm
-            bw.Write(0);              // y ppm
-            bw.Write(0);              // colors used
-            bw.Write(0);              // important colors
-
-            // Pixel rows: BMP is bottom-up, pixelData is top-down
-            for (int y = height - 1; y >= 0; y--)
-            {
-                bw.Write(pixelData, y * rowBytes, rowBytes);
-            }
-        }
-
+        var ms = new MemoryStream();
+        encoder.Save(ms);
         ms.Position = 0;
+
         var texture = new TextureModel(ms);
-        _logger.LogMessage("CharacterViewer: Created BMP-stream TextureModel for '" +
+        _logger.LogMessage("CharacterViewer: Created PNG-stream TextureModel for '" +
             Path.GetFileName(label) + "' (" + width + "x" + height +
             ", stream=" + ms.Length + " bytes)");
         return texture;
