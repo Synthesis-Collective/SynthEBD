@@ -947,29 +947,11 @@ public class NifMeshBuilder
             }
         }
 
-        // --- Step 5: Apply shape-to-root transform ---
-        // Like NPC Portrait Creator (line 948): finalPos = shapeToRoot * posedPos
-        // This positions the skinned mesh correctly in the NIF root coordinate space.
-        var shapeGlobal = GetTransformToGlobal(nif, shape, shapeName + " [skinning]");
-        bool hasShapeTransform = shapeGlobal.scale != 1.0f
-            || !shapeGlobal.rotation.IsIdentity()
-            || !IsZeroTranslation(shapeGlobal.translation);
-
-        if (hasShapeTransform)
-        {
-            var shapeXform = ExtractTransform(shapeGlobal);
-            for (int vi = 0; vi < vertCount; vi++)
-            {
-                shapeXform.Apply(outPosX[vi], outPosY[vi], outPosZ[vi],
-                    out outPosX[vi], out outPosY[vi], out outPosZ[vi]);
-
-                if (hasNormals)
-                {
-                    shapeXform.ApplyRotation(outNrmX[vi], outNrmY[vi], outNrmZ[vi],
-                        out outNrmX[vi], out outNrmY[vi], out outNrmZ[vi]);
-                }
-            }
-        }
+        // Note: No shapeToRoot transform is applied here. The skeleton's bone world
+        // transforms already place vertices in NIF root space. Applying the shape's
+        // local-to-root transform on top would double-count the offset (confirmed by
+        // headparts which have identity shape transforms and are correctly positioned
+        // by skinning alone).
 
         // Log a position sample to verify skinning is working
         if (vertCount > 0)
@@ -978,8 +960,7 @@ public class NifMeshBuilder
                 "' sample vert[0]: bind=(" + nifVerts[0].x.ToString("F2") + "," +
                 nifVerts[0].y.ToString("F2") + "," + nifVerts[0].z.ToString("F2") +
                 ") → skinned=(" + outPosX[0].ToString("F2") + "," +
-                outPosY[0].ToString("F2") + "," + outPosZ[0].ToString("F2") + ")" +
-                (hasShapeTransform ? " [+shapeToRoot]" : ""));
+                outPosY[0].ToString("F2") + "," + outPosZ[0].ToString("F2") + ")");
         }
 
         return new SkinningInfo
