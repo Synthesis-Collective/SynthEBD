@@ -573,7 +573,11 @@ public class NifMeshBuilder
                         " MSN=" + isModelSpaceNormals +
                         " gloss=" + glossiness.ToString("F0") +
                         " specStr=" + specularStrength.ToString("F2") +
-                        (isHairTintShader ? " HAIR_TINT" : ""));
+                        (isHairTintShader && hairTintColor.HasValue
+                            ? " HAIR_TINT=(" + hairTintColor.Value.R.ToString("F3") + ", " +
+                              hairTintColor.Value.G.ToString("F3") + ", " +
+                              hairTintColor.Value.B.ToString("F3") + ")"
+                            : (isHairTintShader ? " HAIR_TINT=(no color)" : "")));
                 }
             }
         }

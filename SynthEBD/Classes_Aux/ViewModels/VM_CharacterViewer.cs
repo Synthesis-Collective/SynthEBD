@@ -345,7 +345,10 @@ public class VM_CharacterViewer : VM
         {
             var (tR, tG, tB) = built.HairTintColor.Value;
             isHairTint = true; hairR = tR; hairG = tG; hairB = tB;
-            glMesh.DiffuseTexture = TextureManager.LoadTextureWithHairTint(hairDiffuse, tR, tG, tB);
+            // Upload the raw greyscale texture — the shader handles tinting via
+            // baseColor.rrr * tint_color * greyscaleToPaletteScale.
+            // CPU-side tinting was double-applying the color (once on CPU, once in shader).
+            glMesh.DiffuseTexture = TextureManager.LoadTexture(hairDiffuse);
             glMesh.HasGreyscaleToPalette = true;
             glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
             glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
@@ -378,8 +381,12 @@ public class VM_CharacterViewer : VM
             glMesh.NormalTexture = TextureManager.WhiteTexture;
         }
 
-        // Skin/subsurface map (slot 2)
-        if (effectiveTextures.TryGetValue(2, out string? skinPath))
+        // Skin/subsurface map (slot 2) — only meaningful for skin/face shader types.
+        // For other shader types (eye, hair, default, etc.) slot 2 has a different meaning
+        // (glow, environment, etc.) and applying it as a skin map would add incorrect red SSS tinting.
+        bool isSkinShader = built.ShaderType == 4  // BSLSP_FACE
+                         || built.ShaderType == 5; // BSLSP_SKINTINT
+        if (isSkinShader && effectiveTextures.TryGetValue(2, out string? skinPath))
         {
             glMesh.SkinTexture = TextureManager.LoadTexture(skinPath);
             glMesh.HasSkinMap = true;
