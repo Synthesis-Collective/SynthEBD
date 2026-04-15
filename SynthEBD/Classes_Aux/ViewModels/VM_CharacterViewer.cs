@@ -416,12 +416,16 @@ public class VM_CharacterViewer : VM
         glMesh.HasHairSoftLighting = (built.ShaderFlags1 & (1u << 21)) != 0; // SLSF1_Hair_Soft_Lighting
         glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Soft_Lighting
 
-        // Alpha test
-        if (built.HasAlphaTest)
+        // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
+        glMesh.IsDoubleSided = built.IsDoubleSided;
+
+        // Alpha test / blend
+        if (built.HasAlphaTest || built.HasAlphaBlend)
         {
             if (glMesh.DiffuseTexture != TextureManager.WhiteTexture)
             {
-                glMesh.UseAlphaTest = true;
+                glMesh.UseAlphaTest = built.HasAlphaTest;
+                glMesh.HasAlphaBlend = built.HasAlphaBlend;
                 glMesh.AlphaThreshold = built.AlphaThreshold;
             }
             else

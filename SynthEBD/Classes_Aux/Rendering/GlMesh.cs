@@ -43,6 +43,7 @@ public class GlMesh : IDisposable
     public bool HasVertexColors { get; set; }
     public bool UseAlphaTest { get; set; }
     public bool HasAlphaBlend { get; set; }
+    public bool IsDoubleSided { get; set; }
     public bool IsRendering { get; set; } = true;
 
     // Material properties

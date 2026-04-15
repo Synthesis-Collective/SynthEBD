@@ -130,32 +130,39 @@ public class GlRenderer : IDisposable
 
         _shader.SetVector3("u_backlightColor", BacklightColor.X, BacklightColor.Y, BacklightColor.Z);
 
-        // Draw opaque meshes first, then alpha-tested/blended
-        for (int pass = 0; pass < 2; pass++)
+        // Pass 0: Opaque meshes (no alpha test or blend)
+        GL.Disable(EnableCap.Blend);
+        GL.DepthMask(true);
+        foreach (var mesh in _meshes)
         {
-            foreach (var mesh in _meshes)
-            {
-                if (!mesh.IsRendering) continue;
-                bool isTransparent = mesh.UseAlphaTest || mesh.HasAlphaBlend;
-                if (pass == 0 && isTransparent) continue;
-                if (pass == 1 && !isTransparent) continue;
-
-                if (pass == 1)
-                {
-                    GL.Enable(EnableCap.Blend);
-                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                    GL.DepthMask(false);
-                }
-
-                DrawMesh(mesh);
-
-                if (pass == 1)
-                {
-                    GL.Disable(EnableCap.Blend);
-                    GL.DepthMask(true);
-                }
-            }
+            if (!mesh.IsRendering) continue;
+            if (mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
+            DrawMesh(mesh);
         }
+
+        // Pass 1: Alpha-tested meshes (discard in shader, depth writes ON).
+        // Meshes with both alpha test and alpha blend go here — the discard
+        // handles the cutout and depth writes prevent Z-fighting with the face.
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (!mesh.UseAlphaTest) continue;
+            DrawMesh(mesh);
+        }
+
+        // Pass 2: Alpha-blended-only meshes (no alpha test — pure transparency).
+        // Depth writes OFF to allow correct back-to-front compositing.
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        GL.DepthMask(false);
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (!mesh.HasAlphaBlend || mesh.UseAlphaTest) continue;
+            DrawMesh(mesh);
+        }
+        GL.Disable(EnableCap.Blend);
+        GL.DepthMask(true);
     }
 
     private void DrawMesh(GlMesh mesh)
@@ -198,14 +205,21 @@ public class GlRenderer : IDisposable
         _shader.SetFloat("rimlightPower", mesh.RimlightPower);
         _shader.SetFloat("subsurfaceRolloff", mesh.SubsurfaceRolloff);
 
-        // Cull mode
-        GL.CullFace(CullFaceMode.Back);
+        // Double-sided meshes (brow, eyelash, hair) need face culling disabled
+        if (mesh.IsDoubleSided)
+            GL.Disable(EnableCap.CullFace);
+        else
+            GL.Enable(EnableCap.CullFace);
 
         // Draw
         GL.BindVertexArray(mesh.Vao);
         GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
             DrawElementsType.UnsignedInt, 0);
         GL.BindVertexArray(0);
+
+        // Restore culling default
+        if (mesh.IsDoubleSided)
+            GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>

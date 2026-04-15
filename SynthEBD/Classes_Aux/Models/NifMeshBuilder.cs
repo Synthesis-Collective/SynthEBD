@@ -79,14 +79,24 @@ public class NifMeshBuilder
         public bool IsPrimaryHeadShape { get; init; }
 
         /// <summary>
-        /// True if this shape's NiAlphaProperty has the alpha test flag set.
+        /// True if this shape's NiAlphaProperty has the alpha test flag set (bit 9).
         /// </summary>
         public bool HasAlphaTest { get; init; }
+
+        /// <summary>
+        /// True if this shape's NiAlphaProperty has the alpha blend flag set (bit 0).
+        /// </summary>
+        public bool HasAlphaBlend { get; init; }
 
         /// <summary>
         /// Alpha test threshold from NiAlphaProperty (0–1 range).
         /// </summary>
         public float AlphaThreshold { get; init; }
+
+        /// <summary>
+        /// True if this shape has SLSF2_Double_Sided (shaderFlags2 bit 4).
+        /// </summary>
+        public bool IsDoubleSided { get; init; }
 
         // --- Shader material properties from BSLightingShaderProperty ---
         public float Glossiness { get; init; } = 80f;
@@ -573,8 +583,9 @@ public class NifMeshBuilder
                 (shape.name?.get() ?? "?") + "': " + ex.Message);
         }
 
-        // Read NiAlphaProperty for alpha test (brow, hair, and other transparent shapes)
+        // Read NiAlphaProperty for alpha test/blend (brow, hair, and other transparent shapes)
         bool hasAlphaTest = false;
+        bool hasAlphaBlend = false;
         float alphaThreshold = 0f;
         try
         {
@@ -588,13 +599,15 @@ public class NifMeshBuilder
                     if (alphaObj is NiAlphaProperty alphaProp)
                     {
                         ushort flags = alphaProp.flags;
+                        // Bit 0 of NiAlphaProperty flags = alpha blend enable
+                        hasAlphaBlend = (flags & 1) != 0;
                         // Bit 9 of NiAlphaProperty flags = alpha test enable
                         hasAlphaTest = (flags & (1 << 9)) != 0;
                         alphaThreshold = alphaProp.threshold / 255f;
 
                         // If alpha property exists but no flags set, default to alpha test
                         // (matches NPC Portrait Creator behavior)
-                        if (!hasAlphaTest && (flags & 1) == 0)
+                        if (!hasAlphaTest && !hasAlphaBlend)
                         {
                             hasAlphaTest = true;
                         }
@@ -619,11 +632,14 @@ public class NifMeshBuilder
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Length}v";
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
+        bool isDoubleSided = (shaderFlags2 & (1u << 4)) != 0; // SLSF2_Double_Sided
         _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
             ", MSN=" + isModelSpaceNormals +
-            (hasAlphaTest ? ", alphaTest=True threshold=" + alphaThreshold.ToString("F2") : "") +
+            (hasAlphaTest ? ", alphaTest threshold=" + alphaThreshold.ToString("F2") : "") +
+            (hasAlphaBlend ? ", alphaBlend" : "") +
+            (isDoubleSided ? ", doubleSided" : "") +
             (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
 
         return new BuiltMesh
@@ -644,7 +660,9 @@ public class NifMeshBuilder
             Skinning = skinning,
             IsPrimaryHeadShape = isPrimaryHead,
             HasAlphaTest = hasAlphaTest,
+            HasAlphaBlend = hasAlphaBlend,
             AlphaThreshold = alphaThreshold,
+            IsDoubleSided = isDoubleSided,
             Glossiness = glossiness,
             SpecularStrength = specularStrength,
             SubsurfaceRolloff = subsurfaceRolloff,
