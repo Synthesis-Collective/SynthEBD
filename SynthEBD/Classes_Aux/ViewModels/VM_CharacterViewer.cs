@@ -442,7 +442,11 @@ public class VM_CharacterViewer : VM
         {
             isFaceTint = true;
             faceTintPath = meshPaths.FaceTintPath;
-            glMesh.DiffuseTexture = TextureManager.LoadTextureWithFaceTint(headDiffuse, meshPaths.FaceTintPath);
+            // Load diffuse and face tint as separate textures so they can be
+            // toggled independently. The shader blends them via has_face_tint_map.
+            glMesh.DiffuseTexture = TextureManager.LoadTexture(headDiffuse);
+            glMesh.FaceTintTexture = TextureManager.LoadTexture(meshPaths.FaceTintPath);
+            glMesh.HasFaceTintMap = true;
         }
         else if (effectiveTextures.TryGetValue(0, out string? diffusePath))
         {
@@ -494,7 +498,8 @@ public class VM_CharacterViewer : VM
             glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0;
         }
 
-        glMesh.FaceTintTexture = TextureManager.WhiteTexture;
+        if (!glMesh.HasFaceTintMap)
+            glMesh.FaceTintTexture = TextureManager.WhiteTexture;
 
         // Material properties
         glMesh.MaterialGlossiness = built.Glossiness;
@@ -600,12 +605,9 @@ public class VM_CharacterViewer : VM
 
             if (slot.Value == 0)
             {
-                // Diffuse override
-                if (bodyPart == "Head" && _cachedMeshPaths?.FaceTintPath != null)
-                    mesh.DiffuseTexture = TextureManager.LoadTextureWithFaceTint(
-                        replacement.Source, _cachedMeshPaths.FaceTintPath);
-                else
-                    mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
+                // Diffuse override — load separately from face tint so they
+                // remain independently toggleable in the context menu.
+                mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
             }
             else if (slot.Value == 1)
             {
