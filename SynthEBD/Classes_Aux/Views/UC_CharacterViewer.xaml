@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
-             xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+             xmlns:glWpf="clr-namespace:OpenTK.Wpf;assembly=GLWpfControl"
              mc:Ignorable="d"
              d:DesignHeight="500" d:DesignWidth="600"
              d:DataContext="{d:DesignInstance Type=local:VM_CharacterViewer}">
@@ -21,17 +21,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar row 1: Texture & Background -->
+        <!-- Toolbar row 1: Background -->
         <Border Grid.Row="0" Background="#FF2A2A2A" Padding="6 3">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Texture Strategy:" Foreground="#FFAAAAAA" FontSize="11"
-                           VerticalAlignment="Center" Margin="0,0,5,0"/>
-                <ComboBox ItemsSource="{Binding AvailableStrategies}"
-                          SelectedItem="{Binding SelectedStrategy}"
-                          Width="120" FontSize="11" VerticalAlignment="Center"/>
-
                 <TextBlock Text="Background:" Foreground="#FFAAAAAA" FontSize="11"
-                           VerticalAlignment="Center" Margin="15,0,5,0"/>
+                           VerticalAlignment="Center" Margin="0,0,5,0"/>
                 <ComboBox x:Name="BgColorCombo" Width="110" FontSize="11" VerticalAlignment="Center"
                           SelectionChanged="BgColorCombo_SelectionChanged" SelectedIndex="0">
                     <ComboBoxItem>
@@ -75,10 +69,6 @@
                 <Button Content="Reset View" FontSize="11" Margin="15,0,0,0"
                         Padding="8 2" VerticalAlignment="Center"
                         Click="ResetViewButton_Click"/>
-
-                <Button Content="Benchmark Textures" FontSize="11" Margin="10,0,0,0"
-                        Padding="8 2" VerticalAlignment="Center"
-                        Click="BenchmarkButton_Click"/>
             </StackPanel>
         </Border>
 
@@ -123,35 +113,11 @@
             </WrapPanel>
         </Border>
 
-        <!-- 3D Viewport -->
-        <hx:Viewport3DX
+        <!-- OpenGL Viewport -->
+        <glWpf:GLWpfControl
             Grid.Row="2"
-            x:Name="Viewport"
-            EffectsManager="{Binding EffectsManager}"
-            BackgroundColor="DimGray"
-            ShowCoordinateSystem="True"
-            CoordinateSystemLabelForeground="White"
-            ZoomExtentsWhenLoaded="True"
-            ShowFrameRate="False"
-            FXAALevel="Medium">
-
-            <!-- Camera -->
-            <hx:Viewport3DX.Camera>
-                <hx:PerspectiveCamera
-                    Position="0,100,-300"
-                    LookDirection="0,-0.2,1"
-                    UpDirection="0,1,0"
-                    FieldOfView="45"
-                    NearPlaneDistance="1"
-                    FarPlaneDistance="10000"/>
-            </hx:Viewport3DX.Camera>
-
-            <!-- Lighting: bound to VM for live adjustment -->
-            <hx:AmbientLight3D Color="{Binding AmbientLightColor}"/>
-            <hx:DirectionalLight3D Color="{Binding KeyLightColor}" Direction="{Binding KeyLightDirection}"/>
-            <hx:DirectionalLight3D Color="{Binding FillLightColor}" Direction="{Binding FillLightDirection}"/>
-            <hx:DirectionalLight3D Color="{Binding RimLightColor}" Direction="{Binding RimLightDirection}"/>
-        </hx:Viewport3DX>
+            x:Name="GlControl"
+            Render="GlControl_OnRender"/>
 
         <!-- Loading overlay -->
         <Border Grid.Row="2"

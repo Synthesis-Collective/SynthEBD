@@ -704,7 +704,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
     private void RefreshViewerTextures()
     {
-        if (CharacterViewer.MeshModels.Count == 0)
+        if (CharacterViewer.Renderer.Meshes.Count == 0)
         {
             return;
         }
@@ -723,7 +723,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
     private void RefreshViewerBodySlide()
     {
-        if (CharacterViewer.MeshModels.Count == 0 || string.IsNullOrEmpty(ForcedBodySlide))
+        if (CharacterViewer.Renderer.Meshes.Count == 0 || string.IsNullOrEmpty(ForcedBodySlide))
         {
             return;
         }

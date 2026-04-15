@@ -84,7 +84,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
-        builder.RegisterType<NifTextureLoader>().AsSelf().SingleInstance();
+        // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline
         builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_CharacterViewer>().AsSelf();

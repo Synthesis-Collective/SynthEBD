@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using HelixToolkit;
-using SysVector3 = System.Numerics.Vector3;
+using System.Numerics;
 
 namespace SynthEBD;
 
@@ -38,13 +36,13 @@ public class BodySlideDeformer
     /// <param name="osdFiles">Parsed OSD files containing vertex deltas for this body type.</param>
     /// <param name="shapeName">The target shape name to match against OSD file ShapeNames. If null, applies all OSD files.</param>
     public void ApplyDeformation(
-        Vector3Collection positions,
+        Vector3[] positions,
         BodySlideSetting preset,
         int weight,
         List<OsdFile> osdFiles,
         string? shapeName = null)
     {
-        if (positions == null || positions.Count == 0 || preset == null || osdFiles == null || osdFiles.Count == 0)
+        if (positions == null || positions.Length == 0 || preset == null || osdFiles == null || osdFiles.Count == 0)
         {
             return;
         }
@@ -62,15 +60,15 @@ public class BodySlideDeformer
             return;
         }
 
-        int vertCount = positions.Count;
+        int vertCount = positions.Length;
         int slidersApplied = 0;
         int vertsModified = 0;
 
         // We need separate high/low accumulators for weight interpolation.
         // Start from a copy of the original positions, accumulate Big diffs → high,
         // Small diffs → low, then interpolate.
-        var deltasHigh = new SysVector3[vertCount]; // accumulated Big diffs (all start at zero)
-        var deltasLow = new SysVector3[vertCount];  // accumulated Small diffs
+        var deltasHigh = new Vector3[vertCount]; // accumulated Big diffs (all start at zero)
+        var deltasLow = new Vector3[vertCount];  // accumulated Small diffs
 
         // Track which vertices were touched
         var touchedVerts = new HashSet<int>();
@@ -103,8 +101,8 @@ public class BodySlideDeformer
 
                 // Convert OSD delta from NIF Z-up to HelixToolkit Y-up:
                 // X stays, Y = Z_nif, Z = -Y_nif
-                SysVector3 nifDelta = delta.Value;
-                SysVector3 yUpDelta = new SysVector3(nifDelta.X, nifDelta.Z, -nifDelta.Y);
+                Vector3 nifDelta = delta.Value;
+                Vector3 yUpDelta = new Vector3(nifDelta.X, nifDelta.Z, -nifDelta.Y);
 
                 if (slider.Big != 0)
                 {
@@ -137,8 +135,8 @@ public class BodySlideDeformer
 
         foreach (int vi in touchedVerts)
         {
-            SysVector3 combinedDelta = deltasHigh[vi] * weightHigh + deltasLow[vi] * weightLow;
-            SysVector3 original = positions[vi];
+            Vector3 combinedDelta = deltasHigh[vi] * weightHigh + deltasLow[vi] * weightLow;
+            Vector3 original = positions[vi];
             positions[vi] = original + combinedDelta;
         }
 
@@ -152,23 +150,23 @@ public class BodySlideDeformer
     /// Recalculates face normals after deformation. Computes area-weighted
     /// vertex normals from triangle face normals.
     /// </summary>
-    public static void RecalculateNormals(Vector3Collection positions, IntCollection indices, Vector3Collection normals)
+    public static void RecalculateNormals(Vector3[] positions, int[] indices, Vector3[] normals)
     {
         if (positions == null || indices == null || normals == null)
         {
             return;
         }
 
-        int vertCount = positions.Count;
+        int vertCount = positions.Length;
 
         // Zero out all normals
         for (int i = 0; i < vertCount; i++)
         {
-            normals[i] = SysVector3.Zero;
+            normals[i] = Vector3.Zero;
         }
 
         // Accumulate face normals (area-weighted via cross product magnitude)
-        for (int i = 0; i + 2 < indices.Count; i += 3)
+        for (int i = 0; i + 2 < indices.Length; i += 3)
         {
             int i0 = indices[i];
             int i1 = indices[i + 1];
@@ -179,13 +177,13 @@ public class BodySlideDeformer
                 continue;
             }
 
-            SysVector3 v0 = positions[i0];
-            SysVector3 v1 = positions[i1];
-            SysVector3 v2 = positions[i2];
+            Vector3 v0 = positions[i0];
+            Vector3 v1 = positions[i1];
+            Vector3 v2 = positions[i2];
 
-            SysVector3 edge1 = v1 - v0;
-            SysVector3 edge2 = v2 - v0;
-            SysVector3 faceNormal = SysVector3.Cross(edge1, edge2);
+            Vector3 edge1 = v1 - v0;
+            Vector3 edge2 = v2 - v0;
+            Vector3 faceNormal = Vector3.Cross(edge1, edge2);
 
             // The cross product magnitude is proportional to triangle area,
             // giving natural area-weighted normals
@@ -197,9 +195,9 @@ public class BodySlideDeformer
         // Normalize
         for (int i = 0; i < vertCount; i++)
         {
-            SysVector3 n = normals[i];
+            Vector3 n = normals[i];
             float length = n.Length();
-            normals[i] = length > 1e-8f ? n / length : SysVector3.UnitY;
+            normals[i] = length > 1e-8f ? n / length : Vector3.UnitY;
         }
     }
 
@@ -208,10 +206,10 @@ public class BodySlideDeformer
     /// matching OSD files. OSD files are matched by ShapeName if specified.
     /// Uses case-insensitive key matching for slider names.
     /// </summary>
-    private Dictionary<string, Dictionary<ushort, SysVector3>> BuildSliderDeltaMap(
+    private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMap(
         List<OsdFile> osdFiles, string? shapeName)
     {
-        var map = new Dictionary<string, Dictionary<ushort, SysVector3>>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, Dictionary<ushort, Vector3>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var osd in osdFiles)
         {

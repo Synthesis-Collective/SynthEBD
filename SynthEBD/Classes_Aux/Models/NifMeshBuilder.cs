@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using HelixToolkit;
+using System.Numerics;
 using nifly;
-using SysVector2 = System.Numerics.Vector2;
-using SysVector3 = System.Numerics.Vector3;
 using NiHeader = nifly.NiHeader;
 using NiObject = nifly.NiObject;
+using Vector2 = System.Numerics.Vector2;
+using Vector3 = System.Numerics.Vector3;
 
 namespace SynthEBD;
 
@@ -26,10 +26,12 @@ public class NifMeshBuilder
     /// </summary>
     public class BuiltMesh
     {
-        public required Vector3Collection Positions { get; init; }
-        public required Vector3Collection Normals { get; init; }
-        public required IntCollection Indices { get; init; }
-        public required Vector2Collection TextureCoordinates { get; init; }
+        public required Vector3[] Positions { get; init; }
+        public required Vector3[] Normals { get; init; }
+        public required int[] Indices { get; init; }
+        public required Vector2[] TextureCoordinates { get; init; }
+        public required Vector3[] Tangents { get; init; }
+        public required Vector3[] Bitangents { get; init; }
         public required string ShapeName { get; init; }
 
         /// <summary>
@@ -39,35 +41,31 @@ public class NifMeshBuilder
         public Dictionary<int, string> TexturePaths { get; init; } = new();
 
         /// <summary>
-        /// True if this shape's BSLightingShaderProperty has the SLSF1_Model_Space_Normals
-        /// flag set (bit 28 of shaderFlags1). MSN textures encode normals in the mesh's
-        /// model coordinate space rather than tangent space.
+        /// True if this shape's BSLightingShaderProperty has the SLSF1_Model_Space_Normals flag set.
+        /// MSN textures encode normals in the mesh's model coordinate space rather than tangent space.
         /// </summary>
         public bool IsModelSpaceNormals { get; init; }
 
         /// <summary>
-        /// True if this shape uses the Greyscale-to-Palette hair tint shader
-        /// (BSLightingShaderProperty.bslspShaderType == BSLSP_HAIRTINT).
+        /// True if this shape uses the Greyscale-to-Palette hair tint shader.
         /// The diffuse texture is a greyscale mask that should be multiplied by the tint color.
         /// </summary>
         public bool IsHairTintShader { get; init; }
 
         /// <summary>
         /// Hair tint color from BSLightingShaderProperty.hairTintColor (RGB, 0–1 range).
-        /// Only valid when <see cref="IsHairTintShader"/> is true.
         /// </summary>
         public (float R, float G, float B)? HairTintColor { get; init; }
 
         /// <summary>
         /// Bind-pose (unskinned) vertex positions in Y-up space. Null for unskinned shapes.
-        /// Used as the starting point for BodySlide deformation before re-skinning.
         /// </summary>
-        public Vector3Collection? BindPosePositions { get; init; }
+        public Vector3[]? BindPosePositions { get; init; }
 
         /// <summary>
         /// Bind-pose (unskinned) vertex normals in Y-up space. Null for unskinned shapes.
         /// </summary>
-        public Vector3Collection? BindPoseNormals { get; init; }
+        public Vector3[]? BindPoseNormals { get; init; }
 
         /// <summary>
         /// Pre-computed skinning data for CPU-side bone-weight skinning.
@@ -76,22 +74,32 @@ public class NifMeshBuilder
         public SkinningInfo? Skinning { get; init; }
 
         /// <summary>
-        /// True if this shape is the primary head mesh in a FaceGen NIF (tallest head-partition shape).
-        /// Used to target head diffuse overrides and face tint blending to the correct shape.
+        /// True if this shape is the primary head mesh in a FaceGen NIF.
         /// </summary>
         public bool IsPrimaryHeadShape { get; init; }
 
         /// <summary>
-        /// True if this shape's NiAlphaProperty has the alpha test flag set (bit 9 of flags).
-        /// Shapes with alpha test discard pixels below <see cref="AlphaThreshold"/>.
+        /// True if this shape's NiAlphaProperty has the alpha test flag set.
         /// </summary>
         public bool HasAlphaTest { get; init; }
 
         /// <summary>
-        /// Alpha test threshold from NiAlphaProperty (0–1 range, converted from byte 0–255).
-        /// Only meaningful when <see cref="HasAlphaTest"/> is true.
+        /// Alpha test threshold from NiAlphaProperty (0–1 range).
         /// </summary>
         public float AlphaThreshold { get; init; }
+
+        // --- Shader material properties from BSLightingShaderProperty ---
+        public float Glossiness { get; init; } = 80f;
+        public float SpecularStrength { get; init; } = 1f;
+        public float SubsurfaceRolloff { get; init; }
+        public float GreyscaleToPaletteScale { get; init; } = 1f;
+        public float RimlightPower { get; init; } = 2f;
+        public bool HasVertexColors { get; init; }
+
+        /// <summary>Shader flags for detecting specular, soft lighting, hair soft lighting, etc.</summary>
+        public uint ShaderFlags1 { get; init; }
+        public uint ShaderFlags2 { get; init; }
+        public uint ShaderType { get; init; }
     }
 
     /// <summary>
@@ -372,8 +380,8 @@ public class NifMeshBuilder
         // between head and body meshes. Without a skeleton, we fall back to the shape
         // transform heuristic (ComputeEffectiveTransform).
         SkinningInfo? skinning = null;
-        Vector3Collection? bindPosePositionsYUp = null;
-        Vector3Collection? bindPoseNormalsYUp = null;
+        Vector3[]? bindPosePositionsYUp = null;
+        Vector3[]? bindPoseNormalsYUp = null;
         float[]? skinnedPosX = null, skinnedPosY = null, skinnedPosZ = null;
         float[]? skinnedNrmX = null, skinnedNrmY = null, skinnedNrmZ = null;
 
@@ -399,17 +407,15 @@ public class NifMeshBuilder
         }
 
         // Build positions — skinned or transform-based, then convert Z-up → Y-up
-        var positions = new Vector3Collection(vertCount);
+        var positions = new Vector3[vertCount];
         if (skinning != null)
         {
-            bindPosePositionsYUp = new Vector3Collection(vertCount);
+            bindPosePositionsYUp = new Vector3[vertCount];
             for (int i = 0; i < vertCount; i++)
             {
                 var v = nifVerts[i];
-                // Store raw bind-pose position in Y-up for BodySlide
-                bindPosePositionsYUp.Add(new SysVector3(v.x, v.z, -v.y));
-                // Skinned position: Z-up → Y-up
-                positions.Add(new SysVector3(skinnedPosX![i], skinnedPosZ![i], -skinnedPosY![i]));
+                bindPosePositionsYUp[i] = new Vector3(v.x, v.z, -v.y);
+                positions[i] = new Vector3(skinnedPosX![i], skinnedPosZ![i], -skinnedPosY![i]);
             }
         }
         else
@@ -420,29 +426,23 @@ public class NifMeshBuilder
                 float px = v.x, py = v.y, pz = v.z;
                 if (hasTransform)
                     ApplyTransform(shapeTransform!, px, py, pz, out px, out py, out pz);
-                // NIF is Z-up, HelixToolkit is Y-up: X stays, Y = Z_nif, Z = -Y_nif
-                positions.Add(new SysVector3(px, pz, -py));
+                positions[i] = new Vector3(px, pz, -py);
             }
         }
 
         // Build normals
-        var normals = new Vector3Collection(vertCount);
+        var normals = new Vector3[vertCount];
         if (skinning != null && skinnedNrmX != null)
         {
-            bindPoseNormalsYUp = new Vector3Collection(vertCount);
+            bindPoseNormalsYUp = new Vector3[vertCount];
             for (int i = 0; i < vertCount; i++)
             {
                 if (nifNormals != null && nifNormals.Count == vertCount)
                 {
                     var n = nifNormals[i];
-                    bindPoseNormalsYUp.Add(new SysVector3(n.x, n.z, -n.y));
+                    bindPoseNormalsYUp[i] = new Vector3(n.x, n.z, -n.y);
                 }
-                else
-                {
-                    bindPoseNormalsYUp.Add(SysVector3.Zero);
-                }
-                // Skinned normal: Z-up → Y-up
-                normals.Add(new SysVector3(skinnedNrmX[i], skinnedNrmZ![i], -skinnedNrmY![i]));
+                normals[i] = new Vector3(skinnedNrmX[i], skinnedNrmZ![i], -skinnedNrmY![i]);
             }
         }
         else if (nifNormals != null && nifNormals.Count == vertCount)
@@ -454,40 +454,60 @@ public class NifMeshBuilder
                 float nx = n.x, ny = n.y, nz = n.z;
                 if (hasRotation)
                     ApplyRotation(shapeTransform!.rotation, nx, ny, nz, out nx, out ny, out nz);
-                // Z-up → Y-up
-                normals.Add(new SysVector3(nx, nz, -ny));
+                normals[i] = new Vector3(nx, nz, -ny);
             }
-        }
-        else
-        {
-            for (int i = 0; i < vertCount; i++)
-                normals.Add(SysVector3.Zero);
         }
 
         // Build UVs
-        var uvs = new Vector2Collection(vertCount);
+        var uvs = new Vector2[vertCount];
         if (nifUvs != null && nifUvs.Count == vertCount)
         {
             for (int i = 0; i < vertCount; i++)
             {
                 var uv = nifUvs[i];
-                uvs.Add(new SysVector2(uv.u, uv.v));
+                uvs[i] = new Vector2(uv.u, uv.v);
             }
         }
-        else
+
+        // Build tangents and bitangents from NIF (Z-up → Y-up)
+        var tangents = new Vector3[vertCount];
+        var bitangents = new Vector3[vertCount];
+        bool hasVertexColors = false;
+        try
         {
-            for (int i = 0; i < vertCount; i++)
-                uvs.Add(SysVector2.Zero);
+            using var nifTangents = nif.GetTangentsForShape(shape);
+            using var nifBitangents = nif.GetBitangentsForShape(shape);
+            if (nifTangents != null && nifTangents.Count == vertCount &&
+                nifBitangents != null && nifBitangents.Count == vertCount)
+            {
+                for (int i = 0; i < vertCount; i++)
+                {
+                    var t = nifTangents[i];
+                    var b = nifBitangents[i];
+                    // Z-up → Y-up conversion
+                    tangents[i] = new Vector3(t.x, t.z, -t.y);
+                    bitangents[i] = new Vector3(b.x, b.z, -b.y);
+                }
+            }
+            else
+            {
+                // Compute tangents from positions/normals/UVs if NIF doesn't have them
+                ComputeTangents(positions, normals, uvs, nifTris, tangents, bitangents);
+            }
+        }
+        catch
+        {
+            ComputeTangents(positions, normals, uvs, nifTris, tangents, bitangents);
         }
 
         // Build triangle indices
-        var indices = new IntCollection(nifTris.Count * 3);
+        var indices = new int[nifTris.Count * 3];
         for (int i = 0; i < nifTris.Count; i++)
         {
             var tri = nifTris[i];
-            indices.Add(tri.p1);
-            indices.Add(tri.p2);
-            indices.Add(tri.p3);
+            indices[i * 3] = tri.p1;
+            indices[i * 3 + 1] = tri.p2;
+            indices[i * 3 + 2] = tri.p3;
         }
 
         // Extract texture paths from BSShaderTextureSet
@@ -499,10 +519,16 @@ public class NifMeshBuilder
                 texturePaths[(int)slot] = texPath;
         }
 
-        // Extract shader flags to detect model-space normals and hair tint
+        // Extract shader flags and material properties
         bool isModelSpaceNormals = false;
         bool isHairTintShader = false;
         (float R, float G, float B)? hairTintColor = null;
+        float glossiness = 80f;
+        float specularStrength = 1f;
+        float subsurfaceRolloff = 0f;
+        float greyscaleToPaletteScale = 1f;
+        float rimlightPower = 2f;
+        uint shaderFlags1 = 0, shaderFlags2 = 0, shaderType = 0;
         try
         {
             NiHeader header = nif.GetHeader();
@@ -512,28 +538,32 @@ public class NifMeshBuilder
                 NiObject shaderObj = header.GetBlockById(shaderRef.index);
                 if (shaderObj is BSLightingShaderProperty bslsp)
                 {
-                    isModelSpaceNormals = (bslsp.shaderFlags1 & SLSF1_ModelSpaceNormals) != 0;
+                    shaderFlags1 = bslsp.shaderFlags1;
+                    shaderFlags2 = bslsp.shaderFlags2;
+                    shaderType = bslsp.bslspShaderType;
+                    isModelSpaceNormals = (shaderFlags1 & SLSF1_ModelSpaceNormals) != 0;
+                    glossiness = bslsp.glossiness;
+                    specularStrength = bslsp.specularStrength;
 
-                    // Detect hair tint shader (BSLSP_HAIRTINT = 6)
+                    // Extract additional properties safely
+                    try { subsurfaceRolloff = bslsp.subsurfaceRolloff; } catch { }
+                    // greyscaleToPaletteScale is not exposed by niflysharp; default to 1.0
+                    try { rimlightPower = bslsp.rimlightPower; } catch { }
+
                     if (bslsp.bslspShaderType == (uint)BSLightingShaderPropertyShaderType.BSLSP_HAIRTINT)
                     {
                         isHairTintShader = true;
                         var tint = bslsp.hairTintColor;
                         if (tint != null)
-                        {
                             hairTintColor = (tint.x, tint.y, tint.z);
-                        }
                     }
 
                     _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
                         "' shaderType=" + bslsp.bslspShaderType +
-                        " isModelSpaceNormals=" + isModelSpaceNormals +
-                        " isHairTint=" + isHairTintShader +
-                        (hairTintColor.HasValue
-                            ? " tintColor=(" + hairTintColor.Value.R.ToString("F2") + "," +
-                              hairTintColor.Value.G.ToString("F2") + "," +
-                              hairTintColor.Value.B.ToString("F2") + ")"
-                            : ""));
+                        " MSN=" + isModelSpaceNormals +
+                        " gloss=" + glossiness.ToString("F0") +
+                        " specStr=" + specularStrength.ToString("F2") +
+                        (isHairTintShader ? " HAIR_TINT" : ""));
                 }
             }
         }
@@ -586,11 +616,11 @@ public class NifMeshBuilder
             ComputeNormalsFromGeometry(positions, indices, normals);
         }
 
-        string shapeName = shape.name?.get() ?? $"Shape_{positions.Count}v";
+        string shapeName = shape.name?.get() ?? $"Shape_{positions.Length}v";
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
-            "': " + positions.Count + " verts, " + (indices.Count / 3) + " tris" +
+            "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
             ", MSN=" + isModelSpaceNormals +
             (hasAlphaTest ? ", alphaTest=True threshold=" + alphaThreshold.ToString("F2") : "") +
@@ -602,6 +632,8 @@ public class NifMeshBuilder
             Normals = normals,
             Indices = indices,
             TextureCoordinates = uvs,
+            Tangents = tangents,
+            Bitangents = bitangents,
             ShapeName = shapeName,
             TexturePaths = texturePaths,
             IsModelSpaceNormals = isModelSpaceNormals,
@@ -610,9 +642,18 @@ public class NifMeshBuilder
             BindPosePositions = bindPosePositionsYUp,
             BindPoseNormals = bindPoseNormalsYUp,
             Skinning = skinning,
-            IsPrimaryHeadShape = primaryHeadName != null && shapeName == primaryHeadName,
+            IsPrimaryHeadShape = isPrimaryHead,
             HasAlphaTest = hasAlphaTest,
             AlphaThreshold = alphaThreshold,
+            Glossiness = glossiness,
+            SpecularStrength = specularStrength,
+            SubsurfaceRolloff = subsurfaceRolloff,
+            GreyscaleToPaletteScale = greyscaleToPaletteScale,
+            RimlightPower = rimlightPower,
+            HasVertexColors = hasVertexColors,
+            ShaderFlags1 = shaderFlags1,
+            ShaderFlags2 = shaderFlags2,
+            ShaderType = shaderType,
         };
     }
 
@@ -1038,21 +1079,20 @@ public class NifMeshBuilder
     /// Can be called in-place (same collection for input and output).
     /// </summary>
     public static void ApplySkinning(
-        Vector3Collection inputPositions,
-        Vector3Collection inputNormals,
+        Vector3[] inputPositions,
+        Vector3[] inputNormals,
         SkinningInfo skinning,
-        Vector3Collection outputPositions,
-        Vector3Collection outputNormals)
+        Vector3[] outputPositions,
+        Vector3[] outputNormals)
     {
         int vertCount = skinning.VertexCount;
-        if (vertCount == 0 || inputPositions.Count < vertCount) return;
+        if (vertCount == 0 || inputPositions.Length < vertCount) return;
 
-        bool hasNormals = inputNormals != null && inputNormals.Count >= vertCount;
+        bool hasNormals = inputNormals != null && inputNormals.Length >= vertCount;
 
         for (int vi = 0; vi < vertCount; vi++)
         {
             var posYUp = inputPositions[vi];
-            // Y-up → Z-up: (x, y, z)_yup → (x, -z, y)_zup
             float px = posYUp.X, py = -posYUp.Z, pz = posYUp.Y;
 
             float accPx = 0, accPy = 0, accPz = 0;
@@ -1074,40 +1114,31 @@ public class NifMeshBuilder
                 int bIdx = skinning.VertBoneIndices[baseIdx + k];
 
                 skinning.BoneTransforms[bIdx].Apply(px, py, pz, out float tx, out float ty, out float tz);
-                accPx += w * tx;
-                accPy += w * ty;
-                accPz += w * tz;
+                accPx += w * tx; accPy += w * ty; accPz += w * tz;
 
                 if (hasNormals)
                 {
                     skinning.BoneTransforms[bIdx].ApplyRotation(nx, ny, nz, out float tnx, out float tny, out float tnz);
-                    accNx += w * tnx;
-                    accNy += w * tny;
-                    accNz += w * tnz;
+                    accNx += w * tnx; accNy += w * tny; accNz += w * tnz;
                 }
-
                 totalWeight += w;
             }
 
             if (totalWeight > 0)
             {
-                // Skinned Z-up → Y-up: (x, y, z)_zup → (x, z, -y)_yup
-                outputPositions[vi] = new SysVector3(accPx / totalWeight, accPz / totalWeight, -accPy / totalWeight);
-
+                outputPositions[vi] = new Vector3(accPx / totalWeight, accPz / totalWeight, -accPy / totalWeight);
                 if (hasNormals)
                 {
-                    float nLen = (float)Math.Sqrt(accNx * accNx + accNy * accNy + accNz * accNz);
-                    if (nLen > 0.0001f)
-                        outputNormals[vi] = new SysVector3(accNx / nLen, accNz / nLen, -accNy / nLen);
-                    else
-                        outputNormals[vi] = inputNormals![vi];
+                    float nLen = MathF.Sqrt(accNx * accNx + accNy * accNy + accNz * accNz);
+                    outputNormals[vi] = nLen > 0.0001f
+                        ? new Vector3(accNx / nLen, accNz / nLen, -accNy / nLen)
+                        : inputNormals![vi];
                 }
             }
             else
             {
                 outputPositions[vi] = posYUp;
-                if (hasNormals)
-                    outputNormals[vi] = inputNormals![vi];
+                if (hasNormals) outputNormals[vi] = inputNormals![vi];
             }
         }
     }
@@ -1118,7 +1149,7 @@ public class NifMeshBuilder
         return Math.Abs(v.x) < eps && Math.Abs(v.y) < eps && Math.Abs(v.z) < eps;
     }
 
-    private static bool AreNormalsAllZero(Vector3Collection normals)
+    private static bool AreNormalsAllZero(Vector3[] normals)
     {
         const float eps = 0.0001f;
         foreach (var n in normals)
@@ -1129,39 +1160,78 @@ public class NifMeshBuilder
         return true;
     }
 
-    /// <summary>
-    /// Computes smooth vertex normals by averaging face normals of adjacent triangles.
-    /// </summary>
-    private static void ComputeNormalsFromGeometry(Vector3Collection positions, IntCollection indices,
-        Vector3Collection normals)
+    private static void ComputeNormalsFromGeometry(Vector3[] positions, int[] indices, Vector3[] normals)
     {
-        // Zero out existing normals
-        for (int i = 0; i < normals.Count; i++)
-            normals[i] = SysVector3.Zero;
+        for (int i = 0; i < normals.Length; i++)
+            normals[i] = Vector3.Zero;
 
-        // Accumulate face normals onto vertices
-        for (int i = 0; i < indices.Count; i += 3)
+        for (int i = 0; i + 2 < indices.Length; i += 3)
         {
             int i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
-            var v0 = positions[i0];
-            var v1 = positions[i1];
-            var v2 = positions[i2];
-
-            var edge1 = v1 - v0;
-            var edge2 = v2 - v0;
-            var faceNormal = SysVector3.Cross(edge1, edge2);
-
+            var edge1 = positions[i1] - positions[i0];
+            var edge2 = positions[i2] - positions[i0];
+            var faceNormal = Vector3.Cross(edge1, edge2);
             normals[i0] += faceNormal;
             normals[i1] += faceNormal;
             normals[i2] += faceNormal;
         }
 
-        // Normalize
-        for (int i = 0; i < normals.Count; i++)
+        for (int i = 0; i < normals.Length; i++)
+        {
+            float len = normals[i].Length();
+            normals[i] = len > 0.0001f ? normals[i] / len : new Vector3(0, 1, 0);
+        }
+    }
+
+    /// <summary>
+    /// Computes tangents and bitangents from position/normal/UV data using the Lengyel algorithm.
+    /// </summary>
+    private static void ComputeTangents(Vector3[] positions, Vector3[] normals, Vector2[] uvs,
+        vectorTriangle tris, Vector3[] tangents, Vector3[] bitangents)
+    {
+        var tan1 = new Vector3[positions.Length];
+        var tan2 = new Vector3[positions.Length];
+
+        for (int i = 0; i < tris.Count; i++)
+        {
+            var tri = tris[i];
+            int i0 = tri.p1, i1 = tri.p2, i2 = tri.p3;
+            if (i0 >= positions.Length || i1 >= positions.Length || i2 >= positions.Length) continue;
+
+            var v0 = positions[i0]; var v1 = positions[i1]; var v2 = positions[i2];
+            var w0 = uvs[i0]; var w1 = uvs[i1]; var w2 = uvs[i2];
+
+            float x1 = v1.X - v0.X, x2 = v2.X - v0.X;
+            float y1 = v1.Y - v0.Y, y2 = v2.Y - v0.Y;
+            float z1 = v1.Z - v0.Z, z2 = v2.Z - v0.Z;
+            float s1 = w1.X - w0.X, s2 = w2.X - w0.X;
+            float t1 = w1.Y - w0.Y, t2 = w2.Y - w0.Y;
+
+            float denom = s1 * t2 - s2 * t1;
+            if (MathF.Abs(denom) < 1e-10f) continue;
+            float r = 1f / denom;
+
+            var sdir = new Vector3((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
+            var tdir = new Vector3((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
+
+            tan1[i0] += sdir; tan1[i1] += sdir; tan1[i2] += sdir;
+            tan2[i0] += tdir; tan2[i1] += tdir; tan2[i2] += tdir;
+        }
+
+        for (int i = 0; i < positions.Length; i++)
         {
             var n = normals[i];
-            float len = n.Length();
-            normals[i] = len > 0.0001f ? n / len : new SysVector3(0, 1, 0);
+            var t = tan1[i];
+
+            // Gram-Schmidt orthogonalize
+            var tangent = t - n * Vector3.Dot(n, t);
+            float len = tangent.Length();
+            tangents[i] = len > 0.0001f ? tangent / len : Vector3.Zero;
+
+            // Bitangent = cross(n, t) * handedness
+            bitangents[i] = Vector3.Cross(n, tangents[i]);
+            if (Vector3.Dot(bitangents[i], tan2[i]) < 0)
+                bitangents[i] = -bitangents[i];
         }
     }
 }

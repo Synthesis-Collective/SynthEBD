@@ -1,7 +1,9 @@
-using System.Collections.Specialized;
+using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using HelixToolkit.Wpf.SharpDX;
+using System.Windows.Input;
+using OpenTK.Wpf;
 
 namespace SynthEBD;
 
@@ -10,104 +12,141 @@ public partial class UC_CharacterViewer : UserControl
     public UC_CharacterViewer()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
+
+        // GLWpfControl requires explicit Start() before it will fire Render events.
+        // Use a safe framerate; the control only redraws when invalidated or on timer.
+        Loaded += OnLoaded;
     }
 
     private VM_CharacterViewer? _vm;
+    private bool _glStarted;
 
-    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // Unsubscribe from old VM
-        if (_vm != null)
-            _vm.MeshModels.CollectionChanged -= OnMeshModelsChanged;
-
         _vm = DataContext as VM_CharacterViewer;
 
-        if (_vm != null)
+        if (!_glStarted)
         {
-            _vm.MeshModels.CollectionChanged += OnMeshModelsChanged;
-            // Add any models that are already loaded
-            SyncAllModels();
+            var settings = new GLWpfControlSettings
+            {
+                MajorVersion = 3,
+                MinorVersion = 3,
+                RenderContinuously = true
+            };
+            GlControl.Start(settings);
+            _glStarted = true;
         }
+
+        // Wire mouse events for orbit camera
+        GlControl.MouseDown += GlControl_MouseDown;
+        GlControl.MouseMove += GlControl_MouseMove;
+        GlControl.MouseUp += GlControl_MouseUp;
+        GlControl.MouseWheel += GlControl_MouseWheel;
     }
 
-    private void OnMeshModelsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    // ═══════════════════════════════════════════════════════════════════════
+    //  GL RENDER CALLBACK
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void GlControl_OnRender(TimeSpan delta)
     {
-        switch (e.Action)
-        {
-            case NotifyCollectionChangedAction.Add:
-                if (e.NewItems != null)
-                    foreach (MeshGeometryModel3D model in e.NewItems)
-                        Viewport.Items.Add(model);
-                break;
-
-            case NotifyCollectionChangedAction.Remove:
-                if (e.OldItems != null)
-                    foreach (MeshGeometryModel3D model in e.OldItems)
-                        Viewport.Items.Remove(model);
-                break;
-
-            case NotifyCollectionChangedAction.Reset:
-                RemoveAllMeshModels();
-                break;
-        }
-    }
-
-    private void SyncAllModels()
-    {
-        RemoveAllMeshModels();
+        _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
-        foreach (var model in _vm.MeshModels)
-            Viewport.Items.Add(model);
-    }
-
-    private void RemoveAllMeshModels()
-    {
-        // Remove only MeshGeometryModel3D items (preserve lights)
-        for (int i = Viewport.Items.Count - 1; i >= 0; i--)
+        // Lazy-init GL on first render (context is guaranteed ready here)
+        if (!_vm.IsGlInitialized)
         {
-            if (Viewport.Items[i] is MeshGeometryModel3D)
-                Viewport.Items.RemoveAt(i);
+            string shaderDir = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "Classes_Aux", "Rendering", "Shaders");
+            _vm.InitializeGl(shaderDir);
+        }
+
+        // Update background color from renderer
+        int w = (int)GlControl.ActualWidth;
+        int h = (int)GlControl.ActualHeight;
+        if (w > 0 && h > 0)
+        {
+            _vm.Renderer.Render(_vm.Camera, w, h);
         }
     }
 
-    private static readonly System.Windows.Media.Color[] BgColors =
+    // ═══════════════════════════════════════════════════════════════════════
+    //  MOUSE → ORBIT CAMERA
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void GlControl_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        System.Windows.Media.Color.FromRgb(105, 105, 105), // Dim Gray
-        System.Windows.Media.Color.FromRgb(51, 51, 51),    // Dark Gray
-        System.Windows.Media.Color.FromRgb(0, 0, 0),       // Black
-        System.Windows.Media.Color.FromRgb(255, 255, 255), // White
-        System.Windows.Media.Color.FromRgb(74, 106, 138),  // Steel Blue
-        System.Windows.Media.Color.FromRgb(45, 90, 39),    // Forest
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        var pos = e.GetPosition(GlControl);
+        _vm.Camera.OnMouseDown(
+            (float)pos.X, (float)pos.Y,
+            leftButton: e.ChangedButton == MouseButton.Left,
+            middleButton: e.ChangedButton == MouseButton.Middle);
+        GlControl.CaptureMouse();
+    }
+
+    private void GlControl_MouseMove(object sender, MouseEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        var pos = e.GetPosition(GlControl);
+        _vm.Camera.OnMouseMove((float)pos.X, (float)pos.Y);
+    }
+
+    private void GlControl_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        _vm.Camera.OnMouseUp();
+        GlControl.ReleaseMouseCapture();
+    }
+
+    private void GlControl_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        _vm.Camera.OnMouseWheel(e.Delta);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TOOLBAR HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private static readonly (float R, float G, float B)[] BgColors =
+    {
+        (105f/255f, 105f/255f, 105f/255f), // Dim Gray
+        (51f/255f,  51f/255f,  51f/255f),  // Dark Gray
+        (0f, 0f, 0f),                       // Black
+        (1f, 1f, 1f),                       // White
+        (74f/255f,  106f/255f, 138f/255f), // Steel Blue
+        (45f/255f,  90f/255f,  39f/255f),  // Forest
     };
 
     private void BgColorCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (Viewport != null && BgColorCombo.SelectedIndex >= 0 && BgColorCombo.SelectedIndex < BgColors.Length)
-        {
-            Viewport.BackgroundColor = BgColors[BgColorCombo.SelectedIndex];
-        }
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null || BgColorCombo.SelectedIndex < 0 || BgColorCombo.SelectedIndex >= BgColors.Length)
+            return;
+
+        var (r, g, b) = BgColors[BgColorCombo.SelectedIndex];
+        _vm.Renderer.ClearColor = new OpenTK.Mathematics.Vector3(r, g, b);
     }
 
     private void ResetViewButton_Click(object sender, RoutedEventArgs e)
     {
-        if (Viewport?.Camera is HelixToolkit.Wpf.SharpDX.PerspectiveCamera cam)
-        {
-            cam.Position = new System.Windows.Media.Media3D.Point3D(0, 100, -300);
-            cam.LookDirection = new System.Windows.Media.Media3D.Vector3D(0, -0.2, 1);
-            cam.UpDirection = new System.Windows.Media.Media3D.Vector3D(0, 1, 0);
-            cam.FieldOfView = 45;
-        }
-    }
-
-    private void BenchmarkButton_Click(object sender, RoutedEventArgs e)
-    {
-        (_vm ?? DataContext as VM_CharacterViewer)?.BenchmarkTextureStrategies();
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.Camera.Reset();
     }
 
     private void LogLightingButton_Click(object sender, RoutedEventArgs e)
     {
-        (_vm ?? DataContext as VM_CharacterViewer)?.LogLightingSettings();
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.LogLightingSettings();
     }
 }
