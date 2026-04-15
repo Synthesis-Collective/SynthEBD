@@ -48,6 +48,16 @@ uniform bool is_eye;
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
 
+// --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
+uniform bool u_enableDiffuse;
+uniform bool u_enableNormal;
+uniform bool u_enableSkin;
+uniform bool u_enableSpecular;
+uniform bool u_enableFaceTint;
+uniform bool u_enableDetail;
+uniform bool u_enableEnvMap;
+uniform bool u_enableEmissive;
+
 // --- MATERIAL PROPERTIES ---
 uniform float alpha_threshold;
 uniform float greyscaleToPaletteScale;
@@ -70,7 +80,12 @@ uniform mat4 u_view;
 void main()
 {
     // --- 1. BASE COLOR & ALPHA TEST ---
-    vec4 baseColor = texture(texture_diffuse, TexCoords);
+    vec4 baseColor;
+    if (u_enableDiffuse) {
+        baseColor = texture(texture_diffuse, TexCoords);
+    } else {
+        baseColor = vec4(0.8, 0.8, 0.8, 1.0); // neutral gray fallback
+    }
 
     if (has_vertex_colors) {
         baseColor.rgb *= vertexColor.rgb;
@@ -82,20 +97,20 @@ void main()
     }
 
     // Greyscale-to-palette (hair tinting)
-    if (has_greyscale_to_palette) {
+    if (has_greyscale_to_palette && u_enableDiffuse) {
         baseColor.rgb = baseColor.rrr * tint_color * greyscaleToPaletteScale;
     } else if (has_tint_color) {
         baseColor.rgb *= tint_color;
     }
 
     // Face tint overlay
-    if (has_face_tint_map) {
+    if (has_face_tint_map && u_enableFaceTint) {
         vec4 tintSample = texture(texture_face_tint, TexCoords);
         baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * tintSample.rgb, tintSample.a);
     }
 
     // Detail map overlay
-    if (has_detail_map) {
+    if (has_detail_map && u_enableDetail) {
         vec3 detailSample = texture(texture_detail, TexCoords).rgb;
         baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * detailSample * 2.0, 0.3);
     }
@@ -104,7 +119,7 @@ void main()
     vec3 normal_viewSpace;
     bool tbnIsValid = length(v_tangentToViewMatrix[0]) > 0.0;
 
-    if (has_normal_map) {
+    if (has_normal_map && u_enableNormal) {
         if (is_model_space) {
             vec3 normal_modelSpace = texture(texture_normal, TexCoords).rgb * 2.0 - 1.0;
             normal_modelSpace.g *= -1.0; // DirectX convention
@@ -159,7 +174,7 @@ void main()
 
             // Specular (Blinn-Phong)
             vec3 specular = vec3(0.0);
-            if (has_specular) {
+            if (has_specular && u_enableSpecular) {
                 float specMask = 1.0;
                 if (has_specular_map) {
                     specMask = texture(texture_specular, TexCoords).r;
@@ -185,7 +200,7 @@ void main()
 
             // Subsurface scattering (skin)
             vec3 subsurface = vec3(0.0);
-            if (has_skin_map) {
+            if (has_skin_map && u_enableSkin) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
                 vec3 sss_color = vec3(1.0, 0.3, 0.2);
                 float wrap = dot(normal_viewSpace, lightDir) * 0.5 + 0.5;
@@ -197,13 +212,13 @@ void main()
     }
 
     // Post-lighting skin tint
-    if (has_skin_map) {
+    if (has_skin_map && u_enableSkin) {
         float skinVal = texture(texture_skin, TexCoords).r;
         finalColor += skinVal * vec3(1.0, 0.3, 0.2) * baseColor.rgb;
     }
 
     // --- 4. ENVIRONMENT MAPPING (spherical 2D) ---
-    if (has_environment_map) {
+    if (has_environment_map && u_enableEnvMap) {
         vec3 viewDir = normalize(-v_viewSpacePos);
         vec3 reflectDir = reflect(-viewDir, normal_viewSpace);
         // Spherical environment mapping: convert reflection vector to 2D UV
@@ -218,7 +233,7 @@ void main()
     }
 
     // --- 5. EMISSIVE ---
-    if (has_emissive) {
+    if (has_emissive && u_enableEmissive) {
         finalColor += emissiveColor * emissiveMultiple;
     }
 

@@ -210,6 +210,16 @@ public class GlRenderer : IDisposable
         _shader.SetBool("is_eye", mesh.IsEye);
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
 
+        // Per-shape texture visibility toggles
+        _shader.SetBool("u_enableDiffuse", mesh.DiffuseEnabled);
+        _shader.SetBool("u_enableNormal", mesh.NormalEnabled);
+        _shader.SetBool("u_enableSkin", mesh.SkinEnabled);
+        _shader.SetBool("u_enableSpecular", mesh.SpecularEnabled);
+        _shader.SetBool("u_enableFaceTint", mesh.FaceTintEnabled);
+        _shader.SetBool("u_enableDetail", mesh.DetailEnabled);
+        _shader.SetBool("u_enableEnvMap", mesh.EnvMapEnabled);
+        _shader.SetBool("u_enableEmissive", mesh.EmissiveEnabled);
+
         // Set material properties
         _shader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
         _shader.SetFloat("greyscaleToPaletteScale", mesh.GreyscaleToPaletteScale);

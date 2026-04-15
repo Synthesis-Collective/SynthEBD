@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -20,6 +21,7 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.MouseMove += GlControl_MouseMove;
         GlControl.MouseUp += GlControl_MouseUp;
         GlControl.MouseWheel += GlControl_MouseWheel;
+        GlControl.MouseRightButtonUp += GlControl_MouseRightButtonUp;
 
         // Start GL when the control gets a valid size (handles deferred layout)
         GlControl.SizeChanged += (_, _) => TryStartGl();
@@ -133,6 +135,117 @@ public partial class UC_CharacterViewer : UserControl
         if (_vm == null) return;
 
         _vm.Camera.OnMouseWheel(e.Delta);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  RIGHT-CLICK → MESH PICKING & TEXTURE TOGGLE CONTEXT MENU
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void GlControl_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        var pos = e.GetPosition(GlControl);
+
+        var hitMesh = _vm.HitTest(
+            (float)pos.X, (float)pos.Y,
+            (float)GlControl.ActualWidth, (float)GlControl.ActualHeight);
+
+        if (hitMesh == null) return;
+
+        var menu = new ContextMenu();
+
+        // Header: shape name
+        var header = new MenuItem
+        {
+            Header = hitMesh.ShapeName + " (" + hitMesh.BodyPart + ")",
+            IsEnabled = false,
+            FontWeight = FontWeights.Bold
+        };
+        menu.Items.Add(header);
+        menu.Items.Add(new Separator());
+
+        // Build toggle items for each texture slot that is active on this shape
+        var toggles = new List<(string Label, bool HasTexture, Func<bool> Getter, Action<bool> Setter)>
+        {
+            ("Diffuse",      hitMesh.DiffuseTexture != 0,  () => hitMesh.DiffuseEnabled,   v => hitMesh.DiffuseEnabled = v),
+            ("Normal Map",   hitMesh.HasNormalMap,          () => hitMesh.NormalEnabled,     v => hitMesh.NormalEnabled = v),
+            ("Skin/SSS",     hitMesh.HasSkinMap,            () => hitMesh.SkinEnabled,       v => hitMesh.SkinEnabled = v),
+            ("Specular",     hitMesh.HasSpecular,           () => hitMesh.SpecularEnabled,   v => hitMesh.SpecularEnabled = v),
+            ("Face Tint",    hitMesh.HasFaceTintMap,        () => hitMesh.FaceTintEnabled,   v => hitMesh.FaceTintEnabled = v),
+            ("Detail Map",   hitMesh.HasDetailMap,          () => hitMesh.DetailEnabled,     v => hitMesh.DetailEnabled = v),
+            ("Environment",  hitMesh.HasEnvironmentMap,     () => hitMesh.EnvMapEnabled,     v => hitMesh.EnvMapEnabled = v),
+            ("Emissive",     hitMesh.HasEmissive,           () => hitMesh.EmissiveEnabled,   v => hitMesh.EmissiveEnabled = v),
+        };
+
+        bool anyAdded = false;
+        foreach (var (label, hasTexture, getter, setter) in toggles)
+        {
+            if (!hasTexture) continue;
+            anyAdded = true;
+
+            var item = new MenuItem
+            {
+                Header = label,
+                IsCheckable = true,
+                IsChecked = getter(),
+                StaysOpenOnClick = true
+            };
+            // Capture setter in closure
+            var localSetter = setter;
+            item.Click += (_, _) => localSetter(item.IsChecked);
+            menu.Items.Add(item);
+        }
+
+        if (!anyAdded)
+        {
+            menu.Items.Add(new MenuItem { Header = "(no textures)", IsEnabled = false });
+        }
+
+        // "Show Mesh" toggle
+        menu.Items.Add(new Separator());
+        var visItem = new MenuItem
+        {
+            Header = "Show Mesh",
+            IsCheckable = true,
+            IsChecked = hitMesh.IsRendering,
+            StaysOpenOnClick = true
+        };
+        visItem.Click += (_, _) => hitMesh.IsRendering = visItem.IsChecked;
+        menu.Items.Add(visItem);
+
+        // "Show All Meshes" to reset visibility
+        var showAllItem = new MenuItem { Header = "Show All Meshes" };
+        showAllItem.Click += (_, _) =>
+        {
+            foreach (var mesh in _vm.Renderer.Meshes)
+                mesh.IsRendering = true;
+        };
+        menu.Items.Add(showAllItem);
+
+        // "Reset All Textures" to re-enable all toggles
+        var resetItem = new MenuItem { Header = "Reset All Textures" };
+        resetItem.Click += (_, _) =>
+        {
+            foreach (var mesh in _vm.Renderer.Meshes)
+            {
+                mesh.DiffuseEnabled = true;
+                mesh.NormalEnabled = true;
+                mesh.SkinEnabled = true;
+                mesh.SpecularEnabled = true;
+                mesh.FaceTintEnabled = true;
+                mesh.DetailEnabled = true;
+                mesh.EnvMapEnabled = true;
+                mesh.EmissiveEnabled = true;
+            }
+        };
+        menu.Items.Add(resetItem);
+
+        GlControl.ContextMenu = menu;
+        menu.IsOpen = true;
+
+        e.Handled = true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

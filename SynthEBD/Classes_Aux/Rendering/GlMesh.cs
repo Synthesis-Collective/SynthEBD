@@ -75,6 +75,20 @@ public class GlMesh : IDisposable
     public int DetailTexture { get; set; }
     public bool HasDetailMap { get; set; }
 
+    // Per-shape texture visibility toggles (for context menu)
+    public bool DiffuseEnabled { get; set; } = true;
+    public bool NormalEnabled { get; set; } = true;
+    public bool SkinEnabled { get; set; } = true;
+    public bool SpecularEnabled { get; set; } = true;
+    public bool FaceTintEnabled { get; set; } = true;
+    public bool DetailEnabled { get; set; } = true;
+    public bool EnvMapEnabled { get; set; } = true;
+    public bool EmissiveEnabled { get; set; } = true;
+
+    // CPU-side geometry for ray-based hit testing
+    public System.Numerics.Vector3[]? CpuPositions { get; set; }
+    public int[]? CpuIndices { get; set; }
+
     // Metadata
     public string ShapeName { get; set; } = "";
     public string BodyPart { get; set; } = "";

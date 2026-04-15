@@ -158,6 +158,90 @@ public class VM_CharacterViewer : VM
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  HIT TESTING
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Performs a ray cast from screen coordinates and returns the closest hit mesh, or null.
+    /// Uses Möller-Trumbore ray-triangle intersection against CPU-side geometry.
+    /// </summary>
+    public GlMesh? HitTest(float mouseX, float mouseY, float viewportWidth, float viewportHeight)
+    {
+        var (origin, direction) = Camera.ScreenPointToRay(mouseX, mouseY, viewportWidth, viewportHeight);
+
+        GlMesh? closestMesh = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.CpuPositions == null || mesh.CpuIndices == null) continue;
+
+            if (RayIntersectsMesh(origin, direction, mesh, out float dist) && dist < closestDist)
+            {
+                closestDist = dist;
+                closestMesh = mesh;
+            }
+        }
+
+        return closestMesh;
+    }
+
+    /// <summary>
+    /// Möller-Trumbore ray-triangle intersection test against a mesh's CPU-side geometry.
+    /// </summary>
+    private static bool RayIntersectsMesh(
+        OpenTK.Mathematics.Vector3 rayOrigin,
+        OpenTK.Mathematics.Vector3 rayDir,
+        GlMesh mesh,
+        out float hitDistance)
+    {
+        hitDistance = float.MaxValue;
+        bool anyHit = false;
+
+        var positions = mesh.CpuPositions!;
+        var indices = mesh.CpuIndices!;
+        const float epsilon = 1e-6f;
+
+        for (int i = 0; i + 2 < indices.Length; i += 3)
+        {
+            var v0Sys = positions[indices[i]];
+            var v1Sys = positions[indices[i + 1]];
+            var v2Sys = positions[indices[i + 2]];
+
+            // Convert System.Numerics.Vector3 to OpenTK.Mathematics.Vector3
+            var v0 = new OpenTK.Mathematics.Vector3(v0Sys.X, v0Sys.Y, v0Sys.Z);
+            var v1 = new OpenTK.Mathematics.Vector3(v1Sys.X, v1Sys.Y, v1Sys.Z);
+            var v2 = new OpenTK.Mathematics.Vector3(v2Sys.X, v2Sys.Y, v2Sys.Z);
+
+            var edge1 = v1 - v0;
+            var edge2 = v2 - v0;
+            var h = OpenTK.Mathematics.Vector3.Cross(rayDir, edge2);
+            float a = OpenTK.Mathematics.Vector3.Dot(edge1, h);
+
+            if (a > -epsilon && a < epsilon) continue; // parallel
+
+            float f = 1f / a;
+            var s = rayOrigin - v0;
+            float u = f * OpenTK.Mathematics.Vector3.Dot(s, h);
+            if (u < 0f || u > 1f) continue;
+
+            var q = OpenTK.Mathematics.Vector3.Cross(s, edge1);
+            float v = f * OpenTK.Mathematics.Vector3.Dot(rayDir, q);
+            if (v < 0f || u + v > 1f) continue;
+
+            float t = f * OpenTK.Mathematics.Vector3.Dot(edge2, q);
+            if (t > epsilon && t < hitDistance)
+            {
+                hitDistance = t;
+                anyHit = true;
+            }
+        }
+
+        return anyHit;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  GL INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -595,6 +679,9 @@ public class VM_CharacterViewer : VM
                 originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
                 originalMesh.VertexColors);
             glMesh.UpdateVertexData(vertexData);
+
+            // Update CPU-side positions for hit testing
+            glMesh.CpuPositions = positions;
         }
     }
 
@@ -674,6 +761,11 @@ public class VM_CharacterViewer : VM
         glMesh.Upload(vertexData, built.Indices);
         glMesh.ShapeName = built.ShapeName;
         glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
+
+        // Store CPU-side geometry for ray-based hit testing
+        glMesh.CpuPositions = (Vector3[])built.Positions.Clone();
+        glMesh.CpuIndices = (int[])built.Indices.Clone();
+
         return glMesh;
     }
 

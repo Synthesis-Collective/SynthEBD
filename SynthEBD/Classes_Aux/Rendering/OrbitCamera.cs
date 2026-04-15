@@ -132,6 +132,39 @@ public class OrbitCamera
         Distance = Math.Clamp(Distance * zoomFactor, MinDistance, MaxDistance);
     }
 
+    /// <summary>
+    /// Converts a screen-space mouse position to a world-space ray (origin + direction)
+    /// for hit testing. Mouse coordinates are in WPF logical units (top-left origin).
+    /// </summary>
+    public (Vector3 Origin, Vector3 Direction) ScreenPointToRay(
+        float mouseX, float mouseY, float viewportWidth, float viewportHeight)
+    {
+        // Convert to NDC (-1..+1, with Y flipped for OpenGL)
+        float ndcX = (2f * mouseX / viewportWidth) - 1f;
+        float ndcY = 1f - (2f * mouseY / viewportHeight);
+
+        float aspect = viewportWidth / viewportHeight;
+        var projection = GetProjectionMatrix(aspect);
+        var view = GetViewMatrix();
+
+        // Unproject near/far points
+        var invVP = Matrix4.Invert(view * projection);
+
+        var nearNdc = new Vector4(ndcX, ndcY, -1f, 1f);
+        var farNdc = new Vector4(ndcX, ndcY, 1f, 1f);
+
+        var nearWorld = nearNdc * invVP;
+        var farWorld = farNdc * invVP;
+
+        nearWorld /= nearWorld.W;
+        farWorld /= farWorld.W;
+
+        var origin = nearWorld.Xyz;
+        var direction = Vector3.Normalize(farWorld.Xyz - nearWorld.Xyz);
+
+        return (origin, direction);
+    }
+
     public void Reset()
     {
         Azimuth = 180f;
