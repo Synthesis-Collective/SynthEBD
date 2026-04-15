@@ -57,6 +57,7 @@ uniform bool u_enableFaceTint;
 uniform bool u_enableDetail;
 uniform bool u_enableEnvMap;
 uniform bool u_enableEmissive;
+uniform bool u_enableTintColor;
 
 // --- MATERIAL PROPERTIES ---
 uniform float alpha_threshold;
@@ -76,6 +77,20 @@ uniform float eyeCubemapScale;
 uniform Light lights[MAX_LIGHTS];
 uniform vec3 u_backlightColor;
 uniform mat4 u_view;
+
+// Photoshop-style overlay blend (matches NifSkope / Bethesda engine)
+float overlayBlend(float b, float l)
+{
+    if (b < 0.5)
+        return 2.0 * b * l;
+    else
+        return 1.0 - 2.0 * (1.0 - l) * (1.0 - b);
+}
+
+vec3 overlayBlend(vec3 b, vec3 l)
+{
+    return vec3(overlayBlend(b.r, l.r), overlayBlend(b.g, l.g), overlayBlend(b.b, l.b));
+}
 
 void main()
 {
@@ -99,20 +114,20 @@ void main()
     // Greyscale-to-palette (hair tinting)
     if (has_greyscale_to_palette && u_enableDiffuse) {
         baseColor.rgb = baseColor.rrr * tint_color * greyscaleToPaletteScale;
-    } else if (has_tint_color) {
+    } else if (has_tint_color && u_enableTintColor) {
         baseColor.rgb *= tint_color;
     }
 
-    // Face tint overlay
-    if (has_face_tint_map && u_enableFaceTint) {
-        vec4 tintSample = texture(texture_face_tint, TexCoords);
-        baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * tintSample.rgb, tintSample.a);
-    }
-
-    // Detail map overlay
+    // Detail map overlay (applied before face tint, matching NifSkope order)
     if (has_detail_map && u_enableDetail) {
         vec3 detailSample = texture(texture_detail, TexCoords).rgb;
-        baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * detailSample * 2.0, 0.3);
+        baseColor.rgb = overlayBlend(baseColor.rgb, detailSample);
+    }
+
+    // Face tint overlay (RGB only - alpha channel is not used)
+    if (has_face_tint_map && u_enableFaceTint) {
+        vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
+        baseColor.rgb = overlayBlend(baseColor.rgb, tintSample);
     }
 
     // --- 2. NORMAL CALCULATION ---

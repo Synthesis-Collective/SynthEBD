@@ -59,6 +59,13 @@ public class NpcMeshResolver
         /// Used for CPU-side blending onto the head diffuse texture.
         /// </summary>
         public string? FaceTintPath { get; init; }
+
+        /// <summary>
+        /// The NPC's QNAM TextureLighting color (RGB, 0-1 range).
+        /// Applied as a skin tint to body/hands/feet meshes that use ST_SkinTint shader type.
+        /// Null if the NPC has no TextureLighting set.
+        /// </summary>
+        public (float R, float G, float B)? TextureLightingColor { get; init; }
     }
 
     /// <summary>
@@ -156,6 +163,16 @@ public class NpcMeshResolver
         // Skeleton NIF: resolve from Race.SkeletalModel for CPU-side skinning
         string? skeletonPath = ResolveSkeletonPath(npcGetter, gender, linkCache);
 
+        // QNAM TextureLighting: the NPC's skin tint color applied to body at runtime
+        (float R, float G, float B)? textureLightingColor = null;
+        var qnam = npcGetter.TextureLighting;
+        if (qnam != null)
+        {
+            textureLightingColor = (qnam.Value.R / 255f, qnam.Value.G / 255f, qnam.Value.B / 255f);
+            _logger.LogMessage("CharacterViewer: TextureLighting (QNAM)=RGB(" +
+                qnam.Value.R + ", " + qnam.Value.G + ", " + qnam.Value.B + ")");
+        }
+
         return new NpcMeshPaths
         {
             BodyMeshPath = bodyPath,
@@ -166,7 +183,8 @@ public class NpcMeshResolver
             ResolutionChains = chains,
             TxstTextures = txstTextures,
             FaceTintPath = faceTintPath,
-            SkeletonPath = skeletonPath
+            SkeletonPath = skeletonPath,
+            TextureLightingColor = textureLightingColor
         };
     }
 

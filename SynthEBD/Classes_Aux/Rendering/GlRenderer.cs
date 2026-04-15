@@ -219,6 +219,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableDetail", mesh.DetailEnabled);
         _shader.SetBool("u_enableEnvMap", mesh.EnvMapEnabled);
         _shader.SetBool("u_enableEmissive", mesh.EmissiveEnabled);
+        _shader.SetBool("u_enableTintColor", mesh.TintColorEnabled);
 
         // Set material properties
         _shader.SetFloat("alpha_threshold", mesh.AlphaThreshold);

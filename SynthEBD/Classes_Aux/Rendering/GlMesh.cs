@@ -84,6 +84,7 @@ public class GlMesh : IDisposable
     public bool DetailEnabled { get; set; } = true;
     public bool EnvMapEnabled { get; set; } = true;
     public bool EmissiveEnabled { get; set; } = true;
+    public bool TintColorEnabled { get; set; } = true;
 
     // CPU-side geometry for ray-based hit testing
     public System.Numerics.Vector3[]? CpuPositions { get; set; }

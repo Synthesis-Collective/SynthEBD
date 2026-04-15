@@ -524,6 +524,14 @@ public class VM_CharacterViewer : VM
         glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 25)) != 0; // SLSF2_Soft_Lighting
         glMesh.HasRimLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Rim_Lighting
 
+        // Skin tint (shader type 5 = ST_SkinTint): apply NPC's QNAM TextureLighting color
+        if (built.ShaderType == 5 && meshPaths.TextureLightingColor.HasValue)
+        {
+            var (r, g, b) = meshPaths.TextureLightingColor.Value;
+            glMesh.HasTintColor = true;
+            glMesh.TintColor = new System.Numerics.Vector3(r, g, b);
+        }
+
         // Eye shader (shader type 16 = ST_EyeEnvmap)
         if (built.ShaderType == 16)
         {

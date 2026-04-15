@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using nifly;
 using NiHeader = nifly.NiHeader;
@@ -658,18 +659,50 @@ public class NifMeshBuilder
                             hairTintColor = (tint.x, tint.y, tint.z);
                     }
 
-                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
-                        "' shaderType=" + bslsp.bslspShaderType +
+                    // Decode relevant shader flags for readability
+                    bool hasSpecular = (shaderFlags1 & (1u << 0)) != 0;
+                    bool hasEnvMap = (shaderFlags1 & (1u << 7)) != 0;
+                    bool hasFacegenDetail = (shaderFlags1 & (1u << 10)) != 0;
+                    bool hasEyeEnvMap = (shaderFlags1 & (1u << 17)) != 0;
+                    bool hasHairSoft = (shaderFlags1 & (1u << 18)) != 0;
+                    bool hasOwnEmit = (shaderFlags1 & (1u << 22)) != 0;
+                    bool hasDoubleSided = (shaderFlags2 & (1u << 4)) != 0;
+                    bool hasVertColors = (shaderFlags2 & (1u << 5)) != 0;
+                    bool hasSoftLight = (shaderFlags2 & (1u << 25)) != 0;
+                    bool hasRimLight = (shaderFlags2 & (1u << 26)) != 0;
+                    bool hasBackLight = (shaderFlags2 & (1u << 27)) != 0;
+
+                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") + "'" +
+                        " shaderType=" + bslsp.bslspShaderType +
                         " flags1=0x" + shaderFlags1.ToString("X8") +
-                        " flags2=0x" + shaderFlags2.ToString("X8") +
-                        " MSN=" + isModelSpaceNormals +
-                        " gloss=" + glossiness.ToString("F0") +
+                        " flags2=0x" + shaderFlags2.ToString("X8"));
+                    _logger.LogMessage("  Flags: MSN=" + isModelSpaceNormals +
+                        " Specular=" + hasSpecular +
+                        " EnvMap=" + hasEnvMap +
+                        " FacegenDetail=" + hasFacegenDetail +
+                        " EyeEnvMap=" + hasEyeEnvMap +
+                        " HairSoft=" + hasHairSoft +
+                        " OwnEmit=" + hasOwnEmit +
+                        " DoubleSided=" + hasDoubleSided +
+                        " VertColors=" + hasVertColors +
+                        " SoftLight=" + hasSoftLight +
+                        " RimLight=" + hasRimLight +
+                        " BackLight=" + hasBackLight);
+                    _logger.LogMessage("  Material: gloss=" + glossiness.ToString("F0") +
                         " specStr=" + specularStrength.ToString("F2") +
-                        (isHairTintShader && hairTintColor.HasValue
-                            ? " HAIR_TINT=(" + hairTintColor.Value.R.ToString("F3") + ", " +
-                              hairTintColor.Value.G.ToString("F3") + ", " +
-                              hairTintColor.Value.B.ToString("F3") + ")"
-                            : (isHairTintShader ? " HAIR_TINT=(no color)" : "")));
+                        " specColor=(" + specularColor.X.ToString("F2") + ", " + specularColor.Y.ToString("F2") + ", " + specularColor.Z.ToString("F2") + ")" +
+                        " ssRolloff=" + subsurfaceRolloff.ToString("F2") +
+                        " rimPow=" + rimlightPower.ToString("F2") +
+                        " emissive=(" + emissiveColor.X.ToString("F2") + ", " + emissiveColor.Y.ToString("F2") + ", " + emissiveColor.Z.ToString("F2") + ")x" + emissiveMultiple.ToString("F2") +
+                        " envScale=" + environmentMapScale.ToString("F2") +
+                        " uvScale=(" + uvScale.X.ToString("F2") + ", " + uvScale.Y.ToString("F2") + ")" +
+                        " uvOff=(" + uvOffset.X.ToString("F2") + ", " + uvOffset.Y.ToString("F2") + ")");
+                    _logger.LogMessage("  Textures: " + string.Join(", ",
+                        texturePaths.OrderBy(kv => kv.Key).Select(kv => "[" + kv.Key + "]=" + System.IO.Path.GetFileName(kv.Value))));
+                    if (isHairTintShader)
+                        _logger.LogMessage("  HairTint: " + (hairTintColor.HasValue
+                            ? "(" + hairTintColor.Value.R.ToString("F3") + ", " + hairTintColor.Value.G.ToString("F3") + ", " + hairTintColor.Value.B.ToString("F3") + ")"
+                            : "(no color)"));
                 }
             }
         }

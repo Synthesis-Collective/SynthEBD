@@ -177,6 +177,7 @@ public partial class UC_CharacterViewer : UserControl
             ("Detail Map",   hitMesh.HasDetailMap,          () => hitMesh.DetailEnabled,     v => hitMesh.DetailEnabled = v),
             ("Environment",  hitMesh.HasEnvironmentMap,     () => hitMesh.EnvMapEnabled,     v => hitMesh.EnvMapEnabled = v),
             ("Emissive",     hitMesh.HasEmissive,           () => hitMesh.EmissiveEnabled,   v => hitMesh.EmissiveEnabled = v),
+            (TintColorLabel(hitMesh), hitMesh.HasTintColor,     () => hitMesh.TintColorEnabled,  v => hitMesh.TintColorEnabled = v),
         };
 
         bool anyAdded = false;
@@ -238,6 +239,7 @@ public partial class UC_CharacterViewer : UserControl
                 mesh.DetailEnabled = true;
                 mesh.EnvMapEnabled = true;
                 mesh.EmissiveEnabled = true;
+                mesh.TintColorEnabled = true;
             }
         };
         menu.Items.Add(resetItem);
@@ -246,6 +248,15 @@ public partial class UC_CharacterViewer : UserControl
         menu.IsOpen = true;
 
         e.Handled = true;
+    }
+
+    private static string TintColorLabel(GlMesh mesh)
+    {
+        if (!mesh.HasTintColor) return "Tint Color";
+        int r = (int)(mesh.TintColor.X * 255);
+        int g = (int)(mesh.TintColor.Y * 255);
+        int b = (int)(mesh.TintColor.Z * 255);
+        return "Tint Color (" + r + ", " + g + ", " + b + ")";
     }
 
     // ═══════════════════════════════════════════════════════════════════════
