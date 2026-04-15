@@ -69,6 +69,10 @@
                 <Button Content="Reset View" FontSize="11" Margin="15,0,0,0"
                         Padding="8 2" VerticalAlignment="Center"
                         Click="ResetViewButton_Click"/>
+
+                <Button Content="Controls" FontSize="11" Margin="10,0,0,0"
+                        Padding="8 2" VerticalAlignment="Center"
+                        Click="ControlsButton_Click"/>
             </StackPanel>
         </Border>
 

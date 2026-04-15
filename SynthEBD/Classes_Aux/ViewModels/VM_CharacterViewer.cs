@@ -71,6 +71,16 @@ public class VM_CharacterViewer : VM
     /// <summary>True when the GL context has been initialized.</summary>
     public bool IsGlInitialized { get; private set; }
 
+    /// <summary>Pending scene data waiting for GL context to become available.</summary>
+    private (List<(string BodyPart, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
+             NpcMeshResolver.NpcMeshPaths MeshPaths)? _pendingScene;
+
+    /// <summary>Pending texture overrides to apply after scene setup.</summary>
+    private List<FilePathReplacement>? _pendingTextureOverrides;
+
+    /// <summary>Pending BodySlide to apply after scene setup.</summary>
+    private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
+
     public VM_CharacterViewer(
         NpcMeshResolver npcMeshResolver,
         BodySlideDeformer bodySlideDeformer,
@@ -167,6 +177,99 @@ public class VM_CharacterViewer : VM
         _logger.LogMessage("CharacterViewer: GL initialized");
     }
 
+    /// <summary>
+    /// Called from the GL render callback to process any pending scene setup.
+    /// All GL calls (mesh upload, texture loading) happen here where the
+    /// GL context is guaranteed to be current.
+    /// </summary>
+    public void ProcessPendingScene()
+    {
+        if (_pendingScene == null || !IsGlInitialized) return;
+
+        var (loadResults, meshPaths) = _pendingScene.Value;
+        _pendingScene = null;
+
+        ClearScene();
+        _cachedMeshPaths = meshPaths;
+
+        int totalShapes = 0;
+        foreach (var (bodyPart, meshes) in loadResults)
+        {
+            Dictionary<int, string>? txstOverrides = null;
+            if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
+                txstOverrides = txst;
+
+            foreach (var built in meshes)
+            {
+                var glMesh = CreateGlMesh(built);
+
+                var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
+                if (txstOverrides != null)
+                    foreach (var (slot, path) in txstOverrides)
+                        effectiveTextures[slot] = path;
+
+                bool isHairTint = false;
+                float hairR = 0, hairG = 0, hairB = 0;
+                bool isFaceTint = false;
+                string? faceTintPath = null;
+
+                ApplyTexturesToGlMesh(glMesh, built, effectiveTextures, meshPaths,
+                    ref isHairTint, ref hairR, ref hairG, ref hairB,
+                    ref isFaceTint, ref faceTintPath);
+
+                _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
+                    new Dictionary<int, string>(effectiveTextures),
+                    isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
+
+                glMesh.BodyPart = bodyPart;
+                Renderer.AddMesh(glMesh);
+
+                if (bodyPart == "Head")
+                {
+                    if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey(bodyPart))
+                        _meshesByBodyPart[bodyPart] = glMesh;
+                    if (built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                        _builtMeshesByBodyPart[bodyPart] = built;
+                }
+                else
+                {
+                    if (!_meshesByBodyPart.ContainsKey(bodyPart))
+                        _meshesByBodyPart[bodyPart] = glMesh;
+                    if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                        _builtMeshesByBodyPart[bodyPart] = built;
+                }
+
+                if (bodyPart == "Body")
+                    _cachedBodyMeshes[built.ShapeName] = built;
+
+                totalShapes++;
+            }
+        }
+
+        StatusText = totalShapes > 0
+            ? $"Loaded {totalShapes} shape(s) for NPC"
+            : "No renderable shapes found for NPC";
+        IsLoading = false;
+
+        _logger.LogMessage($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
+            $"{Renderer.Meshes.Count} GL meshes");
+
+        // Process any pending overrides that were queued before the scene was ready
+        if (_pendingTextureOverrides != null)
+        {
+            var overrides = _pendingTextureOverrides;
+            _pendingTextureOverrides = null;
+            ApplyTextureOverrides(overrides);
+        }
+
+        if (_pendingBodySlide != null)
+        {
+            var (preset, weight) = _pendingBodySlide.Value;
+            _pendingBodySlide = null;
+            ApplyBodySlide(preset, weight);
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  LOADING — Full NPC
     // ═══════════════════════════════════════════════════════════════════════
@@ -199,68 +302,14 @@ public class VM_CharacterViewer : VM
             var loadResults = await Task.Run(() => LoadAllMeshParts(meshPaths), cts.Token);
             cts.Token.ThrowIfCancellationRequested();
 
+            // Store pending scene data — GL work is deferred to the render callback
+            // where the GL context is guaranteed to be current.
+            int totalShapes = loadResults.Sum(r => r.Meshes.Count);
             Application.Current.Dispatcher.Invoke(() =>
             {
-                ClearScene();
-
-                int totalShapes = 0;
-                foreach (var (bodyPart, meshes) in loadResults)
-                {
-                    Dictionary<int, string>? txstOverrides = null;
-                    if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
-                        txstOverrides = txst;
-
-                    foreach (var built in meshes)
-                    {
-                        var glMesh = CreateGlMesh(built);
-
-                        var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
-                        if (txstOverrides != null)
-                            foreach (var (slot, path) in txstOverrides)
-                                effectiveTextures[slot] = path;
-
-                        // Apply textures
-                        bool isHairTint = false;
-                        float hairR = 0, hairG = 0, hairB = 0;
-                        bool isFaceTint = false;
-                        string? faceTintPath = null;
-
-                        ApplyTexturesToGlMesh(glMesh, built, effectiveTextures, meshPaths,
-                            ref isHairTint, ref hairR, ref hairG, ref hairB,
-                            ref isFaceTint, ref faceTintPath);
-
-                        _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
-                            new Dictionary<int, string>(effectiveTextures),
-                            isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
-
-                        glMesh.BodyPart = bodyPart;
-                        Renderer.AddMesh(glMesh);
-
-                        // Track by body part
-                        if (bodyPart == "Head")
-                        {
-                            if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey(bodyPart))
-                                _meshesByBodyPart[bodyPart] = glMesh;
-                            if (built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey(bodyPart))
-                                _builtMeshesByBodyPart[bodyPart] = built;
-                        }
-                        else
-                        {
-                            if (!_meshesByBodyPart.ContainsKey(bodyPart))
-                                _meshesByBodyPart[bodyPart] = glMesh;
-                            if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
-                                _builtMeshesByBodyPart[bodyPart] = built;
-                        }
-
-                        if (bodyPart == "Body")
-                            _cachedBodyMeshes[built.ShapeName] = built;
-
-                        totalShapes++;
-                    }
-                }
-
+                _pendingScene = (loadResults, meshPaths);
                 StatusText = totalShapes > 0
-                    ? $"Loaded {totalShapes} shape(s) for NPC"
+                    ? $"Loaded {totalShapes} shape(s), setting up scene..."
                     : "No renderable shapes found for NPC";
             });
         }
@@ -388,7 +437,14 @@ public class VM_CharacterViewer : VM
 
     public void ApplyTextureOverrides(IEnumerable<FilePathReplacement> overrides)
     {
-        if (_meshesByBodyPart.Count == 0 || TextureManager == null) return;
+        var overrideList = overrides.ToList();
+
+        // If scene isn't set up yet (pending GL work), queue for later
+        if (_meshesByBodyPart.Count == 0 || TextureManager == null)
+        {
+            _pendingTextureOverrides = overrideList;
+            return;
+        }
 
         foreach (var replacement in overrides)
         {
@@ -436,7 +492,12 @@ public class VM_CharacterViewer : VM
 
     public void ApplyBodySlide(BodySlideSetting preset, int weight)
     {
-        if (_cachedBodyMeshes.Count == 0) return;
+        // If scene isn't set up yet (pending GL work), queue for later
+        if (_cachedBodyMeshes.Count == 0)
+        {
+            _pendingBodySlide = (preset, weight);
+            return;
+        }
 
         NpcWeight = Math.Clamp(weight, 0, 100);
 

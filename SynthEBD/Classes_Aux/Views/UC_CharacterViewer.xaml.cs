@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using OpenTK.Wpf;
 
 namespace SynthEBD;
@@ -12,36 +13,49 @@ public partial class UC_CharacterViewer : UserControl
     public UC_CharacterViewer()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
 
-        // GLWpfControl requires explicit Start() before it will fire Render events.
-        // Use a safe framerate; the control only redraws when invalidated or on timer.
-        Loaded += OnLoaded;
+        // Wire mouse events once — handlers lazily resolve _vm
+        GlControl.MouseDown += GlControl_MouseDown;
+        GlControl.MouseMove += GlControl_MouseMove;
+        GlControl.MouseUp += GlControl_MouseUp;
+        GlControl.MouseWheel += GlControl_MouseWheel;
+
+        // Start GL when the control gets a valid size (handles deferred layout)
+        GlControl.SizeChanged += (_, _) => TryStartGl();
+        Loaded += (_, _) => { _vm ??= DataContext as VM_CharacterViewer; TryStartGl(); };
     }
 
     private VM_CharacterViewer? _vm;
     private bool _glStarted;
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         _vm = DataContext as VM_CharacterViewer;
+        TryStartGl();
+    }
 
-        if (!_glStarted)
+    private void TryStartGl()
+    {
+        if (_glStarted) return;
+        if (!IsLoaded) return;
+        if (GlControl.ActualWidth <= 0 || GlControl.ActualHeight <= 0) return;
+
+        var settings = new GLWpfControlSettings
         {
-            var settings = new GLWpfControlSettings
-            {
-                MajorVersion = 3,
-                MinorVersion = 3,
-                RenderContinuously = true
-            };
-            GlControl.Start(settings);
-            _glStarted = true;
-        }
+            MajorVersion = 3,
+            MinorVersion = 3,
+            RenderContinuously = true
+        };
+        GlControl.Start(settings);
+        _glStarted = true;
 
-        // Wire mouse events for orbit camera
-        GlControl.MouseDown += GlControl_MouseDown;
-        GlControl.MouseMove += GlControl_MouseMove;
-        GlControl.MouseUp += GlControl_MouseUp;
-        GlControl.MouseWheel += GlControl_MouseWheel;
+        // GLWpfControl bug: Start() registers CompositionTarget.Rendering only
+        // inside IsVisibleChanged, but if the control is already visible when
+        // Start() is called, that event never fires. Force continuous rendering
+        // by toggling visibility to trigger the handler.
+        GlControl.Visibility = Visibility.Collapsed;
+        GlControl.Visibility = Visibility.Visible;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -53,7 +67,7 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
-        // Lazy-init GL on first render (context is guaranteed ready here)
+        // Initialize GL on first render — context is guaranteed current here
         if (!_vm.IsGlInitialized)
         {
             string shaderDir = Path.Combine(
@@ -62,9 +76,16 @@ public partial class UC_CharacterViewer : UserControl
             _vm.InitializeGl(shaderDir);
         }
 
-        // Update background color from renderer
-        int w = (int)GlControl.ActualWidth;
-        int h = (int)GlControl.ActualHeight;
+        // Process any pending scene setup (mesh upload, texture loading)
+        _vm.ProcessPendingScene();
+
+        // Use device pixels for GL viewport — WPF logical units cause
+        // bottom-left quadrant rendering on high-DPI displays
+        var source = PresentationSource.FromVisual(GlControl);
+        double dpiScaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+        double dpiScaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+        int w = (int)(GlControl.ActualWidth * dpiScaleX);
+        int h = (int)(GlControl.ActualHeight * dpiScaleY);
         if (w > 0 && h > 0)
         {
             _vm.Renderer.Render(_vm.Camera, w, h);
@@ -148,5 +169,22 @@ public partial class UC_CharacterViewer : UserControl
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.LogLightingSettings();
+    }
+
+    private void ControlsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var msg = new VM_MessageWindowOK(
+            "3D Viewer Controls",
+            "Left Mouse Drag:      Orbit camera around the model\n" +
+            "Middle Mouse Drag:   Pan camera up/down/left/right\n" +
+            "Scroll Wheel:             Zoom in and out\n" +
+            "Reset View:                Return camera to default position\n\n" +
+            "Toolbar:\n" +
+            "  Background:   Change viewport background color\n" +
+            "  Ambient:         Ambient light intensity\n" +
+            "  Key Light:       Main directional light intensity\n" +
+            "  Azimuth:         Horizontal angle of key light\n" +
+            "  Elevation:       Vertical angle of key light");
+        msg.Show();
     }
 }

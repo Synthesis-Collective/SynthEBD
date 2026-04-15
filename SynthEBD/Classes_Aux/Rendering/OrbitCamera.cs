@@ -9,8 +9,8 @@ namespace SynthEBD;
 /// </summary>
 public class OrbitCamera
 {
-    /// <summary>Horizontal angle in degrees. 0 = looking from front (+Z toward -Z in Y-up).</summary>
-    public float Azimuth { get; set; } = 0f;
+    /// <summary>Horizontal angle in degrees. 180 = looking from front (-Z toward +Z, matching NIF character facing).</summary>
+    public float Azimuth { get; set; } = 180f;
 
     /// <summary>Vertical angle in degrees. 0 = horizontal, positive = looking down.</summary>
     public float Elevation { get; set; } = 15f;
@@ -126,13 +126,15 @@ public class OrbitCamera
 
     public void OnMouseWheel(float delta)
     {
-        float zoomFactor = 1f - delta * 0.1f;
+        // WPF sends delta in units of 120 per notch; normalize to ~0.1 per notch
+        float normalized = delta / 120f;
+        float zoomFactor = 1f - normalized * 0.1f;
         Distance = Math.Clamp(Distance * zoomFactor, MinDistance, MaxDistance);
     }
 
     public void Reset()
     {
-        Azimuth = 0f;
+        Azimuth = 180f;
         Elevation = 15f;
         Distance = 200f;
         Target = new Vector3(0, 85, 0);
