@@ -124,6 +124,32 @@ public class GlTextureManager : IDisposable
     }
 
     /// <summary>
+    /// Loads an environment map texture (spherical 2D mapping).
+    /// Skyrim environment maps are DDS files loaded as standard 2D textures;
+    /// the shader converts reflection vectors to spherical UV coordinates.
+    /// Returns 0 if the texture can't be loaded.
+    /// </summary>
+    public int LoadCubemap(string relativeGamePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeGamePath))
+            return 0;
+
+        if (_textureCache.TryGetValue("env:" + relativeGamePath, out int cached))
+            return cached;
+
+        var pixels = LoadDdsPixels(relativeGamePath, out int width, out int height);
+        if (pixels == null)
+        {
+            _logger.LogMessage("GlTextures: Env map not found '" + relativeGamePath + "'");
+            return 0;
+        }
+
+        int handle = UploadTexture(pixels, width, height);
+        _textureCache["env:" + relativeGamePath] = handle;
+        return handle;
+    }
+
+    /// <summary>
     /// Uploads BGRA pixel data to a new OpenGL texture with mipmaps.
     /// </summary>
     private int UploadTexture(byte[] pixelData, int width, int height)

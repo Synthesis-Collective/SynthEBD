@@ -6,6 +6,7 @@ using NiHeader = nifly.NiHeader;
 using NiObject = nifly.NiObject;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
+using Vector4 = System.Numerics.Vector4;
 
 namespace SynthEBD;
 
@@ -101,10 +102,22 @@ public class NifMeshBuilder
         // --- Shader material properties from BSLightingShaderProperty ---
         public float Glossiness { get; init; } = 80f;
         public float SpecularStrength { get; init; } = 1f;
+        public Vector3 SpecularColor { get; init; } = Vector3.One;
         public float SubsurfaceRolloff { get; init; }
         public float GreyscaleToPaletteScale { get; init; } = 1f;
         public float RimlightPower { get; init; } = 2f;
         public bool HasVertexColors { get; init; }
+        public Vector3 EmissiveColor { get; init; }
+        public float EmissiveMultiple { get; init; }
+        public Vector2 UvScale { get; init; } = Vector2.One;
+        public Vector2 UvOffset { get; init; }
+        public float EnvironmentMapScale { get; init; } = 1f;
+        public float EyeCubemapScale { get; init; } = 1f;
+
+        /// <summary>
+        /// Per-vertex colors (RGBA, 0–1 range). Null if the shape has no vertex colors.
+        /// </summary>
+        public Vector4[]? VertexColors { get; init; }
 
         /// <summary>Shader flags for detecting specular, soft lighting, hair soft lighting, etc.</summary>
         public uint ShaderFlags1 { get; init; }
@@ -112,13 +125,30 @@ public class NifMeshBuilder
         public uint ShaderType { get; init; }
     }
 
-    /// <summary>
-    /// Bit 12 of BSLightingShaderProperty.shaderFlags1 — SLSF1_Model_Space_Normals.
-    /// The NPC Portrait Creator's ParseShaderFlags incorrectly mapped this to bit 28,
-    /// but its actual detection used nifly's NiShader::IsModelSpace() which checks bit 12.
-    /// Verified: skin shapes have shaderFlags1=0x82601303, and 0x1303 has bit 12 set.
-    /// </summary>
-    private const uint SLSF1_ModelSpaceNormals = 1u << 12;
+    // ═══════════════════════════════════════════════════════════════════════
+    //  BSLightingShaderProperty flag constants
+    //  Bit positions per Nifskope/Bethesda spec (glproperty.h:450-517).
+    //  NPC Portrait Creator has 9 incorrect bit mappings in ParseShaderFlags;
+    //  these are the authoritative values.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // --- SLSF1 (shaderFlags1) ---
+    private const uint SLSF1_Specular              = 1u << 0;
+    private const uint SLSF1_GreyscaleToPalette    = 1u << 4;
+    private const uint SLSF1_EnvironmentMapping    = 1u << 7;
+    private const uint SLSF1_FacegenDetailMap      = 1u << 10;
+    private const uint SLSF1_ModelSpaceNormals     = 1u << 12;
+    private const uint SLSF1_EyeEnvironmentMapping = 1u << 17;
+    private const uint SLSF1_HairSoftLighting      = 1u << 18;
+    private const uint SLSF1_OwnEmit               = 1u << 22;
+
+    // --- SLSF2 (shaderFlags2) ---
+    private const uint SLSF2_DoubleSided            = 1u << 4;
+    private const uint SLSF2_VertexColors           = 1u << 5;
+    private const uint SLSF2_GlowMap                = 1u << 6;
+    private const uint SLSF2_SoftLighting           = 1u << 25;
+    private const uint SLSF2_RimLighting            = 1u << 26;
+    private const uint SLSF2_BackLighting           = 1u << 27;
 
     /// <summary>
     /// Pure C# representation of a nifly MatTransform, cached for fast per-vertex
@@ -479,10 +509,28 @@ public class NifMeshBuilder
             }
         }
 
+        // Extract vertex colors from NIF (RGBA, 0–1 range)
+        Vector4[]? vertexColors = null;
+        bool hasVertexColors = false;
+        try
+        {
+            using var nifColors = new vectorColor4();
+            if (nif.GetColorsForShape(shape, nifColors) && nifColors.Count == vertCount)
+            {
+                hasVertexColors = true;
+                vertexColors = new Vector4[vertCount];
+                for (int i = 0; i < vertCount; i++)
+                {
+                    var c = nifColors[i];
+                    vertexColors[i] = new Vector4(c.r, c.g, c.b, c.a);
+                }
+            }
+        }
+        catch { /* Shape has no vertex colors */ }
+
         // Build tangents and bitangents from NIF (Z-up → Y-up)
         var tangents = new Vector3[vertCount];
         var bitangents = new Vector3[vertCount];
-        bool hasVertexColors = false;
         try
         {
             using var nifTangents = nif.GetTangentsForShape(shape);
@@ -535,9 +583,16 @@ public class NifMeshBuilder
         (float R, float G, float B)? hairTintColor = null;
         float glossiness = 80f;
         float specularStrength = 1f;
+        Vector3 specularColor = Vector3.One;
         float subsurfaceRolloff = 0f;
         float greyscaleToPaletteScale = 1f;
         float rimlightPower = 2f;
+        Vector3 emissiveColor = Vector3.Zero;
+        float emissiveMultiple = 0f;
+        Vector2 uvScale = Vector2.One;
+        Vector2 uvOffset = Vector2.Zero;
+        float environmentMapScale = 1f;
+        float eyeCubemapScale = 1f;
         uint shaderFlags1 = 0, shaderFlags2 = 0, shaderType = 0;
         try
         {
@@ -560,6 +615,41 @@ public class NifMeshBuilder
                     // greyscaleToPaletteScale is not exposed by niflysharp; default to 1.0
                     try { rimlightPower = bslsp.rimlightPower; } catch { }
 
+                    // Specular color (RGB)
+                    try
+                    {
+                        var sc = bslsp.specularColor;
+                        if (sc != null)
+                            specularColor = new Vector3(sc.x, sc.y, sc.z);
+                    }
+                    catch { }
+
+                    // Emissive color and multiplier
+                    try
+                    {
+                        var ec = bslsp.emissiveColor;
+                        if (ec != null)
+                            emissiveColor = new Vector3(ec.x, ec.y, ec.z);
+                        emissiveMultiple = bslsp.emissiveMultiple;
+                    }
+                    catch { }
+
+                    // UV scale and offset
+                    try
+                    {
+                        var uvsRaw = bslsp.uvScale;
+                        if (uvsRaw != null)
+                            uvScale = new Vector2(uvsRaw.u, uvsRaw.v);
+                        var uvoRaw = bslsp.uvOffset;
+                        if (uvoRaw != null)
+                            uvOffset = new Vector2(uvoRaw.u, uvoRaw.v);
+                    }
+                    catch { }
+
+                    // Environment map scale and eye cubemap scale
+                    try { environmentMapScale = bslsp.environmentMapScale; } catch { }
+                    try { eyeCubemapScale = bslsp.eyeCubemapScale; } catch { }
+
                     if (bslsp.bslspShaderType == (uint)BSLightingShaderPropertyShaderType.BSLSP_HAIRTINT)
                     {
                         isHairTintShader = true;
@@ -570,6 +660,8 @@ public class NifMeshBuilder
 
                     _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") +
                         "' shaderType=" + bslsp.bslspShaderType +
+                        " flags1=0x" + shaderFlags1.ToString("X8") +
+                        " flags2=0x" + shaderFlags2.ToString("X8") +
                         " MSN=" + isModelSpaceNormals +
                         " gloss=" + glossiness.ToString("F0") +
                         " specStr=" + specularStrength.ToString("F2") +
@@ -636,7 +728,7 @@ public class NifMeshBuilder
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Length}v";
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
-        bool isDoubleSided = (shaderFlags2 & (1u << 4)) != 0; // SLSF2_Double_Sided
+        bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
         _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
@@ -669,10 +761,18 @@ public class NifMeshBuilder
             IsDoubleSided = isDoubleSided,
             Glossiness = glossiness,
             SpecularStrength = specularStrength,
+            SpecularColor = specularColor,
             SubsurfaceRolloff = subsurfaceRolloff,
             GreyscaleToPaletteScale = greyscaleToPaletteScale,
             RimlightPower = rimlightPower,
             HasVertexColors = hasVertexColors,
+            VertexColors = vertexColors,
+            EmissiveColor = emissiveColor,
+            EmissiveMultiple = emissiveMultiple,
+            UvScale = uvScale,
+            UvOffset = uvOffset,
+            EnvironmentMapScale = environmentMapScale,
+            EyeCubemapScale = eyeCubemapScale,
             ShaderFlags1 = shaderFlags1,
             ShaderFlags2 = shaderFlags2,
             ShaderType = shaderType,

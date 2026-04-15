@@ -19,6 +19,8 @@ out mat3 v_modelToViewNormalMatrix;
 uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
+uniform vec2 u_uvScale;
+uniform vec2 u_uvOffset;
 
 void main()
 {
@@ -38,6 +40,6 @@ void main()
     vec3 N_viewSpace = normalize(normalMatrix_modelToView * aNormal);
     v_tangentToViewMatrix = mat3(T_viewSpace, B_viewSpace, N_viewSpace);
 
-    TexCoords = aTexCoords;
+    TexCoords = aTexCoords * u_uvScale + u_uvOffset;
     vertexColor = aColor;
 }

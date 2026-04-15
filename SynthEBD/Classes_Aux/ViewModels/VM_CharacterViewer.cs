@@ -407,7 +407,7 @@ public class VM_CharacterViewer : VM
         {
             glMesh.SpecularTexture = TextureManager.WhiteTexture;
             // Check shader flags for specular enable even without a map
-            glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0; // SLSF1_Specular
+            glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0;
         }
 
         glMesh.FaceTintTexture = TextureManager.WhiteTexture;
@@ -415,13 +415,59 @@ public class VM_CharacterViewer : VM
         // Material properties
         glMesh.MaterialGlossiness = built.Glossiness;
         glMesh.MaterialSpecularStrength = built.SpecularStrength;
+        glMesh.SpecularColor = built.SpecularColor;
         glMesh.SubsurfaceRolloff = built.SubsurfaceRolloff;
         glMesh.RimlightPower = built.RimlightPower;
         glMesh.HasVertexColors = built.HasVertexColors;
+        glMesh.UvScale = built.UvScale;
+        glMesh.UvOffset = built.UvOffset;
 
-        // Shader type flags
-        glMesh.HasHairSoftLighting = (built.ShaderFlags1 & (1u << 21)) != 0; // SLSF1_Hair_Soft_Lighting
-        glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Soft_Lighting
+        // Emissive (SLSF1_OwnEmit, bit 22)
+        if ((built.ShaderFlags1 & (1u << 22)) != 0)
+        {
+            glMesh.HasEmissive = true;
+            glMesh.EmissiveColor = built.EmissiveColor;
+            glMesh.EmissiveMultiple = built.EmissiveMultiple;
+        }
+
+        // Shader type flags (bit positions per Nifskope/Bethesda spec)
+        glMesh.HasHairSoftLighting = (built.ShaderFlags1 & (1u << 18)) != 0; // SLSF1_Hair_Soft_Lighting
+        glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 25)) != 0; // SLSF2_Soft_Lighting
+        glMesh.HasRimLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Rim_Lighting
+
+        // Eye shader (shader type 16 = ST_EyeEnvmap)
+        if (built.ShaderType == 16)
+        {
+            glMesh.IsEye = true;
+        }
+
+        // Environment mapping (SLSF1_Environment_Mapping bit 7, or SLSF1_Eye_Environment_Mapping bit 17)
+        bool hasEnvMap = (built.ShaderFlags1 & (1u << 7)) != 0;
+        bool hasEyeEnvMap = (built.ShaderFlags1 & (1u << 17)) != 0;
+        if ((hasEnvMap || hasEyeEnvMap) && effectiveTextures.TryGetValue(4, out string? envMapPath))
+        {
+            var envTex = TextureManager.LoadCubemap(envMapPath);
+            if (envTex != 0)
+            {
+                glMesh.EnvMapTexture = envTex;
+                glMesh.HasEnvironmentMap = true;
+                glMesh.EnvMapScale = built.EnvironmentMapScale;
+                glMesh.EyeCubemapScale = built.EyeCubemapScale;
+            }
+
+            if (effectiveTextures.TryGetValue(5, out string? envMaskPath))
+            {
+                glMesh.EnvMaskTexture = TextureManager.LoadTexture(envMaskPath);
+                glMesh.HasEnvMask = true;
+            }
+        }
+
+        // Detail map (SLSF1_Facegen_Detail_Map, bit 10)
+        if ((built.ShaderFlags1 & (1u << 10)) != 0 && effectiveTextures.TryGetValue(3, out string? detailPath))
+        {
+            glMesh.DetailTexture = TextureManager.LoadTexture(detailPath);
+            glMesh.HasDetailMap = true;
+        }
 
         // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
         glMesh.IsDoubleSided = built.IsDoubleSided;
@@ -546,7 +592,8 @@ public class VM_CharacterViewer : VM
 
             // Re-upload vertex data to GPU
             var vertexData = BuildInterleavedVertexData(positions, normals,
-                originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents);
+                originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
+                originalMesh.VertexColors);
             glMesh.UpdateVertexData(vertexData);
         }
     }
@@ -621,7 +668,7 @@ public class VM_CharacterViewer : VM
     {
         var vertexData = BuildInterleavedVertexData(
             built.Positions, built.Normals, built.TextureCoordinates,
-            built.Tangents, built.Bitangents);
+            built.Tangents, built.Bitangents, built.VertexColors);
 
         var glMesh = new GlMesh();
         glMesh.Upload(vertexData, built.Indices);
@@ -636,7 +683,7 @@ public class VM_CharacterViewer : VM
     /// </summary>
     private static float[] BuildInterleavedVertexData(
         Vector3[] positions, Vector3[] normals, Vector2[] uvs,
-        Vector3[] tangents, Vector3[] bitangents)
+        Vector3[] tangents, Vector3[] bitangents, Vector4[]? vertexColors = null)
     {
         int vertCount = positions.Length;
         var data = new float[vertCount * 18];
@@ -661,11 +708,22 @@ public class VM_CharacterViewer : VM
             // UV
             data[offset + 6] = uv.X;
             data[offset + 7] = uv.Y;
-            // Vertex color (default white)
-            data[offset + 8]  = 1f;
-            data[offset + 9]  = 1f;
-            data[offset + 10] = 1f;
-            data[offset + 11] = 1f;
+            // Vertex color
+            if (vertexColors != null && i < vertexColors.Length)
+            {
+                var vc = vertexColors[i];
+                data[offset + 8]  = vc.X;
+                data[offset + 9]  = vc.Y;
+                data[offset + 10] = vc.Z;
+                data[offset + 11] = vc.W;
+            }
+            else
+            {
+                data[offset + 8]  = 1f;
+                data[offset + 9]  = 1f;
+                data[offset + 10] = 1f;
+                data[offset + 11] = 1f;
+            }
             // Tangent
             data[offset + 12] = t.X;
             data[offset + 13] = t.Y;

@@ -22,6 +22,9 @@ uniform sampler2D texture_normal;
 uniform sampler2D texture_skin;
 uniform sampler2D texture_specular;
 uniform sampler2D texture_face_tint;
+uniform sampler2D texture_detail;
+uniform sampler2D texture_envmap;
+uniform sampler2D texture_envmask;
 
 // --- MATERIAL FLAGS ---
 uniform bool has_normal_map;
@@ -35,7 +38,12 @@ uniform bool has_emissive;
 uniform bool is_model_space;
 uniform bool has_hair_soft_lighting;
 uniform bool has_soft_lighting;
+uniform bool has_rim_lighting;
 uniform bool has_vertex_colors;
+uniform bool has_environment_map;
+uniform bool has_env_mask;
+uniform bool has_detail_map;
+uniform bool is_eye;
 
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
@@ -46,12 +54,18 @@ uniform float greyscaleToPaletteScale;
 uniform vec3 tint_color;
 uniform float materialGlossiness;
 uniform float materialSpecularStrength;
+uniform vec3 specularColor;
 uniform float rimlightPower;
 uniform float subsurfaceRolloff;
+uniform vec3 emissiveColor;
+uniform float emissiveMultiple;
+uniform float envMapScale;
+uniform float eyeCubemapScale;
 
 // --- GENERAL UNIFORMS ---
 uniform Light lights[MAX_LIGHTS];
 uniform vec3 u_backlightColor;
+uniform mat4 u_view;
 
 void main()
 {
@@ -80,6 +94,12 @@ void main()
         baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * tintSample.rgb, tintSample.a);
     }
 
+    // Detail map overlay
+    if (has_detail_map) {
+        vec3 detailSample = texture(texture_detail, TexCoords).rgb;
+        baseColor.rgb = mix(baseColor.rgb, baseColor.rgb * detailSample * 2.0, 0.3);
+    }
+
     // --- 2. NORMAL CALCULATION ---
     vec3 normal_viewSpace;
     bool tbnIsValid = length(v_tangentToViewMatrix[0]) > 0.0;
@@ -104,6 +124,11 @@ void main()
         } else {
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * vec3(0.0, 0.0, 1.0));
         }
+    }
+
+    // Eye meshes: invert normals (eyes are typically modeled inside-out in NIFs)
+    if (is_eye) {
+        normal_viewSpace = -normal_viewSpace;
     }
 
     // --- 3. DYNAMIC LIGHTING ---
@@ -141,7 +166,7 @@ void main()
                 }
                 vec3 halfwayDir = normalize(lightDir + viewDir);
                 float specAmount = pow(max(dot(normal_viewSpace, halfwayDir), 0.0), materialGlossiness);
-                specular = specAmount * specMask * lightColor * materialSpecularStrength;
+                specular = specAmount * specMask * lightColor * specularColor * materialSpecularStrength;
             }
 
             // Backlight / rimlight (hair)
@@ -149,6 +174,13 @@ void main()
             if (has_hair_soft_lighting) {
                 float rim = pow(1.0 - max(dot(viewDir, normal_viewSpace), 0.0), rimlightPower);
                 backlight = rim * u_backlightColor * lightColor * diffuseStrength * baseColor.rgb;
+            }
+
+            // Rim lighting (non-hair, e.g. skin translucency)
+            vec3 rimlight = vec3(0.0);
+            if (has_rim_lighting) {
+                float rim = pow(1.0 - max(dot(viewDir, normal_viewSpace), 0.0), rimlightPower);
+                rimlight = rim * lightColor * baseColor.rgb;
             }
 
             // Subsurface scattering (skin)
@@ -160,7 +192,7 @@ void main()
                 subsurface = lightColor * wrap * sss_color * sss_mask * subsurfaceRolloff;
             }
 
-            finalColor += (diffuse + specular + subsurface + backlight) * baseColor.rgb;
+            finalColor += (diffuse + specular + subsurface + backlight + rimlight) * baseColor.rgb;
         }
     }
 
@@ -168,6 +200,26 @@ void main()
     if (has_skin_map) {
         float skinVal = texture(texture_skin, TexCoords).r;
         finalColor += skinVal * vec3(1.0, 0.3, 0.2) * baseColor.rgb;
+    }
+
+    // --- 4. ENVIRONMENT MAPPING (spherical 2D) ---
+    if (has_environment_map) {
+        vec3 viewDir = normalize(-v_viewSpacePos);
+        vec3 reflectDir = reflect(-viewDir, normal_viewSpace);
+        // Spherical environment mapping: convert reflection vector to 2D UV
+        // This maps a 3D reflection direction to a sphere map texture coordinate
+        float m = 2.0 * sqrt(reflectDir.x * reflectDir.x + reflectDir.y * reflectDir.y +
+                             (reflectDir.z + 1.0) * (reflectDir.z + 1.0));
+        vec2 envUV = vec2(reflectDir.x / m + 0.5, reflectDir.y / m + 0.5);
+        vec3 envColor = texture(texture_envmap, envUV).rgb;
+        float envMask = has_env_mask ? texture(texture_envmask, TexCoords).r : 1.0;
+        float scale = is_eye ? eyeCubemapScale : envMapScale;
+        finalColor += envColor * envMask * scale;
+    }
+
+    // --- 5. EMISSIVE ---
+    if (has_emissive) {
+        finalColor += emissiveColor * emissiveMultiple;
     }
 
     FragColor = vec4(finalColor, baseColor.a);

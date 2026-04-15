@@ -37,14 +37,17 @@ public class GlMesh : IDisposable
     public bool HasFaceTintMap { get; set; }
     public bool HasGreyscaleToPalette { get; set; }
     public bool HasTintColor { get; set; }
+    public bool HasEmissive { get; set; }
     public bool IsModelSpace { get; set; }
     public bool HasHairSoftLighting { get; set; }
     public bool HasSoftLighting { get; set; }
+    public bool HasRimLighting { get; set; }
     public bool HasVertexColors { get; set; }
     public bool UseAlphaTest { get; set; }
     public bool HasAlphaBlend { get; set; }
     public bool IsDoubleSided { get; set; }
     public bool IsRendering { get; set; } = true;
+    public bool IsEye { get; set; }
 
     // Material properties
     public float AlphaThreshold { get; set; }
@@ -52,8 +55,25 @@ public class GlMesh : IDisposable
     public Vector3 TintColor { get; set; } = Vector3.One;
     public float MaterialGlossiness { get; set; } = 80f;
     public float MaterialSpecularStrength { get; set; } = 1f;
+    public Vector3 SpecularColor { get; set; } = Vector3.One;
     public float RimlightPower { get; set; } = 2f;
     public float SubsurfaceRolloff { get; set; } = 0.3f;
+    public Vector3 EmissiveColor { get; set; }
+    public float EmissiveMultiple { get; set; }
+    public Vector2 UvScale { get; set; } = Vector2.One;
+    public Vector2 UvOffset { get; set; }
+    public float EnvMapScale { get; set; } = 1f;
+    public float EyeCubemapScale { get; set; } = 1f;
+
+    // Environment map textures
+    public int EnvMapTexture { get; set; }
+    public int EnvMaskTexture { get; set; }
+    public bool HasEnvironmentMap { get; set; }
+    public bool HasEnvMask { get; set; }
+
+    // Detail map
+    public int DetailTexture { get; set; }
+    public bool HasDetailMap { get; set; }
 
     // Metadata
     public string ShapeName { get; set; } = "";

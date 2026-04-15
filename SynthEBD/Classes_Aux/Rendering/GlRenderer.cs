@@ -60,6 +60,9 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_skin", 2);
         _shader.SetInt("texture_specular", 3);
         _shader.SetInt("texture_face_tint", 4);
+        _shader.SetInt("texture_detail", 5);
+        _shader.SetInt("texture_envmap", 6);
+        _shader.SetInt("texture_envmask", 7);
 
         GL.Enable(EnableCap.DepthTest);
         GL.Enable(EnableCap.CullFace);
@@ -180,6 +183,12 @@ public class GlRenderer : IDisposable
         GL.BindTexture(TextureTarget.Texture2D, mesh.SpecularTexture);
         GL.ActiveTexture(TextureUnit.Texture4);
         GL.BindTexture(TextureTarget.Texture2D, mesh.FaceTintTexture);
+        GL.ActiveTexture(TextureUnit.Texture5);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.DetailTexture);
+        GL.ActiveTexture(TextureUnit.Texture6);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMapTexture);
+        GL.ActiveTexture(TextureUnit.Texture7);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMaskTexture);
 
         // Set material flags
         _shader.SetBool("has_normal_map", mesh.HasNormalMap);
@@ -189,11 +198,16 @@ public class GlRenderer : IDisposable
         _shader.SetBool("has_face_tint_map", mesh.HasFaceTintMap);
         _shader.SetBool("has_greyscale_to_palette", mesh.HasGreyscaleToPalette);
         _shader.SetBool("has_tint_color", mesh.HasTintColor);
-        _shader.SetBool("has_emissive", false);
+        _shader.SetBool("has_emissive", mesh.HasEmissive);
         _shader.SetBool("is_model_space", mesh.IsModelSpace);
         _shader.SetBool("has_hair_soft_lighting", mesh.HasHairSoftLighting);
         _shader.SetBool("has_soft_lighting", mesh.HasSoftLighting);
+        _shader.SetBool("has_rim_lighting", mesh.HasRimLighting);
         _shader.SetBool("has_vertex_colors", mesh.HasVertexColors);
+        _shader.SetBool("has_environment_map", mesh.HasEnvironmentMap);
+        _shader.SetBool("has_env_mask", mesh.HasEnvMask);
+        _shader.SetBool("has_detail_map", mesh.HasDetailMap);
+        _shader.SetBool("is_eye", mesh.IsEye);
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
 
         // Set material properties
@@ -202,8 +216,15 @@ public class GlRenderer : IDisposable
         _shader.SetVector3("tint_color", mesh.TintColor.X, mesh.TintColor.Y, mesh.TintColor.Z);
         _shader.SetFloat("materialGlossiness", mesh.MaterialGlossiness);
         _shader.SetFloat("materialSpecularStrength", mesh.MaterialSpecularStrength);
+        _shader.SetVector3("specularColor", mesh.SpecularColor.X, mesh.SpecularColor.Y, mesh.SpecularColor.Z);
         _shader.SetFloat("rimlightPower", mesh.RimlightPower);
         _shader.SetFloat("subsurfaceRolloff", mesh.SubsurfaceRolloff);
+        _shader.SetVector3("emissiveColor", mesh.EmissiveColor.X, mesh.EmissiveColor.Y, mesh.EmissiveColor.Z);
+        _shader.SetFloat("emissiveMultiple", mesh.EmissiveMultiple);
+        _shader.SetFloat("envMapScale", mesh.EnvMapScale);
+        _shader.SetFloat("eyeCubemapScale", mesh.EyeCubemapScale);
+        _shader.SetVector2("u_uvScale", mesh.UvScale.X, mesh.UvScale.Y);
+        _shader.SetVector2("u_uvOffset", mesh.UvOffset.X, mesh.UvOffset.Y);
 
         // Double-sided meshes (brow, eyelash, hair) need face culling disabled
         if (mesh.IsDoubleSided)

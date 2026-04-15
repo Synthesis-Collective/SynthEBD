@@ -59,6 +59,9 @@ public class GlShaderProgram : IDisposable
     public void SetFloat(string name, float value) =>
         GL.Uniform1(GetUniformLocation(name), value);
 
+    public void SetVector2(string name, float x, float y) =>
+        GL.Uniform2(GetUniformLocation(name), x, y);
+
     public void SetVector3(string name, float x, float y, float z) =>
         GL.Uniform3(GetUniformLocation(name), x, y, z);
 
