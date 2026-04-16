@@ -94,8 +94,8 @@ public class GameAssetResolver
 
     private string? TryExtractFromBsa(string relativeGamePath, string normalized)
     {
-        // Use forward-slash subpath for BSA lookup (Mutagen convention)
-        string bsaSubpath = relativeGamePath.Replace('\\', '/');
+        // Normalize the path for BSA lookup (Mutagen returns backslash-separated paths for Skyrim BSAs).
+        string bsaSubpath = relativeGamePath.Replace('/', '\\');
 
         _bsaHandler.EnsureAllArchivesOpened();
 
