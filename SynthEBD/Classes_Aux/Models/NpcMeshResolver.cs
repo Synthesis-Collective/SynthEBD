@@ -86,6 +86,8 @@ public class NpcMeshResolver
         string npcName = npcGetter.Name?.String ?? npcGetter.EditorID ?? npcFormKey.ToString();
         _logger.LogMessage("CharacterViewer: Resolving NPC " + npcName + " (" + npcFormKey + ")");
 
+        FormKey? npcRaceKey = (npcGetter.Race != null && !npcGetter.Race.IsNull) ? npcGetter.Race.FormKey : null;
+
         // Resolve the armor providing skin meshes (WornArmor, or Race.Skin fallback)
         var (armorGetter, armorSource) = ResolveWornArmor(npcGetter, linkCache, npcName);
 
@@ -107,6 +109,19 @@ public class NpcMeshResolver
 
                 if (armaGetter.BodyTemplate == null)
                 {
+                    continue;
+                }
+
+                // Skip armatures not applicable to this NPC's race. The game engine
+                // matches ARMA.Race or any of ARMA.AdditionalRaces against the actor's
+                // race (TESObjectARMA::IsValidRace). DefaultRace is NOT a wildcard — it
+                // is a specific FormKey that vanilla ARMAs use, and the actor-race match
+                // works because vanilla races list DefaultRace in AdditionalRaces (or
+                // inversely, AdditionalRaces enumerates the compatible races explicitly).
+                if (!IsArmatureForRace(armaGetter, npcRaceKey))
+                {
+                    _logger.LogMessage("CharacterViewer: Skipping Armature " + armaLink.FormKey +
+                        " — race " + (npcRaceKey?.ToString() ?? "(none)") + " not in ARMA.Race/AdditionalRaces");
                     continue;
                 }
 
@@ -210,6 +225,36 @@ public class NpcMeshResolver
 
         _logger.LogMessage("CharacterViewer: No WornArmor or Race.Skin found for " + npcName);
         return (null, "(none)");
+    }
+
+    /// <summary>
+    /// Returns true if the given armature is applicable to the NPC's race, per
+    /// the game's TESObjectARMA::IsValidRace logic: ARMA.Race must equal the NPC's
+    /// race, or the race must appear in ARMA.AdditionalRaces. If the NPC has no
+    /// resolvable race, we allow the armature through rather than skipping everything.
+    /// </summary>
+    private static bool IsArmatureForRace(IArmorAddonGetter armaGetter, FormKey? npcRaceKey)
+    {
+        if (npcRaceKey == null) return true;
+
+        if (armaGetter.Race != null && !armaGetter.Race.IsNull &&
+            armaGetter.Race.FormKey.Equals(npcRaceKey.Value))
+        {
+            return true;
+        }
+
+        if (armaGetter.AdditionalRaces != null)
+        {
+            foreach (var addRace in armaGetter.AdditionalRaces)
+            {
+                if (!addRace.IsNull && addRace.FormKey.Equals(npcRaceKey.Value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static string? GetWorldModelPath(IArmorAddonGetter armaGetter, Gender gender)
