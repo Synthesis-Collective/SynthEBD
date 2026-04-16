@@ -23,6 +23,25 @@ public class NifMeshBuilder
     {
         _logger = logger;
     }
+
+    // --- Neck-gap diagnostic instrumentation ---
+    // When true, TryApplyCpuSkinning logs the translation/scale delta between the
+    // skeleton NIF's bone world transform and the mesh NIF's bone world transform,
+    // for bones on the neck/shoulder seam. Toggle off once diagnosis is complete.
+    private const bool _logBoneDeltas = true;
+
+    // Bones most likely to influence the head-body seam and adjacent areas.
+    // Using the common Skyrim bone naming convention (with trailing "[Xxx]" tags).
+    private static readonly HashSet<string> _diagnosticBonesOfInterest = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "NPC Spine2 [Spn2]",
+        "NPC Neck [Neck]",
+        "NPC Head [Head]",
+        "NPC L Clavicle [LClv]",
+        "NPC R Clavicle [RClv]",
+        "NPC L UpperArm [LUar]",
+        "NPC R UpperArm [RUar]",
+    };
     /// <summary>
     /// Result of building a single NIF shape into renderable data.
     /// </summary>
@@ -771,6 +790,11 @@ public class NifMeshBuilder
             (isDoubleSided ? ", doubleSided" : "") +
             (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
 
+        if (_logBoneDeltas)
+        {
+            LogShapeBoundsDiagnostic(nif, shape, skinning != null, positions, positions.Length);
+        }
+
         return new BuiltMesh
         {
             Positions = positions,
@@ -975,6 +999,122 @@ public class NifMeshBuilder
     }
 
     /// <summary>
+    /// Diagnostic helper: logs the bind-pose mismatch between the skeleton NIF and the
+    /// mesh NIF for a given bone. This is the delta that produces neck-gap / seam artefacts
+    /// when a mesh's skinToBone (authored against its own bone positions) is paired with
+    /// the skeleton's bone positions at runtime.
+    ///
+    /// For each bone of interest, logs:
+    ///   - skeleton-NIF bone world translation (the runtime bone position we use)
+    ///   - mesh-NIF bone world translation (the position skinToBone was authored for)
+    ///   - translation delta and magnitude
+    ///   - scale values from each source
+    ///   - inverse-bind (skinToBone) translation, for cross-reference
+    /// </summary>
+    private void LogBoneDelta(NifFile meshNif, NifFile skeletonNif, string shapeName,
+        string boneName, MatTransform inverseBind)
+    {
+        using var skelBoneWorld = new MatTransform();
+        using var meshBoneWorld = new MatTransform();
+        bool hasSkel = skeletonNif.GetNodeTransformToGlobal(boneName, skelBoneWorld);
+        bool hasMesh = meshNif.GetNodeTransformToGlobal(boneName, meshBoneWorld);
+
+        if (!hasSkel || !hasMesh)
+        {
+            _logger.LogMessage("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName +
+                "': skeleton=" + hasSkel + " mesh=" + hasMesh + " (cannot compute delta)");
+            return;
+        }
+
+        float dx = skelBoneWorld.translation.x - meshBoneWorld.translation.x;
+        float dy = skelBoneWorld.translation.y - meshBoneWorld.translation.y;
+        float dz = skelBoneWorld.translation.z - meshBoneWorld.translation.z;
+        float mag = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+
+        _logger.LogMessage("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName + "'");
+        _logger.LogMessage("  skel T=(" + skelBoneWorld.translation.x.ToString("F3") + ", " +
+                                           skelBoneWorld.translation.y.ToString("F3") + ", " +
+                                           skelBoneWorld.translation.z.ToString("F3") + ") S=" +
+                                           skelBoneWorld.scale.ToString("F4"));
+        _logger.LogMessage("  mesh T=(" + meshBoneWorld.translation.x.ToString("F3") + ", " +
+                                           meshBoneWorld.translation.y.ToString("F3") + ", " +
+                                           meshBoneWorld.translation.z.ToString("F3") + ") S=" +
+                                           meshBoneWorld.scale.ToString("F4"));
+        _logger.LogMessage("  Δ T=(" + dx.ToString("F3") + ", " + dy.ToString("F3") + ", " +
+                                        dz.ToString("F3") + ") |Δ|=" + mag.ToString("F3"));
+        _logger.LogMessage("  skinToBone T=(" + inverseBind.translation.x.ToString("F3") + ", " +
+                                                 inverseBind.translation.y.ToString("F3") + ", " +
+                                                 inverseBind.translation.z.ToString("F3") + ") S=" +
+                                                 inverseBind.scale.ToString("F4"));
+    }
+
+    /// <summary>
+    /// Diagnostic helper: reports the Z-range of a skinned shape's vertices in NIF Z-up
+    /// space, then breaks them into Y buckets (front-to-back bands) and reports min/max Z
+    /// per bucket. This lets us compare the body's neck-hole rim (max-Z per Y bucket) to
+    /// the head's neck-bottom ring (min-Z per Y bucket) at corresponding front/mid/back
+    /// positions — the critical data for identifying a geometric seam.
+    /// </summary>
+    // Per-shape bounds diagnostic. Logs each shape's name, partition IDs, which
+    // routing branch it went through (skinned vs unskinned fallback), vertex count,
+    // and final-position bounds in NIF Z-up space. Helps detect misrouted or
+    // mispositioned shapes across the multi-NIF character assembly.
+    private void LogShapeBoundsDiagnostic(NifFile nif, NiShape shape, bool wasSkinned,
+        Vector3[] positionsYUp, int vertCount)
+    {
+        if (vertCount == 0) return;
+        string shapeName = shape.name?.get() ?? "?";
+
+        // Dismember partition IDs (if any)
+        string partStr = "none";
+        var skinRef = shape.SkinInstanceRef();
+        if (skinRef != null && !skinRef.IsEmpty())
+        {
+            NiHeader header = nif.GetHeader();
+            NiObject skinObj = header.GetBlockById(skinRef.index);
+            if (skinObj is BSDismemberSkinInstance dismember)
+            {
+                var parts = new List<ushort>();
+                using var partitions = dismember.partitions;
+                if (partitions != null)
+                {
+                    using var items = partitions.items();
+                    for (int pi = 0; pi < items.Count; pi++)
+                        parts.Add(items[pi].partID);
+                }
+                partStr = parts.Count == 0 ? "empty" : string.Join(",", parts);
+            }
+            else
+            {
+                partStr = "non-dismember";
+            }
+        }
+
+        // Y-up → Z-up inverse: Z-up = (x_yUp, -z_yUp, y_yUp)
+        float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
+        float minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
+        float minZ = float.PositiveInfinity, maxZ = float.NegativeInfinity;
+        for (int i = 0; i < vertCount; i++)
+        {
+            var p = positionsYUp[i];
+            float zx = p.X;
+            float zy = -p.Z;
+            float zz = p.Y;
+            if (zx < minX) minX = zx; if (zx > maxX) maxX = zx;
+            if (zy < minY) minY = zy; if (zy > maxY) maxY = zy;
+            if (zz < minZ) minZ = zz; if (zz > maxZ) maxZ = zz;
+        }
+
+        _logger.LogMessage("CharacterViewer: [ShapeDiag] '" + shapeName + "'" +
+            " route=" + (wasSkinned ? "skinned" : "fallback") +
+            " verts=" + vertCount +
+            " parts=[" + partStr + "]" +
+            " X=[" + minX.ToString("F2") + "," + maxX.ToString("F2") + "]" +
+            " Y=[" + minY.ToString("F2") + "," + maxY.ToString("F2") + "]" +
+            " Z=[" + minZ.ToString("F2") + "," + maxZ.ToString("F2") + "]");
+    }
+
+    /// <summary>
     /// Attempts CPU-side bone-weight skinning for a shape. Returns SkinningInfo on success,
     /// null if the shape is not properly skinned. On success, outputs skinned positions and
     /// normals as flat float arrays in NIF Z-up space.
@@ -1033,6 +1173,15 @@ public class NifMeshBuilder
                 _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
                     "' bone '" + boneName + "' — not found in skeleton or shape NIF, skipping");
                 continue;
+            }
+
+            // --- Diagnostic: skeleton vs mesh-NIF bone world-transform comparison ---
+            // Quantifies the bind-pose mismatch that produces the neck seam.
+            // Logs translation delta, |delta|, scale ratio, and inverse-bind translation
+            // for each bone of interest. Enabled by _logBoneDeltas.
+            if (_logBoneDeltas && _diagnosticBonesOfInterest.Contains(boneName))
+            {
+                LogBoneDelta(nif, skeletonNif, shapeName, boneName, inverseBind);
             }
 
             using var skinMatrix = boneWorld.ComposeTransforms(inverseBind);

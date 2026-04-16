@@ -371,7 +371,11 @@ public class VM_CharacterViewer : VM
         try
         {
             if (linkCache.TryResolve<Mutagen.Bethesda.Skyrim.INpcGetter>(npcFormKey, out var npcGetter))
+            {
                 NpcWeight = Math.Clamp((int)npcGetter.Weight, 0, 100);
+                _logger.LogMessage("CharacterViewer: NPC weight = " + NpcWeight +
+                    " (raw " + npcGetter.Weight.ToString("F2") + ")");
+            }
 
             var meshPaths = await Task.Run(() => _npcMeshResolver.ResolveMeshPaths(npcFormKey, linkCache), cts.Token);
             if (meshPaths == null)
@@ -677,8 +681,21 @@ public class VM_CharacterViewer : VM
     //  BODYSLIDE
     // ═══════════════════════════════════════════════════════════════════════
 
+    // Temporarily disables the BodySlide deformation path while we investigate
+    // the neck seam. With this flag set, the viewer renders raw NIF meshes
+    // (plus skinning); no .osd/.bsd morphs are applied.
+    private const bool _bodySlideDisabled = true;
+
     public void ApplyBodySlide(BodySlideSetting preset, int weight)
     {
+        if (_bodySlideDisabled)
+        {
+            NpcWeight = Math.Clamp(weight, 0, 100);
+            _logger.LogMessage("CharacterViewer: [BodySlideDisabled] ApplyBodySlide bypassed" +
+                " (preset='" + (preset?.Label ?? "?") + "', weight=" + NpcWeight + ")");
+            return;
+        }
+
         // If scene isn't set up yet (pending GL work), queue for later
         if (_cachedBodyMeshes.Count == 0)
         {
@@ -777,8 +794,40 @@ public class VM_CharacterViewer : VM
                 var source = _assetResolver.ResolveAssetSource(gamePath);
                 if (source.ResolvedDiskPath == null) return;
                 var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif);
-                if (meshes.Count > 0)
-                    results.Add((bodyPart, source, meshes));
+                if (meshes.Count == 0) return;
+
+                // Weight morph: armor meshes ship as _0/_1 pairs that the game engine
+                // linearly interpolates by NpcWeight (0..100). The FaceGen head is already
+                // baked at the NPC's weight so it needs no morph. Skinning is linear in
+                // vertex position, so blending the already-skinned world-space positions
+                // is equivalent to blending bind-pose and re-skinning (both _0 and _1
+                // share the same skeleton and skinToBone transforms).
+                if (bodyPart != "Head" && NpcWeight < 100)
+                {
+                    string? weight0Path = TryGetWeightZeroPath(gamePath);
+                    if (weight0Path != null)
+                    {
+                        var weight0Source = _assetResolver.ResolveAssetSource(weight0Path);
+                        if (weight0Source.ResolvedDiskPath != null)
+                        {
+                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif);
+                            float t = NpcWeight / 100f;
+                            BlendWeightMorph(meshes0, meshes, t, bodyPart);
+                        }
+                        else
+                        {
+                            _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart +
+                                "' weight-0 '" + weight0Path + "' not found — using _1.nif unmorphed");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart +
+                            "' path '" + gamePath + "' does not end in _1.nif — skipping weight morph");
+                    }
+                }
+
+                results.Add((bodyPart, source, meshes));
             }
 
             TryLoad("Body", meshPaths.BodyMeshPath);
@@ -897,6 +946,76 @@ public class VM_CharacterViewer : VM
             allOsd.AddRange(_bsdFileParser.ParseAllOsdInDirectory(dir));
 
         _cachedOsdFiles = allOsd;
+    }
+
+    // Derives the weight-0 counterpart path for a NIF path that ends in "_1.nif".
+    // Returns null if the input doesn't follow the standard BodySlide weight-pair naming.
+    private static string? TryGetWeightZeroPath(string gamePath)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return null;
+        const string suffix = "_1.nif";
+        if (gamePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            return gamePath.Substring(0, gamePath.Length - suffix.Length) + "_0.nif";
+        return null;
+    }
+
+    // Linearly interpolates weight-0 geometry into the weight-1 meshes by factor t,
+    // where t = NpcWeight / 100 (t=0 → all weight-0, t=1 → all weight-1). Matches the
+    // game engine's body-weight morph. Operates in-place on meshes1 arrays.
+    // Shape matching is by ShapeName; mismatched shapes or vertex counts are skipped.
+    private void BlendWeightMorph(List<NifMeshBuilder.BuiltMesh> meshes0,
+        List<NifMeshBuilder.BuiltMesh> meshes1, float t, string bodyPart)
+    {
+        foreach (var m1 in meshes1)
+        {
+            var m0 = meshes0.FirstOrDefault(m => m.ShapeName == m1.ShapeName);
+            if (m0 == null)
+            {
+                _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+                    m1.ShapeName + "' has no match in weight-0 NIF — skipping");
+                continue;
+            }
+            if (m0.Positions.Length != m1.Positions.Length)
+            {
+                _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+                    m1.ShapeName + "' vertex count mismatch (_0=" + m0.Positions.Length +
+                    ", _1=" + m1.Positions.Length + ") — skipping");
+                continue;
+            }
+
+            int n = m1.Positions.Length;
+            for (int i = 0; i < n; i++)
+                m1.Positions[i] = Vector3.Lerp(m0.Positions[i], m1.Positions[i], t);
+
+            BlendAndRenormalize(m0.Normals, m1.Normals, t, n);
+            BlendAndRenormalize(m0.Tangents, m1.Tangents, t, n);
+            BlendAndRenormalize(m0.Bitangents, m1.Bitangents, t, n);
+
+            if (m0.BindPosePositions != null && m1.BindPosePositions != null &&
+                m0.BindPosePositions.Length == n && m1.BindPosePositions.Length == n)
+            {
+                for (int i = 0; i < n; i++)
+                    m1.BindPosePositions[i] = Vector3.Lerp(m0.BindPosePositions[i], m1.BindPosePositions[i], t);
+            }
+            if (m0.BindPoseNormals != null && m1.BindPoseNormals != null &&
+                m0.BindPoseNormals.Length == n && m1.BindPoseNormals.Length == n)
+            {
+                BlendAndRenormalize(m0.BindPoseNormals, m1.BindPoseNormals, t, n);
+            }
+
+            _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+                m1.ShapeName + "' blended " + n + " verts at t=" + t.ToString("F2"));
+        }
+    }
+
+    private static void BlendAndRenormalize(Vector3[] src0, Vector3[] src1, float t, int n)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            var v = Vector3.Lerp(src0[i], src1[i], t);
+            float len = v.Length();
+            src1[i] = len > 1e-6f ? v / len : src1[i];
+        }
     }
 
     private static string? ParseBodyPart(string destination)
