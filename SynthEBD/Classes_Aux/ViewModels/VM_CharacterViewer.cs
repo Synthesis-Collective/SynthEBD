@@ -72,7 +72,7 @@ public class VM_CharacterViewer : VM
     public bool IsGlInitialized { get; private set; }
 
     /// <summary>Pending scene data waiting for GL context to become available.</summary>
-    private (List<(string BodyPart, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
+    private (List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
              NpcMeshResolver.NpcMeshPaths MeshPaths)? _pendingScene;
 
     /// <summary>Pending texture overrides to apply after scene setup.</summary>
@@ -277,7 +277,7 @@ public class VM_CharacterViewer : VM
         _cachedMeshPaths = meshPaths;
 
         int totalShapes = 0;
-        foreach (var (bodyPart, meshes) in loadResults)
+        foreach (var (bodyPart, meshSource, meshes) in loadResults)
         {
             Dictionary<int, string>? txstOverrides = null;
             if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
@@ -286,6 +286,7 @@ public class VM_CharacterViewer : VM
             foreach (var built in meshes)
             {
                 var glMesh = CreateGlMesh(built);
+                glMesh.MeshSource = meshSource;
 
                 var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
                 if (txstOverrides != null)
@@ -436,6 +437,7 @@ public class VM_CharacterViewer : VM
             glMesh.HasGreyscaleToPalette = true;
             glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
             glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
+            RecordTextureSource(glMesh, "Diffuse (hair tint)", hairDiffuse);
         }
         else if (built.IsPrimaryHeadShape && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
                  meshPaths.FaceTintPath != null)
@@ -447,10 +449,13 @@ public class VM_CharacterViewer : VM
             glMesh.DiffuseTexture = TextureManager.LoadTexture(headDiffuse);
             glMesh.FaceTintTexture = TextureManager.LoadTexture(meshPaths.FaceTintPath);
             glMesh.HasFaceTintMap = true;
+            RecordTextureSource(glMesh, "Diffuse", headDiffuse);
+            RecordTextureSource(glMesh, "Face Tint", meshPaths.FaceTintPath);
         }
         else if (effectiveTextures.TryGetValue(0, out string? diffusePath))
         {
             glMesh.DiffuseTexture = TextureManager.LoadTexture(diffusePath);
+            RecordTextureSource(glMesh, "Diffuse", diffusePath);
         }
         else
         {
@@ -463,6 +468,7 @@ public class VM_CharacterViewer : VM
             glMesh.NormalTexture = TextureManager.LoadTexture(normalPath);
             glMesh.HasNormalMap = true;
             glMesh.IsModelSpace = built.IsModelSpaceNormals;
+            RecordTextureSource(glMesh, "Normal Map", normalPath);
         }
         else
         {
@@ -478,6 +484,7 @@ public class VM_CharacterViewer : VM
         {
             glMesh.SkinTexture = TextureManager.LoadTexture(skinPath);
             glMesh.HasSkinMap = true;
+            RecordTextureSource(glMesh, "Skin/SSS", skinPath);
         }
         else
         {
@@ -490,6 +497,7 @@ public class VM_CharacterViewer : VM
             glMesh.SpecularTexture = TextureManager.LoadTexture(specPath);
             glMesh.HasSpecularMap = true;
             glMesh.HasSpecular = true;
+            RecordTextureSource(glMesh, "Specular", specPath);
         }
         else
         {
@@ -550,12 +558,14 @@ public class VM_CharacterViewer : VM
                 glMesh.HasEnvironmentMap = true;
                 glMesh.EnvMapScale = built.EnvironmentMapScale;
                 glMesh.EyeCubemapScale = built.EyeCubemapScale;
+                RecordTextureSource(glMesh, "Environment Cubemap", envMapPath);
             }
 
             if (effectiveTextures.TryGetValue(5, out string? envMaskPath))
             {
                 glMesh.EnvMaskTexture = TextureManager.LoadTexture(envMaskPath);
                 glMesh.HasEnvMask = true;
+                RecordTextureSource(glMesh, "Environment Mask", envMaskPath);
             }
         }
 
@@ -564,6 +574,7 @@ public class VM_CharacterViewer : VM
         {
             glMesh.DetailTexture = TextureManager.LoadTexture(detailPath);
             glMesh.HasDetailMap = true;
+            RecordTextureSource(glMesh, "Detail Map", detailPath);
         }
 
         // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
@@ -616,6 +627,7 @@ public class VM_CharacterViewer : VM
                 // Diffuse override — load separately from face tint so they
                 // remain independently toggleable in the context menu.
                 mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
+                RecordTextureSource(mesh, "Diffuse", replacement.Source);
             }
             else if (slot.Value == 1)
             {
@@ -623,18 +635,42 @@ public class VM_CharacterViewer : VM
                 mesh.NormalTexture = TextureManager.LoadTexture(replacement.Source);
                 mesh.HasNormalMap = true;
                 _logger.LogMessage("CharacterViewer: Normal map override '" + replacement.Source + "' → " + bodyPart);
+                RecordTextureSource(mesh, "Normal Map", replacement.Source);
             }
             else if (slot.Value == 7)
             {
                 mesh.SpecularTexture = TextureManager.LoadTexture(replacement.Source);
                 mesh.HasSpecularMap = true;
                 mesh.HasSpecular = true;
+                RecordTextureSource(mesh, "Specular", replacement.Source);
             }
             else
             {
                 _logger.LogMessage("CharacterViewer: Skipping override for slot " + slot.Value);
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves a texture's origin via the asset resolver and records it on
+    /// the mesh for display in the hover tooltip. If the slot already has an
+    /// entry, replaces it (used when texture overrides update a slot).
+    /// </summary>
+    private void RecordTextureSource(GlMesh mesh, string slotLabel, string? gamePath)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return;
+
+        var source = _assetResolver.ResolveAssetSource(gamePath);
+
+        for (int i = 0; i < mesh.TextureSources.Count; i++)
+        {
+            if (mesh.TextureSources[i].SlotLabel == slotLabel)
+            {
+                mesh.TextureSources[i] = (slotLabel, source);
+                return;
+            }
+        }
+        mesh.TextureSources.Add((slotLabel, source));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -713,10 +749,10 @@ public class VM_CharacterViewer : VM
     //  PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════
 
-    private List<(string BodyPart, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
+    private List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
         NpcMeshResolver.NpcMeshPaths meshPaths)
     {
-        var results = new List<(string, List<NifMeshBuilder.BuiltMesh>)>();
+        var results = new List<(string, AssetSource?, List<NifMeshBuilder.BuiltMesh>)>();
 
         nifly.NifFile? skeletonNif = null;
         if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath))
@@ -738,11 +774,11 @@ public class VM_CharacterViewer : VM
             void TryLoad(string bodyPart, string? gamePath)
             {
                 if (string.IsNullOrWhiteSpace(gamePath)) return;
-                string? diskPath = _assetResolver.ResolveAssetPath(gamePath);
-                if (diskPath == null) return;
-                var meshes = _meshBuilder.BuildFromFile(diskPath, skeletonNif);
+                var source = _assetResolver.ResolveAssetSource(gamePath);
+                if (source.ResolvedDiskPath == null) return;
+                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif);
                 if (meshes.Count > 0)
-                    results.Add((bodyPart, meshes));
+                    results.Add((bodyPart, source, meshes));
             }
 
             TryLoad("Body", meshPaths.BodyMeshPath);

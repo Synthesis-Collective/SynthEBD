@@ -95,6 +95,11 @@ public class GlMesh : IDisposable
     public string BodyPart { get; set; } = "";
     public bool IsPrimaryHeadShape { get; set; }
 
+    // Source metadata for the hover tooltip. These are display-only and have
+    // no effect on rendering; VM_CharacterViewer populates them at load time.
+    public AssetSource? MeshSource { get; set; }
+    public System.Collections.Generic.List<(string SlotLabel, AssetSource Source)> TextureSources { get; } = new();
+
     private const int STRIDE = 18; // floats per vertex
     private bool _disposed;
 

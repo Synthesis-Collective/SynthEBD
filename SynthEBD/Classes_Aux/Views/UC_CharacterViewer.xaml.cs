@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using OpenTK.Wpf;
 
 namespace SynthEBD;
@@ -22,6 +23,17 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.MouseUp += GlControl_MouseUp;
         GlControl.MouseWheel += GlControl_MouseWheel;
         GlControl.MouseRightButtonUp += GlControl_MouseRightButtonUp;
+        GlControl.MouseLeave += GlControl_MouseLeave;
+
+        _hoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _hoverTimer.Tick += HoverTimer_Tick;
+
+        _hoverTooltip = new ToolTip
+        {
+            PlacementTarget = GlControl,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse,
+            HasDropShadow = true,
+        };
 
         // Start GL when the control gets a valid size (handles deferred layout)
         GlControl.SizeChanged += (_, _) => TryStartGl();
@@ -30,6 +42,12 @@ public partial class UC_CharacterViewer : UserControl
 
     private VM_CharacterViewer? _vm;
     private bool _glStarted;
+
+    // Hover tooltip state
+    private readonly DispatcherTimer _hoverTimer;
+    private readonly ToolTip _hoverTooltip;
+    private Point _lastMousePos;
+    private GlMesh? _currentHoverMesh;
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -103,6 +121,9 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
+        // Any camera-driving button press cancels the hover tooltip
+        HideHoverTooltip();
+
         var pos = e.GetPosition(GlControl);
         _vm.Camera.OnMouseDown(
             (float)pos.X, (float)pos.Y,
@@ -118,6 +139,20 @@ public partial class UC_CharacterViewer : UserControl
 
         var pos = e.GetPosition(GlControl);
         _vm.Camera.OnMouseMove((float)pos.X, (float)pos.Y);
+
+        // Restart hover dwell timer only when the user is not actively orbiting
+        _lastMousePos = pos;
+        bool isOrbiting = e.LeftButton == MouseButtonState.Pressed
+                       || e.MiddleButton == MouseButtonState.Pressed;
+        if (isOrbiting)
+        {
+            HideHoverTooltip();
+        }
+        else
+        {
+            _hoverTimer.Stop();
+            _hoverTimer.Start();
+        }
     }
 
     private void GlControl_MouseUp(object sender, MouseButtonEventArgs e)
@@ -134,7 +169,13 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
+        HideHoverTooltip();
         _vm.Camera.OnMouseWheel(e.Delta);
+    }
+
+    private void GlControl_MouseLeave(object sender, MouseEventArgs e)
+    {
+        HideHoverTooltip();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -293,6 +334,121 @@ public partial class UC_CharacterViewer : UserControl
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.LogLightingSettings();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  HOVER TOOLTIP — MESH & TEXTURE SOURCE PATHS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void HoverTimer_Tick(object? sender, EventArgs e)
+    {
+        _hoverTimer.Stop();
+
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null || GlControl.ActualWidth <= 0 || GlControl.ActualHeight <= 0)
+        {
+            HideHoverTooltip();
+            return;
+        }
+
+        var hit = _vm.HitTest(
+            (float)_lastMousePos.X, (float)_lastMousePos.Y,
+            (float)GlControl.ActualWidth, (float)GlControl.ActualHeight);
+
+        if (hit == null)
+        {
+            HideHoverTooltip();
+            return;
+        }
+
+        if (!ReferenceEquals(hit, _currentHoverMesh))
+        {
+            _currentHoverMesh = hit;
+            _hoverTooltip.Content = BuildHoverTooltipContent(hit);
+        }
+
+        if (!_hoverTooltip.IsOpen)
+            _hoverTooltip.IsOpen = true;
+    }
+
+    private void HideHoverTooltip()
+    {
+        _hoverTimer.Stop();
+        _currentHoverMesh = null;
+        if (_hoverTooltip.IsOpen)
+            _hoverTooltip.IsOpen = false;
+    }
+
+    private static TextBlock BuildHoverTooltipContent(GlMesh mesh)
+    {
+        var tb = new TextBlock
+        {
+            FontFamily = new FontFamily("Consolas, Courier New, monospace"),
+            FontSize = 11,
+        };
+
+        // Header: shape + body part
+        string header = string.IsNullOrEmpty(mesh.BodyPart)
+            ? mesh.ShapeName
+            : mesh.ShapeName + "  (" + mesh.BodyPart + ")";
+        tb.Inlines.Add(new System.Windows.Documents.Bold(
+            new System.Windows.Documents.Run(header)));
+        tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+
+        // Mesh source
+        tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+        tb.Inlines.Add(new System.Windows.Documents.Bold(
+            new System.Windows.Documents.Run("Mesh:")));
+        tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+        AppendAssetSource(tb, mesh.MeshSource);
+
+        // Textures
+        if (mesh.TextureSources.Count > 0)
+        {
+            tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+            tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+            tb.Inlines.Add(new System.Windows.Documents.Bold(
+                new System.Windows.Documents.Run("Textures:")));
+            foreach (var (slotLabel, source) in mesh.TextureSources)
+            {
+                tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+                tb.Inlines.Add(new System.Windows.Documents.Bold(
+                    new System.Windows.Documents.Run(slotLabel + ":")));
+                tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+                AppendAssetSource(tb, source);
+            }
+        }
+
+        return tb;
+    }
+
+    private static void AppendAssetSource(TextBlock tb, AssetSource? source)
+    {
+        if (source == null)
+        {
+            tb.Inlines.Add(new System.Windows.Documents.Run("  (unknown)"));
+            return;
+        }
+
+        tb.Inlines.Add(new System.Windows.Documents.Run("  " + source.GamePath));
+
+        switch (source.Kind)
+        {
+            case AssetOriginKind.Loose:
+                tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+                tb.Inlines.Add(new System.Windows.Documents.Run(
+                    "    └─ loose file: " + (source.LoosePath ?? "")));
+                break;
+            case AssetOriginKind.Bsa:
+                tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+                tb.Inlines.Add(new System.Windows.Documents.Run(
+                    "    └─ BSA: " + (source.BsaPath ?? "(unknown)")));
+                break;
+            case AssetOriginKind.NotFound:
+                tb.Inlines.Add(new System.Windows.Documents.LineBreak());
+                tb.Inlines.Add(new System.Windows.Documents.Run("    └─ (not found)"));
+                break;
+        }
     }
 
     private void ControlsButton_Click(object sender, RoutedEventArgs e)

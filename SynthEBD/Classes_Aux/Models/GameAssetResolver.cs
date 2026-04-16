@@ -6,6 +6,32 @@ using Mutagen.Bethesda.Archives;
 namespace SynthEBD;
 
 /// <summary>
+/// Describes where a resolved asset originated.
+/// </summary>
+public enum AssetOriginKind
+{
+    NotFound,
+    Loose,
+    Bsa
+}
+
+/// <summary>
+/// Records the origin of a resolved asset so callers can present it
+/// (e.g. in a hover tooltip) without re-resolving or probing the file system.
+/// </summary>
+public sealed record AssetSource(
+    AssetOriginKind Kind,
+    string GamePath,
+    string? ResolvedDiskPath,
+    string? LoosePath,
+    string? BsaPath,
+    string? InternalBsaPath)
+{
+    public static AssetSource NotFound(string gamePath) =>
+        new(AssetOriginKind.NotFound, gamePath, null, null, null, null);
+}
+
+/// <summary>
 /// Resolves game-relative asset paths (e.g. "meshes/actors/character/...")
 /// to actual file paths on disk. Checks loose files first, then falls back
 /// to BSA archive extraction with a persistent temp cache.
@@ -21,6 +47,13 @@ public class GameAssetResolver
     /// Key: lowercase game-relative path, Value: extracted disk path.
     /// </summary>
     private readonly ConcurrentDictionary<string, string> _extractionCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Parallel cache of BSA-origin metadata so repeat resolves of the same
+    /// asset return the full <see cref="AssetSource"/> (including BSA path
+    /// and internal sub-path) without re-querying the BSA handler.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, AssetSource> _bsaSourceCache = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly string _extractionDir;
 
@@ -42,9 +75,20 @@ public class GameAssetResolver
     /// </summary>
     public string? ResolveAssetPath(string relativeGamePath)
     {
+        return ResolveAssetSource(relativeGamePath).ResolvedDiskPath;
+    }
+
+    /// <summary>
+    /// Resolves a game-relative path and reports where the asset came from
+    /// (loose file on disk, or a specific BSA archive). Always returns a
+    /// non-null <see cref="AssetSource"/>; check <see cref="AssetSource.Kind"/>
+    /// for <see cref="AssetOriginKind.NotFound"/>.
+    /// </summary>
+    public AssetSource ResolveAssetSource(string relativeGamePath)
+    {
         if (string.IsNullOrWhiteSpace(relativeGamePath))
         {
-            return null;
+            return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
         // Normalize separators
@@ -55,17 +99,11 @@ public class GameAssetResolver
         if (File.Exists(loosePath))
         {
             _logger.LogMessage("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
-            return loosePath;
+            return new AssetSource(AssetOriginKind.Loose, relativeGamePath, loosePath, loosePath, null, null);
         }
 
-        // Step 2: Check extraction cache
-        if (_extractionCache.TryGetValue(normalized, out string? cached) && File.Exists(cached))
-        {
-            return cached;
-        }
-
-        // Step 3: BSA fallback
-        return TryExtractFromBsa(relativeGamePath, normalized);
+        // Step 2: BSA fallback (uses extraction cache internally)
+        return TryResolveFromBsa(relativeGamePath, normalized);
     }
 
     /// <summary>
@@ -92,30 +130,49 @@ public class GameAssetResolver
         }
     }
 
-    private string? TryExtractFromBsa(string relativeGamePath, string normalized)
+    private AssetSource TryResolveFromBsa(string relativeGamePath, string normalized)
     {
+        // Check cached BSA source first (covers both re-resolves and re-extractions)
+        if (_bsaSourceCache.TryGetValue(normalized, out var cachedSource) &&
+            cachedSource.ResolvedDiskPath != null && File.Exists(cachedSource.ResolvedDiskPath))
+        {
+            return cachedSource;
+        }
+
         // Normalize the path for BSA lookup (Mutagen returns backslash-separated paths for Skyrim BSAs).
         string bsaSubpath = relativeGamePath.Replace('/', '\\');
 
         _bsaHandler.EnsureAllArchivesOpened();
 
-        if (!_bsaHandler.TryFindFileInAnyArchive(bsaSubpath, out IArchiveFile archiveFile))
+        if (!_bsaHandler.TryFindFileInAnyArchive(bsaSubpath, out IArchiveFile archiveFile, out string? containingBsaPath))
         {
             _logger.LogMessage("CharacterViewer: Could not resolve '" + relativeGamePath + "' in loose files or any BSA");
-            return null;
+            return AssetSource.NotFound(relativeGamePath);
         }
 
         // Build extraction destination preserving the relative directory structure
         string destPath = Path.Combine(_extractionDir, normalized);
 
+        // Reuse a prior extraction if still on disk
+        if (_extractionCache.TryGetValue(normalized, out string? priorExtract) && File.Exists(priorExtract))
+        {
+            var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, priorExtract,
+                null, containingBsaPath, bsaSubpath);
+            _bsaSourceCache[normalized] = source;
+            return source;
+        }
+
         if (_bsaHandler.TryExtractFileFromBSA(archiveFile, destPath))
         {
             _extractionCache[normalized] = destPath;
             _logger.LogMessage("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
-            return destPath;
+            var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, destPath,
+                null, containingBsaPath, bsaSubpath);
+            _bsaSourceCache[normalized] = source;
+            return source;
         }
 
         _logger.LogError("CharacterViewer: Found '" + relativeGamePath + "' in BSA but extraction failed");
-        return null;
+        return AssetSource.NotFound(relativeGamePath);
     }
 }
