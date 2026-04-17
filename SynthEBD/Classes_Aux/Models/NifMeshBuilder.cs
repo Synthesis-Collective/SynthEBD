@@ -119,6 +119,15 @@ public class NifMeshBuilder
         /// </summary>
         public bool IsDoubleSided { get; init; }
 
+        /// <summary>
+        /// True if SLSF1_Greyscale_To_Palette_Color flag (bit 4) is set in shaderFlags1.
+        /// When set, the shader samples only the red channel of the diffuse texture
+        /// and applies: baseColor.rrr * tint_color * greyscaleToPaletteScale.
+        /// When NOT set (but IsHairTintShader is true), the full RGB diffuse is
+        /// multiplied: baseColor.rgb *= tint_color (simple tint).
+        /// </summary>
+        public bool HasGreyscaleToPaletteFlag { get; init; }
+
         // --- Shader material properties from BSLightingShaderProperty ---
         public float Glossiness { get; init; } = 80f;
         public float SpecularStrength { get; init; } = 1f;
@@ -632,7 +641,11 @@ public class NifMeshBuilder
 
                     // Extract additional properties safely
                     try { subsurfaceRolloff = bslsp.subsurfaceRolloff; } catch { }
-                    // greyscaleToPaletteScale is not exposed by niflysharp; default to 1.0
+                    // niflysharp exposes this via the American spelling `grayscaleToPaletteScale`.
+                    // For hair tint shapes the NIF typically stores a value >1 (often 2-4) that
+                    // brightens the baked dark HCLR/hairTintColor back up to the actual in-game color.
+                    // Without reading it here, hair renders far too dark.
+                    try { greyscaleToPaletteScale = bslsp.grayscaleToPaletteScale; } catch { }
                     try { rimlightPower = bslsp.rimlightPower; } catch { }
 
                     // Specular color (RGB)
@@ -712,6 +725,7 @@ public class NifMeshBuilder
                         " specColor=(" + specularColor.X.ToString("F2") + ", " + specularColor.Y.ToString("F2") + ", " + specularColor.Z.ToString("F2") + ")" +
                         " ssRolloff=" + subsurfaceRolloff.ToString("F2") +
                         " rimPow=" + rimlightPower.ToString("F2") +
+                        " greyPalScale=" + greyscaleToPaletteScale.ToString("F2") +
                         " emissive=(" + emissiveColor.X.ToString("F2") + ", " + emissiveColor.Y.ToString("F2") + ", " + emissiveColor.Z.ToString("F2") + ")x" + emissiveMultiple.ToString("F2") +
                         " envScale=" + environmentMapScale.ToString("F2") +
                         " uvScale=(" + uvScale.X.ToString("F2") + ", " + uvScale.Y.ToString("F2") + ")" +
@@ -816,6 +830,7 @@ public class NifMeshBuilder
             HasAlphaBlend = hasAlphaBlend,
             AlphaThreshold = alphaThreshold,
             IsDoubleSided = isDoubleSided,
+            HasGreyscaleToPaletteFlag = (shaderFlags1 & SLSF1_GreyscaleToPalette) != 0,
             Glossiness = glossiness,
             SpecularStrength = specularStrength,
             SpecularColor = specularColor,

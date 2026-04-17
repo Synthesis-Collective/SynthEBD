@@ -58,6 +58,11 @@ public class VM_CharacterViewer : VM
     private List<OsdFile>? _cachedOsdFiles;
     private NpcMeshResolver.NpcMeshPaths? _cachedMeshPaths;
 
+    /// <summary>NPC's HairColor record (HCLR) resolved from HeadData.HairColor FormLink,
+    /// in 0..1 linear floats. Null if the NPC has no HairColor set or it fails to resolve.
+    /// In-game Skyrim uses this to override the NIF's baked BSLSP hairTintColor.</summary>
+    private (float R, float G, float B)? _npcHairColorFromRecord;
+
     /// <summary>Cached texture info per mesh for ReapplyAllTextures.</summary>
     private readonly Dictionary<GlMesh, TextureApplyInfo> _textureApplyInfoByMesh = new();
 
@@ -370,11 +375,45 @@ public class VM_CharacterViewer : VM
 
         try
         {
+            _npcHairColorFromRecord = null;
             if (linkCache.TryResolve<Mutagen.Bethesda.Skyrim.INpcGetter>(npcFormKey, out var npcGetter))
             {
                 NpcWeight = Math.Clamp((int)npcGetter.Weight, 0, 100);
                 _logger.LogMessage("CharacterViewer: NPC weight = " + NpcWeight +
                     " (raw " + npcGetter.Weight.ToString("F2") + ")");
+
+                // Resolve the NPC's HairColor FormLink (HCLR record) — in-game, this
+                // overrides the default hairTintColor baked into the hair NIF's BSLSP.
+                // Logging both lets us diagnose mismatches between reference images
+                // (which show the NPC's HCLR color) and the viewer (which currently
+                // uses only the NIF's baked tint).
+                if (npcGetter.HairColor.IsNull)
+                {
+                    _logger.LogMessage("CharacterViewer: NPC.HairColor FormLink is null — " +
+                        "no HCLR override available; viewer will use NIF's baked BSLSP tint.");
+                }
+                else
+                {
+                    var hclr = npcGetter.HairColor.TryResolve(linkCache);
+                    if (hclr != null)
+                    {
+                        var c = hclr.Color;
+                        float r = c.R / 255f, g = c.G / 255f, b = c.B / 255f;
+                        _npcHairColorFromRecord = (r, g, b);
+                        string hex = "#" + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
+                        _logger.LogMessage("CharacterViewer: NPC.HairColor HCLR=" +
+                            npcGetter.HairColor.FormKey.ToString() +
+                            " name='" + (hclr.Name?.String ?? "?") + "'" +
+                            " RGB=(" + c.R + "," + c.G + "," + c.B + ")" +
+                            " float=(" + r.ToString("F3") + "," + g.ToString("F3") + "," + b.ToString("F3") + ")" +
+                            " hex=" + hex);
+                    }
+                    else
+                    {
+                        _logger.LogMessage("CharacterViewer: NPC.HairColor FormLink " +
+                            npcGetter.HairColor.FormKey.ToString() + " failed to resolve.");
+                    }
+                }
             }
 
             var meshPaths = await Task.Run(() => _npcMeshResolver.ResolveMeshPaths(npcFormKey, linkCache), cts.Token);
@@ -428,20 +467,40 @@ public class VM_CharacterViewer : VM
     {
         if (TextureManager == null) return;
 
-        // Diffuse (slot 0) — with special handling for hair tint and face tint
+        // Diffuse (slot 0) — with special handling for hair tint and face tint.
+        // Two tinting modes match the Skyrim engine (and NPC Portrait Creator):
+        //   1. SLSF1_Greyscale_To_Palette_Color flag set:
+        //      Texture is greyscale; shader: baseColor.rrr * tint_color * greyscaleToPaletteScale
+        //   2. BSLSP_HAIRTINT shader type only (flag NOT set):
+        //      Texture is full RGB; shader: baseColor.rgb *= tint_color (simple multiply)
         if (built.IsHairTintShader && built.HairTintColor.HasValue &&
             effectiveTextures.TryGetValue(0, out string? hairDiffuse))
         {
             var (tR, tG, tB) = built.HairTintColor.Value;
             isHairTint = true; hairR = tR; hairG = tG; hairB = tB;
-            // Upload the raw greyscale texture — the shader handles tinting via
-            // baseColor.rrr * tint_color * greyscaleToPaletteScale.
-            // CPU-side tinting was double-applying the color (once on CPU, once in shader).
             glMesh.DiffuseTexture = TextureManager.LoadTexture(hairDiffuse);
-            glMesh.HasGreyscaleToPalette = true;
             glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
-            glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
-            RecordTextureSource(glMesh, "Diffuse (hair tint)", hairDiffuse);
+
+            if (built.HasGreyscaleToPaletteFlag)
+            {
+                glMesh.HasGreyscaleToPalette = true;
+                glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
+                RecordTextureSource(glMesh, "Diffuse (hair tint, greyscale-to-palette)", hairDiffuse);
+                _logger.LogMessage("CharacterViewer: Hair tint (greyscale-to-palette): " +
+                    "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                    " scale=" + built.GreyscaleToPaletteScale.ToString("F2") +
+                    " -> baseColor.rrr * tint * scale" +
+                    " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+            }
+            else
+            {
+                glMesh.HasTintColor = true;
+                RecordTextureSource(glMesh, "Diffuse (hair tint, RGB multiply)", hairDiffuse);
+                _logger.LogMessage("CharacterViewer: Hair tint (simple RGB multiply): " +
+                    "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                    " -> baseColor.rgb *= tint" +
+                    " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+            }
         }
         else if (built.IsPrimaryHeadShape && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
                  meshPaths.FaceTintPath != null)
