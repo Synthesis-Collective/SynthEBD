@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using OpenTK.Wpf;
 
 namespace SynthEBD;
@@ -38,6 +39,13 @@ public partial class UC_CharacterViewer : UserControl
         // Start GL when the control gets a valid size (handles deferred layout)
         GlControl.SizeChanged += (_, _) => TryStartGl();
         Loaded += (_, _) => { _vm ??= DataContext as VM_CharacterViewer; TryStartGl(); };
+
+        // Suspend GL rendering during sleep/wake to prevent context-lost crashes.
+        // The GPU's OpenGL context is invalidated when the PC sleeps; collapsing
+        // the control unsubscribes from CompositionTarget.Rendering so OnRender
+        // (which calls glfwMakeContextCurrent) is never hit with a dead context.
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Unloaded += (_, _) => SystemEvents.PowerModeChanged -= OnPowerModeChanged;
     }
 
     private VM_CharacterViewer? _vm;
@@ -76,6 +84,24 @@ public partial class UC_CharacterViewer : UserControl
         // by toggling visibility to trigger the handler.
         GlControl.Visibility = Visibility.Collapsed;
         GlControl.Visibility = Visibility.Visible;
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Suspend)
+        {
+            // Collapse before sleep — stops the render loop so OnRender won't
+            // fire with an invalid GL context during or immediately after wake.
+            Dispatcher.BeginInvoke(() => GlControl.Visibility = Visibility.Collapsed);
+        }
+        else if (e.Mode == PowerModes.Resume)
+        {
+            // Delay restore to give the GPU driver time to reinitialize.
+            Dispatcher.BeginInvoke(() =>
+            {
+                GlControl.Visibility = Visibility.Visible;
+            }, DispatcherPriority.Background);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
