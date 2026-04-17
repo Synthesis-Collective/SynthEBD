@@ -121,36 +121,142 @@ public class VM_CharacterViewer : VM
     //  LIGHTING CONTROLS
     // ═══════════════════════════════════════════════════════════════════════
 
-    private double _ambientIntensity = 20;
+    /// <summary>Suppresses UpdateRendererLighting while a preset is being applied,
+    /// so each slider assignment doesn't stomp on the fill/rim that the preset just set.</summary>
+    private bool _applyingPreset;
+
+    private double _ambientIntensity = CharacterViewerLightingPresets.DefaultLayout.Ambient;
     public double AmbientIntensity
     {
         get => _ambientIntensity;
         set { _ambientIntensity = Math.Clamp(value, 0, 100); UpdateRendererLighting(); }
     }
 
-    private double _keyLightIntensity = 100;
+    private double _keyLightIntensity = CharacterViewerLightingPresets.DefaultLayout.KeyIntensity;
     public double KeyLightIntensity
     {
         get => _keyLightIntensity;
         set { _keyLightIntensity = Math.Clamp(value, 0, 100); UpdateRendererLighting(); }
     }
 
-    private double _keyLightAzimuth = -30;
+    private double _keyLightAzimuth = CharacterViewerLightingPresets.DefaultLayout.KeyAzimuth;
     public double KeyLightAzimuth
     {
         get => _keyLightAzimuth;
         set { _keyLightAzimuth = Math.Clamp(value, -180, 180); UpdateRendererLighting(); }
     }
 
-    private double _keyLightElevation = -45;
+    private double _keyLightElevation = CharacterViewerLightingPresets.DefaultLayout.KeyElevation;
     public double KeyLightElevation
     {
         get => _keyLightElevation;
         set { _keyLightElevation = Math.Clamp(value, -90, 90); UpdateRendererLighting(); }
     }
 
+    private bool _showKeyLightVisualization = false;
+    /// <summary>When true, the renderer draws arrows showing each directional light's
+    /// shining direction (source → model) with length proportional to intensity.</summary>
+    public bool ShowKeyLightVisualization
+    {
+        get => _showKeyLightVisualization;
+        set { _showKeyLightVisualization = value; Renderer.ShowKeyLightVisualization = value; }
+    }
+
+    private bool _keyLightEnabled = true;
+    public bool KeyLightEnabled
+    {
+        get => _keyLightEnabled;
+        set { _keyLightEnabled = value; Renderer.Lights[1].Type = value ? 2 : 0; }
+    }
+
+    private bool _fillLightEnabled = true;
+    public bool FillLightEnabled
+    {
+        get => _fillLightEnabled;
+        set { _fillLightEnabled = value; Renderer.Lights[2].Type = value ? 2 : 0; }
+    }
+
+    private bool _rimLightEnabled = true;
+    public bool RimLightEnabled
+    {
+        get => _rimLightEnabled;
+        set { _rimLightEnabled = value; Renderer.Lights[3].Type = value ? 2 : 0; }
+    }
+
+    public IReadOnlyList<CharacterViewerLightingLayout> LightingLayouts =>
+        CharacterViewerLightingPresets.AllLayouts;
+
+    public IReadOnlyList<CharacterViewerLightingColorScheme> LightingColorSchemes =>
+        CharacterViewerLightingPresets.AllColorSchemes;
+
+    private CharacterViewerLightingLayout _selectedLightingLayout =
+        CharacterViewerLightingPresets.DefaultLayout;
+    public CharacterViewerLightingLayout SelectedLightingLayout
+    {
+        get => _selectedLightingLayout;
+        set
+        {
+            if (value == null) return;
+            _selectedLightingLayout = value;
+            _generalSettings.CharacterViewerLightingLayout = value.Name;
+            ApplyCurrentLighting();
+        }
+    }
+
+    private CharacterViewerLightingColorScheme _selectedLightingColorScheme =
+        CharacterViewerLightingPresets.DefaultColorScheme;
+    public CharacterViewerLightingColorScheme SelectedLightingColorScheme
+    {
+        get => _selectedLightingColorScheme;
+        set
+        {
+            if (value == null) return;
+            _selectedLightingColorScheme = value;
+            _generalSettings.CharacterViewerLightingColorScheme = value.Name;
+            ApplyCurrentLighting();
+        }
+    }
+
+    private void ApplyCurrentLighting()
+    {
+        var layout = _selectedLightingLayout;
+        var colors = _selectedLightingColorScheme;
+
+        _applyingPreset = true;
+        try
+        {
+            // Slider-bound key values — setters will fire but UpdateRendererLighting is suppressed.
+            AmbientIntensity = layout.Ambient;
+            KeyLightIntensity = layout.KeyIntensity;
+            KeyLightAzimuth = layout.KeyAzimuth;
+            KeyLightElevation = layout.KeyElevation;
+        }
+        finally
+        {
+            _applyingPreset = false;
+        }
+
+        // Push everything to the renderer in one pass (ambient + key + fill + rim).
+        Renderer.SetAmbientIntensity((float)(layout.Ambient / 100.0));
+        Renderer.SetKeyLight(
+            (float)layout.KeyAzimuth, (float)layout.KeyElevation,
+            (float)(layout.KeyIntensity / 100.0), colors.KeyColor);
+        Renderer.SetFillLight(
+            (float)layout.FillAzimuth, (float)layout.FillElevation,
+            (float)(layout.FillIntensity / 100.0), colors.FillColor);
+        Renderer.SetRimLight(
+            (float)layout.RimAzimuth, (float)layout.RimElevation,
+            (float)(layout.RimIntensity / 100.0), colors.RimColor);
+
+        // Per-light enable toggles — disable by setting Type=0 (shader skips).
+        Renderer.Lights[1].Type = _keyLightEnabled ? 2 : 0;
+        Renderer.Lights[2].Type = _fillLightEnabled ? 2 : 0;
+        Renderer.Lights[3].Type = _rimLightEnabled ? 2 : 0;
+    }
+
     private void UpdateRendererLighting()
     {
+        if (_applyingPreset) return;
         Renderer.SetAmbientIntensity((float)(_ambientIntensity / 100.0));
         Renderer.SetKeyLightIntensity((float)(_keyLightIntensity / 100.0));
         Renderer.SetKeyLightDirection((float)_keyLightAzimuth, (float)_keyLightElevation);
@@ -158,7 +264,8 @@ public class VM_CharacterViewer : VM
 
     public void LogLightingSettings()
     {
-        _logger.LogMessage($"CharacterViewer: LIGHTING — Ambient={_ambientIntensity:F0}%, " +
+        _logger.LogMessage($"CharacterViewer: LIGHTING — Layout='{_selectedLightingLayout.Name}', " +
+            $"Colors='{_selectedLightingColorScheme.Name}', Ambient={_ambientIntensity:F0}%, " +
             $"KeyLight={_keyLightIntensity:F0}%, Azimuth={_keyLightAzimuth:F0}°, Elevation={_keyLightElevation:F0}°");
     }
 
@@ -260,7 +367,14 @@ public class VM_CharacterViewer : VM
         TextureManager = new GlTextureManager(_assetResolver, _logger);
         TextureManager.Initialize();
         Renderer.Initialize(shaderDirectory);
-        UpdateRendererLighting();
+
+        // Resolve persisted selections (empty / unknown names fall back to defaults).
+        _selectedLightingLayout = CharacterViewerLightingPresets.FindLayoutOrDefault(
+            _generalSettings.CharacterViewerLightingLayout);
+        _selectedLightingColorScheme = CharacterViewerLightingPresets.FindColorSchemeOrDefault(
+            _generalSettings.CharacterViewerLightingColorScheme);
+        ApplyCurrentLighting();
+
         IsGlInitialized = true;
 
         _logger.LogMessage("CharacterViewer: GL initialized");

@@ -138,6 +138,12 @@ void main()
         if (is_model_space) {
             vec3 normal_modelSpace = texture(texture_normal, TexCoords).rgb * 2.0 - 1.0;
             normal_modelSpace.g *= -1.0; // DirectX convention
+            // MSN textures store normals in the NIF's native Z-up model space.
+            // SynthEBD pre-converts all vertex data to Y-up on the CPU, so
+            // v_modelToViewNormalMatrix expects Y-up input. Swizzle the
+            // sampled normal from NIF Z-up to Y-up using the same mapping
+            // the mesh builder applies to positions: (x, y, z)_nif -> (x, z, -y)_yUp.
+            normal_modelSpace = vec3(normal_modelSpace.x, normal_modelSpace.z, -normal_modelSpace.y);
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * normal_modelSpace);
         }
         else if (tbnIsValid) {
@@ -154,11 +160,6 @@ void main()
         } else {
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * vec3(0.0, 0.0, 1.0));
         }
-    }
-
-    // Eye meshes: invert normals (eyes are typically modeled inside-out in NIFs)
-    if (is_eye) {
-        normal_viewSpace = -normal_viewSpace;
     }
 
     // --- 3. DYNAMIC LIGHTING ---
@@ -224,12 +225,6 @@ void main()
 
             finalColor += (diffuse + specular + subsurface + backlight + rimlight) * baseColor.rgb;
         }
-    }
-
-    // Post-lighting skin tint
-    if (has_skin_map && u_enableSkin) {
-        float skinVal = texture(texture_skin, TexCoords).r;
-        finalColor += skinVal * vec3(1.0, 0.3, 0.2) * baseColor.rgb;
     }
 
     // --- 4. ENVIRONMENT MAPPING (spherical 2D) ---

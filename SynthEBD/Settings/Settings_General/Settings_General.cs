@@ -260,6 +260,8 @@ public class Settings_General
     public bool bUIopened { get; set; } = false;
     public bool bShow3DPreview { get; set; } = true;
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public string CharacterViewerLightingLayout { get; set; } = "";
+    public string CharacterViewerLightingColorScheme { get; set; } = "";
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public List<ModKey> BlockedModsFromImport { get; set; } = new()
     {

@@ -73,6 +73,22 @@
                 <Button Content="Controls" FontSize="11" Margin="10,0,0,0"
                         Padding="8 2" VerticalAlignment="Center"
                         Click="ControlsButton_Click"/>
+
+                <TextBlock Text="Light Layout:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="20,0,5,0"/>
+                <ComboBox Width="160" FontSize="11" VerticalAlignment="Center"
+                          ItemsSource="{Binding LightingLayouts}"
+                          SelectedItem="{Binding SelectedLightingLayout}"
+                          DisplayMemberPath="Name"
+                          ToolTip="Position + intensity of the ambient + key/fill/rim directional lights. 'Mugshot Natural' targets the Natural Lighting Mugshots look."/>
+
+                <TextBlock Text="Color Scheme:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,5,0"/>
+                <ComboBox Width="140" FontSize="11" VerticalAlignment="Center"
+                          ItemsSource="{Binding LightingColorSchemes}"
+                          SelectedItem="{Binding SelectedLightingColorScheme}"
+                          DisplayMemberPath="Name"
+                          ToolTip="Color temperature of the key/fill/rim lights. Combines independently with the selected layout."/>
             </StackPanel>
         </Border>
 
@@ -110,6 +126,24 @@
                         SmallChange="1" LargeChange="15"/>
                 <TextBlock Text="{Binding KeyLightElevation, StringFormat={}{0:F0}°}"
                            Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                <CheckBox Content="Key" FontSize="11" Foreground="#FFE6D94A"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding KeyLightEnabled}"
+                          ToolTip="Enable/disable the Key directional light. Useful for inspecting how a single light illuminates the model."/>
+                <CheckBox Content="Fill" FontSize="11" Foreground="#FF4ADCE6"
+                          Margin="6,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding FillLightEnabled}"
+                          ToolTip="Enable/disable the Fill directional light."/>
+                <CheckBox Content="Rim" FontSize="11" Foreground="#FFE64AD9"
+                          Margin="6,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding RimLightEnabled}"
+                          ToolTip="Enable/disable the Rim directional light."/>
+
+                <CheckBox Content="Show Lights" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding ShowKeyLightVisualization}"
+                          ToolTip="Draws arrows showing the direction each directional light is shining (from source into the model). Length reflects intensity. Key=yellow, Fill=cyan, Rim=magenta."/>
 
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"

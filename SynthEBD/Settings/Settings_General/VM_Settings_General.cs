@@ -364,6 +364,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
     public bool bShow3DPreview { get; set; } = true;
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public string CharacterViewerLightingLayout { get; set; } = "";
+    public string CharacterViewerLightingColorScheme { get; set; } = "";
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public ILoadOrderGetter LoadOrder { get; private set; }
 
@@ -415,6 +417,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
         bShow3DPreview = model.bShow3DPreview;
         SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
+        CharacterViewerLightingLayout = model.CharacterViewerLightingLayout;
+        CharacterViewerLightingColorScheme = model.CharacterViewerLightingColorScheme;
         TextureLoadStrategy = model.TextureLoadStrategy;
         if (bShowTroubleshootingSettings)
         {
@@ -475,6 +479,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
         model.bShow3DPreview = bShow3DPreview;
         model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
+        model.CharacterViewerLightingLayout = CharacterViewerLightingLayout;
+        model.CharacterViewerLightingColorScheme = CharacterViewerLightingColorScheme;
         model.TextureLoadStrategy = TextureLoadStrategy;
 
         model.bUIopened = true;

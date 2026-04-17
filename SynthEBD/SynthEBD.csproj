@@ -267,6 +267,12 @@
     <Content Include="Classes_Aux\Rendering\Shaders\basic.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Classes_Aux\Rendering\Shaders\debug.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Classes_Aux\Rendering\Shaders\debug.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

@@ -13,19 +13,42 @@ namespace SynthEBD;
 public class GlRenderer : IDisposable
 {
     private GlShaderProgram? _shader;
+    private GlShaderProgram? _debugShader;
+    private int _debugVao;
+    private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
     private bool _disposed;
+
+    /// <summary>When true, renders arrow gizmos showing each directional light's shining
+    /// direction (from source to model) and magnitude (length scales with intensity).</summary>
+    public bool ShowKeyLightVisualization { get; set; } = false;
+
+    /// <summary>World-space point the arrows point at — matches the orbit camera target.</summary>
+    public Vector3 KeyLightVisualizationTarget { get; set; } = new Vector3(0f, 85f, 0f);
 
     // Lighting state — up to 5 lights
     public struct LightData
     {
         public int Type;       // 0=disabled, 1=ambient, 2=directional
-        public Vector3 Direction; // in view space (set per-frame)
+        // Surface-to-light vector in WORLD space. Transformed to view space
+        // once per frame (see Render) before upload to the shader, so lights
+        // stay anchored to world coordinates while the orbit camera moves.
+        public Vector3 Direction;
         public Vector3 Color;
         public float Intensity;
     }
     public LightData[] Lights { get; } = new LightData[5];
+
+    // Per-light arrow colors for the visualization gizmo (key=yellow, fill=cyan, rim=magenta).
+    private static readonly Vector3[] _arrowColors =
+    {
+        new(0.2f, 0.2f, 0.2f),  // 0 ambient (unused for arrows)
+        new(1.0f, 0.9f, 0.2f),  // 1 key   — yellow
+        new(0.3f, 0.9f, 1.0f),  // 2 fill  — cyan
+        new(1.0f, 0.3f, 0.9f),  // 3 rim   — magenta
+        new(0.6f, 1.0f, 0.4f),  // 4 extra — green
+    };
 
     /// <summary>Backlight color for hair rimlight.</summary>
     public Vector3 BacklightColor { get; set; } = new Vector3(0.6f, 0.5f, 0.4f);
@@ -67,6 +90,19 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.DepthTest);
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
+
+        // Debug (line-based) shader for the key-light arrow gizmo
+        string debugVertPath = Path.Combine(shaderDirectory, "debug.vert");
+        string debugFragPath = Path.Combine(shaderDirectory, "debug.frag");
+        _debugShader = GlShaderProgram.LoadFromFiles(debugVertPath, debugFragPath);
+
+        _debugVao = GL.GenVertexArray();
+        _debugVbo = GL.GenBuffer();
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+        GL.EnableVertexAttribArray(0);
+        GL.BindVertexArray(0);
 
         _initialized = true;
     }
@@ -166,6 +202,90 @@ public class GlRenderer : IDisposable
         }
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
+
+        // Overlay: directional-light direction arrows. Drawn last with depth test off
+        // so they behave like gizmos (always visible through the model).
+        if (ShowKeyLightVisualization)
+            DrawDirectionalLightArrows(ref view, ref projection);
+    }
+
+    /// <summary>
+    /// Renders wireframe arrows showing each enabled directional light's shining
+    /// direction (source → model) and magnitude. The stored
+    /// <see cref="LightData.Direction"/> is the surface-to-light vector (see the
+    /// shader's NdotL convention), so arrows point along its negation.
+    /// Arrow color per light slot: key=yellow, fill=cyan, rim=magenta.
+    /// </summary>
+    private void DrawDirectionalLightArrows(ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        GL.Disable(EnableCap.DepthTest);
+        GL.Disable(EnableCap.CullFace);
+        GL.LineWidth(2.5f);
+
+        for (int i = 0; i < Lights.Length; i++)
+        {
+            if (Lights[i].Type != 2) continue;
+            if (Lights[i].Intensity <= 0f) continue;
+
+            var toLight = Lights[i].Direction;
+            if (toLight.LengthSquared < 1e-8f) continue;
+
+            var shineDir = -toLight;
+            shineDir.Normalize();
+
+            float intensity01 = Math.Clamp(Lights[i].Intensity, 0f, 1f);
+            float length = 20f + 130f * intensity01;
+
+            var tip = KeyLightVisualizationTarget;
+            var tail = tip - shineDir * length;
+
+            // Orthonormal basis perpendicular to the shaft for the 4 head fins
+            var up = MathF.Abs(shineDir.Y) < 0.95f ? Vector3.UnitY : Vector3.UnitX;
+            var u = Vector3.Normalize(Vector3.Cross(shineDir, up));
+            var v = Vector3.Normalize(Vector3.Cross(shineDir, u));
+
+            float headLen = length * 0.2f;
+            float headWid = length * 0.1f;
+            var back = tip - shineDir * headLen;
+            var fin1 = back + u * headWid;
+            var fin2 = back - u * headWid;
+            var fin3 = back + v * headWid;
+            var fin4 = back - v * headWid;
+
+            float[] vertices =
+            {
+                tail.X, tail.Y, tail.Z,
+                tip.X,  tip.Y,  tip.Z,
+                tip.X, tip.Y, tip.Z,  fin1.X, fin1.Y, fin1.Z,
+                tip.X, tip.Y, tip.Z,  fin2.X, fin2.Y, fin2.Z,
+                tip.X, tip.Y, tip.Z,  fin3.X, fin3.Y, fin3.Z,
+                tip.X, tip.Y, tip.Z,  fin4.X, fin4.Y, fin4.Z,
+            };
+
+            var c = _arrowColors[Math.Min(i, _arrowColors.Length - 1)];
+            _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
+
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 10);
+        }
+
+        GL.LineWidth(1.0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
+
+        GL.BindVertexArray(0);
     }
 
     private void DrawMesh(GlMesh mesh)
@@ -265,18 +385,52 @@ public class GlRenderer : IDisposable
     public void SetKeyLightIntensity(float intensity01)
     {
         Lights[1].Intensity = intensity01;
-        Lights[2].Intensity = intensity01 * 0.38f;
-        Lights[3].Intensity = intensity01 * 0.25f;
     }
 
     public void SetKeyLightDirection(float azimuthDeg, float elevationDeg)
     {
+        Lights[1].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+    }
+
+    /// <summary>Configures the key light (slot 1) in one call.</summary>
+    public void SetKeyLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[1].Type = 2;
+        Lights[1].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[1].Intensity = intensity01;
+        Lights[1].Color = color;
+    }
+
+    /// <summary>Configures the fill light (slot 2) in one call.</summary>
+    public void SetFillLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[2].Type = 2;
+        Lights[2].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[2].Intensity = intensity01;
+        Lights[2].Color = color;
+    }
+
+    /// <summary>Configures the rim light (slot 3) in one call.</summary>
+    public void SetRimLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[3].Type = 2;
+        Lights[3].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[3].Intensity = intensity01;
+        Lights[3].Color = color;
+    }
+
+    /// <summary>Converts azimuth/elevation (degrees) to the surface-to-light vector
+    /// convention used by the shader (NdotL = dot(normal, direction)). The character
+    /// faces world +Z, so az=180° must produce a +Z direction to put the light in
+    /// front of the character — hence the negated Z term.</summary>
+    private static Vector3 DirectionFromAzEl(float azimuthDeg, float elevationDeg)
+    {
         float az = MathHelper.DegreesToRadians(azimuthDeg);
         float el = MathHelper.DegreesToRadians(elevationDeg);
-        Lights[1].Direction = new Vector3(
+        return new Vector3(
             MathF.Cos(el) * MathF.Sin(az),
             MathF.Sin(el),
-            MathF.Cos(el) * MathF.Cos(az));
+            -MathF.Cos(el) * MathF.Cos(az));
     }
 
     public void Dispose()
@@ -285,6 +439,9 @@ public class GlRenderer : IDisposable
         {
             ClearMeshes();
             _shader?.Dispose();
+            _debugShader?.Dispose();
+            if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
+            if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
             _disposed = true;
         }
     }
