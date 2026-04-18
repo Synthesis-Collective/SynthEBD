@@ -186,8 +186,12 @@ public class GlRenderer : IDisposable
             _shader.SetInt(prefix + "type", Lights[i].Type);
             if (Lights[i].Type == 2)
             {
-                // Transform light direction from world space to view space
-                var viewDir = viewMat3 * Lights[i].Direction;
+                // Transform light direction from world space to view space.
+                // OpenTK uses row-vector convention (v * M), matching how GLSL
+                // interprets the uploaded matrix. Using M * v here would apply
+                // the transpose rotation and cause the lit side of the mesh to
+                // drift as the camera orbits.
+                var viewDir = Lights[i].Direction * viewMat3;
                 viewDir.Normalize();
                 _shader.SetVector3(prefix + "direction", viewDir.X, viewDir.Y, viewDir.Z);
             }
