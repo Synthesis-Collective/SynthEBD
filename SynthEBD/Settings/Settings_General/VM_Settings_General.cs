@@ -366,6 +366,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
     public string CharacterViewerLightingLayout { get; set; } = "";
     public string CharacterViewerLightingColorScheme { get; set; } = "";
+    public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
+    public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public ILoadOrderGetter LoadOrder { get; private set; }
 
@@ -419,6 +421,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
         CharacterViewerLightingLayout = model.CharacterViewerLightingLayout;
         CharacterViewerLightingColorScheme = model.CharacterViewerLightingColorScheme;
+        UserLightingLayouts = new ObservableCollection<CharacterViewerLightingLayout>(
+            model.UserLightingLayouts ?? new List<CharacterViewerLightingLayout>());
+        UserLightingColorSchemes = new ObservableCollection<CharacterViewerLightingColorScheme>(
+            model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
         TextureLoadStrategy = model.TextureLoadStrategy;
         if (bShowTroubleshootingSettings)
         {
@@ -481,6 +487,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
         model.CharacterViewerLightingLayout = CharacterViewerLightingLayout;
         model.CharacterViewerLightingColorScheme = CharacterViewerLightingColorScheme;
+        model.UserLightingLayouts = UserLightingLayouts.ToList();
+        model.UserLightingColorSchemes = UserLightingColorSchemes.ToList();
         model.TextureLoadStrategy = TextureLoadStrategy;
 
         model.bUIopened = true;

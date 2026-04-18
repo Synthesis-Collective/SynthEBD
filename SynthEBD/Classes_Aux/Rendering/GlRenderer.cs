@@ -27,6 +27,25 @@ public class GlRenderer : IDisposable
     /// <summary>World-space point the arrows point at — matches the orbit camera target.</summary>
     public Vector3 KeyLightVisualizationTarget { get; set; } = new Vector3(0f, 85f, 0f);
 
+    /// <summary>Index of the light currently selected for editing (1=key, 2=fill, 3=rim,
+    /// 0=none). Selected arrows render with a highlighted appearance.</summary>
+    public int SelectedLightIndex { get; set; } = 0;
+
+    // Cached world-space arrow segments for picking. Indexed by light slot.
+    private struct ArrowSegment { public Vector3 Tail; public Vector3 Tip; public float Radius; public bool Valid; }
+    private readonly ArrowSegment[] _arrowSegments = new ArrowSegment[5];
+
+    /// <summary>Retrieves the last rendered arrow's world-space tail/tip/radius for picking.</summary>
+    public bool TryGetArrowSegment(int slot, out Vector3 tail, out Vector3 tip, out float radius)
+    {
+        tail = tip = Vector3.Zero; radius = 0f;
+        if (slot < 0 || slot >= _arrowSegments.Length) return false;
+        var s = _arrowSegments[slot];
+        if (!s.Valid) return false;
+        tail = s.Tail; tip = s.Tip; radius = s.Radius;
+        return true;
+    }
+
     // Lighting state — up to 5 lights
     public struct LightData
     {
@@ -100,8 +119,12 @@ public class GlRenderer : IDisposable
         _debugVbo = GL.GenBuffer();
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
-        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+        // Vertex layout: position(3) + normal(3) = 6 floats per vertex.
+        int stride = 6 * sizeof(float);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, 0);
         GL.EnableVertexAttribArray(0);
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
         GL.BindVertexArray(0);
 
         _initialized = true;
@@ -210,30 +233,37 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>
-    /// Renders wireframe arrows showing each enabled directional light's shining
-    /// direction (source → model) and magnitude. The stored
-    /// <see cref="LightData.Direction"/> is the surface-to-light vector (see the
-    /// shader's NdotL convention), so arrows point along its negation.
-    /// Arrow color per light slot: key=yellow, fill=cyan, rim=magenta.
+    /// Renders solid 3D arrows (cylinder shaft + cone head) showing each enabled
+    /// directional light's shining direction (source → model) and magnitude.
+    /// The stored <see cref="LightData.Direction"/> is the surface-to-light
+    /// vector, so arrows point along its negation. Selected arrows brighten and
+    /// thicken slightly for visual distinction.
     /// </summary>
     private void DrawDirectionalLightArrows(ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
 
+        // Reset cached segments; we repopulate only for lights we draw.
+        for (int i = 0; i < _arrowSegments.Length; i++)
+            _arrowSegments[i] = default;
+
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
         _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 1f);
 
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
 
         bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
         bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        // Arrow gizmos always draw on top of the model so the user can find them
+        // regardless of orbit angle.
         GL.Disable(EnableCap.DepthTest);
-        GL.Disable(EnableCap.CullFace);
-        GL.LineWidth(2.5f);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
 
-        for (int i = 0; i < Lights.Length; i++)
+        for (int i = 1; i <= 3; i++)
         {
             if (Lights[i].Type != 2) continue;
             if (Lights[i].Intensity <= 0f) continue;
@@ -244,48 +274,143 @@ public class GlRenderer : IDisposable
             var shineDir = -toLight;
             shineDir.Normalize();
 
-            float intensity01 = Math.Clamp(Lights[i].Intensity, 0f, 1f);
-            float length = 20f + 130f * intensity01;
+            // Visual length mapping: short saturated tail at 0% intensity, grows
+            // with intensity but compressed above 100% so super-bright lights
+            // don't fly off the viewport.
+            float intensityVis = MathF.Min(Lights[i].Intensity, 3.0f);
+            float length = 22f + 95f * MathF.Min(intensityVis, 1f)
+                               + 25f * MathF.Max(intensityVis - 1f, 0f);
+
+            bool selected = SelectedLightIndex == i;
+            float radius = length * (selected ? 0.065f : 0.055f);
+            float headLen = length * 0.24f;
+            float headRad = length * (selected ? 0.13f : 0.11f);
+            float shaftLen = length - headLen;
 
             var tip = KeyLightVisualizationTarget;
             var tail = tip - shineDir * length;
+            var shaftEnd = tip - shineDir * headLen;
 
-            // Orthonormal basis perpendicular to the shaft for the 4 head fins
-            var up = MathF.Abs(shineDir.Y) < 0.95f ? Vector3.UnitY : Vector3.UnitX;
-            var u = Vector3.Normalize(Vector3.Cross(shineDir, up));
-            var v = Vector3.Normalize(Vector3.Cross(shineDir, u));
-
-            float headLen = length * 0.2f;
-            float headWid = length * 0.1f;
-            var back = tip - shineDir * headLen;
-            var fin1 = back + u * headWid;
-            var fin2 = back - u * headWid;
-            var fin3 = back + v * headWid;
-            var fin4 = back - v * headWid;
-
-            float[] vertices =
+            _arrowSegments[i] = new ArrowSegment
             {
-                tail.X, tail.Y, tail.Z,
-                tip.X,  tip.Y,  tip.Z,
-                tip.X, tip.Y, tip.Z,  fin1.X, fin1.Y, fin1.Z,
-                tip.X, tip.Y, tip.Z,  fin2.X, fin2.Y, fin2.Z,
-                tip.X, tip.Y, tip.Z,  fin3.X, fin3.Y, fin3.Z,
-                tip.X, tip.Y, tip.Z,  fin4.X, fin4.Y, fin4.Z,
+                Tail = tail, Tip = tip, Radius = headRad, Valid = true,
             };
 
-            var c = _arrowColors[Math.Min(i, _arrowColors.Length - 1)];
-            _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
+            // Base color: blend the light's actual color toward a saturated
+            // default per-slot hue so arrows remain identifiable even if the
+            // user picks a near-white color.
+            var baseHue = _arrowColors[Math.Min(i, _arrowColors.Length - 1)];
+            var lightCol = Lights[i].Color;
+            var c = Vector3.Lerp(baseHue, lightCol, 0.45f);
+            if (selected) c *= 1.35f; // boost brightness for selection
+            _debugShader.SetVector3("u_color", MathF.Min(c.X, 1.6f), MathF.Min(c.Y, 1.6f), MathF.Min(c.Z, 1.6f));
 
+            var verts = BuildArrowMesh(tail, shaftEnd, tip, shineDir, radius, headRad);
             GL.BufferData(BufferTarget.ArrayBuffer,
-                vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
-            GL.DrawArrays(PrimitiveType.Lines, 0, 10);
+                verts.Length * sizeof(float), verts, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, verts.Length / 6);
         }
 
-        GL.LineWidth(1.0f);
+        _debugShader.SetFloat("u_shaded", 0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
-        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
-
+        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
         GL.BindVertexArray(0);
+    }
+
+    /// <summary>
+    /// Builds a triangle mesh (position + world-space normal, interleaved 6 floats
+    /// per vertex) for a single arrow composed of a cylindrical shaft, a disk at
+    /// the shaft's far end, and a conical head. All triangles are wound CCW from
+    /// outside so back-face culling hides interiors.
+    /// </summary>
+    private static float[] BuildArrowMesh(Vector3 tail, Vector3 shaftEnd, Vector3 tip,
+        Vector3 shineDir, float shaftRadius, float headRadius)
+    {
+        const int sides = 16;
+        // Orthonormal basis perpendicular to shineDir
+        var up = MathF.Abs(shineDir.Y) < 0.95f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(shineDir, up));
+        var v = Vector3.Normalize(Vector3.Cross(shineDir, u));
+
+        // Pre-compute ring offsets and outward normals.
+        var ringDirs = new Vector3[sides];
+        for (int s = 0; s < sides; s++)
+        {
+            float t = (s / (float)sides) * MathF.PI * 2f;
+            ringDirs[s] = u * MathF.Cos(t) + v * MathF.Sin(t);
+        }
+
+        // Triangle count:
+        //   Shaft:     sides * 2 quads * 3 verts = sides * 6
+        //   Back cap:  sides triangles             = sides * 3
+        //   Head ring: sides quads                  = sides * 6  (disk at shaft end)
+        //   Cone:      sides triangles              = sides * 3
+        // Total:       sides * 18
+        var data = new float[sides * 18 * 6];
+        int w = 0;
+
+        void AddVert(Vector3 p, Vector3 n)
+        {
+            data[w++] = p.X; data[w++] = p.Y; data[w++] = p.Z;
+            data[w++] = n.X; data[w++] = n.Y; data[w++] = n.Z;
+        }
+
+        // --- Shaft (cylinder between tail and shaftEnd) ---
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var nA = ringDirs[s];
+            var nB = ringDirs[s2];
+            var a0 = tail     + nA * shaftRadius;
+            var a1 = shaftEnd + nA * shaftRadius;
+            var b0 = tail     + nB * shaftRadius;
+            var b1 = shaftEnd + nB * shaftRadius;
+            // Quad as two triangles, outward-facing.
+            AddVert(a0, nA); AddVert(b0, nB); AddVert(a1, nA);
+            AddVert(a1, nA); AddVert(b0, nB); AddVert(b1, nB);
+        }
+
+        // --- Back cap (disk at tail, facing -shineDir) ---
+        var tailNormal = -shineDir;
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = tail + ringDirs[s] * shaftRadius;
+            var p2 = tail + ringDirs[s2] * shaftRadius;
+            AddVert(tail, tailNormal); AddVert(p2, tailNormal); AddVert(p1, tailNormal);
+        }
+
+        // --- Head ring (annular disk between shaft radius and head radius at shaftEnd,
+        //     facing -shineDir, so the head's back side is visible). ---
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = shaftEnd + ringDirs[s] * shaftRadius;
+            var p2 = shaftEnd + ringDirs[s2] * shaftRadius;
+            var q1 = shaftEnd + ringDirs[s] * headRadius;
+            var q2 = shaftEnd + ringDirs[s2] * headRadius;
+            AddVert(p1, tailNormal); AddVert(p2, tailNormal); AddVert(q1, tailNormal);
+            AddVert(q1, tailNormal); AddVert(p2, tailNormal); AddVert(q2, tailNormal);
+        }
+
+        // --- Cone head (from ring at shaftEnd (head radius) to tip) ---
+        // Compute slanted normals so the cone shades correctly.
+        float coneHeight = (tip - shaftEnd).Length;
+        float slant = MathF.Sqrt(coneHeight * coneHeight + headRadius * headRadius);
+        float nAxial = headRadius / slant;    // component along +shineDir
+        float nRadial = coneHeight / slant;   // component radially outward
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = shaftEnd + ringDirs[s] * headRadius;
+            var p2 = shaftEnd + ringDirs[s2] * headRadius;
+            var n1 = Vector3.Normalize(ringDirs[s] * nRadial + shineDir * nAxial);
+            var n2 = Vector3.Normalize(ringDirs[s2] * nRadial + shineDir * nAxial);
+            var nTip = Vector3.Normalize((n1 + n2) * 0.5f);
+            AddVert(p1, n1); AddVert(p2, n2); AddVert(tip, nTip);
+        }
+
+        return data;
     }
 
     private void DrawMesh(GlMesh mesh)

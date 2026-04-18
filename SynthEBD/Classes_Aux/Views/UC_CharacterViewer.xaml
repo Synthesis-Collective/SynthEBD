@@ -5,25 +5,28 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:glWpf="clr-namespace:OpenTK.Wpf;assembly=GLWpfControl"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              mc:Ignorable="d"
              d:DesignHeight="500" d:DesignWidth="600"
              d:DataContext="{d:DesignInstance Type=local:VM_CharacterViewer}">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:IntEqualsToVisibilityConverter x:Key="IntEqVis" />
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar row 1: Background -->
+        <!-- Toolbar row 1: Background + Presets -->
         <Border Grid.Row="0" Background="#FF2A2A2A" Padding="6 3">
-            <StackPanel Orientation="Horizontal">
+            <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="Background:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="0,0,5,0"/>
                 <ComboBox x:Name="BgColorCombo" Width="110" FontSize="11" VerticalAlignment="Center"
@@ -81,6 +84,14 @@
                           SelectedItem="{Binding SelectedLightingLayout}"
                           DisplayMemberPath="Name"
                           ToolTip="Position + intensity of the ambient + key/fill/rim directional lights. 'Mugshot Natural' targets the Natural Lighting Mugshots look."/>
+                <Button Content="Save…" FontSize="10" Margin="4,0,0,0" Padding="6 1"
+                        VerticalAlignment="Center"
+                        Command="{Binding SaveLayoutPresetCommand}"
+                        ToolTip="Save the current ambient + key/fill/rim positions and intensities as a user layout preset."/>
+                <Button Content="Delete" FontSize="10" Margin="2,0,0,0" Padding="6 1"
+                        VerticalAlignment="Center"
+                        Command="{Binding DeleteSelectedLayoutCommand}"
+                        ToolTip="Delete the selected user layout preset. Built-in presets can't be deleted."/>
 
                 <TextBlock Text="Color Scheme:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="10,0,5,0"/>
@@ -89,48 +100,32 @@
                           SelectedItem="{Binding SelectedLightingColorScheme}"
                           DisplayMemberPath="Name"
                           ToolTip="Color temperature of the key/fill/rim lights. Combines independently with the selected layout."/>
-            </StackPanel>
+                <Button Content="Save…" FontSize="10" Margin="4,0,0,0" Padding="6 1"
+                        VerticalAlignment="Center"
+                        Command="{Binding SaveColorSchemePresetCommand}"
+                        ToolTip="Save the current Key/Fill/Rim hues as a user color scheme preset."/>
+                <Button Content="Delete" FontSize="10" Margin="2,0,0,0" Padding="6 1"
+                        VerticalAlignment="Center"
+                        Command="{Binding DeleteSelectedColorSchemeCommand}"
+                        ToolTip="Delete the selected user color scheme preset. Built-in presets can't be deleted."/>
+            </WrapPanel>
         </Border>
 
-        <!-- Toolbar row 2: Lighting controls -->
+        <!-- Toolbar row 2: Ambient + Show Lights toggle -->
         <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 2" BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
             <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="Ambient:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <Slider x:Name="AmbientSlider" Width="80" Minimum="0" Maximum="100"
+                <Slider Width="80" Minimum="0" Maximum="100"
                         Value="{Binding AmbientIntensity}" VerticalAlignment="Center"
                         SmallChange="1" LargeChange="10"/>
                 <TextBlock Text="{Binding AmbientIntensity, StringFormat={}{0:F0}%}"
                            Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
 
-                <TextBlock Text="Key Light:" Foreground="#FFAAAAAA" FontSize="11"
-                           VerticalAlignment="Center" Margin="10,0,4,0"/>
-                <Slider Width="80" Minimum="0" Maximum="100"
-                        Value="{Binding KeyLightIntensity}" VerticalAlignment="Center"
-                        SmallChange="1" LargeChange="10"/>
-                <TextBlock Text="{Binding KeyLightIntensity, StringFormat={}{0:F0}%}"
-                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
-
-                <TextBlock Text="Azimuth:" Foreground="#FFAAAAAA" FontSize="11"
-                           VerticalAlignment="Center" Margin="10,0,4,0"/>
-                <Slider Width="80" Minimum="-180" Maximum="180"
-                        Value="{Binding KeyLightAzimuth}" VerticalAlignment="Center"
-                        SmallChange="1" LargeChange="15"/>
-                <TextBlock Text="{Binding KeyLightAzimuth, StringFormat={}{0:F0}°}"
-                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
-
-                <TextBlock Text="Elevation:" Foreground="#FFAAAAAA" FontSize="11"
-                           VerticalAlignment="Center" Margin="10,0,4,0"/>
-                <Slider Width="80" Minimum="-90" Maximum="90"
-                        Value="{Binding KeyLightElevation}" VerticalAlignment="Center"
-                        SmallChange="1" LargeChange="15"/>
-                <TextBlock Text="{Binding KeyLightElevation, StringFormat={}{0:F0}°}"
-                           Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
-
                 <CheckBox Content="Key" FontSize="11" Foreground="#FFE6D94A"
-                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding KeyLightEnabled}"
-                          ToolTip="Enable/disable the Key directional light. Useful for inspecting how a single light illuminates the model."/>
+                          ToolTip="Enable/disable the Key directional light."/>
                 <CheckBox Content="Fill" FontSize="11" Foreground="#FF4ADCE6"
                           Margin="6,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding FillLightEnabled}"
@@ -141,9 +136,9 @@
                           ToolTip="Enable/disable the Rim directional light."/>
 
                 <CheckBox Content="Show Lights" FontSize="11" Foreground="#FFAAAAAA"
-                          Margin="10,0,0,0" VerticalAlignment="Center"
-                          IsChecked="{Binding ShowKeyLightVisualization}"
-                          ToolTip="Draws arrows showing the direction each directional light is shining (from source into the model). Length reflects intensity. Key=yellow, Fill=cyan, Rim=magenta."/>
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding ShowLightControls}"
+                          ToolTip="Draws 3D arrow gizmos for each directional light. Click an arrow to open its per-light editor (azimuth, elevation, intensity, hue)."/>
 
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
@@ -151,14 +146,135 @@
             </WrapPanel>
         </Border>
 
+        <!-- Toolbar row 3: Per-light editor (Key/Fill/Rim) — visible only when ShowLightControls=true and a light is selected -->
+        <Border Grid.Row="2" Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding ShowLightControls, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <!-- Hint shown when no light is selected -->
+                <TextBlock Text="Click a light arrow in the viewport to edit its position, intensity, and hue."
+                           Foreground="#FF888888" FontSize="11" FontStyle="Italic"
+                           VerticalAlignment="Center" HorizontalAlignment="Left"
+                           Visibility="{Binding SelectedLightIndex, Converter={StaticResource IntEqVis}, ConverterParameter=0}"/>
+
+                <!-- Key light editor -->
+                <WrapPanel Orientation="Horizontal"
+                           Visibility="{Binding SelectedLightIndex, Converter={StaticResource IntEqVis}, ConverterParameter=1}">
+                    <TextBlock Text="Key Light" Foreground="#FFE6D94A" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                    <TextBlock Text="Intensity:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
+                                        Value="{Binding KeyLightIntensity}" VerticalAlignment="Center"
+                                        FormatString="0'%'" Increment="5"
+                                        ToolTip="Key light brightness. 100 = 1.0 multiplier; above 100 over-drives the light for heavily-attenuating materials."/>
+
+                    <TextBlock Text="Azimuth:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-180" Maximum="180"
+                            Value="{Binding KeyLightAzimuth}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding KeyLightAzimuth, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Elevation:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-90" Maximum="90"
+                            Value="{Binding KeyLightElevation}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding KeyLightElevation, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Color:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <xctk:ColorPicker Width="110" SelectedColor="{Binding KeyLightColor}"
+                                      VerticalAlignment="Center" UsingAlphaChannel="False"
+                                      ColorMode="ColorCanvas"/>
+                </WrapPanel>
+
+                <!-- Fill light editor -->
+                <WrapPanel Orientation="Horizontal"
+                           Visibility="{Binding SelectedLightIndex, Converter={StaticResource IntEqVis}, ConverterParameter=2}">
+                    <TextBlock Text="Fill Light" Foreground="#FF4ADCE6" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                    <TextBlock Text="Intensity:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
+                                        Value="{Binding FillLightIntensity}" VerticalAlignment="Center"
+                                        FormatString="0'%'" Increment="5"
+                                        ToolTip="Fill light brightness. 100 = 1.0 multiplier."/>
+
+                    <TextBlock Text="Azimuth:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-180" Maximum="180"
+                            Value="{Binding FillLightAzimuth}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding FillLightAzimuth, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Elevation:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-90" Maximum="90"
+                            Value="{Binding FillLightElevation}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding FillLightElevation, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Color:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <xctk:ColorPicker Width="110" SelectedColor="{Binding FillLightColor}"
+                                      VerticalAlignment="Center" UsingAlphaChannel="False"
+                                      ColorMode="ColorCanvas"/>
+                </WrapPanel>
+
+                <!-- Rim light editor -->
+                <WrapPanel Orientation="Horizontal"
+                           Visibility="{Binding SelectedLightIndex, Converter={StaticResource IntEqVis}, ConverterParameter=3}">
+                    <TextBlock Text="Rim Light" Foreground="#FFE64AD9" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                    <TextBlock Text="Intensity:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
+                                        Value="{Binding RimLightIntensity}" VerticalAlignment="Center"
+                                        FormatString="0'%'" Increment="5"
+                                        ToolTip="Rim light brightness. 100 = 1.0 multiplier."/>
+
+                    <TextBlock Text="Azimuth:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-180" Maximum="180"
+                            Value="{Binding RimLightAzimuth}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding RimLightAzimuth, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Elevation:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <Slider Width="80" Minimum="-90" Maximum="90"
+                            Value="{Binding RimLightElevation}" VerticalAlignment="Center"
+                            SmallChange="1" LargeChange="15"/>
+                    <TextBlock Text="{Binding RimLightElevation, StringFormat={}{0:F0}°}"
+                               Foreground="#FF888888" FontSize="10" VerticalAlignment="Center" Width="30" Margin="2,0,0,0"/>
+
+                    <TextBlock Text="Color:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <xctk:ColorPicker Width="110" SelectedColor="{Binding RimLightColor}"
+                                      VerticalAlignment="Center" UsingAlphaChannel="False"
+                                      ColorMode="ColorCanvas"/>
+                </WrapPanel>
+            </Grid>
+        </Border>
+
         <!-- OpenGL Viewport -->
         <glWpf:GLWpfControl
-            Grid.Row="2"
+            Grid.Row="3"
             x:Name="GlControl"
             Render="GlControl_OnRender"/>
 
         <!-- Loading overlay -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Stretch"
@@ -171,7 +287,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="#FF333333"
                 Padding="6 3">
             <TextBlock Text="{Binding StatusText}"

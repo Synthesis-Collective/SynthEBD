@@ -1,14 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Noggog;
+using ReactiveUI;
 using MediaColor = System.Windows.Media.Color;
 
 namespace SynthEBD;
@@ -103,6 +108,13 @@ public class VM_CharacterViewer : VM
         _environmentProvider = environmentProvider;
         _generalSettings = generalSettings;
         _logger = logger;
+
+        // Load persisted lighting state *before* XAML binds. If we defer this to
+        // InitializeGl (which runs from the first GL render callback), the
+        // ComboBox's two-way binding fires first and overwrites the persisted
+        // selection with the field's default — that bug caused selections to
+        // appear not to persist across sessions.
+        InitializeLightingState();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -121,152 +133,474 @@ public class VM_CharacterViewer : VM
     //  LIGHTING CONTROLS
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Suppresses UpdateRendererLighting while a preset is being applied,
-    /// so each slider assignment doesn't stomp on the fill/rim that the preset just set.</summary>
+    /// <summary>Suppresses renderer push-backs while a preset or constructor is applying values,
+    /// so each property setter doesn't independently stomp on sibling lights.</summary>
     private bool _applyingPreset;
 
-    private double _ambientIntensity = CharacterViewerLightingPresets.DefaultLayout.Ambient;
-    public double AmbientIntensity
-    {
-        get => _ambientIntensity;
-        set { _ambientIntensity = Math.Clamp(value, 0, 100); UpdateRendererLighting(); }
-    }
+    // Intensity is expressed in percent (100 = 1.0 multiplier). Upper bound is
+    // deliberately loose — the shader does not clamp, so values above 100 are
+    // useful for heavily-attenuating materials.
+    private const double IntensityMax = 500;
 
-    private double _keyLightIntensity = CharacterViewerLightingPresets.DefaultLayout.KeyIntensity;
-    public double KeyLightIntensity
-    {
-        get => _keyLightIntensity;
-        set { _keyLightIntensity = Math.Clamp(value, 0, 100); UpdateRendererLighting(); }
-    }
+    public double AmbientIntensity { get; set; } = CharacterViewerLightingPresets.DefaultLayout.Ambient;
 
-    private double _keyLightAzimuth = CharacterViewerLightingPresets.DefaultLayout.KeyAzimuth;
-    public double KeyLightAzimuth
-    {
-        get => _keyLightAzimuth;
-        set { _keyLightAzimuth = Math.Clamp(value, -180, 180); UpdateRendererLighting(); }
-    }
+    public double KeyLightIntensity   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyIntensity;
+    public double KeyLightAzimuth     { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyAzimuth;
+    public double KeyLightElevation   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyElevation;
+    public MediaColor KeyLightColor   { get; set; } = MediaColor.FromRgb(255, 245, 224); // warm key
+    public bool KeyLightEnabled       { get; set; } = true;
 
-    private double _keyLightElevation = CharacterViewerLightingPresets.DefaultLayout.KeyElevation;
-    public double KeyLightElevation
-    {
-        get => _keyLightElevation;
-        set { _keyLightElevation = Math.Clamp(value, -90, 90); UpdateRendererLighting(); }
-    }
+    public double FillLightIntensity  { get; set; } = CharacterViewerLightingPresets.DefaultLayout.FillIntensity;
+    public double FillLightAzimuth    { get; set; } = CharacterViewerLightingPresets.DefaultLayout.FillAzimuth;
+    public double FillLightElevation  { get; set; } = CharacterViewerLightingPresets.DefaultLayout.FillElevation;
+    public MediaColor FillLightColor  { get; set; } = MediaColor.FromRgb(230, 237, 255);
+    public bool FillLightEnabled      { get; set; } = true;
 
-    private bool _showKeyLightVisualization = false;
-    /// <summary>When true, the renderer draws arrows showing each directional light's
-    /// shining direction (source → model) with length proportional to intensity.</summary>
-    public bool ShowKeyLightVisualization
-    {
-        get => _showKeyLightVisualization;
-        set { _showKeyLightVisualization = value; Renderer.ShowKeyLightVisualization = value; }
-    }
+    public double RimLightIntensity   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.RimIntensity;
+    public double RimLightAzimuth     { get; set; } = CharacterViewerLightingPresets.DefaultLayout.RimAzimuth;
+    public double RimLightElevation   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.RimElevation;
+    public MediaColor RimLightColor   { get; set; } = MediaColor.FromRgb(255, 243, 217);
+    public bool RimLightEnabled       { get; set; } = true;
 
-    private bool _keyLightEnabled = true;
-    public bool KeyLightEnabled
-    {
-        get => _keyLightEnabled;
-        set { _keyLightEnabled = value; Renderer.Lights[1].Type = value ? 2 : 0; }
-    }
+    /// <summary>Master toggle for the per-light control UI and the 3D arrow gizmos.
+    /// When false, the lighting controls are hidden and arrows are not drawn.</summary>
+    public bool ShowLightControls { get; set; } = false;
 
-    private bool _fillLightEnabled = true;
-    public bool FillLightEnabled
-    {
-        get => _fillLightEnabled;
-        set { _fillLightEnabled = value; Renderer.Lights[2].Type = value ? 2 : 0; }
-    }
+    /// <summary>0 = none, 1 = key, 2 = fill, 3 = rim. Set when the user clicks
+    /// an arrow in the 3D view (or from the UI). Controls which light the
+    /// per-light editor panel edits.</summary>
+    public int SelectedLightIndex { get; set; } = 0;
 
-    private bool _rimLightEnabled = true;
-    public bool RimLightEnabled
-    {
-        get => _rimLightEnabled;
-        set { _rimLightEnabled = value; Renderer.Lights[3].Type = value ? 2 : 0; }
-    }
+    public IReadOnlyList<CharacterViewerLightingLayout> LightingLayouts { get; private set; } =
+        CharacterViewerLightingPresets.BuiltInLayouts;
 
-    public IReadOnlyList<CharacterViewerLightingLayout> LightingLayouts =>
-        CharacterViewerLightingPresets.AllLayouts;
+    public IReadOnlyList<CharacterViewerLightingColorScheme> LightingColorSchemes { get; private set; } =
+        CharacterViewerLightingPresets.BuiltInColorSchemes;
 
-    public IReadOnlyList<CharacterViewerLightingColorScheme> LightingColorSchemes =>
-        CharacterViewerLightingPresets.AllColorSchemes;
-
-    private CharacterViewerLightingLayout _selectedLightingLayout =
+    public CharacterViewerLightingLayout SelectedLightingLayout { get; set; } =
         CharacterViewerLightingPresets.DefaultLayout;
-    public CharacterViewerLightingLayout SelectedLightingLayout
-    {
-        get => _selectedLightingLayout;
-        set
-        {
-            if (value == null) return;
-            _selectedLightingLayout = value;
-            _generalSettings.CharacterViewerLightingLayout = value.Name;
-            ApplyCurrentLighting();
-        }
-    }
 
-    private CharacterViewerLightingColorScheme _selectedLightingColorScheme =
+    public CharacterViewerLightingColorScheme SelectedLightingColorScheme { get; set; } =
         CharacterViewerLightingPresets.DefaultColorScheme;
-    public CharacterViewerLightingColorScheme SelectedLightingColorScheme
+
+    public RelayCommand SaveLayoutPresetCommand { get; private set; } = null!;
+    public RelayCommand SaveColorSchemePresetCommand { get; private set; } = null!;
+    public RelayCommand DeleteSelectedLayoutCommand { get; private set; } = null!;
+    public RelayCommand DeleteSelectedColorSchemeCommand { get; private set; } = null!;
+
+    private void InitializeLightingState()
     {
-        get => _selectedLightingColorScheme;
-        set
+        // Rebuild the combined (built-in + user) preset lists.
+        var layouts = new List<CharacterViewerLightingLayout>(CharacterViewerLightingPresets.BuiltInLayouts);
+        layouts.AddRange(_generalSettings.UserLightingLayouts);
+        LightingLayouts = layouts;
+
+        var schemes = new List<CharacterViewerLightingColorScheme>(CharacterViewerLightingPresets.BuiltInColorSchemes);
+        schemes.AddRange(_generalSettings.UserLightingColorSchemes);
+        LightingColorSchemes = schemes;
+
+        // Resolve persisted selections (empty / unknown names fall back to defaults).
+        SelectedLightingLayout = CharacterViewerLightingPresets.FindLayoutOrDefault(
+            _generalSettings.CharacterViewerLightingLayout, _generalSettings.UserLightingLayouts);
+        SelectedLightingColorScheme = CharacterViewerLightingPresets.FindColorSchemeOrDefault(
+            _generalSettings.CharacterViewerLightingColorScheme, _generalSettings.UserLightingColorSchemes);
+
+        // Seed per-light fields from the resolved layout/scheme before any UI binding
+        // runs, so the editor panel opens with values that match the picked preset.
+        ApplyPresetToFields(SelectedLightingLayout, SelectedLightingColorScheme);
+
+        // Watch selection changes and push them to the renderer + settings.
+        this.WhenAnyValue(x => x.SelectedLightingLayout).Skip(1).Subscribe(layout =>
         {
-            if (value == null) return;
-            _selectedLightingColorScheme = value;
-            _generalSettings.CharacterViewerLightingColorScheme = value.Name;
-            ApplyCurrentLighting();
-        }
+            if (layout == null) return;
+            _generalSettings.CharacterViewerLightingLayout = layout.Name;
+            ApplyPresetToFields(layout, SelectedLightingColorScheme);
+            PushAllLightsToRenderer();
+        }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.SelectedLightingColorScheme).Skip(1).Subscribe(scheme =>
+        {
+            if (scheme == null) return;
+            _generalSettings.CharacterViewerLightingColorScheme = scheme.Name;
+            KeyLightColor = MediaFromVec3(scheme.KeyColor);
+            FillLightColor = MediaFromVec3(scheme.FillColor);
+            RimLightColor = MediaFromVec3(scheme.RimColor);
+            PushAllLightsToRenderer();
+        }).DisposeWith(this);
+
+        // Any per-light edit (or enable toggle) re-pushes to the renderer.
+        // Skip(1) suppresses the initial value emission so we don't push during
+        // construction when the renderer isn't yet initialized. Split per-light
+        // because ReactiveUI's WhenAnyValue overloads cap out at a modest arity.
+        this.WhenAnyValue(x => x.AmbientIntensity)
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+
+        this.WhenAnyValue(
+            x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
+            x => x.KeyLightColor, x => x.KeyLightEnabled)
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+
+        this.WhenAnyValue(
+            x => x.FillLightIntensity, x => x.FillLightAzimuth, x => x.FillLightElevation,
+            x => x.FillLightColor, x => x.FillLightEnabled)
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+
+        this.WhenAnyValue(
+            x => x.RimLightIntensity, x => x.RimLightAzimuth, x => x.RimLightElevation,
+            x => x.RimLightColor, x => x.RimLightEnabled)
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.SelectedLightIndex)
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.ShowLightControls).Subscribe(v =>
+        {
+            Renderer.ShowKeyLightVisualization = v;
+            if (!v) SelectedLightIndex = 0;
+        }).DisposeWith(this);
+
+        // Commands
+        SaveLayoutPresetCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => SaveCurrentAsLayoutPreset());
+        SaveColorSchemePresetCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => SaveCurrentAsColorScheme());
+        DeleteSelectedLayoutCommand = new RelayCommand(
+            canExecute: _ => SelectedLightingLayout != null && !SelectedLightingLayout.IsBuiltIn,
+            execute: _ => DeleteSelectedLayout());
+        DeleteSelectedColorSchemeCommand = new RelayCommand(
+            canExecute: _ => SelectedLightingColorScheme != null && !SelectedLightingColorScheme.IsBuiltIn,
+            execute: _ => DeleteSelectedColorScheme());
     }
 
-    private void ApplyCurrentLighting()
+    /// <summary>Normalizes the per-light fields from a layout+scheme, suppressing
+    /// intermediate renderer pushes so the combined state is sent once at the end.</summary>
+    private void ApplyPresetToFields(CharacterViewerLightingLayout layout,
+        CharacterViewerLightingColorScheme colors)
     {
-        var layout = _selectedLightingLayout;
-        var colors = _selectedLightingColorScheme;
-
         _applyingPreset = true;
         try
         {
-            // Slider-bound key values — setters will fire but UpdateRendererLighting is suppressed.
-            AmbientIntensity = layout.Ambient;
-            KeyLightIntensity = layout.KeyIntensity;
-            KeyLightAzimuth = layout.KeyAzimuth;
-            KeyLightElevation = layout.KeyElevation;
+            AmbientIntensity   = layout.Ambient;
+            KeyLightIntensity  = layout.KeyIntensity;
+            KeyLightAzimuth    = layout.KeyAzimuth;
+            KeyLightElevation  = layout.KeyElevation;
+            KeyLightColor      = MediaFromVec3(colors.KeyColor);
+
+            FillLightIntensity = layout.FillIntensity;
+            FillLightAzimuth   = layout.FillAzimuth;
+            FillLightElevation = layout.FillElevation;
+            FillLightColor     = MediaFromVec3(colors.FillColor);
+
+            RimLightIntensity  = layout.RimIntensity;
+            RimLightAzimuth    = layout.RimAzimuth;
+            RimLightElevation  = layout.RimElevation;
+            RimLightColor      = MediaFromVec3(colors.RimColor);
         }
         finally
         {
             _applyingPreset = false;
         }
-
-        // Push everything to the renderer in one pass (ambient + key + fill + rim).
-        Renderer.SetAmbientIntensity((float)(layout.Ambient / 100.0));
-        Renderer.SetKeyLight(
-            (float)layout.KeyAzimuth, (float)layout.KeyElevation,
-            (float)(layout.KeyIntensity / 100.0), colors.KeyColor);
-        Renderer.SetFillLight(
-            (float)layout.FillAzimuth, (float)layout.FillElevation,
-            (float)(layout.FillIntensity / 100.0), colors.FillColor);
-        Renderer.SetRimLight(
-            (float)layout.RimAzimuth, (float)layout.RimElevation,
-            (float)(layout.RimIntensity / 100.0), colors.RimColor);
-
-        // Per-light enable toggles — disable by setting Type=0 (shader skips).
-        Renderer.Lights[1].Type = _keyLightEnabled ? 2 : 0;
-        Renderer.Lights[2].Type = _fillLightEnabled ? 2 : 0;
-        Renderer.Lights[3].Type = _rimLightEnabled ? 2 : 0;
     }
 
-    private void UpdateRendererLighting()
+    private void PushAllLightsToRenderer()
     {
         if (_applyingPreset) return;
-        Renderer.SetAmbientIntensity((float)(_ambientIntensity / 100.0));
-        Renderer.SetKeyLightIntensity((float)(_keyLightIntensity / 100.0));
-        Renderer.SetKeyLightDirection((float)_keyLightAzimuth, (float)_keyLightElevation);
+
+        // Clamp & push. Intensity is divided by 100 since the shader expects a multiplier.
+        var amb = Math.Clamp(AmbientIntensity, 0, IntensityMax) / 100.0;
+        var keyI = Math.Clamp(KeyLightIntensity, 0, IntensityMax) / 100.0;
+        var fillI = Math.Clamp(FillLightIntensity, 0, IntensityMax) / 100.0;
+        var rimI = Math.Clamp(RimLightIntensity, 0, IntensityMax) / 100.0;
+
+        Renderer.SetAmbientIntensity((float)amb);
+        Renderer.SetKeyLight ((float)KeyLightAzimuth,  (float)KeyLightElevation,  (float)keyI,  Vec3FromMedia(KeyLightColor));
+        Renderer.SetFillLight((float)FillLightAzimuth, (float)FillLightElevation, (float)fillI, Vec3FromMedia(FillLightColor));
+        Renderer.SetRimLight ((float)RimLightAzimuth,  (float)RimLightElevation,  (float)rimI,  Vec3FromMedia(RimLightColor));
+
+        Renderer.Lights[1].Type = KeyLightEnabled  ? 2 : 0;
+        Renderer.Lights[2].Type = FillLightEnabled ? 2 : 0;
+        Renderer.Lights[3].Type = RimLightEnabled  ? 2 : 0;
+
+        Renderer.SelectedLightIndex = SelectedLightIndex;
     }
+
+    private void SaveCurrentAsLayoutPreset()
+    {
+        string? name = PromptForName("Save Lighting Layout",
+            "Enter a name for this lighting layout preset:",
+            SelectedLightingLayout?.Name ?? "My Layout");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        // Prevent clobbering a built-in name, which would be unreachable after save
+        // (FindByName returns the built-in first).
+        foreach (var b in CharacterViewerLightingPresets.BuiltInLayouts)
+        {
+            if (string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageWindow.DisplayNotificationOK("Name in use",
+                    $"'{name}' is a built-in preset name. Please choose a different name.");
+                return;
+            }
+        }
+
+        var existing = _generalSettings.UserLightingLayouts.FirstOrDefault(l =>
+            string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (existing != null &&
+            !MessageWindow.DisplayNotificationYesNo("Overwrite preset?",
+                $"A user preset named '{name}' already exists. Overwrite it?"))
+        {
+            return;
+        }
+        if (existing != null) _generalSettings.UserLightingLayouts.Remove(existing);
+
+        var preset = new CharacterViewerLightingLayout
+        {
+            Name = name, IsBuiltIn = false,
+            Ambient = AmbientIntensity,
+            KeyAzimuth = KeyLightAzimuth, KeyElevation = KeyLightElevation, KeyIntensity = KeyLightIntensity,
+            FillAzimuth = FillLightAzimuth, FillElevation = FillLightElevation, FillIntensity = FillLightIntensity,
+            RimAzimuth = RimLightAzimuth, RimElevation = RimLightElevation, RimIntensity = RimLightIntensity,
+        };
+        _generalSettings.UserLightingLayouts.Add(preset);
+        RebuildLayoutList();
+        SelectedLightingLayout = preset;
+    }
+
+    private void SaveCurrentAsColorScheme()
+    {
+        string? name = PromptForName("Save Color Scheme",
+            "Enter a name for this color scheme preset:",
+            SelectedLightingColorScheme?.Name ?? "My Colors");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        foreach (var b in CharacterViewerLightingPresets.BuiltInColorSchemes)
+        {
+            if (string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageWindow.DisplayNotificationOK("Name in use",
+                    $"'{name}' is a built-in preset name. Please choose a different name.");
+                return;
+            }
+        }
+
+        var existing = _generalSettings.UserLightingColorSchemes.FirstOrDefault(c =>
+            string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (existing != null &&
+            !MessageWindow.DisplayNotificationYesNo("Overwrite preset?",
+                $"A user color scheme named '{name}' already exists. Overwrite it?"))
+        {
+            return;
+        }
+        if (existing != null) _generalSettings.UserLightingColorSchemes.Remove(existing);
+
+        var scheme = new CharacterViewerLightingColorScheme
+        {
+            Name = name, IsBuiltIn = false,
+            KeyColor = Vec3FromMedia(KeyLightColor),
+            FillColor = Vec3FromMedia(FillLightColor),
+            RimColor = Vec3FromMedia(RimLightColor),
+        };
+        _generalSettings.UserLightingColorSchemes.Add(scheme);
+        RebuildColorSchemeList();
+        SelectedLightingColorScheme = scheme;
+    }
+
+    private void DeleteSelectedLayout()
+    {
+        var sel = SelectedLightingLayout;
+        if (sel == null || sel.IsBuiltIn) return;
+        if (!MessageWindow.DisplayNotificationYesNo("Delete preset?",
+                $"Delete the user lighting layout '{sel.Name}'?")) return;
+
+        _generalSettings.UserLightingLayouts.Remove(sel);
+        RebuildLayoutList();
+        SelectedLightingLayout = CharacterViewerLightingPresets.DefaultLayout;
+    }
+
+    private void DeleteSelectedColorScheme()
+    {
+        var sel = SelectedLightingColorScheme;
+        if (sel == null || sel.IsBuiltIn) return;
+        if (!MessageWindow.DisplayNotificationYesNo("Delete preset?",
+                $"Delete the user color scheme '{sel.Name}'?")) return;
+
+        _generalSettings.UserLightingColorSchemes.Remove(sel);
+        RebuildColorSchemeList();
+        SelectedLightingColorScheme = CharacterViewerLightingPresets.DefaultColorScheme;
+    }
+
+    private void RebuildLayoutList()
+    {
+        var layouts = new List<CharacterViewerLightingLayout>(CharacterViewerLightingPresets.BuiltInLayouts);
+        layouts.AddRange(_generalSettings.UserLightingLayouts);
+        LightingLayouts = layouts;
+    }
+
+    private void RebuildColorSchemeList()
+    {
+        var schemes = new List<CharacterViewerLightingColorScheme>(CharacterViewerLightingPresets.BuiltInColorSchemes);
+        schemes.AddRange(_generalSettings.UserLightingColorSchemes);
+        LightingColorSchemes = schemes;
+    }
+
+    private static string? PromptForName(string title, string message, string defaultValue)
+    {
+        string? result = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            var window = new Window
+            {
+                Title = title,
+                Width = 380,
+                Height = 170,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = Application.Current.MainWindow,
+                ResizeMode = ResizeMode.NoResize,
+                Background = System.Windows.Media.Brushes.DimGray,
+            };
+
+            var grid = new System.Windows.Controls.Grid { Margin = new Thickness(10) };
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = GridLength.Auto });
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text = message,
+                Foreground = System.Windows.Media.Brushes.White,
+                Margin = new Thickness(0, 0, 0, 6),
+                TextWrapping = TextWrapping.Wrap,
+            };
+            System.Windows.Controls.Grid.SetRow(label, 0);
+            grid.Children.Add(label);
+
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                Text = defaultValue,
+                Margin = new Thickness(0, 0, 0, 12),
+                FontSize = 13,
+            };
+            textBox.SelectAll();
+            textBox.Focus();
+            System.Windows.Controls.Grid.SetRow(textBox, 1);
+            grid.Children.Add(textBox);
+
+            var buttonPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            var okButton = new System.Windows.Controls.Button
+            {
+                Content = "OK", Width = 70, Margin = new Thickness(0, 0, 6, 0), IsDefault = true,
+            };
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "Cancel", Width = 70, IsCancel = true,
+            };
+            okButton.Click += (_, _) => { result = textBox.Text; window.Close(); };
+            cancelButton.Click += (_, _) => { result = null; window.Close(); };
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+            System.Windows.Controls.Grid.SetRow(buttonPanel, 3);
+            grid.Children.Add(buttonPanel);
+
+            window.Content = grid;
+            window.Loaded += (_, _) => textBox.Focus();
+            window.ShowDialog();
+        });
+        return string.IsNullOrWhiteSpace(result) ? null : result;
+    }
+
+    private static MediaColor MediaFromVec3(OpenTK.Mathematics.Vector3 v) =>
+        MediaColor.FromRgb(
+            (byte)Math.Clamp((int)Math.Round(v.X * 255f), 0, 255),
+            (byte)Math.Clamp((int)Math.Round(v.Y * 255f), 0, 255),
+            (byte)Math.Clamp((int)Math.Round(v.Z * 255f), 0, 255));
+
+    private static OpenTK.Mathematics.Vector3 Vec3FromMedia(MediaColor c) =>
+        new(c.R / 255f, c.G / 255f, c.B / 255f);
 
     public void LogLightingSettings()
     {
-        _logger.LogMessage($"CharacterViewer: LIGHTING — Layout='{_selectedLightingLayout.Name}', " +
-            $"Colors='{_selectedLightingColorScheme.Name}', Ambient={_ambientIntensity:F0}%, " +
-            $"KeyLight={_keyLightIntensity:F0}%, Azimuth={_keyLightAzimuth:F0}°, Elevation={_keyLightElevation:F0}°");
+        _logger.LogMessage($"CharacterViewer: LIGHTING — Layout='{SelectedLightingLayout?.Name}', " +
+            $"Colors='{SelectedLightingColorScheme?.Name}', Ambient={AmbientIntensity:F0}%, " +
+            $"Key={KeyLightIntensity:F0}%@({KeyLightAzimuth:F0}°,{KeyLightElevation:F0}°), " +
+            $"Fill={FillLightIntensity:F0}%@({FillLightAzimuth:F0}°,{FillLightElevation:F0}°), " +
+            $"Rim={RimLightIntensity:F0}%@({RimLightAzimuth:F0}°,{RimLightElevation:F0}°)");
+    }
+
+    /// <summary>
+    /// Tests whether a screen-space click lies on one of the light-direction
+    /// arrow gizmos. Returns the light index (1=key, 2=fill, 3=rim) or 0 for miss.
+    /// Uses ray vs. capsule distance along the arrow's shaft — sufficient for
+    /// gizmo picking since the arrows are drawn thick enough.
+    /// </summary>
+    public int HitTestLightArrow(float mouseX, float mouseY, float viewportWidth, float viewportHeight)
+    {
+        if (!ShowLightControls) return 0;
+
+        var (origin, rayDir) = Camera.ScreenPointToRay(mouseX, mouseY, viewportWidth, viewportHeight);
+
+        int best = 0;
+        float bestDepth = float.MaxValue;
+        for (int slot = 1; slot <= 3; slot++)
+        {
+            if (!Renderer.TryGetArrowSegment(slot, out var tail, out var tip, out var radius)) continue;
+            if (RayCapsuleHit(origin, rayDir, tail, tip, radius, out float tAlongRay))
+            {
+                if (tAlongRay < bestDepth)
+                {
+                    bestDepth = tAlongRay;
+                    best = slot;
+                }
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Closest-distance ray vs. capsule test. Returns true if the perpendicular
+    /// distance from the ray to the segment (tail, tip) is ≤ radius, and
+    /// outputs the parametric ray depth at the closest point.
+    /// </summary>
+    private static bool RayCapsuleHit(
+        OpenTK.Mathematics.Vector3 rayOrigin, OpenTK.Mathematics.Vector3 rayDir,
+        OpenTK.Mathematics.Vector3 tail, OpenTK.Mathematics.Vector3 tip,
+        float radius, out float tAlongRay)
+    {
+        tAlongRay = 0f;
+        var d1 = rayDir; // assume ~unit length
+        var d2 = tip - tail;
+        float len2 = d2.LengthSquared;
+        if (len2 < 1e-6f) return false;
+
+        var r = rayOrigin - tail;
+        float a = OpenTK.Mathematics.Vector3.Dot(d1, d1);
+        float e = OpenTK.Mathematics.Vector3.Dot(d2, d2);
+        float f = OpenTK.Mathematics.Vector3.Dot(d2, r);
+        float c = OpenTK.Mathematics.Vector3.Dot(d1, r);
+        float b = OpenTK.Mathematics.Vector3.Dot(d1, d2);
+        float denom = a * e - b * b;
+
+        float s, t;
+        if (denom != 0f) s = Math.Clamp((b * f - c * e) / denom, 0f, float.MaxValue);
+        else s = 0f;
+        t = (b * s + f) / e;
+
+        if (t < 0f) { t = 0f; s = Math.Clamp(-c / a, 0f, float.MaxValue); }
+        else if (t > 1f) { t = 1f; s = Math.Clamp((b - c) / a, 0f, float.MaxValue); }
+
+        var closestOnRay = rayOrigin + d1 * s;
+        var closestOnSeg = tail + d2 * t;
+        float distSq = (closestOnRay - closestOnSeg).LengthSquared;
+
+        if (distSq > radius * radius) return false;
+        tAlongRay = s;
+        return s >= 0f;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -368,12 +702,10 @@ public class VM_CharacterViewer : VM
         TextureManager.Initialize();
         Renderer.Initialize(shaderDirectory);
 
-        // Resolve persisted selections (empty / unknown names fall back to defaults).
-        _selectedLightingLayout = CharacterViewerLightingPresets.FindLayoutOrDefault(
-            _generalSettings.CharacterViewerLightingLayout);
-        _selectedLightingColorScheme = CharacterViewerLightingPresets.FindColorSchemeOrDefault(
-            _generalSettings.CharacterViewerLightingColorScheme);
-        ApplyCurrentLighting();
+        // Selections were resolved from settings in the ctor; push the current
+        // field values to the renderer now that it's initialized.
+        PushAllLightsToRenderer();
+        Renderer.ShowKeyLightVisualization = ShowLightControls;
 
         IsGlInitialized = true;
 

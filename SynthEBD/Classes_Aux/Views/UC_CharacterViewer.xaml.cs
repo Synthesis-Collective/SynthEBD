@@ -151,6 +151,27 @@ public partial class UC_CharacterViewer : UserControl
         HideHoverTooltip();
 
         var pos = e.GetPosition(GlControl);
+
+        // Arrow picking: left-click on a light gizmo selects that light for
+        // editing instead of starting a camera orbit.
+        if (e.ChangedButton == MouseButton.Left && _vm.ShowLightControls)
+        {
+            var source = PresentationSource.FromVisual(GlControl);
+            double dpiScaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+            double dpiScaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+            int w = (int)(GlControl.ActualWidth * dpiScaleX);
+            int h = (int)(GlControl.ActualHeight * dpiScaleY);
+            int hit = _vm.HitTestLightArrow(
+                (float)(pos.X * dpiScaleX), (float)(pos.Y * dpiScaleY),
+                w, h);
+            if (hit > 0)
+            {
+                _vm.SelectedLightIndex = hit;
+                e.Handled = true;
+                return;
+            }
+        }
+
         _vm.Camera.OnMouseDown(
             (float)pos.X, (float)pos.Y,
             leftButton: e.ChangedButton == MouseButton.Left,

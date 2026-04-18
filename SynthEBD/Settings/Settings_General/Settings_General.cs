@@ -262,6 +262,8 @@ public class Settings_General
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
     public string CharacterViewerLightingLayout { get; set; } = "";
     public string CharacterViewerLightingColorScheme { get; set; } = "";
+    public List<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
+    public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public List<ModKey> BlockedModsFromImport { get; set; } = new()
     {
