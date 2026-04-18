@@ -29,8 +29,10 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     private readonly PatcherState _patcherState;
 
+    private readonly Logger _logger;
+
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -46,6 +48,10 @@ public class VM_BodySlideSetting : VM
         _placeHolderFactory = placeHolderFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _patcherState = patcherState;
+        _logger = logger;
+
+        CharacterViewer = characterViewerFactory();
+        CharacterViewer.Mode = ViewerMode.ReadOnly;
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
@@ -134,6 +140,79 @@ public class VM_BodySlideSetting : VM
             ShowAcceptAnnotationsButton = state != BodyShapeAnnotationState.None && state != BodyShapeAnnotationState.Manual;
             UpdateStatusDisplay();
         }).DisposeWith(this);
+
+        // Section B5: when the user picks a different weight tab, load the configured preview NPC
+        // for that (gender, weight) and apply this preset's morph at that weight. Skip(1) drops
+        // the construction-time emission so we don't fire a load before CopyInViewModelFromModel
+        // has populated the slots; named lambda param avoids the discard-shadowing trap from
+        // Session 3 surprise #3.
+        this.WhenAnyValue(x => x.SelectedWeightSlot)
+            .Skip(1)
+            .Where(slot => slot != null)
+            .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)
+            .Subscribe(slot => RefreshPreview(slot))
+            .DisposeWith(this);
+
+        // Live deformation refresh when slider values change (descriptor edits flowing through
+        // SliderValues). Throttle to avoid hammering the GL thread mid-edit.
+        SliderValues.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(150), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshPreview(SelectedWeightSlot))
+            .DisposeWith(this);
+    }
+
+    /// <summary>
+    /// Loads the configured preview NPC for the active weight slot and applies this preset's
+    /// BodySlide deformation at the slot's weight. Safe to call with a null slot (no-op) and
+    /// safe to call rapidly — VM_CharacterViewer.LoadNpcAsync owns its own cancellation token,
+    /// and ApplyBodySlide is queued behind _sceneRebuildPending if the scene is mid-rebuild.
+    /// </summary>
+    private async void RefreshPreview(VM_BodySlideWeightSlot slot)
+    {
+        if (slot == null || CharacterViewer == null) return;
+        if (lk == null) return;
+
+        try
+        {
+            var gender = ResolveGender();
+            var preview = _patcherState?.OBodySettings?.PreviewNpcs;
+            FormKey npc = FormKey.Null;
+            if (preview != null && preview.WeightPreviewNpcs.TryGetValue(slot.Weight, out var pair) && pair != null)
+            {
+                npc = gender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+            }
+
+            if (npc.IsNull)
+            {
+                _logger?.LogMessage("VM_BodySlideSetting: no preview NPC configured for weight " + slot.Weight + " (" + gender + ")");
+                return;
+            }
+
+            await CharacterViewer.LoadNpcAsync(npc, lk);
+            CharacterViewer.ApplyBodySlide(AssociatedPlaceHolder.AssociatedModel, slot.Weight);
+        }
+        catch (Exception ex)
+        {
+            // LogError (not LogMessage) so the failure is actually visible in the Status
+            // Log instead of silently switching tabs with no entry. Full stack is logged
+            // because most NRE / index-out-of-range failures here have empty Message.
+            _logger?.LogError("VM_BodySlideSetting.RefreshPreview failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>
+    /// Determines whether this preset is hosted in the male or female list. ParentCollection
+    /// is the same reference as either BodySlidesUI.BodySlidesMale or .BodySlidesFemale, so a
+    /// reference comparison is authoritative — no need to inspect descriptors or destinations.
+    /// </summary>
+    private Gender ResolveGender()
+    {
+        var parentColl = AssociatedPlaceHolder?.ParentCollection;
+        if (parentColl != null && ReferenceEquals(parentColl, ParentMenuVM?.BodySlidesUI?.BodySlidesMale))
+        {
+            return Gender.Male;
+        }
+        return Gender.Female;
     }
 
     public string Label { get; set; } = "";
@@ -171,6 +250,13 @@ public class VM_BodySlideSetting : VM
 
     public VM_BodySlidePlaceHolder AssociatedPlaceHolder { get; }
     public ILinkCache lk { get; private set; }
+
+    /// <summary>
+    /// Embedded read-only 3D viewer. Created per-preset from the Autofac factory so each
+    /// BodySlide card owns its own GL state. Configured as ReadOnly in the ctor — the
+    /// viewer UI has no NPC picker or mesh-override column in this mode (Section B4).
+    /// </summary>
+    public VM_CharacterViewer CharacterViewer { get; }
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
     public RelayCommand ToggleLock { get; }
     public RelayCommand AddAllowedAttribute { get; }

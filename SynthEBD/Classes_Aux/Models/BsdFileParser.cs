@@ -49,8 +49,15 @@ public class BsdFileParser
 {
     private readonly Logger _logger;
 
-    /// <summary>"OSD\0" as a little-endian uint32.</summary>
-    private const uint OsdMagic = 0x0044534F; // 'O'=0x4F, 'S'=0x53, 'D'=0x44, '\0'=0x00
+    /// <summary>
+    /// OSD file magic. BodySlide writes this as the C/C++ multichar literal 'OSD\0',
+    /// whose numeric value on x86 is 0x4F534400 (with 'O' in the high byte). When that
+    /// uint32 is serialized little-endian to disk, the on-disk bytes are
+    /// 00 44 53 4F — and BinaryReader.ReadUInt32 reads them back as 0x4F534400.
+    /// (The intuitive "ASCII bytes 'O','S','D','\0' read LE → 0x0044534F" form is wrong
+    /// for this format; that was the bug that silently rejected every .osd file.)
+    /// </summary>
+    private const uint OsdMagic = 0x4F534400;
 
     public BsdFileParser(Logger logger)
     {

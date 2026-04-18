@@ -63,6 +63,12 @@ public class Settings_OBody
     public bool AutoApplyMissingAnnotations { get; set; } = true;
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
 
+    /// <summary>
+    /// Per-weight-slot preview NPCs for the 3D Character Viewer hosted inside the BodySlide
+    /// detail pane. New field; no migration required (defaults to empty, populated lazily).
+    /// </summary>
+    public OBodyPreviewNpcSettings PreviewNpcs { get; set; } = new();
+
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
@@ -366,6 +372,18 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
             default: return BodyShapeAnnotationState.None;
         }
     }
+}
+
+/// <summary>
+/// Per-weight-slot preview NPC mapping for the BodySlide preview viewer (Section B).
+/// Keys are integer weight slots (0-100); values are male/female NPC FormKeys.
+/// int dict keys are safe with Newtonsoft (string-coerced); FormKey dict keys are NOT
+/// (Mutagen registers FormKey only as a value-level converter — see RacePreviewNpcsConverter
+/// in NifPreviewNpcSettings.cs for why the per-race shape uses a list instead).
+/// </summary>
+public class OBodyPreviewNpcSettings
+{
+    public Dictionary<int, PreviewNpcPair> WeightPreviewNpcs { get; set; } = new();
 }
 
 [DebuggerDisplay("{SliderName}: {Small} / {Big}")]

@@ -14,7 +14,29 @@
     </UserControl.Resources>
     
     <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="100" MinWidth="60"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Section B preview viewer: embedded per-preset 3D viewer, pinned to the right
+                 so the main settings grid keeps its existing layout. Bound to the per-preset
+                 CharacterViewer VM (Func<VM_CharacterViewer> factory in the ctor). The
+                 GridSplitter in column 1 lets the user resize the viewer; the column's
+                 starting Width (100) is intentionally narrow so the viewer doesn't obscure
+                 the main settings grid. -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" Background="#333333"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                          ShowsPreview="True"
+                          ToolTip="Drag to resize the preview viewer"/>
+
+            <local:UC_CharacterViewer Grid.Column="2" DataContext="{Binding CharacterViewer}"
+                                      MinHeight="400" Margin="5 0 0 0"/>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto"/>
@@ -182,6 +204,7 @@
                 <Button Grid.Row="21" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding CloneCommand}" ToolTip="Clone this BodySlide preset (intended for presets that vary drastically with NPC weight)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Foreground="MediumPurple">Clone Preset</Button>
                 <Button Grid.Row="22" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this preset (will be re-added if the preset remains installed when SynthEBD is next launched)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Preset</Button>
             </Grid>
-        </ScrollViewer>
+            </ScrollViewer>
+        </Grid>
     </Border>
 </UserControl>

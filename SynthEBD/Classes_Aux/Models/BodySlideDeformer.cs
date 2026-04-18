@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace SynthEBD;
@@ -122,8 +123,30 @@ public class BodySlideDeformer
 
         if (touchedVerts.Count == 0)
         {
+            // Diagnostic: dump enough about both sides of the mismatch to see whether
+            // the preset has zero non-zero sliders, has slider names that just don't
+            // appear in the OSD, or something subtler (whitespace / casing / prefix).
+            int presetSliderCount = preset.SliderValues?.Count ?? 0;
+            int presetActiveCount = 0;
+            var presetSampleNames = new List<string>();
+            if (preset.SliderValues != null)
+            {
+                foreach (var kvp in preset.SliderValues)
+                {
+                    if (kvp.Value != null && (kvp.Value.Big != 0 || kvp.Value.Small != 0))
+                    {
+                        presetActiveCount++;
+                        if (presetSampleNames.Count < 5) presetSampleNames.Add(kvp.Key);
+                    }
+                }
+            }
+            var osdSampleNames = sliderDeltaMap.Keys.Take(5).ToList();
             _logger.LogMessage("CharacterViewer: BodySlide preset '" + preset.Label +
-                "' matched 0 vertices (no slider data overlap)");
+                "' matched 0 vertices (no slider data overlap). " +
+                "Preset sliders: " + presetSliderCount + " total, " + presetActiveCount + " with non-zero Big/Small. " +
+                "OSD slider keys available: " + sliderDeltaMap.Count + ". " +
+                "Preset sample: [" + string.Join(", ", presetSampleNames) + "]. " +
+                "OSD sample: [" + string.Join(", ", osdSampleNames) + "]");
             return;
         }
 

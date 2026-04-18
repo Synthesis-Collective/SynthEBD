@@ -915,8 +915,12 @@ public class VM_CharacterViewer : VM
         }
         catch (Exception ex)
         {
+            // Many exceptions (NullReferenceException, IndexOutOfRangeException, …) have an
+            // unhelpful or empty Message. Log the full chained exception so the Status Log
+            // actually reveals the failure instead of silently switching tabs.
             StatusText = $"Error: {ex.Message}";
-            _logger.LogError($"CharacterViewer: Failed to load NPC {npcFormKey}: {ex.Message}");
+            _logger.LogError("CharacterViewer: Failed to load NPC " + npcFormKey + Environment.NewLine
+                + ExceptionLogger.GetExceptionStack(ex));
             if (_loadCts == cts) _sceneRebuildPending = false;
         }
         finally
@@ -1258,10 +1262,12 @@ public class VM_CharacterViewer : VM
     //  BODYSLIDE
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Temporarily disables the BodySlide deformation path while we investigate
-    // the neck seam. With this flag set, the viewer renders raw NIF meshes
-    // (plus skinning); no .osd/.bsd morphs are applied.
-    private const bool _bodySlideDisabled = true;
+    // Kill-switch for the BodySlide deformation path. Originally set true while the
+    // neck seam was under investigation; flipped back to false once the viewer was
+    // integrated into the OBody editor. Kept as a mutable static (not const) so the
+    // branch remains live code and this can be toggled again without code changes
+    // if the seam or another deformation artifact returns.
+    private static bool _bodySlideDisabled = false;
 
     public void ApplyBodySlide(BodySlideSetting preset, int weight)
     {
@@ -1273,8 +1279,13 @@ public class VM_CharacterViewer : VM
             return;
         }
 
-        // If scene isn't set up yet (pending GL work), queue for later
-        if (_cachedBodyMeshes.Count == 0)
+        // If scene isn't set up yet (pending GL work), queue for later.
+        // Checking Count == 0 alone isn't enough: during a scene rebuild the previous
+        // scene's meshes linger in _cachedBodyMeshes until the new load overwrites them,
+        // so an ApplyBodySlide fired mid-rebuild would deform the OLD meshes and the
+        // replacement load would then discard the deformation. Also gate on
+        // _sceneRebuildPending so we always queue until the rebuild has committed.
+        if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)
         {
             _pendingBodySlide = (preset, weight);
             return;
@@ -1282,46 +1293,59 @@ public class VM_CharacterViewer : VM
 
         NpcWeight = Math.Clamp(weight, 0, 100);
 
-        if (preset.SliderGroup != null)
-            LoadOsdFilesForGroup(preset.SliderGroup);
-
-        if (_cachedOsdFiles == null || _cachedOsdFiles.Count == 0) return;
-
-        foreach (var kvp in _cachedBodyMeshes)
+        try
         {
-            string shapeName = kvp.Key;
-            var originalMesh = kvp.Value;
+            if (preset.SliderGroup != null)
+                LoadOsdFilesForGroup(preset.SliderGroup);
 
-            // Find the GL mesh for this shape
-            var glMesh = Renderer.Meshes.FirstOrDefault(m => m.ShapeName == shapeName);
-            if (glMesh == null) continue;
+            if (_cachedOsdFiles == null || _cachedOsdFiles.Count == 0) return;
 
-            // Start from bind-pose positions
-            var sourcePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
-            var positions = new Vector3[sourcePositions.Length];
-            Array.Copy(sourcePositions, positions, sourcePositions.Length);
+            foreach (var kvp in _cachedBodyMeshes)
+            {
+                string shapeName = kvp.Key;
+                var originalMesh = kvp.Value;
 
-            // Apply deformation
-            _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles, shapeName);
+                // Find the GL mesh for this shape
+                var glMesh = Renderer.Meshes.FirstOrDefault(m => m.ShapeName == shapeName);
+                if (glMesh == null) continue;
 
-            // Recalculate normals
-            var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
-            var normals = new Vector3[sourceNormals.Length];
-            Array.Copy(sourceNormals, normals, sourceNormals.Length);
-            BodySlideDeformer.RecalculateNormals(positions, originalMesh.Indices, normals);
+                // Start from bind-pose positions
+                var sourcePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
+                var positions = new Vector3[sourcePositions.Length];
+                Array.Copy(sourcePositions, positions, sourcePositions.Length);
 
-            // Re-apply skinning
-            if (originalMesh.Skinning != null)
-                NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
+                // Apply deformation
+                _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles, shapeName);
 
-            // Re-upload vertex data to GPU
-            var vertexData = BuildInterleavedVertexData(positions, normals,
-                originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
-                originalMesh.VertexColors);
-            glMesh.UpdateVertexData(vertexData);
+                // Recalculate normals
+                var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
+                var normals = new Vector3[sourceNormals.Length];
+                Array.Copy(sourceNormals, normals, sourceNormals.Length);
+                BodySlideDeformer.RecalculateNormals(positions, originalMesh.Indices, normals);
 
-            // Update CPU-side positions for hit testing
-            glMesh.CpuPositions = positions;
+                // Re-apply skinning
+                if (originalMesh.Skinning != null)
+                    NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
+
+                // Re-upload vertex data to GPU
+                var vertexData = BuildInterleavedVertexData(positions, normals,
+                    originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
+                    originalMesh.VertexColors);
+                glMesh.UpdateVertexData(vertexData);
+
+                // Update CPU-side positions for hit testing
+                glMesh.CpuPositions = positions;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Surface deformer / skinning / GPU-upload failures with a full stack so the
+            // Status Log actually shows what went wrong. Without this catch the exception
+            // bubbles up to VM_BodySlideSetting.RefreshPreview, which used to swallow it
+            // silently via LogMessage and the user only saw the tab-switch with no detail.
+            _logger.LogError("CharacterViewer: ApplyBodySlide failed for preset '"
+                + (preset?.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
+                + ExceptionLogger.GetExceptionStack(ex));
         }
     }
 

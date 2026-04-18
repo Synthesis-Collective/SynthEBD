@@ -76,11 +76,30 @@ public sealed class Logger : VM
         _paths = paths;
     }
 
+    // LoggedEvents is a plain ObservableCollection bound to WPF (via VM_LogDisplay's
+    // ToObservableChangeSet → DispString). Mutating it from a background thread fires
+    // CollectionChanged on that thread and the WPF binding pipeline throws cross-thread —
+    // silently, because by then we're outside any await chain. Marshal every mutation to
+    // the UI dispatcher so background callers (NPC mesh resolver in Task.Run, etc.) are
+    // safe even when several fire concurrently.
+    private static void OnUiThread(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            dispatcher.BeginInvoke(action);
+        }
+    }
+
     public void LogMessage(string message)
     {
         switch (_environmentProvider.LoggerMode)
         {
-            case LogMode.SynthEBD: LoggedEvents.Add(message); break;
+            case LogMode.SynthEBD: OnUiThread(() => LoggedEvents.Add(message)); break;
             case LogMode.Synthesis: Console.WriteLine(message); break;
         }
     }
@@ -95,7 +114,7 @@ public sealed class Logger : VM
 
     public void Clear()
     {
-        LoggedEvents.Clear();
+        OnUiThread(LoggedEvents.Clear);
     }
     
     public void SetSynthesisStartupString()
@@ -370,7 +389,7 @@ public sealed class Logger : VM
     {
         switch (_environmentProvider.LoggerMode)
         {
-            case LogMode.SynthEBD: LoggedEvents.Add(error); break;
+            case LogMode.SynthEBD: OnUiThread(() => LoggedEvents.Add(error)); break;
             case LogMode.Synthesis: Console.WriteLine(error); break;
         }
         _loggedError.OnNext(Unit.Default);
@@ -388,7 +407,7 @@ public sealed class Logger : VM
 
     public void LogErrorWithStatusUpdate(string error, ErrorType type)
     {
-        LoggedEvents.Add(error);
+        OnUiThread(() => LoggedEvents.Add(error));
         //LogString += error + Environment.NewLine;
         StatusString = error;
         switch (type)

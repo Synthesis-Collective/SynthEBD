@@ -60,6 +60,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_DetailedReportNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_OBodyPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
