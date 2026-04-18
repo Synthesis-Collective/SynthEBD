@@ -265,6 +265,7 @@ public class Settings_General
     public List<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
     public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public string TextureLoadStrategy { get; set; } = "BmpStream";
+    public NifPreviewNpcSettings PreviewNpcs { get; set; } = new();
     public List<ModKey> BlockedModsFromImport { get; set; } = new()
     {
         ModKey.FromNameAndExtension("Skyrim.esm"),

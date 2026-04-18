@@ -58,6 +58,7 @@
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
             <local:UC_Settings_Environment Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" DataContext="{Binding EnvironmentSettingsVM}" Visibility="{Binding IsStandalone, Converter={StaticResource BoolToVis}}"/>
@@ -264,6 +265,47 @@
             
             <Button Grid.Column="0" Grid.Row="32" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="MediumPurple" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
             <Button Grid.Column="2" Grid.Row="32" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="MediumPurple" Content="Reset Troubleshooting Settings to Defaults"/>
+
+            <TextBlock Grid.Column="0" Grid.Row="33" ToolTip="NPCs used as the model when previewing subgroup textures and headparts in the 3D Character Viewer. One male/female NPC per patchable race, plus a Default fallback." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Nif Preview Options</TextBlock>
+            <Expander Grid.Column="2" Grid.Row="33" Header="" ExpandDirection="Down" DataContext="{Binding PreviewNpcs}">
+                <StackPanel>
+                    <Border BorderBrush="MediumPurple" BorderThickness="1" Margin="0 0 0 5" Padding="3">
+                        <StackPanel>
+                            <TextBlock Text="Default (used when a race is unmapped)" Foreground="MediumPurple" FontWeight="Bold"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Male NPC" VerticalAlignment="Center"/>
+                                <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding DefaultRow.MaleNpc, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Female NPC" VerticalAlignment="Center"/>
+                                <plugins:FormKeyPicker Grid.Row="1" Grid.Column="1" FormKey="{Binding DefaultRow.FemaleNpc, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type local:VM_RaceNpcRow}">
+                                <Grid Margin="0 2 0 2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding RaceDisplay}" VerticalAlignment="Center"/>
+                                    <plugins:FormKeyPicker Grid.Column="1" Margin="0 0 3 0" FormKey="{Binding MaleNpc, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}"/>
+                                    <plugins:FormKeyPicker Grid.Column="2" Margin="3 0 0 0" FormKey="{Binding FemaleNpc, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys, Mode=OneWay}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
         </Grid>
     </ScrollViewer>
 </UserControl>

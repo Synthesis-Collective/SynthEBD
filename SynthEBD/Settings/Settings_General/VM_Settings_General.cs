@@ -39,6 +39,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IEnvironmentStateProvider environmentProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths,
+        VM_NifPreviewNpcSettings previewNpcSettings,
         Func<VM_SettingsTexMesh> getTexMesh,
         Func<VM_SettingsOBody> getOBody
         )
@@ -54,6 +55,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _raceGroupingEditorFactory = raceGroupingEditorFactory;
         _linkedNPCFactory = linkedNPCFactory;
         _paths = paths;
+        PreviewNpcs = previewNpcSettings;
 
         if (IsStandalone)
         {
@@ -369,6 +371,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
     public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public string TextureLoadStrategy { get; set; } = "BmpStream";
+    public VM_NifPreviewNpcSettings PreviewNpcs { get; set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
@@ -403,6 +406,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
         VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
         patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
+        PreviewNpcs.CopyInFromModel(model.PreviewNpcs, patchableRaces);
         raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, this, aliasFactory);
         RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, null);
         OverwritePluginRaceGroups = model.OverwritePluginRaceGroups;
@@ -490,6 +494,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.UserLightingLayouts = UserLightingLayouts.ToList();
         model.UserLightingColorSchemes = UserLightingColorSchemes.ToList();
         model.TextureLoadStrategy = TextureLoadStrategy;
+        model.PreviewNpcs = PreviewNpcs.DumpToModel();
 
         model.bUIopened = true;
         return model;
