@@ -1,10 +1,11 @@
 <UserControl x:Class="SynthEBD.UC_AssetPresenter"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=local:VM_AssetPresenter}">
 
     <UserControl.Resources>
@@ -20,11 +21,8 @@
                     <Style TargetType="ColumnDefinition">
                         <Setter Property="Width" Value="*" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding ParentUI.bShowPreviewImages}" Value="False">
+                            <DataTrigger Binding="{Binding ParentUI.PreviewMode}" Value="None">
                                 <Setter Property="Width" Value="0" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding ParentUI.bShowPreviewImages}" Value="True">
-                                <Setter Property="Width" Value="*" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -41,7 +39,7 @@
             <TextBlock Text="Select Asset Pack To Edit" VerticalAlignment="Center" Margin="5 0 0 0"/>
             <ComboBox Margin="70 0 0 0" ItemsSource="{Binding ParentUI.AssetPacks}" SelectedItem="{Binding AssetPack}" DisplayMemberPath="GroupName" IsSynchronizedWithCurrentItem="False" BorderBrush="White" BorderThickness="1" />
         </DockPanel>
-        
+
         <ContentPresenter Grid.Row="1" Grid.Column="0" Content="{Binding AssetPack}" Margin="5 0 0 0" Name="AssetPresenter">
             <ContentPresenter.ContentTemplate>
                 <DataTemplate DataType="{x:Type local:VM_AssetPack}">
@@ -51,11 +49,24 @@
         </ContentPresenter>
 
         <GridSplitter Grid.Column="1" Grid.Row="1" Margin="3,0,3,0"
-                  Width="3" Background="Purple" 
-                  VerticalAlignment="Stretch" 
-                  HorizontalAlignment="Center" Visibility="{Binding Path= ParentUI.bShowPreviewImages, Converter={StaticResource BoolToVis}}" />
+                  Width="3" Background="Purple"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Center">
+            <GridSplitter.Style>
+                <Style TargetType="GridSplitter">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ParentUI.PreviewMode}" Value="None">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </GridSplitter.Style>
+        </GridSplitter>
 
-        <ScrollViewer Grid.Column="2" Grid.Row ="1" Height="{Binding Path=ActualHeight, ElementName=AssetPresenter}">
+        <!-- Image preview (legacy) -->
+        <ScrollViewer Grid.Column="2" Grid.Row="1" Height="{Binding Path=ActualHeight, ElementName=AssetPresenter}"
+                      Visibility="{Binding ParentUI.bShowPreviewImages, Converter={StaticResource BoolToVis}}">
             <ItemsControl ItemsSource="{Binding PreviewImages}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -70,5 +81,29 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+
+        <!-- 3D render preview -->
+        <Grid Grid.Column="2" Grid.Row="1"
+              Visibility="{Binding ParentUI.bShowRenderPreview, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
+
+            <local:UC_CharacterViewer Grid.Row="0" DataContext="{Binding CharacterViewer}" />
+
+            <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 4">
+                <StackPanel Orientation="Vertical">
+                    <DockPanel LastChildFill="True" Margin="0 0 0 3">
+                        <TextBlock Text="Preview NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="MediumPurple"/>
+                        <Button Content="Reset" Command="{Binding ResetAccumulatedOverridesCommand}" Foreground="Firebrick"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

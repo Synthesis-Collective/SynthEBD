@@ -85,6 +85,11 @@ public class VM_CharacterViewer : VM
     private (List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
              NpcMeshResolver.NpcMeshPaths MeshPaths)? _pendingScene;
 
+    /// <summary>True from the moment a new NPC load starts until the render callback
+    /// has rebuilt the scene. Routes texture overrides to the pending queue so they
+    /// aren't applied to meshes that are about to be destroyed by ClearScene().</summary>
+    private bool _sceneRebuildPending;
+
     /// <summary>Pending texture overrides to apply after scene setup.</summary>
     private List<FilePathReplacement>? _pendingTextureOverrides;
 
@@ -790,6 +795,10 @@ public class VM_CharacterViewer : VM
         _logger.LogMessage($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
             $"{Renderer.Meshes.Count} GL meshes");
 
+        // Scene is now rebuilt — clear the rebuild flag before draining the
+        // pending-override queue so ApplyTextureOverrides takes the direct path.
+        _sceneRebuildPending = false;
+
         // Process any pending overrides that were queued before the scene was ready
         if (_pendingTextureOverrides != null)
         {
@@ -815,6 +824,11 @@ public class VM_CharacterViewer : VM
         _loadCts?.Cancel();
         var cts = new CancellationTokenSource();
         _loadCts = cts;
+
+        // Mark a rebuild as in-flight so any ApplyTextureOverrides calls arriving
+        // between now and when ProcessPendingScene finishes are queued rather than
+        // applied to the soon-to-be-destroyed current meshes.
+        _sceneRebuildPending = true;
 
         IsLoading = true;
         StatusText = "Resolving NPC meshes...";
@@ -866,6 +880,10 @@ public class VM_CharacterViewer : VM
             if (meshPaths == null)
             {
                 StatusText = "Could not resolve NPC mesh paths";
+                // No scene will be queued for ProcessPendingScene to rebuild, so
+                // clear the flag now — otherwise future ApplyTextureOverrides
+                // calls would be queued forever.
+                if (_loadCts == cts) _sceneRebuildPending = false;
                 return;
             }
 
@@ -890,11 +908,16 @@ public class VM_CharacterViewer : VM
         catch (OperationCanceledException)
         {
             _logger.LogMessage("CharacterViewer: NPC load cancelled");
+            // If a newer load took over, _loadCts != cts and that newer load owns
+            // the flag. Only clear the flag if we're still the current (unreplaced)
+            // load — meaning cancellation came from outside, not from a new load.
+            if (_loadCts == cts) _sceneRebuildPending = false;
         }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
             _logger.LogError($"CharacterViewer: Failed to load NPC {npcFormKey}: {ex.Message}");
+            if (_loadCts == cts) _sceneRebuildPending = false;
         }
         finally
         {
@@ -1113,14 +1136,26 @@ public class VM_CharacterViewer : VM
     {
         var overrideList = overrides.ToList();
 
-        // If scene isn't set up yet (pending GL work), queue for later
-        if (_meshesByBodyPart.Count == 0 || TextureManager == null)
+        // Queue when the scene is empty, the texture manager isn't ready, OR a
+        // rebuild is in-flight. The rebuild check is what catches the subgroup
+        // re-selection case: between LoadNpcAsync queueing _pendingScene and the
+        // render callback running ClearScene()+rebuild, _meshesByBodyPart still
+        // holds the previous meshes and without this flag we'd apply overrides
+        // to meshes that are about to be destroyed.
+        if (_meshesByBodyPart.Count == 0 || TextureManager == null || _sceneRebuildPending)
         {
+            _logger.LogMessage("CharacterViewer: ApplyTextureOverrides queuing " + overrideList.Count +
+                " override(s); meshes=" + _meshesByBodyPart.Count +
+                ", texMgr=" + (TextureManager != null) +
+                ", rebuildPending=" + _sceneRebuildPending);
             _pendingTextureOverrides = overrideList;
             return;
         }
 
-        foreach (var replacement in overrides)
+        _logger.LogMessage("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
+            " override(s); tracked body parts: [" + string.Join(", ", _meshesByBodyPart.Keys) + "]");
+
+        foreach (var replacement in overrideList)
         {
             string dest = replacement.Destination;
             if (string.IsNullOrWhiteSpace(dest) || string.IsNullOrWhiteSpace(replacement.Source))
@@ -1128,35 +1163,72 @@ public class VM_CharacterViewer : VM
 
             string? bodyPart = ParseBodyPart(dest);
             int? slot = ParseTextureSlot(dest);
-            if (bodyPart == null || slot == null) continue;
-            if (!_meshesByBodyPart.TryGetValue(bodyPart, out var mesh)) continue;
+            if (bodyPart == null || slot == null)
+            {
+                _logger.LogMessage("CharacterViewer: Override unparseable — dest='" + dest + "'");
+                continue;
+            }
 
-            if (slot.Value == 0)
+            // For Head, target only the primary head shape (the face — face/hair/eyes
+            // are separate shapes with different meaning for each slot). For non-head
+            // body parts, apply to every shape in that NIF: some NIFs contain multiple
+            // body-part shapes (e.g. hands + fingernails, body + belt) and previously
+            // only the first-registered shape got the override, leaving the hovered
+            // shape showing the original texture.
+            List<GlMesh> targets;
+            if (bodyPart == "Head")
             {
-                // Diffuse override — load separately from face tint so they
-                // remain independently toggleable in the context menu.
-                mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
-                RecordTextureSource(mesh, "Diffuse", replacement.Source);
-            }
-            else if (slot.Value == 1)
-            {
-                // Normal map override — the shader handles MSN natively, no CPU resampling needed!
-                mesh.NormalTexture = TextureManager.LoadTexture(replacement.Source);
-                mesh.HasNormalMap = true;
-                _logger.LogMessage("CharacterViewer: Normal map override '" + replacement.Source + "' → " + bodyPart);
-                RecordTextureSource(mesh, "Normal Map", replacement.Source);
-            }
-            else if (slot.Value == 7)
-            {
-                mesh.SpecularTexture = TextureManager.LoadTexture(replacement.Source);
-                mesh.HasSpecularMap = true;
-                mesh.HasSpecular = true;
-                RecordTextureSource(mesh, "Specular", replacement.Source);
+                if (!_meshesByBodyPart.TryGetValue(bodyPart, out var headMesh))
+                {
+                    _logger.LogMessage("CharacterViewer: No Head mesh tracked for override — dest='" + dest + "'");
+                    continue;
+                }
+                targets = new List<GlMesh> { headMesh };
             }
             else
             {
-                _logger.LogMessage("CharacterViewer: Skipping override for slot " + slot.Value);
+                targets = Renderer.Meshes.Where(m => m.BodyPart == bodyPart).ToList();
+                if (targets.Count == 0)
+                {
+                    _logger.LogMessage("CharacterViewer: No meshes with BodyPart='" + bodyPart +
+                        "' (slot " + slot + ") — dest='" + dest + "'");
+                    continue;
+                }
             }
+
+            foreach (var mesh in targets)
+            {
+                if (slot.Value == 0)
+                {
+                    mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
+                    RecordTextureSource(mesh, "Diffuse", replacement.Source);
+                }
+                else if (slot.Value == 1)
+                {
+                    // Shader handles MSN natively; no CPU resampling needed.
+                    mesh.NormalTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.HasNormalMap = true;
+                    RecordTextureSource(mesh, "Normal Map", replacement.Source);
+                }
+                else if (slot.Value == 2)
+                {
+                    // Skin/SSS — only meaningful on skin-shader meshes; harmless on others
+                    // since HasSkinMap gates shader sampling.
+                    mesh.SkinTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.HasSkinMap = true;
+                    RecordTextureSource(mesh, "Skin/SSS", replacement.Source);
+                }
+                else if (slot.Value == 7)
+                {
+                    mesh.SpecularTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.HasSpecularMap = true;
+                    mesh.HasSpecular = true;
+                    RecordTextureSource(mesh, "Specular", replacement.Source);
+                }
+            }
+
+            _logger.LogMessage("CharacterViewer: Slot " + slot + " override '" + replacement.Source +
+                "' → " + bodyPart + " (" + targets.Count + " shape(s))");
         }
     }
 
@@ -1523,7 +1595,7 @@ public class VM_CharacterViewer : VM
         }
     }
 
-    private static string? ParseBodyPart(string destination)
+    public static string? ParseBodyPart(string destination)
     {
         if (destination.StartsWith("HeadTexture", StringComparison.OrdinalIgnoreCase))
             return "Head";
@@ -1537,7 +1609,7 @@ public class VM_CharacterViewer : VM
         return null;
     }
 
-    private static int? ParseTextureSlot(string destination)
+    public static int? ParseTextureSlot(string destination)
     {
         if (destination.Contains("BacklightMaskOrSpecular", StringComparison.OrdinalIgnoreCase)) return 7;
         if (destination.Contains("NormalOrGloss", StringComparison.OrdinalIgnoreCase)) return 1;

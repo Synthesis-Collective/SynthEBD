@@ -43,6 +43,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_Settings_General>().AsSelf().SingleInstance();
         builder.RegisterType<VM_NifPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<PreviewNpcResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<SubgroupTextureMapper>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsBodyGen>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();

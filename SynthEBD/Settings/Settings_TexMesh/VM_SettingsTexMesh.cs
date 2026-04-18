@@ -1,6 +1,9 @@
 using ReactiveUI;
 using Noggog;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Windows.Forms;
 using DynamicData.Binding;
@@ -8,6 +11,13 @@ using DynamicData;
 using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
+
+public enum PreviewMode
+{
+    None,
+    Image,
+    Render
+}
 
 public class VM_SettingsTexMesh : VM
 {
@@ -38,7 +48,9 @@ public class VM_SettingsTexMesh : VM
         SettingsIO_AssetPack assetIO,
         VM_AssetDistributionSimulator.Factory simulatorFactory,
         VM_Manifest.Factory manifestFactory,
-        Func<VM_TexMeshBatchActions> getBatchActionsMenu)
+        Func<VM_TexMeshBatchActions> getBatchActionsMenu,
+        SubgroupTextureMapper textureMapper,
+        Func<VM_CharacterViewer> characterViewerFactory)
     {
         _logger = logger;
         _paths = paths;
@@ -258,8 +270,8 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        AssetPresenterPrimary = new VM_AssetPresenter(this, logger);
-        AssetPresenterSecondary = new VM_AssetPresenter(this, logger);
+        AssetPresenterPrimary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, characterViewerFactory);
+        AssetPresenterSecondary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, characterViewerFactory);
 
         SelectConfigsAll = new RelayCommand(
             canExecute: _ => true,
@@ -335,7 +347,12 @@ public class VM_SettingsTexMesh : VM
     public bool bShowSKSEversionOptions { get; set; } = false;
     public bool bShowPO3Options { get; set; } = false;
     public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
-    public bool bShowPreviewImages { get; set; } = true;
+    public PreviewMode PreviewMode { get; set; } = PreviewMode.Image;
+    public IEnumerable<PreviewMode> PreviewModeOptions { get; } = Enum.GetValues<PreviewMode>();
+    // Shim for XAML bindings that used the old checkbox — evaluates true only in Image mode.
+    // Fody PropertyChanged tracks the PreviewMode dependency and re-raises this on change.
+    public bool bShowPreviewImages => PreviewMode == PreviewMode.Image;
+    public bool bShowRenderPreview => PreviewMode == PreviewMode.Render;
     public int MaxPreviewImageSize { get; set; } = 1024;
     public bool bShowMenuButtons { get; set; } = true;
     public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
@@ -412,7 +429,14 @@ public class VM_SettingsTexMesh : VM
         bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
         bDisplayPopupAlerts = model.bDisplayPopupAlerts;
         bGenerateAssignmentLog = model.bGenerateAssignmentLog;
-        bShowPreviewImages = model.bShowPreviewImages;
+        // Migrate legacy bShowPreviewImages bool if the new PreviewMode field wasn't
+        // present in the JSON (first load after upgrade). PreviewMode.Image is the
+        // default, so only override when the user had explicitly unchecked the box.
+        PreviewMode = model.PreviewMode;
+        if (!model.bShowPreviewImages && model.PreviewMode == PreviewMode.Image)
+        {
+            PreviewMode = PreviewMode.None;
+        }
         MaxPreviewImageSize = model.MaxPreviewImageSize;
         TrimPaths = new ObservableCollection<TrimPath>(model.TrimPaths);
         LastViewedAssetPackName = model.LastViewedAssetPack;
@@ -453,7 +477,8 @@ public class VM_SettingsTexMesh : VM
         model.bForceVanillaBodyMeshPath = bForceVanillaBodyMeshPath;
         model.bDisplayPopupAlerts = bDisplayPopupAlerts;
         model.bGenerateAssignmentLog = bGenerateAssignmentLog;
-        model.bShowPreviewImages = bShowPreviewImages;
+        model.PreviewMode = PreviewMode;
+        model.bShowPreviewImages = PreviewMode != PreviewMode.None; // legacy field — kept for older readers
         model.MaxPreviewImageSize = MaxPreviewImageSize;
         model.TrimPaths = TrimPaths.ToList();
         model.SelectedAssetPacks = AssetPacks.Where(x => x.IsSelected).Select(x => x.GroupName).ToHashSet();

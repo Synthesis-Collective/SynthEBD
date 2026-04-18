@@ -65,7 +65,8 @@ public class VM_NifPreviewNpcSettings : VM
         {
             var row = new VM_RaceNpcRow(race, this);
 
-            if (model.RacePreviewNpcs.TryGetValue(race, out var saved))
+            var saved = model.RacePreviewNpcs.FirstOrDefault(e => e.Race.Equals(race));
+            if (saved != null)
             {
                 row.MaleNpc = !saved.MaleNpc.IsNull
                     ? saved.MaleNpc
@@ -97,11 +98,12 @@ public class VM_NifPreviewNpcSettings : VM
 
         foreach (var row in Rows)
         {
-            model.RacePreviewNpcs[row.Race] = new PreviewNpcPair
+            model.RacePreviewNpcs.Add(new RacePreviewEntry
             {
+                Race = row.Race,
                 MaleNpc = row.MaleNpc,
                 FemaleNpc = row.FemaleNpc,
-            };
+            });
         }
         return model;
     }
