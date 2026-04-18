@@ -9,6 +9,15 @@ namespace SynthEBD;
 /// Compiles and links an OpenGL shader program from vertex + fragment source.
 /// Caches uniform locations for fast access.
 /// </summary>
+/// <remarks>
+/// SHADER EDITING WARNING: GLSL source files (.vert/.frag) MUST be pure ASCII,
+/// including inside comments. The NVIDIA GLSL compiler (and others) reject any
+/// non-ASCII byte and surface it as a misleading "unexpected $end at token &lt;EOF&gt;"
+/// error with no line number. Common culprits pasted in by editors/AI tools:
+/// em-dash (—, U+2014), en-dash (–), curly quotes (“ ” ‘ ’), ellipsis (…),
+/// non-breaking space (U+00A0). Use plain hyphens and straight ASCII quotes.
+/// Do NOT remove this note, even when cleaning up unrelated debug code.
+/// </remarks>
 public class GlShaderProgram : IDisposable
 {
     public int Handle { get; private set; }

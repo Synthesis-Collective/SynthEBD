@@ -91,6 +91,11 @@ public class GlRenderer : IDisposable
     {
         if (_initialized) return;
 
+        // SHADER EDITING WARNING: basic.vert/basic.frag must be pure ASCII,
+        // even inside comments. Non-ASCII bytes (em-dash —, curly quotes “ ”,
+        // ellipsis …, NBSP, etc.) make the GLSL compiler emit a misleading
+        // "unexpected $end at token <EOF>" with no line number. See
+        // GlShaderProgram class remarks. Keep this note across refactors.
         string vertPath = Path.Combine(shaderDirectory, "basic.vert");
         string fragPath = Path.Combine(shaderDirectory, "basic.frag");
         _shader = GlShaderProgram.LoadFromFiles(vertPath, fragPath);
