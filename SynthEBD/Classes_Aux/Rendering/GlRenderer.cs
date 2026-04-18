@@ -276,15 +276,16 @@ public class GlRenderer : IDisposable
 
             // Visual length mapping: short saturated tail at 0% intensity, grows
             // with intensity but compressed above 100% so super-bright lights
-            // don't fly off the viewport.
+            // don't fly off the viewport. Character is ~128 Skyrim units tall,
+            // so a ~55-unit arrow at 100% reads clearly without crowding the model.
             float intensityVis = MathF.Min(Lights[i].Intensity, 3.0f);
-            float length = 22f + 95f * MathF.Min(intensityVis, 1f)
-                               + 25f * MathF.Max(intensityVis - 1f, 0f);
+            float length = 12f + 45f * MathF.Min(intensityVis, 1f)
+                               + 12f * MathF.Max(intensityVis - 1f, 0f);
 
             bool selected = SelectedLightIndex == i;
-            float radius = length * (selected ? 0.065f : 0.055f);
-            float headLen = length * 0.24f;
-            float headRad = length * (selected ? 0.13f : 0.11f);
+            float radius = length * (selected ? 0.040f : 0.030f);
+            float headLen = length * 0.22f;
+            float headRad = length * (selected ? 0.085f : 0.065f);
             float shaftLen = length - headLen;
 
             var tip = KeyLightVisualizationTarget;
