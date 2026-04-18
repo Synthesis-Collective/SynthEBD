@@ -786,9 +786,45 @@ public class NifMeshBuilder
         // If normals are all zero (missing or unreadable), compute from geometry
         if (AreNormalsAllZero(normals))
         {
+            string dbgName = shape.name?.get() ?? "?";
             _logger.LogMessage("CharacterViewer: Normals all zero for shape '" +
-                (shape.name?.get() ?? "?") + "', computing from geometry");
+                dbgName + "', computing from geometry");
             ComputeNormalsFromGeometry(positions, indices, normals);
+
+            // TEMP DEBUG: dump position bbox, first 3 face normals, and final vert0 normal
+            // to diagnose MSN body mesh lighting offset. Safe to remove once fixed.
+            if (positions.Length > 0 && indices.Length >= 9)
+            {
+                float minX = positions[0].X, minY = positions[0].Y, minZ = positions[0].Z;
+                float maxX = minX, maxY = minY, maxZ = minZ;
+                for (int i = 1; i < positions.Length; i++)
+                {
+                    var p = positions[i];
+                    if (p.X < minX) minX = p.X; if (p.X > maxX) maxX = p.X;
+                    if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y;
+                    if (p.Z < minZ) minZ = p.Z; if (p.Z > maxZ) maxZ = p.Z;
+                }
+                _logger.LogMessage(string.Format(
+                    "CharacterViewer: [GEOM-NORMAL] '{0}' bbox X=[{1:F1},{2:F1}] Y=[{3:F1},{4:F1}] Z=[{5:F1},{6:F1}]",
+                    dbgName, minX, maxX, minY, maxY, minZ, maxZ));
+
+                for (int t = 0; t < 3; t++)
+                {
+                    int i0 = indices[t * 3], i1 = indices[t * 3 + 1], i2 = indices[t * 3 + 2];
+                    var p0 = positions[i0]; var p1 = positions[i1]; var p2 = positions[i2];
+                    var fn = Vector3.Cross(p1 - p0, p2 - p0);
+                    float flen = fn.Length();
+                    if (flen > 1e-6f) fn /= flen;
+                    _logger.LogMessage(string.Format(
+                        "CharacterViewer: [GEOM-NORMAL] '{0}' tri{1} v0=({2:F1},{3:F1},{4:F1}) faceN=({5:F2},{6:F2},{7:F2})",
+                        dbgName, t, p0.X, p0.Y, p0.Z, fn.X, fn.Y, fn.Z));
+                }
+
+                var n0 = normals[0];
+                _logger.LogMessage(string.Format(
+                    "CharacterViewer: [GEOM-NORMAL] '{0}' vert0 finalN=({1:F3},{2:F3},{3:F3})",
+                    dbgName, n0.X, n0.Y, n0.Z));
+            }
         }
 
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Length}v";
@@ -803,6 +839,20 @@ public class NifMeshBuilder
             (hasAlphaBlend ? ", alphaBlend" : "") +
             (isDoubleSided ? ", doubleSided" : "") +
             (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
+
+        // TEMP DEBUG: dump NIF-space and Y-up-converted normal of vertex 0
+        // to diagnose a 90-degree normal orientation mismatch between the
+        // body mesh and the loincloth/armor meshes. Safe to remove once fixed.
+        if (nifNormals != null && nifNormals.Count > 0 && normals.Length > 0)
+        {
+            var nifN0 = nifNormals[0];
+            var yupN0 = normals[0];
+            _logger.LogMessage(string.Format(
+                "CharacterViewer: [NORMAL-DEBUG] '{0}' vert0 nifN=({1:F3},{2:F3},{3:F3}) yupN=({4:F3},{5:F3},{6:F3}) skinned={7}",
+                shapeName, nifN0.x, nifN0.y, nifN0.z,
+                yupN0.X, yupN0.Y, yupN0.Z,
+                skinning != null));
+        }
 
         if (_logBoneDeltas)
         {

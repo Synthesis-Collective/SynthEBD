@@ -9,7 +9,9 @@ namespace SynthEBD;
 /// </summary>
 public class OrbitCamera
 {
-    /// <summary>Horizontal angle in degrees. 180 = looking from front (-Z toward +Z, matching NIF character facing).</summary>
+    /// <summary>Horizontal angle in degrees. 180 = camera placed at -Z looking toward
+    /// +Z, which shows the character's front (the character is oriented to face -Z_world
+    /// after the NIF Z-up to Y-up R_X(-90) conversion).</summary>
     public float Azimuth { get; set; } = 180f;
 
     /// <summary>Vertical angle in degrees. 0 = horizontal, positive = looking down.</summary>

@@ -14,6 +14,10 @@ out vec2 TexCoords;
 out vec4 vertexColor;
 out mat3 v_tangentToViewMatrix;
 out mat3 v_modelToViewNormalMatrix;
+// TEMP DEBUG: world-space normal (post model transform, pre view transform)
+// used by DEBUG_VIZ_WORLD_NORMAL in the fragment shader. Safe to remove once
+// the 90-degree lighting offset is diagnosed.
+out vec3 v_worldNormal;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -39,6 +43,9 @@ void main()
     vec3 B_viewSpace = normalize(normalMatrix_modelToView * aBitangent);
     vec3 N_viewSpace = normalize(normalMatrix_modelToView * aNormal);
     v_tangentToViewMatrix = mat3(T_viewSpace, B_viewSpace, N_viewSpace);
+
+    // TEMP DEBUG: world-space normal for DEBUG_VIZ_WORLD_NORMAL visualization.
+    v_worldNormal = normalize(normalMatrix_modelToWorld * aNormal);
 
     TexCoords = aTexCoords * u_uvScale + u_uvOffset;
     vertexColor = aColor;

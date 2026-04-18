@@ -556,8 +556,12 @@ public class GlRenderer : IDisposable
 
     /// <summary>Converts azimuth/elevation (degrees) to the surface-to-light vector
     /// convention used by the shader (NdotL = dot(normal, direction)). The character
-    /// faces world +Z, so az=180° must produce a +Z direction to put the light in
-    /// front of the character — hence the negated Z term.</summary>
+    /// faces world -Z (NIF +Y_nif mapped through R_X(-90) to -Z_yup), and the orbit
+    /// camera at az=180 places the eye at -Z (front of character). For the light
+    /// to share this convention - az=180 puts the light on the camera side (front)
+    /// - this formula must match OrbitCamera.GetViewMatrix's offset formula exactly
+    /// (no negated Z). A prior version negated the Z term on the mistaken assumption
+    /// that the character faced +Z, which put all az=180 lights behind the character.</summary>
     private static Vector3 DirectionFromAzEl(float azimuthDeg, float elevationDeg)
     {
         float az = MathHelper.DegreesToRadians(azimuthDeg);
@@ -565,7 +569,7 @@ public class GlRenderer : IDisposable
         return new Vector3(
             MathF.Cos(el) * MathF.Sin(az),
             MathF.Sin(el),
-            -MathF.Cos(el) * MathF.Cos(az));
+            MathF.Cos(el) * MathF.Cos(az));
     }
 
     public void Dispose()

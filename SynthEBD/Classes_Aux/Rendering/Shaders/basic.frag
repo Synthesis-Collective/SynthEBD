@@ -6,8 +6,43 @@ in vec2 TexCoords;
 in vec4 vertexColor;
 in mat3 v_tangentToViewMatrix;
 in mat3 v_modelToViewNormalMatrix;
+// TEMP DEBUG: world-space normal for DEBUG_VIZ_WORLD_NORMAL branch.
+in vec3 v_worldNormal;
 
 #define MAX_LIGHTS 5
+
+// TEMP DEBUG: when true, disables every view-dependent lighting term (specular,
+// env reflection, hair backlight, skin rim) and the soft-wrap lighting so the
+// remaining pure clamped NdotL diffuse term unambiguously shows which side of
+// the mesh each directional light illuminates. Flip to false to restore normal
+// shading. Dead branches are eliminated by the GLSL compiler since the value is
+// a const, so there's no runtime cost.
+const bool DEBUG_DIFFUSE_ONLY = false;
+
+// TEMP DEBUG: when true, ignores all lighting and outputs the mesh's world-space
+// normal as RGB color (normal * 0.5 + 0.5). Used to diagnose a 90-degree offset
+// between the light arrow and the lit face of the mesh. Expected colors if the
+// mesh is correctly converted to Y-up world space:
+//   chest (faces -Z)          -> yellowish  (0.5, 0.5, 0.0)
+//   back  (faces +Z)          -> blue-cyan  (0.5, 0.5, 1.0)
+//   head top (faces +Y)       -> bright green (0.5, 1.0, 0.5)
+//   feet soles (faces -Y)     -> purple     (0.5, 0.0, 0.5)
+//   right side (faces +X)     -> pink-red   (1.0, 0.5, 0.5)
+//   left side  (faces -X)     -> teal       (0.0, 0.5, 0.5)
+// If the chest appears purple or the feet appear yellow, normals are rotated
+// R_X(+90) extra (i.e. still in NIF Z-up space instead of Y-up). Set to false
+// to restore normal shading.
+const bool DEBUG_VIZ_WORLD_NORMAL = false;
+
+// TEMP DEBUG: when true, outputs the MSN-texture-sampled normal (AFTER the DX
+// G-flip and Z-up->Y-up swizzle) transformed back to world space as an RGB
+// color. For MSN meshes (is_model_space=true) with a correctly-swizzled MSN
+// path, this should show the same colors as DEBUG_VIZ_WORLD_NORMAL does on
+// non-MSN meshes (chest=yellow, head top=green, etc.). For non-MSN meshes this
+// branch just falls back to the vertex normal. Used to isolate whether the MSN
+// swizzle in the fragment shader or the vertex-normal pipeline is the source
+// of the 90-degree lighting offset.
+const bool DEBUG_VIZ_MSN_NORMAL = false;
 
 struct Light {
     int type; // 0:disabled, 1:ambient, 2:directional
@@ -94,6 +129,38 @@ vec3 overlayBlend(vec3 b, vec3 l)
 
 void main()
 {
+    // TEMP DEBUG: short-circuit to visualize world-space mesh normals as color.
+    if (DEBUG_VIZ_WORLD_NORMAL) {
+        vec3 n = normalize(v_worldNormal);
+        FragColor = vec4(n * 0.5 + 0.5, 1.0);
+        return;
+    }
+
+    // TEMP DEBUG: short-circuit to visualize the MSN-sampled normal (post
+    // G-flip, post current swizzle) as color, treated as if it were already
+    // in Y-up world space (valid since u_model is identity). For MSN meshes
+    // this should produce the same colors as DEBUG_VIZ_WORLD_NORMAL IF the
+    // current swizzle on line 178 is correct. If colors are rotated 90deg
+    // (e.g. chest green instead of yellow), the swizzle is wrong and the
+    // MSN texture is stored in Y-up, not NIF Z-up. Non-MSN meshes fall
+    // back to the vertex normal so the viewport stays visually coherent.
+    if (DEBUG_VIZ_MSN_NORMAL) {
+        vec3 n;
+        if (is_model_space && has_normal_map && u_enableNormal) {
+            vec3 normal_modelSpace = texture(texture_normal, TexCoords).rgb * 2.0 - 1.0;
+            // FIXED: Bethesda MSN is stored in Y-up local model space (character
+            // faces +Z_local), not NIF Z-up with DX Y-flip. Our viewer uses
+            // Y-up world space with character facing -Z_world, so flip Z.
+            // No DX G-flip for MSN.
+            normal_modelSpace = vec3(normal_modelSpace.x, normal_modelSpace.y, -normal_modelSpace.z);
+            n = normalize(normal_modelSpace);
+        } else {
+            n = normalize(v_worldNormal);
+        }
+        FragColor = vec4(n * 0.5 + 0.5, 1.0);
+        return;
+    }
+
     // --- 1. BASE COLOR & ALPHA TEST ---
     vec4 baseColor;
     if (u_enableDiffuse) {
@@ -137,13 +204,15 @@ void main()
     if (has_normal_map && u_enableNormal) {
         if (is_model_space) {
             vec3 normal_modelSpace = texture(texture_normal, TexCoords).rgb * 2.0 - 1.0;
-            normal_modelSpace.g *= -1.0; // DirectX convention
-            // MSN textures store normals in the NIF's native Z-up model space.
-            // SynthEBD pre-converts all vertex data to Y-up on the CPU, so
-            // v_modelToViewNormalMatrix expects Y-up input. Swizzle the
-            // sampled normal from NIF Z-up to Y-up using the same mapping
-            // the mesh builder applies to positions: (x, y, z)_nif -> (x, z, -y)_yUp.
-            normal_modelSpace = vec3(normal_modelSpace.x, normal_modelSpace.z, -normal_modelSpace.y);
+            // Bethesda MSN textures are stored in Y-up local model space with
+            // the character's forward direction as +Z_local. Our viewer uses
+            // Y-up world space with character facing -Z_world, so flip Z to
+            // align. Unlike tangent-space normal maps, MSN does NOT use the
+            // DirectX G-flip convention because MSN is model-space not
+            // tangent-space. Empirical verification: raw texture sample at
+            // chest is (0.5, 0.5, 1.0) -> u = (0,0,1); after flipping Z we
+            // get (0,0,-1) which correctly faces the camera at Az=180.
+            normal_modelSpace = vec3(normal_modelSpace.x, normal_modelSpace.y, -normal_modelSpace.z);
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * normal_modelSpace);
         }
         else if (tbnIsValid) {
@@ -181,7 +250,9 @@ void main()
             // Diffuse
             float NdotL = dot(normal_viewSpace, lightDir);
             float diffuseStrength;
-            if (has_soft_lighting) {
+            if (DEBUG_DIFFUSE_ONLY) {
+                diffuseStrength = max(NdotL, 0.0);
+            } else if (has_soft_lighting) {
                 diffuseStrength = NdotL * 0.5 + 0.5; // wrap lighting
             } else {
                 diffuseStrength = max(NdotL, 0.0);
@@ -190,7 +261,7 @@ void main()
 
             // Specular (Blinn-Phong)
             vec3 specular = vec3(0.0);
-            if (has_specular && u_enableSpecular) {
+            if (!DEBUG_DIFFUSE_ONLY && has_specular && u_enableSpecular) {
                 float specMask = 1.0;
                 if (has_specular_map) {
                     specMask = texture(texture_specular, TexCoords).r;
@@ -202,19 +273,20 @@ void main()
 
             // Backlight / rimlight (hair)
             vec3 backlight = vec3(0.0);
-            if (has_hair_soft_lighting) {
+            if (!DEBUG_DIFFUSE_ONLY && has_hair_soft_lighting) {
                 float rim = pow(1.0 - max(dot(viewDir, normal_viewSpace), 0.0), rimlightPower);
                 backlight = rim * u_backlightColor * lightColor * diffuseStrength * baseColor.rgb;
             }
 
             // Rim lighting (non-hair, e.g. skin translucency)
             vec3 rimlight = vec3(0.0);
-            if (has_rim_lighting) {
+            if (!DEBUG_DIFFUSE_ONLY && has_rim_lighting) {
                 float rim = pow(1.0 - max(dot(viewDir, normal_viewSpace), 0.0), rimlightPower);
                 rimlight = rim * lightColor * baseColor.rgb;
             }
 
-            // Subsurface scattering (skin)
+            // Subsurface scattering (skin) -- NdotL-based so it tracks the
+            // diffuse term, safe to keep on in debug mode.
             vec3 subsurface = vec3(0.0);
             if (has_skin_map && u_enableSkin) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
@@ -228,7 +300,8 @@ void main()
     }
 
     // --- 4. ENVIRONMENT MAPPING (spherical 2D) ---
-    if (has_environment_map && u_enableEnvMap) {
+    // TEMP DEBUG: disabled so reflections don't disguise the unlit side.
+    if (!DEBUG_DIFFUSE_ONLY && has_environment_map && u_enableEnvMap) {
         vec3 viewDir = normalize(-v_viewSpacePos);
         vec3 reflectDir = reflect(-viewDir, normal_viewSpace);
         // Spherical environment mapping: convert reflection vector to 2D UV
