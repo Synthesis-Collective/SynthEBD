@@ -91,6 +91,15 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
+        // Step 0: Absolute-path passthrough. The Headparts preview flow supplies a
+        // rooted path to a temp FaceGen NIF generated outside the game Data folder;
+        // returning it as-is lets the viewer consume it without needing the file to
+        // live under Data or to be prefixed with DataFolderPath.
+        if (Path.IsPathRooted(relativeGamePath) && File.Exists(relativeGamePath))
+        {
+            return new AssetSource(AssetOriginKind.Loose, relativeGamePath, relativeGamePath, relativeGamePath, null, null);
+        }
+
         // Normalize separators
         string normalized = relativeGamePath.Replace('/', Path.DirectorySeparatorChar);
 

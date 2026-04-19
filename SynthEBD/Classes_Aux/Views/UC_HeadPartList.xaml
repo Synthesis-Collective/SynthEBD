@@ -11,6 +11,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*" MinWidth="400"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -31,7 +32,7 @@
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
         -->
 
-        <Expander Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Header="Common Distribution Rules">
+        <Expander Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Header="Common Distribution Rules">
             <local:UC_HeadPartCategoryRules DataContext="{Binding TypeRuleSet}"/>
         </Expander>
 
@@ -39,6 +40,7 @@
             <TextBlock Text="Display Gender: " VerticalAlignment="Center" />
             <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DisplayGender}}}" SelectedValue="{Binding Path=GenderToggle, Mode=TwoWay}" IsSynchronizedWithCurrentItem="True"/>
             <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="3 0 0 0"/>
+            <CheckBox Content="See Original" IsChecked="{Binding ShowOriginal}" VerticalAlignment="Center" Margin="15 0 0 0"/>
         </StackPanel>
         
         <ScrollViewer Grid.Row="2" Grid.Column="0">
@@ -85,5 +87,9 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
+
+        <local:UC_CharacterViewer Grid.Row="2" Grid.Column="2" Grid.RowSpan="4"
+                                  DataContext="{Binding CharacterViewer}"
+                                  MinHeight="400" Margin="5 0 0 0"/>
     </Grid>
 </UserControl>

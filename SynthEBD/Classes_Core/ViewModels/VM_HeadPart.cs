@@ -189,6 +189,32 @@ namespace SynthEBD
             };
         }
 
+        /// <summary>
+        /// Expands the head part's race filters into a concrete set of allowed race FormKeys:
+        /// (AllowedRaces ∪ expand(AllowedRaceGroupings)) \ (DisallowedRaces ∪ expand(DisallowedRaceGroupings)).
+        /// Used by the Headparts preview flow to pick a race-appropriate preview NPC.
+        /// Returns an empty set when unconstrained (caller falls back to DefaultNpcs).
+        /// </summary>
+        public HashSet<FormKey> GetEffectiveAllowedRaces(List<RaceGrouping> raceGroupings)
+        {
+            var allowedGroupingLabels = AllowedRaceGroupings.RaceGroupingSelections
+                .Where(x => x.IsSelected)
+                .Select(x => x.SubscribedMasterRaceGrouping.Label)
+                .ToHashSet();
+            var disallowedGroupingLabels = DisallowedRaceGroupings.RaceGroupingSelections
+                .Where(x => x.IsSelected)
+                .Select(x => x.SubscribedMasterRaceGrouping.Label)
+                .ToHashSet();
+
+            var allowed = RaceGrouping.MergeRaceAndGroupingList(
+                allowedGroupingLabels, raceGroupings, AllowedRaces.ToHashSet());
+            var disallowed = RaceGrouping.MergeRaceAndGroupingList(
+                disallowedGroupingLabels, raceGroupings, DisallowedRaces.ToHashSet());
+
+            allowed.ExceptWith(disallowed);
+            return allowed;
+        }
+
         public void RefreshBodyGenDescriptorsMale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             DescriptorMatchMode allowedMode = DescriptorMatchMode.All;

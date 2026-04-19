@@ -846,7 +846,7 @@ public class VM_CharacterViewer : VM
     //  LOADING — Full NPC
     // ═══════════════════════════════════════════════════════════════════════
 
-    public async Task LoadNpcAsync(FormKey npcFormKey, ILinkCache linkCache)
+    public async Task LoadNpcAsync(FormKey npcFormKey, ILinkCache linkCache, string? overrideHeadMeshAbsolutePath = null)
     {
         _loadCts?.Cancel();
         var cts = new CancellationTokenSource();
@@ -912,6 +912,12 @@ public class VM_CharacterViewer : VM
                 // calls would be queued forever.
                 if (_loadCts == cts) _sceneRebuildPending = false;
                 return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(overrideHeadMeshAbsolutePath))
+            {
+                meshPaths = meshPaths.WithHeadMeshPath(overrideHeadMeshAbsolutePath);
+                _logger.LogMessage("CharacterViewer: head mesh path overridden -> " + overrideHeadMeshAbsolutePath);
             }
 
             _cachedMeshPaths = meshPaths;

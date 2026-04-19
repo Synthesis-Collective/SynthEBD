@@ -1,4 +1,5 @@
 using DynamicData.Binding;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using System;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static SynthEBD.VM_NPCAttribute;
 using Noggog;
@@ -26,17 +28,28 @@ namespace SynthEBD
         private readonly VM_HeadPart.Factory _headPartFactory;
         private readonly VM_HeadPartCategoryRules.Factory _headPartCategoryRulesFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
-        public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-        public VM_HeadPartList(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, 
-            VM_Settings_Headparts headPartMenuVM, 
-            VM_SettingsOBody oBodyMenuVM, 
+        private readonly FaceGenPreviewService _faceGenPreviewService;
+        private readonly VM_NifPreviewNpcSettings _nifPreviewNpcSettings;
+        private readonly PatcherState _patcherState;
+
+        private CancellationTokenSource? _previewCts;
+
+        public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, HeadPart.TypeEnum type);
+        public VM_HeadPartList(ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
+            HeadPart.TypeEnum type,
+            VM_Settings_Headparts headPartMenuVM,
+            VM_SettingsOBody oBodyMenuVM,
             VM_NPCAttributeCreator attributeCreator,
             IEnvironmentStateProvider environmentProvider,
-            Logger logger, 
+            Logger logger,
             VM_HeadPartPlaceHolder.Factory placeHolderFactory,
-            VM_HeadPart.Factory headPartFactory, 
-            VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory, 
-            VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+            VM_HeadPart.Factory headPartFactory,
+            VM_HeadPartCategoryRules.Factory headPartCategoryRulesFactory,
+            VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
+            VM_CharacterViewer characterViewer,
+            FaceGenPreviewService faceGenPreviewService,
+            VM_NifPreviewNpcSettings nifPreviewNpcSettings,
+            PatcherState patcherState)
         {
             _environmentProvider = environmentProvider;
             _logger = logger;
@@ -47,6 +60,12 @@ namespace SynthEBD
             _headPartFactory = headPartFactory;
             _headPartCategoryRulesFactory = headPartCategoryRulesFactory;
             _descriptorSelectionFactory = descriptorSelectionFactory;
+            _faceGenPreviewService = faceGenPreviewService;
+            _nifPreviewNpcSettings = nifPreviewNpcSettings;
+            _patcherState = patcherState;
+
+            Type = type;
+            CharacterViewer = characterViewer;
 
             TypeRuleSet = _headPartCategoryRulesFactory(raceGroupingVMs);
 
@@ -71,9 +90,19 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList()).DisposeWith(this);
             HeadPartList.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateList()).DisposeWith(this);
 
+            // Preview: react to selection changes and "See Original" toggle, throttled so
+            // rapid clicks only trigger the final selection's preview generation.
+            Observable.Merge(
+                    this.WhenAnyValue(x => x.SelectedPlaceHolder).Select(_ => Unit.Default),
+                    this.WhenAnyValue(x => x.ShowOriginal).Select(_ => Unit.Default))
+                .Throttle(TimeSpan.FromMilliseconds(250), RxApp.TaskpoolScheduler)
+                .ObserveOn(RxApp.MainThreadScheduler)
+                .Subscribe(_ => { var t = RefreshPreviewAsync(); })
+                .DisposeWith(this);
+
             DeleteAll = new RelayCommand(
                 canExecute: _ => true,
-                execute: _ => { 
+                execute: _ => {
                     if (MessageWindow.DisplayNotificationYesNo("Batch Deletion", "Are you sure you want to delete all headparts in this list?"))
                     {
                         foreach (var hp in DisplayedList.ToArray())
@@ -94,9 +123,12 @@ namespace SynthEBD
         public VM_HeadPartPlaceHolder SelectedPlaceHolder { get; set; }
         public VM_HeadPart DisplayedHeadPart { get; set; }
         public VM_HeadPartCategoryRules TypeRuleSet { get; set; }
-        public DisplayGender GenderToggle { get; set; } = DisplayGender.Both; 
+        public DisplayGender GenderToggle { get; set; } = DisplayGender.Both;
         public VM_Alphabetizer<VM_HeadPartPlaceHolder, string> Alphabetizer { get; set; }
         public RelayCommand DeleteAll { get; }
+        public HeadPart.TypeEnum Type { get; }
+        public VM_CharacterViewer CharacterViewer { get; }
+        public bool ShowOriginal { get; set; } = false;
 
         public void UpdateList()
         {
@@ -130,6 +162,88 @@ namespace SynthEBD
             }
 
             model.HeadParts = HeadPartList.Select(x => x.AssociatedModel).ToList();
+        }
+
+        private async Task RefreshPreviewAsync()
+        {
+            _previewCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _previewCts = cts;
+            var ct = cts.Token;
+
+            var selected = SelectedPlaceHolder;
+            var displayed = DisplayedHeadPart;
+            if (selected == null || displayed == null)
+            {
+                CharacterViewer.ClearScene();
+                return;
+            }
+
+            var lk = _environmentProvider.LinkCache;
+            if (lk == null) return;
+
+            Gender gender = ResolveGenderForHeadPart(displayed);
+            FormKey previewNpc = ResolvePreviewNpc(displayed, gender);
+
+            if (previewNpc.IsNull)
+            {
+                _logger.LogMessage("HeadPart preview: no preview NPC available for " + displayed.FormKey + " (gender=" + gender + ")");
+                return;
+            }
+
+            try
+            {
+                if (ShowOriginal)
+                {
+                    await CharacterViewer.LoadNpcAsync(previewNpc, lk);
+                }
+                else
+                {
+                    var headPartFormKey = selected.AssociatedModel.HeadPartFormKey;
+                    if (headPartFormKey.IsNull)
+                    {
+                        await CharacterViewer.LoadNpcAsync(previewNpc, lk);
+                        return;
+                    }
+
+                    string? nifPath = await _faceGenPreviewService.GeneratePreviewFaceGenAsync(
+                        previewNpc, Type, headPartFormKey, ct);
+
+                    if (ct.IsCancellationRequested) return;
+
+                    await CharacterViewer.LoadNpcAsync(previewNpc, lk, overrideHeadMeshAbsolutePath: nifPath);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // expected when a newer selection superseded this one
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("HeadPart preview failed: " + ex.Message);
+            }
+        }
+
+        private Gender ResolveGenderForHeadPart(VM_HeadPart hp)
+        {
+            if (hp.bAllowFemale && !hp.bAllowMale) return Gender.Female;
+            if (hp.bAllowMale && !hp.bAllowFemale) return Gender.Male;
+            if (GenderToggle == DisplayGender.Male) return Gender.Male;
+            return Gender.Female;
+        }
+
+        private FormKey ResolvePreviewNpc(VM_HeadPart hp, Gender gender)
+        {
+            var effectiveRaces = hp.GetEffectiveAllowedRaces(_patcherState.GeneralSettings.RaceGroupings);
+            foreach (var race in effectiveRaces)
+            {
+                var candidate = _nifPreviewNpcSettings.ResolveNpc(race, gender);
+                if (!candidate.IsNull) return candidate;
+            }
+
+            return gender == Gender.Female
+                ? _nifPreviewNpcSettings.DefaultRow.FemaleNpc
+                : _nifPreviewNpcSettings.DefaultRow.MaleNpc;
         }
     }
 

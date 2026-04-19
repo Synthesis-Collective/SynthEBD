@@ -66,6 +66,28 @@ public class NpcMeshResolver
         /// Null if the NPC has no TextureLighting set.
         /// </summary>
         public (float R, float G, float B)? TextureLightingColor { get; init; }
+
+        /// <summary>
+        /// Returns a copy of this NpcMeshPaths with <see cref="HeadMeshPath"/> replaced.
+        /// Used by the Headparts preview flow to point the viewer at a temp FaceGen NIF
+        /// generated with a single head-part swap applied.
+        /// </summary>
+        public NpcMeshPaths WithHeadMeshPath(string? headMeshPath)
+        {
+            return new NpcMeshPaths
+            {
+                BodyMeshPath = this.BodyMeshPath,
+                HandsMeshPath = this.HandsMeshPath,
+                FeetMeshPath = this.FeetMeshPath,
+                HeadMeshPath = headMeshPath,
+                Gender = this.Gender,
+                SkeletonPath = this.SkeletonPath,
+                ResolutionChains = this.ResolutionChains,
+                TxstTextures = this.TxstTextures,
+                FaceTintPath = this.FaceTintPath,
+                TextureLightingColor = this.TextureLightingColor,
+            };
+        }
     }
 
     /// <summary>

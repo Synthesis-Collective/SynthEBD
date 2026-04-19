@@ -470,7 +470,8 @@ public class FaceGenPatcher
         NPCInfo npcInfo,
         List<Patcher.SelectedAssetContainer> assetContainers,
         Dictionary<HeadPart.TypeEnum, FormKey> headPartAssignments,
-        FormKey? outputFormKey = null)
+        FormKey? outputFormKey = null,
+        string? previewOutputRoot = null)
     {
         using (ProfileBlock(nameof(PatchFaceGenNif)))
         {
@@ -550,16 +551,21 @@ public class FaceGenPatcher
                 DebugLog(npcInfo, "FaceGen extracted from BSA: " + sourcePath);
             }
 
+            // When a previewOutputRoot is provided (Headparts preview flow), redirect
+            // writes to that temp folder instead of the user's real OutputDataFolder.
+            // Leaves BSA cache location + temp extraction roots untouched.
+            string outputRoot = previewOutputRoot ?? _paths.OutputDataFolder;
+
             string outputPath;
             if (outputFormKey.HasValue && !outputFormKey.Value.IsNull)
             {
                 // SkyPatcher mode: output nif goes to the surrogate NPC's path
-                outputPath = ResolveFaceGenNifPathForFormKey(outputFormKey.Value, _paths.OutputDataFolder);
+                outputPath = ResolveFaceGenNifPathForFormKey(outputFormKey.Value, outputRoot);
             }
             else
             {
                 // Direct mode: output nif goes to the original NPC's path
-                outputPath = ResolveFaceGenNifPath(npcInfo, _paths.OutputDataFolder);
+                outputPath = ResolveFaceGenNifPath(npcInfo, outputRoot);
             }
 
             DebugLog(npcInfo, "FaceGen output path: " + outputPath +

@@ -122,13 +122,13 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     {
         Types = new()
         {
-            { HeadPart.TypeEnum.Eyebrows, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.Eyes, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.Face, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.FacialHair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.Hair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.Misc, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) },
-            { HeadPart.TypeEnum.Scars, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings) }
+            { HeadPart.TypeEnum.Eyebrows, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Eyebrows) },
+            { HeadPart.TypeEnum.Eyes, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Eyes) },
+            { HeadPart.TypeEnum.Face, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Face) },
+            { HeadPart.TypeEnum.FacialHair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.FacialHair) },
+            { HeadPart.TypeEnum.Hair, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Hair) },
+            { HeadPart.TypeEnum.Misc, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Misc) },
+            { HeadPart.TypeEnum.Scars, _listFactory(_generalSettingsVM.RaceGroupingEditor.RaceGroupings, HeadPart.TypeEnum.Scars) }
         };
     }
 
