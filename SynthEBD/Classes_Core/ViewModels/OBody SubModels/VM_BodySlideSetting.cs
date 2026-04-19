@@ -160,6 +160,13 @@ public class VM_BodySlideSetting : VM
             .Throttle(TimeSpan.FromMilliseconds(150), RxApp.MainThreadScheduler)
             .Subscribe(_ => RefreshPreview(SelectedWeightSlot))
             .DisposeWith(this);
+
+        // Re-fire preview when the user picks a different NPC override.
+        this.WhenAnyValue(x => x.PreviewNpcOverride)
+            .Skip(1)
+            .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshPreview(SelectedWeightSlot))
+            .DisposeWith(this);
     }
 
     /// <summary>
@@ -176,11 +183,18 @@ public class VM_BodySlideSetting : VM
         try
         {
             var gender = ResolveGender();
-            var preview = _patcherState?.OBodySettings?.PreviewNpcs;
             FormKey npc = FormKey.Null;
-            if (preview != null && preview.WeightPreviewNpcs.TryGetValue(slot.Weight, out var pair) && pair != null)
+            if (!PreviewNpcOverride.IsNull)
             {
-                npc = gender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+                npc = PreviewNpcOverride;
+            }
+            else
+            {
+                var preview = _patcherState?.OBodySettings?.PreviewNpcs;
+                if (preview != null && preview.WeightPreviewNpcs.TryGetValue(slot.Weight, out var pair) && pair != null)
+                {
+                    npc = gender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+                }
             }
 
             if (npc.IsNull)
@@ -258,7 +272,9 @@ public class VM_BodySlideSetting : VM
     /// viewer UI has no NPC picker or mesh-override column in this mode (Section B4).
     /// </summary>
     public VM_CharacterViewer CharacterViewer { get; }
+    public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
     public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
+    public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
     public RelayCommand ToggleLock { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }

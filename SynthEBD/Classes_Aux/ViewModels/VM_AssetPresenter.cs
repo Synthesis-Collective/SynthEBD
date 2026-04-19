@@ -60,14 +60,15 @@ namespace SynthEBD
                 {
                     AccumulatedOverrides.Clear();
                     PreviewNpcOverride = FormKey.Null;
+                    _lastLoadedNpc = FormKey.Null;
                 })
                 .DisposeWith(this);
 
-            // Live re-fire when the user picks a different preview NPC.
-            this.WhenAnyValue(x => x.PreviewNpcOverride)
+            // Live re-fire when the user picks a different preview NPC or toggles the lock.
+            this.WhenAnyValue(x => x.PreviewNpcOverride, x => x.LockPreviewNpc)
                 .Skip(1) // skip initial default
                 .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)
-                .Subscribe(fk =>
+                .Subscribe(tuple =>
                 {
                     if (ParentUI.PreviewMode == PreviewMode.Render)
                     {
@@ -107,6 +108,8 @@ namespace SynthEBD
 
         public VM_CharacterViewer CharacterViewer { get; }
         public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
+        public bool LockPreviewNpc { get; set; } = false;
+        private FormKey _lastLoadedNpc = FormKey.Null;
         public Dictionary<(string bodyPart, int slot), FilePathReplacement> AccumulatedOverrides { get; } = new();
 
         public ILinkCache lk { get; private set; }
@@ -148,9 +151,21 @@ namespace SynthEBD
                 var effectiveRaces = _textureMapper.ResolveEffectiveRaces(selected, groupings);
                 var gender = SubgroupTextureMapper.DetermineGenderFromDestinations(selected.AssociatedModel.Paths);
 
-                FormKey npc = PreviewNpcOverride.IsNull
-                    ? _generalSettings.PreviewNpcs.ResolveNpc(effectiveRaces.FirstOrDefault(), gender)
-                    : PreviewNpcOverride;
+                FormKey npc;
+                if (!PreviewNpcOverride.IsNull)
+                {
+                    npc = PreviewNpcOverride;
+                    _lastLoadedNpc = npc;
+                }
+                else if (LockPreviewNpc && !_lastLoadedNpc.IsNull)
+                {
+                    npc = _lastLoadedNpc;
+                }
+                else
+                {
+                    npc = _generalSettings.PreviewNpcs.ResolveNpc(effectiveRaces.FirstOrDefault(), gender);
+                    _lastLoadedNpc = npc;
+                }
 
                 if (npc.IsNull)
                 {

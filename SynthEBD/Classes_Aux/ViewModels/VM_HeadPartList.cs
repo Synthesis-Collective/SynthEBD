@@ -1,5 +1,6 @@
 using DynamicData.Binding;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using System;
@@ -90,11 +91,17 @@ namespace SynthEBD
             this.WhenAnyValue(x => x.GenderToggle).Subscribe(x => UpdateList()).DisposeWith(this);
             HeadPartList.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateList()).DisposeWith(this);
 
-            // Preview: react to selection changes and "See Original" toggle, throttled so
-            // rapid clicks only trigger the final selection's preview generation.
+            _environmentProvider.WhenAnyValue(x => x.LinkCache)
+                .Subscribe(x => lk = x)
+                .DisposeWith(this);
+
+            // Preview: react to selection changes, "See Original" toggle, NPC override,
+            // and the lock toggle. Throttled so rapid changes only trigger the final state.
             Observable.Merge(
                     this.WhenAnyValue(x => x.SelectedPlaceHolder).Select(_ => Unit.Default),
-                    this.WhenAnyValue(x => x.ShowOriginal).Select(_ => Unit.Default))
+                    this.WhenAnyValue(x => x.ShowOriginal).Select(_ => Unit.Default),
+                    this.WhenAnyValue(x => x.PreviewNpcOverride).Select(_ => Unit.Default),
+                    this.WhenAnyValue(x => x.LockPreviewNpc).Select(_ => Unit.Default))
                 .Throttle(TimeSpan.FromMilliseconds(250), RxApp.TaskpoolScheduler)
                 .ObserveOn(RxApp.MainThreadScheduler)
                 .Subscribe(_ => { var t = RefreshPreviewAsync(); })
@@ -129,6 +136,11 @@ namespace SynthEBD
         public HeadPart.TypeEnum Type { get; }
         public VM_CharacterViewer CharacterViewer { get; }
         public bool ShowOriginal { get; set; } = false;
+        public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
+        public bool LockPreviewNpc { get; set; } = false;
+        public ILinkCache lk { get; private set; }
+        public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
+        private FormKey _lastLoadedNpc = FormKey.Null;
 
         public void UpdateList()
         {
@@ -179,11 +191,25 @@ namespace SynthEBD
                 return;
             }
 
-            var lk = _environmentProvider.LinkCache;
-            if (lk == null) return;
+            var linkCache = _environmentProvider.LinkCache;
+            if (linkCache == null) return;
 
             Gender gender = ResolveGenderForHeadPart(displayed);
-            FormKey previewNpc = ResolvePreviewNpc(displayed, gender);
+            FormKey previewNpc;
+            if (!PreviewNpcOverride.IsNull)
+            {
+                previewNpc = PreviewNpcOverride;
+                _lastLoadedNpc = previewNpc;
+            }
+            else if (LockPreviewNpc && !_lastLoadedNpc.IsNull)
+            {
+                previewNpc = _lastLoadedNpc;
+            }
+            else
+            {
+                previewNpc = ResolvePreviewNpc(displayed, gender);
+                _lastLoadedNpc = previewNpc;
+            }
 
             if (previewNpc.IsNull)
             {

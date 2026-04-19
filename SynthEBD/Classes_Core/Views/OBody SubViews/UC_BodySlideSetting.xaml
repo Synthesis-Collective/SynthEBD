@@ -33,8 +33,22 @@
                           ShowsPreview="True"
                           ToolTip="Drag to resize the preview viewer"/>
 
-            <local:UC_CharacterViewer Grid.Column="2" DataContext="{Binding CharacterViewer}"
-                                      MinHeight="400" Margin="5 0 0 0"/>
+            <Grid Grid.Column="2" Margin="5 0 0 0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="auto"/>
+                </Grid.RowDefinitions>
+                <local:UC_CharacterViewer Grid.Row="0" DataContext="{Binding CharacterViewer}"
+                                          MinHeight="400"/>
+                <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 4">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock Text="Preview NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"
+                                               ToolTip="Override the preview NPC. Leave blank to use the weight-based default configured in OBody preview settings."
+                                               ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                    </DockPanel>
+                </Border>
+            </Grid>
 
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
             <Grid>
