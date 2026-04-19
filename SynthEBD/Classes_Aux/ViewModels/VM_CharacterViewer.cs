@@ -1417,6 +1417,71 @@ public class VM_CharacterViewer : VM
         _cachedBodyTri = null;
     }
 
+    private bool _disposed;
+
+    /// <summary>
+    /// Releases GL resources (shaders, VBO/VAO, loaded textures), cancels any in-flight
+    /// NPC-load async work, and drops scene caches. Called when the owning parent VM
+    /// (e.g. VM_BodyGenTemplateMenu, VM_BodySlideSetting) is itself disposed — which
+    /// in turn happens when its grandparent (e.g. a BodyGen config being swapped) is
+    /// torn down.
+    ///
+    /// GL delete calls must ideally run while the GL context is current. When the
+    /// owning UserControl has already been unloaded, the context may no longer be
+    /// current on this thread; in that case GL.DeleteBuffer / DeleteTexture on most
+    /// drivers are silent no-ops (the resources are reclaimed when the context itself
+    /// is destroyed). We wrap in try/catch so a stray driver throw doesn't propagate
+    /// out of the dispose chain and bring down the settings load.
+    /// </summary>
+    public override void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        // Cancel any in-flight NPC load so its continuation doesn't race with
+        // the scene being torn down.
+        try
+        {
+            _loadCts?.Cancel();
+            _loadCts?.Dispose();
+        }
+        catch { /* best-effort */ }
+        _loadCts = null;
+
+        // Drop every scene-level cache; _pending* holders would otherwise pin
+        // BuiltMesh data (with its vertex/index buffers) until GC.
+        _pendingScene = null;
+        _pendingTextureOverrides = null;
+        _pendingBodySlide = null;
+        _meshesByBodyPart.Clear();
+        _builtMeshesByBodyPart.Clear();
+        _cachedBodyMeshes.Clear();
+        _textureApplyInfoByMesh.Clear();
+        _cachedOsdFiles = null;
+        _cachedBodyNifDiskPath = null;
+        _cachedBodyTri = null;
+        _cachedMeshPaths = null;
+
+        try
+        {
+            if (IsGlInitialized)
+            {
+                TextureManager?.Dispose();
+                TextureManager = null;
+                Renderer.Dispose();
+                IsGlInitialized = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("VM_CharacterViewer.Dispose: GL cleanup threw: "
+                + ExceptionLogger.GetExceptionStack(ex));
+        }
+
+        // Tears down reactive subscriptions added via DisposeWith(this).
+        base.Dispose();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════

@@ -29,10 +29,13 @@ public class VM_BodyGenTemplateMenu : VM
 
         // Shared single viewer instance owned by the menu VM (one per BodyGen config).
         // Putting the viewer on VM_BodyGenTemplate would leak GL resources per template
-        // click because VM_BodyGenTemplate is rebuilt on every SelectedPlaceHolder change
-        // and VM_CharacterViewer does not implement IDisposable.
+        // click because VM_BodyGenTemplate is rebuilt on every SelectedPlaceHolder change.
+        // DisposeWith(this) cascades: when the parent VM_BodyGenConfig is disposed (e.g.
+        // on settings reload), it disposes this menu, which disposes the viewer, which
+        // releases GL buffers/textures and cancels any in-flight NPC load.
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
+        CharacterViewer.DisposeWith(this);
 
         AddTemplate = new RelayCommand(
             canExecute: _ => true,

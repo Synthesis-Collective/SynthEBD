@@ -129,6 +129,12 @@ public class VM_SettingsBodyGen : VM
         PreviewSliderGroupMale = model.PreviewSliderGroupMale ?? "";
         PreviewSliderGroupFemale = model.PreviewSliderGroupFemale ?? "";
 
+        // Explicitly dispose the outgoing configs before dropping them. Each
+        // VM_BodyGenConfig owns a VM_BodyGenTemplateMenu which owns a VM_CharacterViewer;
+        // without this, re-loading settings leaks the GL context and any in-flight NPC
+        // load from the previous session's configs.
+        foreach (var config in FemaleConfigs) config.Dispose();
+        foreach (var config in MaleConfigs) config.Dispose();
         FemaleConfigs.Clear();
         MaleConfigs.Clear();
 
