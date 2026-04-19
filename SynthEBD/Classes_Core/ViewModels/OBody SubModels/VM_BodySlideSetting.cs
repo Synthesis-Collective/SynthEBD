@@ -52,6 +52,7 @@ public class VM_BodySlideSetting : VM
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
+        CharacterViewer.DisposeWith(this);
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);

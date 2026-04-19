@@ -114,6 +114,27 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
 
+        // Dispose any viewer VMs attached to the existing placeholders before
+        // dropping them — otherwise the GL contexts/texture caches leak on reload.
+        // CurrentlyDisplayedBodySlide is always the same instance as some placeholder's
+        // AssociatedViewModel, so disposal happens transitively via the foreach.
+        foreach (var ph in BodySlidesUI.BodySlidesMale)
+        {
+            if (ph.AssociatedViewModel != null)
+            {
+                ph.AssociatedViewModel.Dispose();
+                ph.AssociatedViewModel = null;
+            }
+        }
+        foreach (var ph in BodySlidesUI.BodySlidesFemale)
+        {
+            if (ph.AssociatedViewModel != null)
+            {
+                ph.AssociatedViewModel.Dispose();
+                ph.AssociatedViewModel = null;
+            }
+        }
+        BodySlidesUI.CurrentlyDisplayedBodySlide = null;
         BodySlidesUI.BodySlidesMale.Clear();
         BodySlidesUI.BodySlidesFemale.Clear();
 

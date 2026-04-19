@@ -122,6 +122,10 @@ public class VM_BodySlidesMenu : VM
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpToModel();
+                 // Release the previous preset's VM_CharacterViewer (GL context + caches)
+                 // rather than orphaning it on the placeholder across selection churn.
+                 t.Previous.AssociatedViewModel.Dispose();
+                 t.Previous.AssociatedViewModel = null;
              }
 
              if (t.Current != null)

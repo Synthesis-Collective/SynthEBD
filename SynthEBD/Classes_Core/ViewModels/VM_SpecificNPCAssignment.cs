@@ -63,6 +63,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _headPartFactory = headPartFactory;
         _converters = converters;
         CharacterViewer = characterViewer;
+        CharacterViewer.DisposeWith(this);
 
         AssociatedPlaceHolder = associatedPlaceHolder;
         AssociatedPlaceHolder.AssociatedViewModel = this;

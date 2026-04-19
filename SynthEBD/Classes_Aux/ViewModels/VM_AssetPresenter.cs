@@ -38,6 +38,7 @@ namespace SynthEBD
 
             CharacterViewer = characterViewerFactory();
             CharacterViewer.Mode = ViewerMode.ReadOnly;
+            CharacterViewer.DisposeWith(this);
 
             _environmentProvider.WhenAnyValue(x => x.LinkCache)
                 .Subscribe(x => lk = x)

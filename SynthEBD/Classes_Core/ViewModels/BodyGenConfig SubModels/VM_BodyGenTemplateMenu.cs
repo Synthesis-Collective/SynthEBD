@@ -85,6 +85,11 @@ public class VM_BodyGenTemplateMenu : VM
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedViewModel.DumpViewModelToModel();
+                 // VM_BodyGenTemplate only forwards CharacterViewer from the menu VM,
+                 // but it still owns reactive subscriptions (Specs throttle, PreviewWeight)
+                 // that accumulate across selection churn if not released.
+                 t.Previous.AssociatedViewModel.Dispose();
+                 t.Previous.AssociatedViewModel = null;
              }
 
              if (t.Current != null)
@@ -92,7 +97,7 @@ public class VM_BodyGenTemplateMenu : VM
                  CurrentlyDisplayedTemplate = _bodyGenTemplateFactory(t.Current, parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, parentConfig);
                  CurrentlyDisplayedTemplate.CopyInViewModelFromModel(parentConfig.DescriptorUI, raceGroupingVMs);
              }
-         });
+         }).DisposeWith(this);
     }
     public ObservableCollection<VM_BodyGenTemplatePlaceHolder> Templates { get; set; } = new();
     public VM_BodyGenTemplatePlaceHolder SelectedPlaceHolder { get; set; }

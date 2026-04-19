@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Reactive.Linq;
@@ -54,6 +55,18 @@ public class VM_SpecificNPCAssignmentsUI : VM
         AddAssignment = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
+                // Dispose the outgoing assignment — its VM_CharacterViewer owns a GL
+                // context + texture caches that would otherwise leak on every new row.
+                if (CurrentlyDisplayedAssignment != null)
+                {
+                    CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedModel =
+                        CurrentlyDisplayedAssignment.DumpViewModelToModel();
+                    CurrentlyDisplayedAssignment.Dispose();
+                    if (CurrentlyDisplayedAssignment.AssociatedPlaceHolder != null)
+                    {
+                        CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel = null;
+                    }
+                }
                 var newPlaceHolder = _placeHolderFactory(new NPCAssignment(), Assignments);
                 Assignments.Add(newPlaceHolder);
                 CurrentlyDisplayedAssignment = specificNpcAssignmentFactory(newPlaceHolder);
@@ -161,6 +174,10 @@ public class VM_SpecificNPCAssignmentsUI : VM
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpViewModelToModel();
+                 // Release the previous assignment's VM_CharacterViewer (GL context + caches)
+                 // rather than orphaning it on the placeholder across selection churn.
+                 t.Previous.AssociatedViewModel.Dispose();
+                 t.Previous.AssociatedViewModel = null;
              }
 
              if (t.Current != null)
@@ -168,7 +185,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                  CurrentlyDisplayedAssignment = _specificNpcAssignmentFactory(t.Current);
                  CurrentlyDisplayedAssignment.CopyInFromModel(t.Current.AssociatedModel);
              }
-         });
+         }).DisposeWith(this);
     }
 
     public ObservableCollection<VM_SpecificNPCAssignmentPlaceHolder> Assignments { get; set; } = new();
@@ -200,6 +217,17 @@ public class VM_SpecificNPCAssignmentsUI : VM
         }
 
         _logger.LogStartupEventStart("Loading UI for Specific NPC Assignments Menu");
+        // Dispose any viewer VMs attached to existing placeholders before dropping
+        // them — otherwise VM_CharacterViewer GL contexts/texture caches leak on reload.
+        foreach (var ph in Assignments)
+        {
+            if (ph.AssociatedViewModel != null)
+            {
+                ph.AssociatedViewModel.Dispose();
+                ph.AssociatedViewModel = null;
+            }
+        }
+        CurrentlyDisplayedAssignment = null;
         Assignments.Clear();
         foreach (var assignment in models)
         {
