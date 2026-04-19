@@ -55,7 +55,23 @@ public class FaceGenPreviewService : IDisposable
         FormKey headPartOverride,
         CancellationToken ct)
     {
-        if (previewNpc.IsNull || headPartOverride.IsNull)
+        if (headPartOverride.IsNull) return null;
+        var assignments = new Dictionary<HeadPart.TypeEnum, FormKey> { { type, headPartOverride } };
+        return await GeneratePreviewFaceGenAsync(previewNpc, assignments, ct);
+    }
+
+    /// <summary>
+    /// Multi-type overload. Generates a preview FaceGen NIF for <paramref name="previewNpc"/>
+    /// with any number of head-part types overridden. Passes the assignments dictionary
+    /// directly to <see cref="FaceGenPatcher.PatchFaceGenNif"/>, which already supports
+    /// swapping multiple head parts in one pass.
+    /// </summary>
+    public async Task<string?> GeneratePreviewFaceGenAsync(
+        FormKey previewNpc,
+        Dictionary<HeadPart.TypeEnum, FormKey> assignments,
+        CancellationToken ct)
+    {
+        if (previewNpc.IsNull || assignments == null || assignments.Count == 0)
         {
             return null;
         }
@@ -84,7 +100,6 @@ public class FaceGenPreviewService : IDisposable
         var createdLinkGroupInfos = new HashSet<LinkedNPCGroupInfo>();
         var npcInfo = _npcInfoFactory(npcRecord, linkedGroupsHashSet, createdLinkGroupInfos);
 
-        var assignments = new Dictionary<HeadPart.TypeEnum, FormKey> { { type, headPartOverride } };
         var emptyAssetContainers = new List<Patcher.SelectedAssetContainer>();
 
         try

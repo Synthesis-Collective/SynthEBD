@@ -16,6 +16,49 @@ namespace SynthEBD;
 /// </summary>
 public static class BodyGenSpecsParser
 {
+    /// <summary>
+    /// Merges multiple template Specs strings into one virtual BodySlideSetting by summing
+    /// per-slider values across templates (matches BodyGen runtime behavior where multiple
+    /// templates stack additively on the same NPC).
+    /// </summary>
+    public static BodySlideSetting ParseAndMerge(IEnumerable<string> specsCollection, string sliderGroup, out List<string> errors)
+    {
+        errors = new List<string>();
+        var merged = new BodySlideSetting
+        {
+            Label = "BodyGen Preview (stacked)",
+            SliderGroup = sliderGroup ?? string.Empty,
+            SliderValues = new Dictionary<string, BodySlideSlider>()
+        };
+
+        if (specsCollection == null) return merged;
+
+        foreach (var specs in specsCollection)
+        {
+            var single = Parse(specs, sliderGroup, out var singleErrors);
+            errors.AddRange(singleErrors);
+            foreach (var kv in single.SliderValues)
+            {
+                if (merged.SliderValues.TryGetValue(kv.Key, out var existing))
+                {
+                    existing.Big += kv.Value.Big;
+                    existing.Small += kv.Value.Small;
+                }
+                else
+                {
+                    merged.SliderValues[kv.Key] = new BodySlideSlider
+                    {
+                        SliderName = kv.Value.SliderName,
+                        Big = kv.Value.Big,
+                        Small = kv.Value.Small
+                    };
+                }
+            }
+        }
+
+        return merged;
+    }
+
     public static BodySlideSetting Parse(string specs, string sliderGroup, out List<string> errors)
     {
         errors = new List<string>();

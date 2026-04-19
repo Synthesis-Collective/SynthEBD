@@ -12,6 +12,7 @@ using System.Windows;
 using System.Windows.Input;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using ReactiveUI;
 using MediaColor = System.Windows.Media.Color;
@@ -89,6 +90,7 @@ public class VM_CharacterViewer : VM
         bool IsFaceTint, string? FaceTintPath);
 
     private readonly VM_Settings_General _generalSettings;
+    private readonly FaceGenPreviewService _faceGenPreviewService;
 
     /// <summary>True when the GL context has been initialized.</summary>
     public bool IsGlInitialized { get; private set; }
@@ -117,6 +119,7 @@ public class VM_CharacterViewer : VM
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
         VM_Settings_General generalSettings,
+        FaceGenPreviewService faceGenPreviewService,
         Logger logger)
     {
         _meshBuilder = new NifMeshBuilder(logger);
@@ -128,6 +131,7 @@ public class VM_CharacterViewer : VM
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _generalSettings = generalSettings;
+        _faceGenPreviewService = faceGenPreviewService;
         _logger = logger;
 
         // Load persisted lighting state *before* XAML binds. If we defer this to
@@ -1399,6 +1403,79 @@ public class VM_CharacterViewer : VM
                 + (preset?.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
                 + ExceptionLogger.GetExceptionStack(ex));
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  BODYGEN OVERRIDES
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Applies a stack of BodyGen templates by parsing and summing their Specs into
+    /// a virtual BodySlideSetting, then routing through the existing ApplyBodySlide
+    /// path. Matches BodyGen runtime behavior where templates stack additively on
+    /// the same NPC.
+    /// </summary>
+    public void ApplyBodyGen(IEnumerable<BodyGenConfig.BodyGenTemplate> templates, string sliderGroup, int weight)
+    {
+        var list = templates?.Where(t => t != null).ToList() ?? new List<BodyGenConfig.BodyGenTemplate>();
+        if (list.Count == 0) return;
+
+        var merged = BodyGenSpecsParser.ParseAndMerge(
+            list.Select(t => t.Specs ?? string.Empty),
+            sliderGroup,
+            out var errors);
+
+        if (errors.Count > 0)
+        {
+            _logger.LogMessage("CharacterViewer.ApplyBodyGen parse warnings: " + string.Join("; ", errors));
+        }
+
+        if (merged.SliderValues.Count == 0) return;
+        ApplyBodySlide(merged, weight);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  HEADPART OVERRIDES
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Reloads <paramref name="npcFormKey"/> with <paramref name="assignments"/> applied
+    /// as head-part overrides. Generates a preview FaceGen NIF via FaceGenPatcher and
+    /// hands its path to <see cref="LoadNpcAsync"/> as the head-mesh override, matching
+    /// the flow used by the Headparts editor (single-type) but supporting a full
+    /// multi-type dictionary.
+    /// </summary>
+    public async Task ApplyHeadPartsAsync(FormKey npcFormKey, ILinkCache linkCache, IReadOnlyDictionary<HeadPart.TypeEnum, FormKey> assignments, CancellationToken ct = default)
+    {
+        if (npcFormKey.IsNull || linkCache == null) return;
+
+        var validAssignments = assignments?
+            .Where(kv => !kv.Value.IsNull)
+            .ToDictionary(kv => kv.Key, kv => kv.Value) ?? new();
+
+        if (validAssignments.Count == 0)
+        {
+            await LoadNpcAsync(npcFormKey, linkCache);
+            return;
+        }
+
+        string? nifPath;
+        try
+        {
+            nifPath = await _faceGenPreviewService.GeneratePreviewFaceGenAsync(npcFormKey, validAssignments, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("CharacterViewer.ApplyHeadPartsAsync: preview FaceGen generation failed: " + ex.Message);
+            nifPath = null;
+        }
+
+        ct.ThrowIfCancellationRequested();
+        await LoadNpcAsync(npcFormKey, linkCache, overrideHeadMeshAbsolutePath: nifPath);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

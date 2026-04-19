@@ -15,6 +15,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
     private readonly VM_SettingsTexMesh _texMeshUI;
     private readonly VM_SettingsOBody _oBodySettings;
+    private readonly VM_SettingsBodyGen _bodyGenSettings;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     public delegate VM_ConsistencyAssignment Factory(NPCAssignment model);
@@ -22,6 +23,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         NPCAssignment model,
         VM_SettingsTexMesh texMeshUI,
         VM_SettingsOBody oBodySettings,
+        VM_SettingsBodyGen bodyGenSettings,
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
         VM_CharacterViewer characterViewer)
@@ -29,6 +31,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         AssociatedModel = model;
         _texMeshUI = texMeshUI;
         _oBodySettings = oBodySettings;
+        _bodyGenSettings = bodyGenSettings;
         _environmentProvider = environmentProvider;
         _logger = logger;
 
@@ -270,10 +273,57 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             return;
         }
 
-        await CharacterViewer.LoadNpcAsync(NPCFormKey, lk);
+        var hpAssignments = HeadParts
+            .Where(kv => kv.Value != null && !kv.Value.FormKey.IsNull)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.FormKey);
+
+        if (hpAssignments.Count > 0)
+        {
+            await CharacterViewer.ApplyHeadPartsAsync(NPCFormKey, lk, hpAssignments);
+        }
+        else
+        {
+            await CharacterViewer.LoadNpcAsync(NPCFormKey, lk);
+        }
 
         RefreshViewerTextures();
         RefreshViewerBodySlide();
+        RefreshViewerBodyGen();
+    }
+
+    private void RefreshViewerBodyGen()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0) return;
+        if (BodyGenMorphNames == null || BodyGenMorphNames.Count == 0) return;
+
+        var configs = Gender == Gender.Female ? _bodyGenSettings.FemaleConfigs : _bodyGenSettings.MaleConfigs;
+        if (configs == null) return;
+
+        // Resolve each stored morph name to its template's Specs. BodyGen templates are
+        // unique by Label within a gender's config database, so a simple flat lookup works.
+        var resolved = new List<BodyGenConfig.BodyGenTemplate>();
+        foreach (var name in BodyGenMorphNames)
+        {
+            if (string.IsNullOrWhiteSpace(name?.Content)) continue;
+            foreach (var config in configs)
+            {
+                var match = config.TemplateMorphUI?.Templates
+                    .FirstOrDefault(t => string.Equals(t.Label, name.Content, StringComparison.OrdinalIgnoreCase));
+                if (match?.AssociatedModel != null)
+                {
+                    resolved.Add(match.AssociatedModel);
+                    break;
+                }
+            }
+        }
+
+        if (resolved.Count == 0) return;
+
+        string sliderGroup = Gender == Gender.Female
+            ? (_bodyGenSettings.PreviewSliderGroupFemale ?? string.Empty)
+            : (_bodyGenSettings.PreviewSliderGroupMale ?? string.Empty);
+
+        CharacterViewer.ApplyBodyGen(resolved, sliderGroup, CharacterViewer.NpcWeight);
     }
 
     private void RefreshViewerTextures()
