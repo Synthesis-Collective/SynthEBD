@@ -140,6 +140,22 @@ public class VM_CharacterViewer : VM
         // selection with the field's default — that bug caused selections to
         // appear not to persist across sessions.
         InitializeLightingState();
+
+        // Push height changes through to the renderer's model matrix. Either
+        // source (NPC record default or per-assignment override) triggers a
+        // recompute, and the owning VM only needs to set HeightOverride.
+        this.WhenAnyValue(x => x.NpcBaseHeight, x => x.HeightOverride)
+            .Subscribe(_ => ApplyCharacterScale())
+            .DisposeWith(this);
+    }
+
+    /// <summary>Pushes the effective NPC-height scale to the renderer. Override
+    /// wins when set; otherwise the NPC record's Height is used.</summary>
+    private void ApplyCharacterScale()
+    {
+        float scale = HeightOverride ?? NpcBaseHeight;
+        if (!float.IsFinite(scale) || scale <= 0f) scale = 1.0f;
+        Renderer.ModelScale = scale;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -150,6 +166,16 @@ public class VM_CharacterViewer : VM
     public string StatusText { get; set; } = "No mesh loaded";
     public bool IsLoading { get; set; }
     public int NpcWeight { get; set; } = 50;
+
+    /// <summary>The NPC record's Height field, a uniform full-model scale
+    /// multiplier (1.0 = default). Refreshed whenever a new NPC is loaded;
+    /// acts as the fallback when no per-assignment override is set.</summary>
+    public float NpcBaseHeight { get; set; } = 1.0f;
+
+    /// <summary>Per-assignment Height override (Consistency / Specific NPC
+    /// Assignment Height field). When non-null, replaces <see cref="NpcBaseHeight"/>
+    /// as the applied scale. Null means "fall back to the NPC record".</summary>
+    public float? HeightOverride { get; set; }
 
     /// <summary>Viewport background color, bound to XAML.</summary>
     public MediaColor BackgroundColor { get; set; } = MediaColor.FromRgb(105, 105, 105);
@@ -872,6 +898,14 @@ public class VM_CharacterViewer : VM
                 NpcWeight = Math.Clamp((int)npcGetter.Weight, 0, 100);
                 _logger.LogMessage("CharacterViewer: NPC weight = " + NpcWeight +
                     " (raw " + npcGetter.Weight.ToString("F2") + ")");
+
+                // NPC.Height is a full-model uniform scale multiplier (1.0 default).
+                // Guard against zero/negative values from malformed records to avoid
+                // a collapsed or mirrored render.
+                float recordHeight = npcGetter.Height;
+                NpcBaseHeight = (float.IsFinite(recordHeight) && recordHeight > 0f) ? recordHeight : 1.0f;
+                _logger.LogMessage("CharacterViewer: NPC height = " + NpcBaseHeight.ToString("F3") +
+                    " (raw " + recordHeight.ToString("F3") + ")");
 
                 // Resolve the NPC's HairColor FormLink (HCLR record) — in-game, this
                 // overrides the default hairTintColor baked into the hair NIF's BSLSP.

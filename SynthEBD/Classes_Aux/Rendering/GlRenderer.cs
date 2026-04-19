@@ -75,6 +75,12 @@ public class GlRenderer : IDisposable
     /// <summary>Background clear color (RGB 0-1).</summary>
     public Vector3 ClearColor { get; set; } = new Vector3(0.41f, 0.41f, 0.41f); // DimGray
 
+    /// <summary>Uniform scale applied to the world-space mesh geometry via the
+    /// model matrix. Drives the NPC-height multiplier — 1.0 is identity; 1.1
+    /// is a 10% taller character. Meshes are already in world space, so this
+    /// is applied in the model matrix rather than per-mesh.</summary>
+    public float ModelScale { get; set; } = 1.0f;
+
     public GlRenderer()
     {
         // Default lighting: ambient + key + fill + rim
@@ -172,7 +178,10 @@ public class GlRenderer : IDisposable
         float aspect = (float)viewportWidth / viewportHeight;
         var view = camera.GetViewMatrix();
         var projection = camera.GetProjectionMatrix(aspect);
-        var model = Matrix4.Identity; // meshes are pre-transformed to world space
+        // Meshes are pre-transformed to world space; apply the NPC-height
+        // multiplier here so a single matrix update scales the whole character
+        // without touching per-mesh data.
+        var model = Matrix4.CreateScale(ModelScale);
 
         _shader.SetMatrix4("u_model", ref model);
         _shader.SetMatrix4("u_view", ref view);

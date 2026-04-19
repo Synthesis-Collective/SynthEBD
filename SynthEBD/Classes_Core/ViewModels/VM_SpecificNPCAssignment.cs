@@ -250,6 +250,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe(_ => RefreshViewerBodySlide())
             .DisposeWith(this);
 
+        // Character Viewer: push the NPC-height scale override when ForcedHeight changes
+        this.WhenAnyValue(x => x.ForcedHeight)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerHeight())
+            .DisposeWith(this);
+
         // Character Viewer: reapply texture overrides when ForcedAssetPack or ForcedSubgroups change
         this.WhenAnyValue(x => x.ForcedAssetPack)
             .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
@@ -819,6 +825,18 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         if (allOverrides.Count > 0)
         {
             CharacterViewer.ApplyTextureOverrides(allOverrides);
+        }
+    }
+
+    private void RefreshViewerHeight()
+    {
+        if (!string.IsNullOrWhiteSpace(ForcedHeight) && float.TryParse(ForcedHeight, out var h) && h > 0f)
+        {
+            CharacterViewer.HeightOverride = h;
+        }
+        else
+        {
+            CharacterViewer.HeightOverride = null;
         }
     }
 

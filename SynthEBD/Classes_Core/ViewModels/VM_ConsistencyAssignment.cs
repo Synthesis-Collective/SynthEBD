@@ -80,6 +80,11 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             .Subscribe(_ => RefreshViewerBodySlide())
             .DisposeWith(this);
 
+        this.WhenAnyValue(x => x.Height)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerHeight())
+            .DisposeWith(this);
+
         this.WhenAnyValue(x => x.AssetPackName)
             .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
             .Subscribe(_ => RefreshViewerTextures())
@@ -385,6 +390,18 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         if (overrides.Count > 0)
         {
             CharacterViewer.ApplyTextureOverrides(overrides);
+        }
+    }
+
+    private void RefreshViewerHeight()
+    {
+        if (!string.IsNullOrWhiteSpace(Height) && float.TryParse(Height, out var h) && h > 0f)
+        {
+            CharacterViewer.HeightOverride = h;
+        }
+        else
+        {
+            CharacterViewer.HeightOverride = null;
         }
     }
 
