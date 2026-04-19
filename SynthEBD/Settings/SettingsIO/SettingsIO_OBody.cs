@@ -58,9 +58,11 @@ public class SettingsIO_OBody
 
     /// <summary>
     /// Loads shipped registry entries from InternalData/SliderCatalogs/BodyTypeRegistry.json and
-    /// merges any whose Name is not already present into <paramref name="settings"/>. Entries the
-    /// user has marked as <see cref="BodyTypeRegistryEntry.IsUserDefined"/> are never overwritten,
-    /// so user edits survive future shipped-defaults churn.
+    /// reconciles them with <paramref name="settings"/>:
+    ///   * Entry name not present       → added.
+    ///   * Existing entry IsUserDefined → left untouched (user edits always win).
+    ///   * Existing entry not user-defined → refreshed in place from the shipped copy, so
+    ///     hardened fingerprints reach existing users on next load.
     /// </summary>
     private void MergeShippedRegistryDefaults(Settings_OBody settings)
     {
@@ -80,29 +82,41 @@ public class SettingsIO_OBody
             return;
         }
 
-        var existing = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in settings.BodyTypeRegistry)
+        var indexByName = new Dictionary<string, int>(System.StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < settings.BodyTypeRegistry.Count; i++)
         {
-            if (entry != null && !string.IsNullOrWhiteSpace(entry.Name))
+            var entry = settings.BodyTypeRegistry[i];
+            if (entry != null && !string.IsNullOrWhiteSpace(entry.Name) && !indexByName.ContainsKey(entry.Name))
             {
-                existing.Add(entry.Name);
+                indexByName[entry.Name] = i;
             }
         }
 
-        int merged = 0;
+        int added = 0;
+        int refreshed = 0;
         foreach (var def in shipped)
         {
             if (def == null || string.IsNullOrWhiteSpace(def.Name)) continue;
-            if (existing.Contains(def.Name)) continue;
             def.IsUserDefined = false;
-            settings.BodyTypeRegistry.Add(def);
-            existing.Add(def.Name);
-            merged++;
+
+            if (!indexByName.TryGetValue(def.Name, out int existingIdx))
+            {
+                settings.BodyTypeRegistry.Add(def);
+                indexByName[def.Name] = settings.BodyTypeRegistry.Count - 1;
+                added++;
+                continue;
+            }
+
+            // Skip if the user has taken ownership of this row.
+            if (settings.BodyTypeRegistry[existingIdx]?.IsUserDefined == true) continue;
+
+            settings.BodyTypeRegistry[existingIdx] = def;
+            refreshed++;
         }
 
-        if (merged > 0)
+        if (added > 0 || refreshed > 0)
         {
-            _logger.LogMessage($"BodyTypeRegistry: merged {merged} shipped default entr{(merged == 1 ? "y" : "ies")}.");
+            _logger.LogMessage($"BodyTypeRegistry: merged {added} new + refreshed {refreshed} shipped entr{(added + refreshed == 1 ? "y" : "ies")}.");
         }
     }
 

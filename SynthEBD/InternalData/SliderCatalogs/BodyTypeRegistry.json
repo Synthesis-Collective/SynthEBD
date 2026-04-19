@@ -4,8 +4,11 @@
     "Gender": "Female",
     "IdentityFingerprints": [
       "CBBE.esp",
+      "RaceMenuMorphsCBBE.esp",
+      "CalienteTools/BodySlide/SliderCategories/CBBE.xml",
+      "CalienteTools/BodySlide/RefTemplates/CBBE.xml",
       "CalienteTools/BodySlide/ConversionSets/CBBE References.osp",
-      "CalienteTools/BodySlide/RefTemplates/CBBE.xml"
+      "CalienteTools/BodySlide/SliderSets/CBBE.osp"
     ],
     "ShapeDataFolders": [
       "CBBE Vanilla",
@@ -23,8 +26,12 @@
     "Gender": "Female",
     "IdentityFingerprints": [
       "3BBB.esp",
+      "CalienteTools/BodySlide/SliderCategories/CBBE 3BA.xml",
       "CalienteTools/BodySlide/RefTemplates/CBBE 3BA.xml",
-      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA UniBody.xml"
+      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA UniBody.xml",
+      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA/CBBE 3BA Reference.osp",
+      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA/CBBE 3BA UniBody Ref.osp",
+      "CalienteTools/BodySlide/SliderSets/SE 3BBB Amazing.osp"
     ],
     "ShapeDataFolders": [
       "CBBE 3BA Reference",
@@ -39,8 +46,10 @@
     "Name": "Unified UNP",
     "Gender": "Female",
     "IdentityFingerprints": [
-      "CalienteTools/BodySlide/ShapeData/Unified UNP",
-      "RaceMenuMorphsUUNP.esp"
+      "RaceMenuMorphsUUNP.esp",
+      "CalienteTools/BodySlide/SliderCategories/UnifiedUNP.xml",
+      "CalienteTools/BodySlide/SliderSets/UnifiedUNP.xml",
+      "CalienteTools/BodySlide/ShapeData/Unified UNP"
     ],
     "ShapeDataFolders": [
       "Unified UNP"
@@ -52,7 +61,12 @@
     "Name": "BHUNP",
     "Gender": "Female",
     "IdentityFingerprints": [
-      "BHUNP3BBB.esp"
+      "BHUNP3BBB.esp",
+      "RaceMenuMorphsBHUNP.esp",
+      "CalienteTools/BodySlide/SliderCategories/BHUNP3BBB.xml",
+      "CalienteTools/BodySlide/RefTemplates/BHUNP RefTemplates.xml",
+      "CalienteTools/BodySlide/SliderSets/BHUNP 3BBB Advanced.osp",
+      "CalienteTools/BodySlide/SliderSets/BHUNP 3BBB Collision Armor.osp"
     ],
     "ShapeDataFolders": [
       "BHUNP 3BBB Advanced",
@@ -67,7 +81,13 @@
     "Name": "Touched by Dibella",
     "Gender": "Female",
     "IdentityFingerprints": [
-      "TouchedbyDibella.esp"
+      "TouchedbyDibella.esp",
+      "RaceMenuMorphsTBD.esp",
+      "CalienteTools/BodySlide/SliderCategories/TouchedbyDibella.xml",
+      "CalienteTools/BodySlide/RefTemplates/TBD.xml",
+      "CalienteTools/BodySlide/ConversionSets/TBDReferences.osp",
+      "CalienteTools/BodySlide/SliderSets/TouchedByDibella.osp",
+      "CalienteTools/BodySlide/SliderSets/TouchedByDibellaRef.osp"
     ],
     "ShapeDataFolders": [
       "TBD"
@@ -80,7 +100,10 @@
     "Gender": "Female",
     "IdentityFingerprints": [
       "RaceMenuMorphsCOCO.esp",
-      "CalienteTools/BodySlide/RefTemplates/COCO RefTemplates.xml"
+      "CalienteTools/BodySlide/SliderCategories/2021COCO3BBB.xml",
+      "CalienteTools/BodySlide/RefTemplates/COCO RefTemplates.xml",
+      "CalienteTools/BodySlide/SliderSets/[COCO]BODY2021_V4/[COCO]3Bsmp_BodyV4_A.osp",
+      "CalienteTools/BodySlide/SliderSets/[COCO]SMP_BODY_V6/[COCO 3BBB V6]Body_A.osp"
     ],
     "ShapeDataFolders": [
       "[COCO]BODY2021_V4",
@@ -97,7 +120,10 @@
     "IdentityFingerprints": [
       "SOM3BBB.esp",
       "SOMBodyTexturesSet.esp",
-      "CalienteTools/BodySlide/RefTemplates/SOMBody.xml"
+      "CalienteTools/BodySlide/SliderCategories/SOMBody.xml",
+      "CalienteTools/BodySlide/RefTemplates/SOMBody.xml",
+      "CalienteTools/BodySlide/SliderSets/[SOMBody] Shape of Maiden Body 3BBB.osp",
+      "CalienteTools/BodySlide/SliderSets/[SOMResources] SOMBody Slider.osp"
     ],
     "ShapeDataFolders": [
       "[SOMBody] Shape of Maiden Body 3BBB",
@@ -111,8 +137,12 @@
     "Gender": "Male",
     "IdentityFingerprints": [
       "HIMBO.esp",
+      "RaceMenuMorphsHIMBO.esp",
       "CalienteTools/BodySlide/SliderCategories/HIMBO.xml",
-      "CalienteTools/BodySlide/SliderSets/HIMBO.osp"
+      "CalienteTools/BodySlide/SliderSets/HIMBO.osp",
+      "CalienteTools/BodySlide/RefTemplates/HIMBO References.xml",
+      "CalienteTools/BodySlide/ConversionSets/HIMBO - Body.osp",
+      "CalienteTools/BodySlide/ConversionSets/HIMBO Ref.osp"
     ],
     "ShapeDataFolders": [
       "HIMBO",
