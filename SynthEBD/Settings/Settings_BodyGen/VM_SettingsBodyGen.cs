@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using ReactiveUI;
 using Noggog;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -14,11 +17,16 @@ public class VM_SettingsBodyGen : VM
         Logger logger,
         VM_BodyGenConfig.Factory bodyGenConfigFactory,
         VM_BodyGenRacialMapping.Factory mappingFactory,
-        VM_Settings_General generalSettingsVM)
+        VM_Settings_General generalSettingsVM,
+        IEnvironmentStateProvider environmentProvider)
     {
         _patcherState = patcherState;
         _logger = logger;
         _mappingFactory = mappingFactory;
+
+        environmentProvider.WhenAnyValue(x => x.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
 
         DisplayMaleConfig = new SynthEBD.RelayCommand(
             canExecute: _ => true,
@@ -94,6 +102,13 @@ public class VM_SettingsBodyGen : VM
     public bool DisplayedConfigIsFemale { get; set; } = true;
     public bool DisplayedConfigIsMale { get; set; } = false;
 
+    public FormKey PreviewNpcMale { get; set; } = FormKey.Null;
+    public FormKey PreviewNpcFemale { get; set; } = FormKey.Null;
+    public string PreviewSliderGroupMale { get; set; } = "";
+    public string PreviewSliderGroupFemale { get; set; } = "";
+    public IEnumerable<Type> NpcPickerFormKeys { get; set; } = typeof(INpcGetter).AsEnumerable();
+    public ILinkCache lk { get; private set; }
+
     public RelayCommand DisplayMaleConfig { get; }
     public RelayCommand AddNewMaleConfig { get; }
     public RelayCommand DisplayFemaleConfig { get; }
@@ -109,6 +124,11 @@ public class VM_SettingsBodyGen : VM
         {
             return;
         }
+        PreviewNpcMale = model.PreviewNpcMale;
+        PreviewNpcFemale = model.PreviewNpcFemale;
+        PreviewSliderGroupMale = model.PreviewSliderGroupMale ?? "";
+        PreviewSliderGroupFemale = model.PreviewSliderGroupFemale ?? "";
+
         FemaleConfigs.Clear();
         MaleConfigs.Clear();
 
@@ -207,6 +227,12 @@ public class VM_SettingsBodyGen : VM
         {
             model.CurrentFemaleConfig = null;
         }
+
+        model.PreviewNpcMale = PreviewNpcMale;
+        model.PreviewNpcFemale = PreviewNpcFemale;
+        model.PreviewSliderGroupMale = PreviewSliderGroupMale ?? "";
+        model.PreviewSliderGroupFemale = PreviewSliderGroupFemale ?? "";
+
         return model;
     }
 

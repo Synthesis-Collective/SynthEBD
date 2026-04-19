@@ -1,21 +1,54 @@
 ﻿<UserControl x:Class="SynthEBD.UC_BodyGenTemplate"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              xmlns:local="clr-namespace:SynthEBD"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=local:VM_BodyGenTemplate}"
              d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
-    
+
     <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <Grid>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="300" MinWidth="150"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- GridSplitter lets the user resize the preview pane. Starting Width for
+                 column 2 is 300 so the viewer has enough room without crowding the form. -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" Background="#333333"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                          ShowsPreview="True"
+                          ToolTip="Drag to resize the preview viewer"/>
+
+            <!-- Live 3D preview of the current BodyGen template. The CharacterViewer is
+                 owned by the parent VM_BodyGenTemplateMenu (shared across template
+                 selections) to avoid leaking GL resources per click. -->
+            <DockPanel Grid.Column="2" Margin="5 0 0 0">
+                <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0 0 0 5">
+                    <TextBlock Foreground="LightGray" Margin="0 0 0 2"
+                               ToolTip="Preview weight — scrubs between the Low and High ends of spec ranges. Single-value specs are unaffected."
+                               ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+                        <Run Text="Preview Weight:"/>
+                        <Run Text="{Binding PreviewWeight, UpdateSourceTrigger=PropertyChanged}"/>
+                    </TextBlock>
+                    <Slider Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="False"
+                            Value="{Binding PreviewWeight, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="{Binding ParseErrorText}" Foreground="Red" TextWrapping="Wrap"/>
+                </StackPanel>
+                <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
+            </DockPanel>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto"/>
                     <ColumnDefinition Width="auto"/>
@@ -153,7 +186,8 @@
                 </ListBox>
 
                 <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}">Delete Morph</Button>
-            </Grid>
-        </ScrollViewer>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
     </Border>
 </UserControl>
