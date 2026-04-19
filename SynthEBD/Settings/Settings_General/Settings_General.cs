@@ -260,6 +260,7 @@ public class Settings_General
     public bool bUIopened { get; set; } = false;
     public bool bShow3DPreview { get; set; } = true;
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public double ConsistencyPreviewerWidth { get; set; } = 525;
     public string CharacterViewerLightingLayout { get; set; } = "";
     public string CharacterViewerLightingColorScheme { get; set; } = "";
     public List<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();

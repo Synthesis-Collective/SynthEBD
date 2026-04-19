@@ -366,6 +366,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
     public bool bShow3DPreview { get; set; } = true;
     public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public double ConsistencyPreviewerWidth { get; set; } = 525;
     public string CharacterViewerLightingLayout { get; set; } = "";
     public string CharacterViewerLightingColorScheme { get; set; } = "";
     public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
@@ -423,6 +424,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
         bShow3DPreview = model.bShow3DPreview;
         SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
+        ConsistencyPreviewerWidth = model.ConsistencyPreviewerWidth;
         CharacterViewerLightingLayout = model.CharacterViewerLightingLayout;
         CharacterViewerLightingColorScheme = model.CharacterViewerLightingColorScheme;
         UserLightingLayouts = new ObservableCollection<CharacterViewerLightingLayout>(
@@ -489,6 +491,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
         model.bShow3DPreview = bShow3DPreview;
         model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
+        model.ConsistencyPreviewerWidth = ConsistencyPreviewerWidth;
         model.CharacterViewerLightingLayout = CharacterViewerLightingLayout;
         model.CharacterViewerLightingColorScheme = CharacterViewerLightingColorScheme;
         model.UserLightingLayouts = UserLightingLayouts.ToList();
