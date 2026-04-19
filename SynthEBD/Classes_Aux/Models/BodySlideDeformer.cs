@@ -212,6 +212,25 @@ public class BodySlideDeformer
             return;
         }
 
+        // Topology-mismatch bail-out. If the delta source references any vertex
+        // index beyond this mesh's vertex count, the morphs were authored for a
+        // different mesh -- common case: a body .tri carries morphs for the main
+        // body shape only, and we're iterating auxiliary shapes like 3BA_V/3BA_A
+        // that just happen to share a name prefix. Applying the partial set that
+        // DOES fit produces jagged geometry on the auxiliary mesh. Bail before
+        // writing so the auxiliary mesh stays at its bind pose (which is the
+        // intended behavior -- these shapes are static in the authoring pipeline).
+        if (deltasOutOfRange > 0)
+        {
+            _logger.LogMessage("CharacterViewer: Skipping deformation of shape '" +
+                (shapeName ?? "(any)") + "' via " + sourceLabel +
+                " (topology mismatch: target verts=" + vertCount +
+                ", " + sourceLabel + " max vertIndex=" + osdMaxIndex +
+                ", deltas OOR=" + deltasOutOfRange +
+                " of " + (deltasInRange + deltasOutOfRange) + " -- shape left unmodified)");
+            return;
+        }
+
         // Apply weight interpolation:
         // final = (basePos + deltasHigh) * (weight/100) + (basePos + deltasLow) * ((100-weight)/100)
         //       = basePos + deltasHigh * (weight/100) + deltasLow * ((100-weight)/100)
