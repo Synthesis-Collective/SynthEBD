@@ -39,8 +39,6 @@ public class Settings_OBody
     };
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
-    public HashSet<string> MaleSliderGroups { get; set; } = new();
-    public HashSet<string> FemaleSliderGroups { get; set; } = new();
 
     /// <summary>
     /// User overrides for SliderCategories.xml lookup, keyed by body-type name (e.g. "CBBE").
@@ -86,8 +84,21 @@ public class Settings_OBody
     public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
-        if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
-        if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
+
+        // Gender lookup for the <Group>-tag fallback below. Derived inline from the registry --
+        // there is no separate Male/FemaleSliderGroups list anymore. First entry wins on duplicate names.
+        var registryGenderByName = new Dictionary<string, Gender>(StringComparer.OrdinalIgnoreCase);
+        if (BodyTypeRegistry != null)
+        {
+            foreach (var entry in BodyTypeRegistry)
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.Name)) continue;
+                if (!registryGenderByName.ContainsKey(entry.Name))
+                {
+                    registryGenderByName[entry.Name] = entry.Gender;
+                }
+            }
+        }
 
         var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
@@ -132,8 +143,11 @@ public class Settings_OBody
                             {
                                 var tagName = group.Attribute("name")?.Value;
                                 if (string.IsNullOrEmpty(tagName)) continue;
-                                if (MaleSliderGroups.Contains(tagName)) { gender = Gender.Male; break; }
-                                if (FemaleSliderGroups.Contains(tagName)) { gender = Gender.Female; break; }
+                                if (registryGenderByName.TryGetValue(tagName, out var registryGender))
+                                {
+                                    gender = registryGender;
+                                    break;
+                                }
                             }
                         }
 

@@ -26,9 +26,6 @@ public class VM_BodySlideAnnotator : VM
         _bodySlideAnnotator = bodySlideAnnotator;
         _logger = logger;
 
-        SubscribedFemaleBodySlideGroups = miscMenu.FemaleBodySlideGroups;
-        SubscribedMaleBodySlideGroups = miscMenu.MaleBodySlideGroups;
-
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ApplyAnnotations(null, null));
@@ -38,9 +35,6 @@ public class VM_BodySlideAnnotator : VM
     public ObservableCollection<VM_SliderClassificationRulesByBodyType> AnnotationRules { get; set; } = new();
 
     public VM_SliderClassificationRulesByBodyType DisplayedRuleSet { get; set; }
-
-    public ObservableCollection<VM_CollectionMemberString> SubscribedMaleBodySlideGroups { get; set; } = new();
-    public ObservableCollection<VM_CollectionMemberString> SubscribedFemaleBodySlideGroups { get; set; } = new();
 
     public Dictionary<string, ObservableCollection<string>> SliderNamesByGroup { get; set; } = new();
     private List<SliderClassificationRulesByBodyType> _stashedUnloadedBodyTypeRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed

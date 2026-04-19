@@ -59,16 +59,6 @@ public class VM_OBodyMiscSettings : VM
                 .DisposeWith(this);
         }));
 
-        AddMaleSliderGroup = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => MaleBodySlideGroups.Add(new VM_CollectionMemberString("", MaleBodySlideGroups))
-        );
-
-        AddFemaleSliderGroup = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => FemaleBodySlideGroups.Add(new VM_CollectionMemberString("", FemaleBodySlideGroups))
-        );
-
         AddSliderCatalogOverride = new RelayCommand(
             canExecute: _ => true,
             execute: _ => SliderCatalogOverrides.Add(new VM_SliderCatalogOverride("", "", SliderCatalogOverrides))
@@ -114,16 +104,12 @@ public class VM_OBodyMiscSettings : VM
         );
     }
 
-    public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; } = new();
-    public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; } = new();
     public bool UseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public RelayCommand SetRaceMenuINI { get; set; }
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
     public bool ShowOBodyNativeOptions { get; set; } = false;
-    public RelayCommand AddMaleSliderGroup { get; set; }
-    public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
     public bool ShowOBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
@@ -145,16 +131,6 @@ public class VM_OBodyMiscSettings : VM
 
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
-        MaleBodySlideGroups.Clear();
-        foreach (var g in model.MaleSliderGroups)
-        {
-            MaleBodySlideGroups.Add(new VM_CollectionMemberString(g, MaleBodySlideGroups));
-        }
-        FemaleBodySlideGroups.Clear();
-        foreach (var g in model.FemaleSliderGroups)
-        {
-            FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, FemaleBodySlideGroups));
-        }
         UseVerboseScripts = model.bUseVerboseScripts;
         AutoBodySelectionMode = model.AutoBodySelectionMode;
         AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
@@ -245,8 +221,6 @@ public class VM_OBodyMiscSettings : VM
 
     public void DumpViewModelToModel(Settings_OBody model)
     {
-        model.MaleSliderGroups = MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
-        model.FemaleSliderGroups = FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
