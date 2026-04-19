@@ -260,15 +260,21 @@ public class BsdFileParser
     }
 
     /// <summary>
-    /// Recursively scans a directory for all .osd and .bsd files and parses them.
-    /// .osd files are multi-slider with an "OSD\0" magic (CBBE/BHUNP/3BA/etc.). .bsd files
-    /// are single-slider with no magic and a different record layout (UUNP-style per-slider
-    /// files). Results are de-duplicated by <see cref="OsdFile.ShapeName"/> (first hit wins)
-    /// so a single shape parsed through two paths only appears once. Returns an empty list
-    /// if the directory does not exist.
+    /// Scans a directory for all .osd and .bsd files and parses them. .osd files are multi-
+    /// slider with an "OSD\0" magic (CBBE/BHUNP/3BA/etc.). .bsd files are single-slider with
+    /// no magic and a different record layout (UUNP-style per-slider files). Results are
+    /// de-duplicated by <see cref="OsdFile.ShapeName"/> (first hit wins) so a single shape
+    /// parsed through two paths only appears once. Returns an empty list if the directory
+    /// does not exist.
+    ///
+    /// <paramref name="recursive"/> defaults to true (legacy behavior used by morph-preview
+    /// fallback). Pass false for the body-type registry slider-catalog scan -- UUNP ships
+    /// outfit variants in nested folders (e.g. Unified UNP/NeverNude/NNBra*.bsd) that
+    /// pollute the body's slider set if recursed into.
     /// </summary>
-    public List<OsdFile> ParseAllOsdInDirectory(string directoryPath)
+    public List<OsdFile> ParseAllOsdInDirectory(string directoryPath, bool recursive = true)
     {
+        var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         var results = new List<OsdFile>();
 
         if (!Directory.Exists(directoryPath))
@@ -279,7 +285,7 @@ public class BsdFileParser
 
         var seenShapeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.osd", SearchOption.AllDirectories))
+        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.osd", searchOption))
         {
             var osd = ParseOsdFile(filePath);
             if (osd != null && seenShapeNames.Add(osd.ShapeName))
@@ -288,7 +294,7 @@ public class BsdFileParser
             }
         }
 
-        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.bsd", SearchOption.AllDirectories))
+        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.bsd", searchOption))
         {
             var bsd = ParseBsdFile(filePath);
             if (bsd != null && seenShapeNames.Add(bsd.ShapeName))

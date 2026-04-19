@@ -1566,7 +1566,7 @@ public class VM_CharacterViewer : VM
                 }
                 else if (Directory.Exists(fullPath))
                 {
-                    foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath))
+                    foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath, recursive: false))
                     {
                         if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
                     }

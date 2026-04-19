@@ -84,7 +84,7 @@ public class BodyTypeSliderExtractor
                 }
                 else if (Directory.Exists(fullPath))
                 {
-                    foreach (var osd in parser.ParseAllOsdInDirectory(fullPath))
+                    foreach (var osd in parser.ParseAllOsdInDirectory(fullPath, recursive: false))
                     {
                         AddNormalizedSliders(entry, osd);
                     }
