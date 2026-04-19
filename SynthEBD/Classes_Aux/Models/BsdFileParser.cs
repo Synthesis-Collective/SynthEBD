@@ -179,7 +179,11 @@ public class BsdFileParser
     }
 
     /// <summary>
-    /// Scans a directory for all .osd files and parses them.
+    /// Recursively scans a directory for all .osd and .bsd files and parses them.
+    /// Both extensions use identical on-disk layout (magic bytes "OSD\0"); Unified UNP
+    /// ships .bsd in a flat folder while CBBE/BHUNP ship .osd in nested subdirs.
+    /// Results are de-duplicated by <see cref="OsdFile.ShapeName"/> (first hit wins)
+    /// so a single shape parsed through two paths only appears once.
     /// Returns an empty list if the directory does not exist.
     /// </summary>
     public List<OsdFile> ParseAllOsdInDirectory(string directoryPath)
@@ -192,10 +196,21 @@ public class BsdFileParser
             return results;
         }
 
-        foreach (string filePath in Directory.GetFiles(directoryPath, "*.osd"))
+        var seenShapeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.osd", SearchOption.AllDirectories))
         {
             var osd = ParseOsdFile(filePath);
-            if (osd != null)
+            if (osd != null && seenShapeNames.Add(osd.ShapeName))
+            {
+                results.Add(osd);
+            }
+        }
+
+        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.bsd", SearchOption.AllDirectories))
+        {
+            var osd = ParseOsdFile(filePath);
+            if (osd != null && seenShapeNames.Add(osd.ShapeName))
             {
                 results.Add(osd);
             }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 
 namespace SynthEBD;
@@ -11,7 +12,10 @@ public class SettingsIO_OBody
     private readonly BodySlideSettingMigrator _bodySlideSettingMigrator;
     private readonly SliderCatalogLoader _sliderCatalogLoader;
     private readonly BodySlideGroupClassifier _bodySlideGroupClassifier;
-    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator, SliderCatalogLoader sliderCatalogLoader, BodySlideGroupClassifier bodySlideGroupClassifier)
+    private readonly BodyTypeFingerprintScanner _bodyTypeFingerprintScanner;
+    private readonly BodyTypeSliderExtractor _bodyTypeSliderExtractor;
+    private readonly BsdFileParser _bsdFileParser;
+    public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator, SliderCatalogLoader sliderCatalogLoader, BodySlideGroupClassifier bodySlideGroupClassifier, BodyTypeFingerprintScanner bodyTypeFingerprintScanner, BodyTypeSliderExtractor bodyTypeSliderExtractor, BsdFileParser bsdFileParser)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -20,22 +24,98 @@ public class SettingsIO_OBody
         _bodySlideSettingMigrator = bodySlideSettingMigrator;
         _sliderCatalogLoader = sliderCatalogLoader;
         _bodySlideGroupClassifier = bodySlideGroupClassifier;
+        _bodyTypeFingerprintScanner = bodyTypeFingerprintScanner;
+        _bodyTypeSliderExtractor = bodyTypeSliderExtractor;
+        _bsdFileParser = bsdFileParser;
     }
 
     /// <summary>
-    /// Stage 4: load slider catalogs (override XMLs + shipped JSON fallbacks) and seed the
-    /// <see cref="BodySlideGroupClassifier"/>. Safe to call repeatedly; replaces any previously loaded catalog.
-    /// Must run before <see cref="Settings_OBody.ImportBodySlides"/>.
+    /// Seeds shipped Body-Type Registry defaults (if not already present), runs the fingerprint
+    /// scanner to mark installed entries, derives each installed entry's slider catalog from its
+    /// OSD/BSD files, and computes superset relationships. Also keeps the legacy slider-catalog
+    /// path alive for the current classifier; the classifier rewrite (Stage 5) will switch to
+    /// the registry. Safe to call repeatedly; must run before <see cref="Settings_OBody.ImportBodySlides"/>.
     /// </summary>
     public BodySlideGroupClassifier LoadSliderCatalogs(Settings_OBody settings)
     {
-        var catalog = _sliderCatalogLoader.LoadCatalogs(settings);
-        _bodySlideGroupClassifier.SetCatalog(catalog);
-        if (catalog.BodyTypes.Count > 0)
-        {
-            _logger.LogMessage($"Loaded {catalog.BodyTypes.Count} BodySlide slider catalog(s) for classification.");
-        }
+        if (settings == null) return _bodySlideGroupClassifier;
+
+        MergeShippedRegistryDefaults(settings);
+
+        var dataFolder = _environmentProvider.DataFolderPath.ToString() ?? string.Empty;
+        _bodyTypeFingerprintScanner.ScanInstalled(dataFolder, settings.BodyTypeRegistry);
+
+        var shapeDataRoot = string.IsNullOrEmpty(dataFolder)
+            ? string.Empty
+            : Path.Combine(dataFolder, "CalienteTools", "BodySlide", "ShapeData");
+        _bodyTypeSliderExtractor.PopulateResolvedSliders(shapeDataRoot, settings.BodyTypeRegistry, _bsdFileParser);
+
+        LogRegistrySummary(settings.BodyTypeRegistry);
+
+        _bodySlideGroupClassifier.SetRegistry(settings.BodyTypeRegistry);
         return _bodySlideGroupClassifier;
+    }
+
+    /// <summary>
+    /// Loads shipped registry entries from InternalData/SliderCatalogs/BodyTypeRegistry.json and
+    /// merges any whose Name is not already present into <paramref name="settings"/>. Entries the
+    /// user has marked as <see cref="BodyTypeRegistryEntry.IsUserDefined"/> are never overwritten,
+    /// so user edits survive future shipped-defaults churn.
+    /// </summary>
+    private void MergeShippedRegistryDefaults(Settings_OBody settings)
+    {
+        settings.BodyTypeRegistry ??= new List<BodyTypeRegistryEntry>();
+
+        string registryPath = Path.Combine(_environmentProvider.InternalDataPath, "SliderCatalogs", "BodyTypeRegistry.json");
+        if (!File.Exists(registryPath))
+        {
+            _logger.LogMessage("BodyTypeRegistry: shipped defaults not found at " + registryPath);
+            return;
+        }
+
+        var shipped = JSONhandler<List<BodyTypeRegistryEntry>>.LoadJSONFile(registryPath, out bool ok, out string err);
+        if (!ok || shipped == null)
+        {
+            _logger.LogMessage("BodyTypeRegistry: failed to load shipped defaults: " + err);
+            return;
+        }
+
+        var existing = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in settings.BodyTypeRegistry)
+        {
+            if (entry != null && !string.IsNullOrWhiteSpace(entry.Name))
+            {
+                existing.Add(entry.Name);
+            }
+        }
+
+        int merged = 0;
+        foreach (var def in shipped)
+        {
+            if (def == null || string.IsNullOrWhiteSpace(def.Name)) continue;
+            if (existing.Contains(def.Name)) continue;
+            def.IsUserDefined = false;
+            settings.BodyTypeRegistry.Add(def);
+            existing.Add(def.Name);
+            merged++;
+        }
+
+        if (merged > 0)
+        {
+            _logger.LogMessage($"BodyTypeRegistry: merged {merged} shipped default entr{(merged == 1 ? "y" : "ies")}.");
+        }
+    }
+
+    private void LogRegistrySummary(List<BodyTypeRegistryEntry> entries)
+    {
+        if (entries == null || entries.Count == 0) return;
+        foreach (var e in entries)
+        {
+            if (e == null) continue;
+            string installed = e.IsInstalled ? "installed" : "not-installed";
+            string superset = string.IsNullOrEmpty(e.SupersetOfBodyType) ? "" : $" ⊃ {e.SupersetOfBodyType}";
+            _logger.LogMessage($"BodyTypeRegistry: {e.Name} [{e.Gender}] -- {installed}, {e.ResolvedSliders?.Count ?? 0} slider(s){superset}");
+        }
     }
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {

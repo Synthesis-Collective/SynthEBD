@@ -60,6 +60,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_DetailedReportNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_BodyTypeRegistry>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
@@ -116,6 +117,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BodySlideSettingMigrator>().AsSelf().SingleInstance();
         builder.RegisterType<SliderCatalogLoader>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideGroupClassifier>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTypeFingerprintScanner>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTypeSliderExtractor>().AsSelf().SingleInstance();
         builder.RegisterType<EasyNPCProfileParser>().AsSelf().SingleInstance();
         builder.RegisterType<NPC2ProfileParser>().AsSelf().SingleInstance();
 

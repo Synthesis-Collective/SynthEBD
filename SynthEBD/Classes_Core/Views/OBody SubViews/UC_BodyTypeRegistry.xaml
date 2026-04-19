@@ -1,0 +1,64 @@
+<UserControl x:Class="SynthEBD.UC_BodyTypeRegistry"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_BodyTypeRegistry}"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <Grid Margin="5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,5">
+            Body Type Registry: identity fingerprints + ShapeData folders that drive BodySlide preset classification.
+            Slider catalogs and superset relationships are derived live from disk each load -- the read-only columns
+            reflect the most recent scan.
+        </TextBlock>
+
+        <Button Grid.Row="1" HorizontalAlignment="Left" Margin="0,0,0,5" Padding="8,2"
+                Content="Add Body Type" Command="{Binding AddEntry}"/>
+
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Entries}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  RowHeaderWidth="0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
+                <DataGridTemplateColumn Header="Gender" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox SelectedValue="{Binding Gender, UpdateSourceTrigger=PropertyChanged}"
+                                      ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Identity Fingerprints (comma-separated, Data-folder-relative)"
+                                    Binding="{Binding FingerprintsCsv, UpdateSourceTrigger=PropertyChanged}"
+                                    Width="2*"/>
+                <DataGridTextColumn Header="ShapeData Folders (comma-separated, relative to ShapeData/)"
+                                    Binding="{Binding ShapeDataFoldersCsv, UpdateSourceTrigger=PropertyChanged}"
+                                    Width="2*"/>
+                <DataGridCheckBoxColumn Header="User" Binding="{Binding IsUserDefined}" Width="45"/>
+                <DataGridCheckBoxColumn Header="Installed" Binding="{Binding IsInstalled, Mode=OneWay}" Width="70" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Sliders" Binding="{Binding ResolvedSliderCount, Mode=OneWay}" Width="60" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Superset Of" Binding="{Binding SupersetOfBodyType, Mode=OneWay}" Width="110" IsReadOnly="True"/>
+                <DataGridTemplateColumn Width="40">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="X" Command="{Binding DeleteCommand}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

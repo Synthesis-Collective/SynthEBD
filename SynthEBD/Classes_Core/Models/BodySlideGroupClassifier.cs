@@ -6,7 +6,8 @@ namespace SynthEBD;
 
 /// <summary>
 /// Result of <see cref="BodySlideGroupClassifier.Classify"/>: the canonical body type the preset
-/// belongs to and which gender list it should be added to.
+/// belongs to and which gender list it should be added to. <see cref="BodyType"/> is "Unknown"
+/// when no installed registry entry's slider catalog can host the preset's slider names.
 /// </summary>
 public class BodySlideClassification
 {
@@ -16,209 +17,143 @@ public class BodySlideClassification
 }
 
 /// <summary>
-/// Three-stage classifier mirroring <c>classify_by_sliders</c> in the Python reference
-/// (<c>bodyslide_checker.py</c>):
+/// Slider-only classifier. Inputs are a preset's slider-name set and the installed Body-Type
+/// Registry; <b>no preset-author metadata</b> (the <c>set</c> attribute, the preset name, the
+/// <c>&lt;Group&gt;</c> tags) is consulted, because authors set those sloppily.
 ///
-///   1. <b>Strict containment:</b> if a preset's slider names are a subset of exactly one catalog,
-///      pick that catalog. With multiple matches, fall through.
-///   2. <b>Unambiguous name match:</b> if the preset name contains exactly one body-type token,
-///      pick that body type.
-///   3. <b>Score fallback:</b> compute |preset â© catalog| / |preset| for each catalog and pick the
-///      highest scorer if its margin over the runner-up exceeds <see cref="ScoreMarginThreshold"/>.
+/// Pipeline:
+///   1. <b>Installed-filter:</b> candidates = registry entries with <see cref="BodyTypeRegistryEntry.IsInstalled"/>
+///      true and a non-empty <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>.
+///   2. <b>Strict subset match:</b> keep candidates whose <c>ResolvedSliders</c> contains every
+///      slider name in the preset.
+///   3. <b>Superset resolution:</b> if more than one candidate matches (only possible when one's
+///      slider set is a subset of another's), the preset uses no slider exclusive to the larger
+///      catalog -- so we pick the most general (smallest <c>ResolvedSliders</c> count). This makes
+///      a preset that only moves CBBE-common sliders resolve to CBBE rather than CBBE 3BA.
 ///
-/// Family compatibility (<see cref="BodyTypeCatalog.Family"/>) collapses aliases onto their
-/// canonical body type so e.g. a 3BA preset can resolve as CBBE when the user has aliased them.
-/// Returns <c>null</c> when no catalog is loaded or no body type can be determined.
+/// All-miss returns <c>BodyType="Unknown"</c> with a best-effort gender (Male if any preset
+/// slider is known to a male-gender installed entry; Female otherwise).
 /// </summary>
 public class BodySlideGroupClassifier
 {
-    private readonly Logger _logger;
-    private SliderCategoryCatalog _catalog = new();
-    private Dictionary<string, string> _aliasToCanonical = new(StringComparer.OrdinalIgnoreCase);
+    private List<BodyTypeRegistryEntry> _registry = new();
 
-    /// <summary>
-    /// Score margin (best - second_best) below which the score-based fallback declines to classify.
-    /// 0.15 mirrors the default in the Python reference; tunable later if needed.
-    /// </summary>
-    public double ScoreMarginThreshold { get; set; } = 0.15;
-
-    public BodySlideGroupClassifier(Logger logger)
+    public BodySlideGroupClassifier()
     {
-        _logger = logger;
     }
 
-    /// <summary>True when at least one body type catalog has been loaded.</summary>
-    public bool HasCatalogs => _catalog != null && _catalog.BodyTypes.Count > 0;
-
-    /// <summary>Replace the in-memory catalog. Called once at settings load by <see cref="SettingsIO_OBody"/>.</summary>
-    public void SetCatalog(SliderCategoryCatalog catalog)
+    /// <summary>True when at least one installed registry entry has a non-empty slider catalog.</summary>
+    public bool HasCatalogs
     {
-        _catalog = catalog ?? new SliderCategoryCatalog();
-        _aliasToCanonical = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in _catalog.BodyTypes)
+        get
         {
-            // Body type maps to itself
-            _aliasToCanonical[kv.Key] = kv.Key;
-            if (kv.Value?.Family == null) continue;
-            foreach (var alias in kv.Value.Family)
+            if (_registry == null) return false;
+            foreach (var e in _registry)
             {
-                if (string.IsNullOrWhiteSpace(alias)) continue;
-                // First mapping wins; subsequent collisions are ignored.
-                if (!_aliasToCanonical.ContainsKey(alias))
-                {
-                    _aliasToCanonical[alias] = kv.Key;
-                }
+                if (e == null) continue;
+                if (e.IsInstalled && e.ResolvedSliders != null && e.ResolvedSliders.Count > 0) return true;
             }
+            return false;
         }
     }
 
     /// <summary>
-    /// Classify a preset into one of the loaded body types. Returns <c>null</c> when the catalog is
-    /// empty or the preset is too ambiguous (no clear winner across all three stages).
+    /// Replace the in-memory registry. Called from <see cref="SettingsIO_OBody.LoadSliderCatalogs"/>
+    /// after fingerprint scanning and slider extraction populate <see cref="BodyTypeRegistryEntry.IsInstalled"/>
+    /// and <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>.
+    /// </summary>
+    public void SetRegistry(List<BodyTypeRegistryEntry> registry)
+    {
+        _registry = registry ?? new List<BodyTypeRegistryEntry>();
+    }
+
+    /// <summary>
+    /// Classify a preset into one of the installed body types. Returns a result with
+    /// <c>BodyType="Unknown"</c> when the preset's slider set is not a subset of any installed
+    /// entry's <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>.
     /// </summary>
     public BodySlideClassification Classify(string presetName, ICollection<string> presetSliderNames)
     {
-        if (!HasCatalogs) return null;
+        if (!HasCatalogs)
+        {
+            return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "no-installed-bodies" };
+        }
         if (presetSliderNames == null || presetSliderNames.Count == 0)
         {
-            // Stage 2 (name match) can still resolve a preset with no sliders.
-            return ClassifyByName(presetName);
+            // A preset that moves no sliders has no fingerprint -- can't be classified by sliders.
+            return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "preset-has-no-sliders" };
         }
 
-        // Stage 1: strict containment
-        var subsetMatches = new List<BodyTypeCatalog>();
-        foreach (var entry in _catalog.BodyTypes.Values)
+        var matches = new List<BodyTypeRegistryEntry>();
+        foreach (var entry in _registry)
         {
-            if (entry?.Sliders == null || entry.Sliders.Count == 0) continue;
+            if (entry == null) continue;
+            if (!entry.IsInstalled) continue;
+            if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) continue;
+
             bool allIn = true;
             foreach (var s in presetSliderNames)
             {
-                if (!entry.Sliders.Contains(s)) { allIn = false; break; }
+                if (string.IsNullOrEmpty(s)) continue;
+                if (!entry.ResolvedSliders.Contains(s)) { allIn = false; break; }
             }
-            if (allIn) subsetMatches.Add(entry);
+            if (allIn) matches.Add(entry);
         }
 
-        if (subsetMatches.Count == 1)
+        if (matches.Count == 0)
         {
-            return Result(subsetMatches[0], "strict-containment");
-        }
-        if (subsetMatches.Count > 1)
-        {
-            // Multiple catalogs fully cover the preset -- try to collapse them via family compatibility.
-            var canonical = CollapseFamily(subsetMatches);
-            if (canonical != null) return Result(canonical, "strict-containment-family-collapse");
-            // Otherwise fall through to stage 2/3
-        }
-
-        // Stage 2: unambiguous preset name match
-        var byName = ClassifyByName(presetName);
-        if (byName != null) return byName;
-
-        // Stage 3: score-based fallback
-        return ClassifyByScore(presetSliderNames);
-    }
-
-    private BodySlideClassification ClassifyByName(string presetName)
-    {
-        if (string.IsNullOrEmpty(presetName) || _catalog.BodyTypes.Count == 0) return null;
-        var hits = new List<BodyTypeCatalog>();
-        foreach (var entry in _catalog.BodyTypes.Values)
-        {
-            if (entry == null || string.IsNullOrEmpty(entry.BodyType)) continue;
-            if (presetName.IndexOf(entry.BodyType, StringComparison.OrdinalIgnoreCase) >= 0)
+            return new BodySlideClassification
             {
-                hits.Add(entry);
-                continue;
-            }
-            // Also check aliases (family members) so e.g. a name containing "3BA" matches CBBE when aliased.
-            if (entry.Family != null)
+                BodyType = "Unknown",
+                Gender = InferGenderFromSliders(presetSliderNames),
+                Reason = "no-subset-match",
+            };
+        }
+
+        if (matches.Count == 1)
+        {
+            return new BodySlideClassification
             {
-                foreach (var alias in entry.Family)
-                {
-                    if (string.IsNullOrEmpty(alias)) continue;
-                    if (presetName.IndexOf(alias, StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        hits.Add(entry);
-                        break;
-                    }
-                }
-            }
+                BodyType = matches[0].Name,
+                Gender = matches[0].Gender,
+                Reason = "subset-match",
+            };
         }
 
-        if (hits.Count == 1) return Result(hits[0], "preset-name-match");
-        if (hits.Count > 1)
+        // Multiple installed catalogs cover the preset. Pick the most general -- the entry with the
+        // smallest ResolvedSliders count. Because matching uses strict subset, the preset cannot use
+        // any slider exclusive to the larger catalog (otherwise the smaller catalog would not match),
+        // so the most general candidate is the safest choice.
+        BodyTypeRegistryEntry pick = matches[0];
+        foreach (var m in matches)
         {
-            var canonical = CollapseFamily(hits);
-            if (canonical != null) return Result(canonical, "preset-name-match-family-collapse");
+            if (m.ResolvedSliders.Count < pick.ResolvedSliders.Count) pick = m;
         }
-        return null;
-    }
-
-    private BodySlideClassification ClassifyByScore(ICollection<string> presetSliderNames)
-    {
-        var scores = new List<(BodyTypeCatalog Entry, double Score)>();
-        double presetCount = presetSliderNames.Count;
-        foreach (var entry in _catalog.BodyTypes.Values)
+        return new BodySlideClassification
         {
-            if (entry?.Sliders == null || entry.Sliders.Count == 0) continue;
-            int overlap = 0;
-            foreach (var s in presetSliderNames)
-            {
-                if (entry.Sliders.Contains(s)) overlap++;
-            }
-            if (overlap == 0) continue;
-            scores.Add((entry, overlap / presetCount));
-        }
-        if (scores.Count == 0) return null;
-        scores.Sort((a, b) => b.Score.CompareTo(a.Score));
-        if (scores.Count == 1) return Result(scores[0].Entry, $"score:{scores[0].Score:F2}");
-
-        double margin = scores[0].Score - scores[1].Score;
-        if (margin >= ScoreMarginThreshold)
-        {
-            return Result(scores[0].Entry, $"score:{scores[0].Score:F2} (margin {margin:F2})");
-        }
-
-        // Try collapsing the top contenders by family
-        var topGroup = new List<BodyTypeCatalog>();
-        double topScore = scores[0].Score;
-        foreach (var s in scores)
-        {
-            if (Math.Abs(s.Score - topScore) < 1e-9) topGroup.Add(s.Entry);
-            else break;
-        }
-        var canonical = CollapseFamily(topGroup);
-        if (canonical != null) return Result(canonical, $"score-family-collapse:{topScore:F2}");
-        return null;
+            BodyType = pick.Name,
+            Gender = pick.Gender,
+            Reason = $"subset-match-most-general (of {matches.Count})",
+        };
     }
 
     /// <summary>
-    /// If every entry in <paramref name="entries"/> resolves (via the alias map) to the same
-    /// canonical body type, returns that canonical entry. Otherwise returns <c>null</c>.
+    /// Best-effort gender for an unclassifiable preset: Male if any of the preset's sliders is in
+    /// the slider catalog of an installed male body type, Female otherwise. Falls back to Female
+    /// when the registry has no installed male body types loaded.
     /// </summary>
-    private BodyTypeCatalog CollapseFamily(IList<BodyTypeCatalog> entries)
+    private Gender InferGenderFromSliders(ICollection<string> presetSliderNames)
     {
-        if (entries == null || entries.Count == 0) return null;
-        string canonicalName = null;
-        foreach (var e in entries)
+        foreach (var entry in _registry)
         {
-            if (e == null || string.IsNullOrEmpty(e.BodyType)) return null;
-            if (!_aliasToCanonical.TryGetValue(e.BodyType, out var c)) c = e.BodyType;
-            if (canonicalName == null) canonicalName = c;
-            else if (!string.Equals(canonicalName, c, StringComparison.OrdinalIgnoreCase)) return null;
+            if (entry == null || !entry.IsInstalled) continue;
+            if (entry.Gender != Gender.Male) continue;
+            if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) continue;
+            foreach (var s in presetSliderNames)
+            {
+                if (!string.IsNullOrEmpty(s) && entry.ResolvedSliders.Contains(s)) return Gender.Male;
+            }
         }
-        return canonicalName != null && _catalog.BodyTypes.TryGetValue(canonicalName, out var entry)
-            ? entry
-            : null;
-    }
-
-    private static BodySlideClassification Result(BodyTypeCatalog entry, string reason)
-    {
-        return new BodySlideClassification
-        {
-            BodyType = entry.BodyType,
-            Gender = entry.Gender,
-            Reason = reason,
-        };
+        return Gender.Female;
     }
 }

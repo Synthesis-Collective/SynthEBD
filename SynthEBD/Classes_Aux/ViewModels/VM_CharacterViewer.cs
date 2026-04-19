@@ -42,6 +42,7 @@ public class VM_CharacterViewer : VM
     private readonly BsdFileParser _bsdFileParser;
     private readonly GameAssetResolver _assetResolver;
     private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
     private readonly Logger _logger;
 
     private CancellationTokenSource? _loadCts;
@@ -102,6 +103,7 @@ public class VM_CharacterViewer : VM
         BsdFileParser bsdFileParser,
         GameAssetResolver assetResolver,
         IEnvironmentStateProvider environmentProvider,
+        PatcherState patcherState,
         VM_Settings_General generalSettings,
         Logger logger)
     {
@@ -111,6 +113,7 @@ public class VM_CharacterViewer : VM
         _bsdFileParser = bsdFileParser;
         _assetResolver = assetResolver;
         _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
         _generalSettings = generalSettings;
         _logger = logger;
 
@@ -1535,6 +1538,34 @@ public class VM_CharacterViewer : VM
             return;
         }
 
+        // Primary path: look up the body type in the registry and parse the OSD/BSD files in
+        // the entry's declared ShapeDataFolders. If the entry is a superset of another body
+        // (e.g. CBBE 3BA ⊃ CBBE), include the parent's folders too -- a 3BA preset may move
+        // CBBE-shared sliders whose deltas live only in the CBBE shape data.
+        var registry = _patcherState?.OBodySettings?.BodyTypeRegistry;
+        var entry = FindRegistryEntry(registry, sliderGroup);
+        if (entry != null)
+        {
+            var folders = new List<string>();
+            CollectShapeDataFolders(entry, registry, folders, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var registryOsd = new List<OsdFile>();
+            foreach (var folder in folders)
+            {
+                var fullPath = Path.Combine(shapeDataRoot, folder);
+                if (!Directory.Exists(fullPath)) continue;
+                foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath))
+                {
+                    if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
+                }
+            }
+            _cachedOsdFiles = registryOsd;
+            return;
+        }
+
+        // Fallback (registry miss / "Unknown" preset): legacy substring scan over every direct
+        // child of ShapeData, then full-tree scan if no name contained the group string.
         var matchingDirs = Directory.GetDirectories(shapeDataRoot)
             .Where(d => Path.GetFileName(d).Contains(sliderGroup, StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -1547,6 +1578,33 @@ public class VM_CharacterViewer : VM
             allOsd.AddRange(_bsdFileParser.ParseAllOsdInDirectory(dir));
 
         _cachedOsdFiles = allOsd;
+    }
+
+    private static BodyTypeRegistryEntry FindRegistryEntry(List<BodyTypeRegistryEntry> registry, string name)
+    {
+        if (registry == null || string.IsNullOrWhiteSpace(name)) return null;
+        foreach (var e in registry)
+        {
+            if (e != null && string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)) return e;
+        }
+        return null;
+    }
+
+    private static void CollectShapeDataFolders(BodyTypeRegistryEntry entry, List<BodyTypeRegistryEntry> registry, List<string> folders, HashSet<string> visited)
+    {
+        if (entry == null || !visited.Add(entry.Name)) return;
+        if (entry.ShapeDataFolders != null)
+        {
+            foreach (var f in entry.ShapeDataFolders)
+            {
+                if (!string.IsNullOrWhiteSpace(f)) folders.Add(f);
+            }
+        }
+        if (!string.IsNullOrWhiteSpace(entry.SupersetOfBodyType))
+        {
+            var parent = FindRegistryEntry(registry, entry.SupersetOfBodyType);
+            CollectShapeDataFolders(parent, registry, folders, visited);
+        }
     }
 
     // Derives the weight-0 counterpart path for a NIF path that ends in "_1.nif".

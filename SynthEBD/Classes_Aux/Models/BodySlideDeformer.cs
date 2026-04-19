@@ -228,6 +228,11 @@ public class BodySlideDeformer
     /// Builds a combined lookup of slider data name → vertex deltas from all
     /// matching OSD files. OSD files are matched by ShapeName if specified.
     /// Uses case-insensitive key matching for slider names.
+    ///
+    /// BodySlide OSD files store slider entries as `&lt;shape&gt;&lt;slider&gt;` concatenations
+    /// (e.g. `3BA RefAreolaSize`), but preset XMLs use canonical names (`AreolaSize`). We
+    /// compute the longest common prefix across each file's slider names -- that's the shape
+    /// tag -- and strip it before keying the dictionary, so preset lookups match.
     /// </summary>
     private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMap(
         List<OsdFile> osdFiles, string? shapeName)
@@ -244,13 +249,44 @@ public class BodySlideDeformer
                 continue;
             }
 
+            var rawNames = new List<string>(osd.Sliders.Count);
+            foreach (var s in osd.Sliders)
+            {
+                if (!string.IsNullOrWhiteSpace(s?.Name)) rawNames.Add(s.Name);
+            }
+            string lcp = ComputeLongestCommonPrefix(rawNames);
+            int minLen = int.MaxValue;
+            foreach (var n in rawNames) if (n.Length < minLen) minLen = n.Length;
+            if (lcp.Length >= minLen) lcp = "";
+
             foreach (var slider in osd.Sliders)
             {
+                if (string.IsNullOrWhiteSpace(slider?.Name)) continue;
+                var unprefixed = lcp.Length > 0 && slider.Name.StartsWith(lcp, StringComparison.Ordinal)
+                    ? slider.Name.Substring(lcp.Length)
+                    : slider.Name;
+                if (string.IsNullOrWhiteSpace(unprefixed)) continue;
                 // Later OSD files override earlier ones for the same slider name
-                map[slider.Name] = slider.VertexDeltas;
+                map[unprefixed] = slider.VertexDeltas;
             }
         }
 
         return map;
+    }
+
+    private static string ComputeLongestCommonPrefix(IList<string> names)
+    {
+        if (names == null || names.Count <= 1) return "";
+        string prefix = names[0];
+        for (int i = 1; i < names.Count; i++)
+        {
+            var name = names[i];
+            int j = 0;
+            int max = Math.Min(prefix.Length, name.Length);
+            while (j < max && prefix[j] == name[j]) j++;
+            prefix = prefix.Substring(0, j);
+            if (prefix.Length == 0) break;
+        }
+        return prefix;
     }
 }

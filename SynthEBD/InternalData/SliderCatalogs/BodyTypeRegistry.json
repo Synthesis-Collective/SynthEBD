@@ -1,0 +1,127 @@
+[
+  {
+    "Name": "CBBE",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "CBBE.esp",
+      "CalienteTools/BodySlide/ConversionSets/CBBE References.osp",
+      "CalienteTools/BodySlide/RefTemplates/CBBE.xml"
+    ],
+    "ShapeDataFolders": [
+      "CBBE Vanilla",
+      "CBBE Vanilla Physics",
+      "CBBE Dawnguard",
+      "CBBE Dawnguard Physics",
+      "CBBE Dragonborn",
+      "CBBE Dragonborn Physics"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "CBBE 3BA",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "3BBB.esp",
+      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA.xml",
+      "CalienteTools/BodySlide/RefTemplates/CBBE 3BA UniBody.xml"
+    ],
+    "ShapeDataFolders": [
+      "CBBE 3BA Reference",
+      "CBBE 3BA UniBody Ref",
+      "3BBB Collision Armor",
+      "SE 3BBB Amazing"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "Unified UNP",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "CalienteTools/BodySlide/ShapeData/Unified UNP",
+      "RaceMenuMorphsUUNP.esp"
+    ],
+    "ShapeDataFolders": [
+      "Unified UNP"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "BHUNP",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "BHUNP3BBB.esp"
+    ],
+    "ShapeDataFolders": [
+      "BHUNP 3BBB Advanced",
+      "BHUNP 3BBB Advanced Nevernude",
+      "BHUNP 3BBB Collision Armor",
+      "BHUNP Collision Variation"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "Touched by Dibella",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "TouchedbyDibella.esp"
+    ],
+    "ShapeDataFolders": [
+      "TBD"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "COCO Body",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "RaceMenuMorphsCOCO.esp",
+      "CalienteTools/BodySlide/RefTemplates/COCO RefTemplates.xml"
+    ],
+    "ShapeDataFolders": [
+      "[COCO]BODY2021_V4",
+      "[COCO]BODY_V2",
+      "[COCO]SMP_BODY_V6",
+      "[COCO]SMP_BODY_V6(collision)"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "SOMBody",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "SOM3BBB.esp",
+      "SOMBodyTexturesSet.esp",
+      "CalienteTools/BodySlide/RefTemplates/SOMBody.xml"
+    ],
+    "ShapeDataFolders": [
+      "[SOMBody] Shape of Maiden Body 3BBB",
+      "[SOMResources] SOMBody Slider"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  },
+  {
+    "Name": "HIMBO",
+    "Gender": "Male",
+    "IdentityFingerprints": [
+      "HIMBO.esp",
+      "CalienteTools/BodySlide/SliderCategories/HIMBO.xml",
+      "CalienteTools/BodySlide/SliderSets/HIMBO.osp"
+    ],
+    "ShapeDataFolders": [
+      "HIMBO",
+      "HIMBO Body",
+      "HIMBO Conversion",
+      "HIMBO Ref",
+      "HIMBO Res"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
+  }
+]
