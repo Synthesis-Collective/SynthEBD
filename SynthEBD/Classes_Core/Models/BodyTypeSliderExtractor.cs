@@ -1,3 +1,8 @@
+// Define CATALOG_VERBOSE_LOGGING to re-enable per-OSD LCP + raw-name samples and
+// per-entry normalized slider samples. Default off -- these are diagnostic aids for
+// slider-name-normalization issues, noisy in the common case.
+//#define CATALOG_VERBOSE_LOGGING
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -72,7 +77,9 @@ public class BodyTypeSliderExtractor
 
                 if (File.Exists(fullPath))
                 {
-                    var osd = parser.ParseOsdFile(fullPath);
+                    var osd = string.Equals(Path.GetExtension(fullPath), ".bsd", StringComparison.OrdinalIgnoreCase)
+                        ? parser.ParseBsdFile(fullPath)
+                        : parser.ParseOsdFile(fullPath);
                     if (osd != null) AddNormalizedSliders(entry, osd);
                 }
                 else if (Directory.Exists(fullPath))
@@ -88,10 +95,12 @@ public class BodyTypeSliderExtractor
                 }
             }
 
+#if CATALOG_VERBOSE_LOGGING
             string sample = entry.ResolvedSliders.Count == 0
                 ? ""
                 : " Sample: " + string.Join(", ", entry.ResolvedSliders.Take(5));
             _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' resolved {entry.ResolvedSliders.Count} slider(s) from {entry.ShapeDataFolders.Count} ShapeData folder(s).{sample}");
+#endif
         }
 
         ComputeSupersets(materialized);
@@ -170,8 +179,10 @@ public class BodyTypeSliderExtractor
         foreach (var n in rawNames) if (n.Length < minLen) minLen = n.Length;
         if (lcp.Length >= minLen) lcp = "";
 
+#if CATALOG_VERBOSE_LOGGING
         var rawSample = string.Join(", ", rawNames.Take(3));
         _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' OSD '{osd.ShapeName}' LCP='{lcp}' raw sample: {rawSample}");
+#endif
 
         foreach (var name in rawNames)
         {

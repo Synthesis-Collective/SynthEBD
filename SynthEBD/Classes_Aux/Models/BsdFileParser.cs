@@ -1,3 +1,8 @@
+// Define CATALOG_VERBOSE_LOGGING to re-enable per-file parse-success logs
+// (useful when diagnosing slider-catalog issues; normally spammy -- e.g. UUNP emits
+// ~400 success lines per load). Failure logs are always on.
+//#define CATALOG_VERBOSE_LOGGING
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,11 +32,11 @@ public class OsdFile
 }
 
 /// <summary>
-/// Parses BodySlide's OSD (Outfit Studio Data) binary files containing
-/// per-slider sparse vertex deltas. Format verified against BodySlide source
-/// (DiffData.cpp → OSDataFile::Read).
+/// Parses BodySlide's OSD (Outfit Studio Data) and BSD (BodySlide Data) binary files
+/// containing per-slider sparse vertex deltas. Formats verified against BodySlide source
+/// (DiffData.cpp → OSDataFile::Read / BSDataFile::Read).
 ///
-/// Binary layout:
+/// OSD layout (multi-slider, one file per shape -- CBBE/BHUNP/3BA):
 ///   uint32    magic   "OSD\0"
 ///   uint32    version
 ///   uint32    dataCount
@@ -41,9 +46,14 @@ public class OsdFile
 ///     uint16            diffCount
 ///     for each diff (packed, 14 bytes):
 ///       uint16  vertexIndex
-///       float   deltaX
-///       float   deltaY
-///       float   deltaZ
+///       float   deltaX / deltaY / deltaZ
+///
+/// BSD layout (single-slider, one file per slider -- UUNP-style; no magic):
+///   uint32    diffCount
+///   for each diff (packed, 16 bytes):
+///     uint32  vertexIndex
+///     float   deltaX / deltaY / deltaZ
+///   (slider name is the file name without extension)
 /// </summary>
 public class BsdFileParser
 {
@@ -157,8 +167,12 @@ public class BsdFileParser
                 totalDeltas += deltas.Count;
             }
 
+#if CATALOG_VERBOSE_LOGGING
             _logger.LogMessage("CharacterViewer: Parsed OSD '" + displayPath +
                 "' -> shape '" + shapeName + "', " + sliders.Count + " sliders, " + totalDeltas + " total deltas (v" + version + ")");
+#else
+            _ = totalDeltas; _ = version;
+#endif
 
             return new OsdFile
             {
@@ -179,12 +193,79 @@ public class BsdFileParser
     }
 
     /// <summary>
+    /// Parses a UUNP-style .bsd file: one file per slider, with a different on-disk layout
+    /// than .osd. BSD has no magic header -- it's just a uint32 delta-count followed by
+    /// packed 16-byte records (uint32 vertexIndex + 3× float). The slider name is the
+    /// file name without extension. Returns a single-slider <see cref="OsdFile"/> so the
+    /// rest of the pipeline can treat BSD and OSD uniformly. Returns null on error.
+    /// </summary>
+    public OsdFile? ParseBsdFile(string bsdFilePath)
+    {
+        if (!File.Exists(bsdFilePath))
+        {
+            _logger.LogError("CharacterViewer: BSD file not found: '" + bsdFilePath + "'");
+            return null;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(bsdFilePath);
+            using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
+
+            uint diffCount = reader.ReadUInt32();
+            var deltas = new Dictionary<ushort, System.Numerics.Vector3>((int)diffCount);
+
+            for (uint j = 0; j < diffCount; j++)
+            {
+                uint vertIndex = reader.ReadUInt32();
+                float dx = reader.ReadSingle();
+                float dy = reader.ReadSingle();
+                float dz = reader.ReadSingle();
+
+                const float epsilon = 1e-10f;
+                if (Math.Abs(dx) < epsilon) dx = 0;
+                if (Math.Abs(dy) < epsilon) dy = 0;
+                if (Math.Abs(dz) < epsilon) dz = 0;
+
+                if ((dx != 0 || dy != 0 || dz != 0) && vertIndex <= ushort.MaxValue)
+                {
+                    deltas[(ushort)vertIndex] = new System.Numerics.Vector3(dx, dy, dz);
+                }
+            }
+
+            string sliderName = Path.GetFileNameWithoutExtension(bsdFilePath);
+            var slider = new OsdSliderData { Name = sliderName, VertexDeltas = deltas };
+
+#if CATALOG_VERBOSE_LOGGING
+            _logger.LogMessage("CharacterViewer: Parsed BSD '" + bsdFilePath +
+                "' -> slider '" + sliderName + "', " + deltas.Count + " deltas");
+#endif
+
+            return new OsdFile
+            {
+                ShapeName = sliderName,
+                Sliders = new List<OsdSliderData> { slider }
+            };
+        }
+        catch (EndOfStreamException)
+        {
+            _logger.LogError("CharacterViewer: Unexpected end of BSD file '" + bsdFilePath + "'");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("CharacterViewer: Failed to parse BSD '" + bsdFilePath + "': " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Recursively scans a directory for all .osd and .bsd files and parses them.
-    /// Both extensions use identical on-disk layout (magic bytes "OSD\0"); Unified UNP
-    /// ships .bsd in a flat folder while CBBE/BHUNP ship .osd in nested subdirs.
-    /// Results are de-duplicated by <see cref="OsdFile.ShapeName"/> (first hit wins)
-    /// so a single shape parsed through two paths only appears once.
-    /// Returns an empty list if the directory does not exist.
+    /// .osd files are multi-slider with an "OSD\0" magic (CBBE/BHUNP/3BA/etc.). .bsd files
+    /// are single-slider with no magic and a different record layout (UUNP-style per-slider
+    /// files). Results are de-duplicated by <see cref="OsdFile.ShapeName"/> (first hit wins)
+    /// so a single shape parsed through two paths only appears once. Returns an empty list
+    /// if the directory does not exist.
     /// </summary>
     public List<OsdFile> ParseAllOsdInDirectory(string directoryPath)
     {
@@ -209,10 +290,10 @@ public class BsdFileParser
 
         foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*.bsd", SearchOption.AllDirectories))
         {
-            var osd = ParseOsdFile(filePath);
-            if (osd != null && seenShapeNames.Add(osd.ShapeName))
+            var bsd = ParseBsdFile(filePath);
+            if (bsd != null && seenShapeNames.Add(bsd.ShapeName))
             {
-                results.Add(osd);
+                results.Add(bsd);
             }
         }
 

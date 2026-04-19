@@ -1559,7 +1559,9 @@ public class VM_CharacterViewer : VM
                 var fullPath = Path.Combine(shapeDataRoot, sub);
                 if (File.Exists(fullPath))
                 {
-                    var osd = _bsdFileParser.ParseOsdFile(fullPath);
+                    var osd = string.Equals(Path.GetExtension(fullPath), ".bsd", StringComparison.OrdinalIgnoreCase)
+                        ? _bsdFileParser.ParseBsdFile(fullPath)
+                        : _bsdFileParser.ParseOsdFile(fullPath);
                     if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
                 }
                 else if (Directory.Exists(fullPath))
