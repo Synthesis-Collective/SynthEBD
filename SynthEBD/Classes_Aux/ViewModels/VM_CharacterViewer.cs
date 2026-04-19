@@ -40,6 +40,7 @@ public class VM_CharacterViewer : VM
     private readonly NpcMeshResolver _npcMeshResolver;
     private readonly BodySlideDeformer _bodySlideDeformer;
     private readonly BsdFileParser _bsdFileParser;
+    private readonly BodyTriFileParser _bodyTriFileParser;
     private readonly GameAssetResolver _assetResolver;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -62,6 +63,16 @@ public class VM_CharacterViewer : VM
     private readonly Dictionary<string, NifMeshBuilder.BuiltMesh> _cachedBodyMeshes = new();
 
     private List<OsdFile>? _cachedOsdFiles;
+
+    /// <summary>Disk path of the currently-loaded body NIF, used to locate the
+    /// sibling .tri for topology-matched morphing (BodySlide "Build Morphs" output).</summary>
+    private string? _cachedBodyNifDiskPath;
+
+    /// <summary>Parsed sibling .tri for the current body NIF, cached across preset/weight
+    /// changes so we don't re-parse on every RefreshPreview. Null when no .tri is
+    /// present next to the NIF -- in that case we fall back to the OSD path.</summary>
+    private BodyTriFile? _cachedBodyTri;
+
     private NpcMeshResolver.NpcMeshPaths? _cachedMeshPaths;
 
     /// <summary>NPC's HairColor record (HCLR) resolved from HeadData.HairColor FormLink,
@@ -101,6 +112,7 @@ public class VM_CharacterViewer : VM
         NpcMeshResolver npcMeshResolver,
         BodySlideDeformer bodySlideDeformer,
         BsdFileParser bsdFileParser,
+        BodyTriFileParser bodyTriFileParser,
         GameAssetResolver assetResolver,
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -111,6 +123,7 @@ public class VM_CharacterViewer : VM
         _npcMeshResolver = npcMeshResolver;
         _bodySlideDeformer = bodySlideDeformer;
         _bsdFileParser = bsdFileParser;
+        _bodyTriFileParser = bodyTriFileParser;
         _assetResolver = assetResolver;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -784,7 +797,18 @@ public class VM_CharacterViewer : VM
                 }
 
                 if (bodyPart == "Body")
+                {
                     _cachedBodyMeshes[built.ShapeName] = built;
+
+                    // Cache the body NIF's disk path once per scene so ApplyBodySlide
+                    // can probe for a sibling .tri (BodySlide's "Build Morphs" output).
+                    // The .tri is topology-matched to this NIF, so it avoids the OSD
+                    // path's reference-mesh mismatch.
+                    if (_cachedBodyNifDiskPath == null && meshSource?.ResolvedDiskPath != null)
+                    {
+                        _cachedBodyNifDiskPath = meshSource.ResolvedDiskPath;
+                    }
+                }
 
                 totalShapes++;
             }
@@ -1298,10 +1322,21 @@ public class VM_CharacterViewer : VM
 
         try
         {
-            if (preset.SliderGroup != null)
+            // Preferred path: if a sibling .tri exists next to the worn body NIF
+            // (BodySlide's "Build Morphs" output), use it. Its sparse vertex deltas
+            // are authored against this exact NIF's topology, so we sidestep the
+            // OSD path's reference-mesh mismatch (chopped deformation bands).
+            TryLoadSiblingBodyTri();
+
+            // OSD fallback: only load the slider-group OSD catalog when we don't
+            // have a .tri to use. Avoids a wasted ShapeData scan on every
+            // preset/weight change for the common case.
+            if (_cachedBodyTri == null && preset.SliderGroup != null)
                 LoadOsdFilesForGroup(preset.SliderGroup);
 
-            if (_cachedOsdFiles == null || _cachedOsdFiles.Count == 0) return;
+            bool haveDeltas = _cachedBodyTri != null
+                           || (_cachedOsdFiles != null && _cachedOsdFiles.Count > 0);
+            if (!haveDeltas) return;
 
             foreach (var kvp in _cachedBodyMeshes)
             {
@@ -1317,8 +1352,16 @@ public class VM_CharacterViewer : VM
                 var positions = new Vector3[sourcePositions.Length];
                 Array.Copy(sourcePositions, positions, sourcePositions.Length);
 
-                // Apply deformation
-                _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles, shapeName);
+                // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
+                // fall back to OSD for meshes without "Build Morphs" output.
+                if (_cachedBodyTri != null)
+                {
+                    _bodySlideDeformer.ApplyDeformationFromTri(positions, preset, NpcWeight, _cachedBodyTri, shapeName);
+                }
+                else
+                {
+                    _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles!, shapeName);
+                }
 
                 // Recalculate normals
                 var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
@@ -1364,6 +1407,8 @@ public class VM_CharacterViewer : VM
         _cachedBodyMeshes.Clear();
         _textureApplyInfoByMesh.Clear();
         _cachedOsdFiles = null;
+        _cachedBodyNifDiskPath = null;
+        _cachedBodyTri = null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1526,6 +1571,76 @@ public class VM_CharacterViewer : VM
         }
 
         return data;
+    }
+
+    /// <summary>
+    /// Looks for a sibling .tri next to the currently-loaded body NIF and parses it
+    /// on first use. Result (including parse failure → null) is cached per scene so
+    /// this is a no-op on subsequent preset/weight changes. Silently does nothing
+    /// if no body NIF path has been captured yet.
+    ///
+    /// Probes both naming conventions Skyrim uses: the .tri may share the NIF's
+    /// stem verbatim (e.g. `custombody.nif` → `custombody.tri`) or may be the
+    /// weight-stripped form (e.g. `FemaleBody_1.nif` → `femalebody.tri`), since
+    /// vanilla / BodySlide-built bodies ship paired `_0`/`_1` NIFs but a single
+    /// shared .tri whose morph deltas are identical between weight variants.
+    /// </summary>
+    private void TryLoadSiblingBodyTri()
+    {
+        if (_cachedBodyTri != null) return;
+        if (_cachedBodyNifDiskPath == null) return;
+
+        string? triPath = ProbeSiblingTriPath(_cachedBodyNifDiskPath);
+        if (triPath == null)
+        {
+            _logger.LogMessage("CharacterViewer: No sibling .tri found for '" + _cachedBodyNifDiskPath +
+                "' -- falling back to OSD path (chopping bug possible if topology mismatches reference).");
+            _cachedBodyNifDiskPath = null; // don't re-probe
+            return;
+        }
+
+        _cachedBodyTri = _bodyTriFileParser.Parse(triPath);
+        if (_cachedBodyTri == null)
+        {
+            _logger.LogMessage("CharacterViewer: Sibling .tri at '" + triPath +
+                "' failed to parse -- falling back to OSD path.");
+            _cachedBodyNifDiskPath = null;
+            return;
+        }
+
+        int totalMorphs = 0;
+        foreach (var shape in _cachedBodyTri.Shapes) totalMorphs += shape.Morphs.Count;
+        _logger.LogMessage("CharacterViewer: Using sibling .tri '" + triPath + "' (" +
+            _cachedBodyTri.Shapes.Count + " shape(s), " + totalMorphs + " total morph(s))");
+    }
+
+    /// <summary>
+    /// Returns the first existing .tri sibling for <paramref name="nifDiskPath"/>,
+    /// trying the stripped-weight-suffix form first (matches vanilla/BodySlide
+    /// convention). Null if neither exists.
+    /// </summary>
+    private static string? ProbeSiblingTriPath(string nifDiskPath)
+    {
+        string dir = Path.GetDirectoryName(nifDiskPath) ?? "";
+        string stem = Path.GetFileNameWithoutExtension(nifDiskPath);
+
+        // Strip trailing _0 or _1 weight suffix if present.
+        string strippedStem = stem;
+        if (stem.Length > 2 && stem[^2] == '_' && (stem[^1] == '0' || stem[^1] == '1'))
+        {
+            strippedStem = stem.Substring(0, stem.Length - 2);
+        }
+
+        if (!string.Equals(strippedStem, stem, StringComparison.Ordinal))
+        {
+            string strippedPath = Path.Combine(dir, strippedStem + ".tri");
+            if (File.Exists(strippedPath)) return strippedPath;
+        }
+
+        string samePath = Path.Combine(dir, stem + ".tri");
+        if (File.Exists(samePath)) return samePath;
+
+        return null;
     }
 
     private void LoadOsdFilesForGroup(string sliderGroup)

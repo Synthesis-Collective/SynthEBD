@@ -91,6 +91,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline
         builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTriFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_CharacterViewer>().AsSelf();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();

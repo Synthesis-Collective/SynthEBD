@@ -61,9 +61,68 @@ public class BodySlideDeformer
             return;
         }
 
+        ApplyFromSliderDeltaMap(positions, preset, weight, sliderDeltaMap, shapeName, sourceLabel: "OSD");
+    }
+
+    /// <summary>
+    /// Applies BodySlide deformations using a body .tri file. Unlike the OSD
+    /// path, .tri morph names are direct slider names (no LCP stripping needed)
+    /// and the delta indices are authored against the sibling NIF's exact
+    /// topology -- so a matching NIF should see zero out-of-range deltas.
+    /// </summary>
+    /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
+    /// <param name="preset">The BodySlide preset containing slider names and Big/Small values.</param>
+    /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
+    /// <param name="triFile">Parsed body .tri for the NIF being deformed.</param>
+    /// <param name="shapeName">The target shape to select inside the .tri. If null, uses the first shape.</param>
+    public void ApplyDeformationFromTri(
+        Vector3[] positions,
+        BodySlideSetting preset,
+        int weight,
+        BodyTriFile triFile,
+        string? shapeName = null)
+    {
+        if (positions == null || positions.Length == 0 || preset == null || triFile == null || triFile.Shapes.Count == 0)
+        {
+            return;
+        }
+
+        weight = Math.Clamp(weight, 0, 100);
+
+        var sliderDeltaMap = BuildSliderDeltaMapFromTri(triFile, shapeName);
+        if (sliderDeltaMap.Count == 0)
+        {
+            _logger.LogMessage("CharacterViewer: No matching .tri morph data found for shape '" +
+                (shapeName ?? "(any)") + "' in '" + triFile.FilePath + "'");
+            return;
+        }
+
+        ApplyFromSliderDeltaMap(positions, preset, weight, sliderDeltaMap, shapeName, sourceLabel: "TRI");
+    }
+
+    /// <summary>
+    /// Shared core: given a slider-name → sparse-vertex-delta map, iterates the preset's
+    /// Big/Small values and writes interpolated offsets into <paramref name="positions"/>.
+    /// </summary>
+    private void ApplyFromSliderDeltaMap(
+        Vector3[] positions,
+        BodySlideSetting preset,
+        int weight,
+        Dictionary<string, Dictionary<ushort, Vector3>> sliderDeltaMap,
+        string? shapeName,
+        string sourceLabel)
+    {
         int vertCount = positions.Length;
         int slidersApplied = 0;
         int vertsModified = 0;
+
+        // Topology-mismatch diagnostic. Counts in/out-of-range delta applications
+        // and the OSD's highest referenced vertex index across all applied sliders.
+        // If osdMaxIndex + 1 > vertCount (or deltasOutOfRange > 0) the target mesh
+        // has fewer verts than the OSD was authored for — classic ref-mesh mismatch.
+        int deltasInRange = 0;
+        int deltasOutOfRange = 0;
+        int osdMaxIndex = -1;
 
         // We need separate high/low accumulators for weight interpolation.
         // Start from a copy of the original positions, accumulate Big diffs → high,
@@ -95,10 +154,13 @@ public class BodySlideDeformer
             foreach (var delta in deltas)
             {
                 int vertIndex = delta.Key;
+                if (vertIndex > osdMaxIndex) osdMaxIndex = vertIndex;
                 if (vertIndex >= vertCount)
                 {
+                    deltasOutOfRange++;
                     continue;
                 }
+                deltasInRange++;
 
                 // Convert OSD delta from NIF Z-up to HelixToolkit Y-up:
                 // X stays, Y = Z_nif, Z = -Y_nif
@@ -165,8 +227,21 @@ public class BodySlideDeformer
 
         vertsModified = touchedVerts.Count;
 
+        // Topology-mismatch flag: the OSD refers to a vertex index the target mesh
+        // doesn't have. This is the signature of "OSD authored for reference NIF X,
+        // applied to different NIF Y" — the deltas that DO fit land on the wrong
+        // verts (anatomically-similar but not identical), producing chopped bands.
+        bool topologyMismatch = deltasOutOfRange > 0 || (osdMaxIndex >= 0 && osdMaxIndex + 1 != vertCount);
+
         _logger.LogMessage("CharacterViewer: Applied preset '" + preset.Label +
-            "' (" + slidersApplied + " sliders, " + vertsModified + " vertices modified, weight=" + weight + ")");
+            "' to shape '" + (shapeName ?? "(any)") + "' via " + sourceLabel +
+            " (" + slidersApplied + " sliders, " + vertsModified + " vertices modified, weight=" + weight + ")" +
+            " | target verts=" + vertCount +
+            ", " + sourceLabel + " max vertIndex=" + osdMaxIndex +
+            " (implies " + (osdMaxIndex + 1) + "-vert ref mesh)" +
+            ", deltas applied=" + deltasInRange +
+            ", deltas skipped OOR=" + deltasOutOfRange +
+            (topologyMismatch ? " [TOPOLOGY MISMATCH]" : " [topology OK]"));
     }
 
     /// <summary>
@@ -234,6 +309,41 @@ public class BodySlideDeformer
     /// compute the longest common prefix across each file's slider names -- that's the shape
     /// tag -- and strip it before keying the dictionary, so preset lookups match.
     /// </summary>
+    /// <summary>
+    /// Selects one shape from the .tri and returns its morph-name → vertex-delta
+    /// lookup. Matching is by case-insensitive substring (same rule as OSD). If
+    /// <paramref name="shapeName"/> is null or nothing matches, falls back to the
+    /// first shape in the file.
+    /// </summary>
+    private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMapFromTri(
+        BodyTriFile triFile, string? shapeName)
+    {
+        var map = new Dictionary<string, Dictionary<ushort, Vector3>>(StringComparer.OrdinalIgnoreCase);
+        if (triFile.Shapes.Count == 0) return map;
+
+        BodyTriShape selected = triFile.Shapes[0];
+        if (!string.IsNullOrEmpty(shapeName))
+        {
+            foreach (var shape in triFile.Shapes)
+            {
+                if (shape.ShapeName.Contains(shapeName, StringComparison.OrdinalIgnoreCase) ||
+                    shapeName.Contains(shape.ShapeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    selected = shape;
+                    break;
+                }
+            }
+        }
+
+        foreach (var morph in selected.Morphs)
+        {
+            if (string.IsNullOrWhiteSpace(morph.Name)) continue;
+            map[morph.Name] = morph.VertexDeltas;
+        }
+
+        return map;
+    }
+
     private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMap(
         List<OsdFile> osdFiles, string? shapeName)
     {
