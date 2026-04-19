@@ -82,9 +82,16 @@ public class BodyTypeSliderExtractor
                         AddNormalizedSliders(entry, osd);
                     }
                 }
+                else
+                {
+                    _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' ShapeData target missing on disk: '{fullPath}'");
+                }
             }
 
-            _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' resolved {entry.ResolvedSliders.Count} slider(s) from {entry.ShapeDataFolders.Count} ShapeData folder(s).");
+            string sample = entry.ResolvedSliders.Count == 0
+                ? ""
+                : " Sample: " + string.Join(", ", entry.ResolvedSliders.Take(5));
+            _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' resolved {entry.ResolvedSliders.Count} slider(s) from {entry.ShapeDataFolders.Count} ShapeData folder(s).{sample}");
         }
 
         ComputeSupersets(materialized);
@@ -92,8 +99,11 @@ public class BodyTypeSliderExtractor
 
     /// <summary>
     /// For each installed entry A, picks the installed same-gender entry B with the largest
-    /// slider set that is a proper subset of A. A's <see cref="BodyTypeRegistryEntry.SupersetOfBodyType"/>
-    /// becomes B.Name (empty if no such B exists). O(N²) with N ≈ 10 -- trivial.
+    /// slider set that is a <i>near</i>-subset of A. Strict subset fails in practice because
+    /// newer bodies drop or rename a handful of legacy sliders from their ancestors (e.g.
+    /// CBBE 3BA's reference OSD omits CBBE's AreolaSize/BreastFlattness). We therefore allow
+    /// up to <c>max(2, |B|/50)</c> of B's sliders to be absent from A (~2% drift tolerance
+    /// with a 2-slider floor for small catalogs). O(N²) with N ≈ 10 -- trivial.
     /// </summary>
     private static void ComputeSupersets(List<BodyTypeRegistryEntry> entries)
     {
@@ -112,7 +122,14 @@ public class BodyTypeSliderExtractor
                 if (b.ResolvedSliders == null || b.ResolvedSliders.Count == 0) continue;
                 if (b.ResolvedSliders.Count >= a.ResolvedSliders.Count) continue;
 
-                if (!b.ResolvedSliders.IsSubsetOf(a.ResolvedSliders)) continue;
+                int tolerance = Math.Max(2, b.ResolvedSliders.Count / 50);
+                int missing = 0;
+                foreach (var s in b.ResolvedSliders)
+                {
+                    if (!a.ResolvedSliders.Contains(s)) missing++;
+                    if (missing > tolerance) break;
+                }
+                if (missing > tolerance) continue;
 
                 if (best == null || b.ResolvedSliders.Count > best.ResolvedSliders.Count)
                 {
@@ -152,6 +169,9 @@ public class BodyTypeSliderExtractor
         int minLen = int.MaxValue;
         foreach (var n in rawNames) if (n.Length < minLen) minLen = n.Length;
         if (lcp.Length >= minLen) lcp = "";
+
+        var rawSample = string.Join(", ", rawNames.Take(3));
+        _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' OSD '{osd.ShapeName}' LCP='{lcp}' raw sample: {rawSample}");
 
         foreach (var name in rawNames)
         {
