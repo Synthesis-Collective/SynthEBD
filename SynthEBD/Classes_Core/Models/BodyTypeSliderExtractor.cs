@@ -7,11 +7,13 @@ namespace SynthEBD;
 
 /// <summary>
 /// Populates <see cref="BodyTypeRegistryEntry.ResolvedSliders"/> for every installed registry
-/// entry by walking each entry's <see cref="BodyTypeRegistryEntry.ShapeDataFolders"/> under
-/// the BodySlide ShapeData root, parsing every .osd / .bsd file it finds, and unioning their
-/// slider names. The resulting set is authoritative for classification -- it always reflects
-/// the slider catalog the installed body mod actually ships, so it can never go stale relative
-/// to the user's mod list.
+/// entry by reading each entry's <see cref="BodyTypeRegistryEntry.ShapeDataFolders"/> under
+/// the BodySlide ShapeData root and unioning the slider names from the referenced files.
+/// Each entry is either a single .osd/.bsd file (preferred -- the body's reference mesh, which
+/// defines the canonical slider catalog) or a folder scanned recursively (used by UUNP-style
+/// bodies that ship per-slider .bsd files in a flat layout).
+/// Scanning the reference file(s) only -- not every outfit OSD -- keeps the catalog to the body's
+/// true slider set so subset checks between bodies (e.g. CBBE ⊂ CBBE 3BA) work as intended.
 ///
 /// After sliders are resolved, <see cref="BodyTypeRegistryEntry.SupersetOfBodyType"/> is
 /// auto-filled by finding the largest proper subset (same gender) among the other installed
@@ -60,19 +62,25 @@ public class BodyTypeSliderExtractor
             if (!entry.IsInstalled) continue;
             if (entry.ShapeDataFolders == null || entry.ShapeDataFolders.Count == 0) continue;
 
-            foreach (var folder in entry.ShapeDataFolders)
+            foreach (var rawPath in entry.ShapeDataFolders)
             {
-                if (string.IsNullOrWhiteSpace(folder)) continue;
-                var sub = folder.Replace('/', Path.DirectorySeparatorChar)
-                                .Replace('\\', Path.DirectorySeparatorChar)
-                                .TrimStart(Path.DirectorySeparatorChar);
+                if (string.IsNullOrWhiteSpace(rawPath)) continue;
+                var sub = rawPath.Replace('/', Path.DirectorySeparatorChar)
+                                 .Replace('\\', Path.DirectorySeparatorChar)
+                                 .TrimStart(Path.DirectorySeparatorChar);
                 var fullPath = Path.Combine(shapeDataRoot, sub);
-                if (!Directory.Exists(fullPath)) continue;
 
-                var osdFiles = parser.ParseAllOsdInDirectory(fullPath);
-                foreach (var osd in osdFiles)
+                if (File.Exists(fullPath))
                 {
-                    AddNormalizedSliders(entry, osd);
+                    var osd = parser.ParseOsdFile(fullPath);
+                    if (osd != null) AddNormalizedSliders(entry, osd);
+                }
+                else if (Directory.Exists(fullPath))
+                {
+                    foreach (var osd in parser.ParseAllOsdInDirectory(fullPath))
+                    {
+                        AddNormalizedSliders(entry, osd);
+                    }
                 }
             }
 

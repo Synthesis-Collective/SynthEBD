@@ -11,12 +11,7 @@
       "CalienteTools/BodySlide/SliderSets/CBBE.osp"
     ],
     "ShapeDataFolders": [
-      "CBBE Vanilla",
-      "CBBE Vanilla Physics",
-      "CBBE Dawnguard",
-      "CBBE Dawnguard Physics",
-      "CBBE Dragonborn",
-      "CBBE Dragonborn Physics"
+      "CBBE/CBBE Body.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -34,10 +29,7 @@
       "CalienteTools/BodySlide/SliderSets/SE 3BBB Amazing.osp"
     ],
     "ShapeDataFolders": [
-      "CBBE 3BA Reference",
-      "CBBE 3BA UniBody Ref",
-      "3BBB Collision Armor",
-      "SE 3BBB Amazing"
+      "CBBE 3BA Reference/CBBE 3BA Ref.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -69,10 +61,7 @@
       "CalienteTools/BodySlide/SliderSets/BHUNP 3BBB Collision Armor.osp"
     ],
     "ShapeDataFolders": [
-      "BHUNP 3BBB Advanced",
-      "BHUNP 3BBB Advanced Nevernude",
-      "BHUNP 3BBB Collision Armor",
-      "BHUNP Collision Variation"
+      "BHUNP 3BBB Advanced/BHUNP 3BBB Advanced Ver 4.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -90,7 +79,7 @@
       "CalienteTools/BodySlide/SliderSets/TouchedByDibellaRef.osp"
     ],
     "ShapeDataFolders": [
-      "TBD"
+      "TBD/Body/TouchedByDibellaRef.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -106,10 +95,8 @@
       "CalienteTools/BodySlide/SliderSets/[COCO]SMP_BODY_V6/[COCO 3BBB V6]Body_A.osp"
     ],
     "ShapeDataFolders": [
-      "[COCO]BODY2021_V4",
-      "[COCO]BODY_V2",
-      "[COCO]SMP_BODY_V6",
-      "[COCO]SMP_BODY_V6(collision)"
+      "[COCO]SMP_BODY_V6/[COCO 3BBB V6]Body_A.osd",
+      "[COCO]SMP_BODY_V6/[COCO 3BBB V6]Body_B.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -126,8 +113,7 @@
       "CalienteTools/BodySlide/SliderSets/[SOMResources] SOMBody Slider.osp"
     ],
     "ShapeDataFolders": [
-      "[SOMBody] Shape of Maiden Body 3BBB",
-      "[SOMResources] SOMBody Slider"
+      "[SOMResources] SOMBody Slider/[SOMResources] SOMBody Slider (Base).osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
@@ -145,11 +131,7 @@
       "CalienteTools/BodySlide/ConversionSets/HIMBO Ref.osp"
     ],
     "ShapeDataFolders": [
-      "HIMBO",
-      "HIMBO Body",
-      "HIMBO Conversion",
-      "HIMBO Ref",
-      "HIMBO Res"
+      "HIMBO Ref/HIMBO Body - Vanilla.osd"
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false

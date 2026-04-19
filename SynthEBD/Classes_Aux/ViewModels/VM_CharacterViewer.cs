@@ -1551,13 +1551,23 @@ public class VM_CharacterViewer : VM
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var registryOsd = new List<OsdFile>();
-            foreach (var folder in folders)
+            foreach (var rawPath in folders)
             {
-                var fullPath = Path.Combine(shapeDataRoot, folder);
-                if (!Directory.Exists(fullPath)) continue;
-                foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath))
+                var sub = rawPath.Replace('/', Path.DirectorySeparatorChar)
+                                 .Replace('\\', Path.DirectorySeparatorChar)
+                                 .TrimStart(Path.DirectorySeparatorChar);
+                var fullPath = Path.Combine(shapeDataRoot, sub);
+                if (File.Exists(fullPath))
                 {
+                    var osd = _bsdFileParser.ParseOsdFile(fullPath);
                     if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
+                }
+                else if (Directory.Exists(fullPath))
+                {
+                    foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath))
+                    {
+                        if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
+                    }
                 }
             }
             _cachedOsdFiles = registryOsd;

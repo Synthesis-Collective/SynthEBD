@@ -44,7 +44,7 @@
                 <DataGridTextColumn Header="Identity Fingerprints (comma-separated, Data-folder-relative)"
                                     Binding="{Binding FingerprintsCsv, UpdateSourceTrigger=PropertyChanged}"
                                     Width="2*"/>
-                <DataGridTextColumn Header="ShapeData Folders (comma-separated, relative to ShapeData/)"
+                <DataGridTextColumn Header="Reference OSD/folder (comma-separated, relative to ShapeData/)"
                                     Binding="{Binding ShapeDataFoldersCsv, UpdateSourceTrigger=PropertyChanged}"
                                     Width="2*"/>
                 <DataGridCheckBoxColumn Header="User" Binding="{Binding IsUserDefined}" Width="45"/>

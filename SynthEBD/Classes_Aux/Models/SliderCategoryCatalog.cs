@@ -71,8 +71,12 @@ public class BodyTypeRegistryEntry
     public List<string> IdentityFingerprints { get; set; } = new();
 
     /// <summary>
-    /// ShapeData subfolder names (relative to CalienteTools/BodySlide/ShapeData) whose OSD/BSD
-    /// files define this body's slider set. The extractor walks them recursively.
+    /// Paths relative to CalienteTools/BodySlide/ShapeData pointing at this body's reference
+    /// slider data. Each entry is either a single .osd/.bsd file (preferred -- the body's
+    /// reference mesh, which defines the canonical slider catalog) or a folder scanned
+    /// recursively (for UUNP-style bodies that ship per-slider .bsd files in a flat layout).
+    /// Point at the reference body only, not outfit folders: outfit OSDs pollute the slider
+    /// set with armor-specific morphs and break cross-body subset detection.
     /// </summary>
     public List<string> ShapeDataFolders { get; set; } = new();
 
