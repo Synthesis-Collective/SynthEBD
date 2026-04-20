@@ -4,13 +4,16 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              d:DataContext="{d:DesignInstance Type=local:VM_BodyTypeProfileEditor}"
              mc:Ignorable="d"
-             d:DesignHeight="700" d:DesignWidth="1100">
+             d:DesignHeight="700" d:DesignWidth="1400">
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*" MinWidth="480"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="420" MinWidth="220"/>
         </Grid.ColumnDefinitions>
 
         <!-- Left rail: profile list + add/delete -->
@@ -32,7 +35,70 @@
                      DisplayMemberPath="Name"/>
         </DockPanel>
 
-        <!-- Right pane: tabs for the active profile -->
+        <!-- Resizable splitter between the profile panel and the embedded viewer. -->
+        <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" Background="#333333"
+                      ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                      ShowsPreview="True"
+                      ToolTip="Drag to resize the preview viewer"/>
+
+        <!-- Right rail: embedded CharacterViewer + searchable preset picker. Lets the user
+             load any BodySlide preset and pick key vertices without leaving this menu. -->
+        <DockPanel Grid.Column="3" Margin="5,0,0,0">
+            <Border DockPanel.Dock="Top" Background="#FF2A2A2A" Padding="6,4" Margin="0,0,0,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Gender:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,2"
+                              ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
+                              SelectedValue="{Binding PreviewGender}"/>
+                    <Button Grid.Row="0" Grid.Column="2" Content="Refresh" Command="{Binding RefreshPresetList}" Padding="6,1" Margin="5,0,0,2"
+                            ToolTip="Rebuild the preset dropdown from the BodySlides menu."/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,2"
+                             Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Type to filter the preset list by substring match on Label."/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                              ItemsSource="{Binding FilteredPresets}"
+                              SelectedItem="{Binding SelectedPreset}"
+                              DisplayMemberPath="Label"
+                              IsTextSearchEnabled="True"
+                              TextSearch.TextPath="Label"
+                              MaxDropDownHeight="400"
+                              Margin="0,0,0,2"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Weight:" Foreground="#FFCCCCCC" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="3" Grid.Column="1"
+                              ItemsSource="{Binding AvailableWeights}"
+                              SelectedItem="{Binding PreviewWeight}"/>
+                    <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
+                        <TextBlock Text="NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}"
+                                               LinkCache="{Binding lk}"
+                                               ScopedTypes="{Binding NPCPickerFormKeys}"
+                                               MaxHeight="180" MinWidth="180"
+                                               ToolTip="Override the preview NPC. Leave blank to use the weight-based default from OBody preview settings."/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
+        </DockPanel>
+
+        <!-- Middle pane: tabs for the active profile -->
         <ContentControl Grid.Column="1" Content="{Binding SelectedProfile}">
             <ContentControl.ContentTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyTypeProfile}">

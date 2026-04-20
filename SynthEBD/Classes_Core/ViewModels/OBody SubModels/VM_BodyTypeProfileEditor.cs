@@ -2,25 +2,47 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
+using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD;
 
 /// <summary>
 /// UI editor for <see cref="Settings_OBody.BodyTypeProfiles"/>. Hosts a list of
 /// <see cref="VM_BodyTypeProfile"/> rows; the selected profile drives the right-side panels
-/// (key vertices, measurements, rules, labeled examples). Subscribes to the process-wide
-/// <see cref="VM_CharacterViewer.AnyKeyVertexPicked"/> event so picks from whichever viewer is
-/// currently visible route into the active profile when its capture toggle is on.
+/// (key vertices, measurements, rules, labeled examples). Owns a dedicated
+/// <see cref="VM_CharacterViewer"/> + searchable BodySlide preset picker so the user can
+/// author profiles without flipping back to the BodySlides menu.
 /// </summary>
 public class VM_BodyTypeProfileEditor : VM
 {
     public delegate VM_BodyTypeProfileEditor Factory();
 
     private readonly Logger _logger;
+    private readonly Func<VM_SettingsOBody> _oBodyVM;
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    private readonly PatcherState _patcherState;
 
-    public VM_BodyTypeProfileEditor(Logger logger)
+    public VM_BodyTypeProfileEditor(
+        Logger logger,
+        Func<VM_CharacterViewer> characterViewerFactory,
+        Func<VM_SettingsOBody> oBodyVM,
+        IEnvironmentStateProvider environmentProvider,
+        PatcherState patcherState)
     {
         _logger = logger;
+        _oBodyVM = oBodyVM;
+        _environmentProvider = environmentProvider;
+        _patcherState = patcherState;
+
+        CharacterViewer = characterViewerFactory();
+        CharacterViewer.Mode = ViewerMode.ReadOnly;
+        CharacterViewer.DisposeWith(this);
+
+        AvailableWeights = new ObservableCollection<int> { 0, 25, 50, 75, 100 };
 
         AddProfile = new RelayCommand(
             canExecute: _ => true,
@@ -52,7 +74,45 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => true,
             execute: _ => DoImportProfile());
 
+        RefreshPresetList = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => RebuildAvailablePresets());
+
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
+
+        PropertyChanged += (_, args) =>
+        {
+            switch (args.PropertyName)
+            {
+                case nameof(PreviewGender):
+                    RebuildAvailablePresets();
+                    _ = RefreshPreviewAsync();
+                    break;
+                case nameof(PresetFilterText):
+                    RebuildFilteredPresets();
+                    break;
+                case nameof(SelectedPreset):
+                case nameof(PreviewWeight):
+                case nameof(PreviewNpcOverride):
+                    _ = RefreshPreviewAsync();
+                    break;
+                case nameof(SelectedProfile):
+                    if (SelectedProfile != null)
+                    {
+                        SelectedProfile.AttachViewer(CharacterViewer);
+                        SelectedProfile.RefreshMeasurementValues();
+                    }
+                    break;
+            }
+        };
+
+        // Preset list is populated on first view Loaded (see UC_BodyTypeProfileEditor.xaml.cs):
+        // calling _oBodyVM() here would re-enter VM_SettingsOBody's ctor, which depends on
+        // this editor, causing a DI stack overflow.
     }
 
     public ObservableCollection<VM_BodyTypeProfile> Profiles { get; } = new();
@@ -68,6 +128,37 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand DeleteSelectedProfile { get; }
     public RelayCommand ExportSelectedProfile { get; }
     public RelayCommand ImportProfile { get; }
+    public RelayCommand RefreshPresetList { get; }
+
+    /// <summary>Dedicated 3D viewer embedded in the editor. Drives both preset preview
+    /// and vertex picking so the user does not have to flip over to the BodySlides menu.</summary>
+    public VM_CharacterViewer CharacterViewer { get; }
+
+    /// <summary>All presets sourced from <see cref="VM_SettingsOBody.BodySlidesUI"/>, filtered
+    /// by <see cref="PreviewGender"/>. Rebuilt on demand via <see cref="RefreshPresetList"/>.</summary>
+    public ObservableCollection<VM_BodySlidePlaceHolder> AvailablePresets { get; } = new();
+
+    /// <summary>Substring-filtered view of <see cref="AvailablePresets"/> driven by
+    /// <see cref="PresetFilterText"/>. Bound to the searchable picker.</summary>
+    public ObservableCollection<VM_BodySlidePlaceHolder> FilteredPresets { get; } = new();
+
+    public ObservableCollection<int> AvailableWeights { get; }
+
+    public string PresetFilterText { get; set; } = "";
+    public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
+    public Gender PreviewGender { get; set; } = Gender.Female;
+    public int PreviewWeight { get; set; } = 50;
+
+    /// <summary>Optional NPC override. When null, the configured per-weight preview NPC is used
+    /// (same policy as <see cref="VM_BodySlideSetting.RefreshPreview"/>).</summary>
+    public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
+
+    /// <summary>Exposed for the NPC picker's scoped-types filter.</summary>
+    public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
+
+    /// <summary>Current environment link cache; bound by the NPC picker's LinkCache. Public
+    /// so the XAML FormKeyPicker can resolve candidate NPC records.</summary>
+    public ILinkCache? lk { get; private set; }
 
     public override void Dispose()
     {
@@ -182,9 +273,104 @@ public class VM_BodyTypeProfileEditor : VM
 
     private void OnAnyKeyVertexPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
     {
+        // Scope picks to the editor's own viewer so the BodySlides-menu viewer doesn't
+        // bleed into profile capture when both menus are open.
+        if (!ReferenceEquals(viewer, CharacterViewer)) return;
+
         var profile = SelectedProfile;
         if (profile == null || !profile.CapturePicks) return;
         profile.OnVertexPickedFromViewer(viewer, pick);
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="AvailablePresets"/> from the matching gender's BodySlide list
+    /// on <see cref="VM_SettingsOBody.BodySlidesUI"/>. Also refreshes
+    /// <see cref="FilteredPresets"/> so the picker reflects any current filter text.
+    /// Safe to call before the BodySlides menu has been constructed — no-op in that case.
+    /// </summary>
+    public void RebuildAvailablePresets()
+    {
+        AvailablePresets.Clear();
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (menu == null)
+        {
+            RebuildFilteredPresets();
+            return;
+        }
+
+        var source = PreviewGender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
+        if (source != null)
+        {
+            foreach (var ph in source.OrderBy(p => p?.Label ?? "", StringComparer.OrdinalIgnoreCase))
+            {
+                if (ph == null) continue;
+                AvailablePresets.Add(ph);
+            }
+        }
+        RebuildFilteredPresets();
+    }
+
+    private void RebuildFilteredPresets()
+    {
+        FilteredPresets.Clear();
+        string filter = PresetFilterText?.Trim() ?? "";
+        bool hasFilter = filter.Length > 0;
+        foreach (var ph in AvailablePresets)
+        {
+            if (!hasFilter || (ph.Label != null && ph.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                FilteredPresets.Add(ph);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Loads the configured preview NPC for the current weight and applies the selected
+    /// preset's BodySlide deformation. Mirrors <see cref="VM_BodySlideSetting.RefreshPreview"/>'s
+    /// NPC-resolution policy so behavior matches the main BodySlides menu.
+    /// </summary>
+    private async System.Threading.Tasks.Task RefreshPreviewAsync()
+    {
+        try
+        {
+            var preset = SelectedPreset?.AssociatedModel;
+            if (preset == null || lk == null) return;
+
+            FormKey npc = FormKey.Null;
+            if (!PreviewNpcOverride.IsNull)
+            {
+                npc = PreviewNpcOverride;
+            }
+            else
+            {
+                var preview = _patcherState?.OBodySettings?.PreviewNpcs;
+                if (preview != null && preview.WeightPreviewNpcs.TryGetValue(PreviewWeight, out var pair) && pair != null)
+                {
+                    npc = PreviewGender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+                }
+            }
+
+            if (npc.IsNull)
+            {
+                _logger?.LogMessage("BodyTypeProfileEditor: no preview NPC configured for weight " + PreviewWeight + " (" + PreviewGender + ")");
+                return;
+            }
+
+            await CharacterViewer.LoadNpcAsync(npc, lk);
+            CharacterViewer.ApplyBodySlide(preset, PreviewWeight);
+
+            // Point the active profile at this viewer so live measurement readouts have
+            // a source and pick-capture routes into the right profile by default.
+            if (SelectedProfile != null)
+            {
+                SelectedProfile.AttachViewer(CharacterViewer);
+                SelectedProfile.RefreshMeasurementValues();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("BodyTypeProfileEditor.RefreshPreviewAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
     }
 
     /// <summary>Logs a one-line diagnostic to the patcher's main log. Used by sub-VMs (suggest pass, etc.).</summary>
@@ -324,6 +510,14 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>Most recent viewer to fire a pick targeting this profile. Used for live measurement readouts.</summary>
     public VM_CharacterViewer? ActiveViewer { get; private set; }
+
+    /// <summary>Binds this profile to the supplied viewer so live readouts and the
+    /// measurement-line overlay target the right scene. Called by the editor when a
+    /// preset is loaded in its embedded viewer.</summary>
+    public void AttachViewer(VM_CharacterViewer viewer)
+    {
+        ActiveViewer = viewer;
+    }
 
     /// <summary>Descriptor the user is currently labeling examples for in suggest mode.</summary>
     public BodyShapeDescriptor.LabelSignature? SelectedDescriptorForLabeling { get; set; }
