@@ -28,16 +28,20 @@
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0">
+            <TextBlock Text="Gender:" VerticalAlignment="Center" Margin="0,0,3,0"/>
             <ComboBox SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
-            <ComboBox SelectedValue="{Binding SelectedSliderGroup}" ItemsSource="{Binding AvailableSliderGroupsForGender}" IsSynchronizedWithCurrentItem="True" Margin="3 0 3 0"/>
-            <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" />
+            <TextBlock Text="Body Type:" VerticalAlignment="Center" Margin="8,0,3,0"/>
+            <ComboBox SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding AvailableBodyTypesForGender}" IsSynchronizedWithCurrentItem="True" MinWidth="100"/>
+            <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="8,0,0,0"/>
         </StackPanel>
 
-        <StackPanel  Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock HorizontalAlignment="Center">Preset (</TextBlock>
-            <CheckBox IsChecked="{Binding ShowHidden}"/>
-            <TextBlock Text=" Show Hidden)"></TextBlock>
-
+        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,3,0"/>
+            <TextBox Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}" MinWidth="140" VerticalAlignment="Center"
+                     ToolTip="Substring match on preset Label (case-insensitive). Empty shows all."/>
+            <TextBlock Text=" Preset (" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <CheckBox IsChecked="{Binding ShowHidden}" VerticalAlignment="Center"/>
+            <TextBlock Text=" Show Hidden)" VerticalAlignment="Center"/>
         </StackPanel>
         <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
 

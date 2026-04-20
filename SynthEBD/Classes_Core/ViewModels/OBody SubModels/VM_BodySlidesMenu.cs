@@ -148,7 +148,7 @@ public class VM_BodySlidesMenu : VM
                     Alphabetizer = Alphabetizer_Male;
                     break;
             }
-            RefreshAvailableSliderGroupsForGender();
+            RefreshAvailableBodyTypesForGender();
         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ShowHidden).Subscribe(x =>
@@ -156,7 +156,12 @@ public class VM_BodySlidesMenu : VM
             TogglePresetVisibility();
         }).DisposeWith(this);
 
-        this.WhenAnyValue(x => x.SelectedSliderGroup).Subscribe(x =>
+        this.WhenAnyValue(x => x.SelectedBodyType).Subscribe(x =>
+        {
+            TogglePresetVisibility();
+        }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.PresetFilterText).Subscribe(x =>
         {
             TogglePresetVisibility();
         }).DisposeWith(this);
@@ -164,7 +169,7 @@ public class VM_BodySlidesMenu : VM
         // When the master list gets (re)populated (typically by VM_BodySlideAnnotator after
         // all presets finish loading), refresh the gender-scoped dropdown. Also watch the
         // per-gender collections so that adds/removes through the UI stay in sync.
-        AvailableSliderGroups.CollectionChanged += (_, _) => RefreshAvailableSliderGroupsForGender();
+        AvailableSliderGroups.CollectionChanged += (_, _) => RefreshAvailableBodyTypesForGender();
         BodySlidesFemale.CollectionChanged += OnPresetCollectionChanged;
         BodySlidesMale.CollectionChanged += OnPresetCollectionChanged;
     }
@@ -178,18 +183,19 @@ public class VM_BodySlidesMenu : VM
         if ((femaleChanged && SelectedGender == Gender.Female) ||
             (maleChanged && SelectedGender == Gender.Male))
         {
-            RefreshAvailableSliderGroupsForGender();
+            RefreshAvailableBodyTypesForGender();
         }
     }
 
     /// <summary>
-    /// Rebuilds <see cref="AvailableSliderGroupsForGender"/> from the SliderGroup values
+    /// Rebuilds <see cref="AvailableBodyTypesForGender"/> from the SliderGroup values
     /// actually present on the currently displayed preset list (for the selected gender).
-    /// Always includes the "ALL" sentinel. If the user's current SelectedSliderGroup falls
+    /// SliderGroup on a preset corresponds 1:1 with body-type Name in the registry.
+    /// Always includes the "ALL" sentinel. If the user's current SelectedBodyType falls
     /// out of the new set (e.g. they switched to Male and "CBBE" no longer applies), it
     /// snaps back to "ALL" to avoid showing an empty list.
     /// </summary>
-    private void RefreshAvailableSliderGroupsForGender()
+    private void RefreshAvailableBodyTypesForGender()
     {
         var source = SelectedGender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
         var groups = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -199,14 +205,14 @@ public class VM_BodySlidesMenu : VM
             if (!string.IsNullOrWhiteSpace(g)) groups.Add(g);
         }
 
-        AvailableSliderGroupsForGender.Clear();
-        AvailableSliderGroupsForGender.Add(SliderGroupSelectionAll);
-        foreach (var g in groups) AvailableSliderGroupsForGender.Add(g);
+        AvailableBodyTypesForGender.Clear();
+        AvailableBodyTypesForGender.Add(BodyTypeSelectionAll);
+        foreach (var g in groups) AvailableBodyTypesForGender.Add(g);
 
-        if (!string.Equals(SelectedSliderGroup, SliderGroupSelectionAll, StringComparison.OrdinalIgnoreCase) &&
-            !AvailableSliderGroupsForGender.Contains(SelectedSliderGroup))
+        if (!string.Equals(SelectedBodyType, BodyTypeSelectionAll, StringComparison.OrdinalIgnoreCase) &&
+            !AvailableBodyTypesForGender.Contains(SelectedBodyType))
         {
-            SelectedSliderGroup = SliderGroupSelectionAll;
+            SelectedBodyType = BodyTypeSelectionAll;
         }
     }
 
@@ -222,11 +228,15 @@ public class VM_BodySlidesMenu : VM
     public VM_BodySlidePlaceHolder SelectedPlaceHolder { get; set; }
     public Gender SelectedGender { get; set; } = Gender.Female;
     public ObservableCollection<string> AvailableSliderGroups { get; set; } = new();
-    // Gender-scoped view of AvailableSliderGroups, bound by the XAML ComboBox. Rebuilt
-    // whenever SelectedGender changes or the per-gender preset lists mutate.
-    public ObservableCollection<string> AvailableSliderGroupsForGender { get; set; } = new() { SliderGroupSelectionAll };
-    public string SelectedSliderGroup { get; set; }
-    public const string SliderGroupSelectionAll = "ALL";
+    // Gender-scoped view of AvailableSliderGroups, bound by the XAML Body Type ComboBox.
+    // Rebuilt whenever SelectedGender changes or the per-gender preset lists mutate.
+    public ObservableCollection<string> AvailableBodyTypesForGender { get; set; } = new() { BodyTypeSelectionAll };
+    public string SelectedBodyType { get; set; } = BodyTypeSelectionAll;
+    public const string BodyTypeSelectionAll = "ALL";
+
+    /// <summary>Substring filter applied to preset Label in TogglePresetVisibility.
+    /// Case-insensitive; empty string matches all.</summary>
+    public string PresetFilterText { get; set; } = "";
 
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
@@ -248,9 +258,17 @@ public class VM_BodySlidesMenu : VM
     private void TogglePresetVisibility()
     {
         var bodySlides = BodySlidesMale.And(BodySlidesFemale).ToList();
+        string filter = PresetFilterText ?? "";
         foreach (var b in bodySlides)
         {
-            if (SelectedSliderGroup != SliderGroupSelectionAll && b.AssociatedModel.SliderGroup != SelectedSliderGroup)
+            if (SelectedBodyType != BodyTypeSelectionAll && b.AssociatedModel.SliderGroup != SelectedBodyType)
+            {
+                b.IsVisible = false;
+                continue;
+            }
+
+            if (filter.Length > 0 && (b.Label == null ||
+                b.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0))
             {
                 b.IsVisible = false;
                 continue;

@@ -66,6 +66,10 @@ public class VM_BodySlideSetting : VM
             .Subscribe(_ => UpdateAggregateAnnotationState())
             .DisposeWith(this);
 
+        this.WhenAnyValue(x => x.SliderGroup)
+            .Subscribe(_ => RefreshMatchedRegistryBodyType())
+            .DisposeWith(this);
+
         ToggleLock = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
@@ -278,7 +282,45 @@ public class VM_BodySlideSetting : VM
     public string Label { get; set; } = "";
     public string ReferencedBodySlide { get; set; } = "";
     public string SliderGroup { get; set; } = "";
+    public string MatchedRegistryBodyType { get; private set; } = "";
+    public Brush MatchedRegistryBrush { get; private set; } = Brushes.OrangeRed;
     public string Notes { get; set; } = "";
+
+    private void RefreshMatchedRegistryBodyType()
+    {
+        var registry = _patcherState?.OBodySettings?.BodyTypeRegistry;
+        if (registry == null || string.IsNullOrWhiteSpace(SliderGroup))
+        {
+            MatchedRegistryBodyType = "(no match)";
+            MatchedRegistryBrush = Brushes.OrangeRed;
+            return;
+        }
+
+        var gender = ResolveGender();
+        var exact = registry.FirstOrDefault(e =>
+            e != null &&
+            string.Equals(e.Name, SliderGroup, StringComparison.OrdinalIgnoreCase) &&
+            e.Gender == gender);
+        if (exact != null)
+        {
+            MatchedRegistryBodyType = exact.Name;
+            MatchedRegistryBrush = Brushes.LightGreen;
+            return;
+        }
+
+        var crossGender = registry.FirstOrDefault(e =>
+            e != null &&
+            string.Equals(e.Name, SliderGroup, StringComparison.OrdinalIgnoreCase));
+        if (crossGender != null)
+        {
+            MatchedRegistryBodyType = $"{crossGender.Name} (gender mismatch: {crossGender.Gender})";
+            MatchedRegistryBrush = Brushes.Goldenrod;
+            return;
+        }
+
+        MatchedRegistryBodyType = "(no match)";
+        MatchedRegistryBrush = Brushes.OrangeRed;
+    }
 
     /// <summary>Per-weight descriptor selection menus, sorted by weight ascending.</summary>
     public ObservableCollection<VM_BodySlideWeightSlot> WeightSlots { get; } = new();

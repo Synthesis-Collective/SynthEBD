@@ -77,7 +77,7 @@ public class VM_BodySlideAnnotator : VM
         }
 
         _bodySlideMenu.AvailableSliderGroups.Clear();
-        _bodySlideMenu.AvailableSliderGroups.Add(VM_BodySlidesMenu.SliderGroupSelectionAll);
+        _bodySlideMenu.AvailableSliderGroups.Add(VM_BodySlidesMenu.BodyTypeSelectionAll);
         Noggog.ListExt.AddRange(_bodySlideMenu.AvailableSliderGroups, SliderNamesByGroup.Keys);
     }
 
