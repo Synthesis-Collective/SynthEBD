@@ -230,12 +230,14 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="Axis" Width="60">
+                                            <DataGridTemplateColumn Header="Axis" Width="140">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <ComboBox SelectedValue="{Binding Axis, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding ShowAxisField}"
-                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementAxis}}}"/>
+                                                        <ComboBox ItemsSource="{Binding AxisOptionsList}"
+                                                                  SelectedValuePath="Value"
+                                                                  DisplayMemberPath="Label"
+                                                                  SelectedValue="{Binding Axis, UpdateSourceTrigger=PropertyChanged}"
+                                                                  IsEnabled="{Binding ShowAxisField}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>

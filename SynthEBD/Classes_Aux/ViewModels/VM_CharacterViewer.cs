@@ -802,6 +802,14 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public static event Action<VM_CharacterViewer, KeyVertexPick>? AnyKeyVertexPicked;
 
+    /// <summary>
+    /// Fires at the end of ApplyBodySlide, after CpuPositions have been refreshed. The
+    /// BodyTypeProfile editor subscribes so live measurement readouts recompute after the
+    /// deferred-drain path (ApplyBodySlide called before ProcessPendingScene has built the
+    /// meshes — direct-path measurements would otherwise see the pre-deform geometry).
+    /// </summary>
+    public event Action? BodySlideApplied;
+
     /// <summary>Result of a key-vertex pick: the hit mesh, the index into its
     /// CpuPositions array, and the vertex position in that same (pre-ModelScale)
     /// space so the renderer can re-project it as ModelScale changes.</summary>
@@ -1758,6 +1766,11 @@ public class VM_CharacterViewer : VM
                 + (preset?.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
                 + ExceptionLogger.GetExceptionStack(ex));
         }
+
+        // Fire regardless of deformation outcome so subscribers can refresh readouts;
+        // a failed deformation leaves CpuPositions in a valid (undeformed) state that
+        // is still meaningful to measure.
+        BodySlideApplied?.Invoke();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

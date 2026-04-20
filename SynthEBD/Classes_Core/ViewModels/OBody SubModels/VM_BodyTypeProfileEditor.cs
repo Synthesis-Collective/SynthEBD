@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -41,6 +43,13 @@ public class VM_BodyTypeProfileEditor : VM
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
         CharacterViewer.DisposeWith(this);
+
+        // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt
+        // (LoadNpcAsync returns before ProcessPendingScene runs on the GL thread). The
+        // drain path runs later and calls ApplyBodySlide internally — RefreshPreviewAsync's
+        // in-line RefreshMeasurementValues would have already run on an empty scene by then.
+        // Subscribing here guarantees a post-deform recompute regardless of path.
+        CharacterViewer.BodySlideApplied += () => SelectedProfile?.RefreshMeasurementValues();
 
         AvailableWeights = new ObservableCollection<int> { 0, 25, 50, 75, 100 };
 
@@ -473,6 +482,22 @@ public class VM_BodyTypeProfile : VM
                 KeyVertices.Remove(k);
             });
 
+        // Re-evaluate live values whenever the measurement collection changes shape or
+        // any row's definition fields (Kind / Axis / VertexRefA..D) are edited in the grid.
+        foreach (var m in Measurements) m.PropertyChanged += OnMeasurementRowPropertyChanged;
+        Measurements.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnMeasurementRowPropertyChanged;
+            if (args.NewItems != null)
+                foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnMeasurementRowPropertyChanged;
+            RefreshMeasurementValues();
+        };
+
+        // Re-evaluate when the key-vertex roster changes (a measurement may reference a
+        // newly-added vertex name, or lose a deleted one).
+        KeyVertices.CollectionChanged += (_, __) => RefreshMeasurementValues();
+
         RefreshMeasurementValues();
 
         // Repaint the measurement-line overlay whenever the user picks a different
@@ -486,6 +511,13 @@ public class VM_BodyTypeProfile : VM
                 RefreshMeasurementHighlight();
             }
         };
+    }
+
+    private void OnMeasurementRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // LiveValue updates are the result of recomputation; re-running on that would loop.
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
+        RefreshMeasurementValues();
     }
 
     public string Id { get; }
@@ -883,6 +915,17 @@ public class VM_MeasurementDefinition : VM
     public bool ShowAxisField => Kind == MeasurementKind.AxisDistance;
     public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance;
 
+    /// <summary>Display-friendly labels for <see cref="MeasurementAxis"/>. Viewer positions are in
+    /// HelixToolkit Y-up space (see BodySlideDeformer remarks), so X=left/right, Y=up/down, Z=front/back.</summary>
+    public static IReadOnlyList<AxisOption> AxisOptions { get; } = new[]
+    {
+        new AxisOption(MeasurementAxis.X, "X (Horizontal)"),
+        new AxisOption(MeasurementAxis.Y, "Y (Vertical)"),
+        new AxisOption(MeasurementAxis.Z, "Z (Depth)"),
+    };
+
+    public IReadOnlyList<AxisOption> AxisOptionsList => AxisOptions;
+
     public MeasurementDefinition DumpToModel()
     {
         var refs = new List<string>();
@@ -901,6 +944,18 @@ public class VM_MeasurementDefinition : VM
             VertexRefNames = refs,
         };
     }
+}
+
+/// <summary>Paired (value, display-label) for the axis ComboBox in the measurement grid.</summary>
+public sealed class AxisOption
+{
+    public AxisOption(MeasurementAxis value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+    public MeasurementAxis Value { get; }
+    public string Label { get; }
 }
 
 /// <summary>Row VM for a <see cref="MeasurementRule"/>.</summary>
