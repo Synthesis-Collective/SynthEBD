@@ -14,11 +14,16 @@ public class GlRenderer : IDisposable
 {
     private GlShaderProgram? _shader;
     private GlShaderProgram? _debugShader;
+    private GlShaderProgram? _wireframeShader;
     private int _debugVao;
     private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
     private bool _disposed;
+
+    /// <summary>RGB color used for the wireframe overlay pass. Bright cyan by
+    /// default so edges read clearly against both skin and clothing.</summary>
+    public Vector3 WireframeColor { get; set; } = new Vector3(0.2f, 1.0f, 0.9f);
 
     /// <summary>When true, renders arrow gizmos showing each directional light's shining
     /// direction (from source to model) and magnitude (length scales with intensity).</summary>
@@ -137,6 +142,12 @@ public class GlRenderer : IDisposable
         string debugFragPath = Path.Combine(shaderDirectory, "debug.frag");
         _debugShader = GlShaderProgram.LoadFromFiles(debugVertPath, debugFragPath);
 
+        // Wireframe shader — reads position (location 0) from the standard mesh
+        // VAO and draws a flat-colored edge overlay on top of the solid mesh.
+        string wireVertPath = Path.Combine(shaderDirectory, "wireframe.vert");
+        string wireFragPath = Path.Combine(shaderDirectory, "wireframe.frag");
+        _wireframeShader = GlShaderProgram.LoadFromFiles(wireVertPath, wireFragPath);
+
         _debugVao = GL.GenVertexArray();
         _debugVbo = GL.GenBuffer();
         GL.BindVertexArray(_debugVao);
@@ -249,10 +260,59 @@ public class GlRenderer : IDisposable
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
 
+        // Wireframe overlay: drawn after alpha-blend so its lines layer on top
+        // of the solid surface. Uses glPolygonOffset to avoid z-fighting.
+        DrawWireframeOverlay(ref model, ref view, ref projection);
+
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
             DrawDirectionalLightArrows(ref view, ref projection);
+    }
+
+    /// <summary>
+    /// Draws edges for every mesh with <see cref="GlMesh.ShowWireframe"/> set.
+    /// Uses polygon-mode Line with a negative polygon offset so the wire sits
+    /// just in front of the solid surface without z-fighting.
+    /// </summary>
+    private void DrawWireframeOverlay(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_wireframeShader == null) return;
+
+        // Early exit if nothing wants wireframe — typical case.
+        bool any = false;
+        for (int i = 0; i < _meshes.Count; i++)
+        {
+            if (_meshes[i].IsRendering && _meshes[i].ShowWireframe) { any = true; break; }
+        }
+        if (!any) return;
+
+        _wireframeShader.Use();
+        _wireframeShader.SetMatrix4("u_model", ref model);
+        _wireframeShader.SetMatrix4("u_view", ref view);
+        _wireframeShader.SetMatrix4("u_projection", ref projection);
+        _wireframeShader.SetVector3("u_color", WireframeColor.X, WireframeColor.Y, WireframeColor.Z);
+
+        GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+        GL.Enable(EnableCap.PolygonOffsetLine);
+        GL.PolygonOffset(-1.0f, -1.0f);
+        GL.Disable(EnableCap.CullFace);
+        GL.LineWidth(1.0f);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (!mesh.ShowWireframe) continue;
+
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+
+        GL.BindVertexArray(0);
+        GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+        GL.Disable(EnableCap.PolygonOffsetLine);
+        GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>
@@ -633,6 +693,7 @@ public class GlRenderer : IDisposable
             ClearMeshes();
             _shader?.Dispose();
             _debugShader?.Dispose();
+            _wireframeShader?.Dispose();
             if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
             if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
             _disposed = true;

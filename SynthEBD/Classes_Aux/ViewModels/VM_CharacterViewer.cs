@@ -244,6 +244,11 @@ public class VM_CharacterViewer : VM
     /// When false, the lighting controls are hidden and arrows are not drawn.</summary>
     public bool ShowLightControls { get; set; } = false;
 
+    /// <summary>When true, every currently-loaded mesh draws its triangle edges
+    /// as a wireframe overlay. Used by the BodySlide classifier workflow; toggled
+    /// from the viewer toolbar.</summary>
+    public bool ShowWireframe { get; set; } = false;
+
     /// <summary>0 = none, 1 = key, 2 = fill, 3 = rim. Set when the user clicks
     /// an arrow in the 3D view (or from the UI). Controls which light the
     /// per-light editor panel edits.</summary>
@@ -335,6 +340,12 @@ public class VM_CharacterViewer : VM
         {
             Renderer.ShowKeyLightVisualization = v;
             if (!v) SelectedLightIndex = 0;
+        }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.ShowWireframe).Subscribe(v =>
+        {
+            foreach (var mesh in Renderer.Meshes)
+                mesh.ShowWireframe = v;
         }).DisposeWith(this);
 
         // Commands
@@ -844,6 +855,7 @@ public class VM_CharacterViewer : VM
                     isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
                 glMesh.BodyPart = bodyPart;
+                glMesh.ShowWireframe = ShowWireframe;
                 Renderer.AddMesh(glMesh);
 
                 if (bodyPart == "Head")
@@ -1696,6 +1708,7 @@ public class VM_CharacterViewer : VM
                 isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
             glMesh.BodyPart = "Head";
+            glMesh.ShowWireframe = ShowWireframe;
             Renderer.AddMesh(glMesh);
 
             if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey("Head"))

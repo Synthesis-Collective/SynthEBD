@@ -49,6 +49,12 @@ public class GlMesh : IDisposable
     public bool IsRendering { get; set; } = true;
     public bool IsEye { get; set; }
 
+    // When true, the wireframe overlay pass draws this mesh's edges on top of
+    // the solid surface. Used by the BodySlide classifier for key-vertex
+    // assignment; toggled per-mesh so non-body shapes (head, hair, outfit)
+    // stay solid.
+    public bool ShowWireframe { get; set; } = false;
+
     // Material properties
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;

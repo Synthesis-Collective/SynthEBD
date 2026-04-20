@@ -140,6 +140,11 @@
                           IsChecked="{Binding ShowLightControls}"
                           ToolTip="Draws 3D arrow gizmos for each directional light. Click an arrow to open its per-light editor (azimuth, elevation, intensity, hue)."/>
 
+                <CheckBox Content="Wireframe" FontSize="11" Foreground="#FF33E6D0"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding ShowWireframe}"
+                          ToolTip="Overlays the triangle edges of every loaded mesh. Used for key-vertex assignment in the BodySlide classifier workflow."/>
+
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="LogLightingButton_Click"/>
