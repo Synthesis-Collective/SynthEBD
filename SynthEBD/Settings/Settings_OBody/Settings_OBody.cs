@@ -65,6 +65,16 @@ public class Settings_OBody
     /// subset match) and <see cref="VM_CharacterViewer"/> OSD linkage.
     /// </summary>
     public List<BodyTypeRegistryEntry> BodyTypeRegistry { get; set; } = new();
+
+    /// <summary>
+    /// User-authored BodySlide Classifier profiles (Phase 3 of the classifier pipeline). Each
+    /// profile pairs a body type from <see cref="BodyTypeRegistry"/> with a set of key vertices,
+    /// measurement definitions, and classification rules. Authored once per body type in the
+    /// Body Type Profile Editor and reused across every preset that shares the body's topology.
+    /// Empty list = no profiles authored yet (safe default; classifier simply no-ops).
+    /// </summary>
+    public List<BodyTypeProfile> BodyTypeProfiles { get; set; } = new();
+
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
