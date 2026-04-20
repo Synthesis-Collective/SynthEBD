@@ -110,6 +110,33 @@ public class VM_CharacterViewer : VM
     /// <summary>Pending BodySlide to apply after scene setup.</summary>
     private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
 
+    /// <summary>FormKey of the NPC whose scene is currently installed in the renderer.
+    /// Captured at the end of ProcessPendingScene; cleared by ClearScene. Used by
+    /// LoadNpcAsync to short-circuit reloads of the same NPC when narrow editors
+    /// (BodySlide preset change, AssetPack subgroup flip) call LoadNpcAsync
+    /// defensively even though only a narrow downstream update is needed.</summary>
+    private FormKey _currentLoadedNpc = FormKey.Null;
+
+    /// <summary>Head-mesh override path baked into the currently-installed scene
+    /// (absolute path from ApplyHeadPartsAsync's FaceGen preview output), or null
+    /// if the scene used the NPC's resolved head mesh. Compared case-insensitively
+    /// as part of the same-NPC short-circuit in LoadNpcAsync.</summary>
+    private string? _currentHeadMeshOverride;
+
+    /// <summary>FormKey of the load whose results are queued in _pendingScene.
+    /// Promoted to _currentLoadedNpc by ProcessPendingScene once the scene commits.</summary>
+    private FormKey _pendingLoadNpcKey = FormKey.Null;
+
+    /// <summary>Head-override path of the load whose results are queued in _pendingScene.
+    /// Promoted to _currentHeadMeshOverride by ProcessPendingScene once the scene commits.</summary>
+    private string? _pendingLoadHeadMeshOverride;
+
+    /// <summary>Pending head-only rebuild (P2). Set by RebuildHeadOnlyAsync after the
+    /// new head NIF is parsed off-thread; drained by ProcessPendingScene where the
+    /// GL context is current. Replaces the current Head shape(s) in place, leaving
+    /// Body/Hands/Feet and their texture/morph state untouched.</summary>
+    private (string HeadNifPath, List<NifMeshBuilder.BuiltMesh> Meshes)? _pendingHeadReplace;
+
     public VM_CharacterViewer(
         NpcMeshResolver npcMeshResolver,
         BodySlideDeformer bodySlideDeformer,
@@ -770,6 +797,14 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public void ProcessPendingScene()
     {
+        // Head-only rebuild (P2) is independent of full-scene setup and runs
+        // without touching Body/Hands/Feet. Drain it here so the render callback
+        // owns all GL-side scene mutations.
+        if (_pendingHeadReplace != null && IsGlInitialized)
+        {
+            InstallReplacedHead();
+        }
+
         if (_pendingScene == null || !IsGlInitialized) return;
 
         var (loadResults, meshPaths) = _pendingScene.Value;
@@ -852,6 +887,15 @@ public class VM_CharacterViewer : VM
         _logger.LogMessage($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
             $"{Renderer.Meshes.Count} GL meshes");
 
+        // Record the identity of the scene we just committed so LoadNpcAsync
+        // can short-circuit same-NPC re-invocations. Must be done before clearing
+        // _sceneRebuildPending so any re-entrant LoadNpcAsync from the drain below
+        // sees the correct identity.
+        _currentLoadedNpc = _pendingLoadNpcKey;
+        _currentHeadMeshOverride = _pendingLoadHeadMeshOverride;
+        _pendingLoadNpcKey = FormKey.Null;
+        _pendingLoadHeadMeshOverride = null;
+
         // Scene is now rebuilt — clear the rebuild flag before draining the
         // pending-override queue so ApplyTextureOverrides takes the direct path.
         _sceneRebuildPending = false;
@@ -878,6 +922,31 @@ public class VM_CharacterViewer : VM
 
     public async Task LoadNpcAsync(FormKey npcFormKey, ILinkCache linkCache, string? overrideHeadMeshAbsolutePath = null)
     {
+        // Same-NPC short-circuit. Narrow editors (BodySlide preset change, BodyGen
+        // spec edit, AssetPack subgroup flip) call LoadNpcAsync defensively before
+        // their narrow update method, but when the NPC hasn't changed the rebuild
+        // is pure waste: full NIF re-parse, CPU re-skinning, DDS re-decode.
+        //
+        // Guard at the top of the single VM choke point so every current and future
+        // caller benefits without per-site tracking.
+        //
+        // Why the override path check is exclusion-only (both sides null), not
+        // equality: when overrideHeadMeshAbsolutePath is non-null it refers to a
+        // FaceGen preview NIF that is rewritten in place on every headpart change.
+        // Path equality would incorrectly skip the reload. ApplyHeadPartsAsync
+        // owns its own fast path (P2); LoadNpcAsync just needs to always rebuild
+        // when an override is involved.
+        if (!_sceneRebuildPending
+            && _meshesByBodyPart.Count > 0
+            && npcFormKey == _currentLoadedNpc
+            && overrideHeadMeshAbsolutePath == null
+            && _currentHeadMeshOverride == null)
+        {
+            _logger.LogMessage("CharacterViewer: LoadNpcAsync same-NPC short-circuit (" +
+                npcFormKey + ")");
+            return;
+        }
+
         _loadCts?.Cancel();
         var cts = new CancellationTokenSource();
         _loadCts = cts;
@@ -971,6 +1040,8 @@ public class VM_CharacterViewer : VM
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _pendingScene = (loadResults, meshPaths);
+                _pendingLoadNpcKey = npcFormKey;
+                _pendingLoadHeadMeshOverride = overrideHeadMeshAbsolutePath;
                 StatusText = totalShapes > 0
                     ? $"Loaded {totalShapes} shape(s), setting up scene..."
                     : "No renderable shapes found for NPC";
@@ -1509,7 +1580,139 @@ public class VM_CharacterViewer : VM
         }
 
         ct.ThrowIfCancellationRequested();
+
+        // P2 fast path: if the NPC is already loaded and the scene is committed,
+        // rebuild only the Head shape(s). Body/Hands/Feet keep their current
+        // textures and any in-progress BodySlide deformation — a full LoadNpcAsync
+        // would re-parse all four NIFs and re-decode all their DDS textures just
+        // to swap the head. Fall back to the full-reload branch when any of the
+        // preconditions fail (scene not committed, different NPC, GL not ready,
+        // or no FaceGen NIF was produced).
+        if (nifPath != null
+            && !_sceneRebuildPending
+            && _meshesByBodyPart.Count > 0
+            && npcFormKey == _currentLoadedNpc
+            && _cachedMeshPaths != null
+            && TextureManager != null)
+        {
+            await RebuildHeadOnlyAsync(nifPath, ct);
+            return;
+        }
+
         await LoadNpcAsync(npcFormKey, linkCache, overrideHeadMeshAbsolutePath: nifPath);
+    }
+
+    /// <summary>
+    /// Parses <paramref name="headNifPath"/> off-thread and queues the result for
+    /// installation on the render thread via <see cref="ProcessPendingScene"/>.
+    /// The install step removes current Head shape(s), creates new GlMesh(es),
+    /// applies textures using the cached <see cref="_cachedMeshPaths"/> (face tint),
+    /// and preserves all Body/Hands/Feet state untouched.
+    /// </summary>
+    private async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct)
+    {
+        // Parse with no skeleton: FaceGen head NIFs are rigid / self-skinned and
+        // the body skeleton is not needed to produce correct vertex positions.
+        // This matches how LoadAllMeshParts invokes BuildFromFile for the Head
+        // when skeletonNif is null.
+        List<NifMeshBuilder.BuiltMesh> meshes;
+        try
+        {
+            meshes = await Task.Run(() => _meshBuilder.BuildFromFile(headNifPath, skeletonNif: null), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("CharacterViewer.RebuildHeadOnlyAsync: head NIF parse failed: " +
+                ExceptionLogger.GetExceptionStack(ex));
+            return;
+        }
+
+        if (meshes.Count == 0)
+        {
+            _logger.LogMessage("CharacterViewer.RebuildHeadOnlyAsync: no renderable shapes in " + headNifPath);
+            return;
+        }
+
+        ct.ThrowIfCancellationRequested();
+
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            _pendingHeadReplace = (headNifPath, meshes);
+        });
+    }
+
+    /// <summary>
+    /// Installs the queued head replacement. Runs on the render thread from
+    /// <see cref="ProcessPendingScene"/> where the GL context is current.
+    /// </summary>
+    private void InstallReplacedHead()
+    {
+        if (_pendingHeadReplace == null || TextureManager == null || _cachedMeshPaths == null)
+        {
+            _pendingHeadReplace = null;
+            return;
+        }
+
+        var (headNifPath, meshes) = _pendingHeadReplace.Value;
+        _pendingHeadReplace = null;
+
+        // Tear down existing Head shape(s). A FaceGen NIF may contain multiple
+        // shapes (face, eyes, hair, ...), all tagged with BodyPart = "Head" when
+        // added to the renderer — remove every one of them.
+        var oldHeads = Renderer.Meshes.Where(m => m.BodyPart == "Head").ToList();
+        foreach (var m in oldHeads)
+        {
+            Renderer.RemoveMesh(m);
+            _textureApplyInfoByMesh.Remove(m);
+            m.Dispose();
+        }
+        _meshesByBodyPart.Remove("Head");
+        _builtMeshesByBodyPart.Remove("Head");
+
+        // Install fresh head shape(s). Mirrors the Head branch of ProcessPendingScene.
+        foreach (var built in meshes)
+        {
+            var glMesh = CreateGlMesh(built);
+
+            var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
+            // Head never has TxstTextures overrides (see ProcessPendingScene's
+            // bodyPart != "Head" guard) — nothing to merge in.
+
+            bool isHairTint = false;
+            float hairR = 0, hairG = 0, hairB = 0;
+            bool isFaceTint = false;
+            string? faceTintPath = null;
+
+            ApplyTexturesToGlMesh(glMesh, built, effectiveTextures, _cachedMeshPaths,
+                ref isHairTint, ref hairR, ref hairG, ref hairB,
+                ref isFaceTint, ref faceTintPath);
+
+            _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
+                new Dictionary<int, string>(effectiveTextures),
+                isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
+
+            glMesh.BodyPart = "Head";
+            Renderer.AddMesh(glMesh);
+
+            if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey("Head"))
+                _meshesByBodyPart["Head"] = glMesh;
+            if (built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey("Head"))
+                _builtMeshesByBodyPart["Head"] = built;
+        }
+
+        // Keep the short-circuit identity in sync: a subsequent LoadNpcAsync call
+        // with this same override path must still rebuild (file contents may
+        // change), which is exactly what the "overrideHeadMeshAbsolutePath == null"
+        // half of the short-circuit already enforces. We record the current
+        // override so other inspection / future logic can read it.
+        _currentHeadMeshOverride = headNifPath;
+
+        _logger.LogMessage("CharacterViewer: Head-only rebuild complete — " +
+            meshes.Count + " shape(s) from " + System.IO.Path.GetFileName(headNifPath));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1526,6 +1729,8 @@ public class VM_CharacterViewer : VM
         _cachedOsdFiles = null;
         _cachedBodyNifDiskPath = null;
         _cachedBodyTri = null;
+        _currentLoadedNpc = FormKey.Null;
+        _currentHeadMeshOverride = null;
     }
 
     private bool _disposed;
@@ -1564,6 +1769,7 @@ public class VM_CharacterViewer : VM
         _pendingScene = null;
         _pendingTextureOverrides = null;
         _pendingBodySlide = null;
+        _pendingHeadReplace = null;
         _meshesByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();
@@ -1603,9 +1809,10 @@ public class VM_CharacterViewer : VM
         var results = new List<(string, AssetSource?, List<NifMeshBuilder.BuiltMesh>)>();
 
         nifly.NifFile? skeletonNif = null;
+        string? skelDiskPath = null;
         if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath))
         {
-            string? skelDiskPath = _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath);
+            skelDiskPath = _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath);
             if (skelDiskPath != null)
             {
                 skeletonNif = new nifly.NifFile();
@@ -1613,6 +1820,7 @@ public class VM_CharacterViewer : VM
                 {
                     skeletonNif.Dispose();
                     skeletonNif = null;
+                    skelDiskPath = null;
                 }
             }
         }
@@ -1624,7 +1832,7 @@ public class VM_CharacterViewer : VM
                 if (string.IsNullOrWhiteSpace(gamePath)) return;
                 var source = _assetResolver.ResolveAssetSource(gamePath);
                 if (source.ResolvedDiskPath == null) return;
-                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif);
+                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath);
                 if (meshes.Count == 0) return;
 
                 // Weight morph: armor meshes ship as _0/_1 pairs that the game engine
@@ -1641,7 +1849,7 @@ public class VM_CharacterViewer : VM
                         var weight0Source = _assetResolver.ResolveAssetSource(weight0Path);
                         if (weight0Source.ResolvedDiskPath != null)
                         {
-                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif);
+                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath);
                             float t = NpcWeight / 100f;
                             BlendWeightMorph(meshes0, meshes, t, bodyPart);
                         }

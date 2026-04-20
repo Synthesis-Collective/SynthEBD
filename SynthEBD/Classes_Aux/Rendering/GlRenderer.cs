@@ -59,6 +59,17 @@ public class GlRenderer : IDisposable
     }
     public LightData[] Lights { get; } = new LightData[5];
 
+    // Cached view-space light directions (P5). Each frame we'd otherwise
+    // multiply Lights[i].Direction by the view rotation and normalize for all
+    // 5 slots. Static cameras with static lights make that work redundant —
+    // we only recompute when either the view matrix or a light's world-space
+    // direction/type changes.
+    private readonly Vector3[] _cachedViewSpaceLightDirs = new Vector3[5];
+    private Matrix4 _cachedLightUploadView;
+    private readonly Vector3[] _cachedLightWorldDirs = new Vector3[5];
+    private readonly int[] _cachedLightTypes = new int[5];
+    private bool _hasCachedLightDirs;
+
     // Per-light arrow colors for the visualization gizmo (key=yellow, fill=cyan, rim=magenta).
     private static readonly Vector3[] _arrowColors =
     {
@@ -188,20 +199,14 @@ public class GlRenderer : IDisposable
         _shader.SetMatrix4("u_projection", ref projection);
 
         // Set light uniforms — transform directions to view space
-        var viewMat3 = new Matrix3(view);
+        EnsureViewSpaceLightDirs(ref view);
         for (int i = 0; i < 5; i++)
         {
             string prefix = "lights[" + i + "].";
             _shader.SetInt(prefix + "type", Lights[i].Type);
             if (Lights[i].Type == 2)
             {
-                // Transform light direction from world space to view space.
-                // OpenTK uses row-vector convention (v * M), matching how GLSL
-                // interprets the uploaded matrix. Using M * v here would apply
-                // the transpose rotation and cause the lit side of the mesh to
-                // drift as the camera orbits.
-                var viewDir = Lights[i].Direction * viewMat3;
-                viewDir.Normalize();
+                var viewDir = _cachedViewSpaceLightDirs[i];
                 _shader.SetVector3(prefix + "direction", viewDir.X, viewDir.Y, viewDir.Z);
             }
             _shader.SetVector3(prefix + "color", Lights[i].Color.X, Lights[i].Color.Y, Lights[i].Color.Z);
@@ -248,6 +253,46 @@ public class GlRenderer : IDisposable
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
             DrawDirectionalLightArrows(ref view, ref projection);
+    }
+
+    /// <summary>
+    /// Recomputes view-space light directions only when the view matrix or any
+    /// light's world-space direction/type has changed since the last frame.
+    /// OpenTK uses row-vector convention (v * M), matching how GLSL interprets
+    /// the uploaded matrix. Using M * v here would apply the transpose rotation
+    /// and cause the lit side of the mesh to drift as the camera orbits.
+    /// </summary>
+    private void EnsureViewSpaceLightDirs(ref Matrix4 view)
+    {
+        bool dirty = !_hasCachedLightDirs || view != _cachedLightUploadView;
+        if (!dirty)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (Lights[i].Type != _cachedLightTypes[i] ||
+                    Lights[i].Direction != _cachedLightWorldDirs[i])
+                {
+                    dirty = true;
+                    break;
+                }
+            }
+        }
+        if (!dirty) return;
+
+        var viewMat3 = new Matrix3(view);
+        for (int i = 0; i < 5; i++)
+        {
+            if (Lights[i].Type == 2)
+            {
+                var viewDir = Lights[i].Direction * viewMat3;
+                viewDir.Normalize();
+                _cachedViewSpaceLightDirs[i] = viewDir;
+            }
+            _cachedLightTypes[i] = Lights[i].Type;
+            _cachedLightWorldDirs[i] = Lights[i].Direction;
+        }
+        _cachedLightUploadView = view;
+        _hasCachedLightDirs = true;
     }
 
     /// <summary>

@@ -233,19 +233,176 @@ public class NifMeshBuilder
         public int VertexCount { get; init; }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    //  PARSED-NIF LRU CACHE
+    //
+    //  Skyrim NPCs commonly share the same body NIFs (e.g. femalebody_1.nif),
+    //  so users flipping between NPCs in the Consistency / Specific-NPC editors
+    //  would re-parse the same file over and over. This cache keys on the NIF
+    //  path + mtime and the skeleton path + mtime (skinning transforms depend
+    //  on both). Cache hits return freshly-cloned BuiltMesh instances because
+    //  BlendWeightMorph in VM_CharacterViewer mutates Positions/Normals/etc. in
+    //  place — returning the canonical snapshot directly would corrupt future
+    //  hits. The clone allocates ~1MB of vertex data per body mesh, which is
+    //  still ~100× cheaper than a real NIF parse + skinning pass.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private sealed class NifCacheEntry
+    {
+        public string NifPath { get; init; } = "";
+        public long NifMTimeTicks { get; init; }
+        public string? SkeletonPath { get; init; }
+        public long SkeletonMTimeTicks { get; init; }
+        public required List<BuiltMesh> Meshes { get; init; }
+    }
+
+    private const int CacheMaxEntries = 16;
+    private readonly LinkedList<NifCacheEntry> _cache = new();
+    private readonly object _cacheLock = new();
+
+    /// <summary>
+    /// Drops every cached parse result. Call when the mod environment is reloaded
+    /// so the next BuildFromFile re-reads from disk rather than returning a result
+    /// parsed from a now-different file.
+    /// </summary>
+    public void ClearCache()
+    {
+        lock (_cacheLock) _cache.Clear();
+    }
+
     /// <summary>
     /// Loads all renderable shapes from a NIF file and converts them to HelixToolkit geometry.
     /// </summary>
-    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null)
+    /// <param name="nifPath">Absolute path to the mesh NIF.</param>
+    /// <param name="skeletonNif">Optional already-open skeleton NIF for CPU skinning. Caller owns the lifetime.</param>
+    /// <param name="skeletonPath">Optional absolute path to the skeleton NIF, used as part of the cache key.
+    /// When <paramref name="skeletonNif"/> is non-null, this must also be supplied for caching to apply —
+    /// otherwise the cache is bypassed (different skeletons produce different skinning transforms).</param>
+    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null)
     {
+        long nifMTime = TryGetMTime(nifPath);
+        long skelMTime = skeletonPath != null ? TryGetMTime(skeletonPath) : 0;
+
+        // Cache is safe when the skeleton identity is known (path supplied) or
+        // when no skeleton is in play. A caller that passes a NifFile without a
+        // path cannot validate the skeleton against the cache entry, so we skip
+        // caching entirely in that case.
+        bool cacheable = skeletonNif == null || skeletonPath != null;
+
+        if (cacheable)
+        {
+            var cached = TryGetFromCache(nifPath, skeletonPath, nifMTime, skelMTime);
+            if (cached != null) return cached;
+        }
+
         var results = new List<BuiltMesh>();
-
         using var nif = new NifFile();
-        if (nif.Load(nifPath) != 0)
-            return results;
+        if (nif.Load(nifPath) != 0) return results;
 
-        return BuildAllShapes(nif, skeletonNif);
+        results = BuildAllShapes(nif, skeletonNif);
+
+        if (cacheable && results.Count > 0)
+        {
+            // Store a deep-cloned snapshot so future in-place mutations of the
+            // returned list (BlendWeightMorph) don't corrupt subsequent hits.
+            var snapshot = CloneBuiltMeshList(results);
+            lock (_cacheLock)
+            {
+                _cache.AddFirst(new NifCacheEntry
+                {
+                    NifPath = nifPath,
+                    NifMTimeTicks = nifMTime,
+                    SkeletonPath = skeletonPath,
+                    SkeletonMTimeTicks = skelMTime,
+                    Meshes = snapshot,
+                });
+                while (_cache.Count > CacheMaxEntries)
+                    _cache.RemoveLast();
+            }
+        }
+
+        return results;
     }
+
+    private List<BuiltMesh>? TryGetFromCache(string nifPath, string? skeletonPath,
+        long nifMTime, long skelMTime)
+    {
+        lock (_cacheLock)
+        {
+            for (var node = _cache.First; node != null; node = node.Next)
+            {
+                var e = node.Value;
+                if (!string.Equals(e.NifPath, nifPath, StringComparison.OrdinalIgnoreCase)) continue;
+                if (e.NifMTimeTicks != nifMTime) continue;
+                if (!string.Equals(e.SkeletonPath, skeletonPath, StringComparison.OrdinalIgnoreCase)) continue;
+                if (e.SkeletonMTimeTicks != skelMTime) continue;
+                // LRU touch
+                _cache.Remove(node);
+                _cache.AddFirst(node);
+                return CloneBuiltMeshList(e.Meshes);
+            }
+        }
+        return null;
+    }
+
+    private static long TryGetMTime(string path)
+    {
+        try { return System.IO.File.GetLastWriteTimeUtc(path).Ticks; }
+        catch { return 0; }
+    }
+
+    private static List<BuiltMesh> CloneBuiltMeshList(List<BuiltMesh> source)
+    {
+        var copy = new List<BuiltMesh>(source.Count);
+        for (int i = 0; i < source.Count; i++) copy.Add(CloneBuiltMesh(source[i]));
+        return copy;
+    }
+
+    /// <summary>
+    /// Shallow-clones shared read-only data (Indices, TexturePaths, Skinning,
+    /// shader flags) and deep-clones the vertex arrays that BlendWeightMorph
+    /// mutates in place.
+    /// </summary>
+    private static BuiltMesh CloneBuiltMesh(BuiltMesh b) => new()
+    {
+        Positions = (Vector3[])b.Positions.Clone(),
+        Normals = (Vector3[])b.Normals.Clone(),
+        Indices = b.Indices,
+        TextureCoordinates = b.TextureCoordinates,
+        Tangents = (Vector3[])b.Tangents.Clone(),
+        Bitangents = (Vector3[])b.Bitangents.Clone(),
+        ShapeName = b.ShapeName,
+        TexturePaths = b.TexturePaths,
+        IsModelSpaceNormals = b.IsModelSpaceNormals,
+        IsHairTintShader = b.IsHairTintShader,
+        HairTintColor = b.HairTintColor,
+        BindPosePositions = b.BindPosePositions != null ? (Vector3[])b.BindPosePositions.Clone() : null,
+        BindPoseNormals = b.BindPoseNormals != null ? (Vector3[])b.BindPoseNormals.Clone() : null,
+        Skinning = b.Skinning,
+        IsPrimaryHeadShape = b.IsPrimaryHeadShape,
+        HasAlphaTest = b.HasAlphaTest,
+        HasAlphaBlend = b.HasAlphaBlend,
+        AlphaThreshold = b.AlphaThreshold,
+        IsDoubleSided = b.IsDoubleSided,
+        HasGreyscaleToPaletteFlag = b.HasGreyscaleToPaletteFlag,
+        Glossiness = b.Glossiness,
+        SpecularStrength = b.SpecularStrength,
+        SpecularColor = b.SpecularColor,
+        SubsurfaceRolloff = b.SubsurfaceRolloff,
+        GreyscaleToPaletteScale = b.GreyscaleToPaletteScale,
+        RimlightPower = b.RimlightPower,
+        HasVertexColors = b.HasVertexColors,
+        EmissiveColor = b.EmissiveColor,
+        EmissiveMultiple = b.EmissiveMultiple,
+        UvScale = b.UvScale,
+        UvOffset = b.UvOffset,
+        EnvironmentMapScale = b.EnvironmentMapScale,
+        EyeCubemapScale = b.EyeCubemapScale,
+        VertexColors = b.VertexColors,
+        ShaderFlags1 = b.ShaderFlags1,
+        ShaderFlags2 = b.ShaderFlags2,
+        ShaderType = b.ShaderType,
+    };
 
     /// <summary>
     /// Loads all renderable shapes from an already-open NifFile.
