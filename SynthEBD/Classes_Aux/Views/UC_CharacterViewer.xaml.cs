@@ -406,6 +406,12 @@ public partial class UC_CharacterViewer : UserControl
         _vm?.ClearKeyVertexMarkers();
     }
 
+    private void SelectMirrorPicksButton_Click(object sender, RoutedEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.SelectMirrorPicks();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  HOVER TOOLTIP — MESH & TEXTURE SOURCE PATHS
     // ═══════════════════════════════════════════════════════════════════════

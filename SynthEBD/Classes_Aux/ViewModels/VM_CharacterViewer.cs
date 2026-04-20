@@ -945,6 +945,9 @@ public class VM_CharacterViewer : VM
     public void NotifyKeyVertexPicked(KeyVertexPick pick)
     {
         Renderer.KeyVertexMarkers.Add(pick.LocalPos);
+        // Parallel bookkeeping so SelectMirrorPicks can resolve each marker back
+        // to its (mesh, vertexIndex) without having to guess from position alone.
+        _keyVertexPicks.Add(pick);
         _logger.LogMessage(
             "CharacterViewer: picked vertex #" + pick.VertexIndex
             + " on '" + pick.Mesh.ShapeName + "'"
@@ -955,6 +958,13 @@ public class VM_CharacterViewer : VM
         KeyVertexPicked?.Invoke(pick);
         AnyKeyVertexPicked?.Invoke(this, pick);
     }
+
+    /// <summary>
+    /// Parallel to <see cref="GlRenderer.KeyVertexMarkers"/>: holds full pick metadata
+    /// (mesh + vertex index) so SelectMirrorPicks can map each marker back to its mesh.
+    /// Kept in sync via NotifyKeyVertexPicked / ClearKeyVertexMarkers.
+    /// </summary>
+    private readonly List<KeyVertexPick> _keyVertexPicks = new();
 
     /// <summary>
     /// Look up the current (post-deformation, pre-ModelScale) position of a vertex on a body
@@ -998,6 +1008,71 @@ public class VM_CharacterViewer : VM
     public void ClearKeyVertexMarkers()
     {
         Renderer.KeyVertexMarkers.Clear();
+        _keyVertexPicks.Clear();
+    }
+
+    /// <summary>
+    /// For every existing pick marker, adds a new marker at the vertex whose *current*
+    /// (post-deformation) position is closest to the X-mirror of the original pick's
+    /// current position, searching the same mesh as the source pick. Intended for
+    /// bilaterally symmetric key-vertex assignment: pick once on the left, press the
+    /// button to fill in the right-side counterparts. Fires the same pick events as
+    /// a manual click so the BodyTypeProfile editor captures the mirrors too.
+    /// </summary>
+    public void SelectMirrorPicks()
+    {
+        // Snapshot first: NotifyKeyVertexPicked appends to _keyVertexPicks, and we
+        // don't want to mirror the mirrors we just added.
+        var sourcePicks = _keyVertexPicks.ToArray();
+        if (sourcePicks.Length == 0)
+        {
+            _logger.LogMessage("CharacterViewer: SelectMirrorPicks — no source picks; nothing to do.");
+            return;
+        }
+
+        int added = 0;
+        foreach (var src in sourcePicks)
+        {
+            if (src.Mesh == null || src.Mesh.CpuPositions == null) continue;
+
+            // Use the current (deformed) position, not the captured LocalPos, so the
+            // mirror is correct even if the body was re-shaped after the original pick.
+            if (!TryGetCurrentVertex(src.Mesh.ShapeName, src.VertexIndex, out var livePos))
+                continue;
+
+            var mirrorTarget = new OpenTK.Mathematics.Vector3(-livePos.X, livePos.Y, livePos.Z);
+
+            // Find the vertex on the same mesh closest to the mirror target.
+            var positions = src.Mesh.CpuPositions;
+            int bestIdx = -1;
+            float bestDistSq = float.MaxValue;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                float dx = positions[i].X - mirrorTarget.X;
+                float dy = positions[i].Y - mirrorTarget.Y;
+                float dz = positions[i].Z - mirrorTarget.Z;
+                float d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 < bestDistSq)
+                {
+                    bestDistSq = d2;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx < 0) continue;
+
+            // Skip if the mirror resolves to the same vertex (happens for vertices on
+            // the X=0 midline — no symmetric counterpart to add).
+            if (bestIdx == src.VertexIndex) continue;
+
+            var bestPos = positions[bestIdx];
+            var mirrorPick = new KeyVertexPick(src.Mesh, bestIdx,
+                new OpenTK.Mathematics.Vector3(bestPos.X, bestPos.Y, bestPos.Z));
+            NotifyKeyVertexPicked(mirrorPick);
+            added++;
+        }
+
+        _logger.LogMessage("CharacterViewer: SelectMirrorPicks added " + added
+            + " mirror pick(s) from " + sourcePicks.Length + " source(s).");
     }
 
     /// <summary>

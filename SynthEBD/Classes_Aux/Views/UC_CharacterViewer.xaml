@@ -150,6 +150,11 @@
                           IsChecked="{Binding IsKeyVertexPickMode}"
                           ToolTip="Left-click the model to drop a marker on the nearest triangle vertex. Intended for BodySlide classifier key-vertex assignment; camera orbit is disabled while this is on."/>
 
+                <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
+                        Padding="6 1" VerticalAlignment="Center"
+                        Click="SelectMirrorPicksButton_Click"
+                        ToolTip="For each current pick marker, adds the vertex closest to its X-mirror on the same mesh. Use to fill in bilaterally symmetric counterparts after picking one side."/>
+
                 <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="ClearKeyVertexMarkersButton_Click"
