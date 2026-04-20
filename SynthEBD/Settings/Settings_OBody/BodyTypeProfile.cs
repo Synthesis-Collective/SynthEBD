@@ -237,3 +237,107 @@ public class LabeledExample
 
     public LabelPolarity Polarity { get; set; } = LabelPolarity.Positive;
 }
+
+/// <summary>
+/// Pure-math helpers for evaluating <see cref="MeasurementDefinition"/>s and
+/// <see cref="MeasurementCondition"/>s. Phase 4's editor uses these for the live readout
+/// column; Phase 5's <c>BodySlideMeasurementEvaluator</c> uses them in the classifier pipeline.
+/// </summary>
+public static class MeasurementMath
+{
+    /// <summary>Vertex lookup: returns the local-space position of a (shape, index) pair, or null when missing.</summary>
+    public delegate OpenTK.Mathematics.Vector3? VertexLookup(string shapeName, int vertexIndex);
+
+    /// <summary>
+    /// Evaluates a measurement against a vertex lookup. Returns false when any required vertex
+    /// is missing (orphaned reference, shape not loaded), denominator is near zero (ratio), or
+    /// the definition is malformed (wrong vertex-ref count for its kind).
+    /// </summary>
+    public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, out float value)
+    {
+        value = 0f;
+        if (def == null || def.VertexRefNames == null || lookup == null) return false;
+
+        int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
+        if (def.VertexRefNames.Count < needed) return false;
+
+        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, out var a)) return false;
+        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, out var b)) return false;
+
+        switch (def.Kind)
+        {
+            case MeasurementKind.PointDistance:
+                value = (a - b).Length;
+                return true;
+
+            case MeasurementKind.AxisDistance:
+                value = def.Axis switch
+                {
+                    MeasurementAxis.X => Math.Abs(a.X - b.X),
+                    MeasurementAxis.Y => Math.Abs(a.Y - b.Y),
+                    MeasurementAxis.Z => Math.Abs(a.Z - b.Z),
+                    _ => 0f,
+                };
+                return true;
+
+            case MeasurementKind.RatioDistance:
+                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, out var c)) return false;
+                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, out var d)) return false;
+                float denom = (c - d).Length;
+                if (denom < 1e-6f) return false;
+                value = (a - b).Length / denom;
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, out OpenTK.Mathematics.Vector3 pos)
+    {
+        pos = default;
+        if (string.IsNullOrEmpty(vertexRefName)) return false;
+        if (!keyVertsByName.TryGetValue(vertexRefName, out var kv) || kv == null) return false;
+        var p = lookup(kv.ShapeName, kv.VertexIndex);
+        if (p == null) return false;
+        pos = p.Value;
+        return true;
+    }
+
+    /// <summary>Applies a comparator to a measurement value.</summary>
+    public static bool Compare(float measurement, MeasurementComparator comparator, float threshold)
+    {
+        return comparator switch
+        {
+            MeasurementComparator.LessThan => measurement < threshold,
+            MeasurementComparator.LessThanOrEqual => measurement <= threshold,
+            MeasurementComparator.GreaterThan => measurement > threshold,
+            MeasurementComparator.GreaterThanOrEqual => measurement >= threshold,
+            MeasurementComparator.EqualTo => Math.Abs(measurement - threshold) < 1e-6f,
+            MeasurementComparator.NotEqualTo => Math.Abs(measurement - threshold) >= 1e-6f,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// True when the rule's predicate (DNF: OR of AND-gated condition groups) matches the given
+    /// measurement values. An empty <see cref="MeasurementRule.GroupsORlogic"/> never matches.
+    /// </summary>
+    public static bool RuleMatches(MeasurementRule rule, IReadOnlyDictionary<string, float> measurements)
+    {
+        if (rule?.GroupsORlogic == null || rule.GroupsORlogic.Count == 0) return false;
+        foreach (var group in rule.GroupsORlogic)
+        {
+            if (group?.ConditionsANDlogic == null || group.ConditionsANDlogic.Count == 0) continue;
+            bool allMatch = true;
+            foreach (var cond in group.ConditionsANDlogic)
+            {
+                if (cond == null || string.IsNullOrEmpty(cond.MeasurementName)) { allMatch = false; break; }
+                if (!measurements.TryGetValue(cond.MeasurementName, out float val)) { allMatch = false; break; }
+                if (!Compare(val, cond.Comparator, cond.Value)) { allMatch = false; break; }
+            }
+            if (allMatch) return true;
+        }
+        return false;
+    }
+}

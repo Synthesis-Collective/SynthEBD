@@ -788,6 +788,20 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public bool IsKeyVertexPickMode { get; set; } = false;
 
+    /// <summary>
+    /// Fired once per successful key-vertex pick (after the marker has been added). Phase 4's
+    /// BodyTypeProfile editor subscribes when active so picks route into the selected profile.
+    /// Carries the same payload as <see cref="NotifyKeyVertexPicked"/>.
+    /// </summary>
+    public event Action<KeyVertexPick>? KeyVertexPicked;
+
+    /// <summary>
+    /// Process-wide pick fan-out. Fires for every successful pick from any viewer instance.
+    /// Lets long-lived UIs (the BodyTypeProfile editor) subscribe once instead of attaching
+    /// to whichever viewer happens to be visible. Sender is the originating viewer.
+    /// </summary>
+    public static event Action<VM_CharacterViewer, KeyVertexPick>? AnyKeyVertexPicked;
+
     /// <summary>Result of a key-vertex pick: the hit mesh, the index into its
     /// CpuPositions array, and the vertex position in that same (pre-ModelScale)
     /// space so the renderer can re-project it as ModelScale changes.</summary>
@@ -929,6 +943,46 @@ public class VM_CharacterViewer : VM
             + " at (" + pick.LocalPos.X.ToString("F2") + ", "
                      + pick.LocalPos.Y.ToString("F2") + ", "
                      + pick.LocalPos.Z.ToString("F2") + ")");
+
+        KeyVertexPicked?.Invoke(pick);
+        AnyKeyVertexPicked?.Invoke(this, pick);
+    }
+
+    /// <summary>
+    /// Look up the current (post-deformation, pre-ModelScale) position of a vertex on a body
+    /// mesh by shape name and index. Used by the BodyTypeProfile editor to compute live
+    /// measurement readouts and by the Phase 5 evaluator. Returns false when the shape isn't
+    /// present in the current viewer state or the index is out of range.
+    /// </summary>
+    public bool TryGetCurrentVertex(string shapeName, int vertexIndex, out OpenTK.Mathematics.Vector3 localPos)
+    {
+        localPos = default;
+        if (string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return false;
+
+        var mesh = Renderer.Meshes.FirstOrDefault(m =>
+            string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+        if (mesh?.CpuPositions == null) return false;
+        if (vertexIndex >= mesh.CpuPositions.Length) return false;
+
+        var p = mesh.CpuPositions[vertexIndex];
+        localPos = new OpenTK.Mathematics.Vector3(p.X, p.Y, p.Z);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the current per-shape vertex counts for every renderable mesh that has CPU-side
+    /// positions. Used by the BodyTypeProfile editor to capture/refresh the
+    /// <see cref="TopologyFingerprint"/> for the active profile.
+    /// </summary>
+    public Dictionary<string, int> GetCurrentShapeVertexCounts()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (mesh?.CpuPositions == null || string.IsNullOrEmpty(mesh.ShapeName)) continue;
+            counts[mesh.ShapeName] = mesh.CpuPositions.Length;
+        }
+        return counts;
     }
 
     /// <summary>Removes every marker gizmo. Bound to the toolbar "Clear Picks"

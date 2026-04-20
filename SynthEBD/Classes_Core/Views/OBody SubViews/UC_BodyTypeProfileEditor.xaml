@@ -1,0 +1,324 @@
+<UserControl x:Class="SynthEBD.UC_BodyTypeProfileEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_BodyTypeProfileEditor}"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1100">
+    <Grid Margin="5">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left rail: profile list + add/delete -->
+        <DockPanel Grid.Column="0" Margin="0,0,5,0">
+            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" Margin="0,0,0,5"
+                       Text="Body Type Profiles"/>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
+                <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
+                <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1"/>
+            </StackPanel>
+            <ListBox ItemsSource="{Binding Profiles}"
+                     SelectedItem="{Binding SelectedProfile}"
+                     DisplayMemberPath="Name"/>
+        </DockPanel>
+
+        <!-- Right pane: tabs for the active profile -->
+        <ContentControl Grid.Column="1" Content="{Binding SelectedProfile}">
+            <ContentControl.ContentTemplate>
+                <DataTemplate DataType="{x:Type local:VM_BodyTypeProfile}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Profile metadata -->
+                        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"/>
+
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Body Type:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="0" Grid.Column="3"
+                                          ItemsSource="{Binding AvailableBodyTypeNames}"
+                                          IsEditable="True"
+                                          Text="{Binding BodyTypeName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="0,5,0,0">
+                                    <TextBlock Text="Topology fingerprint:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="vertex count =" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding FingerprintVertexCount, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="0,0,10,0"/>
+                                    <TextBlock Text="per-shape:" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding FingerprintShapeCounts, UpdateSourceTrigger=PropertyChanged}" Width="280" Margin="0,0,10,0"/>
+                                    <Button Content="Capture from active viewer" Command="{Binding CaptureFingerprintFromActiveViewer}" Padding="6,1"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Three panels: KeyVertices / Measurements / Rules / Suggest -->
+                        <TabControl Grid.Row="1">
+
+                            <TabItem Header="Key Vertices">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
+                                        <CheckBox Content="Capture picks from viewer (toggle Pick Vertex on the viewer toolbar)"
+                                                  IsChecked="{Binding CapturePicks}"
+                                                  VerticalAlignment="Center"/>
+                                        <Button Content="Remove Selected" Command="{Binding RemoveSelectedKeyVertex}" Margin="15,0,0,0" Padding="6,1"/>
+                                    </StackPanel>
+                                    <DataGrid ItemsSource="{Binding KeyVertices}"
+                                              SelectedItem="{Binding SelectedKeyVertex}"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="180"/>
+                                            <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                                            <DataGridTextColumn Header="Vertex Index" Binding="{Binding VertexIndex, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                                            <DataGridTemplateColumn Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="X" Command="{Binding DeleteCommand}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </TabItem>
+
+                            <TabItem Header="Measurements">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Top" Content="Add Measurement" Command="{Binding AddMeasurement}"
+                                            HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
+                                    <DataGrid ItemsSource="{Binding Measurements}"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                                            <DataGridTemplateColumn Header="Kind" Width="140">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementKind}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="A" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                  Text="{Binding VertexRefA, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="B" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                  Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="C (Ratio)" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  Text="{Binding VertexRefC, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="D (Ratio)" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  Text="{Binding VertexRefD, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Axis" Width="60">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding Axis, UpdateSourceTrigger=PropertyChanged}"
+                                                                  IsEnabled="{Binding ShowAxisField}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementAxis}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Live" Binding="{Binding LiveValue, Mode=OneWay, StringFormat=F3}" Width="80" IsReadOnly="True"/>
+                                            <DataGridTemplateColumn Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="X" Command="{Binding DeleteCommand}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </TabItem>
+
+                            <TabItem Header="Rules">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Top" Content="Add Rule" Command="{Binding AddRule}"
+                                            HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Rules}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:VM_MeasurementRule}">
+                                                    <Border BorderBrush="DarkGray" BorderThickness="1" Margin="0,0,0,8" Padding="6">
+                                                        <StackPanel>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="160"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="160"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="Descriptor Category:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                <TextBox Grid.Column="1" Text="{Binding DescriptorCategory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"/>
+                                                                <TextBlock Grid.Column="2" Text="Value:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                <TextBox Grid.Column="3" Text="{Binding DescriptorValue, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"/>
+                                                                <CheckBox Grid.Column="4" Content="Draft" IsChecked="{Binding IsDraft}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                                                          ToolTip="When checked, the evaluator skips this rule. Use the Promote button after reviewing."/>
+                                                                <Button Grid.Column="5" Content="Promote" Command="{Binding PromoteFromDraft}" HorizontalAlignment="Left" Padding="6,1"/>
+                                                                <Button Grid.Column="6" Content="Delete Rule" Command="{Binding DeleteCommand}" Padding="6,1"/>
+                                                            </Grid>
+                                                            <TextBlock Text="Predicate (OR of AND-gated condition groups):" Margin="0,5,0,3" FontStyle="Italic"/>
+                                                            <ItemsControl ItemsSource="{Binding Groups}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate DataType="{x:Type local:VM_AndGatedMeasurementGroup}">
+                                                                        <Border BorderBrush="LightGray" BorderThickness="1" Margin="10,2" Padding="4">
+                                                                            <StackPanel>
+                                                                                <DockPanel Margin="0,0,0,3">
+                                                                                    <TextBlock Text="AND group" FontWeight="Bold" DockPanel.Dock="Left"/>
+                                                                                    <Button DockPanel.Dock="Right" Content="X" Command="{Binding DeleteCommand}" Padding="4,0" HorizontalAlignment="Right"/>
+                                                                                    <Button DockPanel.Dock="Right" Content="+ Condition" Command="{Binding AddCondition}" Padding="4,0" Margin="0,0,5,0" HorizontalAlignment="Right"/>
+                                                                                    <TextBlock/>
+                                                                                </DockPanel>
+                                                                                <ItemsControl ItemsSource="{Binding Conditions}">
+                                                                                    <ItemsControl.ItemTemplate>
+                                                                                        <DataTemplate DataType="{x:Type local:VM_MeasurementCondition}">
+                                                                                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                                                                <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
+                                                                                                          Text="{Binding MeasurementName, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          MinWidth="160" Margin="0,0,5,0"/>
+                                                                                                <ComboBox SelectedValue="{Binding Comparator, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementComparator}}}"
+                                                                                                          MinWidth="140" Margin="0,0,5,0"/>
+                                                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"/>
+                                                                                                <Button Content="X" Command="{Binding DeleteCommand}" Padding="4,0"/>
+                                                                                            </StackPanel>
+                                                                                        </DataTemplate>
+                                                                                    </ItemsControl.ItemTemplate>
+                                                                                </ItemsControl>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <Button Content="+ OR group" Command="{Binding AddGroup}" HorizontalAlignment="Left" Padding="6,1" Margin="10,2,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </TabItem>
+
+                            <TabItem Header="Label-then-Suggest">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Top" Margin="0,5">
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5"
+                                                   Text="Tag presets/weights as positive or negative examples for a target descriptor, then run Suggest Thresholds. The pass appends a draft rule to the Rules tab; review and click Promote to enable it."/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Target Descriptor:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <ComboBox ItemsSource="{Binding AvailableDescriptors}"
+                                                      SelectedItem="{Binding SelectedDescriptorForLabeling}"
+                                                      MinWidth="220" Margin="0,0,10,0">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock>
+                                                            <TextBlock.Text>
+                                                                <MultiBinding StringFormat="{}{0}: {1}">
+                                                                    <Binding Path="Category"/>
+                                                                    <Binding Path="Value"/>
+                                                                </MultiBinding>
+                                                            </TextBlock.Text>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <Button Content="Suggest Thresholds (draft rule)" Command="{Binding SuggestThresholds}" Padding="6,1"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <DataGrid ItemsSource="{Binding LabeledExamples}"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Category" Binding="{Binding DescriptorCategory, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
+                                            <DataGridTextColumn Header="Value" Binding="{Binding DescriptorValue, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
+                                            <DataGridTextColumn Header="Preset Label" Binding="{Binding PresetLabel, UpdateSourceTrigger=PropertyChanged}" Width="200"/>
+                                            <DataGridTemplateColumn Header="Gender" Width="90">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding PresetGender, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Weight" Binding="{Binding Weight, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+                                            <DataGridTemplateColumn Header="Polarity" Width="100">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding Polarity, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:LabelPolarity}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="X" Command="{Binding DeleteCommand}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </TabItem>
+
+                        </TabControl>
+                    </Grid>
+                </DataTemplate>
+            </ContentControl.ContentTemplate>
+        </ContentControl>
+    </Grid>
+</UserControl>

@@ -28,7 +28,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory,
         VM_OBodyTrainer obodyTrainer,
-        VM_BodyTypeRegistry bodyTypeRegistry
+        VM_BodyTypeRegistry bodyTypeRegistry,
+        VM_BodyTypeProfileEditor bodyTypeProfileEditor
         )
     {
         _logger = logger;
@@ -44,6 +45,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         MiscUI = miscSettingsFactory();
         AnnotatorUI = _bodySlideAnnotatorFactory(DescriptorUI, BodySlidesUI, MiscUI);
         BodyTypeRegistryUI = bodyTypeRegistry;
+        BodyTypeProfileEditorUI = bodyTypeProfileEditor;
 
         BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
@@ -83,6 +85,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ => DisplayedUI = BodyTypeRegistryUI
         );
+
+        ClickBodyTypeProfilesMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DisplayedUI = BodyTypeProfileEditorUI
+        );
     }
 
     public object DisplayedUI { get; set; }
@@ -92,6 +99,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public VM_OBodyMiscSettings MiscUI { get; set; }
     public VM_BodySlideAnnotator AnnotatorUI { get; set; }
     public VM_BodyTypeRegistry BodyTypeRegistryUI { get; set; }
+    public VM_BodyTypeProfileEditor BodyTypeProfileEditorUI { get; set; }
     public RelayCommand ClickBodySlidesMenu { get; }
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }
@@ -99,6 +107,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickAnnotationMenu { get; }
     public RelayCommand ClickAnnotationTrainerMenu { get; }
     public RelayCommand ClickBodyTypeRegistryMenu { get; }
+    public RelayCommand ClickBodyTypeProfilesMenu { get; }
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
     public void CopyInViewModelFromModel(Settings_OBody model, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
@@ -184,6 +193,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         BodyTypeRegistryUI.CopyInViewModelFromModel(model);
 
+        BodyTypeProfileEditorUI.CopyInViewModelFromModel(model);
+
         AnnotatorUI.CopyInFromModel();
 
         CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
@@ -222,6 +233,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         MiscUI.DumpViewModelToModel(model);
 
         BodyTypeRegistryUI.DumpViewModelToModel(model);
+
+        BodyTypeProfileEditorUI.DumpViewModelToModel(model);
 
         model.BodySlideClassificationRules = AnnotatorUI.DumpToModel();
 
