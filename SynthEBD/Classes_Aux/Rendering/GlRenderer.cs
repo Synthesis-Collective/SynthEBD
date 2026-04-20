@@ -25,6 +25,19 @@ public class GlRenderer : IDisposable
     /// default so edges read clearly against both skin and clothing.</summary>
     public Vector3 WireframeColor { get; set; } = new Vector3(0.2f, 1.0f, 0.9f);
 
+    /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
+    /// should be drawn. Used by the BodySlide classifier's key-vertex picking
+    /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
+    /// so they track the character through ModelScale changes.</summary>
+    public List<Vector3> KeyVertexMarkers { get; } = new();
+
+    /// <summary>RGB color for the key-vertex marker spheres.</summary>
+    public Vector3 KeyVertexMarkerColor { get; set; } = new Vector3(1.0f, 0.38f, 0.15f);
+
+    /// <summary>World-space radius of each marker sphere before ModelScale is
+    /// applied. ~1.1 Skyrim units reads clearly against a ~128-unit-tall body.</summary>
+    public float KeyVertexMarkerRadius { get; set; } = 1.1f;
+
     /// <summary>When true, renders arrow gizmos showing each directional light's shining
     /// direction (from source to model) and magnitude (length scales with intensity).</summary>
     public bool ShowKeyLightVisualization { get; set; } = false;
@@ -264,10 +277,98 @@ public class GlRenderer : IDisposable
         // of the solid surface. Uses glPolygonOffset to avoid z-fighting.
         DrawWireframeOverlay(ref model, ref view, ref projection);
 
+        // Key-vertex marker gizmos (BodySlide classifier). Drawn with depth
+        // test off so markers on the far side of the model remain visible to
+        // the user while assigning key vertices.
+        DrawKeyVertexMarkers(ref view, ref projection);
+
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
             DrawDirectionalLightArrows(ref view, ref projection);
+    }
+
+    /// <summary>
+    /// Draws a small shaded sphere at each entry in <see cref="KeyVertexMarkers"/>.
+    /// Reuses the debug shader (which already supports <c>u_shaded=1</c> lighting)
+    /// and pre-multiplies the stored mesh-local positions by ModelScale so the
+    /// markers track the character when height is adjusted.
+    /// </summary>
+    private void DrawKeyVertexMarkers(ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+        if (KeyVertexMarkers.Count == 0) return;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 1f);
+        _debugShader.SetVector3("u_color",
+            KeyVertexMarkerColor.X, KeyVertexMarkerColor.Y, KeyVertexMarkerColor.Z);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        GL.Disable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+
+        float worldRadius = KeyVertexMarkerRadius * ModelScale;
+        for (int i = 0; i < KeyVertexMarkers.Count; i++)
+        {
+            var worldCenter = KeyVertexMarkers[i] * ModelScale;
+            var verts = BuildOctahedronMarkerMesh(worldCenter, worldRadius);
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                verts.Length * sizeof(float), verts, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, verts.Length / 6);
+        }
+
+        _debugShader.SetFloat("u_shaded", 0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>
+    /// Builds a centered unit octahedron scaled to <paramref name="radius"/>
+    /// as 8 CCW-from-outside triangles (144 floats = 8 tris * 3 verts * 6).
+    /// Per-vertex normals equal the outward unit direction so the debug
+    /// shader's Lambert term gives a convincing round-ish look.
+    /// </summary>
+    private static float[] BuildOctahedronMarkerMesh(Vector3 center, float radius)
+    {
+        var data = new float[144];
+        int w = 0;
+
+        var top = new Vector3(0f,  1f, 0f);
+        var bot = new Vector3(0f, -1f, 0f);
+        Span<Vector3> eq = stackalloc Vector3[4];
+        eq[0] = new Vector3( 1f, 0f,  0f);
+        eq[1] = new Vector3( 0f, 0f,  1f);
+        eq[2] = new Vector3(-1f, 0f,  0f);
+        eq[3] = new Vector3( 0f, 0f, -1f);
+
+        void AddVert(Vector3 dir)
+        {
+            var pos = center + dir * radius;
+            data[w++] = pos.X; data[w++] = pos.Y; data[w++] = pos.Z;
+            data[w++] = dir.X; data[w++] = dir.Y; data[w++] = dir.Z;
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            var e0 = eq[i];
+            var e1 = eq[(i + 1) % 4];
+            // Top pyramid: wound (top, e1, e0) so the outward normal points
+            // up-and-out (see DrawKeyVertexMarkers comment for the derivation).
+            AddVert(top); AddVert(e1); AddVert(e0);
+            // Bottom pyramid: wound (bot, e0, e1) for outward-down-and-out.
+            AddVert(bot); AddVert(e0); AddVert(e1);
+        }
+
+        return data;
     }
 
     /// <summary>

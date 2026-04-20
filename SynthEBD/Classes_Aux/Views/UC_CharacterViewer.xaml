@@ -145,6 +145,16 @@
                           IsChecked="{Binding ShowWireframe}"
                           ToolTip="Overlays the triangle edges of every loaded mesh. Used for key-vertex assignment in the BodySlide classifier workflow."/>
 
+                <CheckBox Content="Pick Vertex" FontSize="11" Foreground="#FFFF6126"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding IsKeyVertexPickMode}"
+                          ToolTip="Left-click the model to drop a marker on the nearest triangle vertex. Intended for BodySlide classifier key-vertex assignment; camera orbit is disabled while this is on."/>
+
+                <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
+                        Padding="6 1" VerticalAlignment="Center"
+                        Click="ClearKeyVertexMarkersButton_Click"
+                        ToolTip="Removes every picked-vertex marker from the viewport."/>
+
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="LogLightingButton_Click"/>

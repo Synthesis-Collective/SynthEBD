@@ -152,6 +152,23 @@ public partial class UC_CharacterViewer : UserControl
 
         var pos = e.GetPosition(GlControl);
 
+        // Key-vertex picking: left-click finds the nearest triangle vertex
+        // under the cursor and hands it to the VM instead of orbiting the
+        // camera. Takes precedence over light-arrow picking because the
+        // classifier workflow is the exclusive focus when this mode is on.
+        if (e.ChangedButton == MouseButton.Left && _vm.IsKeyVertexPickMode)
+        {
+            var pick = _vm.HitTestKeyVertex(
+                (float)pos.X, (float)pos.Y,
+                (float)GlControl.ActualWidth, (float)GlControl.ActualHeight);
+            if (pick.HasValue)
+            {
+                _vm.NotifyKeyVertexPicked(pick.Value);
+            }
+            e.Handled = true;
+            return;
+        }
+
         // Arrow picking: left-click on a light gizmo selects that light for
         // editing instead of starting a camera orbit.
         if (e.ChangedButton == MouseButton.Left && _vm.ShowLightControls)
@@ -381,6 +398,12 @@ public partial class UC_CharacterViewer : UserControl
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.LogLightingSettings();
+    }
+
+    private void ClearKeyVertexMarkersButton_Click(object sender, RoutedEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.ClearKeyVertexMarkers();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

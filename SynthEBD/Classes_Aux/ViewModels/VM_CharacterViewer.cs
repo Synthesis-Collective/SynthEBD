@@ -777,6 +777,168 @@ public class VM_CharacterViewer : VM
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  KEY-VERTEX PICKING (Phase 2 — BodySlide classifier)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// When true, a left-click in the viewport picks the nearest triangle
+    /// vertex under the cursor instead of orbiting the camera. Phase 2
+    /// scaffolding for the BodySlide classifier workflow; Phase 4 will build
+    /// the proper profile-editor UI on top of this.
+    /// </summary>
+    public bool IsKeyVertexPickMode { get; set; } = false;
+
+    /// <summary>Result of a key-vertex pick: the hit mesh, the index into its
+    /// CpuPositions array, and the vertex position in that same (pre-ModelScale)
+    /// space so the renderer can re-project it as ModelScale changes.</summary>
+    public readonly struct KeyVertexPick
+    {
+        public KeyVertexPick(GlMesh mesh, int vertexIndex, OpenTK.Mathematics.Vector3 localPos)
+        {
+            Mesh = mesh;
+            VertexIndex = vertexIndex;
+            LocalPos = localPos;
+        }
+        public GlMesh Mesh { get; }
+        public int VertexIndex { get; }
+        public OpenTK.Mathematics.Vector3 LocalPos { get; }
+    }
+
+    /// <summary>
+    /// Ray-casts against every renderable mesh and returns the vertex closest
+    /// (by barycentric weight) to the hit point on the nearest triangle, or
+    /// null if the cursor missed all meshes.
+    /// </summary>
+    public KeyVertexPick? HitTestKeyVertex(
+        float mouseX, float mouseY, float viewportWidth, float viewportHeight)
+    {
+        var (origin, direction) = Camera.ScreenPointToRay(
+            mouseX, mouseY, viewportWidth, viewportHeight);
+
+        GlMesh? closestMesh = null;
+        int closestVertexIndex = -1;
+        OpenTK.Mathematics.Vector3 closestLocal = default;
+        float closestDist = float.MaxValue;
+
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.CpuPositions == null || mesh.CpuIndices == null) continue;
+
+            if (RayIntersectsMeshPickVertex(origin, direction, mesh,
+                out float dist, out int vertexIndex, out var localPos)
+                && dist < closestDist)
+            {
+                closestDist = dist;
+                closestMesh = mesh;
+                closestVertexIndex = vertexIndex;
+                closestLocal = localPos;
+            }
+        }
+
+        if (closestMesh == null || closestVertexIndex < 0) return null;
+        return new KeyVertexPick(closestMesh, closestVertexIndex, closestLocal);
+    }
+
+    /// <summary>
+    /// Same Möller-Trumbore intersection as <see cref="RayIntersectsMesh"/>,
+    /// but at the closest hit it resolves the nearest of the triangle's three
+    /// vertices by barycentric weight and returns that vertex's index and
+    /// position (in mesh-local / pre-ModelScale space).
+    /// </summary>
+    private static bool RayIntersectsMeshPickVertex(
+        OpenTK.Mathematics.Vector3 rayOrigin,
+        OpenTK.Mathematics.Vector3 rayDir,
+        GlMesh mesh,
+        out float hitDistance,
+        out int hitVertexIndex,
+        out OpenTK.Mathematics.Vector3 hitVertexLocal)
+    {
+        hitDistance = float.MaxValue;
+        hitVertexIndex = -1;
+        hitVertexLocal = default;
+        bool anyHit = false;
+
+        var positions = mesh.CpuPositions!;
+        var indices = mesh.CpuIndices!;
+        const float epsilon = 1e-6f;
+
+        for (int i = 0; i + 2 < indices.Length; i += 3)
+        {
+            int i0 = indices[i];
+            int i1 = indices[i + 1];
+            int i2 = indices[i + 2];
+
+            var v0Sys = positions[i0];
+            var v1Sys = positions[i1];
+            var v2Sys = positions[i2];
+
+            var v0 = new OpenTK.Mathematics.Vector3(v0Sys.X, v0Sys.Y, v0Sys.Z);
+            var v1 = new OpenTK.Mathematics.Vector3(v1Sys.X, v1Sys.Y, v1Sys.Z);
+            var v2 = new OpenTK.Mathematics.Vector3(v2Sys.X, v2Sys.Y, v2Sys.Z);
+
+            var edge1 = v1 - v0;
+            var edge2 = v2 - v0;
+            var h = OpenTK.Mathematics.Vector3.Cross(rayDir, edge2);
+            float a = OpenTK.Mathematics.Vector3.Dot(edge1, h);
+            if (a > -epsilon && a < epsilon) continue;
+
+            float f = 1f / a;
+            var s = rayOrigin - v0;
+            float u = f * OpenTK.Mathematics.Vector3.Dot(s, h);
+            if (u < 0f || u > 1f) continue;
+
+            var q = OpenTK.Mathematics.Vector3.Cross(s, edge1);
+            float v = f * OpenTK.Mathematics.Vector3.Dot(rayDir, q);
+            if (v < 0f || u + v > 1f) continue;
+
+            float t = f * OpenTK.Mathematics.Vector3.Dot(edge2, q);
+            if (t > epsilon && t < hitDistance)
+            {
+                hitDistance = t;
+
+                // Barycentric weights: w0 belongs to v0, w1 to v1, w2 to v2.
+                // The vertex with the largest weight is the one closest to
+                // the hit point on the triangle's plane.
+                float w0 = 1f - u - v;
+                float w1 = u;
+                float w2 = v;
+
+                if (w0 >= w1 && w0 >= w2) { hitVertexIndex = i0; hitVertexLocal = v0; }
+                else if (w1 >= w2)        { hitVertexIndex = i1; hitVertexLocal = v1; }
+                else                       { hitVertexIndex = i2; hitVertexLocal = v2; }
+
+                anyHit = true;
+            }
+        }
+
+        return anyHit;
+    }
+
+    /// <summary>
+    /// Called by the view when the user clicks a vertex in key-vertex pick
+    /// mode. Phase 2 behavior: drop a visible marker at the picked position
+    /// and log the hit. Phase 3 will route this into a BodyTypeProfile.
+    /// </summary>
+    public void NotifyKeyVertexPicked(KeyVertexPick pick)
+    {
+        Renderer.KeyVertexMarkers.Add(pick.LocalPos);
+        _logger.LogMessage(
+            "CharacterViewer: picked vertex #" + pick.VertexIndex
+            + " on '" + pick.Mesh.ShapeName + "'"
+            + " at (" + pick.LocalPos.X.ToString("F2") + ", "
+                     + pick.LocalPos.Y.ToString("F2") + ", "
+                     + pick.LocalPos.Z.ToString("F2") + ")");
+    }
+
+    /// <summary>Removes every marker gizmo. Bound to the toolbar "Clear Picks"
+    /// button. Phase 3 will replace this with per-profile clearing.</summary>
+    public void ClearKeyVertexMarkers()
+    {
+        Renderer.KeyVertexMarkers.Clear();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  GL INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════
 
