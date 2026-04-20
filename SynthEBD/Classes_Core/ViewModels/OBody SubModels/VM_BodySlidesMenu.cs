@@ -119,8 +119,13 @@ public class VM_BodySlidesMenu : VM
          .Select(b => (Previous: b[0], Current: b[1]))
          .Subscribe(t =>
          {
+             int? carryWeight = null;
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
+                 // Remember the weight the user had selected so we can restore it on the
+                 // new preset (if it exposes that weight slot) and avoid a spurious
+                 // preview-NPC reload back to weight 0.
+                 carryWeight = t.Previous.AssociatedViewModel.SelectedWeightSlot?.Weight;
                  t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpToModel();
                  // Release the previous preset's VM_CharacterViewer (GL context + caches)
                  // rather than orphaning it on the placeholder across selection churn.
@@ -131,7 +136,7 @@ public class VM_BodySlidesMenu : VM
              if (t.Current != null)
              {
                  CurrentlyDisplayedBodySlide = bodySlideFactory(t.Current, raceGroupingVMs);
-                 CurrentlyDisplayedBodySlide.CopyInViewModelFromModel(t.Current.AssociatedModel);
+                 CurrentlyDisplayedBodySlide.CopyInViewModelFromModel(t.Current.AssociatedModel, carryWeight);
              }
          }).DisposeWith(this);
 

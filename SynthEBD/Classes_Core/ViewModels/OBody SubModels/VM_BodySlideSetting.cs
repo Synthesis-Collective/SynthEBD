@@ -589,7 +589,7 @@ public class VM_BodySlideSetting : VM
         { BodyShapeAnnotationState.Mix_Manual_RulesBased, BorderColorAnnotationMixManual_RulesBased }
     };
 
-    public void CopyInViewModelFromModel(BodySlideSetting model)
+    public void CopyInViewModelFromModel(BodySlideSetting model, int? preferredWeight = null)
     {
         Label = model.Label;
         ReferencedBodySlide = model.ReferencedBodySlide;
@@ -613,7 +613,12 @@ public class VM_BodySlideSetting : VM
                 WeightSlots.Add(slot);
             }
         }
-        SelectedWeightSlot = WeightSlots.FirstOrDefault();
+        // Prefer the caller-supplied weight (e.g. preserved across preset switches) so the
+        // user doesn't get bounced back to weight 0 and trigger an unnecessary preview-NPC
+        // reload. Fall back to the first slot if the preferred weight isn't available here.
+        SelectedWeightSlot = (preferredWeight.HasValue
+            ? WeightSlots.FirstOrDefault(s => s.Weight == preferredWeight.Value)
+            : null) ?? WeightSlots.FirstOrDefault();
         UpdateAggregateAnnotationState();
 
         foreach (var fk in model.AllowedRaces) { AllowedRaces.Add(fk); }
