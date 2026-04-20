@@ -184,9 +184,9 @@
             <TextBlock Grid.Row="11" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
             <CheckBox Grid.Row="11"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="12"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Display images of a subgroup's (and child subgroups') managed .dds files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Show preview images</TextBlock>
+            <TextBlock Grid.Row="12"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Subgroup preview mode: None, DDS thumbnails (Image), or 3D render of an NPC with the subgroup's textures applied (Render)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup preview</TextBlock>
             <StackPanel Grid.Row="12"  Grid.Column="1" Orientation="Horizontal">
-                <CheckBox IsChecked="{Binding Path=bShowPreviewImages, Mode=TwoWay}"></CheckBox>
+                <ComboBox ItemsSource="{Binding PreviewModeOptions}" SelectedItem="{Binding PreviewMode, Mode=TwoWay}" MinWidth="80" />
                 <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" ToolTip="Lower this value if the preview images are using too much memory" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>

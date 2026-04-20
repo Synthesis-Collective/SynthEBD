@@ -14,6 +14,7 @@ public class MainWindow_ViewModel : VM
     private readonly VM_NavPanel _navPanel;
     public readonly SynthEBDPaths _paths; // must be accessible to App.xaml.cs for crash logging
     private readonly Logger _logger;
+    private readonly FaceGenPreviewService _faceGenPreviewService;
 
     public DisplayedItemVm Display { get; }
     public VM_RunButton RunButtonVM { get; }
@@ -30,7 +31,8 @@ public class MainWindow_ViewModel : VM
         VM_NavPanel navPanel,
         Func<VM_RunButton> getRunButton,
         SynthEBDPaths paths,
-        Logger logger)
+        Logger logger,
+        FaceGenPreviewService faceGenPreviewService)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -38,6 +40,7 @@ public class MainWindow_ViewModel : VM
         _settingsGeneral = settingsGeneral;
         _navPanel = navPanel;
         _logger = logger;
+        _faceGenPreviewService = faceGenPreviewService;
 
         Display = display;
         StatusBarVM = statusBar;
@@ -63,6 +66,15 @@ public class MainWindow_ViewModel : VM
 
     void MainWindow_Closing(object sender, ExitEventArgs e)
     {
+        try
+        {
+            _faceGenPreviewService.Dispose();
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogMessage("MainWindow_Closing: FaceGen preview cleanup failed: " + ex.Message);
+        }
+
         _viewModelLoader.SaveViewModelsToDrive();
     }
 }

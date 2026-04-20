@@ -109,6 +109,22 @@ public class BoolToGridRowHeightConverter : IValueConverter
     }
 }
 
+// Visibility.Visible when the int value matches the converter parameter
+// (parsed as int). Used by the CharacterViewer's per-light editor to show
+// exactly one light's editor at a time.
+[ValueConversion(typeof(int), typeof(Visibility))]
+public class IntEqualsToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        int v = value is int i ? i : System.Convert.ToInt32(value);
+        int p = parameter is int pi ? pi : int.Parse((string)parameter, culture);
+        return v == p ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
+}
+
 //https://stackoverflow.com/a/2427307
 [ValueConversion(typeof(bool), typeof(Visibility))]
 public class InvertableBooleanToVisibilityConverter : IValueConverter

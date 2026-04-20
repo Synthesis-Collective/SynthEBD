@@ -1,11 +1,12 @@
 <UserControl x:Class="SynthEBD.UC_OBodyMiscSettings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              d:DataContext="{d:DesignInstance Type=local:VM_OBodyMiscSettings}"
              xmlns:local="clr-namespace:SynthEBD"
-             mc:Ignorable="d" 
+             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
@@ -13,7 +14,7 @@
         <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
     </UserControl.Resources>
-    
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -23,9 +24,8 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
             <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -34,57 +34,31 @@
 
         <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">Set RaceMenu INI to enable OBody/AutoBody</Button>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="BodySlide groups that will be sent to the Male list upon import" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Bodyslide Groups</TextBlock>
-        <Button Grid.Row="1"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddMaleSliderGroup}" Foreground="LightGreen">Add New</Button>
-        <ItemsControl Grid.Row="1"  Grid.Column="2" ItemsSource="{Binding MaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
-                        <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <TextBlock Margin="0 10 0 0"  Grid.Row="2" Grid.Column="0" VerticalAlignment="Top" ToolTip="BodySlide groups that will be sent to the Female list upon import" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Female Bodyslide Groups</TextBlock>
-        <Button Margin="5 10 0 0" Grid.Row="2"  Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddFemaleSliderGroup}" Foreground="LightGreen">Add New</Button>
-        <ItemsControl  Margin="0 10 0 0" Grid.Row="2"  Grid.Column="2" ItemsSource="{Binding FemaleBodySlideGroups, UpdateSourceTrigger=PropertyChanged}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
-                        <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
-        <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="When running the patcher, for any BodySlide that doesn't have descriptors manually annotated, attempt to annotate automatically using the Annotator settings (auto-annotations will not be saved and will be re-calculated during each patcher run)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
-        <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
+        <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="When running the patcher, for any BodySlide that doesn't have descriptors manually annotated, attempt to annotate automatically using the Annotator settings (auto-annotations will not be saved and will be re-calculated during each patcher run)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
+        <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
        
-        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="Native = use OBody's own JSON file to supply SynthEBD's asignments. Script = use a lightweight script to make OBody use SynthEBD's assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" ToolTip="Native = use OBody's own JSON file to supply SynthEBD's asignments. Script = use a lightweight script to make OBody use SynthEBD's assignments" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="2" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
 
-        <Border Grid.Row="4" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+        <Border Grid.Row="2" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0" ToolTip="Instead of SynthEBD choosing a single Bodyslide, checking this box will result in SynthEBD providing OBody with ALL bodyslides that comply with the distribution rules for each NPC. OBody will then choose one at random in-game" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                 <CheckBox IsChecked="{Binding OBodyEnableMultipleAssignments}"/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="4" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+        <Border Grid.Row="2" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
                 <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Display in-game notification when assigning a Bodyslide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Verbose Scripts</TextBlock>
                 <CheckBox IsChecked="{Binding UseVerboseScripts}"></CheckBox>
             </StackPanel>
         </Border>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="4" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" ToolTip="INI recommended; JSON doesn't work in VR as of current build" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="2" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
 
-        <Button Grid.Row="5" Grid.Column="0" Content="Remove Unused Descriptors" Foreground="FireBrick" Command="{Binding RemoveStashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}"/>
-        <ItemsControl Grid.Row="5" Grid.Column="2" ItemsSource="{Binding StashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}">
+        <Button Grid.Row="3" Grid.Column="0" Content="Remove Unused Descriptors" Foreground="FireBrick" Command="{Binding RemoveStashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}"/>
+        <ItemsControl Grid.Row="3" Grid.Column="2" ItemsSource="{Binding StashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="Teal" BorderThickness="1">
@@ -97,11 +71,11 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    ToolTip="Override the SliderCategories XML used to classify presets per body type. Falls back to shipped JSON when unset."
                    ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Slider Catalog Overrides</TextBlock>
-        <Button Grid.Row="6" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
-        <ItemsControl Grid.Row="6" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
+        <Button Grid.Row="4" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
+        <ItemsControl Grid.Row="4" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_SliderCatalogOverride}">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
@@ -114,11 +88,11 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    ToolTip="Map a canonical body type to a comma-separated list of aliases the classifier should treat as equivalent."
                    ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Body Type Family Compatibility</TextBlock>
-        <Button Grid.Row="7" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddBodyTypeFamily}">Add New</Button>
-        <ItemsControl Grid.Row="7" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
+        <Button Grid.Row="5" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddBodyTypeFamily}">Add New</Button>
+        <ItemsControl Grid.Row="5" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyTypeFamily}">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
@@ -129,5 +103,52 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 15 0 0" VerticalAlignment="Top"
+                   ToolTip="Per-weight preview NPCs used by the BodySlide preview viewer. Auto-populated with the first installed NPC whose weight is within ±5 of the slot."
+                   ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Preview NPC by Weight</TextBlock>
+        <Button Grid.Row="6" Grid.Column="1" Margin="5 15 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="MediumPurple"
+                Command="{Binding PreviewNpcs.ResetAllCommand}"
+                ToolTip="Re-run the auto-resolver for every row, replacing all current selections."
+                ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Reset All</Button>
+        <DataGrid Grid.Row="6" Grid.Column="2" Margin="0 15 0 0"
+                  ItemsSource="{Binding PreviewNpcs.Rows}" AutoGenerateColumns="False"
+                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                  HeadersVisibility="Column" RowHeaderWidth="0" Background="Black" RowBackground="Black"
+                  AlternatingRowBackground="#FF101010" Foreground="LightGray" GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" IsReadOnly="True" Width="60"/>
+                <DataGridTemplateColumn Header="Male NPC" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_OBodyPreviewWeightRow}">
+                            <StackPanel Orientation="Horizontal" IsEnabled="{Binding MaleApplicable}">
+                                <plugins:FormKeyPicker FormKey="{Binding MaleNpc, Mode=TwoWay}"
+                                                       LinkCache="{Binding lk}"
+                                                       ScopedTypes="{Binding NPCPickerFormKeys}"
+                                                       MinWidth="240"/>
+                                <Button Content="Auto" Margin="3 0 0 0" Foreground="LightGreen" Command="{Binding AutoMaleCommand}"
+                                        ToolTip="Pick the first installed male NPC whose weight is within ±5 of this slot."
+                                        ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Female NPC" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_OBodyPreviewWeightRow}">
+                            <StackPanel Orientation="Horizontal" IsEnabled="{Binding FemaleApplicable}">
+                                <plugins:FormKeyPicker FormKey="{Binding FemaleNpc, Mode=TwoWay}"
+                                                       LinkCache="{Binding lk}"
+                                                       ScopedTypes="{Binding NPCPickerFormKeys}"
+                                                       MinWidth="240"/>
+                                <Button Content="Auto" Margin="3 0 0 0" Foreground="LightGreen" Command="{Binding AutoFemaleCommand}"
+                                        ToolTip="Pick the first installed female NPC whose weight is within ±5 of this slot."
+                                        ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </UserControl>

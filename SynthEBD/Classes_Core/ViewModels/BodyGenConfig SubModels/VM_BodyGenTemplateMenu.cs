@@ -21,11 +21,21 @@ public class VM_BodyGenTemplateMenu : VM
     private readonly VM_BodyGenTemplate.Factory _bodyGenTemplateFactory;
     public delegate VM_BodyGenTemplateMenu Factory(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
 
-    public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, SettingsIO_BodyGen bodyGenIO, VM_NPCAttributeCreator attributeCreator, VM_BodyGenTemplate.Factory bodyGenTemplateFactory)
+    public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, SettingsIO_BodyGen bodyGenIO, VM_NPCAttributeCreator attributeCreator, VM_BodyGenTemplate.Factory bodyGenTemplateFactory, Func<VM_CharacterViewer> characterViewerFactory)
     {
         _bodyGenIO = bodyGenIO;
         _attributeCreator = attributeCreator;
         _bodyGenTemplateFactory = bodyGenTemplateFactory;
+
+        // Shared single viewer instance owned by the menu VM (one per BodyGen config).
+        // Putting the viewer on VM_BodyGenTemplate would leak GL resources per template
+        // click because VM_BodyGenTemplate is rebuilt on every SelectedPlaceHolder change.
+        // DisposeWith(this) cascades: when the parent VM_BodyGenConfig is disposed (e.g.
+        // on settings reload), it disposes this menu, which disposes the viewer, which
+        // releases GL buffers/textures and cancels any in-flight NPC load.
+        CharacterViewer = characterViewerFactory();
+        CharacterViewer.Mode = ViewerMode.ReadOnly;
+        CharacterViewer.DisposeWith(this);
 
         AddTemplate = new RelayCommand(
             canExecute: _ => true,
@@ -75,6 +85,11 @@ public class VM_BodyGenTemplateMenu : VM
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedViewModel.DumpViewModelToModel();
+                 // VM_BodyGenTemplate only forwards CharacterViewer from the menu VM,
+                 // but it still owns reactive subscriptions (Specs throttle, PreviewWeight)
+                 // that accumulate across selection churn if not released.
+                 t.Previous.AssociatedViewModel.Dispose();
+                 t.Previous.AssociatedViewModel = null;
              }
 
              if (t.Current != null)
@@ -82,11 +97,12 @@ public class VM_BodyGenTemplateMenu : VM
                  CurrentlyDisplayedTemplate = _bodyGenTemplateFactory(t.Current, parentConfig.GroupUI.TemplateGroups, parentConfig.DescriptorUI, raceGroupingVMs, parentConfig);
                  CurrentlyDisplayedTemplate.CopyInViewModelFromModel(parentConfig.DescriptorUI, raceGroupingVMs);
              }
-         });
+         }).DisposeWith(this);
     }
     public ObservableCollection<VM_BodyGenTemplatePlaceHolder> Templates { get; set; } = new();
     public VM_BodyGenTemplatePlaceHolder SelectedPlaceHolder { get; set; }
     public VM_BodyGenTemplate CurrentlyDisplayedTemplate { get; set; }
+    public VM_CharacterViewer CharacterViewer { get; }
 
     public VM_Alphabetizer<VM_BodyGenTemplatePlaceHolder, string> Alphabetizer { get; set; }
 
@@ -154,13 +170,17 @@ public class VM_BodyGenTemplate : VM
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    private readonly VM_SettingsBodyGen _bodyGenSettingsVM;
+    private readonly PreviewNpcResolver _previewNpcResolver;
     public delegate VM_BodyGenTemplate Factory(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig);
-    public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_SettingsBodyGen bodyGenSettingsVM, PreviewNpcResolver previewNpcResolver)
     {
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
         _logger = logger;
         _descriptorSelectionFactory = descriptorSelectionFactory;
+        _bodyGenSettingsVM = bodyGenSettingsVM;
+        _previewNpcResolver = previewNpcResolver;
 
         AssociatedPlaceHolder = associatedPlaceHolder;
         AssociatedPlaceHolder.AssociatedViewModel = this;
@@ -180,6 +200,25 @@ public class VM_BodyGenTemplate : VM
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
+            .DisposeWith(this);
+
+        // Throttled live preview: re-parse Specs and re-apply the virtual BodySlide
+        // whenever the user edits the spec string. Skip(1) drops the construction-time
+        // emission so a freshly-built VM doesn't fire a preview before
+        // CopyInViewModelFromModel has populated fields.
+        this.WhenAnyValue(x => x.Specs)
+            .Skip(1)
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshPreview())
+            .DisposeWith(this);
+
+        // Preview-weight slider: scrubs between Low and High for spec ranges. The slider
+        // self-rate-limits, so no throttle is needed here.
+        this.WhenAnyValue(x => x.PreviewWeight)
+            .Skip(1)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshPreview())
             .DisposeWith(this);
 
         UpdateStatusDisplay();
@@ -242,6 +281,16 @@ public class VM_BodyGenTemplate : VM
     public string StatusText { get; set; }
     public bool ShowStatus { get; set; }
 
+    // Weight used by BodySlideDeformer to interpolate between a spec's Low (weight=0)
+    // and High (weight=100) values. BodyGen itself is weight-independent, so this slider
+    // is purely a preview affordance that scrubs through the random range the patcher
+    // will pick from. Default midpoint = 50.
+    public int PreviewWeight { get; set; } = 50;
+    public string ParseErrorText { get; set; } = "";
+    // Forwarding accessor: the viewer lives on the menu VM so it survives template-
+    // selection churn (VM_BodyGenTemplate is rebuilt on every selection).
+    public VM_CharacterViewer CharacterViewer => ParentConfig?.TemplateMorphUI?.CharacterViewer;
+
     public void CopyInViewModelFromModel(VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
@@ -284,6 +333,65 @@ public class VM_BodyGenTemplate : VM
         WeightRange = model.WeightRange.Clone();
 
         UpdateStatusDisplay();
+
+        // Fire an immediate preview instead of waiting for the Specs-throttle to trip.
+        // Safe even if lk hasn't resolved yet — RefreshPreview guards against that.
+        RefreshPreview();
+    }
+
+    /// <summary>
+    /// Parses the current <see cref="Specs"/> string into a virtual BodySlide preset,
+    /// loads the configured preview NPC (per gender, from <see cref="VM_SettingsBodyGen"/>),
+    /// and applies the deformation via the shared <see cref="CharacterViewer"/>.
+    /// No-ops cleanly when the viewer isn't available, no preview NPC is configured,
+    /// or link-cache is still warming up.
+    /// </summary>
+    private async void RefreshPreview()
+    {
+        try
+        {
+            var viewer = CharacterViewer;
+            if (viewer == null) return;
+            if (lk == null) return;
+
+            var gender = ParentConfig?.Gender ?? Gender.Female;
+            FormKey npc = gender == Gender.Female
+                ? _bodyGenSettingsVM.PreviewNpcFemale
+                : _bodyGenSettingsVM.PreviewNpcMale;
+            string sliderGroup = gender == Gender.Female
+                ? (_bodyGenSettingsVM.PreviewSliderGroupFemale ?? "")
+                : (_bodyGenSettingsVM.PreviewSliderGroupMale ?? "");
+
+            // Fallback: if the user hasn't picked a preview NPC, auto-pick the first Nord NPC
+            // of matching gender. Nord is a humanoid vanilla race that's always present in
+            // any Skyrim load order, so this is safe and deterministic per load order.
+            if (npc.IsNull)
+            {
+                npc = _previewNpcResolver?.FindFirstNordRaceNpc(gender) ?? FormKey.Null;
+            }
+
+            if (npc.IsNull)
+            {
+                ParseErrorText = "No preview NPC configured and none auto-resolvable (BodyGen Settings → " + gender + " Preview NPC)";
+                return;
+            }
+
+            var preset = BodyGenSpecsParser.Parse(Specs ?? "", sliderGroup, out var errors);
+            ParseErrorText = errors.Count == 0 ? "" : string.Join("; ", errors);
+            if (preset.SliderValues.Count == 0)
+            {
+                // No usable sliders — leave the viewer at its current pose rather than
+                // flashing a bind-pose body mid-edit. Errors (if any) already surfaced.
+                return;
+            }
+
+            await viewer.LoadNpcAsync(npc, lk);
+            viewer.ApplyBodySlide(preset, PreviewWeight);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("VM_BodyGenTemplate.RefreshPreview failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
     }
 
     public void DumpViewModelToModel()

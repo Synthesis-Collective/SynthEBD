@@ -39,8 +39,6 @@ public class Settings_OBody
     };
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
-    public HashSet<string> MaleSliderGroups { get; set; } = new();
-    public HashSet<string> FemaleSliderGroups { get; set; } = new();
 
     /// <summary>
     /// User overrides for SliderCategories.xml lookup, keyed by body-type name (e.g. "CBBE").
@@ -56,6 +54,17 @@ public class Settings_OBody
     /// Stage 4: consumed by <see cref="BodySlideGroupClassifier"/>.
     /// </summary>
     public Dictionary<string, HashSet<string>> BodyTypeFamilyCompatibility { get; set; } = new();
+
+    /// <summary>
+    /// User-extensible catalog of parent body types (e.g. CBBE, CBBE 3BA, BHUNP, HIMBO). Each entry
+    /// describes identity fingerprints (files whose existence proves the body is installed) and
+    /// ShapeData subfolders (whose OSD/BSD files define the body's slider set at load time).
+    /// Shipped defaults are merged in from InternalData/SliderCatalogs/BodyTypeRegistry.json on
+    /// first load; user edits set <see cref="BodyTypeRegistryEntry.IsUserDefined"/> so they survive
+    /// future shipped-defaults churn. Feeds <see cref="BodySlideGroupClassifier"/> (slider-only
+    /// subset match) and <see cref="VM_CharacterViewer"/> OSD linkage.
+    /// </summary>
+    public List<BodyTypeRegistryEntry> BodyTypeRegistry { get; set; } = new();
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
@@ -63,16 +72,33 @@ public class Settings_OBody
     public bool AutoApplyMissingAnnotations { get; set; } = true;
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
 
+    /// <summary>
+    /// Per-weight-slot preview NPCs for the 3D Character Viewer hosted inside the BodySlide
+    /// detail pane. New field; no migration required (defaults to empty, populated lazily).
+    /// </summary>
+    public OBodyPreviewNpcSettings PreviewNpcs { get; set; } = new();
+
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
     public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
-        if (!MaleSliderGroups.Any()) { MaleSliderGroups = new HashSet<string>() { "HIMBO" }; }
-        if (!FemaleSliderGroups.Any()) { FemaleSliderGroups = new HashSet<string>() { "CBBE", "3BBB", "3BA", "UNP", "Unified UNP", "BHUNP 3BBB" }; }
 
-        bool classifierActive = classifier != null && classifier.HasCatalogs;
+        // Gender lookup for the <Group>-tag fallback below. Derived inline from the registry --
+        // there is no separate Male/FemaleSliderGroups list anymore. First entry wins on duplicate names.
+        var registryGenderByName = new Dictionary<string, Gender>(StringComparer.OrdinalIgnoreCase);
+        if (BodyTypeRegistry != null)
+        {
+            foreach (var entry in BodyTypeRegistry)
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.Name)) continue;
+                if (!registryGenderByName.ContainsKey(entry.Name))
+                {
+                    registryGenderByName[entry.Name] = entry.Gender;
+                }
+            }
+        }
 
         var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
@@ -93,55 +119,39 @@ public class Settings_OBody
                     foreach (var preset in presets.Elements())
                     {
                         var presetName = preset.Attribute("name").Value.ToString();
-                        var groupName = "";
-
                         CurrentlyExistingBodySlides.Add(presetName);
 
-                        bool genderFound = false;
-
-                        if (classifierActive)
+                        // Slider-only classification (no preset-author metadata).
+                        var presetSliderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var ss in preset.Elements("SetSlider"))
                         {
-                            // Stage 4: classify by slider intersection against shipped/override catalogs.
-                            var presetSliderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            foreach (var ss in preset.Elements("SetSlider"))
-                            {
-                                var sn = ss.Attribute("name");
-                                if (sn != null && !string.IsNullOrEmpty(sn.Value)) presetSliderNames.Add(sn.Value);
-                            }
-
-                            var classification = classifier.Classify(presetName, presetSliderNames);
-                            if (classification != null)
-                            {
-                                groupName = classification.BodyType;
-                                currentBodySlides = classification.Gender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
-                                genderFound = true;
-                            }
+                            var sn = ss.Attribute("name");
+                            if (sn != null && !string.IsNullOrEmpty(sn.Value)) presetSliderNames.Add(sn.Value);
                         }
 
-                        if (!genderFound)
-                        {
-                            // Legacy fallback: match against the user-configured Male/Female slider group lists.
-                            var groups = preset.Elements("Group");
-                            if (groups == null) { continue; }
+                        BodySlideClassification classification = classifier?.Classify(presetName, presetSliderNames);
+                        string groupName = classification?.BodyType ?? "Unknown";
+                        Gender gender = classification?.Gender ?? Gender.Female;
 
-                            foreach (var group in groups)
+                        // Last-ditch <Group>-tag fallback: only used to refine *gender* when the
+                        // slider catalog couldn't host the preset (so groupName stayed "Unknown").
+                        // The body-type name from these tags is intentionally discarded -- preset
+                        // authors set them sloppily and we can no longer trust them for routing.
+                        if (groupName == "Unknown")
+                        {
+                            foreach (var group in preset.Elements("Group"))
                             {
-                                groupName = group.Attribute("name").Value.ToString();
-                                if (MaleSliderGroups.Contains(groupName))
+                                var tagName = group.Attribute("name")?.Value;
+                                if (string.IsNullOrEmpty(tagName)) continue;
+                                if (registryGenderByName.TryGetValue(tagName, out var registryGender))
                                 {
-                                    currentBodySlides = BodySlidesMale;
-                                    genderFound = true;
-                                    break;
-                                }
-                                else if (FemaleSliderGroups.Contains(groupName))
-                                {
-                                    currentBodySlides = BodySlidesFemale;
-                                    genderFound = true;
+                                    gender = registryGender;
                                     break;
                                 }
                             }
                         }
-                        if (!genderFound) { continue; }
+
+                        currentBodySlides = gender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
 
                         BodySlideSetting currentPreset = currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).FirstOrDefault();
 
@@ -366,6 +376,18 @@ public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
             default: return BodyShapeAnnotationState.None;
         }
     }
+}
+
+/// <summary>
+/// Per-weight-slot preview NPC mapping for the BodySlide preview viewer (Section B).
+/// Keys are integer weight slots (0-100); values are male/female NPC FormKeys.
+/// int dict keys are safe with Newtonsoft (string-coerced); FormKey dict keys are NOT
+/// (Mutagen registers FormKey only as a value-level converter — see RacePreviewNpcsConverter
+/// in NifPreviewNpcSettings.cs for why the per-race shape uses a list instead).
+/// </summary>
+public class OBodyPreviewNpcSettings
+{
+    public Dictionary<int, PreviewNpcPair> WeightPreviewNpcs { get; set; } = new();
 }
 
 [DebuggerDisplay("{SliderName}: {Small} / {Big}")]

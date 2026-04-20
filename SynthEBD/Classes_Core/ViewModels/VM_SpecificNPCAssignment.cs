@@ -10,6 +10,7 @@ using DynamicData.Binding;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive;
+using System.Threading.Tasks;
 using System.Windows;
 using static SynthEBD.AssetPack;
 
@@ -35,7 +36,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public VM_SpecificNPCAssignment(
         VM_SpecificNPCAssignmentPlaceHolder associatedPlaceHolder,
         IEnvironmentStateProvider environmentProvider,
-        Logger logger, 
+        Logger logger,
         SynthEBDPaths paths,
         VM_Settings_General general,
         VM_SettingsOBody oBody,
@@ -46,7 +47,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_AssetPack.Factory assetPackFactory,
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_HeadPartAssignment.Factory headPartFactory,
-        Converters converters)
+        Converters converters,
+        VM_CharacterViewer characterViewer)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
@@ -60,6 +62,8 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _headPartFactory = headPartFactory;
         _converters = converters;
+        CharacterViewer = characterViewer;
+        CharacterViewer.DisposeWith(this);
 
         AssociatedPlaceHolder = associatedPlaceHolder;
         AssociatedPlaceHolder.AssociatedViewModel = this;
@@ -233,6 +237,99 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         );
 
+        // Character Viewer: reload NPC mesh when NPCFormKey changes
+        this.WhenAnyValue(x => x.NPCFormKey)
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Where(fk => !fk.IsNull && lk != null)
+            .Subscribe(fk => _ = RefreshViewerNpcAsync())
+            .DisposeWith(this);
+
+        // Character Viewer: reapply BodySlide when ForcedBodySlide changes
+        this.WhenAnyValue(x => x.ForcedBodySlide)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerBodySlide())
+            .DisposeWith(this);
+
+        // Character Viewer: push the NPC-height scale override when ForcedHeight changes
+        this.WhenAnyValue(x => x.ForcedHeight)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerHeight())
+            .DisposeWith(this);
+
+        // Character Viewer: reapply texture overrides when ForcedAssetPack or ForcedSubgroups change
+        this.WhenAnyValue(x => x.ForcedAssetPack)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        ForcedSubgroups.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        // Character Viewer: reapply texture overrides when MixIns change (add/remove)
+        ForcedMixIns.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        // Character Viewer: per-MixIn — refresh on AssetPack swap or inner subgroup edits
+        DynamicData.ObservableListEx
+            .Transform(ForcedMixIns.ToObservableChangeSet(), mixIn =>
+            {
+                mixIn.WhenAnyValue(y => y.ForcedAssetPack)
+                    .Subscribe(_ => RefreshViewerTextures())
+                    .DisposeWith(this);
+                mixIn.ForcedSubgroups.ToObservableChangeSet()
+                    .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+                    .Subscribe(_ => RefreshViewerTextures())
+                    .DisposeWith(this);
+                return mixIn;
+            })
+            .Subscribe()
+            .DisposeWith(this);
+
+        // Character Viewer: reapply texture overrides when Asset Replacer assignments change
+        ForcedAssetReplacements.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        // Character Viewer: per-Replacer — refresh on group swap or subgroup-ID edits
+        DynamicData.ObservableListEx
+            .Transform(ForcedAssetReplacements.ToObservableChangeSet(), replacer =>
+            {
+                replacer.WhenAnyValue(y => y.ReplacerName)
+                    .Subscribe(_ => RefreshViewerTextures())
+                    .DisposeWith(this);
+                replacer.SubgroupIDs.ToObservableChangeSet()
+                    .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+                    .Subscribe(_ => RefreshViewerTextures())
+                    .DisposeWith(this);
+                return replacer;
+            })
+            .Subscribe()
+            .DisposeWith(this);
+
+        // Character Viewer: reapply BodyGen morphs on collection add/remove
+        ForcedBodyGenMorphs.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerBodyGen())
+            .DisposeWith(this);
+
+        // Character Viewer: re-bake FaceGen when any head-part assignment's FormKey changes.
+        // HeadParts is a fixed dictionary; subscribe to each entry's FormKey once here.
+        foreach (var hp in HeadParts.Values)
+        {
+            if (hp == null) continue;
+            hp.WhenAnyValue(x => x.FormKey)
+                .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+                .Subscribe(fk => { var _t = RefreshViewerNpcAsync(); })
+                .DisposeWith(this);
+        }
+
+        CharacterViewer.Mode = ViewerMode.Full;
+
         UpdateAvailableAssetPacks(this);
         UpdateAvailableBodySlides();
     }
@@ -287,6 +384,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand AddHeadPart { get; set; }
     public RelayCommand SyncThisAssetOrder { get; set; }
     public RelayCommand SyncAllAssetOrders { get; set; }
+    public VM_CharacterViewer CharacterViewer { get; }
     public void CopyInFromModel(NPCAssignment model)
     {
         NPCFormKey = model.NPCFormKey;
@@ -652,6 +750,130 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
         AvailableBodySlides = new() { _bodySlidePlaceHolderFactory(new BodySlideSetting(), AvailableBodySlides) }; // blank entry
         AvailableBodySlides.AddRange(SubscribedBodySlides);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CHARACTER VIEWER REFRESH
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private async Task RefreshViewerNpcAsync()
+    {
+        if (NPCFormKey.IsNull || lk == null)
+        {
+            return;
+        }
+
+        // If any head part overrides are active, reload the NPC with a baked FaceGen
+        // preview NIF so the swapped parts are visible. Otherwise, plain LoadNpcAsync.
+        var hpAssignments = HeadParts
+            .Where(kv => kv.Value != null && !kv.Value.FormKey.IsNull)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.FormKey);
+
+        if (hpAssignments.Count > 0)
+        {
+            await CharacterViewer.ApplyHeadPartsAsync(NPCFormKey, lk, hpAssignments);
+        }
+        else
+        {
+            await CharacterViewer.LoadNpcAsync(NPCFormKey, lk);
+        }
+
+        // After loading meshes, apply current overrides if any
+        RefreshViewerTextures();
+        RefreshViewerBodySlide();
+        RefreshViewerBodyGen();
+    }
+
+    private void RefreshViewerTextures()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0)
+        {
+            return;
+        }
+
+        var allOverrides = new List<FilePathReplacement>();
+
+        // Primary forced subgroups
+        allOverrides.AddRange(ForcedSubgroups
+            .Where(sg => sg?.AssociatedModel?.Paths != null)
+            .SelectMany(sg => sg.AssociatedModel.Paths));
+
+        // Mix-In forced subgroups
+        foreach (var mixIn in ForcedMixIns)
+        {
+            if (mixIn?.ForcedSubgroups == null) continue;
+            allOverrides.AddRange(mixIn.ForcedSubgroups
+                .Where(sg => sg?.AssociatedModel?.Paths != null)
+                .SelectMany(sg => sg.AssociatedModel.Paths));
+        }
+
+        // Asset Replacer subgroups — resolve each ID against the replacer group's subgroup tree
+        foreach (var replacer in ForcedAssetReplacements)
+        {
+            if (replacer?.SubscribedReplacerGroup?.Subgroups == null) continue;
+            foreach (var idMember in replacer.SubgroupIDs)
+            {
+                if (string.IsNullOrEmpty(idMember?.Content)) continue;
+                var sg = VM_SubgroupPlaceHolder.GetSubgroupByID(replacer.SubscribedReplacerGroup.Subgroups, idMember.Content);
+                if (sg?.AssociatedModel?.Paths != null)
+                {
+                    allOverrides.AddRange(sg.AssociatedModel.Paths);
+                }
+            }
+        }
+
+        if (allOverrides.Count > 0)
+        {
+            CharacterViewer.ApplyTextureOverrides(allOverrides);
+        }
+    }
+
+    private void RefreshViewerHeight()
+    {
+        if (!string.IsNullOrWhiteSpace(ForcedHeight) && float.TryParse(ForcedHeight, out var h) && h > 0f)
+        {
+            CharacterViewer.HeightOverride = h;
+        }
+        else
+        {
+            CharacterViewer.HeightOverride = null;
+        }
+    }
+
+    private void RefreshViewerBodySlide()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0 || string.IsNullOrEmpty(ForcedBodySlide))
+        {
+            return;
+        }
+
+        // Look up the BodySlideSetting from the available body slides by label
+        var matchingPreset = AvailableBodySlides?
+            .FirstOrDefault(bs => bs.AssociatedModel?.Label == ForcedBodySlide)
+            ?.AssociatedModel;
+
+        if (matchingPreset != null)
+        {
+            CharacterViewer.ApplyBodySlide(matchingPreset, CharacterViewer.NpcWeight);
+        }
+    }
+
+    private void RefreshViewerBodyGen()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0) return;
+        if (ForcedBodyGenMorphs == null || ForcedBodyGenMorphs.Count == 0) return;
+
+        string sliderGroup = Gender == Gender.Female
+            ? (_bodyGenSettings?.PreviewSliderGroupFemale ?? string.Empty)
+            : (_bodyGenSettings?.PreviewSliderGroupMale ?? string.Empty);
+
+        var templates = ForcedBodyGenMorphs
+            .Where(m => m?.AssociatedModel != null)
+            .Select(m => m.AssociatedModel)
+            .ToList();
+        if (templates.Count == 0) return;
+
+        CharacterViewer.ApplyBodyGen(templates, sliderGroup, CharacterViewer.NpcWeight);
     }
 
     public void RefreshAll()

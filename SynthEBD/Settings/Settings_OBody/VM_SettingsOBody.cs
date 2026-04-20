@@ -27,7 +27,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory,
-        VM_OBodyTrainer obodyTrainer
+        VM_OBodyTrainer obodyTrainer,
+        VM_BodyTypeRegistry bodyTypeRegistry
         )
     {
         _logger = logger;
@@ -42,6 +43,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
         AnnotatorUI = _bodySlideAnnotatorFactory(DescriptorUI, BodySlidesUI, MiscUI);
+        BodyTypeRegistryUI = bodyTypeRegistry;
 
         BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
@@ -76,6 +78,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ => DisplayedUI = obodyTrainer
         );
+
+        ClickBodyTypeRegistryMenu = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DisplayedUI = BodyTypeRegistryUI
+        );
     }
 
     public object DisplayedUI { get; set; }
@@ -84,12 +91,14 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
     public VM_OBodyMiscSettings MiscUI { get; set; }
     public VM_BodySlideAnnotator AnnotatorUI { get; set; }
+    public VM_BodyTypeRegistry BodyTypeRegistryUI { get; set; }
     public RelayCommand ClickBodySlidesMenu { get; }
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
     public RelayCommand ClickAnnotationMenu { get; }
     public RelayCommand ClickAnnotationTrainerMenu { get; }
+    public RelayCommand ClickBodyTypeRegistryMenu { get; }
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
     public void CopyInViewModelFromModel(Settings_OBody model, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
@@ -105,6 +114,27 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
 
+        // Dispose any viewer VMs attached to the existing placeholders before
+        // dropping them — otherwise the GL contexts/texture caches leak on reload.
+        // CurrentlyDisplayedBodySlide is always the same instance as some placeholder's
+        // AssociatedViewModel, so disposal happens transitively via the foreach.
+        foreach (var ph in BodySlidesUI.BodySlidesMale)
+        {
+            if (ph.AssociatedViewModel != null)
+            {
+                ph.AssociatedViewModel.Dispose();
+                ph.AssociatedViewModel = null;
+            }
+        }
+        foreach (var ph in BodySlidesUI.BodySlidesFemale)
+        {
+            if (ph.AssociatedViewModel != null)
+            {
+                ph.AssociatedViewModel.Dispose();
+                ph.AssociatedViewModel = null;
+            }
+        }
+        BodySlidesUI.CurrentlyDisplayedBodySlide = null;
         BodySlidesUI.BodySlidesMale.Clear();
         BodySlidesUI.BodySlidesFemale.Clear();
 
@@ -152,6 +182,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         MiscUI.CopyInViewModelFromModel(model);
 
+        BodyTypeRegistryUI.CopyInViewModelFromModel(model);
+
         AnnotatorUI.CopyInFromModel();
 
         CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
@@ -188,6 +220,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_AttributeGroupMenu.DumpViewModelToModels(AttributeGroupMenu, model.AttributeGroups);
 
         MiscUI.DumpViewModelToModel(model);
+
+        BodyTypeRegistryUI.DumpViewModelToModel(model);
 
         model.BodySlideClassificationRules = AnnotatorUI.DumpToModel();
 

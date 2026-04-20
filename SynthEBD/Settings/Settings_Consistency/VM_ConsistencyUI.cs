@@ -15,13 +15,18 @@ public class VM_ConsistencyUI : VM
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly VM_ConsistencyAssignment.Factory _consistencyFactory;
+    private readonly VM_Settings_General _generalSettings;
 
-    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, VM_ConsistencyAssignment.Factory consistencyFactory)
+    public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, VM_ConsistencyAssignment.Factory consistencyFactory, VM_Settings_General generalSettings)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _consistencyFactory = consistencyFactory;
+        _generalSettings = generalSettings;
+
+        Show3DPreview = generalSettings.bShow3DPreview;
+        PreviewerWidth = generalSettings.ConsistencyPreviewerWidth;
 
         this.WhenAnyValue(x => x.SelectedNPCFormKey)
             .Buffer(2, 1)
@@ -31,6 +36,8 @@ public class VM_ConsistencyUI : VM
                 if (x.Previous != null && !x.Previous.IsNull && CurrentlyDisplayedAssignment != null)
                 {
                     CurrentlyDisplayedAssignment.DumpViewModelToModel();
+                    CurrentlyDisplayedAssignment.Dispose();
+                    CurrentlyDisplayedAssignment = null;
                 }
                 if (x.Current != null && !x.Current.IsNull)
                 {
@@ -46,7 +53,7 @@ public class VM_ConsistencyUI : VM
             canExecute: _ => true,
             execute: x =>
             {
-               CurrentlyDisplayedAssignment = null;
+                if (CurrentlyDisplayedAssignment != null) { CurrentlyDisplayedAssignment.Dispose(); CurrentlyDisplayedAssignment = null; }
                 var currentFKstr = SelectedNPCFormKey.ToString();
                 if (_patcherState.Consistency.ContainsKey(currentFKstr))
                 {
@@ -117,7 +124,7 @@ public class VM_ConsistencyUI : VM
             {
                 if (MessageWindow.DisplayNotificationYesNo("Confirmation", "Are you sure you want to completely clear the consistency file?"))
                 {
-                    CurrentlyDisplayedAssignment = null;
+                     if (CurrentlyDisplayedAssignment != null) { CurrentlyDisplayedAssignment.Dispose(); CurrentlyDisplayedAssignment = null; }
                     _patcherState.Consistency.Clear();
                 }
                 _logger.CallTimedLogErrorWithStatusUpdateAsync("Cleared all consistency", ErrorType.Warning, 2);
@@ -139,8 +146,17 @@ public class VM_ConsistencyUI : VM
     public RelayCommand DeleteAllHeadParts { get; set; }
     public RelayCommand DeleteAllNPCs { get; set; }
 
+    public bool Show3DPreview { get; set; } = true;
+    public double PreviewerWidth { get; set; } = 525;
+
     public void ReloadActiveViewModel()
     {
+        if (CurrentlyDisplayedAssignment != null)
+        {
+            CurrentlyDisplayedAssignment.Dispose();
+            CurrentlyDisplayedAssignment = null;
+        }
+
         if (SelectedNPCFormKey != null && !SelectedNPCFormKey.IsNull)
         {
             var key = SelectedNPCFormKey.ToString();
@@ -171,6 +187,10 @@ public class VM_ConsistencyUI : VM
     */
     public Dictionary<string, NPCAssignment> DumpViewModelsToModels()
     {
+        // Sync preview settings back to general settings for persistence.
+        _generalSettings.bShow3DPreview = Show3DPreview;
+        _generalSettings.ConsistencyPreviewerWidth = PreviewerWidth;
+
         if (CurrentlyDisplayedAssignment != null)
         {
             CurrentlyDisplayedAssignment.DumpViewModelToModel();

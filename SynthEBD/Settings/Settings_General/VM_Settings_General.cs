@@ -39,6 +39,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         IEnvironmentStateProvider environmentProvider,
         FirstLaunch firstLaunch,
         SynthEBDPaths paths,
+        VM_NifPreviewNpcSettings previewNpcSettings,
         Func<VM_SettingsTexMesh> getTexMesh,
         Func<VM_SettingsOBody> getOBody
         )
@@ -54,6 +55,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _raceGroupingEditorFactory = raceGroupingEditorFactory;
         _linkedNPCFactory = linkedNPCFactory;
         _paths = paths;
+        PreviewNpcs = previewNpcSettings;
 
         if (IsStandalone)
         {
@@ -362,6 +364,15 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
     private bool _bHeadPartWarningDisplayed { get; set; } = false;
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
+    public bool bShow3DPreview { get; set; } = true;
+    public double SpecificNPCPreviewerWidth { get; set; } = 525;
+    public double ConsistencyPreviewerWidth { get; set; } = 525;
+    public string CharacterViewerLightingLayout { get; set; } = "";
+    public string CharacterViewerLightingColorScheme { get; set; } = "";
+    public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
+    public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
+    public string TextureLoadStrategy { get; set; } = "BmpStream";
+    public VM_NifPreviewNpcSettings PreviewNpcs { get; set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
@@ -396,6 +407,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         verboseModeNPClist = new ObservableCollection<FormKey>(model.VerboseModeNPClist);
         VerboseModeDetailedAttributes = model.VerboseModeDetailedAttributes;
         patchableRaces = new ObservableCollection<FormKey>(model.PatchableRaces);
+        PreviewNpcs.CopyInFromModel(model.PreviewNpcs, patchableRaces);
         raceAliases = VM_RaceAlias.GetViewModelsFromModels(model.RaceAliases, this, aliasFactory);
         RaceGroupingEditor.CopyInFromModel(model.RaceGroupings, null);
         OverwritePluginRaceGroups = model.OverwritePluginRaceGroups;
@@ -410,6 +422,16 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         BlockedModsFromImport = new(model.BlockedModsFromImport);
         bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
+        bShow3DPreview = model.bShow3DPreview;
+        SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
+        ConsistencyPreviewerWidth = model.ConsistencyPreviewerWidth;
+        CharacterViewerLightingLayout = model.CharacterViewerLightingLayout;
+        CharacterViewerLightingColorScheme = model.CharacterViewerLightingColorScheme;
+        UserLightingLayouts = new ObservableCollection<CharacterViewerLightingLayout>(
+            model.UserLightingLayouts ?? new List<CharacterViewerLightingLayout>());
+        UserLightingColorSchemes = new ObservableCollection<CharacterViewerLightingColorScheme>(
+            model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
+        TextureLoadStrategy = model.TextureLoadStrategy;
         if (bShowTroubleshootingSettings)
         {
             TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
@@ -467,6 +489,15 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.BlockedModsFromImport = new(BlockedModsFromImport);
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;
+        model.bShow3DPreview = bShow3DPreview;
+        model.SpecificNPCPreviewerWidth = SpecificNPCPreviewerWidth;
+        model.ConsistencyPreviewerWidth = ConsistencyPreviewerWidth;
+        model.CharacterViewerLightingLayout = CharacterViewerLightingLayout;
+        model.CharacterViewerLightingColorScheme = CharacterViewerLightingColorScheme;
+        model.UserLightingLayouts = UserLightingLayouts.ToList();
+        model.UserLightingColorSchemes = UserLightingColorSchemes.ToList();
+        model.TextureLoadStrategy = TextureLoadStrategy;
+        model.PreviewNpcs = PreviewNpcs.DumpToModel();
 
         model.bUIopened = true;
         return model;

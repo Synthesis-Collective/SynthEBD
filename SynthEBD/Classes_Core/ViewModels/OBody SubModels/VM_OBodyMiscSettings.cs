@@ -4,6 +4,7 @@ using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reactive.Linq;
 
 namespace SynthEBD;
 
@@ -14,12 +15,13 @@ public class VM_OBodyMiscSettings : VM
     private readonly VM_Settings_General _generalSettingsVM;
     private readonly Func<VM_SettingsOBody> _parentMenu;
     public delegate VM_OBodyMiscSettings Factory();
-    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu)
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu, VM_OBodyPreviewNpcSettings previewNpcs)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
         _generalSettingsVM = generalSettingsVM;
         _parentMenu = parentMenu;
+        PreviewNpcs = previewNpcs;
 
         generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(mode => {
             
@@ -40,15 +42,22 @@ public class VM_OBodyMiscSettings : VM
 
         this.WhenAnyValue(x => x.OBodySelectionMode).Subscribe(mode => ShowOBodyNativeOptions = mode == OBodySelectionMode.Native).DisposeWith(this);
 
-        AddMaleSliderGroup = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => MaleBodySlideGroups.Add(new VM_CollectionMemberString("", MaleBodySlideGroups))
-        );
-
-        AddFemaleSliderGroup = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => FemaleBodySlideGroups.Add(new VM_CollectionMemberString("", FemaleBodySlideGroups))
-        );
+        // Mismatch popup: fire once, the first time this menu is actually displayed.
+        // We can't subscribe synchronously here because the Autofac resolution chain is
+        //   VM_SettingsOBody .ctor  →  miscSettingsFactory()  →  this .ctor
+        // and Observable.Defer + Subscribe still invokes the factory eagerly at Subscribe
+        // time, which would re-enter Autofac for VM_SettingsOBody while it is mid-construction
+        // and trip CircularDependencyDetectorMiddleware. BeginInvoke hops off the current
+        // stack so parentMenu() only runs after VM_SettingsOBody has finished constructing.
+        System.Windows.Application.Current?.Dispatcher?.BeginInvoke(new Action(() =>
+        {
+            parentMenu().WhenAnyValue(x => x.DisplayedUI)
+                .Skip(1)
+                .Where(displayed => ReferenceEquals(displayed, this))
+                .Take(1)
+                .Subscribe(_ => ShowPreviewMismatchPopupIfNeeded())
+                .DisposeWith(this);
+        }));
 
         AddSliderCatalogOverride = new RelayCommand(
             canExecute: _ => true,
@@ -95,16 +104,12 @@ public class VM_OBodyMiscSettings : VM
         );
     }
 
-    public ObservableCollection<VM_CollectionMemberString> MaleBodySlideGroups { get; set; } = new();
-    public ObservableCollection<VM_CollectionMemberString> FemaleBodySlideGroups { get; set; } = new();
     public bool UseVerboseScripts { get; set; } = false;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public RelayCommand SetRaceMenuINI { get; set; }
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
     public bool ShowOBodyNativeOptions { get; set; } = false;
-    public RelayCommand AddMaleSliderGroup { get; set; }
-    public RelayCommand AddFemaleSliderGroup { get; set; }
     public bool ShowAutoBodySelectionMode { get; set; }
     public bool ShowOBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
@@ -119,18 +124,13 @@ public class VM_OBodyMiscSettings : VM
     public ObservableCollection<VM_BodyTypeFamily> BodyTypeFamilies { get; set; } = new();
     public RelayCommand AddBodyTypeFamily { get; }
 
+    /// <summary>
+    /// Section B: per-weight preview NPC mapping consumed by the BodySlide preview viewer.
+    /// </summary>
+    public VM_OBodyPreviewNpcSettings PreviewNpcs { get; }
+
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
-        MaleBodySlideGroups.Clear();
-        foreach (var g in model.MaleSliderGroups)
-        {
-            MaleBodySlideGroups.Add(new VM_CollectionMemberString(g, MaleBodySlideGroups));
-        }
-        FemaleBodySlideGroups.Clear();
-        foreach (var g in model.FemaleSliderGroups)
-        {
-            FemaleBodySlideGroups.Add(new VM_CollectionMemberString(g, FemaleBodySlideGroups));
-        }
         UseVerboseScripts = model.bUseVerboseScripts;
         AutoBodySelectionMode = model.AutoBodySelectionMode;
         AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
@@ -181,12 +181,46 @@ public class VM_OBodyMiscSettings : VM
                 BodyTypeFamilies.Add(new VM_BodyTypeFamily(kv.Key, aliases, BodyTypeFamilies));
             }
         }
+
+        // Section B: preview-NPC mapping. Walk the *model* preset lists so we don't depend on
+        // VM load order (the BodySlide VMs may not exist yet when settings are first applied).
+        PreviewNpcs.CopyInFromModel(model.PreviewNpcs, model.BodySlidesMale, model.BodySlidesFemale);
+    }
+
+    /// <summary>
+    /// One-shot popup that surfaces preview NPCs whose stored weight has drifted outside
+    /// tolerance. Drains <see cref="VM_OBodyPreviewNpcSettings.PendingMismatches"/>; safe
+    /// to call multiple times (no-op when the list is empty).
+    /// </summary>
+    public void ShowPreviewMismatchPopupIfNeeded()
+    {
+        if (PreviewNpcs.PendingMismatches.Count == 0) return;
+        var snapshot = PreviewNpcs.PendingMismatches.ToList();
+        PreviewNpcs.PendingMismatches.Clear();
+
+        var lines = snapshot.Select(m =>
+        {
+            var actual = m.ActualWeight.HasValue
+                ? m.ActualWeight.Value.ToString("0.0")
+                : "(unresolvable)";
+            return $"  Weight {m.Weight} ({m.Gender}): saved NPC {m.SavedNpc} now reports weight {actual}";
+        });
+        var msg =
+            "The following BodySlide preview NPCs no longer match their weight slot " +
+            "(likely a mod added or changed their weight):\n\n" +
+            string.Join("\n", lines) +
+            "\n\nAuto-reassign them to the first installed NPC at the right weight, " +
+            "or keep the existing assignments?";
+
+        bool reassign = MessageWindow.DisplayNotificationYesNo("BodySlide Preview NPCs Drifted", msg);
+        if (reassign)
+        {
+            PreviewNpcs.AutoReassign(snapshot);
+        }
     }
 
     public void DumpViewModelToModel(Settings_OBody model)
     {
-        model.MaleSliderGroups = MaleBodySlideGroups.Select(x => x.Content).ToHashSet();
-        model.FemaleSliderGroups = FemaleBodySlideGroups.Select(x => x.Content).ToHashSet();
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
@@ -212,6 +246,8 @@ public class VM_OBodyMiscSettings : VM
                 .Where(s => !string.IsNullOrEmpty(s));
             model.BodyTypeFamilyCompatibility[bt] = new System.Collections.Generic.HashSet<string>(aliases);
         }
+
+        model.PreviewNpcs = PreviewNpcs.DumpToModel();
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)

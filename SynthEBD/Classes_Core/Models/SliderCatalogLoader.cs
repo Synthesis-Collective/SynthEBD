@@ -72,6 +72,14 @@ public class SliderCatalogLoader
             {
                 foreach (var file in Directory.GetFiles(fallbackDir, "*.json"))
                 {
+                    // BodyTypeRegistry.json lives alongside the per-body catalog files but is a
+                    // List<BodyTypeRegistryEntry> handled by SettingsIO_OBody.MergeShippedRegistryDefaults.
+                    // Skip it here so the legacy SliderCatalogFile deserializer doesn't error on it.
+                    if (string.Equals(Path.GetFileName(file), "BodyTypeRegistry.json", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     var fileModel = JSONhandler<SliderCatalogFile>.LoadJSONFile(file, out bool ok, out string err);
                     if (!ok || fileModel == null)
                     {

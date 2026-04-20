@@ -41,6 +41,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_NavPanel>().AsSelf().SingleInstance();
         builder.RegisterType<VM_RunButton>().AsSelf().SingleInstance();
         builder.RegisterType<VM_Settings_General>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_NifPreviewNpcSettings>().AsSelf().SingleInstance();
+        builder.RegisterType<PreviewNpcResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<SubgroupTextureMapper>().AsSelf().SingleInstance();
+        builder.RegisterType<FaceGenPreviewService>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsBodyGen>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();
@@ -57,6 +61,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_DetailedReportNPCSelector>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodyGenMiscMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyMiscSettings>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_BodyTypeRegistry>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_OBodyPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
@@ -82,6 +88,13 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance();
         builder.RegisterType<UpdateHandler>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
+        builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
+        builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
+        // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline
+        builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTriFileParser>().AsSelf().SingleInstance();
+        builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_CharacterViewer>().AsSelf();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();
@@ -106,6 +119,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BodySlideSettingMigrator>().AsSelf().SingleInstance();
         builder.RegisterType<SliderCatalogLoader>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideGroupClassifier>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTypeFingerprintScanner>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTypeSliderExtractor>().AsSelf().SingleInstance();
         builder.RegisterType<EasyNPCProfileParser>().AsSelf().SingleInstance();
         builder.RegisterType<NPC2ProfileParser>().AsSelf().SingleInstance();
 

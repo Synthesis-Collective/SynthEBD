@@ -620,11 +620,22 @@ public class BSAHandler : ViewModel
     /// </summary>
     public bool TryFindFileInAnyArchive(string subpath, out IArchiveFile archiveFile)
     {
-        // Pass 1: Check already-opened readers (fast path)
-        foreach (var kvp in OpenReaders)
+        return TryFindFileInAnyArchive(subpath, out archiveFile, out _);
+    }
+
+    /// <summary>
+    /// Same as <see cref="TryFindFileInAnyArchive(string, out IArchiveFile)"/> but
+    /// also reports the absolute path of the BSA the file was found in.
+    /// </summary>
+    public bool TryFindFileInAnyArchive(string subpath, out IArchiveFile archiveFile, out string? containingBsaPath)
+    {
+        // Pass 1: Check already-opened readers (fast path).
+        // Iterate _readersByBsaPath so we know which BSA each reader belongs to.
+        foreach (var kvp in _readersByBsaPath)
         {
-            if (ReadersHaveFile(subpath, kvp.Value, out archiveFile))
+            if (TryGetFile(subpath, kvp.Value, out archiveFile))
             {
+                containingBsaPath = kvp.Key;
                 return true;
             }
         }
@@ -642,12 +653,14 @@ public class BSAHandler : ViewModel
                     {
                         readerSet.Add(reader);
                     }
+                    containingBsaPath = bsaPath;
                     return true;
                 }
             }
         }
 
         archiveFile = null;
+        containingBsaPath = null;
         return false;
     }
 }

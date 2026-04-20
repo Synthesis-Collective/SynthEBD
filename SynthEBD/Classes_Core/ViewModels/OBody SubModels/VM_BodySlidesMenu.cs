@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using ReactiveUI;
 using Noggog;
 using System.Reactive.Linq;
@@ -121,6 +122,10 @@ public class VM_BodySlidesMenu : VM
              if (t.Previous != null && t.Previous.AssociatedViewModel != null)
              {
                  t.Previous.AssociatedModel = t.Previous.AssociatedViewModel.DumpToModel();
+                 // Release the previous preset's VM_CharacterViewer (GL context + caches)
+                 // rather than orphaning it on the placeholder across selection churn.
+                 t.Previous.AssociatedViewModel.Dispose();
+                 t.Previous.AssociatedViewModel = null;
              }
 
              if (t.Current != null)
@@ -143,6 +148,7 @@ public class VM_BodySlidesMenu : VM
                     Alphabetizer = Alphabetizer_Male;
                     break;
             }
+            RefreshAvailableSliderGroupsForGender();
         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.ShowHidden).Subscribe(x =>
@@ -154,6 +160,54 @@ public class VM_BodySlidesMenu : VM
         {
             TogglePresetVisibility();
         }).DisposeWith(this);
+
+        // When the master list gets (re)populated (typically by VM_BodySlideAnnotator after
+        // all presets finish loading), refresh the gender-scoped dropdown. Also watch the
+        // per-gender collections so that adds/removes through the UI stay in sync.
+        AvailableSliderGroups.CollectionChanged += (_, _) => RefreshAvailableSliderGroupsForGender();
+        BodySlidesFemale.CollectionChanged += OnPresetCollectionChanged;
+        BodySlidesMale.CollectionChanged += OnPresetCollectionChanged;
+    }
+
+    private void OnPresetCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Only refresh if the change is for the currently displayed gender; otherwise it's
+        // guaranteed not to affect what the user sees in the dropdown.
+        bool femaleChanged = ReferenceEquals(sender, BodySlidesFemale);
+        bool maleChanged = ReferenceEquals(sender, BodySlidesMale);
+        if ((femaleChanged && SelectedGender == Gender.Female) ||
+            (maleChanged && SelectedGender == Gender.Male))
+        {
+            RefreshAvailableSliderGroupsForGender();
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="AvailableSliderGroupsForGender"/> from the SliderGroup values
+    /// actually present on the currently displayed preset list (for the selected gender).
+    /// Always includes the "ALL" sentinel. If the user's current SelectedSliderGroup falls
+    /// out of the new set (e.g. they switched to Male and "CBBE" no longer applies), it
+    /// snaps back to "ALL" to avoid showing an empty list.
+    /// </summary>
+    private void RefreshAvailableSliderGroupsForGender()
+    {
+        var source = SelectedGender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
+        var groups = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var ph in source)
+        {
+            var g = ph?.AssociatedModel?.SliderGroup;
+            if (!string.IsNullOrWhiteSpace(g)) groups.Add(g);
+        }
+
+        AvailableSliderGroupsForGender.Clear();
+        AvailableSliderGroupsForGender.Add(SliderGroupSelectionAll);
+        foreach (var g in groups) AvailableSliderGroupsForGender.Add(g);
+
+        if (!string.Equals(SelectedSliderGroup, SliderGroupSelectionAll, StringComparison.OrdinalIgnoreCase) &&
+            !AvailableSliderGroupsForGender.Contains(SelectedSliderGroup))
+        {
+            SelectedSliderGroup = SliderGroupSelectionAll;
+        }
     }
 
     public ObservableCollection<VM_BodySlidePlaceHolder> BodySlidesMale { get; set; } = new();
@@ -168,6 +222,9 @@ public class VM_BodySlidesMenu : VM
     public VM_BodySlidePlaceHolder SelectedPlaceHolder { get; set; }
     public Gender SelectedGender { get; set; } = Gender.Female;
     public ObservableCollection<string> AvailableSliderGroups { get; set; } = new();
+    // Gender-scoped view of AvailableSliderGroups, bound by the XAML ComboBox. Rebuilt
+    // whenever SelectedGender changes or the per-gender preset lists mutate.
+    public ObservableCollection<string> AvailableSliderGroupsForGender { get; set; } = new() { SliderGroupSelectionAll };
     public string SelectedSliderGroup { get; set; }
     public const string SliderGroupSelectionAll = "ALL";
 

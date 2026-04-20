@@ -59,6 +59,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         GroupMappingUI = _groupMappingMenuFactory(GroupUI, RaceGroupingEditor.RaceGroupings);
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState, OnDescriptorValueDeletion, OnDescriptorCategoryDeletion);
         TemplateMorphUI = _templateMenuFactory(this, RaceGroupingEditor.RaceGroupings);
+        // Menu owns the shared CharacterViewer; cascade disposal so the GL context
+        // and in-flight NPC load are released when this config is torn down (e.g.
+        // settings reload replacing the Male/FemaleConfigs collection).
+        TemplateMorphUI.DisposeWith(this);
         DisplayedUI = TemplateMorphUI;
         AttributeGroupMenu = _attributeGroupMenuFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscMenu = new(_logger, _raceMenuHandler);

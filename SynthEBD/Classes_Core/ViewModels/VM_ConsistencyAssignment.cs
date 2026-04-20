@@ -1,21 +1,47 @@
 using Mutagen.Bethesda.Plugins;
-using System.Collections.ObjectModel;
-using ReactiveUI;
+using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
+using System.Collections.ObjectModel;
+using DynamicData.Binding;
+using ReactiveUI;
+using System.Linq;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 
 namespace SynthEBD;
 
 public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
     private readonly VM_SettingsTexMesh _texMeshUI;
+    private readonly VM_SettingsOBody _oBodySettings;
+    private readonly VM_SettingsBodyGen _bodyGenSettings;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     public delegate VM_ConsistencyAssignment Factory(NPCAssignment model);
-    public VM_ConsistencyAssignment(NPCAssignment model, VM_SettingsTexMesh texMeshUI, Logger logger)
+    public VM_ConsistencyAssignment(
+        NPCAssignment model,
+        VM_SettingsTexMesh texMeshUI,
+        VM_SettingsOBody oBodySettings,
+        VM_SettingsBodyGen bodyGenSettings,
+        IEnvironmentStateProvider environmentProvider,
+        Logger logger,
+        VM_CharacterViewer characterViewer)
     {
         AssociatedModel = model;
         _texMeshUI = texMeshUI;
+        _oBodySettings = oBodySettings;
+        _bodyGenSettings = bodyGenSettings;
+        _environmentProvider = environmentProvider;
         _logger = logger;
+
+        CharacterViewer = characterViewer;
+        CharacterViewer.DisposeWith(this);
+        CharacterViewer.Mode = ViewerMode.ReadOnly;
+
+        _environmentProvider.WhenAnyValue(x => x.LinkCache)
+            .Subscribe(x => lk = x)
+            .DisposeWith(this);
 
         this.WhenAnyValue(x => x.AssetPackName).Subscribe(x => AssetPackAssigned = AssetPackName != null && AssetPackName.Any()).DisposeWith(this);
         this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any()).DisposeWith(this);
@@ -23,7 +49,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         DeleteAssetPackCommand = new SynthEBD.RelayCommand(
             canExecute: _ => true,
-            execute: x => 
+            execute: x =>
             {
                 AssetPackName = "";
                 Subgroups.Clear();
@@ -39,6 +65,45 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             canExecute: _ => true,
             execute: x => this.Height = ""
         );
+
+        // ───────────────────────────────────────────────────────────
+        // Character Viewer refresh subscriptions
+        // ───────────────────────────────────────────────────────────
+        this.WhenAnyValue(x => x.NPCFormKey)
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Where(fk => !fk.IsNull && lk != null)
+            .Subscribe(fk => _ = RefreshViewerNpcAsync())
+            .DisposeWith(this);
+
+        this.WhenAnyValue(x => x.BodySlidePreset)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerBodySlide())
+            .DisposeWith(this);
+
+        this.WhenAnyValue(x => x.Height)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerHeight())
+            .DisposeWith(this);
+
+        this.WhenAnyValue(x => x.AssetPackName)
+            .Throttle(TimeSpan.FromMilliseconds(200), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        Subgroups.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        MixInAssignments.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
+
+        AssetReplacements.ToObservableChangeSet()
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => RefreshViewerTextures())
+            .DisposeWith(this);
     }
 
     public string AssetPackName { get; set; }
@@ -70,7 +135,9 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public bool AssetPackAssigned { get; set; } = false;
     public bool BodySlideAssigned { get; set; } = false;
     public bool HeightAssigned { get; set; } = false;
-    public Gender Gender { get; set; } // only needs to satisfy the HeadPart assignment view model.
+    public Gender Gender { get; set; }
+    public ILinkCache lk { get; private set; }
+    public VM_CharacterViewer CharacterViewer { get; }
 
     private string GetSubgroupNameChain(string assetPackName, string subgroupID)
     {
@@ -88,7 +155,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public void GetViewModelFromModel(NPCAssignment model)
     {
         AssetPackName = model.AssetPackName;
-        Subgroups = new ObservableCollection<VM_ConsistencySubgroupAssignment>();
+        Subgroups.Clear();
         if (model.SubgroupIDs != null)
         {
             foreach (var id in model.SubgroupIDs)
@@ -99,6 +166,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
                 Subgroups.Add(subgroupEntry);
             }
         }
+        MixInAssignments.Clear();
         foreach (var mixIn in model.MixInAssignments)
         {
             var mixInVM = new VM_MixInConsistencyAssignment(MixInAssignments) { AssetPackName = mixIn.AssetPackName};
@@ -107,11 +175,12 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
                 var subgroupEntry = new VM_ConsistencySubgroupAssignment(mixInVM.Subgroups);
                 subgroupEntry.SubgroupID = id;
                 subgroupEntry.DispString = GetSubgroupNameChain(mixIn.AssetPackName, id);
-                Subgroups.Add(subgroupEntry);
+                mixInVM.Subgroups.Add(subgroupEntry);
             }
             mixInVM.DeclinedAssignment = mixIn.DeclinedAssignment;
             MixInAssignments.Add(mixInVM);
         }
+        AssetReplacements.Clear();
         foreach(var replacer in model.AssetReplacerAssignments)
         {
             var parentAssetPack = _texMeshUI.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
@@ -122,7 +191,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
                 AssetReplacements.Add(subVm);
             }
         }
-        BodyGenMorphNames = new ObservableCollection<VM_CollectionMemberString>();
+        BodyGenMorphNames.Clear();
         if (model.BodyGenMorphNames != null)
         {
             foreach (var morph in model.BodyGenMorphNames)
@@ -151,6 +220,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         DispName = model.DispName;
         NPCFormKey = model.NPCFormKey;
+        Gender = VM_SpecificNPCAssignment.GetGender(NPCFormKey, _logger, _environmentProvider);
     }
 
     public void DumpViewModelToModel()
@@ -195,6 +265,169 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         AssociatedModel.DispName = DispName;
         AssociatedModel.NPCFormKey = NPCFormKey;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CHARACTER VIEWER REFRESH
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private async Task RefreshViewerNpcAsync()
+    {
+        if (NPCFormKey.IsNull || lk == null)
+        {
+            return;
+        }
+
+        var hpAssignments = HeadParts
+            .Where(kv => kv.Value != null && !kv.Value.FormKey.IsNull)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.FormKey);
+
+        if (hpAssignments.Count > 0)
+        {
+            await CharacterViewer.ApplyHeadPartsAsync(NPCFormKey, lk, hpAssignments);
+        }
+        else
+        {
+            await CharacterViewer.LoadNpcAsync(NPCFormKey, lk);
+        }
+
+        RefreshViewerTextures();
+        RefreshViewerBodySlide();
+        RefreshViewerBodyGen();
+    }
+
+    private void RefreshViewerBodyGen()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0) return;
+        if (BodyGenMorphNames == null || BodyGenMorphNames.Count == 0) return;
+
+        var configs = Gender == Gender.Female ? _bodyGenSettings.FemaleConfigs : _bodyGenSettings.MaleConfigs;
+        if (configs == null) return;
+
+        // Resolve each stored morph name to its template's Specs. BodyGen templates are
+        // unique by Label within a gender's config database, so a simple flat lookup works.
+        var resolved = new List<BodyGenConfig.BodyGenTemplate>();
+        foreach (var name in BodyGenMorphNames)
+        {
+            if (string.IsNullOrWhiteSpace(name?.Content)) continue;
+            foreach (var config in configs)
+            {
+                var match = config.TemplateMorphUI?.Templates
+                    .FirstOrDefault(t => string.Equals(t.Label, name.Content, StringComparison.OrdinalIgnoreCase));
+                if (match?.AssociatedModel != null)
+                {
+                    resolved.Add(match.AssociatedModel);
+                    break;
+                }
+            }
+        }
+
+        if (resolved.Count == 0) return;
+
+        string sliderGroup = Gender == Gender.Female
+            ? (_bodyGenSettings.PreviewSliderGroupFemale ?? string.Empty)
+            : (_bodyGenSettings.PreviewSliderGroupMale ?? string.Empty);
+
+        CharacterViewer.ApplyBodyGen(resolved, sliderGroup, CharacterViewer.NpcWeight);
+    }
+
+    private void RefreshViewerTextures()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0)
+        {
+            return;
+        }
+
+        var overrides = new List<FilePathReplacement>();
+
+        // Primary asset-pack subgroups
+        var primaryPack = _texMeshUI.AssetPacks.FirstOrDefault(p => p.GroupName == AssetPackName);
+        if (primaryPack != null)
+        {
+            foreach (var entry in Subgroups)
+            {
+                if (entry?.SubgroupID != null
+                    && primaryPack.TryGetSubgroupByID(entry.SubgroupID, out var sg)
+                    && sg.AssociatedModel?.Paths != null)
+                {
+                    overrides.AddRange(sg.AssociatedModel.Paths);
+                }
+            }
+        }
+
+        // MixIn asset-pack subgroups (MixIn packs live alongside primary in _texMeshUI.AssetPacks)
+        foreach (var mixIn in MixInAssignments)
+        {
+            if (mixIn == null || string.IsNullOrEmpty(mixIn.AssetPackName)) continue;
+            var mixPack = _texMeshUI.AssetPacks.FirstOrDefault(p => p.GroupName == mixIn.AssetPackName);
+            if (mixPack == null) continue;
+            foreach (var entry in mixIn.Subgroups)
+            {
+                if (entry?.SubgroupID != null
+                    && mixPack.TryGetSubgroupByID(entry.SubgroupID, out var sg)
+                    && sg.AssociatedModel?.Paths != null)
+                {
+                    overrides.AddRange(sg.AssociatedModel.Paths);
+                }
+            }
+        }
+
+        // AssetReplacer subgroups — look up within the replacer group's subgroup tree
+        foreach (var replacer in AssetReplacements)
+        {
+            if (replacer?.SubscribedReplacerGroup?.Subgroups == null) continue;
+            foreach (var id in replacer.SubgroupIDs)
+            {
+                if (id?.Content == null) continue;
+                var match = VM_SubgroupPlaceHolder.GetSubgroupByID(replacer.SubscribedReplacerGroup.Subgroups, id.Content);
+                if (match?.AssociatedModel?.Paths != null)
+                {
+                    overrides.AddRange(match.AssociatedModel.Paths);
+                }
+            }
+        }
+
+        if (overrides.Count > 0)
+        {
+            CharacterViewer.ApplyTextureOverrides(overrides);
+        }
+    }
+
+    private void RefreshViewerHeight()
+    {
+        if (!string.IsNullOrWhiteSpace(Height) && float.TryParse(Height, out var h) && h > 0f)
+        {
+            CharacterViewer.HeightOverride = h;
+        }
+        else
+        {
+            CharacterViewer.HeightOverride = null;
+        }
+    }
+
+    private void RefreshViewerBodySlide()
+    {
+        if (CharacterViewer.Renderer.Meshes.Count == 0 || string.IsNullOrEmpty(BodySlidePreset))
+        {
+            return;
+        }
+
+        var availableBodySlides = Gender switch
+        {
+            Gender.Male   => _oBodySettings.BodySlidesUI.BodySlidesMale,
+            Gender.Female => _oBodySettings.BodySlidesUI.BodySlidesFemale,
+            _ => null
+        };
+        if (availableBodySlides == null) return;
+
+        var match = availableBodySlides
+            .FirstOrDefault(bs => bs.AssociatedModel?.Label == BodySlidePreset)
+            ?.AssociatedModel;
+
+        if (match != null)
+        {
+            CharacterViewer.ApplyBodySlide(match, CharacterViewer.NpcWeight);
+        }
     }
 
     public class VM_MixInConsistencyAssignment

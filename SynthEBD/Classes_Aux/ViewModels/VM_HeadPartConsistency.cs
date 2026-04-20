@@ -19,7 +19,7 @@ public class VM_HeadPartConsistency : VM
         );
     }
     public string Label { get; set; }
-    private FormKey FormKey { get; set; }
+    public FormKey FormKey { get; private set; }
     private bool Initialized { get; set; } // for storage only to make sure it doesn't get lost after saving dumping to the DTO
     public bool RandomizedToNone { get; set;} = false;
     public RelayCommand ClearSelection { get; set; }

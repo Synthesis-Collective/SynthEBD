@@ -16,8 +16,16 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:MaxHeightConverter x:Key="MaxHeightConverter"/>
     </UserControl.Resources>
-    <ScrollViewer>
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition x:Name="PreviewerColumn" Width="525"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Column 0: Existing assignment controls -->
+        <ScrollViewer Grid.Column="0">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="*"/>
@@ -342,6 +350,18 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+        </Grid>
+        </ScrollViewer>
+
+        <!-- GridSplitter between assignment controls and 3D viewer -->
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                      Background="#FF444444" Cursor="SizeWE"
+                      Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_SpecificNPCAssignmentsUI}}, Converter={StaticResource BoolToVis}}"/>
+
+        <!-- Column 2: 3D Character Viewer -->
+        <Border Grid.Column="2" BorderBrush="#5844b4" BorderThickness="1 0 0 0"
+                Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_SpecificNPCAssignmentsUI}}, Converter={StaticResource BoolToVis}}">
+            <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
+        </Border>
     </Grid>
-    </ScrollViewer>
 </UserControl>
