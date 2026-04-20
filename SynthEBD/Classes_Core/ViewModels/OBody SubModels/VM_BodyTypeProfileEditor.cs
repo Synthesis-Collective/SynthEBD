@@ -42,6 +42,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
+        CharacterViewer.ShowClassifierControls = true;
         CharacterViewer.DisposeWith(this);
 
         // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt

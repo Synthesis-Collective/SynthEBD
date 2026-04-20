@@ -194,6 +194,13 @@ public class VM_CharacterViewer : VM
     public bool IsLoading { get; set; }
     public int NpcWeight { get; set; } = 50;
 
+    /// <summary>True when the last BodySlide/BodyGen deformation attempt couldn't find
+    /// a sibling .tri for the worn body NIF. Bound to a red banner above the viewport
+    /// so the user gets a visible cue to run BodySlide's "Build Morphs" (i.e. generate
+    /// a Zeroed Sliders body with morphs). Reset on scene clear and on a successful
+    /// .tri load.</summary>
+    public bool BodyTriMissing { get; set; } = false;
+
     /// <summary>The NPC record's Height field, a uniform full-model scale
     /// multiplier (1.0 = default). Refreshed whenever a new NPC is loaded;
     /// acts as the fallback when no per-assignment override is set.</summary>
@@ -248,6 +255,12 @@ public class VM_CharacterViewer : VM
     /// as a wireframe overlay. Used by the BodySlide classifier workflow; toggled
     /// from the viewer toolbar.</summary>
     public bool ShowWireframe { get; set; } = false;
+
+    /// <summary>Master toggle for the BodySlide classifier toolbar cluster
+    /// (Wireframe / Pick Vertex / Select Mirror / Clear Picks). Hidden by default
+    /// and flipped on only when the viewer is embedded inside the OBody Body
+    /// Type Profiles editor, where key-vertex assignment is the whole point.</summary>
+    public bool ShowClassifierControls { get; set; } = false;
 
     /// <summary>0 = none, 1 = key, 2 = fill, 3 = rim. Set when the user clicks
     /// an arrow in the 3D view (or from the UI). Controls which light the
@@ -2068,6 +2081,7 @@ public class VM_CharacterViewer : VM
         _cachedOsdFiles = null;
         _cachedBodyNifDiskPath = null;
         _cachedBodyTri = null;
+        BodyTriMissing = false;
         _currentLoadedNpc = FormKey.Null;
         _currentHeadMeshOverride = null;
     }
@@ -2325,6 +2339,7 @@ public class VM_CharacterViewer : VM
             _logger.LogMessage("CharacterViewer: No sibling .tri found for '" + _cachedBodyNifDiskPath +
                 "' -- falling back to OSD path (chopping bug possible if topology mismatches reference).");
             _cachedBodyNifDiskPath = null; // don't re-probe
+            BodyTriMissing = true;
             return;
         }
 
@@ -2337,6 +2352,7 @@ public class VM_CharacterViewer : VM
             return;
         }
 
+        BodyTriMissing = false;
         int totalMorphs = 0;
         foreach (var shape in _cachedBodyTri.Shapes) totalMorphs += shape.Morphs.Count;
         _logger.LogMessage("CharacterViewer: Using sibling .tri '" + triPath + "' (" +

@@ -20,6 +20,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -143,21 +144,25 @@
                 <CheckBox Content="Wireframe" FontSize="11" Foreground="#FF33E6D0"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding ShowWireframe}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                           ToolTip="Overlays the triangle edges of every loaded mesh. Used for key-vertex assignment in the BodySlide classifier workflow."/>
 
                 <CheckBox Content="Pick Vertex" FontSize="11" Foreground="#FFFF6126"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding IsKeyVertexPickMode}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                           ToolTip="Left-click the model to drop a marker on the nearest triangle vertex. Intended for BodySlide classifier key-vertex assignment; camera orbit is disabled while this is on."/>
 
                 <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="SelectMirrorPicksButton_Click"
+                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                         ToolTip="For each current pick marker, adds the vertex closest to its X-mirror on the same mesh. Use to fill in bilaterally symmetric counterparts after picking one side."/>
 
                 <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="ClearKeyVertexMarkersButton_Click"
+                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                         ToolTip="Removes every picked-vertex marker from the viewport."/>
 
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
@@ -287,14 +292,31 @@
             </Grid>
         </Border>
 
+        <!-- Body .tri missing warning: shown when a BodySlide/BodyGen deform was
+             attempted but no sibling .tri was found next to the worn body NIF.
+             Prompts the user to run BodySlide's "Build Morphs" on their preset. -->
+        <Border Grid.Row="3"
+                Background="#FF2A0A0A"
+                BorderBrush="#FFAA2222"
+                BorderThickness="0,1,0,1"
+                Padding="8 4"
+                Visibility="{Binding BodyTriMissing, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Body .tri file not found - did you forget to generate a Zeroed Sliders body with morphs?"
+                       Foreground="#FFFF4444"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
         <!-- OpenGL Viewport -->
         <glWpf:GLWpfControl
-            Grid.Row="3"
+            Grid.Row="4"
             x:Name="GlControl"
             Render="GlControl_OnRender"/>
 
         <!-- Loading overlay -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Stretch"
@@ -307,7 +329,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Background="#FF333333"
                 Padding="6 3">
             <TextBlock Text="{Binding StatusText}"
