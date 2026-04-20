@@ -298,6 +298,59 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             }
         }
     }
+
+    /// <summary>
+    /// Replaces this menu's <see cref="BodyShapeAnnotationState.Classifier"/>-tagged selections
+    /// with the supplied set. Used by <see cref="BodySlideMeasurementEvaluator"/> after a
+    /// per-weight evaluation pass so the UI mirrors the merged model state.
+    /// Manual / Library / RulesBased selections are left untouched -- they win every conflict.
+    /// </summary>
+    public void ApplyClassifierDescriptors(IEnumerable<AnnotatedDescriptorSignature> classifierDescriptors)
+    {
+        // Build a lookup of incoming (Category, Value) for fast hit checks.
+        var incoming = new HashSet<(string Cat, string Val)>();
+        if (classifierDescriptors != null)
+        {
+            foreach (var d in classifierDescriptors)
+            {
+                if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
+                incoming.Add((d.Category, d.Value));
+            }
+        }
+
+        foreach (var shell in DescriptorShells)
+        {
+            string category = shell.TrackedShell?.Category ?? string.Empty;
+            foreach (var selector in shell.DescriptorSelectors)
+            {
+                bool isCurrentlyClassifier = selector.IsSelected && selector.AnnotationState == BodyShapeAnnotationState.Classifier;
+                bool shouldBeClassifier = incoming.Contains((category, selector.Value));
+
+                if (shouldBeClassifier)
+                {
+                    // Don't trample a higher-priority source. The evaluator's MergeIntoSlot
+                    // already filters Manual/Library/RulesBased, but the menu may still hold a
+                    // non-Classifier selection that wasn't in the model yet -- leave it alone.
+                    if (selector.IsSelected && selector.AnnotationState != BodyShapeAnnotationState.Classifier
+                        && selector.AnnotationState != BodyShapeAnnotationState.None)
+                    {
+                        continue;
+                    }
+                    // Order matters: setting IsSelected fires the selector's reactive subscription
+                    // that resets AnnotationState to Manual, so set state second.
+                    if (!selector.IsSelected) selector.IsSelected = true;
+                    selector.AnnotationState = BodyShapeAnnotationState.Classifier;
+                }
+                else if (isCurrentlyClassifier)
+                {
+                    selector.IsSelected = false;
+                    // The IsSelected setter already resets AnnotationState to None via its subscription.
+                }
+            }
+        }
+
+        BuildHeader();
+    }
 }
 
 [DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count})")]

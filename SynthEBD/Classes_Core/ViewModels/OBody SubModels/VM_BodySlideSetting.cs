@@ -205,6 +205,11 @@ public class VM_BodySlideSetting : VM
 
             await CharacterViewer.LoadNpcAsync(npc, lk);
             CharacterViewer.ApplyBodySlide(AssociatedPlaceHolder.AssociatedModel, slot.Weight);
+
+            // Phase 5: run the BodySlide Classifier against the just-deformed mesh and merge any
+            // matched descriptors into this weight slot. Skips silently when no profile is
+            // installed for this body topology so non-classifier users see no change.
+            TryRunClassifierForSlot(slot);
         }
         catch (Exception ex)
         {
@@ -212,6 +217,46 @@ public class VM_BodySlideSetting : VM
             // Log instead of silently switching tabs with no entry. Full stack is logged
             // because most NRE / index-out-of-range failures here have empty Message.
             _logger?.LogError("VM_BodySlideSetting.RefreshPreview failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>
+    /// Phase 5 helper. Looks up an applicable <see cref="BodyTypeProfile"/> for the current
+    /// preset's mesh topology, evaluates it against the live viewer state, merges classifier-
+    /// sourced descriptors into the model's per-weight slot, and refreshes the matching
+    /// selection menu so the UI reflects the merge. Failures are logged but never thrown --
+    /// classification is best-effort and must not break the preview pipeline.
+    /// </summary>
+    private void TryRunClassifierForSlot(VM_BodySlideWeightSlot slot)
+    {
+        try
+        {
+            if (slot == null) return;
+            var profiles = _patcherState?.OBodySettings?.BodyTypeProfiles;
+            if (profiles == null || profiles.Count == 0) return;
+
+            string sliderGroupHint = AssociatedPlaceHolder?.AssociatedModel?.SliderGroup;
+            var profile = BodySlideMeasurementEvaluator.FindMatchingProfile(profiles, CharacterViewer, sliderGroupHint);
+            if (profile == null) return;
+
+            var model = AssociatedPlaceHolder?.AssociatedModel;
+            if (model?.BodyShapeDescriptorsByWeight == null) return;
+            if (!model.BodyShapeDescriptorsByWeight.TryGetValue(slot.Weight, out var modelSlot) || modelSlot == null) return;
+
+            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile);
+            BodySlideMeasurementEvaluator.MergeIntoSlot(modelSlot, result.Descriptors);
+            slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(result.Descriptors);
+            UpdateAggregateAnnotationState();
+
+            if (result.TopologyMismatch)
+            {
+                _logger?.LogMessage("BodySlide Classifier: topology fingerprint mismatch on profile '"
+                    + profile.Name + "' for preset '" + (model.Label ?? "?") + "' -- results may be invalid");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("BodySlide Classifier failed during RefreshPreview: " + ExceptionLogger.GetExceptionStack(ex));
         }
     }
 
