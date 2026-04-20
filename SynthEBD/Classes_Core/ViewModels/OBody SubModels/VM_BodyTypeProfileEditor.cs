@@ -44,6 +44,14 @@ public class VM_BodyTypeProfileEditor : VM
                     : Profiles[Math.Min(idx, Profiles.Count - 1)];
             });
 
+        ExportSelectedProfile = new RelayCommand(
+            canExecute: _ => SelectedProfile != null,
+            execute: _ => ExportProfile(SelectedProfile));
+
+        ImportProfile = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => DoImportProfile());
+
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
     }
 
@@ -58,6 +66,8 @@ public class VM_BodyTypeProfileEditor : VM
 
     public RelayCommand AddProfile { get; }
     public RelayCommand DeleteSelectedProfile { get; }
+    public RelayCommand ExportSelectedProfile { get; }
+    public RelayCommand ImportProfile { get; }
 
     public override void Dispose()
     {
@@ -111,6 +121,63 @@ public class VM_BodyTypeProfileEditor : VM
         {
             model.BodyTypeProfiles.Add(vm.DumpToModel());
         }
+    }
+
+    private void ExportProfile(VM_BodyTypeProfile? profile)
+    {
+        if (profile == null) return;
+        var model = profile.DumpToModel();
+        string defaultName = string.IsNullOrWhiteSpace(model.Name) ? "BodyTypeProfile.json" : SanitizeFileName(model.Name) + ".json";
+        if (!IO_Aux.SelectFileSave("", "BodyType Profile (*.json)|*.json", ".json", "Export BodyType Profile", out string path, defaultName))
+        {
+            return;
+        }
+        JSONhandler<BodyTypeProfile>.SaveJSONFile(model, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Export Failed", exception);
+            return;
+        }
+        _logger?.LogMessage("BodyTypeProfileEditor: exported profile '" + model.Name + "' to " + path);
+    }
+
+    private void DoImportProfile()
+    {
+        if (!IO_Aux.SelectFile("", "BodyType Profile (*.json)|*.json", "Import BodyType Profile", out string path))
+        {
+            return;
+        }
+        var loaded = JSONhandler<BodyTypeProfile>.LoadJSONFile(path, out bool success, out string exception);
+        if (!success || loaded == null)
+        {
+            MessageWindow.DisplayNotificationOK("Import Failed", exception);
+            return;
+        }
+
+        // Always assign a fresh Id so imported profiles don't collide with existing ones.
+        loaded.Id = Guid.NewGuid().ToString("N");
+        if (string.IsNullOrWhiteSpace(loaded.Name)) loaded.Name = "Imported Profile";
+
+        var existingNames = new HashSet<string>(Profiles.Select(p => p.Name ?? ""), StringComparer.OrdinalIgnoreCase);
+        string baseName = loaded.Name;
+        int suffix = 2;
+        while (existingNames.Contains(loaded.Name))
+        {
+            loaded.Name = baseName + " (" + suffix + ")";
+            suffix++;
+        }
+
+        var vm = new VM_BodyTypeProfile(loaded, this);
+        Profiles.Add(vm);
+        SelectedProfile = vm;
+        _logger?.LogMessage("BodyTypeProfileEditor: imported profile '" + loaded.Name + "' from " + path);
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = System.IO.Path.GetInvalidFileNameChars();
+        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
+        return new string(chars);
     }
 
     private void OnAnyKeyVertexPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
@@ -221,6 +288,18 @@ public class VM_BodyTypeProfile : VM
             });
 
         RefreshMeasurementValues();
+
+        // Repaint the measurement-line overlay whenever the user picks a different
+        // measurement. Using the raw PropertyChanged event keeps this file free of
+        // additional ReactiveUI wiring (the profile's lifetime is bounded by the
+        // containing editor, so we skip the IDisposable dance).
+        PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SelectedMeasurement))
+            {
+                RefreshMeasurementHighlight();
+            }
+        };
     }
 
     public string Id { get; }
@@ -236,6 +315,9 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<VM_LabeledExample> LabeledExamples { get; } = new();
 
     public VM_NamedKeyVertex? SelectedKeyVertex { get; set; }
+
+    /// <summary>Currently highlighted measurement. Drives the colored-line overlay in the active viewer.</summary>
+    public VM_MeasurementDefinition? SelectedMeasurement { get; set; }
 
     /// <summary>When true, key-vertex picks from any viewer add a new entry to this profile.</summary>
     public bool CapturePicks { get; set; } = false;
@@ -283,7 +365,11 @@ public class VM_BodyTypeProfile : VM
     /// </summary>
     public void RefreshMeasurementValues()
     {
-        if (Measurements.Count == 0) return;
+        if (Measurements.Count == 0)
+        {
+            RefreshMeasurementHighlight();
+            return;
+        }
 
         var keyVertsByName = KeyVertices
             .Where(k => !string.IsNullOrEmpty(k.Name))
@@ -310,6 +396,74 @@ public class VM_BodyTypeProfile : VM
                 m.LiveValue = null;
             }
         }
+
+        RefreshMeasurementHighlight();
+    }
+
+    /// <summary>
+    /// Pushes line segments for <see cref="SelectedMeasurement"/> into the active viewer's
+    /// measurement-line overlay. PointDistance/AxisDistance render one A-B segment;
+    /// RatioDistance renders two segments (A-B in the numerator color, C-D in the
+    /// denominator color). Clears the overlay when there is no selection, no viewer, or
+    /// when the referenced vertices cannot be resolved.
+    /// </summary>
+    private void RefreshMeasurementHighlight()
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null) return;
+
+        var sel = SelectedMeasurement;
+        if (sel == null)
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        var keyVertsByName = KeyVertices
+            .Where(k => !string.IsNullOrEmpty(k.Name))
+            .GroupBy(k => k.Name)
+            .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
+
+        OpenTK.Mathematics.Vector3? Resolve(string refName)
+        {
+            if (string.IsNullOrEmpty(refName)) return null;
+            if (!keyVertsByName.TryGetValue(refName, out var kv)) return null;
+            if (kv == null || string.IsNullOrEmpty(kv.ShapeName)) return null;
+            return viewer.TryGetCurrentVertex(kv.ShapeName, kv.VertexIndex, out var p)
+                ? (OpenTK.Mathematics.Vector3?)p
+                : null;
+        }
+
+        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>();
+
+        // Yellow for the primary pair, cyan for the ratio denominator pair.
+        var primary = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f);
+        var secondary = new OpenTK.Mathematics.Vector3(0.1f, 0.85f, 1.0f);
+
+        var a = Resolve(sel.VertexRefA);
+        var b = Resolve(sel.VertexRefB);
+        if (a.HasValue && b.HasValue)
+        {
+            segments.Add((a.Value, b.Value, primary));
+        }
+
+        if (sel.Kind == MeasurementKind.RatioDistance)
+        {
+            var c = Resolve(sel.VertexRefC);
+            var d = Resolve(sel.VertexRefD);
+            if (c.HasValue && d.HasValue)
+            {
+                segments.Add((c.Value, d.Value, secondary));
+            }
+        }
+
+        if (segments.Count == 0)
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        viewer.SetMeasurementLines(segments);
     }
 
     /// <summary>

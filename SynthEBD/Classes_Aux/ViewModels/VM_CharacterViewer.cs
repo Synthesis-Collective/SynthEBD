@@ -992,6 +992,28 @@ public class VM_CharacterViewer : VM
         Renderer.KeyVertexMarkers.Clear();
     }
 
+    /// <summary>
+    /// Replaces the renderer's measurement-line overlay with <paramref name="segments"/>.
+    /// Positions are in the same pre-ModelScale mesh-local space as
+    /// <see cref="GlRenderer.KeyVertexMarkers"/>; pass <c>null</c> or an empty sequence
+    /// to clear the overlay. Used by the BodyTypeProfile editor to visualize the
+    /// currently-selected measurement.
+    /// </summary>
+    public void SetMeasurementLines(IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> segments)
+    {
+        Renderer.MeasurementLines.Clear();
+        if (segments == null) return;
+        foreach (var s in segments)
+        {
+            Renderer.MeasurementLines.Add(new GlRenderer.MeasurementLineSegment
+            {
+                A = s.A,
+                B = s.B,
+                Color = s.Color,
+            });
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  GL INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════

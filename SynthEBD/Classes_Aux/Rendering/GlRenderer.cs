@@ -38,6 +38,20 @@ public class GlRenderer : IDisposable
     /// applied. ~1.1 Skyrim units reads clearly against a ~128-unit-tall body.</summary>
     public float KeyVertexMarkerRadius { get; set; } = 1.1f;
 
+    /// <summary>
+    /// Line-segment overlays used by the BodyTypeProfile editor to visualize the
+    /// currently-selected measurement. Positions are in the same pre-ModelScale
+    /// mesh-local space as <see cref="KeyVertexMarkers"/> so they track ModelScale.
+    /// </summary>
+    public List<MeasurementLineSegment> MeasurementLines { get; } = new();
+
+    public struct MeasurementLineSegment
+    {
+        public Vector3 A;
+        public Vector3 B;
+        public Vector3 Color;
+    }
+
     /// <summary>When true, renders arrow gizmos showing each directional light's shining
     /// direction (from source to model) and magnitude (length scales with intensity).</summary>
     public bool ShowKeyLightVisualization { get; set; } = false;
@@ -282,6 +296,10 @@ public class GlRenderer : IDisposable
         // the user while assigning key vertices.
         DrawKeyVertexMarkers(ref view, ref projection);
 
+        // Measurement lines (BodyTypeProfile editor). Drawn after markers so the
+        // connection between the two endpoint gizmos reads clearly.
+        DrawMeasurementLines(ref view, ref projection);
+
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
@@ -328,6 +346,51 @@ public class GlRenderer : IDisposable
         _debugShader.SetFloat("u_shaded", 0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
         if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>
+    /// Draws flat-colored line segments from <see cref="MeasurementLines"/> through
+    /// the debug VAO. Uses <c>u_shaded=0</c> so lighting doesn't tint the color, and
+    /// disables depth test so the segment is always visible through the body.
+    /// The debug VAO's layout is position(3) + normal(3) -- normals are ignored in
+    /// flat mode but must be written to keep the stride consistent.
+    /// </summary>
+    private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+        if (MeasurementLines.Count == 0) return;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 0f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        GL.Disable(EnableCap.DepthTest);
+        GL.LineWidth(2.5f);
+
+        // Two verts per line, 6 floats per vert (pos + unused normal).
+        var buf = new float[12];
+        for (int i = 0; i < MeasurementLines.Count; i++)
+        {
+            var seg = MeasurementLines[i];
+            var a = seg.A * ModelScale;
+            var b = seg.B * ModelScale;
+
+            buf[0] = a.X; buf[1] = a.Y; buf[2] = a.Z; buf[3] = 0f; buf[4] = 0f; buf[5] = 0f;
+            buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
+
+            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, buf.Length * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+
+        GL.LineWidth(1.0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
         GL.BindVertexArray(0);
     }
 

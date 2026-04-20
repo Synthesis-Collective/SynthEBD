@@ -21,6 +21,12 @@
                 <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
                 <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1"/>
             </StackPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
+                <Button Content="Export" Command="{Binding ExportSelectedProfile}" Padding="6,1" Margin="0,0,4,0"
+                        ToolTip="Save the selected profile to a JSON file for sharing or backup."/>
+                <Button Content="Import" Command="{Binding ImportProfile}" Padding="6,1"
+                        ToolTip="Load a profile from a JSON file and append it to this list."/>
+            </StackPanel>
             <ListBox ItemsSource="{Binding Profiles}"
                      SelectedItem="{Binding SelectedProfile}"
                      DisplayMemberPath="Name"/>
@@ -109,6 +115,7 @@
                                     <Button DockPanel.Dock="Top" Content="Add Measurement" Command="{Binding AddMeasurement}"
                                             HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
                                     <DataGrid ItemsSource="{Binding Measurements}"
+                                              SelectedItem="{Binding SelectedMeasurement}"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
