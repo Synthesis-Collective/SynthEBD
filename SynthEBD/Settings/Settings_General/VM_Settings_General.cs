@@ -371,6 +371,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public string CharacterViewerLightingColorScheme { get; set; } = "";
     public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
     public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
+    public bool CharacterViewerVerboseLog { get; set; } = false;
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public VM_NifPreviewNpcSettings PreviewNpcs { get; set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
@@ -431,6 +432,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             model.UserLightingLayouts ?? new List<CharacterViewerLightingLayout>());
         UserLightingColorSchemes = new ObservableCollection<CharacterViewerLightingColorScheme>(
             model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
+        CharacterViewerVerboseLog = model.CharacterViewerVerboseLog;
         TextureLoadStrategy = model.TextureLoadStrategy;
         if (bShowTroubleshootingSettings)
         {
@@ -496,6 +498,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.CharacterViewerLightingColorScheme = CharacterViewerLightingColorScheme;
         model.UserLightingLayouts = UserLightingLayouts.ToList();
         model.UserLightingColorSchemes = UserLightingColorSchemes.ToList();
+        model.CharacterViewerVerboseLog = CharacterViewerVerboseLog;
         model.TextureLoadStrategy = TextureLoadStrategy;
         model.PreviewNpcs = PreviewNpcs.DumpToModel();
 

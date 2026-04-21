@@ -265,6 +265,7 @@ public class Settings_General
     public string CharacterViewerLightingColorScheme { get; set; } = "";
     public List<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
     public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
+    public bool CharacterViewerVerboseLog { get; set; } = false;
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public NifPreviewNpcSettings PreviewNpcs { get; set; } = new();
     public List<ModKey> BlockedModsFromImport { get; set; } = new()

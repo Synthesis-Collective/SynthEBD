@@ -171,10 +171,19 @@ public class VM_CharacterViewer : VM
         _faceGenPreviewService = faceGenPreviewService;
         _logger = logger;
 
+        // Verbose-log toggle persists in Settings_General so it survives the
+        // viewer-disposal/recreate cycle that happens on every BodySlide preset
+        // switch. Without this hop a per-instance default would silently flip
+        // verbose logging back off whenever a new viewer was constructed.
+        VerboseLog = _generalSettings.CharacterViewerVerboseLog;
         // Push VerboseLog -> shared gate so helper classes (BsdFileParser, GameAssetResolver,
         // NpcMeshResolver, BodySlideDeformer, NifMeshBuilder) can consult the same flag.
         _logGate.Verbose = VerboseLog;
-        this.WhenAnyValue(x => x.VerboseLog).Subscribe(v => _logGate.Verbose = v);
+        this.WhenAnyValue(x => x.VerboseLog).Skip(1).Subscribe(v =>
+        {
+            _logGate.Verbose = v;
+            _generalSettings.CharacterViewerVerboseLog = v;
+        }).DisposeWith(this);
 
         // Load persisted lighting state *before* XAML binds. If we defer this to
         // InitializeGl (which runs from the first GL render callback), the
