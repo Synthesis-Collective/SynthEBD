@@ -138,6 +138,8 @@ public class VM_CharacterViewer : VM
     /// Body/Hands/Feet and their texture/morph state untouched.</summary>
     private (string HeadNifPath, List<NifMeshBuilder.BuiltMesh> Meshes)? _pendingHeadReplace;
 
+    private readonly CharacterPreviewCache _previewCache;
+
     public VM_CharacterViewer(
         NpcMeshResolver npcMeshResolver,
         BodySlideDeformer bodySlideDeformer,
@@ -148,11 +150,16 @@ public class VM_CharacterViewer : VM
         PatcherState patcherState,
         VM_Settings_General generalSettings,
         FaceGenPreviewService faceGenPreviewService,
+        CharacterPreviewCache previewCache,
         CharacterViewerLogGate logGate,
         Logger logger)
     {
         _logGate = logGate;
-        _meshBuilder = new NifMeshBuilder(logger, logGate);
+        _previewCache = previewCache;
+        // Mesh parser is shared via the preview cache so its parsed-NIF LRU
+        // survives across viewer instances (the BodySlide menu disposes the
+        // previous viewer on every preset switch).
+        _meshBuilder = previewCache.MeshBuilder;
         _npcMeshResolver = npcMeshResolver;
         _bodySlideDeformer = bodySlideDeformer;
         _bsdFileParser = bsdFileParser;
@@ -1380,7 +1387,7 @@ public class VM_CharacterViewer : VM
                 }
             }
 
-            var meshPaths = await Task.Run(() => _npcMeshResolver.ResolveMeshPaths(npcFormKey, linkCache), cts.Token);
+            var meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(npcFormKey, linkCache), cts.Token);
             if (meshPaths == null)
             {
                 StatusText = "Could not resolve NPC mesh paths";

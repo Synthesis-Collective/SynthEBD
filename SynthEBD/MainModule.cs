@@ -96,6 +96,9 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodyTriFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
+        // Shared NIF parse + NpcMeshPaths cache; survives viewer disposal so
+        // BodySlide preset switches don't pay the parse/resolve cost twice.
+        builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
         builder.RegisterType<VM_CharacterViewer>().AsSelf();
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
