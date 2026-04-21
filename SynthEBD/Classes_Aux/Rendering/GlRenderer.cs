@@ -35,8 +35,9 @@ public class GlRenderer : IDisposable
     public Vector3 KeyVertexMarkerColor { get; set; } = new Vector3(1.0f, 0.38f, 0.15f);
 
     /// <summary>World-space radius of each marker sphere before ModelScale is
-    /// applied. ~1.1 Skyrim units reads clearly against a ~128-unit-tall body.</summary>
-    public float KeyVertexMarkerRadius { get; set; } = 1.1f;
+    /// applied. Small enough not to obscure neighbouring vertices on a dense
+    /// classifier mesh, while still readable at typical viewer zooms.</summary>
+    public float KeyVertexMarkerRadius { get; set; } = 0.275f;
 
     /// <summary>
     /// Line-segment overlays used by the BodyTypeProfile editor to visualize the
@@ -333,14 +334,24 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
+        var unit = GetUnitSphereMesh();
+        var scratch = _sphereScratch ??= new float[unit.Length];
         float worldRadius = KeyVertexMarkerRadius * ModelScale;
         for (int i = 0; i < KeyVertexMarkers.Count; i++)
         {
             var worldCenter = KeyVertexMarkers[i] * ModelScale;
-            var verts = BuildOctahedronMarkerMesh(worldCenter, worldRadius);
+            for (int v = 0; v < unit.Length; v += 6)
+            {
+                scratch[v + 0] = worldCenter.X + unit[v + 0] * worldRadius;
+                scratch[v + 1] = worldCenter.Y + unit[v + 1] * worldRadius;
+                scratch[v + 2] = worldCenter.Z + unit[v + 2] * worldRadius;
+                scratch[v + 3] = unit[v + 3];
+                scratch[v + 4] = unit[v + 4];
+                scratch[v + 5] = unit[v + 5];
+            }
             GL.BufferData(BufferTarget.ArrayBuffer,
-                verts.Length * sizeof(float), verts, BufferUsageHint.DynamicDraw);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, verts.Length / 6);
+                scratch.Length * sizeof(float), scratch, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, scratch.Length / 6);
         }
 
         _debugShader.SetFloat("u_shaded", 0f);
@@ -394,44 +405,73 @@ public class GlRenderer : IDisposable
         GL.BindVertexArray(0);
     }
 
+    /// <summary>Cached unit-sphere vertex data (pos.xyz + normal.xyz per vert;
+    /// for a unit sphere the position equals the normal). Built once from a
+    /// 2x-subdivided octahedron = 128 triangles.</summary>
+    private static float[]? _unitSphereMesh;
+
+    /// <summary>Reused per-marker scratch buffer for the scaled + translated
+    /// sphere mesh, to avoid per-frame allocation in the render loop.</summary>
+    private float[]? _sphereScratch;
+
     /// <summary>
-    /// Builds a centered unit octahedron scaled to <paramref name="radius"/>
-    /// as 8 CCW-from-outside triangles (144 floats = 8 tris * 3 verts * 6).
-    /// Per-vertex normals equal the outward unit direction so the debug
-    /// shader's Lambert term gives a convincing round-ish look.
+    /// Returns the cached unit-sphere vertex array (128 CCW-from-outside triangles,
+    /// 4608 floats = 128 * 3 * 6). Built lazily from a 2x-subdivided octahedron so
+    /// each vertex lies on the unit sphere and its outward normal equals its position.
     /// </summary>
-    private static float[] BuildOctahedronMarkerMesh(Vector3 center, float radius)
+    private static float[] GetUnitSphereMesh()
     {
-        var data = new float[144];
-        int w = 0;
+        if (_unitSphereMesh != null) return _unitSphereMesh;
 
         var top = new Vector3(0f,  1f, 0f);
         var bot = new Vector3(0f, -1f, 0f);
-        Span<Vector3> eq = stackalloc Vector3[4];
-        eq[0] = new Vector3( 1f, 0f,  0f);
-        eq[1] = new Vector3( 0f, 0f,  1f);
-        eq[2] = new Vector3(-1f, 0f,  0f);
-        eq[3] = new Vector3( 0f, 0f, -1f);
+        var xp  = new Vector3( 1f, 0f,  0f);
+        var xn  = new Vector3(-1f, 0f,  0f);
+        var zp  = new Vector3( 0f, 0f,  1f);
+        var zn  = new Vector3( 0f, 0f, -1f);
 
-        void AddVert(Vector3 dir)
+        // Seed octahedron: 8 triangles, wound CCW-from-outside so the Lambert
+        // term in the debug shader lights the outside surface.
+        var tris = new List<(Vector3 a, Vector3 b, Vector3 c)>(8)
         {
-            var pos = center + dir * radius;
-            data[w++] = pos.X; data[w++] = pos.Y; data[w++] = pos.Z;
-            data[w++] = dir.X; data[w++] = dir.Y; data[w++] = dir.Z;
+            (top, zp, xp), (top, xp, zn), (top, zn, xn), (top, xn, zp),
+            (bot, xp, zp), (bot, zn, xp), (bot, xn, zn), (bot, zp, xn),
+        };
+
+        // Two levels of midpoint subdivision: 8 -> 32 -> 128 triangles.
+        // Each new midpoint is re-normalized so it sits on the unit sphere.
+        for (int s = 0; s < 2; s++)
+        {
+            var next = new List<(Vector3, Vector3, Vector3)>(tris.Count * 4);
+            foreach (var (a, b, c) in tris)
+            {
+                var mab = Vector3.Normalize((a + b) * 0.5f);
+                var mbc = Vector3.Normalize((b + c) * 0.5f);
+                var mca = Vector3.Normalize((c + a) * 0.5f);
+                next.Add((a, mab, mca));
+                next.Add((mab, b, mbc));
+                next.Add((mca, mbc, c));
+                next.Add((mab, mbc, mca));
+            }
+            tris = next;
         }
 
-        for (int i = 0; i < 4; i++)
+        var data = new float[tris.Count * 3 * 6];
+        int w = 0;
+        foreach (var (a, b, c) in tris)
         {
-            var e0 = eq[i];
-            var e1 = eq[(i + 1) % 4];
-            // Top pyramid: wound (top, e1, e0) so the outward normal points
-            // up-and-out (see DrawKeyVertexMarkers comment for the derivation).
-            AddVert(top); AddVert(e1); AddVert(e0);
-            // Bottom pyramid: wound (bot, e0, e1) for outward-down-and-out.
-            AddVert(bot); AddVert(e0); AddVert(e1);
+            Write(data, ref w, a);
+            Write(data, ref w, b);
+            Write(data, ref w, c);
         }
-
+        _unitSphereMesh = data;
         return data;
+
+        static void Write(float[] buf, ref int w, Vector3 v)
+        {
+            buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
+            buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
+        }
     }
 
     /// <summary>
