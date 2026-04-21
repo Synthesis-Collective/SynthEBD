@@ -68,7 +68,7 @@ public class BodySlideGroupClassifierTests
 
         result.BodyType.Should().Be("CBBE");
         result.Gender.Should().Be(Gender.Female);
-        result.Reason.Should().Be("subset-match");
+        result.Reason.Should().Be("exact-match");
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class BodySlideGroupClassifierTests
         var result = classifier.Classify("Mystery", new[] { "AlienSlider" });
 
         result.BodyType.Should().Be("Unknown");
-        result.Reason.Should().Be("no-subset-match");
+        result.Reason.Should().Be("no-coverage-match");
         result.Gender.Should().Be(Gender.Female);
     }
 
@@ -136,7 +136,37 @@ public class BodySlideGroupClassifierTests
         var result = classifier.Classify("BellyPreset", new[] { "Waist", "Hips", "Belly" });
 
         result.BodyType.Should().Be("CBBE 3BA");
-        result.Reason.Should().Be("subset-match");
+        result.Reason.Should().Be("exact-match");
+    }
+
+    [Fact]
+    public void DriftPreset_ResolvesToClosestNearMatch()
+    {
+        // Simulates the Alera case: the preset uses 20 sliders (10 CBBE-common + 10 3BA-exclusive),
+        // but 3BA's reference OSD drops 1 legacy slider the preset still sets. 3BA coverage =
+        // 19/20 = 95 % (above 75 %), so it must still resolve to 3BA -- with a "closest-match" reason.
+        var cbbe = MakeEntry("CBBE", Gender.Female, installed: true,
+            "Waist", "Hips", "Breast", "Butt", "Thighs", "Calves", "Arms", "Shoulders", "Neck", "AreolaSize");
+        var threeBa = MakeEntry("CBBE 3BA", Gender.Female, installed: true,
+            "Waist", "Hips", "Breast", "Butt", "Thighs", "Calves", "Arms", "Shoulders", "Neck",
+            // no AreolaSize -- drift slider
+            "BellyBig", "BreastCollision", "NippleErect", "BreastSide", "ButtUnderFold",
+            "ThighCurves", "Pushup", "3BA_Underbust", "3BA_Ribcage", "3BA_Sternum");
+        var classifier = new BodySlideGroupClassifier();
+        classifier.SetRegistry(new List<BodyTypeRegistryEntry> { cbbe, threeBa });
+
+        // Preset: 10 CBBE-common + 10 3BA-exclusive. 3BA misses only "AreolaSize".
+        // CBBE coverage = 10/20 = 50 % -- below threshold, dropped.
+        var presetSliders = new[]
+        {
+            "Waist", "Hips", "Breast", "Butt", "Thighs", "Calves", "Arms", "Shoulders", "Neck", "AreolaSize",
+            "BellyBig", "BreastCollision", "NippleErect", "BreastSide", "ButtUnderFold",
+            "ThighCurves", "Pushup", "3BA_Underbust", "3BA_Ribcage", "3BA_Sternum",
+        };
+        var result = classifier.Classify("Alera-like", presetSliders);
+
+        result.BodyType.Should().Be("CBBE 3BA");
+        result.Reason.Should().Be("closest-match-1-drift");
     }
 
     [Fact]

@@ -103,7 +103,9 @@
                            ToolTip="BodyTypeRegistry entry whose Name matches this preset's Slider Group (by gender). Used for Body Type Profile matching; mismatch means this preset won't be classified by any profile."
                            ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Registry Body Type</TextBlock>
                 <TextBlock Grid.Row="4" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" VerticalAlignment="Center"
-                           Text="{Binding MatchedRegistryBodyType}" Foreground="{Binding MatchedRegistryBrush}"/>
+                           Text="{Binding MatchedRegistryBodyType}" Foreground="{Binding MatchedRegistryBrush}"
+                           ToolTip="{Binding MatchedRegistryTooltip}"
+                           ToolTipService.IsEnabled="{Binding MatchedRegistryTooltipEnabled}"/>
 
                 <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="More information about this preset (not used by patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
                 <TextBox Grid.Row="5" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Notes, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>

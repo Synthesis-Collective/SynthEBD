@@ -136,5 +136,21 @@
     ],
     "SupersetOfBodyType": "",
     "IsUserDefined": false
+  },
+  {
+    "Name": "UBE",
+    "Gender": "Female",
+    "IdentityFingerprints": [
+      "UBE_AllRace.esp",
+      "UBE_RaceMenuMorphs.esp",
+      "CalienteTools/BodySlide/SliderCategories/1ube.xml",
+      "CalienteTools/BodySlide/SliderGroups/UBE.xml",
+      "CalienteTools/BodySlide/SliderSets/UBE SE 2.0 Release Body.osp"
+    ],
+    "ShapeDataFolders": [
+      "UBE SE 2.0 Release Body/UBE SE 2.0 Release Body.osd"
+    ],
+    "SupersetOfBodyType": "",
+    "IsUserDefined": false
   }
 ]

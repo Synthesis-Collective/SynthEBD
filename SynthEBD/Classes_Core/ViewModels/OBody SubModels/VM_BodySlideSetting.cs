@@ -284,6 +284,8 @@ public class VM_BodySlideSetting : VM
     public string SliderGroup { get; set; } = "";
     public string MatchedRegistryBodyType { get; private set; } = "";
     public Brush MatchedRegistryBrush { get; private set; } = Brushes.OrangeRed;
+    public string MatchedRegistryTooltip { get; private set; } = "";
+    public bool MatchedRegistryTooltipEnabled { get; private set; } = false;
     public string Notes { get; set; } = "";
 
     private void RefreshMatchedRegistryBodyType()
@@ -293,6 +295,8 @@ public class VM_BodySlideSetting : VM
         {
             MatchedRegistryBodyType = "(no match)";
             MatchedRegistryBrush = Brushes.OrangeRed;
+            MatchedRegistryTooltip = "";
+            MatchedRegistryTooltipEnabled = false;
             return;
         }
 
@@ -303,8 +307,11 @@ public class VM_BodySlideSetting : VM
             e.Gender == gender);
         if (exact != null)
         {
-            MatchedRegistryBodyType = exact.Name;
-            MatchedRegistryBrush = Brushes.LightGreen;
+            int drift = ComputeDrift(exact, out var presetOnly, out var bodyOnly);
+            MatchedRegistryBodyType = drift > 0 ? $"{exact.Name} ({drift} slider drift)" : exact.Name;
+            MatchedRegistryBrush = drift > 2 ? Brushes.Goldenrod : Brushes.LightGreen;
+            MatchedRegistryTooltip = drift > 0 ? BuildDriftTooltip(exact.Name, presetOnly, bodyOnly) : "";
+            MatchedRegistryTooltipEnabled = drift > 0;
             return;
         }
 
@@ -315,11 +322,76 @@ public class VM_BodySlideSetting : VM
         {
             MatchedRegistryBodyType = $"{crossGender.Name} (gender mismatch: {crossGender.Gender})";
             MatchedRegistryBrush = Brushes.Goldenrod;
+            MatchedRegistryTooltip = "";
+            MatchedRegistryTooltipEnabled = false;
             return;
         }
 
         MatchedRegistryBodyType = "(no match)";
         MatchedRegistryBrush = Brushes.OrangeRed;
+        MatchedRegistryTooltip = "";
+        MatchedRegistryTooltipEnabled = false;
+    }
+
+    /// <summary>
+    /// Count preset sliders absent from the matched entry's resolved catalog (the "drift" metric
+    /// shown in the UI) and also collect body-side sliders the preset never sets, so the tooltip
+    /// can show both directions of mismatch. Drift > 0 typically means a derived body's reference
+    /// OSD dropped legacy sliders that presets still set (e.g. CBBE 3BA drops AreolaSize, yet
+    /// Alera-style 3BA presets use it).
+    /// </summary>
+    private int ComputeDrift(BodyTypeRegistryEntry entry, out List<string> presetOnly, out List<string> bodyOnly)
+    {
+        presetOnly = new List<string>();
+        bodyOnly = new List<string>();
+        if (entry?.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) return 0;
+        var presetSliders = AssociatedPlaceHolder?.AssociatedModel?.SliderValues;
+        if (presetSliders == null || presetSliders.Count == 0) return 0;
+
+        foreach (var sliderName in presetSliders.Keys)
+        {
+            if (string.IsNullOrEmpty(sliderName)) continue;
+            if (!entry.ResolvedSliders.Contains(sliderName)) presetOnly.Add(sliderName);
+        }
+        foreach (var registryName in entry.ResolvedSliders)
+        {
+            if (string.IsNullOrEmpty(registryName)) continue;
+            if (!presetSliders.ContainsKey(registryName)) bodyOnly.Add(registryName);
+        }
+
+        presetOnly.Sort(StringComparer.OrdinalIgnoreCase);
+        bodyOnly.Sort(StringComparer.OrdinalIgnoreCase);
+        return presetOnly.Count;
+    }
+
+    /// <summary>
+    /// Build the tooltip listing mismatched sliders, grouped by direction. Preset-only sliders
+    /// (the ones contributing to the drift count) come first; body-only sliders (catalog entries
+    /// the preset never sets) follow, truncated at 30 lines to keep the tooltip manageable for
+    /// large catalogs where a preset only exercises a fraction of the body's sliders.
+    /// </summary>
+    private static string BuildDriftTooltip(string bodyName, List<string> presetOnly, List<string> bodyOnly)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("In preset, not in ").Append(bodyName).Append(" reference (")
+          .Append(presetOnly.Count).AppendLine("):");
+        foreach (var s in presetOnly) sb.Append("  → ").AppendLine(s);
+
+        const int bodyOnlyCap = 30;
+        if (bodyOnly.Count > 0)
+        {
+            sb.AppendLine();
+            sb.Append("In ").Append(bodyName).Append(" reference, not set by preset (")
+              .Append(bodyOnly.Count).AppendLine("):");
+            int shown = Math.Min(bodyOnly.Count, bodyOnlyCap);
+            for (int i = 0; i < shown; i++) sb.Append("  ← ").AppendLine(bodyOnly[i]);
+            if (bodyOnly.Count > bodyOnlyCap)
+            {
+                sb.Append("  … and ").Append(bodyOnly.Count - bodyOnlyCap).AppendLine(" more");
+            }
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     /// <summary>Per-weight descriptor selection menus, sorted by weight ascending.</summary>

@@ -159,6 +159,15 @@ public class BodyTypeSliderExtractor
     /// name only (e.g. `AreolaSize`). To make subset matching work, we compute the longest
     /// common prefix across all slider names in a single OSD file -- that prefix is the shape
     /// tag -- and strip it before adding to the catalog.
+    ///
+    /// Single-shape OSDs collapse to `LCP = &lt;shape&gt;`, so one strip yields the canonical
+    /// name. Merged-shape OSDs that concatenate two or more shape tags in the same file
+    /// (e.g. HIMBO's reference OSDs contain both `HIMBO - Body&lt;slider&gt;` and
+    /// `HIMBO - Boxers&lt;slider&gt;`) defeat that: the global LCP only covers the shared head
+    /// (`HIMBO - Bo`), leaving shape-specific lowercase tails (`dy`, `xers`) glued to the
+    /// canonical names. BodySlide canonical slider names are PascalCase, so we recognize the
+    /// merged-shape case by a lowercase-leading post-LCP name and recover the canonical
+    /// suffix by dropping the leading lowercase run.
     /// </summary>
     private void AddNormalizedSliders(BodyTypeRegistryEntry entry, OsdFile osd)
     {
@@ -179,19 +188,43 @@ public class BodyTypeSliderExtractor
         foreach (var n in rawNames) if (n.Length < minLen) minLen = n.Length;
         if (lcp.Length >= minLen) lcp = "";
 
-#if CATALOG_VERBOSE_LOGGING
-        var rawSample = string.Join(", ", rawNames.Take(3));
-        _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' OSD '{osd.ShapeName}' LCP='{lcp}' raw sample: {rawSample}");
-#endif
-
+        // Stage 1: strip the OSD-wide LCP.
+        var afterLcp = new List<string>(rawNames.Count);
         foreach (var name in rawNames)
         {
-            var unprefixed = lcp.Length > 0 && name.StartsWith(lcp, StringComparison.Ordinal)
+            var s = lcp.Length > 0 && name.StartsWith(lcp, StringComparison.Ordinal)
                 ? name.Substring(lcp.Length)
                 : name;
-            if (!string.IsNullOrWhiteSpace(unprefixed))
+            afterLcp.Add(s);
+        }
+
+        // Stage 2: detect merged-shape OSD. Canonical slider names are PascalCase, so a
+        // leftover lowercase head on any stripped name means the LCP truncated partway
+        // through a shape tag because a second shape forced early divergence.
+        bool multiShape = false;
+        foreach (var s in afterLcp)
+        {
+            if (s.Length > 0 && char.IsLower(s[0])) { multiShape = true; break; }
+        }
+
+#if CATALOG_VERBOSE_LOGGING
+        var rawSample = string.Join(", ", rawNames.Take(3));
+        string mode = multiShape ? "multi-shape" : "single-shape";
+        _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' OSD '{osd.ShapeName}' ({mode}) LCP='{lcp}' raw sample: {rawSample}");
+#endif
+
+        foreach (var s in afterLcp)
+        {
+            var canonical = s;
+            if (multiShape)
             {
-                entry.ResolvedSliders.Add(unprefixed);
+                int i = 0;
+                while (i < canonical.Length && char.IsLower(canonical[i])) i++;
+                if (i > 0) canonical = canonical.Substring(i);
+            }
+            if (!string.IsNullOrWhiteSpace(canonical))
+            {
+                entry.ResolvedSliders.Add(canonical);
             }
         }
     }
