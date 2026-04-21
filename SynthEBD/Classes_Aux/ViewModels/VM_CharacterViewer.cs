@@ -299,6 +299,11 @@ public class VM_CharacterViewer : VM
     /// pick-info panel. Empty when no picks in the current session.</summary>
     public string LastPickSummary { get; set; } = "";
 
+    /// <summary>Axis selection for <see cref="ProjectLastPickAcrossAxis"/>: 0=X, 1=Y, 2=Z.
+    /// Bound to the "Axis" ComboBox in the classifier toolbar; defaults to Z (the most
+    /// common use case — pairing front/back midline anchors like NippleFront → UpperSpineBack).</summary>
+    public int ProjectAcrossAxisIndex { get; set; } = 2;
+
     /// <summary>Bound to the pick-info panel's ItemsControl. One row per pick in
     /// the current session, in pick order. Cleared by <see cref="ClearKeyVertexMarkers"/>.</summary>
     public ObservableCollection<PickRow> Picks { get; } = new();
@@ -1205,6 +1210,77 @@ public class VM_CharacterViewer : VM
 
         LogVerbose("CharacterViewer: SelectMirrorPicks added " + added
             + " mirror pick(s) from " + sourcePicks.Length + " source(s).");
+    }
+
+    /// <summary>
+    /// Starts from the most recent key-vertex pick, casts a ray along the selected axis
+    /// (<see cref="ProjectAcrossAxisIndex"/>) through the body, and adds a new pick marker
+    /// at the vertex closest to where the ray exits the opposite-side surface. Intended for
+    /// pairing midline anchors like NippleFront_L ↔ UpperSpineBack or NavelFront ↔
+    /// MidSpineBack without having to eyeball a matching cross-axis coordinate.
+    ///
+    /// The method casts in both +axis and -axis polarities (offsetting the origin a hair
+    /// along the ray so the source's own surface triangles aren't flagged as self-hits),
+    /// then keeps the farther hit — whichever direction genuinely points inward through
+    /// the body. Fires the same pick events as a manual click so the BodyTypeProfile
+    /// editor picks up the new vertex.
+    /// </summary>
+    public void ProjectLastPickAcrossAxis()
+    {
+        if (_keyVertexPicks.Count == 0)
+        {
+            LogVerbose("CharacterViewer: ProjectLastPickAcrossAxis — no source pick.");
+            return;
+        }
+
+        var src = _keyVertexPicks[^1];
+        if (src.Mesh == null || src.Mesh.CpuPositions == null || src.Mesh.CpuIndices == null)
+            return;
+
+        if (!TryGetCurrentVertex(src.Mesh.ShapeName, src.VertexIndex, out var originPos))
+            return;
+
+        // Offset the origin a small amount along the ray so the start-surface triangles
+        // aren't picked up as near-zero-distance self hits (the inner epsilon in
+        // RayIntersectsMeshPickVertex is 1e-6 which is tight for floating-point edges).
+        const float originOffset = 0.01f;
+
+        float bestDist = -1f;
+        int bestVertexIndex = -1;
+        OpenTK.Mathematics.Vector3 bestLocal = default;
+
+        for (int sign = +1; sign >= -1; sign -= 2)
+        {
+            var dir = AxisUnit(ProjectAcrossAxisIndex, sign);
+            var origin = originPos + dir * originOffset;
+            if (RayIntersectsMeshPickVertex(origin, dir, src.Mesh,
+                    out float t, out int vi, out var local)
+                && vi != src.VertexIndex
+                && t > bestDist)
+            {
+                bestDist = t;
+                bestVertexIndex = vi;
+                bestLocal = local;
+            }
+        }
+
+        if (bestVertexIndex < 0)
+        {
+            LogVerbose("CharacterViewer: ProjectLastPickAcrossAxis — no opposite-surface hit.");
+            return;
+        }
+
+        NotifyKeyVertexPicked(new KeyVertexPick(src.Mesh, bestVertexIndex, bestLocal));
+    }
+
+    private static OpenTK.Mathematics.Vector3 AxisUnit(int axisIndex, float sign)
+    {
+        return axisIndex switch
+        {
+            0 => new OpenTK.Mathematics.Vector3(sign, 0f, 0f),
+            1 => new OpenTK.Mathematics.Vector3(0f, sign, 0f),
+            _ => new OpenTK.Mathematics.Vector3(0f, 0f, sign),
+        };
     }
 
     /// <summary>

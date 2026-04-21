@@ -160,6 +160,24 @@
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                         ToolTip="For each current pick marker, adds the vertex closest to its X-mirror on the same mesh. Use to fill in bilaterally symmetric counterparts after picking one side."/>
 
+                <TextBlock Text="Axis:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,3,0"
+                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>
+                <ComboBox Width="42" FontSize="10" VerticalAlignment="Center"
+                          SelectedIndex="{Binding ProjectAcrossAxisIndex}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Axis used by 'Pair Across Axis': X = left-right, Y = up-down, Z = front-back.">
+                    <ComboBoxItem Content="X"/>
+                    <ComboBoxItem Content="Y"/>
+                    <ComboBoxItem Content="Z"/>
+                </ComboBox>
+
+                <Button Content="Pair Across Axis" FontSize="10" Margin="4,0,0,0"
+                        Padding="6 1" VerticalAlignment="Center"
+                        Click="PairAcrossAxisButton_Click"
+                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                        ToolTip="From the most recent pick, casts a ray through the body along the selected axis and adds a marker at the vertex nearest the opposite-surface exit. Use to pair midline anchors (e.g., NippleFront → UpperSpineBack) at a matching cross-axis coordinate."/>
+
                 <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="ClearKeyVertexMarkersButton_Click"

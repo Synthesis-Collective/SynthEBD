@@ -412,6 +412,12 @@ public partial class UC_CharacterViewer : UserControl
         _vm?.SelectMirrorPicks();
     }
 
+    private void PairAcrossAxisButton_Click(object sender, RoutedEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.ProjectLastPickAcrossAxis();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  HOVER TOOLTIP — MESH & TEXTURE SOURCE PATHS
     // ═══════════════════════════════════════════════════════════════════════
