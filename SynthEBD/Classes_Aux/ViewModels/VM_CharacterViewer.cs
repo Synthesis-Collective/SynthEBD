@@ -46,6 +46,7 @@ public class VM_CharacterViewer : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
+    private readonly CharacterViewerLogGate _logGate;
 
     private CancellationTokenSource? _loadCts;
 
@@ -147,9 +148,11 @@ public class VM_CharacterViewer : VM
         PatcherState patcherState,
         VM_Settings_General generalSettings,
         FaceGenPreviewService faceGenPreviewService,
+        CharacterViewerLogGate logGate,
         Logger logger)
     {
-        _meshBuilder = new NifMeshBuilder(logger);
+        _logGate = logGate;
+        _meshBuilder = new NifMeshBuilder(logger, logGate);
         _npcMeshResolver = npcMeshResolver;
         _bodySlideDeformer = bodySlideDeformer;
         _bsdFileParser = bsdFileParser;
@@ -160,6 +163,11 @@ public class VM_CharacterViewer : VM
         _generalSettings = generalSettings;
         _faceGenPreviewService = faceGenPreviewService;
         _logger = logger;
+
+        // Push VerboseLog -> shared gate so helper classes (BsdFileParser, GameAssetResolver,
+        // NpcMeshResolver, BodySlideDeformer, NifMeshBuilder) can consult the same flag.
+        _logGate.Verbose = VerboseLog;
+        this.WhenAnyValue(x => x.VerboseLog).Subscribe(v => _logGate.Verbose = v);
 
         // Load persisted lighting state *before* XAML binds. If we defer this to
         // InitializeGl (which runs from the first GL render callback), the
@@ -261,6 +269,22 @@ public class VM_CharacterViewer : VM
     /// and flipped on only when the viewer is embedded inside the OBody Body
     /// Type Profiles editor, where key-vertex assignment is the whole point.</summary>
     public bool ShowClassifierControls { get; set; } = false;
+
+    /// <summary>
+    /// Gates the viewer's informational log output. Errors (<c>LogError</c>) are never gated --
+    /// only the noisy per-frame / per-load diagnostics flowing through <see cref="LogVerbose"/>.
+    /// Off by default so selecting a preset doesn't bury the classifier's diagnostic log in
+    /// viewer chatter. Toggle from the viewer toolbar when debugging mesh/NPC/lighting issues.
+    /// </summary>
+    public bool VerboseLog { get; set; } = false;
+
+    /// <summary>Routes an informational line to <see cref="_logger"/> only when
+    /// <see cref="VerboseLog"/> is on. Keeps error paths (which call <c>_logger.LogError</c>
+    /// directly) visible at all times.</summary>
+    private void LogVerbose(string message)
+    {
+        if (VerboseLog) _logger?.LogMessage(message);
+    }
 
     /// <summary>0 = none, 1 = key, 2 = fill, 3 = rim. Set when the user clicks
     /// an arrow in the 3D view (or from the UI). Controls which light the
@@ -628,7 +652,7 @@ public class VM_CharacterViewer : VM
 
     public void LogLightingSettings()
     {
-        _logger.LogMessage($"CharacterViewer: LIGHTING — Layout='{SelectedLightingLayout?.Name}', " +
+        LogVerbose($"CharacterViewer: LIGHTING — Layout='{SelectedLightingLayout?.Name}', " +
             $"Colors='{SelectedLightingColorScheme?.Name}', Ambient={AmbientIntensity:F0}%, " +
             $"Key={KeyLightIntensity:F0}%@({KeyLightAzimuth:F0}°,{KeyLightElevation:F0}°), " +
             $"Fill={FillLightIntensity:F0}%@({FillLightAzimuth:F0}°,{FillLightElevation:F0}°), " +
@@ -961,7 +985,7 @@ public class VM_CharacterViewer : VM
         // Parallel bookkeeping so SelectMirrorPicks can resolve each marker back
         // to its (mesh, vertexIndex) without having to guess from position alone.
         _keyVertexPicks.Add(pick);
-        _logger.LogMessage(
+        LogVerbose(
             "CharacterViewer: picked vertex #" + pick.VertexIndex
             + " on '" + pick.Mesh.ShapeName + "'"
             + " at (" + pick.LocalPos.X.ToString("F2") + ", "
@@ -1039,7 +1063,7 @@ public class VM_CharacterViewer : VM
         var sourcePicks = _keyVertexPicks.ToArray();
         if (sourcePicks.Length == 0)
         {
-            _logger.LogMessage("CharacterViewer: SelectMirrorPicks — no source picks; nothing to do.");
+            LogVerbose("CharacterViewer: SelectMirrorPicks — no source picks; nothing to do.");
             return;
         }
 
@@ -1084,7 +1108,7 @@ public class VM_CharacterViewer : VM
             added++;
         }
 
-        _logger.LogMessage("CharacterViewer: SelectMirrorPicks added " + added
+        LogVerbose("CharacterViewer: SelectMirrorPicks added " + added
             + " mirror pick(s) from " + sourcePicks.Length + " source(s).");
     }
 
@@ -1132,7 +1156,7 @@ public class VM_CharacterViewer : VM
 
         IsGlInitialized = true;
 
-        _logger.LogMessage("CharacterViewer: GL initialized");
+        LogVerbose("CharacterViewer: GL initialized");
     }
 
     /// <summary>
@@ -1230,7 +1254,7 @@ public class VM_CharacterViewer : VM
             : "No renderable shapes found for NPC";
         IsLoading = false;
 
-        _logger.LogMessage($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
+        LogVerbose($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
             $"{Renderer.Meshes.Count} GL meshes");
 
         // Record the identity of the scene we just committed so LoadNpcAsync
@@ -1288,7 +1312,7 @@ public class VM_CharacterViewer : VM
             && overrideHeadMeshAbsolutePath == null
             && _currentHeadMeshOverride == null)
         {
-            _logger.LogMessage("CharacterViewer: LoadNpcAsync same-NPC short-circuit (" +
+            LogVerbose("CharacterViewer: LoadNpcAsync same-NPC short-circuit (" +
                 npcFormKey + ")");
             return;
         }
@@ -1311,7 +1335,7 @@ public class VM_CharacterViewer : VM
             if (linkCache.TryResolve<Mutagen.Bethesda.Skyrim.INpcGetter>(npcFormKey, out var npcGetter))
             {
                 NpcWeight = Math.Clamp((int)npcGetter.Weight, 0, 100);
-                _logger.LogMessage("CharacterViewer: NPC weight = " + NpcWeight +
+                LogVerbose("CharacterViewer: NPC weight = " + NpcWeight +
                     " (raw " + npcGetter.Weight.ToString("F2") + ")");
 
                 // NPC.Height is a full-model uniform scale multiplier (1.0 default).
@@ -1319,7 +1343,7 @@ public class VM_CharacterViewer : VM
                 // a collapsed or mirrored render.
                 float recordHeight = npcGetter.Height;
                 NpcBaseHeight = (float.IsFinite(recordHeight) && recordHeight > 0f) ? recordHeight : 1.0f;
-                _logger.LogMessage("CharacterViewer: NPC height = " + NpcBaseHeight.ToString("F3") +
+                LogVerbose("CharacterViewer: NPC height = " + NpcBaseHeight.ToString("F3") +
                     " (raw " + recordHeight.ToString("F3") + ")");
 
                 // Resolve the NPC's HairColor FormLink (HCLR record) — in-game, this
@@ -1329,7 +1353,7 @@ public class VM_CharacterViewer : VM
                 // uses only the NIF's baked tint).
                 if (npcGetter.HairColor.IsNull)
                 {
-                    _logger.LogMessage("CharacterViewer: NPC.HairColor FormLink is null — " +
+                    LogVerbose("CharacterViewer: NPC.HairColor FormLink is null — " +
                         "no HCLR override available; viewer will use NIF's baked BSLSP tint.");
                 }
                 else
@@ -1341,7 +1365,7 @@ public class VM_CharacterViewer : VM
                         float r = c.R / 255f, g = c.G / 255f, b = c.B / 255f;
                         _npcHairColorFromRecord = (r, g, b);
                         string hex = "#" + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
-                        _logger.LogMessage("CharacterViewer: NPC.HairColor HCLR=" +
+                        LogVerbose("CharacterViewer: NPC.HairColor HCLR=" +
                             npcGetter.HairColor.FormKey.ToString() +
                             " name='" + (hclr.Name?.String ?? "?") + "'" +
                             " RGB=(" + c.R + "," + c.G + "," + c.B + ")" +
@@ -1350,7 +1374,7 @@ public class VM_CharacterViewer : VM
                     }
                     else
                     {
-                        _logger.LogMessage("CharacterViewer: NPC.HairColor FormLink " +
+                        LogVerbose("CharacterViewer: NPC.HairColor FormLink " +
                             npcGetter.HairColor.FormKey.ToString() + " failed to resolve.");
                     }
                 }
@@ -1370,7 +1394,7 @@ public class VM_CharacterViewer : VM
             if (!string.IsNullOrWhiteSpace(overrideHeadMeshAbsolutePath))
             {
                 meshPaths = meshPaths.WithHeadMeshPath(overrideHeadMeshAbsolutePath);
-                _logger.LogMessage("CharacterViewer: head mesh path overridden -> " + overrideHeadMeshAbsolutePath);
+                LogVerbose("CharacterViewer: head mesh path overridden -> " + overrideHeadMeshAbsolutePath);
             }
 
             _cachedMeshPaths = meshPaths;
@@ -1395,7 +1419,7 @@ public class VM_CharacterViewer : VM
         }
         catch (OperationCanceledException)
         {
-            _logger.LogMessage("CharacterViewer: NPC load cancelled");
+            LogVerbose("CharacterViewer: NPC load cancelled");
             // If a newer load took over, _loadCts != cts and that newer load owns
             // the flag. Only clear the flag if we're still the current (unreplaced)
             // load — meaning cancellation came from outside, not from a new load.
@@ -1447,7 +1471,7 @@ public class VM_CharacterViewer : VM
                 glMesh.HasGreyscaleToPalette = true;
                 glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
                 RecordTextureSource(glMesh, "Diffuse (hair tint, greyscale-to-palette)", hairDiffuse);
-                _logger.LogMessage("CharacterViewer: Hair tint (greyscale-to-palette): " +
+                LogVerbose("CharacterViewer: Hair tint (greyscale-to-palette): " +
                     "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
                     " scale=" + built.GreyscaleToPaletteScale.ToString("F2") +
                     " -> baseColor.rrr * tint * scale" +
@@ -1457,7 +1481,7 @@ public class VM_CharacterViewer : VM
             {
                 glMesh.HasTintColor = true;
                 RecordTextureSource(glMesh, "Diffuse (hair tint, RGB multiply)", hairDiffuse);
-                _logger.LogMessage("CharacterViewer: Hair tint (simple RGB multiply): " +
+                LogVerbose("CharacterViewer: Hair tint (simple RGB multiply): " +
                     "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
                     " -> baseColor.rgb *= tint" +
                     " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
@@ -1636,7 +1660,7 @@ public class VM_CharacterViewer : VM
         // to meshes that are about to be destroyed.
         if (_meshesByBodyPart.Count == 0 || TextureManager == null || _sceneRebuildPending)
         {
-            _logger.LogMessage("CharacterViewer: ApplyTextureOverrides queuing " + overrideList.Count +
+            LogVerbose("CharacterViewer: ApplyTextureOverrides queuing " + overrideList.Count +
                 " override(s); meshes=" + _meshesByBodyPart.Count +
                 ", texMgr=" + (TextureManager != null) +
                 ", rebuildPending=" + _sceneRebuildPending);
@@ -1644,7 +1668,7 @@ public class VM_CharacterViewer : VM
             return;
         }
 
-        _logger.LogMessage("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
+        LogVerbose("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
             " override(s); tracked body parts: [" + string.Join(", ", _meshesByBodyPart.Keys) + "]");
 
         foreach (var replacement in overrideList)
@@ -1657,7 +1681,7 @@ public class VM_CharacterViewer : VM
             int? slot = ParseTextureSlot(dest);
             if (bodyPart == null || slot == null)
             {
-                _logger.LogMessage("CharacterViewer: Override unparseable — dest='" + dest + "'");
+                LogVerbose("CharacterViewer: Override unparseable — dest='" + dest + "'");
                 continue;
             }
 
@@ -1672,7 +1696,7 @@ public class VM_CharacterViewer : VM
             {
                 if (!_meshesByBodyPart.TryGetValue(bodyPart, out var headMesh))
                 {
-                    _logger.LogMessage("CharacterViewer: No Head mesh tracked for override — dest='" + dest + "'");
+                    LogVerbose("CharacterViewer: No Head mesh tracked for override — dest='" + dest + "'");
                     continue;
                 }
                 targets = new List<GlMesh> { headMesh };
@@ -1682,7 +1706,7 @@ public class VM_CharacterViewer : VM
                 targets = Renderer.Meshes.Where(m => m.BodyPart == bodyPart).ToList();
                 if (targets.Count == 0)
                 {
-                    _logger.LogMessage("CharacterViewer: No meshes with BodyPart='" + bodyPart +
+                    LogVerbose("CharacterViewer: No meshes with BodyPart='" + bodyPart +
                         "' (slot " + slot + ") — dest='" + dest + "'");
                     continue;
                 }
@@ -1719,7 +1743,7 @@ public class VM_CharacterViewer : VM
                 }
             }
 
-            _logger.LogMessage("CharacterViewer: Slot " + slot + " override '" + replacement.Source +
+            LogVerbose("CharacterViewer: Slot " + slot + " override '" + replacement.Source +
                 "' → " + bodyPart + " (" + targets.Count + " shape(s))");
         }
     }
@@ -1762,7 +1786,7 @@ public class VM_CharacterViewer : VM
         if (_bodySlideDisabled)
         {
             NpcWeight = Math.Clamp(weight, 0, 100);
-            _logger.LogMessage("CharacterViewer: [BodySlideDisabled] ApplyBodySlide bypassed" +
+            LogVerbose("CharacterViewer: [BodySlideDisabled] ApplyBodySlide bypassed" +
                 " (preset='" + (preset?.Label ?? "?") + "', weight=" + NpcWeight + ")");
             return;
         }
@@ -1883,7 +1907,7 @@ public class VM_CharacterViewer : VM
 
         if (errors.Count > 0)
         {
-            _logger.LogMessage("CharacterViewer.ApplyBodyGen parse warnings: " + string.Join("; ", errors));
+            LogVerbose("CharacterViewer.ApplyBodyGen parse warnings: " + string.Join("; ", errors));
         }
 
         if (merged.SliderValues.Count == 0) return;
@@ -1984,7 +2008,7 @@ public class VM_CharacterViewer : VM
 
         if (meshes.Count == 0)
         {
-            _logger.LogMessage("CharacterViewer.RebuildHeadOnlyAsync: no renderable shapes in " + headNifPath);
+            LogVerbose("CharacterViewer.RebuildHeadOnlyAsync: no renderable shapes in " + headNifPath);
             return;
         }
 
@@ -2063,7 +2087,7 @@ public class VM_CharacterViewer : VM
         // override so other inspection / future logic can read it.
         _currentHeadMeshOverride = headNifPath;
 
-        _logger.LogMessage("CharacterViewer: Head-only rebuild complete — " +
+        LogVerbose("CharacterViewer: Head-only rebuild complete — " +
             meshes.Count + " shape(s) from " + System.IO.Path.GetFileName(headNifPath));
     }
 
@@ -2208,13 +2232,13 @@ public class VM_CharacterViewer : VM
                         }
                         else
                         {
-                            _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart +
+                            LogVerbose("CharacterViewer: [WeightMorph] '" + bodyPart +
                                 "' weight-0 '" + weight0Path + "' not found — using _1.nif unmorphed");
                         }
                     }
                     else
                     {
-                        _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart +
+                        LogVerbose("CharacterViewer: [WeightMorph] '" + bodyPart +
                             "' path '" + gamePath + "' does not end in _1.nif — skipping weight morph");
                     }
                 }
@@ -2336,7 +2360,7 @@ public class VM_CharacterViewer : VM
         string? triPath = ProbeSiblingTriPath(_cachedBodyNifDiskPath);
         if (triPath == null)
         {
-            _logger.LogMessage("CharacterViewer: No sibling .tri found for '" + _cachedBodyNifDiskPath +
+            LogVerbose("CharacterViewer: No sibling .tri found for '" + _cachedBodyNifDiskPath +
                 "' -- falling back to OSD path (chopping bug possible if topology mismatches reference).");
             _cachedBodyNifDiskPath = null; // don't re-probe
             BodyTriMissing = true;
@@ -2346,7 +2370,7 @@ public class VM_CharacterViewer : VM
         _cachedBodyTri = _bodyTriFileParser.Parse(triPath);
         if (_cachedBodyTri == null)
         {
-            _logger.LogMessage("CharacterViewer: Sibling .tri at '" + triPath +
+            LogVerbose("CharacterViewer: Sibling .tri at '" + triPath +
                 "' failed to parse -- falling back to OSD path.");
             _cachedBodyNifDiskPath = null;
             return;
@@ -2355,7 +2379,7 @@ public class VM_CharacterViewer : VM
         BodyTriMissing = false;
         int totalMorphs = 0;
         foreach (var shape in _cachedBodyTri.Shapes) totalMorphs += shape.Morphs.Count;
-        _logger.LogMessage("CharacterViewer: Using sibling .tri '" + triPath + "' (" +
+        LogVerbose("CharacterViewer: Using sibling .tri '" + triPath + "' (" +
             _cachedBodyTri.Shapes.Count + " shape(s), " + totalMorphs + " total morph(s))");
     }
 
@@ -2502,13 +2526,13 @@ public class VM_CharacterViewer : VM
             var m0 = meshes0.FirstOrDefault(m => m.ShapeName == m1.ShapeName);
             if (m0 == null)
             {
-                _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+                LogVerbose("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
                     m1.ShapeName + "' has no match in weight-0 NIF — skipping");
                 continue;
             }
             if (m0.Positions.Length != m1.Positions.Length)
             {
-                _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+                LogVerbose("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
                     m1.ShapeName + "' vertex count mismatch (_0=" + m0.Positions.Length +
                     ", _1=" + m1.Positions.Length + ") — skipping");
                 continue;
@@ -2534,7 +2558,7 @@ public class VM_CharacterViewer : VM
                 BlendAndRenormalize(m0.BindPoseNormals, m1.BindPoseNormals, t, n);
             }
 
-            _logger.LogMessage("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
+            LogVerbose("CharacterViewer: [WeightMorph] '" + bodyPart + "' shape '" +
                 m1.ShapeName + "' blended " + n + " verts at t=" + t.ToString("F2"));
         }
     }

@@ -28,11 +28,12 @@ public class VM_BodySlideSetting : VM
     private readonly VM_BodySlideSetting.Factory _selfFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     private readonly PatcherState _patcherState;
+    private readonly BodySlideGroupClassifier _classifier;
 
     private readonly Logger _logger;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -48,6 +49,7 @@ public class VM_BodySlideSetting : VM
         _placeHolderFactory = placeHolderFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _patcherState = patcherState;
+        _classifier = classifier;
         _logger = logger;
 
         CharacterViewer = characterViewerFactory();
@@ -738,6 +740,50 @@ public class VM_BodySlideSetting : VM
         foreach (var slider in model.SliderValues.Values)
         {
             SliderValues.Add(slider.SliderName + " [Small: " + slider.Small + "] | [Big: " + slider.Big + "]");
+        }
+
+        // If the preset didn't classify at load time (SliderGroup empty or "Unknown"), retry now
+        // with verbose trace logging so the user can see exactly why each registry entry was
+        // dropped. Only writes back when the retry actually picks a body type -- a second miss
+        // just produces the diagnostic log and leaves the preset unclassified.
+        TryReclassifyIfUnknown(model);
+    }
+
+    /// <summary>
+    /// Diagnostic re-classify triggered on preset selection. Fires only for presets whose
+    /// <see cref="BodySlideSetting.SliderGroup"/> is empty or "Unknown" after load; emits
+    /// per-entry trace lines to the Status Log so the user can see why classification failed
+    /// (missing slider samples, coverage below threshold, no catalogs loaded, etc.). If the
+    /// retry succeeds, both the model and this VM are updated so the UI reflects the match.
+    /// </summary>
+    private void TryReclassifyIfUnknown(BodySlideSetting model)
+    {
+        if (_classifier == null || _logger == null) return;
+        if (model == null) return;
+        bool isUnknown = string.IsNullOrWhiteSpace(model.SliderGroup)
+            || string.Equals(model.SliderGroup, "Unknown", StringComparison.OrdinalIgnoreCase);
+        if (!isUnknown) return;
+        if (model.SliderValues == null || model.SliderValues.Count == 0) return;
+
+        var sliderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in model.SliderValues.Keys)
+        {
+            if (!string.IsNullOrEmpty(name)) sliderNames.Add(name);
+        }
+
+        _logger.LogMessage($"Re-classifying unclassified preset '{model.Label}' on selection:");
+        var result = _classifier.Classify(model.Label, sliderNames, msg => _logger.LogMessage(msg));
+        if (result == null) return;
+
+        if (!string.IsNullOrEmpty(result.BodyType) && !string.Equals(result.BodyType, "Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogMessage($"Re-classify: '{model.Label}' -> {result.BodyType} (gender={result.Gender}, reason={result.Reason}). Updating preset.");
+            model.SliderGroup = result.BodyType;
+            SliderGroup = result.BodyType;
+        }
+        else
+        {
+            _logger.LogMessage($"Re-classify: '{model.Label}' still Unknown (reason={result.Reason}).");
         }
     }
 

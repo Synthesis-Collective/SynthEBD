@@ -13,10 +13,17 @@ namespace SynthEBD;
 public class NpcMeshResolver
 {
     private readonly Logger _logger;
+    private readonly CharacterViewerLogGate _logGate;
 
-    public NpcMeshResolver(Logger logger)
+    public NpcMeshResolver(Logger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
+        _logGate = logGate;
+    }
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
     }
 
     /// <summary>
@@ -106,7 +113,7 @@ public class NpcMeshResolver
 
         var gender = GetGender(npcGetter);
         string npcName = npcGetter.Name?.String ?? npcGetter.EditorID ?? npcFormKey.ToString();
-        _logger.LogMessage("CharacterViewer: Resolving NPC " + npcName + " (" + npcFormKey + ")");
+        LogVerbose("CharacterViewer: Resolving NPC " + npcName + " (" + npcFormKey + ")");
 
         FormKey? npcRaceKey = (npcGetter.Race != null && !npcGetter.Race.IsNull) ? npcGetter.Race.FormKey : null;
 
@@ -142,7 +149,7 @@ public class NpcMeshResolver
                 // inversely, AdditionalRaces enumerates the compatible races explicitly).
                 if (!IsArmatureForRace(armaGetter, npcRaceKey))
                 {
-                    _logger.LogMessage("CharacterViewer: Skipping Armature " + armaLink.FormKey +
+                    LogVerbose("CharacterViewer: Skipping Armature " + armaLink.FormKey +
                         " — race " + (npcRaceKey?.ToString() ?? "(none)") + " not in ARMA.Race/AdditionalRaces");
                     continue;
                 }
@@ -165,7 +172,7 @@ public class NpcMeshResolver
                     bodyPath = meshPath;
                     chains["Body"] = npcName + " → " + armorSource + " → Armature(Body):" + armaLink.FormKey +
                         " → " + genderLabel + " → " + meshFileName;
-                    _logger.LogMessage("CharacterViewer: Armature[Body]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
+                    LogVerbose("CharacterViewer: Armature[Body]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                     if (txstPaths.Count > 0) txstTextures["Body"] = txstPaths;
                 }
 
@@ -174,7 +181,7 @@ public class NpcMeshResolver
                     handsPath = meshPath;
                     chains["Hands"] = npcName + " → " + armorSource + " → Armature(Hands):" + armaLink.FormKey +
                         " → " + genderLabel + " → " + meshFileName;
-                    _logger.LogMessage("CharacterViewer: Armature[Hands]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
+                    LogVerbose("CharacterViewer: Armature[Hands]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                     if (txstPaths.Count > 0) txstTextures["Hands"] = txstPaths;
                 }
 
@@ -183,7 +190,7 @@ public class NpcMeshResolver
                     feetPath = meshPath;
                     chains["Feet"] = npcName + " → " + armorSource + " → Armature(Feet):" + armaLink.FormKey +
                         " → " + genderLabel + " → " + meshFileName;
-                    _logger.LogMessage("CharacterViewer: Armature[Feet]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
+                    LogVerbose("CharacterViewer: Armature[Feet]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                     if (txstPaths.Count > 0) txstTextures["Feet"] = txstPaths;
                 }
             }
@@ -192,7 +199,7 @@ public class NpcMeshResolver
         // FaceGen NIF: meshes/actors/character/FaceGenData/FaceGeom/{plugin}/{formID}.nif
         string headPath = BuildFaceGenPath(npcFormKey);
         chains["Head"] = npcName + " → FaceGen → " + Path.GetFileName(headPath);
-        _logger.LogMessage("CharacterViewer: FaceGen head mesh=" + headPath);
+        LogVerbose("CharacterViewer: FaceGen head mesh=" + headPath);
 
         // FaceTint DDS: textures/actors/character/FaceGenData/FaceTint/{plugin}/{formID}.dds
         string faceTintPath = BuildFaceTintPath(npcFormKey);
@@ -206,7 +213,7 @@ public class NpcMeshResolver
         if (qnam != null)
         {
             textureLightingColor = (qnam.Value.R / 255f, qnam.Value.G / 255f, qnam.Value.B / 255f);
-            _logger.LogMessage("CharacterViewer: TextureLighting (QNAM)=RGB(" +
+            LogVerbose("CharacterViewer: TextureLighting (QNAM)=RGB(" +
                 qnam.Value.R + ", " + qnam.Value.G + ", " + qnam.Value.B + ")");
         }
 
@@ -231,7 +238,7 @@ public class NpcMeshResolver
         if (npcGetter.WornArmor != null && !npcGetter.WornArmor.IsNull &&
             linkCache.TryResolve<IArmorGetter>(npcGetter.WornArmor.FormKey, out var armorGetter))
         {
-            _logger.LogMessage("CharacterViewer: WornArmor=" + npcGetter.WornArmor.FormKey);
+            LogVerbose("CharacterViewer: WornArmor=" + npcGetter.WornArmor.FormKey);
             return (armorGetter, "WornArmor:" + npcGetter.WornArmor.FormKey);
         }
 
@@ -241,11 +248,11 @@ public class NpcMeshResolver
             raceGetter.Skin != null && !raceGetter.Skin.IsNull &&
             linkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var raceSkinArmor))
         {
-            _logger.LogMessage("CharacterViewer: No WornArmor for " + npcName + ", falling back to Race.Skin=" + raceGetter.Skin.FormKey);
+            LogVerbose("CharacterViewer: No WornArmor for " + npcName + ", falling back to Race.Skin=" + raceGetter.Skin.FormKey);
             return (raceSkinArmor, "Race.Skin:" + raceGetter.Skin.FormKey);
         }
 
-        _logger.LogMessage("CharacterViewer: No WornArmor or Race.Skin found for " + npcName);
+        LogVerbose("CharacterViewer: No WornArmor or Race.Skin found for " + npcName);
         return (null, "(none)");
     }
 
@@ -330,7 +337,7 @@ public class NpcMeshResolver
 
             if (!linkCache.TryResolve<ITextureSetGetter>(skinTextureLink.FormKey, out var txst))
             {
-                _logger.LogMessage("CharacterViewer: Could not resolve TXST " + skinTextureLink.FormKey +
+                LogVerbose("CharacterViewer: Could not resolve TXST " + skinTextureLink.FormKey +
                     " from ARMA " + armaFormKey);
                 return result;
             }
@@ -361,14 +368,14 @@ public class NpcMeshResolver
 
             if (result.Count > 0)
             {
-                _logger.LogMessage("CharacterViewer: TXST " + skinTextureLink.FormKey +
+                LogVerbose("CharacterViewer: TXST " + skinTextureLink.FormKey +
                     " (from ARMA " + armaFormKey + "): " + result.Count + " texture slots" +
                     (result.TryGetValue(0, out var diff) ? " [Diffuse=" + diff + "]" : ""));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogMessage("CharacterViewer: TXST resolution failed for ARMA " + armaFormKey +
+            LogVerbose("CharacterViewer: TXST resolution failed for ARMA " + armaFormKey +
                 ": " + ex.Message);
         }
 
@@ -426,7 +433,7 @@ public class NpcMeshResolver
             path = "meshes\\" + path;
         }
 
-        _logger.LogMessage("CharacterViewer: Skeleton=" + path +
+        LogVerbose("CharacterViewer: Skeleton=" + path +
             " (Race=" + npcGetter.Race.FormKey + ", " + gender + ")");
 
         return path;

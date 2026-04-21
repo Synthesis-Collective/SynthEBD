@@ -89,18 +89,29 @@ public class BodySlideGroupClassifier
     /// <c>BodyType="Unknown"</c> when no installed entry covers at least
     /// <see cref="CoverageThreshold"/> of the preset's sliders.
     /// </summary>
-    public BodySlideClassification Classify(string presetName, ICollection<string> presetSliderNames)
+    /// <param name="trace">
+    /// Optional sink for per-step diagnostic lines. When supplied, the classifier emits one line
+    /// per registry entry describing its coverage and why it was kept or dropped, plus a final
+    /// line for the pick or the miss reason. Leave null for the common (silent) hot-path calls
+    /// at preset-load time; pass a Logger-bound sink from the UI when the user wants to see why
+    /// a specific preset failed to classify.
+    /// </param>
+    public BodySlideClassification Classify(string presetName, ICollection<string> presetSliderNames, Action<string> trace = null)
     {
+        void Trace(string line) { trace?.Invoke(line); }
+
         if (!HasCatalogs)
         {
             // Name preserved for stability: emitted as "no-installed-bodies" even though
             // catalogs now include fallback-seeded uninstalled bodies -- this branch only fires
             // when the registry has zero usable catalogs at all.
+            Trace($"Classifier['{presetName}']: no usable catalogs in registry (every entry has empty ResolvedSliders). Shipped fallback may be missing or failed to load.");
             return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "no-installed-bodies" };
         }
         if (presetSliderNames == null || presetSliderNames.Count == 0)
         {
             // A preset that moves no sliders has no fingerprint -- can't be classified by sliders.
+            Trace($"Classifier['{presetName}']: preset has 0 sliders -- cannot classify.");
             return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "preset-has-no-sliders" };
         }
 
@@ -113,8 +124,63 @@ public class BodySlideGroupClassifier
         }
         if (normalizedPresetSliders.Count == 0)
         {
+            Trace($"Classifier['{presetName}']: preset has 0 non-empty sliders -- cannot classify.");
             return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "preset-has-no-sliders" };
         }
+
+        // BodySlide presets commonly target multiple SliderSets via the <Preset groups="..."/>
+        // attribute -- a single <Preset> can include SetSliders for the body *and* outfits
+        // (cape, cloak, fur skirt, etc.). Those outfit sliders never appear in any body
+        // catalog, so they'd inflate every candidate's `missing` count and push coverage
+        // below threshold for no good reason. Pre-filter the preset to sliders present in
+        // at least one registry catalog (the "known body sliders" union). Non-body sliders
+        // are dropped; coverage math then runs on body-only input.
+        var knownBodySliders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in _registry)
+        {
+            if (e?.ResolvedSliders == null) continue;
+            foreach (var s in e.ResolvedSliders) knownBodySliders.Add(s);
+        }
+        var bodyOnlyPresetSliders = new List<string>(normalizedPresetSliders.Count);
+        List<string> droppedNonBody = trace != null ? new List<string>() : null;
+        foreach (var s in normalizedPresetSliders)
+        {
+            if (knownBodySliders.Contains(s)) bodyOnlyPresetSliders.Add(s);
+            else if (droppedNonBody != null && droppedNonBody.Count < 8) droppedNonBody.Add(s);
+        }
+        int droppedCount = normalizedPresetSliders.Count - bodyOnlyPresetSliders.Count;
+
+        if (trace != null)
+        {
+            int totalCatalogs = 0;
+            int installedCatalogs = 0;
+            foreach (var e in _registry)
+            {
+                if (e == null || e.ResolvedSliders == null || e.ResolvedSliders.Count == 0) continue;
+                totalCatalogs++;
+                if (e.IsInstalled) installedCatalogs++;
+            }
+            Trace($"Classifier['{presetName}']: {normalizedPresetSliders.Count} preset slider(s); "
+                + $"{totalCatalogs} catalog(s) loaded ({installedCatalogs} installed, {totalCatalogs - installedCatalogs} fallback); "
+                + $"threshold = {CoverageThreshold:P0}.");
+            if (droppedCount > 0)
+            {
+                string sample = droppedNonBody.Count > 0
+                    ? $" e.g. [{string.Join(", ", droppedNonBody)}{(droppedCount > droppedNonBody.Count ? ", ..." : "")}]"
+                    : "";
+                Trace($"  [filter] dropped {droppedCount} non-body slider(s){sample}; "
+                    + $"classifying on {bodyOnlyPresetSliders.Count} body slider(s).");
+            }
+        }
+
+        if (bodyOnlyPresetSliders.Count == 0)
+        {
+            Trace($"Classifier['{presetName}']: no preset sliders match any registry catalog -- cannot classify.");
+            return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "no-body-sliders-in-preset" };
+        }
+
+        // From here down, coverage math uses body-only sliders as the denominator.
+        normalizedPresetSliders = bodyOnlyPresetSliders;
 
         BodyTypeRegistryEntry best = null;
         int bestMissing = int.MaxValue;
@@ -125,20 +191,44 @@ public class BodySlideGroupClassifier
         foreach (var entry in _registry)
         {
             if (entry == null) continue;
-            if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) continue;
+            if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0)
+            {
+                if (entry != null) Trace($"  [skip] {entry.Name} [{entry.Gender}]: no catalog loaded.");
+                continue;
+            }
 
             int missing = 0;
+            List<string> missingSample = trace != null ? new List<string>() : null;
             foreach (var s in normalizedPresetSliders)
             {
-                if (!entry.ResolvedSliders.Contains(s)) missing++;
+                if (!entry.ResolvedSliders.Contains(s))
+                {
+                    missing++;
+                    if (missingSample != null && missingSample.Count < 8) missingSample.Add(s);
+                }
             }
 
             double coverage = (double)(normalizedPresetSliders.Count - missing) / normalizedPresetSliders.Count;
-            if (coverage < CoverageThreshold) continue;
+            string tag = entry.IsInstalled ? "installed" : "fallback";
+            if (coverage < CoverageThreshold)
+            {
+                if (trace != null)
+                {
+                    string sample = missingSample != null && missingSample.Count > 0
+                        ? $" missing e.g. [{string.Join(", ", missingSample)}{(missing > missingSample.Count ? ", ..." : "")}]"
+                        : "";
+                    Trace($"  [drop] {entry.Name} [{entry.Gender}] ({tag}, native={entry.ResolvedSliders.Count}): "
+                        + $"coverage {coverage:P1} < {CoverageThreshold:P0}, missing {missing}/{normalizedPresetSliders.Count}.{sample}");
+                }
+                continue;
+            }
 
             candidateCount++;
             int nativeCount = entry.ResolvedSliders.Count;
             bool installed = entry.IsInstalled;
+
+            Trace($"  [cand] {entry.Name} [{entry.Gender}] ({tag}, native={nativeCount}): "
+                + $"coverage {coverage:P1}, missing {missing}/{normalizedPresetSliders.Count}.");
 
             // Ranking: fewest missing wins; on tie, installed beats uninstalled; on tie, smaller
             // native catalog wins. Installed-wins preserves "user actually has this body" --
@@ -158,10 +248,13 @@ public class BodySlideGroupClassifier
 
         if (best == null)
         {
+            var gender = InferGenderFromSliders(normalizedPresetSliders);
+            Trace($"Classifier['{presetName}']: no candidate passed the {CoverageThreshold:P0} coverage threshold. "
+                + $"Inferred gender={gender} (Male if any preset slider is in a male catalog, else Female).");
             return new BodySlideClassification
             {
                 BodyType = "Unknown",
-                Gender = InferGenderFromSliders(normalizedPresetSliders),
+                Gender = gender,
                 Reason = "no-coverage-match",
             };
         }
@@ -179,6 +272,9 @@ public class BodySlideGroupClassifier
                 ? $"closest-match-{bestMissing}-drift (of {candidateCount})"
                 : $"closest-match-{bestMissing}-drift";
         }
+
+        Trace($"Classifier['{presetName}']: picked {best.Name} [{best.Gender}] "
+            + $"({(bestInstalled ? "installed" : "fallback")}, native={bestNative}, missing={bestMissing}) -- {reason}.");
 
         return new BodySlideClassification
         {

@@ -69,9 +69,17 @@ public class BsdFileParser
     /// </summary>
     private const uint OsdMagic = 0x4F534400;
 
-    public BsdFileParser(Logger logger)
+    private readonly CharacterViewerLogGate _logGate;
+
+    public BsdFileParser(Logger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
+        _logGate = logGate;
+    }
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
     }
 
     /// <summary>
@@ -168,7 +176,7 @@ public class BsdFileParser
             }
 
 #if CATALOG_VERBOSE_LOGGING
-            _logger.LogMessage("CharacterViewer: Parsed OSD '" + displayPath +
+            LogVerbose("CharacterViewer: Parsed OSD '" + displayPath +
                 "' -> shape '" + shapeName + "', " + sliders.Count + " sliders, " + totalDeltas + " total deltas (v" + version + ")");
 #else
             _ = totalDeltas; _ = version;
@@ -237,7 +245,7 @@ public class BsdFileParser
             var slider = new OsdSliderData { Name = sliderName, VertexDeltas = deltas };
 
 #if CATALOG_VERBOSE_LOGGING
-            _logger.LogMessage("CharacterViewer: Parsed BSD '" + bsdFilePath +
+            LogVerbose("CharacterViewer: Parsed BSD '" + bsdFilePath +
                 "' -> slider '" + sliderName + "', " + deltas.Count + " deltas");
 #endif
 
@@ -279,7 +287,7 @@ public class BsdFileParser
 
         if (!Directory.Exists(directoryPath))
         {
-            _logger.LogMessage("CharacterViewer: OSD directory not found: '" + directoryPath + "'");
+            LogVerbose("CharacterViewer: OSD directory not found: '" + directoryPath + "'");
             return results;
         }
 

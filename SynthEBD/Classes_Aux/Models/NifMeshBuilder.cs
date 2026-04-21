@@ -18,10 +18,17 @@ namespace SynthEBD;
 public class NifMeshBuilder
 {
     private readonly Logger _logger;
+    private readonly CharacterViewerLogGate _logGate;
 
-    public NifMeshBuilder(Logger logger)
+    public NifMeshBuilder(Logger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
+        _logGate = logGate;
+    }
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
     }
 
     // --- Neck-gap diagnostic instrumentation ---
@@ -464,7 +471,7 @@ public class NifMeshBuilder
 
         if (shapeName != null)
         {
-            _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+            LogVerbose("CharacterViewer: [Transform Chain] '" + shapeName +
                 "' local: T=(" + result.translation.x.ToString("F2") + ", " +
                 result.translation.y.ToString("F2") + ", " + result.translation.z.ToString("F2") +
                 ") S=" + result.scale.ToString("F3") +
@@ -477,7 +484,7 @@ public class NifMeshBuilder
             if (shapeName != null)
             {
                 string parentName = (parent as NiAVObject)?.name?.get() ?? "?";
-                _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+                LogVerbose("CharacterViewer: [Transform Chain] '" + shapeName +
                     "' parent '" + parentName +
                     "': T=(" + parentXform.translation.x.ToString("F2") + ", " +
                     parentXform.translation.y.ToString("F2") + ", " + parentXform.translation.z.ToString("F2") +
@@ -490,7 +497,7 @@ public class NifMeshBuilder
 
         if (shapeName != null)
         {
-            _logger.LogMessage("CharacterViewer: [Transform Chain] '" + shapeName +
+            LogVerbose("CharacterViewer: [Transform Chain] '" + shapeName +
                 "' composed global: T=(" + result.translation.x.ToString("F2") + ", " +
                 result.translation.y.ToString("F2") + ", " + result.translation.z.ToString("F2") +
                 ") S=" + result.scale.ToString("F3"));
@@ -539,7 +546,7 @@ public class NifMeshBuilder
             }
 
             string sName = shape.name?.get() ?? "?";
-            _logger.LogMessage("CharacterViewer: [Skinning] Shape '" + sName +
+            LogVerbose("CharacterViewer: [Skinning] Shape '" + sName +
                 "' partitions=[" + string.Join(",", partIdList) +
                 "] isHeadCandidate=" + isHeadCandidate);
 
@@ -568,11 +575,11 @@ public class NifMeshBuilder
         if (primaryHead == null) return (null, null);
 
         string headName = primaryHead.name?.get() ?? "?";
-        _logger.LogMessage("CharacterViewer: Primary head shape identified: '" +
+        LogVerbose("CharacterViewer: Primary head shape identified: '" +
             headName + "' (height=" + primaryHeadHeight.ToString("F1") + ")");
 
         var offset = GetTransformToGlobal(nif, primaryHead, headName + " [primary head]");
-        _logger.LogMessage("CharacterViewer: Accessory offset transform: T=(" +
+        LogVerbose("CharacterViewer: Accessory offset transform: T=(" +
             offset.translation.x.ToString("F2") + ", " +
             offset.translation.y.ToString("F2") + ", " + offset.translation.z.ToString("F2") +
             ") S=" + offset.scale.ToString("F3"));
@@ -861,11 +868,11 @@ public class NifMeshBuilder
                     bool hasRimLight = (shaderFlags2 & (1u << 26)) != 0;
                     bool hasBackLight = (shaderFlags2 & (1u << 27)) != 0;
 
-                    _logger.LogMessage("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") + "'" +
+                    LogVerbose("CharacterViewer: Shape '" + (shape.name?.get() ?? "?") + "'" +
                         " shaderType=" + bslsp.bslspShaderType +
                         " flags1=0x" + shaderFlags1.ToString("X8") +
                         " flags2=0x" + shaderFlags2.ToString("X8"));
-                    _logger.LogMessage("  Flags: MSN=" + isModelSpaceNormals +
+                    LogVerbose("  Flags: MSN=" + isModelSpaceNormals +
                         " Specular=" + hasSpecular +
                         " EnvMap=" + hasEnvMap +
                         " FacegenDetail=" + hasFacegenDetail +
@@ -877,7 +884,7 @@ public class NifMeshBuilder
                         " SoftLight=" + hasSoftLight +
                         " RimLight=" + hasRimLight +
                         " BackLight=" + hasBackLight);
-                    _logger.LogMessage("  Material: gloss=" + glossiness.ToString("F0") +
+                    LogVerbose("  Material: gloss=" + glossiness.ToString("F0") +
                         " specStr=" + specularStrength.ToString("F2") +
                         " specColor=(" + specularColor.X.ToString("F2") + ", " + specularColor.Y.ToString("F2") + ", " + specularColor.Z.ToString("F2") + ")" +
                         " ssRolloff=" + subsurfaceRolloff.ToString("F2") +
@@ -887,10 +894,10 @@ public class NifMeshBuilder
                         " envScale=" + environmentMapScale.ToString("F2") +
                         " uvScale=(" + uvScale.X.ToString("F2") + ", " + uvScale.Y.ToString("F2") + ")" +
                         " uvOff=(" + uvOffset.X.ToString("F2") + ", " + uvOffset.Y.ToString("F2") + ")");
-                    _logger.LogMessage("  Textures: " + string.Join(", ",
+                    LogVerbose("  Textures: " + string.Join(", ",
                         texturePaths.OrderBy(kv => kv.Key).Select(kv => "[" + kv.Key + "]=" + System.IO.Path.GetFileName(kv.Value))));
                     if (isHairTintShader)
-                        _logger.LogMessage("  HairTint: " + (hairTintColor.HasValue
+                        LogVerbose("  HairTint: " + (hairTintColor.HasValue
                             ? "(" + hairTintColor.Value.R.ToString("F3") + ", " + hairTintColor.Value.G.ToString("F3") + ", " + hairTintColor.Value.B.ToString("F3") + ")"
                             : "(no color)"));
                 }
@@ -898,7 +905,7 @@ public class NifMeshBuilder
         }
         catch (Exception ex)
         {
-            _logger.LogMessage("CharacterViewer: Could not read shader flags for shape '" +
+            LogVerbose("CharacterViewer: Could not read shader flags for shape '" +
                 (shape.name?.get() ?? "?") + "': " + ex.Message);
         }
 
@@ -936,7 +943,7 @@ public class NifMeshBuilder
         }
         catch (Exception ex)
         {
-            _logger.LogMessage("CharacterViewer: Could not read NiAlphaProperty for shape '" +
+            LogVerbose("CharacterViewer: Could not read NiAlphaProperty for shape '" +
                 (shape.name?.get() ?? "?") + "': " + ex.Message);
         }
 
@@ -944,7 +951,7 @@ public class NifMeshBuilder
         if (AreNormalsAllZero(normals))
         {
             string dbgName = shape.name?.get() ?? "?";
-            _logger.LogMessage("CharacterViewer: Normals all zero for shape '" +
+            LogVerbose("CharacterViewer: Normals all zero for shape '" +
                 dbgName + "', computing from geometry");
             ComputeNormalsFromGeometry(positions, indices, normals);
 
@@ -961,7 +968,7 @@ public class NifMeshBuilder
                     if (p.Y < minY) minY = p.Y; if (p.Y > maxY) maxY = p.Y;
                     if (p.Z < minZ) minZ = p.Z; if (p.Z > maxZ) maxZ = p.Z;
                 }
-                _logger.LogMessage(string.Format(
+                LogVerbose(string.Format(
                     "CharacterViewer: [GEOM-NORMAL] '{0}' bbox X=[{1:F1},{2:F1}] Y=[{3:F1},{4:F1}] Z=[{5:F1},{6:F1}]",
                     dbgName, minX, maxX, minY, maxY, minZ, maxZ));
 
@@ -972,13 +979,13 @@ public class NifMeshBuilder
                     var fn = Vector3.Cross(p1 - p0, p2 - p0);
                     float flen = fn.Length();
                     if (flen > 1e-6f) fn /= flen;
-                    _logger.LogMessage(string.Format(
+                    LogVerbose(string.Format(
                         "CharacterViewer: [GEOM-NORMAL] '{0}' tri{1} v0=({2:F1},{3:F1},{4:F1}) faceN=({5:F2},{6:F2},{7:F2})",
                         dbgName, t, p0.X, p0.Y, p0.Z, fn.X, fn.Y, fn.Z));
                 }
 
                 var n0 = normals[0];
-                _logger.LogMessage(string.Format(
+                LogVerbose(string.Format(
                     "CharacterViewer: [GEOM-NORMAL] '{0}' vert0 finalN=({1:F3},{2:F3},{3:F3})",
                     dbgName, n0.X, n0.Y, n0.Z));
             }
@@ -988,7 +995,7 @@ public class NifMeshBuilder
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
-        _logger.LogMessage("CharacterViewer: Built shape '" + shapeName +
+        LogVerbose("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
             ", MSN=" + isModelSpaceNormals +
@@ -1004,7 +1011,7 @@ public class NifMeshBuilder
         {
             var nifN0 = nifNormals[0];
             var yupN0 = normals[0];
-            _logger.LogMessage(string.Format(
+            LogVerbose(string.Format(
                 "CharacterViewer: [NORMAL-DEBUG] '{0}' vert0 nifN=({1:F3},{2:F3},{3:F3}) yupN=({4:F3},{5:F3},{6:F3}) skinned={7}",
                 shapeName, nifN0.x, nifN0.y, nifN0.z,
                 yupN0.X, yupN0.Y, yupN0.Z,
@@ -1084,7 +1091,7 @@ public class NifMeshBuilder
                 if (v.z < minZ) minZ = v.z; if (v.z > maxZ) maxZ = v.z;
             }
             int n = diagVerts.Count;
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                 "' localVerts(" + n + "): centroid=(" +
                 (sumX / n).ToString("F1") + ", " + (sumY / n).ToString("F1") + ", " + (sumZ / n).ToString("F1") +
                 ") bounds=[(" + minX.ToString("F1") + "," + minY.ToString("F1") + "," + minZ.ToString("F1") +
@@ -1097,7 +1104,7 @@ public class NifMeshBuilder
         // If no accessory offset was found (not a head NIF), use the global transform as-is
         if (accessoryOffset == null)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                 "' → using own global transform (no head NIF detected)");
             return globalTransform;
         }
@@ -1136,20 +1143,20 @@ public class NifMeshBuilder
 
             if (centroidLength > PRETRANSLATED_THRESHOLD)
             {
-                _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                     "' → using identity (pre-translated vertices, centroidLen=" +
                     centroidLength.ToString("F1") + " > threshold=" + PRETRANSLATED_THRESHOLD.ToString("F1") + ")");
                 return globalTransform;
             }
 
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                 "' → APPLYING accessory offset (translationLen=" + translationLength.ToString("F3") +
                 ", centroidLen=" + centroidLength.ToString("F1") +
                 " ≤ threshold=" + PRETRANSLATED_THRESHOLD.ToString("F1") + ")");
             return accessoryOffset;
         }
 
-        _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+        LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
             "' → using own global transform (translationLen=" + translationLength.ToString("F2") + ")");
         return globalTransform;
     }
@@ -1243,7 +1250,7 @@ public class NifMeshBuilder
 
         if (!hasSkel || !hasMesh)
         {
-            _logger.LogMessage("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName +
+            LogVerbose("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName +
                 "': skeleton=" + hasSkel + " mesh=" + hasMesh + " (cannot compute delta)");
             return;
         }
@@ -1253,18 +1260,18 @@ public class NifMeshBuilder
         float dz = skelBoneWorld.translation.z - meshBoneWorld.translation.z;
         float mag = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
 
-        _logger.LogMessage("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName + "'");
-        _logger.LogMessage("  skel T=(" + skelBoneWorld.translation.x.ToString("F3") + ", " +
+        LogVerbose("CharacterViewer: [BoneDelta] '" + shapeName + "' bone '" + boneName + "'");
+        LogVerbose("  skel T=(" + skelBoneWorld.translation.x.ToString("F3") + ", " +
                                            skelBoneWorld.translation.y.ToString("F3") + ", " +
                                            skelBoneWorld.translation.z.ToString("F3") + ") S=" +
                                            skelBoneWorld.scale.ToString("F4"));
-        _logger.LogMessage("  mesh T=(" + meshBoneWorld.translation.x.ToString("F3") + ", " +
+        LogVerbose("  mesh T=(" + meshBoneWorld.translation.x.ToString("F3") + ", " +
                                            meshBoneWorld.translation.y.ToString("F3") + ", " +
                                            meshBoneWorld.translation.z.ToString("F3") + ") S=" +
                                            meshBoneWorld.scale.ToString("F4"));
-        _logger.LogMessage("  Δ T=(" + dx.ToString("F3") + ", " + dy.ToString("F3") + ", " +
+        LogVerbose("  Δ T=(" + dx.ToString("F3") + ", " + dy.ToString("F3") + ", " +
                                         dz.ToString("F3") + ") |Δ|=" + mag.ToString("F3"));
-        _logger.LogMessage("  skinToBone T=(" + inverseBind.translation.x.ToString("F3") + ", " +
+        LogVerbose("  skinToBone T=(" + inverseBind.translation.x.ToString("F3") + ", " +
                                                  inverseBind.translation.y.ToString("F3") + ", " +
                                                  inverseBind.translation.z.ToString("F3") + ") S=" +
                                                  inverseBind.scale.ToString("F4"));
@@ -1327,7 +1334,7 @@ public class NifMeshBuilder
             if (zz < minZ) minZ = zz; if (zz > maxZ) maxZ = zz;
         }
 
-        _logger.LogMessage("CharacterViewer: [ShapeDiag] '" + shapeName + "'" +
+        LogVerbose("CharacterViewer: [ShapeDiag] '" + shapeName + "'" +
             " route=" + (wasSkinned ? "skinned" : "fallback") +
             " verts=" + vertCount +
             " parts=[" + partStr + "]" +
@@ -1359,11 +1366,11 @@ public class NifMeshBuilder
         uint numBones = nif.GetShapeBoneList(shape, boneNames);
         if (numBones == 0)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' has skin instance but no bones");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' has skin instance but no bones");
             return null;
         }
 
-        _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' skinning with " + numBones + " bones");
+        LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' skinning with " + numBones + " bones");
 
         // --- Step 2: Compute per-bone skinning matrices ---
         // skinMatrix[i] = boneWorldTransform * inverseBindPose
@@ -1377,7 +1384,7 @@ public class NifMeshBuilder
             using var inverseBind = new MatTransform();
             if (!nif.GetShapeBoneTransform(shape, i, inverseBind))
             {
-                _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                     "' bone " + i + " — no inverse bind-pose, using identity");
                 continue;
             }
@@ -1392,7 +1399,7 @@ public class NifMeshBuilder
             }
             else if (!nif.GetNodeTransformToGlobal(boneName, boneWorld))
             {
-                _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+                LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                     "' bone '" + boneName + "' — not found in skeleton or shape NIF, skipping");
                 continue;
             }
@@ -1411,12 +1418,12 @@ public class NifMeshBuilder
             validBones++;
         }
 
-        _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+        LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
             "' bone transforms: " + validBones + " valid (" + skeletonBones + " from skeleton)");
 
         if (validBones == 0)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' no valid bone transforms, skipping skinning");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' no valid bone transforms, skipping skinning");
             return null;
         }
 
@@ -1429,21 +1436,21 @@ public class NifMeshBuilder
         NiSkinInstance? skinInst = skinObj as NiSkinInstance;
         if (skinInst == null)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' skin instance is not NiSkinInstance");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' skin instance is not NiSkinInstance");
             return null;
         }
 
         var dataRef = skinInst.dataRef;
         if (dataRef == null || dataRef.IsEmpty())
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' no NiSkinData reference");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' no NiSkinData reference");
             return null;
         }
 
         NiObject dataObj = header.GetBlockById(dataRef.index);
         if (dataObj is not NiSkinData skinData)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' block is not NiSkinData");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' block is not NiSkinData");
             return null;
         }
 
@@ -1454,7 +1461,7 @@ public class NifMeshBuilder
         var bonesVec = skinData.bones;
         if (bonesVec == null)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName + "' NiSkinData.bones is null");
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName + "' NiSkinData.bones is null");
             return null;
         }
 
@@ -1488,7 +1495,7 @@ public class NifMeshBuilder
             }
         }
 
-        _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+        LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
             "' read " + totalWeightEntries + " weight entries across " + boneCount + " bones");
 
         // --- Step 4: Apply skinning — blend bone transforms per vertex ---
@@ -1583,7 +1590,7 @@ public class NifMeshBuilder
         // Log a position sample to verify skinning is working
         if (vertCount > 0)
         {
-            _logger.LogMessage("CharacterViewer: [Skinning] '" + shapeName +
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
                 "' sample vert[0]: bind=(" + nifVerts[0].x.ToString("F2") + "," +
                 nifVerts[0].y.ToString("F2") + "," + nifVerts[0].z.ToString("F2") +
                 ") → skinned=(" + outPosX[0].ToString("F2") + "," +

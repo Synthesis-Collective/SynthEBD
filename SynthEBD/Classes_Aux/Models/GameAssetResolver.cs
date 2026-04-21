@@ -57,16 +57,25 @@ public class GameAssetResolver
 
     private readonly string _extractionDir;
 
+    private readonly CharacterViewerLogGate _logGate;
+
     public GameAssetResolver(
         IEnvironmentStateProvider environmentProvider,
         BSAHandler bsaHandler,
+        CharacterViewerLogGate logGate,
         Logger logger)
     {
         _environmentProvider = environmentProvider;
         _bsaHandler = bsaHandler;
+        _logGate = logGate;
         _logger = logger;
 
         _extractionDir = Path.Combine(Path.GetTempPath(), "SynthEBD_ViewerCache");
+    }
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
     }
 
     /// <summary>
@@ -107,7 +116,7 @@ public class GameAssetResolver
         string loosePath = Path.Combine(_environmentProvider.DataFolderPath, normalized);
         if (File.Exists(loosePath))
         {
-            _logger.LogMessage("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
+            LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
             return new AssetSource(AssetOriginKind.Loose, relativeGamePath, loosePath, loosePath, null, null);
         }
 
@@ -155,7 +164,7 @@ public class GameAssetResolver
 
         if (!_bsaHandler.TryFindFileInAnyArchive(bsaSubpath, out IArchiveFile archiveFile, out string? containingBsaPath))
         {
-            _logger.LogMessage("CharacterViewer: Could not resolve '" + relativeGamePath + "' in loose files or any BSA");
+            LogVerbose("CharacterViewer: Could not resolve '" + relativeGamePath + "' in loose files or any BSA");
             return AssetSource.NotFound(relativeGamePath);
         }
 
@@ -174,7 +183,7 @@ public class GameAssetResolver
         if (_bsaHandler.TryExtractFileFromBSA(archiveFile, destPath))
         {
             _extractionCache[normalized] = destPath;
-            _logger.LogMessage("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
+            LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
             var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, destPath,
                 null, containingBsaPath, bsaSubpath);
             _bsaSourceCache[normalized] = source;

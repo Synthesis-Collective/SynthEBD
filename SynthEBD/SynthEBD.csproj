@@ -222,7 +222,7 @@
     <Content Include="InternalData\JContainers Domain\PSM_SynthEBD.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="InternalData\SliderCatalogs\BodyTypeRegistry.json">
+    <Content Include="InternalData\SliderCatalogs\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\JContainers Domain\Source\PSM_SynthEBD.psc">

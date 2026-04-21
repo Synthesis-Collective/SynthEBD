@@ -22,10 +22,17 @@ namespace SynthEBD;
 public class BodySlideDeformer
 {
     private readonly Logger _logger;
+    private readonly CharacterViewerLogGate _logGate;
 
-    public BodySlideDeformer(Logger logger)
+    public BodySlideDeformer(Logger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
+        _logGate = logGate;
+    }
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
     }
 
     /// <summary>
@@ -56,7 +63,7 @@ public class BodySlideDeformer
 
         if (sliderDeltaMap.Count == 0)
         {
-            _logger.LogMessage("CharacterViewer: No matching OSD slider data found for shape '" +
+            LogVerbose("CharacterViewer: No matching OSD slider data found for shape '" +
                 (shapeName ?? "(any)") + "'");
             return;
         }
@@ -92,7 +99,7 @@ public class BodySlideDeformer
         var sliderDeltaMap = BuildSliderDeltaMapFromTri(triFile, shapeName);
         if (sliderDeltaMap.Count == 0)
         {
-            _logger.LogMessage("CharacterViewer: No matching .tri morph data found for shape '" +
+            LogVerbose("CharacterViewer: No matching .tri morph data found for shape '" +
                 (shapeName ?? "(any)") + "' in '" + triFile.FilePath + "'");
             return;
         }
@@ -203,7 +210,7 @@ public class BodySlideDeformer
                 }
             }
             var osdSampleNames = sliderDeltaMap.Keys.Take(5).ToList();
-            _logger.LogMessage("CharacterViewer: BodySlide preset '" + preset.Label +
+            LogVerbose("CharacterViewer: BodySlide preset '" + preset.Label +
                 "' matched 0 vertices (no slider data overlap). " +
                 "Preset sliders: " + presetSliderCount + " total, " + presetActiveCount + " with non-zero Big/Small. " +
                 "OSD slider keys available: " + sliderDeltaMap.Count + ". " +
@@ -222,7 +229,7 @@ public class BodySlideDeformer
         // intended behavior -- these shapes are static in the authoring pipeline).
         if (deltasOutOfRange > 0)
         {
-            _logger.LogMessage("CharacterViewer: Skipping deformation of shape '" +
+            LogVerbose("CharacterViewer: Skipping deformation of shape '" +
                 (shapeName ?? "(any)") + "' via " + sourceLabel +
                 " (topology mismatch: target verts=" + vertCount +
                 ", " + sourceLabel + " max vertIndex=" + osdMaxIndex +
@@ -252,7 +259,7 @@ public class BodySlideDeformer
         // verts (anatomically-similar but not identical), producing chopped bands.
         bool topologyMismatch = deltasOutOfRange > 0 || (osdMaxIndex >= 0 && osdMaxIndex + 1 != vertCount);
 
-        _logger.LogMessage("CharacterViewer: Applied preset '" + preset.Label +
+        LogVerbose("CharacterViewer: Applied preset '" + preset.Label +
             "' to shape '" + (shapeName ?? "(any)") + "' via " + sourceLabel +
             " (" + slidersApplied + " sliders, " + vertsModified + " vertices modified, weight=" + weight + ")" +
             " | target verts=" + vertCount +

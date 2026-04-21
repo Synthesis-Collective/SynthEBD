@@ -82,16 +82,48 @@ public class BodySlideGroupClassifierTests
             MakeEntry("CBBE", Gender.Female, installed: true, "Waist", "Hips"),
         });
 
+        // AlienSlider is in no catalog -- the non-body-slider filter drops it before
+        // coverage math, leaving zero sliders to classify. Returns Unknown with a distinct
+        // reason so callers can tell "preset had no recognizable body sliders at all"
+        // from "preset had body sliders that no catalog covered above threshold".
         var result = classifier.Classify("Mystery", new[] { "AlienSlider" });
 
         result.BodyType.Should().Be("Unknown");
-        result.Reason.Should().Be("no-coverage-match");
+        result.Reason.Should().Be("no-body-sliders-in-preset");
         result.Gender.Should().Be(Gender.Female);
     }
 
     [Fact]
-    public void NoSubsetMatch_InfersMaleFromMaleSlider()
+    public void NonBodySlidersAreDroppedBeforeCoverage()
     {
+        // Regression guard for "CBBE Vanilla Plus"-style presets: BodySlide XMLs routinely
+        // carry a single <Preset> with SetSliders for the body *and* outfits (cape, cloak,
+        // fur skirt). Those outfit sliders never appear in any body catalog. Without pre-
+        // filtering they get counted as "missing" against every body, pushing coverage
+        // below threshold and returning Unknown for presets that are obviously CBBE.
+        // After the filter, only body sliders count toward coverage.
+        var classifier = new BodySlideGroupClassifier();
+        classifier.SetRegistry(new List<BodyTypeRegistryEntry>
+        {
+            MakeEntry("CBBE", Gender.Female, installed: true, "Waist", "Hips", "Breasts"),
+        });
+
+        var result = classifier.Classify("CBBE-Plus-Outfits",
+            new[] { "Waist", "Hips", "Breasts", "Cape", "Cloak", "Fur skirt", "HB" });
+
+        result.BodyType.Should().Be("CBBE");
+        result.Reason.Should().Be("exact-match");
+    }
+
+    [Fact]
+    public void PresetWithSingleKnownMaleSliderClassifiesAsMaleBody()
+    {
+        // Prior behavior (before the non-body filter) returned Unknown+Male for a preset
+        // that mixed one HIMBO-known slider with one unknown: below threshold on the raw
+        // 2-slider count. With filtering, the unknown slider is dropped as non-body and
+        // the remaining Chest exact-matches HIMBO. Treating a 1-slider exact match as a
+        // confident HIMBO classification is correct: the "unknown" slider was never
+        // evidence against a body, only noise from an outfit-polluted preset.
         var classifier = new BodySlideGroupClassifier();
         classifier.SetRegistry(new List<BodyTypeRegistryEntry>
         {
@@ -99,11 +131,9 @@ public class BodySlideGroupClassifierTests
             MakeEntry("HIMBO", Gender.Male, installed: true, "Chest", "Arms"),
         });
 
-        // Preset uses one HIMBO-known slider plus an unknown one -- doesn't match HIMBO strictly,
-        // but the male-slider hit lets us label it Male for routing.
         var result = classifier.Classify("Junk", new[] { "Chest", "Mystery" });
 
-        result.BodyType.Should().Be("Unknown");
+        result.BodyType.Should().Be("HIMBO");
         result.Gender.Should().Be(Gender.Male);
     }
 

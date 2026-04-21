@@ -165,6 +165,11 @@
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                         ToolTip="Removes every picked-vertex marker from the viewport."/>
 
+                <CheckBox Content="Verbose Log" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding VerboseLog}"
+                          ToolTip="Routes the viewer's informational diagnostics (GL init, NPC load, lighting, weight morphs, texture overrides, etc.) to the Status Log. Errors are always logged. Off by default so the classifier's own trace isn't buried in viewer chatter."/>
+
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="LogLightingButton_Click"/>
