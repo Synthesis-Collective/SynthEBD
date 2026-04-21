@@ -132,11 +132,20 @@ public class VM_CharacterViewer : VM
     /// Promoted to _currentHeadMeshOverride by ProcessPendingScene once the scene commits.</summary>
     private string? _pendingLoadHeadMeshOverride;
 
+    /// <summary>Stopwatch started at LoadNpcAsync entry and threaded through to
+    /// ProcessPendingScene so the GL-upload checkpoint can report elapsed-from-initiation.
+    /// Set under Application.Current.Dispatcher when the scene is queued; consumed
+    /// (and cleared) on the render thread when the scene is installed.</summary>
+    private System.Diagnostics.Stopwatch? _pendingLoadStopwatch;
+
     /// <summary>Pending head-only rebuild (P2). Set by RebuildHeadOnlyAsync after the
     /// new head NIF is parsed off-thread; drained by ProcessPendingScene where the
     /// GL context is current. Replaces the current Head shape(s) in place, leaving
     /// Body/Hands/Feet and their texture/morph state untouched.</summary>
     private (string HeadNifPath, List<NifMeshBuilder.BuiltMesh> Meshes)? _pendingHeadReplace;
+
+    /// <summary>Counterpart of _pendingLoadStopwatch for the head-only fast path.</summary>
+    private System.Diagnostics.Stopwatch? _pendingHeadReplaceStopwatch;
 
     private readonly CharacterPreviewCache _previewCache;
 
@@ -300,6 +309,16 @@ public class VM_CharacterViewer : VM
     private void LogVerbose(string message)
     {
         if (VerboseLog) _logger?.LogMessage(message);
+    }
+
+    /// <summary>Verbose checkpoint formatter for the NPC-load pipeline. Prefixes the
+    /// message with elapsed-from-LoadNpcAsync-entry so timings can be eyeballed across
+    /// the parse/skin/dispatch/GL-upload handoff. No-op when the stopwatch is null
+    /// (e.g. cancelled load drained nothing) or VerboseLog is off.</summary>
+    private void LogLoadCheckpoint(System.Diagnostics.Stopwatch? sw, string checkpoint)
+    {
+        if (!VerboseLog || sw == null) return;
+        _logger?.LogMessage("CharacterViewer: [t+" + sw.ElapsedMilliseconds.ToString().PadLeft(5) + "ms] " + checkpoint);
     }
 
     /// <summary>0 = none, 1 = key, 2 = fill, 3 = rim. Set when the user clicks
@@ -1194,6 +1213,11 @@ public class VM_CharacterViewer : VM
 
         var (loadResults, meshPaths) = _pendingScene.Value;
         _pendingScene = null;
+        // Hand the timeline off the field so a re-entrant LoadNpcAsync queued
+        // mid-install starts its own clock cleanly.
+        var loadStopwatch = _pendingLoadStopwatch;
+        _pendingLoadStopwatch = null;
+        LogLoadCheckpoint(loadStopwatch, "ProcessPendingScene start (GL upload begin)");
 
         ClearScene();
         _cachedMeshPaths = meshPaths;
@@ -1270,8 +1294,8 @@ public class VM_CharacterViewer : VM
             : "No renderable shapes found for NPC";
         IsLoading = false;
 
-        LogVerbose($"CharacterViewer: Scene setup complete — {totalShapes} shapes, " +
-            $"{Renderer.Meshes.Count} GL meshes");
+        LogLoadCheckpoint(loadStopwatch, "Scene committed (" + totalShapes +
+            " shapes -> " + Renderer.Meshes.Count + " GL meshes) — load complete");
 
         // Record the identity of the scene we just committed so LoadNpcAsync
         // can short-circuit same-NPC re-invocations. Must be done before clearing
@@ -1345,6 +1369,9 @@ public class VM_CharacterViewer : VM
         IsLoading = true;
         StatusText = "Resolving NPC meshes...";
 
+        var loadStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        LogLoadCheckpoint(loadStopwatch, "LoadNpcAsync begin (NPC=" + npcFormKey + ")");
+
         try
         {
             _npcHairColorFromRecord = null;
@@ -1395,6 +1422,7 @@ public class VM_CharacterViewer : VM
                     }
                 }
             }
+            LogLoadCheckpoint(loadStopwatch, "NPC record resolved");
 
             var meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(npcFormKey, linkCache), cts.Token);
             if (meshPaths == null)
@@ -1406,6 +1434,7 @@ public class VM_CharacterViewer : VM
                 if (_loadCts == cts) _sceneRebuildPending = false;
                 return;
             }
+            LogLoadCheckpoint(loadStopwatch, "Mesh paths resolved");
 
             if (!string.IsNullOrWhiteSpace(overrideHeadMeshAbsolutePath))
             {
@@ -1423,15 +1452,21 @@ public class VM_CharacterViewer : VM
             // Store pending scene data — GL work is deferred to the render callback
             // where the GL context is guaranteed to be current.
             int totalShapes = loadResults.Sum(r => r.Meshes.Count);
+            LogLoadCheckpoint(loadStopwatch, "NIFs parsed + skinned (" + totalShapes +
+                " shapes across " + loadResults.Count + " parts)");
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _pendingScene = (loadResults, meshPaths);
                 _pendingLoadNpcKey = npcFormKey;
                 _pendingLoadHeadMeshOverride = overrideHeadMeshAbsolutePath;
+                // Hand the clock to the render thread — ProcessPendingScene will
+                // consume it on the next frame tick and log the GL-upload span.
+                _pendingLoadStopwatch = loadStopwatch;
                 StatusText = totalShapes > 0
                     ? $"Loaded {totalShapes} shape(s), setting up scene..."
                     : "No renderable shapes found for NPC";
             });
+            LogLoadCheckpoint(loadStopwatch, "Scene queued for GL upload");
         }
         catch (OperationCanceledException)
         {
@@ -2002,6 +2037,10 @@ public class VM_CharacterViewer : VM
     /// </summary>
     private async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct)
     {
+        var headStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        LogLoadCheckpoint(headStopwatch, "RebuildHeadOnlyAsync begin (" +
+            System.IO.Path.GetFileName(headNifPath) + ")");
+
         // Parse with no skeleton: FaceGen head NIFs are rigid / self-skinned and
         // the body skeleton is not needed to produce correct vertex positions.
         // This matches how LoadAllMeshParts invokes BuildFromFile for the Head
@@ -2030,10 +2069,14 @@ public class VM_CharacterViewer : VM
 
         ct.ThrowIfCancellationRequested();
 
+        LogLoadCheckpoint(headStopwatch, "Head NIF parsed (" + meshes.Count + " shape(s))");
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             _pendingHeadReplace = (headNifPath, meshes);
+            _pendingHeadReplaceStopwatch = headStopwatch;
         });
+        LogLoadCheckpoint(headStopwatch, "Head replace queued for GL install");
     }
 
     /// <summary>
@@ -2045,11 +2088,15 @@ public class VM_CharacterViewer : VM
         if (_pendingHeadReplace == null || TextureManager == null || _cachedMeshPaths == null)
         {
             _pendingHeadReplace = null;
+            _pendingHeadReplaceStopwatch = null;
             return;
         }
 
         var (headNifPath, meshes) = _pendingHeadReplace.Value;
         _pendingHeadReplace = null;
+        var headStopwatch = _pendingHeadReplaceStopwatch;
+        _pendingHeadReplaceStopwatch = null;
+        LogLoadCheckpoint(headStopwatch, "InstallReplacedHead start (GL install begin)");
 
         // Tear down existing Head shape(s). A FaceGen NIF may contain multiple
         // shapes (face, eyes, hair, ...), all tagged with BodyPart = "Head" when
@@ -2103,8 +2150,8 @@ public class VM_CharacterViewer : VM
         // override so other inspection / future logic can read it.
         _currentHeadMeshOverride = headNifPath;
 
-        LogVerbose("CharacterViewer: Head-only rebuild complete — " +
-            meshes.Count + " shape(s) from " + System.IO.Path.GetFileName(headNifPath));
+        LogLoadCheckpoint(headStopwatch, "Head install complete (" + meshes.Count +
+            " shape(s) from " + System.IO.Path.GetFileName(headNifPath) + ")");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
