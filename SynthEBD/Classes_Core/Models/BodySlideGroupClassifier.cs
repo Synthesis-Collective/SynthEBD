@@ -18,24 +18,28 @@ public class BodySlideClassification
 }
 
 /// <summary>
-/// Slider-only classifier. Inputs are a preset's slider-name set and the installed Body-Type
-/// Registry; <b>no preset-author metadata</b> (the <c>set</c> attribute, the preset name, the
+/// Slider-only classifier. Inputs are a preset's slider-name set and the Body-Type Registry;
+/// <b>no preset-author metadata</b> (the <c>set</c> attribute, the preset name, the
 /// <c>&lt;Group&gt;</c> tags) is consulted, because authors set those sloppily.
 ///
 /// Pipeline:
-///   1. <b>Installed-filter:</b> candidates = registry entries with <see cref="BodyTypeRegistryEntry.IsInstalled"/>
-///      true and a non-empty <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>.
+///   1. <b>Catalog-filter:</b> candidates = registry entries with a non-empty
+///      <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>. Catalogs come from the user's
+///      local OSD/BSD reference files when the body is installed, otherwise from the shipped
+///      fallback <c>InternalData/SliderCatalogs/{SafeName}.json</c> -- so a preset for a body
+///      the user hasn't actually installed still classifies (e.g. BHUNP presets without BHUNP).
 ///   2. <b>Coverage match:</b> for each candidate, count how many preset sliders are in the
 ///      candidate's <c>ResolvedSliders</c>. Keep candidates whose coverage is ≥ 75 %.
-///      Strict subset is no longer required because reference OSDs occasionally drop legacy
-///      sliders their derived presets still use (e.g. CBBE 3BA's reference OSD drops CBBE's
-///      AreolaSize, yet Alera-style 3BA presets still set it).
-///   3. <b>Closest-match pick:</b> prefer the candidate with the fewest missing preset sliders;
-///      on tie, prefer the smaller native catalog. This keeps a preset that only moves
-///      CBBE-common sliders resolved to CBBE rather than CBBE 3BA.
+///      Strict subset is not required because reference OSDs occasionally drop legacy sliders
+///      their derived presets still use (e.g. CBBE 3BA's reference OSD drops CBBE's AreolaSize,
+///      yet Alera-style 3BA presets still set it).
+///   3. <b>Closest-match pick:</b> installed entries beat uninstalled on tie; then fewer missing
+///      wins; then smaller native catalog wins. Installed-wins preserves the "user actually has
+///      this body" signal -- when two catalogs cover a preset equally, the installed one routes
+///      to a body the user can actually render.
 ///
 /// All-miss returns <c>BodyType="Unknown"</c> with a best-effort gender (Male if any preset
-/// slider is known to a male-gender installed entry; Female otherwise).
+/// slider is known to a male-gender entry with a catalog; Female otherwise).
 /// </summary>
 public class BodySlideGroupClassifier
 {
@@ -54,7 +58,8 @@ public class BodySlideGroupClassifier
     {
     }
 
-    /// <summary>True when at least one installed registry entry has a non-empty slider catalog.</summary>
+    /// <summary>True when at least one registry entry has a non-empty slider catalog
+    /// (whether from a local install or the shipped fallback).</summary>
     public bool HasCatalogs
     {
         get
@@ -63,7 +68,7 @@ public class BodySlideGroupClassifier
             foreach (var e in _registry)
             {
                 if (e == null) continue;
-                if (e.IsInstalled && e.ResolvedSliders != null && e.ResolvedSliders.Count > 0) return true;
+                if (e.ResolvedSliders != null && e.ResolvedSliders.Count > 0) return true;
             }
             return false;
         }
@@ -88,6 +93,9 @@ public class BodySlideGroupClassifier
     {
         if (!HasCatalogs)
         {
+            // Name preserved for stability: emitted as "no-installed-bodies" even though
+            // catalogs now include fallback-seeded uninstalled bodies -- this branch only fires
+            // when the registry has zero usable catalogs at all.
             return new BodySlideClassification { BodyType = "Unknown", Gender = Gender.Female, Reason = "no-installed-bodies" };
         }
         if (presetSliderNames == null || presetSliderNames.Count == 0)
@@ -111,12 +119,12 @@ public class BodySlideGroupClassifier
         BodyTypeRegistryEntry best = null;
         int bestMissing = int.MaxValue;
         int bestNative = int.MaxValue;
+        bool bestInstalled = false;
         int candidateCount = 0;
 
         foreach (var entry in _registry)
         {
             if (entry == null) continue;
-            if (!entry.IsInstalled) continue;
             if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) continue;
 
             int missing = 0;
@@ -130,17 +138,21 @@ public class BodySlideGroupClassifier
 
             candidateCount++;
             int nativeCount = entry.ResolvedSliders.Count;
+            bool installed = entry.IsInstalled;
 
-            // Ranking: fewest missing wins; on tie, smaller native catalog wins.
-            // Smaller-native tiebreak keeps a preset that uses only CBBE-common sliders resolved
-            // to CBBE rather than CBBE 3BA when both achieve 100 % coverage.
+            // Ranking: fewest missing wins; on tie, installed beats uninstalled; on tie, smaller
+            // native catalog wins. Installed-wins preserves "user actually has this body" --
+            // routing to a renderable body when coverage is equal. Smaller-native keeps presets
+            // that only move CBBE-common sliders resolved to CBBE rather than CBBE 3BA.
             bool better = missing < bestMissing
-                || (missing == bestMissing && nativeCount < bestNative);
+                || (missing == bestMissing && installed && !bestInstalled)
+                || (missing == bestMissing && installed == bestInstalled && nativeCount < bestNative);
             if (best == null || better)
             {
                 best = entry;
                 bestMissing = missing;
                 bestNative = nativeCount;
+                bestInstalled = installed;
             }
         }
 
@@ -178,14 +190,14 @@ public class BodySlideGroupClassifier
 
     /// <summary>
     /// Best-effort gender for an unclassifiable preset: Male if any of the preset's sliders is in
-    /// the slider catalog of an installed male body type, Female otherwise. Falls back to Female
-    /// when the registry has no installed male body types loaded.
+    /// the slider catalog of a male body type (installed or fallback-seeded), Female otherwise.
+    /// Falls back to Female when the registry has no male catalogs loaded.
     /// </summary>
     private Gender InferGenderFromSliders(ICollection<string> presetSliderNames)
     {
         foreach (var entry in _registry)
         {
-            if (entry == null || !entry.IsInstalled) continue;
+            if (entry == null) continue;
             if (entry.Gender != Gender.Male) continue;
             if (entry.ResolvedSliders == null || entry.ResolvedSliders.Count == 0) continue;
             foreach (var s in presetSliderNames)

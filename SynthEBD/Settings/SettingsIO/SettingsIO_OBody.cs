@@ -48,7 +48,8 @@ public class SettingsIO_OBody
         var shapeDataRoot = string.IsNullOrEmpty(dataFolder)
             ? string.Empty
             : Path.Combine(dataFolder, "CalienteTools", "BodySlide", "ShapeData");
-        _bodyTypeSliderExtractor.PopulateResolvedSliders(shapeDataRoot, settings.BodyTypeRegistry, _bsdFileParser);
+        var fallbackCatalogDir = Path.Combine(_environmentProvider.InternalDataPath, "SliderCatalogs");
+        _bodyTypeSliderExtractor.PopulateResolvedSliders(shapeDataRoot, settings.BodyTypeRegistry, _bsdFileParser, fallbackCatalogDir);
 
         LogRegistrySummary(settings.BodyTypeRegistry);
 
@@ -126,7 +127,9 @@ public class SettingsIO_OBody
         foreach (var e in entries)
         {
             if (e == null) continue;
-            string installed = e.IsInstalled ? "installed" : "not-installed";
+            string installed = e.IsInstalled
+                ? "installed"
+                : (e.ResolvedSliders?.Count > 0 ? "not-installed (fallback)" : "not-installed");
             string superset = string.IsNullOrEmpty(e.SupersetOfBodyType) ? "" : $" ⊃ {e.SupersetOfBodyType}";
             _logger.LogMessage($"BodyTypeRegistry: {e.Name} [{e.Gender}] -- {installed}, {e.ResolvedSliders?.Count ?? 0} slider(s){superset}");
         }

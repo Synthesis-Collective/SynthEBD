@@ -25,12 +25,14 @@ public class BodySlideGroupClassifierTests
     }
 
     [Fact]
-    public void NoInstalledBodies_ReturnsUnknown()
+    public void NoCatalogs_ReturnsUnknown()
     {
+        // Neither installed nor fallback-seeded: entry has no ResolvedSliders, so the classifier
+        // has nothing to match against and the "no-installed-bodies" branch fires.
         var classifier = new BodySlideGroupClassifier();
         classifier.SetRegistry(new List<BodyTypeRegistryEntry>
         {
-            MakeEntry("CBBE", Gender.Female, installed: false, "Waist", "Hips"),
+            MakeEntry("CBBE", Gender.Female, installed: false /* no sliders below */),
         });
 
         var result = classifier.Classify("AnyPreset", new[] { "Waist" });
@@ -170,9 +172,29 @@ public class BodySlideGroupClassifierTests
     }
 
     [Fact]
-    public void UninstalledEntries_AreIgnored()
+    public void UninstalledEntry_WithFallbackSliders_Classifies()
     {
-        // Even though an uninstalled entry's slider catalog would match perfectly, it can't be picked.
+        // BHUNP isn't installed but its shipped catalog was loaded as fallback, giving it
+        // non-empty ResolvedSliders. A preset that only BHUNP covers should still resolve.
+        var classifier = new BodySlideGroupClassifier();
+        classifier.SetRegistry(new List<BodyTypeRegistryEntry>
+        {
+            MakeEntry("CBBE", Gender.Female, installed: true, "Waist", "Hips"),
+            MakeEntry("BHUNP", Gender.Female, installed: false, "BHUNP_Butt", "BHUNP_Breast", "BHUNP_Thigh"),
+        });
+
+        var result = classifier.Classify("BHUNP-Preset", new[] { "BHUNP_Butt", "BHUNP_Breast", "BHUNP_Thigh" });
+
+        result.BodyType.Should().Be("BHUNP");
+        result.Reason.Should().Be("exact-match");
+    }
+
+    [Fact]
+    public void InstalledBeatsUninstalled_OnCoverageTie()
+    {
+        // Both CBBE (uninstalled/fallback) and BHUNP (installed) cover the preset 100 %. Since
+        // BHUNP has the larger native catalog, the smaller-native tiebreak would otherwise prefer
+        // CBBE -- but installed-wins takes priority and BHUNP should be picked.
         var classifier = new BodySlideGroupClassifier();
         classifier.SetRegistry(new List<BodyTypeRegistryEntry>
         {

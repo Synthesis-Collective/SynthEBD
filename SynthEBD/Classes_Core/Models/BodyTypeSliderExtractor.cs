@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace SynthEBD;
 
@@ -35,13 +37,20 @@ public class BodyTypeSliderExtractor
 
     /// <summary>
     /// Walks ShapeData for each installed entry, builds the union slider set, and computes
-    /// superset links. Uninstalled entries have their <see cref="BodyTypeRegistryEntry.ResolvedSliders"/>
-    /// cleared so stale data from a previous scan doesn't leak through.
+    /// superset links. Entries whose local extraction yielded zero sliders (either because
+    /// they're uninstalled or their reference OSD is missing) fall back to the shipped
+    /// per-body catalog under <paramref name="fallbackCatalogDir"/>, so presets authored for
+    /// a body the user hasn't installed can still be classified.
     /// </summary>
     /// <param name="shapeDataRoot">Absolute path to CalienteTools/BodySlide/ShapeData under the game's Data folder.</param>
     /// <param name="entries">All registry entries (installed and not).</param>
     /// <param name="parser">Parser used to read OSD/BSD files.</param>
-    public void PopulateResolvedSliders(string shapeDataRoot, IEnumerable<BodyTypeRegistryEntry> entries, BsdFileParser parser)
+    /// <param name="fallbackCatalogDir">
+    /// Optional directory containing shipped <c>{SafeName}.json</c> per-body slider lists
+    /// (typically <c>InternalData/SliderCatalogs</c>). Used only for entries whose local
+    /// extraction yielded zero sliders.
+    /// </param>
+    public void PopulateResolvedSliders(string shapeDataRoot, IEnumerable<BodyTypeRegistryEntry> entries, BsdFileParser parser, string fallbackCatalogDir = null)
     {
         if (entries == null) return;
         if (parser == null) throw new ArgumentNullException(nameof(parser));
@@ -57,53 +66,108 @@ public class BodyTypeSliderExtractor
         bool shapeDataExists = !string.IsNullOrWhiteSpace(shapeDataRoot) && Directory.Exists(shapeDataRoot);
         if (!shapeDataExists)
         {
-            _logger.LogMessage("BodyTypeSliderExtractor: ShapeData root missing -- no slider catalogs can be derived.");
-            ComputeSupersets(materialized);
-            return;
+            _logger.LogMessage("BodyTypeSliderExtractor: ShapeData root missing -- local slider catalogs cannot be derived.");
         }
-
-        foreach (var entry in materialized)
+        else
         {
-            if (!entry.IsInstalled) continue;
-            if (entry.ShapeDataFolders == null || entry.ShapeDataFolders.Count == 0) continue;
-
-            foreach (var rawPath in entry.ShapeDataFolders)
+            foreach (var entry in materialized)
             {
-                if (string.IsNullOrWhiteSpace(rawPath)) continue;
-                var sub = rawPath.Replace('/', Path.DirectorySeparatorChar)
-                                 .Replace('\\', Path.DirectorySeparatorChar)
-                                 .TrimStart(Path.DirectorySeparatorChar);
-                var fullPath = Path.Combine(shapeDataRoot, sub);
+                if (!entry.IsInstalled) continue;
+                if (entry.ShapeDataFolders == null || entry.ShapeDataFolders.Count == 0) continue;
 
-                if (File.Exists(fullPath))
+                foreach (var rawPath in entry.ShapeDataFolders)
                 {
-                    var osd = string.Equals(Path.GetExtension(fullPath), ".bsd", StringComparison.OrdinalIgnoreCase)
-                        ? parser.ParseBsdFile(fullPath)
-                        : parser.ParseOsdFile(fullPath);
-                    if (osd != null) AddNormalizedSliders(entry, osd);
-                }
-                else if (Directory.Exists(fullPath))
-                {
-                    foreach (var osd in parser.ParseAllOsdInDirectory(fullPath, recursive: false))
+                    if (string.IsNullOrWhiteSpace(rawPath)) continue;
+                    var sub = rawPath.Replace('/', Path.DirectorySeparatorChar)
+                                     .Replace('\\', Path.DirectorySeparatorChar)
+                                     .TrimStart(Path.DirectorySeparatorChar);
+                    var fullPath = Path.Combine(shapeDataRoot, sub);
+
+                    if (File.Exists(fullPath))
                     {
-                        AddNormalizedSliders(entry, osd);
+                        var osd = string.Equals(Path.GetExtension(fullPath), ".bsd", StringComparison.OrdinalIgnoreCase)
+                            ? parser.ParseBsdFile(fullPath)
+                            : parser.ParseOsdFile(fullPath);
+                        if (osd != null) AddNormalizedSliders(entry, osd);
+                    }
+                    else if (Directory.Exists(fullPath))
+                    {
+                        foreach (var osd in parser.ParseAllOsdInDirectory(fullPath, recursive: false))
+                        {
+                            AddNormalizedSliders(entry, osd);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' ShapeData target missing on disk: '{fullPath}'");
                     }
                 }
-                else
-                {
-                    _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' ShapeData target missing on disk: '{fullPath}'");
-                }
-            }
 
 #if CATALOG_VERBOSE_LOGGING
-            string sample = entry.ResolvedSliders.Count == 0
-                ? ""
-                : " Sample: " + string.Join(", ", entry.ResolvedSliders.Take(5));
-            _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' resolved {entry.ResolvedSliders.Count} slider(s) from {entry.ShapeDataFolders.Count} ShapeData folder(s).{sample}");
+                string sample = entry.ResolvedSliders.Count == 0
+                    ? ""
+                    : " Sample: " + string.Join(", ", entry.ResolvedSliders.Take(5));
+                _logger.LogMessage($"BodyTypeSliderExtractor: '{entry.Name}' resolved {entry.ResolvedSliders.Count} slider(s) from {entry.ShapeDataFolders.Count} ShapeData folder(s).{sample}");
 #endif
+            }
         }
 
+        ApplyFallbackCatalogs(materialized, fallbackCatalogDir);
         ComputeSupersets(materialized);
+    }
+
+    /// <summary>
+    /// For any entry whose local extraction produced zero sliders, load the shipped
+    /// <c>{SafeName}.json</c> under <paramref name="fallbackCatalogDir"/> and seed
+    /// <see cref="BodyTypeRegistryEntry.ResolvedSliders"/> from it. Lets the classifier pick
+    /// a body the user hasn't actually installed.
+    /// </summary>
+    private void ApplyFallbackCatalogs(List<BodyTypeRegistryEntry> entries, string fallbackCatalogDir)
+    {
+        if (string.IsNullOrWhiteSpace(fallbackCatalogDir)) return;
+        if (!Directory.Exists(fallbackCatalogDir)) return;
+
+        int loaded = 0;
+        foreach (var entry in entries)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Name)) continue;
+            if (entry.ResolvedSliders != null && entry.ResolvedSliders.Count > 0) continue;
+
+            var safe = SafeFileName(entry.Name);
+            var path = Path.Combine(fallbackCatalogDir, safe + ".json");
+            if (!File.Exists(path)) continue;
+
+            List<string> names;
+            try
+            {
+                names = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogMessage($"BodyTypeSliderExtractor: failed to load fallback catalog '{path}': {ex.Message}");
+                continue;
+            }
+            if (names == null || names.Count == 0) continue;
+
+            entry.ResolvedSliders ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var n in names)
+            {
+                if (!string.IsNullOrWhiteSpace(n)) entry.ResolvedSliders.Add(n);
+            }
+            loaded++;
+        }
+
+        if (loaded > 0)
+        {
+            _logger.LogMessage($"BodyTypeSliderExtractor: seeded {loaded} entr{(loaded == 1 ? "y" : "ies")} from shipped fallback catalogs.");
+        }
+    }
+
+    private static string SafeFileName(string name)
+    {
+        var sb = new StringBuilder(name.Length);
+        foreach (char c in name) sb.Append(c == ' ' ? '_' : c);
+        return sb.ToString();
     }
 
     /// <summary>
