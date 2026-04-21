@@ -55,6 +55,16 @@ public class GameAssetResolver
     /// </summary>
     private readonly ConcurrentDictionary<string, AssetSource> _bsaSourceCache = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Cache of loose-file resolutions and definitive misses so repeat texture
+    /// lookups on the viewer hot path skip the <see cref="File.Exists"/> syscall
+    /// (and the BSA traversal for not-found) on every call. A single NPC load
+    /// requests ~20 unique paths across ~8 texture slots per mesh; preset
+    /// switches re-request the exact same paths, so the hit rate is near-total
+    /// on the second and subsequent loads.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, AssetSource> _looseSourceCache = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly string _extractionDir;
 
     private readonly CharacterViewerLogGate _logGate;
@@ -100,13 +110,23 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
+        // Fast path: previously-resolved loose file or definitive miss. Covers the
+        // viewer's preset-switch re-request storm where the same ~20 texture paths
+        // are asked for repeatedly. BSA hits have their own cache checked below.
+        if (_looseSourceCache.TryGetValue(relativeGamePath, out var cachedSource))
+        {
+            return cachedSource;
+        }
+
         // Step 0: Absolute-path passthrough. The Headparts preview flow supplies a
         // rooted path to a temp FaceGen NIF generated outside the game Data folder;
         // returning it as-is lets the viewer consume it without needing the file to
         // live under Data or to be prefixed with DataFolderPath.
         if (Path.IsPathRooted(relativeGamePath) && File.Exists(relativeGamePath))
         {
-            return new AssetSource(AssetOriginKind.Loose, relativeGamePath, relativeGamePath, relativeGamePath, null, null);
+            var src = new AssetSource(AssetOriginKind.Loose, relativeGamePath, relativeGamePath, relativeGamePath, null, null);
+            _looseSourceCache[relativeGamePath] = src;
+            return src;
         }
 
         // Normalize separators
@@ -117,11 +137,20 @@ public class GameAssetResolver
         if (File.Exists(loosePath))
         {
             LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
-            return new AssetSource(AssetOriginKind.Loose, relativeGamePath, loosePath, loosePath, null, null);
+            var src = new AssetSource(AssetOriginKind.Loose, relativeGamePath, loosePath, loosePath, null, null);
+            _looseSourceCache[relativeGamePath] = src;
+            return src;
         }
 
         // Step 2: BSA fallback (uses extraction cache internally)
-        return TryResolveFromBsa(relativeGamePath, normalized);
+        var bsaResult = TryResolveFromBsa(relativeGamePath, normalized);
+        if (bsaResult.Kind == AssetOriginKind.NotFound)
+        {
+            // Cache the miss so the BSA traversal doesn't repeat on every
+            // subsequent request for the same unresolvable asset.
+            _looseSourceCache[relativeGamePath] = bsaResult;
+        }
+        return bsaResult;
     }
 
     /// <summary>

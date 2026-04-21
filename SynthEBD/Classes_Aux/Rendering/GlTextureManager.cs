@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using OpenTK.Graphics.OpenGL4;
-using Pfim;
 
 namespace SynthEBD;
 
 /// <summary>
-/// Manages OpenGL texture loading from game assets via Pfim DDS decoding.
-/// Includes caching, face tint blending, and hair tint application.
+/// Manages OpenGL texture loading from game assets. DDS decoding and asset-path
+/// resolution are delegated to <see cref="CharacterPreviewCache"/> so the pixel
+/// payload is shared across viewer instances; this class is responsible for
+/// per-context GL texture handles, face/hair tint blending, and caching of
+/// uploaded handles within a single viewer's GL context.
 /// </summary>
 public class GlTextureManager : IDisposable
 {
-    private readonly GameAssetResolver _assetResolver;
+    private readonly CharacterPreviewCache _previewCache;
     private readonly Logger _logger;
     private readonly Dictionary<string, int> _textureCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<int> _allTextures = new();
@@ -20,9 +21,9 @@ public class GlTextureManager : IDisposable
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
-    public GlTextureManager(GameAssetResolver assetResolver, Logger logger)
+    public GlTextureManager(CharacterPreviewCache previewCache, Logger logger)
     {
-        _assetResolver = assetResolver;
+        _previewCache = previewCache;
         _logger = logger;
     }
 
@@ -44,7 +45,8 @@ public class GlTextureManager : IDisposable
     /// <summary>
     /// Loads a DDS texture from a game-relative path. Returns the GL texture handle,
     /// or <see cref="WhiteTexture"/> if the texture can't be loaded.
-    /// Results are cached by path.
+    /// Results are cached by path. The upload does not mutate the decoded pixel
+    /// array, so handing the shared buffer directly to GL is safe.
     /// </summary>
     public int LoadTexture(string relativeGamePath)
     {
@@ -54,11 +56,11 @@ public class GlTextureManager : IDisposable
         if (_textureCache.TryGetValue(relativeGamePath, out int cached))
             return cached;
 
-        var pixels = LoadDdsPixels(relativeGamePath, out int width, out int height);
+        var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
             return WhiteTexture;
 
-        int handle = UploadTexture(pixels, width, height);
+        int handle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
         _textureCache[relativeGamePath] = handle;
         return handle;
     }
@@ -69,22 +71,36 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithFaceTint(string diffusePath, string faceTintPath)
     {
-        var diffusePixels = LoadDdsPixels(diffusePath, out int dw, out int dh);
-        if (diffusePixels == null) return WhiteTexture;
+        var diffuseSource = _previewCache.GetOrLoadDdsPixels(diffusePath);
+        if (diffuseSource == null) return WhiteTexture;
 
-        var tintPixels = LoadDdsPixels(faceTintPath, out int tw, out int th);
-        if (tintPixels == null)
+        int dw = diffuseSource.Value.Width;
+        int dh = diffuseSource.Value.Height;
+        // CLONE — the cached array is shared across viewers and this method mutates
+        // it in place during the blend. Skipping the clone corrupts subsequent loads.
+        byte[] diffusePixels = (byte[])diffuseSource.Value.Data.Clone();
+
+        var tintSource = _previewCache.GetOrLoadDdsPixels(faceTintPath);
+        if (tintSource == null)
         {
             _logger.LogMessage("GlTextures: Face tint not found '" + faceTintPath + "', using unblended diffuse");
             return UploadTexture(diffusePixels, dw, dh);
         }
 
+        int tw = tintSource.Value.Width;
+        int th = tintSource.Value.Height;
+        byte[] tintPixels = tintSource.Value.Data;
+
         if (dw != tw || dh != th)
         {
+            // BilinearResample always allocates a fresh array, so the resampled buffer
+            // is already owner-exclusive. The read-only-from-cache invariant is
+            // preserved because the shared tintPixels is only read, never written.
             tintPixels = BilinearResample(tintPixels, tw, th, dw, dh);
         }
 
-        // Blend: finalColor = mix(base, base * tint.rgb, tint.a)
+        // Blend: finalColor = mix(base, base * tint.rgb, tint.a). Writes only go to
+        // diffusePixels (the clone above); tintPixels is read-only here.
         for (int i = 0; i < diffusePixels.Length; i += 4)
         {
             byte baseB = diffusePixels[i], baseG = diffusePixels[i + 1], baseR = diffusePixels[i + 2];
@@ -109,8 +125,14 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithHairTint(string diffusePath, float tintR, float tintG, float tintB)
     {
-        var pixels = LoadDdsPixels(diffusePath, out int width, out int height);
-        if (pixels == null) return WhiteTexture;
+        var source = _previewCache.GetOrLoadDdsPixels(diffusePath);
+        if (source == null) return WhiteTexture;
+
+        int width = source.Value.Width;
+        int height = source.Value.Height;
+        // CLONE — see LoadTextureWithFaceTint: the cached buffer is shared, and we
+        // mutate per-pixel below.
+        byte[] pixels = (byte[])source.Value.Data.Clone();
 
         for (int i = 0; i < pixels.Length; i += 4)
         {
@@ -137,14 +159,14 @@ public class GlTextureManager : IDisposable
         if (_textureCache.TryGetValue("env:" + relativeGamePath, out int cached))
             return cached;
 
-        var pixels = LoadDdsPixels(relativeGamePath, out int width, out int height);
+        var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
             _logger.LogMessage("GlTextures: Env map not found '" + relativeGamePath + "'");
             return 0;
         }
 
-        int handle = UploadTexture(pixels, width, height);
+        int handle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
         _textureCache["env:" + relativeGamePath] = handle;
         return handle;
     }
@@ -179,66 +201,6 @@ public class GlTextureManager : IDisposable
 
         _allTextures.Add(handle);
         return handle;
-    }
-
-    /// <summary>
-    /// Decodes a DDS texture via Pfim and returns raw BGRA pixel data.
-    /// </summary>
-    private byte[]? LoadDdsPixels(string relativeGamePath, out int width, out int height)
-    {
-        width = 0;
-        height = 0;
-
-        string? resolved = _assetResolver.ResolveAssetPath(relativeGamePath);
-        if (resolved == null || !File.Exists(resolved)) return null;
-
-        try
-        {
-            using var image = Pfimage.FromFile(resolved);
-            width = image.Width;
-            height = image.Height;
-
-            int rowBytes = width * 4;
-            int expectedSize = height * rowBytes;
-
-            switch (image.Format)
-            {
-                case Pfim.ImageFormat.Rgba32:
-                {
-                    byte[] pixelData = new byte[expectedSize];
-                    if (image.Stride == rowBytes)
-                        System.Buffer.BlockCopy(image.Data, 0, pixelData, 0, expectedSize);
-                    else
-                        for (int y = 0; y < height; y++)
-                            System.Buffer.BlockCopy(image.Data, y * image.Stride, pixelData, y * rowBytes, rowBytes);
-                    return pixelData;
-                }
-                case Pfim.ImageFormat.Rgb24:
-                {
-                    byte[] pixelData = new byte[expectedSize];
-                    int srcStride = image.Stride;
-                    for (int y = 0; y < height; y++)
-                        for (int x = 0; x < width; x++)
-                        {
-                            int srcIdx = y * srcStride + x * 3;
-                            int dstIdx = (y * width + x) * 4;
-                            pixelData[dstIdx] = image.Data[srcIdx];
-                            pixelData[dstIdx + 1] = image.Data[srcIdx + 1];
-                            pixelData[dstIdx + 2] = image.Data[srcIdx + 2];
-                            pixelData[dstIdx + 3] = 255;
-                        }
-                    return pixelData;
-                }
-                default:
-                    _logger.LogMessage("GlTextures: Unsupported format " + image.Format + " for '" + relativeGamePath + "'");
-                    return null;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogMessage("GlTextures: Failed to decode '" + relativeGamePath + "': " + ex.Message);
-            return null;
-        }
     }
 
     private static byte[] BilinearResample(byte[] src, int srcW, int srcH, int dstW, int dstH)
