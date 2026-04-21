@@ -295,6 +295,16 @@ public class VM_CharacterViewer : VM
     /// Type Profiles editor, where key-vertex assignment is the whole point.</summary>
     public bool ShowClassifierControls { get; set; } = false;
 
+    /// <summary>One-line summary of the most recent vertex pick for the classifier
+    /// pick-info panel. Empty when no picks in the current session.</summary>
+    public string LastPickSummary { get; set; } = "";
+
+    /// <summary>Bound to the pick-info panel's ItemsControl. One row per pick in
+    /// the current session, in pick order. Cleared by <see cref="ClearKeyVertexMarkers"/>.</summary>
+    public ObservableCollection<PickRow> Picks { get; } = new();
+
+    public RelayCommand CopyPicksToClipboardCommand { get; private set; } = null!;
+
     /// <summary>
     /// Gates the viewer's informational log output. Errors (<c>LogError</c>) are never gated --
     /// only the noisy per-frame / per-load diagnostics flowing through <see cref="LogVerbose"/>.
@@ -433,6 +443,9 @@ public class VM_CharacterViewer : VM
         DeleteSelectedColorSchemeCommand = new RelayCommand(
             canExecute: _ => SelectedLightingColorScheme != null && !SelectedLightingColorScheme.IsBuiltIn,
             execute: _ => DeleteSelectedColorScheme());
+        CopyPicksToClipboardCommand = new RelayCommand(
+            canExecute: _ => Picks.Count > 0,
+            execute: _ => CopyPicksToClipboard());
     }
 
     /// <summary>Normalizes the per-light fields from a layout+scheme, suppressing
@@ -1020,6 +1033,18 @@ public class VM_CharacterViewer : VM
         // Parallel bookkeeping so SelectMirrorPicks can resolve each marker back
         // to its (mesh, vertexIndex) without having to guess from position alone.
         _keyVertexPicks.Add(pick);
+
+        var row = new PickRow
+        {
+            ShapeName = pick.Mesh?.ShapeName ?? "",
+            VertexIndex = pick.VertexIndex,
+            X = pick.LocalPos.X,
+            Y = pick.LocalPos.Y,
+            Z = pick.LocalPos.Z,
+        };
+        Picks.Add(row);
+        LastPickSummary = row.Display;
+
         LogVerbose(
             "CharacterViewer: picked vertex #" + pick.VertexIndex
             + " on '" + pick.Mesh.ShapeName + "'"
@@ -1029,6 +1054,39 @@ public class VM_CharacterViewer : VM
 
         KeyVertexPicked?.Invoke(pick);
         AnyKeyVertexPicked?.Invoke(this, pick);
+    }
+
+    /// <summary>Row VM for the pick-info panel. Mirrors a single <see cref="KeyVertexPick"/>
+    /// as display-formatted primitives so the XAML can bind without converters.</summary>
+    public sealed class PickRow
+    {
+        public string ShapeName { get; init; } = "";
+        public int VertexIndex { get; init; }
+        public float X { get; init; }
+        public float Y { get; init; }
+        public float Z { get; init; }
+
+        public string Display =>
+            ShapeName + "[" + VertexIndex + "]  "
+            + X.ToString("F2") + ", "
+            + Y.ToString("F2") + ", "
+            + Z.ToString("F2");
+
+        public string Tsv =>
+            ShapeName + "\t" + VertexIndex + "\t"
+            + X.ToString("F4") + "\t"
+            + Y.ToString("F4") + "\t"
+            + Z.ToString("F4");
+    }
+
+    private void CopyPicksToClipboard()
+    {
+        if (Picks.Count == 0) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("shape\tindex\tx\ty\tz");
+        foreach (var p in Picks) sb.AppendLine(p.Tsv);
+        try { Clipboard.SetText(sb.ToString()); }
+        catch (Exception ex) { _logger?.LogError("CopyPicksToClipboard failed: " + ex.Message); }
     }
 
     /// <summary>
@@ -1081,6 +1139,8 @@ public class VM_CharacterViewer : VM
     {
         Renderer.KeyVertexMarkers.Clear();
         _keyVertexPicks.Clear();
+        Picks.Clear();
+        LastPickSummary = "";
     }
 
     /// <summary>

@@ -21,6 +21,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -314,14 +315,65 @@
                        HorizontalAlignment="Center"/>
         </Border>
 
+        <!-- Pick info panel: compact readout of vertex picks for classifier authoring.
+             Collapses entirely when classifier controls are off so the viewport is unaffected. -->
+        <Border Grid.Row="4"
+                Background="#FF1F1F1F"
+                BorderBrush="#FF3A3A3A"
+                BorderThickness="0,1,0,1"
+                Padding="6 4"
+                Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Last pick:" Foreground="#FFAAAAAA" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding LastPickSummary}"
+                                   Foreground="#FFFF6126" FontSize="11" FontFamily="Consolas"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="(no picks)"
+                                   Foreground="#FF666666" FontSize="11" FontStyle="Italic"
+                                   VerticalAlignment="Center"
+                                   Visibility="{Binding Picks.Count, Converter={StaticResource IntEqVis}, ConverterParameter=0}"/>
+                    </StackPanel>
+
+                    <ScrollViewer MaxHeight="110" Margin="0,3,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Picks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Display}"
+                                               Foreground="#FFCCCCCC" FontSize="11"
+                                               FontFamily="Consolas"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="Copy TSV"
+                        FontSize="10" Padding="8 2"
+                        VerticalAlignment="Top" Margin="8,0,0,0"
+                        Command="{Binding CopyPicksToClipboardCommand}"
+                        ToolTip="Copy all picks to the clipboard as tab-separated values (shape, index, x, y, z). Paste the result back to share pick data."/>
+            </Grid>
+        </Border>
+
         <!-- OpenGL Viewport -->
         <glWpf:GLWpfControl
-            Grid.Row="4"
+            Grid.Row="5"
             x:Name="GlControl"
             Render="GlControl_OnRender"/>
 
         <!-- Loading overlay -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Stretch"
@@ -334,7 +386,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="5"
+        <Border Grid.Row="6"
                 Background="#FF333333"
                 Padding="6 3">
             <TextBlock Text="{Binding StatusText}"
