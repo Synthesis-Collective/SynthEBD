@@ -483,6 +483,17 @@ public class VM_BodyTypeProfile : VM
                 KeyVertices.Remove(k);
             });
 
+        ShowPicksInViewer = new RelayCommand(
+            canExecute: _ => ActiveViewer != null && KeyVertices.Count > 0,
+            execute: _ =>
+            {
+                if (ActiveViewer == null) return;
+                var entries = KeyVertices
+                    .Where(k => !string.IsNullOrEmpty(k.ShapeName) && k.VertexIndex >= 0)
+                    .Select(k => (k.ShapeName, k.VertexIndex));
+                ActiveViewer.ShowKeyVerticesInViewer(entries);
+            });
+
         // Re-evaluate live values whenever the measurement collection changes shape or
         // any row's definition fields (Kind / Axis / VertexRefA..D) are edited in the grid.
         foreach (var m in Measurements) m.PropertyChanged += OnMeasurementRowPropertyChanged;
@@ -560,6 +571,7 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand CaptureFingerprintFromActiveViewer { get; }
     public RelayCommand SuggestThresholds { get; }
     public RelayCommand RemoveSelectedKeyVertex { get; }
+    public RelayCommand ShowPicksInViewer { get; }
 
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
@@ -571,10 +583,22 @@ public class VM_BodyTypeProfile : VM
     {
         ActiveViewer = viewer;
 
+        var shapeName = pick.Mesh?.ShapeName ?? "";
+        // Dedup: if we already have this (shape, index), just select the existing row so
+        // the user sees which entry matches the click instead of appending a duplicate.
+        var existing = KeyVertices.FirstOrDefault(k =>
+            k.VertexIndex == pick.VertexIndex
+            && string.Equals(k.ShapeName ?? "", shapeName, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            SelectedKeyVertex = existing;
+            return;
+        }
+
         var model = new NamedKeyVertex
         {
             Name = NextDefaultName("KV", KeyVertices.Select(k => k.Name)),
-            ShapeName = pick.Mesh?.ShapeName ?? "",
+            ShapeName = shapeName,
             VertexIndex = pick.VertexIndex,
         };
         var vm = new VM_NamedKeyVertex(model, this);

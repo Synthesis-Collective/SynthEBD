@@ -152,6 +152,10 @@
                                         <CheckBox Content="Capture picks from viewer (toggle Pick Vertex on the viewer toolbar)"
                                                   IsChecked="{Binding CapturePicks}"
                                                   VerticalAlignment="Center"/>
+                                        <Button Content="Show picks in viewer"
+                                                Command="{Binding ShowPicksInViewer}"
+                                                Margin="10,0,0,0" Padding="6,1"
+                                                ToolTip="Sends this profile's Key Vertices to the viewer as pick markers so they can be re-visualized in a new session. References that don't resolve on the current mesh are silently skipped."/>
                                         <Button Content="Remove Selected" Command="{Binding RemoveSelectedKeyVertex}" Margin="15,0,0,0" Padding="6,1"/>
                                     </StackPanel>
                                     <DataGrid ItemsSource="{Binding KeyVertices}"

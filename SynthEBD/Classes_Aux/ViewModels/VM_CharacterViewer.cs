@@ -1034,6 +1034,22 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public void NotifyKeyVertexPicked(KeyVertexPick pick)
     {
+        // Dedup: a vertex already captured on the same shape is a no-op. Keeps
+        // SelectMirrorPicks from re-adding pre-existing partners and keeps the
+        // picks panel list clean when mirror targets overlap prior picks.
+        var shapeName = pick.Mesh?.ShapeName ?? "";
+        for (int i = 0; i < _keyVertexPicks.Count; i++)
+        {
+            var existing = _keyVertexPicks[i];
+            if (existing.VertexIndex == pick.VertexIndex
+                && string.Equals(existing.Mesh?.ShapeName ?? "", shapeName, StringComparison.OrdinalIgnoreCase))
+            {
+                LogVerbose("CharacterViewer: skip duplicate pick #" + pick.VertexIndex
+                    + " on '" + shapeName + "'.");
+                return;
+            }
+        }
+
         Renderer.KeyVertexMarkers.Add(pick.LocalPos);
         // Parallel bookkeeping so SelectMirrorPicks can resolve each marker back
         // to its (mesh, vertexIndex) without having to guess from position alone.
@@ -1041,7 +1057,7 @@ public class VM_CharacterViewer : VM
 
         var row = new PickRow
         {
-            ShapeName = pick.Mesh?.ShapeName ?? "",
+            ShapeName = shapeName,
             VertexIndex = pick.VertexIndex,
             X = pick.LocalPos.X,
             Y = pick.LocalPos.Y,
@@ -1102,6 +1118,22 @@ public class VM_CharacterViewer : VM
     private readonly List<KeyVertexPick> _keyVertexPicks = new();
 
     /// <summary>
+    /// Picks currently highlighted in the pick-info panel ListBox. The view pushes
+    /// updates here on SelectionChanged so <see cref="SelectMirrorPicks"/> can act
+    /// on just the highlighted row(s) rather than every pick in the session.
+    /// </summary>
+    private readonly List<PickRow> _selectedPicks = new();
+
+    /// <summary>Called by the view (<see cref="UC_CharacterViewer"/>) whenever the
+    /// picks ListBox selection changes. Replaces the cached selection wholesale.</summary>
+    public void SetSelectedPicks(IEnumerable<PickRow> selection)
+    {
+        _selectedPicks.Clear();
+        if (selection == null) return;
+        foreach (var p in selection) _selectedPicks.Add(p);
+    }
+
+    /// <summary>
     /// Look up the current (post-deformation, pre-ModelScale) position of a vertex on a body
     /// mesh by shape name and index. Used by the BodyTypeProfile editor to compute live
     /// measurement readouts and by the Phase 5 evaluator. Returns false when the shape isn't
@@ -1144,8 +1176,45 @@ public class VM_CharacterViewer : VM
     {
         Renderer.KeyVertexMarkers.Clear();
         _keyVertexPicks.Clear();
+        _selectedPicks.Clear();
         Picks.Clear();
         LastPickSummary = "";
+    }
+
+    /// <summary>
+    /// Resolves a list of (shape, vertex index) references against the current mesh state
+    /// and displays each as a pick marker in the viewer. Used by the BodyTypeProfile
+    /// editor's "Show picks in viewer" button to re-visualize a profile's persisted
+    /// <c>KeyVertices</c> after closing and reopening the program. Picks already present
+    /// are skipped by the dedup in <see cref="NotifyKeyVertexPicked"/>; references that
+    /// don't resolve on the current mesh (wrong shape or out-of-range index) are silently
+    /// skipped and logged.
+    /// </summary>
+    public int ShowKeyVerticesInViewer(IEnumerable<(string ShapeName, int VertexIndex)> entries)
+    {
+        if (entries == null) return 0;
+        int added = 0;
+        int skipped = 0;
+        foreach (var (shapeName, vertexIndex) in entries)
+        {
+            if (string.IsNullOrEmpty(shapeName) || vertexIndex < 0) { skipped++; continue; }
+            var mesh = Renderer.Meshes.FirstOrDefault(m =>
+                string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+            if (mesh?.CpuPositions == null || vertexIndex >= mesh.CpuPositions.Length)
+            {
+                skipped++;
+                continue;
+            }
+
+            int before = _keyVertexPicks.Count;
+            var p = mesh.CpuPositions[vertexIndex];
+            NotifyKeyVertexPicked(new KeyVertexPick(mesh, vertexIndex,
+                new OpenTK.Mathematics.Vector3(p.X, p.Y, p.Z)));
+            if (_keyVertexPicks.Count > before) added++;
+        }
+        LogVerbose("CharacterViewer: ShowKeyVerticesInViewer added " + added
+            + " marker(s); " + skipped + " reference(s) unresolved.");
+        return added;
     }
 
     /// <summary>
@@ -1158,9 +1227,37 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public void SelectMirrorPicks()
     {
-        // Snapshot first: NotifyKeyVertexPicked appends to _keyVertexPicks, and we
-        // don't want to mirror the mirrors we just added.
-        var sourcePicks = _keyVertexPicks.ToArray();
+        // Scope: if the user has selected rows in the picks panel, mirror only those;
+        // otherwise fall back to the most recent pick. This matches the UX where a
+        // fresh pick auto-selects itself in the ListBox, so an un-interacted panel
+        // still does the intuitive thing (mirror the last pick).
+        KeyVertexPick[] sourcePicks;
+        if (_selectedPicks.Count > 0)
+        {
+            var list = new List<KeyVertexPick>(_selectedPicks.Count);
+            foreach (var row in _selectedPicks)
+            {
+                foreach (var pick in _keyVertexPicks)
+                {
+                    if (pick.VertexIndex == row.VertexIndex
+                        && string.Equals(pick.Mesh?.ShapeName ?? "", row.ShapeName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        list.Add(pick);
+                        break;
+                    }
+                }
+            }
+            sourcePicks = list.ToArray();
+        }
+        else if (_keyVertexPicks.Count > 0)
+        {
+            sourcePicks = new[] { _keyVertexPicks[^1] };
+        }
+        else
+        {
+            sourcePicks = Array.Empty<KeyVertexPick>();
+        }
+
         if (sourcePicks.Length == 0)
         {
             LogVerbose("CharacterViewer: SelectMirrorPicks — no source picks; nothing to do.");

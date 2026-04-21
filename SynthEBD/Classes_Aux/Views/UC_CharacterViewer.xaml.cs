@@ -59,8 +59,43 @@ public partial class UC_CharacterViewer : UserControl
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        if (_vm != null)
+            _vm.Picks.CollectionChanged -= Picks_CollectionChanged;
+
         _vm = DataContext as VM_CharacterViewer;
+
+        if (_vm != null)
+            _vm.Picks.CollectionChanged += Picks_CollectionChanged;
+
         TryStartGl();
+    }
+
+    private void Picks_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        // Auto-select the most recently added pick so Select Mirror operates on it
+        // by default (user can still Ctrl/Shift-click to multi-select).
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add
+            && e.NewItems != null && e.NewItems.Count > 0)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                PicksList.SelectedItems.Clear();
+                foreach (var item in e.NewItems) PicksList.SelectedItems.Add(item);
+            }));
+        }
+        else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+        {
+            _vm?.SetSelectedPicks(Array.Empty<VM_CharacterViewer.PickRow>());
+        }
+    }
+
+    private void PicksList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_vm == null) return;
+        var sel = new List<VM_CharacterViewer.PickRow>(PicksList.SelectedItems.Count);
+        foreach (var item in PicksList.SelectedItems)
+            if (item is VM_CharacterViewer.PickRow row) sel.Add(row);
+        _vm.SetSelectedPicks(sel);
     }
 
     private void TryStartGl()

@@ -360,19 +360,24 @@
                                    Visibility="{Binding Picks.Count, Converter={StaticResource IntEqVis}, ConverterParameter=0}"/>
                     </StackPanel>
 
-                    <ScrollViewer MaxHeight="110" Margin="0,3,0,0"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Picks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Display}"
-                                               Foreground="#FFCCCCCC" FontSize="11"
-                                               FontFamily="Consolas"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <ListBox x:Name="PicksList"
+                             ItemsSource="{Binding Picks}"
+                             SelectionMode="Extended"
+                             SelectionChanged="PicksList_SelectionChanged"
+                             MaxHeight="110" Margin="0,3,0,0"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="#FFCCCCCC"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ToolTip="Click a row to select a pick. Ctrl/Shift-click for multi-select. 'Select Mirror' acts on the selected rows (or the most recent pick if nothing is selected).">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Display}"
+                                           FontSize="11"
+                                           FontFamily="Consolas"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </StackPanel>
 
                 <Button Grid.Column="1"
