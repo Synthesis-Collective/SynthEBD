@@ -879,6 +879,22 @@ public class VM_CharacterViewer : VM
     public bool IsKeyVertexPickMode { get; set; } = false;
 
     /// <summary>
+    /// When true, a left-mouse drag in the viewport paints a 2D screen rectangle whose
+    /// contents are projected back onto the starting mesh to form a mesh-local AABB; the
+    /// rectangle + selected <see cref="PendingBoxCriterion"/> are then fired through
+    /// <see cref="KeyVertexBoxPicked"/>. Mutually exclusive with orbit — both modes share
+    /// left-drag, but BB pick mode suppresses camera orbit while engaged.
+    /// </summary>
+    public bool IsBoundingBoxPickMode { get; set; } = false;
+
+    /// <summary>
+    /// Current <see cref="BoxCriterionSelection"/> chosen in the viewer combo. Read at the
+    /// moment the user releases the mouse so the emitted pick carries the criterion the
+    /// user meant. Default <see cref="BoxCriterionSelection.MaxX"/>.
+    /// </summary>
+    public BoxCriterionSelection PendingBoxCriterion { get; set; } = BoxCriterionSelection.MaxX;
+
+    /// <summary>
     /// Fired once per successful key-vertex pick (after the marker has been added). Phase 4's
     /// BodyTypeProfile editor subscribes when active so picks route into the selected profile.
     /// Carries the same payload as <see cref="NotifyKeyVertexPicked"/>.
@@ -891,6 +907,12 @@ public class VM_CharacterViewer : VM
     /// to whichever viewer happens to be visible. Sender is the originating viewer.
     /// </summary>
     public static event Action<VM_CharacterViewer, KeyVertexPick>? AnyKeyVertexPicked;
+
+    /// <summary>Per-viewer fan-out for bounding-box picks (parallel to <see cref="KeyVertexPicked"/>).</summary>
+    public event Action<KeyVertexBoxPick>? KeyVertexBoxPicked;
+
+    /// <summary>Process-wide fan-out for BB picks (parallel to <see cref="AnyKeyVertexPicked"/>).</summary>
+    public static event Action<VM_CharacterViewer, KeyVertexBoxPick>? AnyKeyVertexBoxPicked;
 
     /// <summary>
     /// Fires at the end of ApplyBodySlide, after CpuPositions have been refreshed. The
@@ -914,6 +936,31 @@ public class VM_CharacterViewer : VM
         public GlMesh Mesh { get; }
         public int VertexIndex { get; }
         public OpenTK.Mathematics.Vector3 LocalPos { get; }
+    }
+
+    /// <summary>Result of a bounding-box authoring drag: the target mesh's shape name, the
+    /// mesh-local AABB (pre-ModelScale) computed by projecting that mesh's CpuPositions into
+    /// screen space and keeping the ones inside the drag rect, and the UX-level criterion the
+    /// user had selected when releasing the mouse. The editor expands <c>Mirror*</c> values
+    /// into two paired <see cref="NamedKeyVertex"/> rows; persistence only stores single-axis
+    /// <see cref="BoundingBoxCriterion"/>.</summary>
+    public readonly struct KeyVertexBoxPick
+    {
+        public KeyVertexBoxPick(
+            string shapeName,
+            OpenTK.Mathematics.Vector3 boxMin,
+            OpenTK.Mathematics.Vector3 boxMax,
+            BoxCriterionSelection criterion)
+        {
+            ShapeName = shapeName ?? "";
+            BoxMin = boxMin;
+            BoxMax = boxMax;
+            Criterion = criterion;
+        }
+        public string ShapeName { get; }
+        public OpenTK.Mathematics.Vector3 BoxMin { get; }
+        public OpenTK.Mathematics.Vector3 BoxMax { get; }
+        public BoxCriterionSelection Criterion { get; }
     }
 
     /// <summary>
@@ -1075,6 +1122,107 @@ public class VM_CharacterViewer : VM
         AnyKeyVertexPicked?.Invoke(this, pick);
     }
 
+    /// <summary>
+    /// Resolves a 2D drag rectangle (in <see cref="GlControl"/> logical units) into a
+    /// mesh-local AABB by projecting every vertex of every rendered mesh into screen space,
+    /// keeping those inside the rect, and bucketing them by mesh. The bucket with the most
+    /// hits wins — this is more robust than requiring the start-click to land on the mesh,
+    /// since users often begin the drag in empty space. Returns null when no vertex of any
+    /// visible mesh fell inside the rect. Positions returned in the same pre-ModelScale
+    /// mesh-local space as <see cref="GetShapePositions"/> / <see cref="TryGetCurrentVertex"/>.
+    /// </summary>
+    public KeyVertexBoxPick? ComputeBoxFromScreenRect(
+        float x0, float y0, float x1, float y1,
+        float viewportWidth, float viewportHeight,
+        BoxCriterionSelection criterion)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0) return null;
+
+        float rectMinX = MathF.Min(x0, x1);
+        float rectMaxX = MathF.Max(x0, x1);
+        float rectMinY = MathF.Min(y0, y1);
+        float rectMaxY = MathF.Max(y0, y1);
+        // Guard against accidental tiny drags — treat as a click, not a box selection.
+        if ((rectMaxX - rectMinX) < 4f || (rectMaxY - rectMinY) < 4f) return null;
+
+        float aspect = viewportWidth / viewportHeight;
+        var viewProj = Camera.GetViewMatrix() * Camera.GetProjectionMatrix(aspect);
+        float modelScale = Renderer.ModelScale;
+
+        GlMesh? bestMesh = null;
+        int bestHitCount = 0;
+        OpenTK.Mathematics.Vector3 bestMin = default;
+        OpenTK.Mathematics.Vector3 bestMax = default;
+
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.CpuPositions == null || mesh.CpuPositions.Length == 0) continue;
+
+            int hits = 0;
+            var localMin = new OpenTK.Mathematics.Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var localMax = new OpenTK.Mathematics.Vector3(float.MinValue, float.MinValue, float.MinValue);
+
+            var positions = mesh.CpuPositions;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                var p = positions[i];
+                // Apply the renderer's model scale so projection matches what the user sees.
+                var world = new OpenTK.Mathematics.Vector4(
+                    p.X * modelScale, p.Y * modelScale, p.Z * modelScale, 1f);
+                // Row-vector convention (matches Camera.ScreenPointToRay's inverse path).
+                var clip = world * viewProj;
+                if (clip.W <= 0f) continue; // behind the near plane
+                float ndcX = clip.X / clip.W;
+                float ndcY = clip.Y / clip.W;
+                // OpenGL NDC y-up -> WPF window y-down
+                float screenX = (ndcX * 0.5f + 0.5f) * viewportWidth;
+                float screenY = (1f - (ndcY * 0.5f + 0.5f)) * viewportHeight;
+
+                if (screenX < rectMinX || screenX > rectMaxX) continue;
+                if (screenY < rectMinY || screenY > rectMaxY) continue;
+
+                hits++;
+                if (p.X < localMin.X) localMin.X = p.X;
+                if (p.Y < localMin.Y) localMin.Y = p.Y;
+                if (p.Z < localMin.Z) localMin.Z = p.Z;
+                if (p.X > localMax.X) localMax.X = p.X;
+                if (p.Y > localMax.Y) localMax.Y = p.Y;
+                if (p.Z > localMax.Z) localMax.Z = p.Z;
+            }
+
+            if (hits > bestHitCount)
+            {
+                bestHitCount = hits;
+                bestMesh = mesh;
+                bestMin = localMin;
+                bestMax = localMax;
+            }
+        }
+
+        if (bestMesh == null || bestHitCount == 0) return null;
+
+        LogVerbose(
+            "CharacterViewer: BB drag captured " + bestHitCount
+            + " vertices on '" + bestMesh.ShapeName + "'"
+            + " -> mesh-local AABB min(" + bestMin.X.ToString("F2") + ","
+                + bestMin.Y.ToString("F2") + "," + bestMin.Z.ToString("F2") + ")"
+            + " max(" + bestMax.X.ToString("F2") + ","
+                + bestMax.Y.ToString("F2") + "," + bestMax.Z.ToString("F2") + ")"
+            + " criterion=" + criterion);
+
+        return new KeyVertexBoxPick(bestMesh.ShapeName ?? "", bestMin, bestMax, criterion);
+    }
+
+    /// <summary>Entry point for the codebehind drag handler — fans the completed BB pick
+    /// out to per-viewer and process-wide subscribers (parallels
+    /// <see cref="NotifyKeyVertexPicked"/>).</summary>
+    public void NotifyKeyVertexBoxPicked(KeyVertexBoxPick pick)
+    {
+        KeyVertexBoxPicked?.Invoke(pick);
+        AnyKeyVertexBoxPicked?.Invoke(this, pick);
+    }
+
     /// <summary>Row VM for the pick-info panel. Mirrors a single <see cref="KeyVertexPick"/>
     /// as display-formatted primitives so the XAML can bind without converters.
     /// Mutable (rather than <c>init</c>-only) so <see cref="RefreshKeyVertexMarkerPositions"/>
@@ -1162,6 +1310,20 @@ public class VM_CharacterViewer : VM
         var p = mesh.CpuPositions[vertexIndex];
         localPos = new OpenTK.Mathematics.Vector3(p.X, p.Y, p.Z);
         return true;
+    }
+
+    /// <summary>
+    /// Replaces the renderer's BB-resolved marker set with <paramref name="positions"/>.
+    /// Intended for the BodyTypeProfile editor, which resolves every <c>BoundingBox</c>
+    /// key-vertex to a mesh-local position whenever <c>RefreshMeasurementValues</c> runs and
+    /// pushes them here so the yellow markers track preset/weight change. Explicit picks
+    /// continue to live in <see cref="GlRenderer.KeyVertexMarkers"/> and aren't touched.
+    /// </summary>
+    public void SetBoxResolvedMarkers(IEnumerable<OpenTK.Mathematics.Vector3> positions)
+    {
+        Renderer.BoxResolvedMarkers.Clear();
+        if (positions == null) return;
+        foreach (var p in positions) Renderer.BoxResolvedMarkers.Add(p);
     }
 
     /// <summary>

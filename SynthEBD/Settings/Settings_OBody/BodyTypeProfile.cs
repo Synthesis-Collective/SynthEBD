@@ -112,6 +112,27 @@ public enum BoundingBoxCriterion
 }
 
 /// <summary>
+/// Authoring-time-only companion to <see cref="BoundingBoxCriterion"/>. The UI combo exposes
+/// the six single-axis values plus three <c>Mirror*</c> shortcuts; picking a <c>Mirror*</c>
+/// value tells the editor to materialize two paired <see cref="NamedKeyVertex"/> rows sharing
+/// the same box but with opposite single-axis criteria (e.g. <c>MirrorX</c> -> <c>MaxX</c> +
+/// <c>MinX</c>). Persistence stores only the single-axis <see cref="BoundingBoxCriterion"/>;
+/// this enum never lands in JSON.
+/// </summary>
+public enum BoxCriterionSelection
+{
+    MaxX = 0,
+    MinX = 1,
+    MaxY = 2,
+    MinY = 3,
+    MaxZ = 4,
+    MinZ = 5,
+    MirrorX = 6,
+    MirrorY = 7,
+    MirrorZ = 8,
+}
+
+/// <summary>
 /// A user-named vertex handle referencing a single vertex inside a specific body shape mesh.
 /// </summary>
 [DebuggerDisplay("{Name} @ {ShapeName}[{VertexIndex}] ({Strategy})")]

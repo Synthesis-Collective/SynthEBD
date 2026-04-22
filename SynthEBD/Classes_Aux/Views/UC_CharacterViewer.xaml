@@ -6,6 +6,7 @@
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:glWpf="clr-namespace:OpenTK.Wpf;assembly=GLWpfControl"
              xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              d:DesignHeight="500" d:DesignWidth="600"
              d:DataContext="{d:DesignInstance Type=local:VM_CharacterViewer}">
@@ -13,6 +14,15 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:IntEqualsToVisibilityConverter x:Key="IntEqVis" />
+
+        <!-- Values for the BB-pick Criterion combo: six single-axis picks + three UX-level
+             'Mirror*' shortcuts that expand into paired rows on the editor side. -->
+        <ObjectDataProvider x:Key="BoxCriterionValues"
+                            MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="local:BoxCriterionSelection"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
     </UserControl.Resources>
 
     <Grid>
@@ -153,6 +163,21 @@
                           IsChecked="{Binding IsKeyVertexPickMode}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                           ToolTip="Left-click the model to drop a marker on the nearest triangle vertex. Intended for BodySlide classifier key-vertex assignment; camera orbit is disabled while this is on."/>
+
+                <CheckBox Content="Pick Box" FontSize="11" Foreground="#FFFFCC40"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding IsBoundingBoxPickMode}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Left-drag a rectangle across the model to define a mesh-local bounding box. The classifier picks the vertex matching the selected Criterion inside that box at runtime, so the anatomical landmark tracks the mesh across presets."/>
+
+                <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="8,0,3,0"
+                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>
+                <ComboBox Width="92" FontSize="10" VerticalAlignment="Center"
+                          ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
+                          SelectedItem="{Binding PendingBoxCriterion}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Which vertex inside the painted box gets picked at runtime. Max/Min operate on the mesh-local axis (X=left-right, Y=up-down, Z=front-back). Mirror* expands to two paired rows with opposite-axis criteria — draw a box that covers both sides and pick e.g. MirrorX to get L/R shoulder at once."/>
 
                 <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
@@ -394,6 +419,18 @@
             Grid.Row="5"
             x:Name="GlControl"
             Render="GlControl_OnRender"/>
+
+        <!-- Rubber-band overlay for BB-pick drag. IsHitTestVisible=False so clicks continue
+             to hit GlControl beneath. Codebehind positions BoxSelectionRect via
+             Canvas.Left/Top/Width/Height and flips Visibility during drag. -->
+        <Canvas Grid.Row="5" IsHitTestVisible="False" ClipToBounds="True">
+            <Rectangle x:Name="BoxSelectionRect"
+                       Visibility="Collapsed"
+                       Stroke="#FFFFCC40"
+                       StrokeThickness="1"
+                       StrokeDashArray="3 2"
+                       Fill="#30FFCC40"/>
+        </Canvas>
 
         <!-- Loading overlay -->
         <Border Grid.Row="5"

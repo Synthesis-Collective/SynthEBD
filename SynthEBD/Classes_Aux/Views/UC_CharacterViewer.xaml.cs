@@ -57,6 +57,12 @@ public partial class UC_CharacterViewer : UserControl
     private Point _lastMousePos;
     private GlMesh? _currentHoverMesh;
 
+    // BB-pick drag state. Populated on MouseDown when IsBoundingBoxPickMode is on; MouseMove
+    // updates BoxSelectionRect's Canvas.Left/Top/Width/Height; MouseUp hands the final screen
+    // rect to the VM's ComputeBoxFromScreenRect + NotifyKeyVertexBoxPicked path.
+    private bool _boxDragging;
+    private Point _boxDragStart;
+
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_vm != null)
@@ -204,6 +210,23 @@ public partial class UC_CharacterViewer : UserControl
             return;
         }
 
+        // BB picking: left-drag paints a screen rect; on MouseUp the VM projects every
+        // mesh vertex through it and returns a mesh-local AABB. Also takes precedence
+        // over orbit + light arrows when the mode is on.
+        if (e.ChangedButton == MouseButton.Left && _vm.IsBoundingBoxPickMode)
+        {
+            _boxDragging = true;
+            _boxDragStart = pos;
+            Canvas.SetLeft(BoxSelectionRect, pos.X);
+            Canvas.SetTop(BoxSelectionRect, pos.Y);
+            BoxSelectionRect.Width = 0;
+            BoxSelectionRect.Height = 0;
+            BoxSelectionRect.Visibility = Visibility.Visible;
+            GlControl.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         // Arrow picking: left-click on a light gizmo selects that light for
         // editing instead of starting a camera orbit.
         if (e.ChangedButton == MouseButton.Left && _vm.ShowLightControls)
@@ -237,6 +260,23 @@ public partial class UC_CharacterViewer : UserControl
         if (_vm == null) return;
 
         var pos = e.GetPosition(GlControl);
+
+        // While painting a BB, keep the rubber-band rect in sync and suppress the
+        // orbit/pan update + hover tooltip. Camera state stays untouched.
+        if (_boxDragging)
+        {
+            double x = Math.Min(_boxDragStart.X, pos.X);
+            double y = Math.Min(_boxDragStart.Y, pos.Y);
+            double w = Math.Abs(pos.X - _boxDragStart.X);
+            double h = Math.Abs(pos.Y - _boxDragStart.Y);
+            Canvas.SetLeft(BoxSelectionRect, x);
+            Canvas.SetTop(BoxSelectionRect, y);
+            BoxSelectionRect.Width = w;
+            BoxSelectionRect.Height = h;
+            HideHoverTooltip();
+            return;
+        }
+
         _vm.Camera.OnMouseMove((float)pos.X, (float)pos.Y);
 
         // Restart hover dwell timer only when the user is not actively orbiting
@@ -258,6 +298,27 @@ public partial class UC_CharacterViewer : UserControl
     {
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
+
+        // BB drag release: resolve the painted screen rect into a mesh-local AABB via
+        // the VM and fan out through NotifyKeyVertexBoxPicked. Tiny/degenerate drags are
+        // filtered by ComputeBoxFromScreenRect itself (returns null).
+        if (_boxDragging && e.ChangedButton == MouseButton.Left)
+        {
+            _boxDragging = false;
+            BoxSelectionRect.Visibility = Visibility.Collapsed;
+            GlControl.ReleaseMouseCapture();
+
+            var end = e.GetPosition(GlControl);
+            var pick = _vm.ComputeBoxFromScreenRect(
+                (float)_boxDragStart.X, (float)_boxDragStart.Y,
+                (float)end.X, (float)end.Y,
+                (float)GlControl.ActualWidth, (float)GlControl.ActualHeight,
+                _vm.PendingBoxCriterion);
+            if (pick.HasValue) _vm.NotifyKeyVertexBoxPicked(pick.Value);
+
+            e.Handled = true;
+            return;
+        }
 
         _vm.Camera.OnMouseUp();
         GlControl.ReleaseMouseCapture();

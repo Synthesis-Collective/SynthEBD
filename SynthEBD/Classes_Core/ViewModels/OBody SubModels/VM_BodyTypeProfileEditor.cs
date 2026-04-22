@@ -89,6 +89,7 @@ public class VM_BodyTypeProfileEditor : VM
             execute: _ => RebuildAvailablePresets());
 
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
+        VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -173,6 +174,7 @@ public class VM_BodyTypeProfileEditor : VM
     public override void Dispose()
     {
         VM_CharacterViewer.AnyKeyVertexPicked -= OnAnyKeyVertexPicked;
+        VM_CharacterViewer.AnyKeyVertexBoxPicked -= OnAnyKeyVertexBoxPicked;
         base.Dispose();
     }
 
@@ -290,6 +292,15 @@ public class VM_BodyTypeProfileEditor : VM
         var profile = SelectedProfile;
         if (profile == null || !profile.CapturePicks) return;
         profile.OnVertexPickedFromViewer(viewer, pick);
+    }
+
+    private void OnAnyKeyVertexBoxPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    {
+        if (!ReferenceEquals(viewer, CharacterViewer)) return;
+
+        var profile = SelectedProfile;
+        if (profile == null || !profile.CapturePicks) return;
+        profile.OnBoxPickedFromViewer(viewer, pick);
     }
 
     /// <summary>
@@ -609,6 +620,62 @@ public class VM_BodyTypeProfile : VM
     }
 
     /// <summary>
+    /// Receives a bounding-box authoring drag from the viewer. <c>Mirror*</c> criteria
+    /// materialize two paired <see cref="VM_NamedKeyVertex"/> rows sharing the same AABB
+    /// with opposite single-axis <see cref="BoundingBoxCriterion"/>s so one drag can
+    /// author both sides of a symmetric landmark pair. Single-axis criteria create one
+    /// row. Names default to sequential placeholders — the user renames afterwards.
+    /// </summary>
+    public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    {
+        ActiveViewer = viewer;
+
+        var shapeName = pick.ShapeName ?? "";
+        bool isMirror =
+            pick.Criterion == BoxCriterionSelection.MirrorX ||
+            pick.Criterion == BoxCriterionSelection.MirrorY ||
+            pick.Criterion == BoxCriterionSelection.MirrorZ;
+
+        if (isMirror)
+        {
+            var (maxCrit, minCrit) = pick.Criterion switch
+            {
+                BoxCriterionSelection.MirrorX => (BoundingBoxCriterion.MaxX, BoundingBoxCriterion.MinX),
+                BoxCriterionSelection.MirrorY => (BoundingBoxCriterion.MaxY, BoundingBoxCriterion.MinY),
+                _                              => (BoundingBoxCriterion.MaxZ, BoundingBoxCriterion.MinZ),
+            };
+            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, maxCrit);
+            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, minCrit);
+        }
+        else
+        {
+            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, (BoundingBoxCriterion)pick.Criterion);
+        }
+
+        RefreshMeasurementValues();
+    }
+
+    private void AddBoxRow(
+        string shapeName,
+        OpenTK.Mathematics.Vector3 boxMin,
+        OpenTK.Mathematics.Vector3 boxMax,
+        BoundingBoxCriterion criterion)
+    {
+        var model = new NamedKeyVertex
+        {
+            Name = NextDefaultName("KV", KeyVertices.Select(k => k.Name)),
+            ShapeName = shapeName,
+            Strategy = KeyVertexStrategy.BoundingBox,
+            BoxMinX = boxMin.X, BoxMinY = boxMin.Y, BoxMinZ = boxMin.Z,
+            BoxMaxX = boxMax.X, BoxMaxY = boxMax.Y, BoxMaxZ = boxMax.Z,
+            Criterion = criterion,
+        };
+        var vm = new VM_NamedKeyVertex(model, this);
+        KeyVertices.Add(vm);
+        SelectedKeyVertex = vm;
+    }
+
+    /// <summary>
     /// Re-evaluates every measurement against <see cref="ActiveViewer"/> and writes the
     /// result back into each <see cref="VM_MeasurementDefinition.LiveValue"/>. Called after
     /// any structural change (vertex add, measurement edit) and externally when the viewer's
@@ -616,6 +683,10 @@ public class VM_BodyTypeProfile : VM
     /// </summary>
     public void RefreshMeasurementValues()
     {
+        var viewer = ActiveViewer;
+
+        RefreshBoundingBoxMarkers(viewer);
+
         if (Measurements.Count == 0)
         {
             RefreshMeasurementHighlight();
@@ -626,8 +697,6 @@ public class VM_BodyTypeProfile : VM
             .Where(k => !string.IsNullOrEmpty(k.Name))
             .GroupBy(k => k.Name)
             .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
-
-        var viewer = ActiveViewer;
 
         foreach (var m in Measurements)
         {
@@ -650,6 +719,35 @@ public class VM_BodyTypeProfile : VM
         }
 
         RefreshMeasurementHighlight();
+    }
+
+    /// <summary>
+    /// Resolves every <see cref="KeyVertexStrategy.BoundingBox"/> row against the current
+    /// mesh state, caches the resolved index onto the row VM (so the DataGrid reflects it),
+    /// and pushes the resolved world positions to the viewer's yellow BB marker list. Called
+    /// from <see cref="RefreshMeasurementValues"/> so markers track preset/weight change.
+    /// </summary>
+    private void RefreshBoundingBoxMarkers(VM_CharacterViewer viewer)
+    {
+        if (viewer == null) return;
+
+        var boxPositions = new List<OpenTK.Mathematics.Vector3>();
+        foreach (var kv in KeyVertices)
+        {
+            if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
+            if (string.IsNullOrEmpty(kv.ShapeName)) continue;
+
+            var positions = viewer.GetShapePositions(kv.ShapeName);
+            if (positions == null || positions.Length == 0) continue;
+
+            int? idx = MeasurementMath.FindBestInBox(positions, kv.DumpToModel(), kv.Criterion);
+            if (idx == null) continue;
+
+            kv.VertexIndex = idx.Value;
+            boxPositions.Add(positions[idx.Value]);
+        }
+
+        viewer.SetBoxResolvedMarkers(boxPositions);
     }
 
     /// <summary>

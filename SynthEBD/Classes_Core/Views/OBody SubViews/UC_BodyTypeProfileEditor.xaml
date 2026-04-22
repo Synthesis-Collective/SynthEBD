@@ -165,9 +165,43 @@
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="180"/>
-                                            <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
-                                            <DataGridTextColumn Header="Vertex Index" Binding="{Binding VertexIndex, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                                            <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
+                                            <DataGridTemplateColumn Header="Strategy" Width="110">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding Strategy, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:KeyVertexStrategy}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Vertex Index" Binding="{Binding VertexIndex, UpdateSourceTrigger=PropertyChanged}" Width="90"/>
+                                            <DataGridTemplateColumn Header="Criterion" Width="90">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedValue="{Binding Criterion, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BoundingBoxCriterion}}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Box (min / max)" Width="240">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center">
+                                                            <TextBlock.Text>
+                                                                <MultiBinding StringFormat="({0:F1},{1:F1},{2:F1}) / ({3:F1},{4:F1},{5:F1})">
+                                                                    <Binding Path="BoxMinX"/>
+                                                                    <Binding Path="BoxMinY"/>
+                                                                    <Binding Path="BoxMinZ"/>
+                                                                    <Binding Path="BoxMaxX"/>
+                                                                    <Binding Path="BoxMaxY"/>
+                                                                    <Binding Path="BoxMaxZ"/>
+                                                                </MultiBinding>
+                                                            </TextBlock.Text>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

@@ -34,6 +34,15 @@ public class GlRenderer : IDisposable
     /// <summary>RGB color for the key-vertex marker spheres.</summary>
     public Vector3 KeyVertexMarkerColor { get; set; } = new Vector3(1.0f, 0.38f, 0.15f);
 
+    /// <summary>Bounding-box-resolved markers — rendered by the same path as
+    /// <see cref="KeyVertexMarkers"/> but in a distinguishable color so the user can see
+    /// which of their named key vertices are static picks vs. AABB re-scans. Owned by the
+    /// BodyTypeProfile editor; repopulated on every <c>RefreshMeasurementValues</c>.</summary>
+    public List<Vector3> BoxResolvedMarkers { get; } = new();
+
+    /// <summary>RGB color for BB-resolved marker spheres. Yellow matches the Pick Box UI accent.</summary>
+    public Vector3 BoxResolvedMarkerColor { get; set; } = new Vector3(1.0f, 0.80f, 0.25f);
+
     /// <summary>World-space radius of each marker sphere before ModelScale is
     /// applied. Small enough not to obscure neighbouring vertices on a dense
     /// classifier mesh, while still readable at typical viewer zooms.</summary>
@@ -316,14 +325,12 @@ public class GlRenderer : IDisposable
     private void DrawKeyVertexMarkers(ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
-        if (KeyVertexMarkers.Count == 0) return;
+        if (KeyVertexMarkers.Count == 0 && BoxResolvedMarkers.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
         _debugShader.SetMatrix4("u_projection", ref projection);
         _debugShader.SetFloat("u_shaded", 1f);
-        _debugShader.SetVector3("u_color",
-            KeyVertexMarkerColor.X, KeyVertexMarkerColor.Y, KeyVertexMarkerColor.Z);
 
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
@@ -334,12 +341,26 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
+        DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor);
+        DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
+
+        _debugShader.SetFloat("u_shaded", 0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    private void DrawMarkerList(List<Vector3> markers, Vector3 color)
+    {
+        if (markers.Count == 0) return;
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+
         var unit = GetUnitSphereMesh();
         var scratch = _sphereScratch ??= new float[unit.Length];
         float worldRadius = KeyVertexMarkerRadius * ModelScale;
-        for (int i = 0; i < KeyVertexMarkers.Count; i++)
+        for (int i = 0; i < markers.Count; i++)
         {
-            var worldCenter = KeyVertexMarkers[i] * ModelScale;
+            var worldCenter = markers[i] * ModelScale;
             for (int v = 0; v < unit.Length; v += 6)
             {
                 scratch[v + 0] = worldCenter.X + unit[v + 0] * worldRadius;
@@ -353,11 +374,6 @@ public class GlRenderer : IDisposable
                 scratch.Length * sizeof(float), scratch, BufferUsageHint.DynamicDraw);
             GL.DrawArrays(PrimitiveType.Triangles, 0, scratch.Length / 6);
         }
-
-        _debugShader.SetFloat("u_shaded", 0f);
-        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
-        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
-        GL.BindVertexArray(0);
     }
 
     /// <summary>
