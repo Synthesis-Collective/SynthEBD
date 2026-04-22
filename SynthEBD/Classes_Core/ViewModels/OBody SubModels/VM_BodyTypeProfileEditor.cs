@@ -28,6 +28,19 @@ public class VM_BodyTypeProfileEditor : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
 
+    // Profile currently subscribed for BodyTypeName-change notifications, so the preset
+    // dropdown re-filters when the user edits the profile's body-type assignment. Swapped
+    // in the SelectedProfile PropertyChanged handler.
+    private VM_BodyTypeProfile? _watchedProfile;
+
+    private void OnWatchedProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_BodyTypeProfile.BodyTypeName))
+        {
+            RebuildFilteredPresets();
+        }
+    }
+
     public VM_BodyTypeProfileEditor(
         Logger logger,
         Func<VM_CharacterViewer> characterViewerFactory,
@@ -112,11 +125,20 @@ public class VM_BodyTypeProfileEditor : VM
                     _ = RefreshPreviewAsync();
                     break;
                 case nameof(SelectedProfile):
+                    // Swap BodyTypeName-change subscription from the previous profile to the
+                    // new one so the preset dropdown re-filters when the user edits the
+                    // profile's body-type field, then rebuild now to reflect the new profile.
+                    if (_watchedProfile != null)
+                        _watchedProfile.PropertyChanged -= OnWatchedProfilePropertyChanged;
+                    _watchedProfile = SelectedProfile;
+                    if (_watchedProfile != null)
+                        _watchedProfile.PropertyChanged += OnWatchedProfilePropertyChanged;
                     if (SelectedProfile != null)
                     {
                         SelectedProfile.AttachViewer(CharacterViewer);
                         SelectedProfile.RefreshMeasurementValues();
                     }
+                    RebuildFilteredPresets();
                     break;
             }
         };
@@ -336,11 +358,25 @@ public class VM_BodyTypeProfileEditor : VM
         FilteredPresets.Clear();
         string filter = PresetFilterText?.Trim() ?? "";
         bool hasFilter = filter.Length > 0;
+
+        // Body-type gate: only show presets whose SliderGroup matches the profile's
+        // BodyTypeName (i.e., presets actually assigned to this body in the registry).
+        // Skip gating when no profile is selected or BodyTypeName is unset, so the user
+        // sees all presets instead of an empty dropdown that would look broken.
+        string bodyType = SelectedProfile?.BodyTypeName?.Trim() ?? "";
+        bool gateByBodyType = bodyType.Length > 0;
+
         foreach (var ph in AvailablePresets)
         {
-            if (!hasFilter || (ph.Label != null && ph.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+            if (gateByBodyType)
             {
-                FilteredPresets.Add(ph);
+                var sg = ph?.AssociatedModel?.SliderGroup ?? "";
+                if (!string.Equals(sg, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
+            }
+            if (!hasFilter || (ph != null && ph.Label != null
+                && ph.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                FilteredPresets.Add(ph!);
             }
         }
     }
