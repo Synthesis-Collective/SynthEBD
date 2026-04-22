@@ -1059,10 +1059,8 @@ public class VM_CharacterViewer : VM
         {
             ShapeName = shapeName,
             VertexIndex = pick.VertexIndex,
-            X = pick.LocalPos.X,
-            Y = pick.LocalPos.Y,
-            Z = pick.LocalPos.Z,
         };
+        row.UpdatePosition(pick.LocalPos.X, pick.LocalPos.Y, pick.LocalPos.Z);
         Picks.Add(row);
         LastPickSummary = row.Display;
 
@@ -1078,26 +1076,38 @@ public class VM_CharacterViewer : VM
     }
 
     /// <summary>Row VM for the pick-info panel. Mirrors a single <see cref="KeyVertexPick"/>
-    /// as display-formatted primitives so the XAML can bind without converters.</summary>
-    public sealed class PickRow
+    /// as display-formatted primitives so the XAML can bind without converters.
+    /// Mutable (rather than <c>init</c>-only) so <see cref="RefreshKeyVertexMarkerPositions"/>
+    /// can update coords in place — replacing the row object would drop any user selection
+    /// in the picks ListBox because WPF tracks selection by reference. Display / Tsv are
+    /// stored (not expression-bodied) so Fody's PropertyChanged weaver raises change
+    /// notifications on them directly without relying on computed-property dependency
+    /// inference.</summary>
+    public sealed class PickRow : VM
     {
-        public string ShapeName { get; init; } = "";
-        public int VertexIndex { get; init; }
-        public float X { get; init; }
-        public float Y { get; init; }
-        public float Z { get; init; }
+        public string ShapeName { get; set; } = "";
+        public int VertexIndex { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Z { get; set; }
 
-        public string Display =>
-            ShapeName + "[" + VertexIndex + "]  "
-            + X.ToString("F2") + ", "
-            + Y.ToString("F2") + ", "
-            + Z.ToString("F2");
+        public string Display { get; set; } = "";
+        public string Tsv { get; set; } = "";
 
-        public string Tsv =>
-            ShapeName + "\t" + VertexIndex + "\t"
-            + X.ToString("F4") + "\t"
-            + Y.ToString("F4") + "\t"
-            + Z.ToString("F4");
+        public void UpdatePosition(float x, float y, float z)
+        {
+            X = x; Y = y; Z = z;
+            Display =
+                ShapeName + "[" + VertexIndex + "]  "
+                + x.ToString("F2") + ", "
+                + y.ToString("F2") + ", "
+                + z.ToString("F2");
+            Tsv =
+                ShapeName + "\t" + VertexIndex + "\t"
+                + x.ToString("F4") + "\t"
+                + y.ToString("F4") + "\t"
+                + z.ToString("F4");
+        }
     }
 
     private void CopyPicksToClipboard()
@@ -1179,6 +1189,45 @@ public class VM_CharacterViewer : VM
         _selectedPicks.Clear();
         Picks.Clear();
         LastPickSummary = "";
+    }
+
+    /// <summary>
+    /// Re-resolves every existing key-vertex pick against the current post-deformation
+    /// <see cref="GlMesh.CpuPositions"/> and updates the on-screen markers + picks panel
+    /// rows in place. Called at the end of <see cref="ApplyBodySlide"/> so markers track
+    /// the body as the user switches presets or weight instead of staying stuck in the
+    /// world at the position they were picked at. Picks whose mesh+index no longer
+    /// resolve (e.g., after an NPC swap) are skipped silently — their Picks row keeps
+    /// its last-known coordinates so the (shape, index) is still recoverable.
+    /// </summary>
+    private void RefreshKeyVertexMarkerPositions()
+    {
+        if (_keyVertexPicks.Count == 0) return;
+
+        Renderer.KeyVertexMarkers.Clear();
+
+        for (int i = 0; i < _keyVertexPicks.Count; i++)
+        {
+            var pick = _keyVertexPicks[i];
+            var shapeName = pick.Mesh?.ShapeName ?? "";
+            if (string.IsNullOrEmpty(shapeName)
+                || !TryGetCurrentVertex(shapeName, pick.VertexIndex, out var pos))
+            {
+                continue;
+            }
+
+            _keyVertexPicks[i] = new KeyVertexPick(pick.Mesh!, pick.VertexIndex, pos);
+            Renderer.KeyVertexMarkers.Add(pos);
+
+            if (i < Picks.Count)
+            {
+                // Mutate in place — replacing the row object would clear the user's
+                // ListBox selection because WPF tracks selection by reference.
+                Picks[i].UpdatePosition(pos.X, pos.Y, pos.Z);
+            }
+        }
+
+        if (Picks.Count > 0) LastPickSummary = Picks[^1].Display;
     }
 
     /// <summary>
@@ -2166,6 +2215,7 @@ public class VM_CharacterViewer : VM
         // Fire regardless of deformation outcome so subscribers can refresh readouts;
         // a failed deformation leaves CpuPositions in a valid (undeformed) state that
         // is still meaningful to measure.
+        RefreshKeyVertexMarkerPositions();
         BodySlideApplied?.Invoke();
     }
 
