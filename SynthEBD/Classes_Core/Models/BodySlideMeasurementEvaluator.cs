@@ -71,13 +71,14 @@ public static class BodySlideMeasurementEvaluator
 
         MeasurementMath.VertexLookup lookup = (shape, idx) =>
             viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null;
+        MeasurementMath.ShapePositionsLookup shapeLookup = shape => viewer.GetShapePositions(shape);
 
         if (profile.Measurements != null)
         {
             foreach (var def in profile.Measurements)
             {
                 if (def == null || string.IsNullOrEmpty(def.Name)) continue;
-                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, out float v))
+                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, out float v))
                 {
                     result.Measurements[def.Name] = v;
                 }

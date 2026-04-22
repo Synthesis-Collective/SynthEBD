@@ -86,10 +86,35 @@ public class TopologyFingerprint
     public List<int> SampleIndices { get; set; } = new();
 }
 
+/// <summary>How a <see cref="NamedKeyVertex"/> selects its target vertex at evaluation time.</summary>
+public enum KeyVertexStrategy
+{
+    /// <summary>Use the stored <see cref="NamedKeyVertex.VertexIndex"/> as-is. Legacy behavior.</summary>
+    Explicit = 0,
+
+    /// <summary>Scan all vertices inside a mesh-local AABB and pick by
+    /// <see cref="NamedKeyVertex.Criterion"/>. Lets a single entry track an anatomical feature
+    /// (widest X in hip band, frontmost Z on breast, etc.) across BodySlide presets even when
+    /// the extremal vertex migrates to a neighbor index.</summary>
+    BoundingBox = 1,
+}
+
+/// <summary>Extremum to select inside a <see cref="KeyVertexStrategy.BoundingBox"/> region.
+/// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back).</summary>
+public enum BoundingBoxCriterion
+{
+    MaxX = 0,
+    MinX = 1,
+    MaxY = 2,
+    MinY = 3,
+    MaxZ = 4,
+    MinZ = 5,
+}
+
 /// <summary>
 /// A user-named vertex handle referencing a single vertex inside a specific body shape mesh.
 /// </summary>
-[DebuggerDisplay("{Name} @ {ShapeName}[{VertexIndex}]")]
+[DebuggerDisplay("{Name} @ {ShapeName}[{VertexIndex}] ({Strategy})")]
 public class NamedKeyVertex
 {
     /// <summary>User-provided name (e.g. "LShoulder", "Waist_Front"). Unique within a profile.</summary>
@@ -98,8 +123,28 @@ public class NamedKeyVertex
     /// <summary>Name of the shape mesh (e.g. "CBBE", "3BA") this vertex belongs to. Matches <see cref="GlMesh"/> shape naming.</summary>
     public string ShapeName { get; set; } = "";
 
-    /// <summary>Zero-based index into the shape's post-deformation bind-pose vertex buffer.</summary>
+    /// <summary>
+    /// When <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Explicit"/>, the literal vertex index.
+    /// When Strategy = <see cref="KeyVertexStrategy.BoundingBox"/>, a cache of the last resolved index
+    /// (updated each time the evaluator scans the box) — valid for marker display but recomputed per evaluation.
+    /// </summary>
     public int VertexIndex { get; set; } = -1;
+
+    /// <summary>Selection strategy. Defaults to Explicit so existing profiles load unchanged.</summary>
+    public KeyVertexStrategy Strategy { get; set; } = KeyVertexStrategy.Explicit;
+
+    /// <summary>Mesh-local AABB min corner. Only consulted when <see cref="Strategy"/> = BoundingBox.</summary>
+    public float BoxMinX { get; set; }
+    public float BoxMinY { get; set; }
+    public float BoxMinZ { get; set; }
+
+    /// <summary>Mesh-local AABB max corner. Only consulted when <see cref="Strategy"/> = BoundingBox.</summary>
+    public float BoxMaxX { get; set; }
+    public float BoxMaxY { get; set; }
+    public float BoxMaxZ { get; set; }
+
+    /// <summary>Which extremum to pick inside the box. Only consulted when <see cref="Strategy"/> = BoundingBox.</summary>
+    public BoundingBoxCriterion Criterion { get; set; } = BoundingBoxCriterion.MaxX;
 }
 
 /// <summary>
@@ -248,12 +293,22 @@ public static class MeasurementMath
     /// <summary>Vertex lookup: returns the local-space position of a (shape, index) pair, or null when missing.</summary>
     public delegate OpenTK.Mathematics.Vector3? VertexLookup(string shapeName, int vertexIndex);
 
+    /// <summary>Full-shape positions lookup: returns every vertex position for a shape, or null when the
+    /// shape isn't loaded. Needed to resolve <see cref="KeyVertexStrategy.BoundingBox"/> entries — the
+    /// per-index <see cref="VertexLookup"/> can't scan an AABB on its own.</summary>
+    public delegate OpenTK.Mathematics.Vector3[]? ShapePositionsLookup(string shapeName);
+
     /// <summary>
     /// Evaluates a measurement against a vertex lookup. Returns false when any required vertex
     /// is missing (orphaned reference, shape not loaded), denominator is near zero (ratio), or
     /// the definition is malformed (wrong vertex-ref count for its kind).
+    /// <paramref name="shapeLookup"/> is only consulted for <see cref="KeyVertexStrategy.BoundingBox"/>
+    /// entries; pass null when only Explicit vertices are in play.
     /// </summary>
     public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, out float value)
+        => TryEvaluate(def, keyVertsByName, lookup, null, out value);
+
+    public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, out float value)
     {
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
@@ -261,8 +316,8 @@ public static class MeasurementMath
         int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
         if (def.VertexRefNames.Count < needed) return false;
 
-        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, out var a)) return false;
-        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, out var b)) return false;
+        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, out var a)) return false;
+        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, out var b)) return false;
 
         switch (def.Kind)
         {
@@ -281,8 +336,8 @@ public static class MeasurementMath
                 return true;
 
             case MeasurementKind.RatioDistance:
-                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, out var c)) return false;
-                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, out var d)) return false;
+                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, out var c)) return false;
+                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, out var d)) return false;
                 float denom = (c - d).Length;
                 if (denom < 1e-6f) return false;
                 value = (a - b).Length / denom;
@@ -293,15 +348,66 @@ public static class MeasurementMath
         }
     }
 
-    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, out OpenTK.Mathematics.Vector3 pos)
+    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, out OpenTK.Mathematics.Vector3 pos)
     {
         pos = default;
         if (string.IsNullOrEmpty(vertexRefName)) return false;
         if (!keyVertsByName.TryGetValue(vertexRefName, out var kv) || kv == null) return false;
+
+        if (kv.Strategy == KeyVertexStrategy.BoundingBox)
+        {
+            if (shapeLookup == null) return false;
+            var positions = shapeLookup(kv.ShapeName);
+            if (positions == null || positions.Length == 0) return false;
+            int? idx = FindBestInBox(positions, kv, kv.Criterion);
+            if (idx == null) return false;
+            kv.VertexIndex = idx.Value; // cache for marker display / downstream lookups
+            pos = positions[idx.Value];
+            return true;
+        }
+
         var p = lookup(kv.ShapeName, kv.VertexIndex);
         if (p == null) return false;
         pos = p.Value;
         return true;
+    }
+
+    /// <summary>Scan a mesh's positions for the vertex inside the <see cref="NamedKeyVertex"/>'s AABB
+    /// that best satisfies <paramref name="criterion"/>. Returns null if no vertex falls inside the box.
+    /// Exposed for viewer-side marker refresh, which needs to re-resolve BB entries when the mesh deforms.</summary>
+    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion)
+    {
+        if (positions == null || positions.Length == 0) return null;
+
+        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
+        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
+
+        bool wantMax = criterion == BoundingBoxCriterion.MaxX
+                    || criterion == BoundingBoxCriterion.MaxY
+                    || criterion == BoundingBoxCriterion.MaxZ;
+
+        int bestIdx = -1;
+        float bestVal = wantMax ? float.MinValue : float.MaxValue;
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            float val = criterion switch
+            {
+                BoundingBoxCriterion.MaxX or BoundingBoxCriterion.MinX => p.X,
+                BoundingBoxCriterion.MaxY or BoundingBoxCriterion.MinY => p.Y,
+                _ => p.Z,
+            };
+
+            bool isBest = wantMax ? val > bestVal : val < bestVal;
+            if (isBest) { bestVal = val; bestIdx = i; }
+        }
+
+        return bestIdx >= 0 ? bestIdx : null;
     }
 
     /// <summary>Applies a comparator to a measurement value.</summary>

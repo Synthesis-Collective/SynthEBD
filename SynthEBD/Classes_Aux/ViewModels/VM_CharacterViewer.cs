@@ -1165,6 +1165,29 @@ public class VM_CharacterViewer : VM
     }
 
     /// <summary>
+    /// Returns every vertex position for a shape in the same pre-ModelScale local space as
+    /// <see cref="TryGetCurrentVertex"/>, or null when the shape isn't currently loaded.
+    /// Used by <see cref="MeasurementMath"/> to resolve <see cref="KeyVertexStrategy.BoundingBox"/>
+    /// key-vertex entries — the scanner needs the full positions array to find the extremum
+    /// inside the AABB. Allocates a fresh array per call (positions are converted from
+    /// System.Numerics.Vector3 to OpenTK.Mathematics.Vector3); called infrequently enough
+    /// that this hasn't been worth caching.
+    /// </summary>
+    public OpenTK.Mathematics.Vector3[]? GetShapePositions(string shapeName)
+    {
+        if (string.IsNullOrEmpty(shapeName)) return null;
+        var mesh = Renderer.Meshes.FirstOrDefault(m =>
+            string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+        if (mesh?.CpuPositions == null || mesh.CpuPositions.Length == 0) return null;
+
+        var src = mesh.CpuPositions;
+        var dst = new OpenTK.Mathematics.Vector3[src.Length];
+        for (int i = 0; i < src.Length; i++)
+            dst[i] = new OpenTK.Mathematics.Vector3(src[i].X, src[i].Y, src[i].Z);
+        return dst;
+    }
+
+    /// <summary>
     /// Returns the current per-shape vertex counts for every renderable mesh that has CPU-side
     /// positions. Used by the BodyTypeProfile editor to capture/refresh the
     /// <see cref="TopologyFingerprint"/> for the active profile.

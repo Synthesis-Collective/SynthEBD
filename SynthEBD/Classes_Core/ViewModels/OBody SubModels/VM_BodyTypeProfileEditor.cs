@@ -638,6 +638,7 @@ public class VM_BodyTypeProfile : VM
             }
             if (MeasurementMath.TryEvaluate(m.DumpToModel(), keyVertsByName,
                 (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null,
+                shape => viewer.GetShapePositions(shape),
                 out float v))
             {
                 m.LiveValue = v;
@@ -878,6 +879,14 @@ public class VM_NamedKeyVertex : VM
         Name = source.Name ?? "";
         ShapeName = source.ShapeName ?? "";
         VertexIndex = source.VertexIndex;
+        Strategy = source.Strategy;
+        BoxMinX = source.BoxMinX;
+        BoxMinY = source.BoxMinY;
+        BoxMinZ = source.BoxMinZ;
+        BoxMaxX = source.BoxMaxX;
+        BoxMaxY = source.BoxMaxY;
+        BoxMaxZ = source.BoxMaxZ;
+        Criterion = source.Criterion;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -887,6 +896,14 @@ public class VM_NamedKeyVertex : VM
     public string Name { get; set; }
     public string ShapeName { get; set; }
     public int VertexIndex { get; set; }
+    public KeyVertexStrategy Strategy { get; set; }
+    public float BoxMinX { get; set; }
+    public float BoxMinY { get; set; }
+    public float BoxMinZ { get; set; }
+    public float BoxMaxX { get; set; }
+    public float BoxMaxY { get; set; }
+    public float BoxMaxZ { get; set; }
+    public BoundingBoxCriterion Criterion { get; set; }
 
     public RelayCommand DeleteCommand { get; }
 
@@ -895,6 +912,14 @@ public class VM_NamedKeyVertex : VM
         Name = Name?.Trim() ?? "",
         ShapeName = ShapeName?.Trim() ?? "",
         VertexIndex = VertexIndex,
+        Strategy = Strategy,
+        BoxMinX = BoxMinX,
+        BoxMinY = BoxMinY,
+        BoxMinZ = BoxMinZ,
+        BoxMaxX = BoxMaxX,
+        BoxMaxY = BoxMaxY,
+        BoxMaxZ = BoxMaxZ,
+        Criterion = Criterion,
     };
 }
 
