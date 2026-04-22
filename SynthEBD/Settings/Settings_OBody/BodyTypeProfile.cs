@@ -500,7 +500,7 @@ public static class MeasurementMath
             }
         }
 
-        int chosenIdx = -1;
+        int winnerBin = -1;
         // Initial bound is set so any real per-bin extremum "wins" on the first comparison.
         float chosenVal = wantPinch
             ? (leftSide ? float.MinValue : float.MaxValue)  // pinch-left wants LARGEST MinX; pinch-right wants SMALLEST MaxX
@@ -513,10 +513,73 @@ public static class MeasurementMath
             bool isBest = wantPinch
                 ? (leftSide ? v > chosenVal : v < chosenVal)
                 : (leftSide ? v < chosenVal : v > chosenVal);
-            if (isBest) { chosenVal = v; chosenIdx = bestIdxPerBin[b]; }
+            if (isBest) { chosenVal = v; winnerBin = b; }
         }
 
-        return chosenIdx >= 0 ? chosenIdx : null;
+        if (winnerBin < 0) return null;
+
+        // Parabolic sub-bin refinement. Bin-discretization can place the true silhouette
+        // extremum between two bins — the stored best vertex for the winning bin then sits
+        // a fraction of a bin off the real pinch/bulge. Fitting a quadratic through the
+        // winner and its two immediate neighbors (equally spaced) yields a closed-form
+        // offset in bin units, which we use to shift the Y search band. We then rescan
+        // positions within ±half-a-bin of the refined Y and return the silhouette vertex
+        // in that narrow band, which can legitimately differ from the raw winner when
+        // the band straddles a bin boundary.
+        float binHeight = yRange / BinCount;
+        float centerY = minY + (winnerBin + 0.5f) * binHeight;
+        float refinedY = centerY;
+
+        // Only attempt refinement when both immediate neighbors are occupied. Empty
+        // neighbors (edge bins, sparse coverage) fall back to the unrefined winner center.
+        if (winnerBin > 0 && winnerBin < BinCount - 1
+            && bestIdxPerBin[winnerBin - 1] >= 0 && bestIdxPerBin[winnerBin + 1] >= 0)
+        {
+            float y0 = bestValPerBin[winnerBin - 1];
+            float y1 = bestValPerBin[winnerBin];
+            float y2 = bestValPerBin[winnerBin + 1];
+            float denom = y0 - 2f * y1 + y2;
+            if (MathF.Abs(denom) > 1e-6f)
+            {
+                // Standard discrete-parabola vertex offset, in bin widths.
+                float offsetBins = 0.5f * (y0 - y2) / denom;
+                // Clamp to ±half a bin so a near-flat fit can't extrapolate out of the
+                // 3-bin window the fit was made over.
+                if (offsetBins > 0.5f) offsetBins = 0.5f;
+                else if (offsetBins < -0.5f) offsetBins = -0.5f;
+                refinedY = centerY + offsetBins * binHeight;
+            }
+        }
+
+        // Rescan for the silhouette vertex within a 1-bin-wide Y band centered on the
+        // refined Y. The band spans two adjacent bins when refinedY is shifted, so the
+        // chosen vertex can come from either the winner bin or its neighbor — which is
+        // exactly the point of the refinement. Falls back to the winner bin's stored
+        // best if the band happens to be empty (shouldn't occur given construction).
+        float bandHalf = binHeight * 0.5f;
+        float bandMinY = refinedY - bandHalf;
+        float bandMaxY = refinedY + bandHalf;
+
+        int chosenIdx = bestIdxPerBin[winnerBin];
+        float chosenX = leftSide ? float.MaxValue : float.MinValue;
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < bandMinY || p.Y > bandMaxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            if (leftSide)
+            {
+                if (p.X < chosenX) { chosenX = p.X; chosenIdx = i; }
+            }
+            else
+            {
+                if (p.X > chosenX) { chosenX = p.X; chosenIdx = i; }
+            }
+        }
+
+        return chosenIdx;
     }
 
     /// <summary>Applies a comparator to a measurement value.</summary>
