@@ -432,6 +432,121 @@
                        Fill="#30FFCC40"/>
         </Canvas>
 
+        <!-- Pending-box 3D wireframe overlay. Canvas is populated with 12 Line children from
+             codebehind (one per AABB edge); UpdateBoxWireframe projects the 8 corners through
+             view*projection each GL frame. Visibility follows HasPendingBox. -->
+        <Canvas Grid.Row="5" x:Name="BoxWireframeCanvas"
+                IsHitTestVisible="False" ClipToBounds="True"
+                Visibility="{Binding HasPendingBox, Converter={StaticResource BoolToVis}}"/>
+
+        <!-- Pending-box edit panel. Floats at top of the viewport while HasPendingBox is true.
+             Six SingleUpDowns drive PendingBox{Min,Max}{X,Y,Z}; the wireframe redraws live.
+             'Shrink to Camera Half' auto-halves the most-view-aligned axis toward the camera
+             (use to carve an overhanging belly from a hip box). Confirm fires the usual
+             AnyKeyVertexBoxPicked event; Cancel discards. -->
+        <Border Grid.Row="5"
+                VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                Background="#E01F1F1F" BorderBrush="#FFFFCC40" BorderThickness="0,0,0,2"
+                Padding="8 5"
+                Visibility="{Binding HasPendingBox, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Vertical">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                    <TextBlock Text="Pending Box:" Foreground="#FFFFCC40" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding PendingBoxShapeName}" Foreground="#FFDDDDDD" FontSize="11"
+                               FontFamily="Consolas" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
+                               VerticalAlignment="Center" Margin="15,0,4,0"/>
+                    <TextBlock Text="{Binding PendingBoxFinalCriterion}" Foreground="#FFEEEEEE" FontSize="11"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <WrapPanel Orientation="Horizontal">
+                    <TextBlock Text="X (L-R):" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMinX}"
+                                       Minimum="{Binding PendingBoxSliderMinX}"
+                                       Maximum="{Binding PendingBoxSliderMaxX}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+                    <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
+                               VerticalAlignment="Center" Margin="4,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMaxX}"
+                                       Minimum="{Binding PendingBoxSliderMinX}"
+                                       Maximum="{Binding PendingBoxSliderMaxX}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+
+                    <TextBlock Text="Y (U-D):" Foreground="#FF57EB57" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="14,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMinY}"
+                                       Minimum="{Binding PendingBoxSliderMinY}"
+                                       Maximum="{Binding PendingBoxSliderMaxY}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+                    <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
+                               VerticalAlignment="Center" Margin="4,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMaxY}"
+                                       Minimum="{Binding PendingBoxSliderMinY}"
+                                       Maximum="{Binding PendingBoxSliderMaxY}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+
+                    <TextBlock Text="Z (F-B):" Foreground="#FF57A0EB" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Margin="14,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMinZ}"
+                                       Minimum="{Binding PendingBoxSliderMinZ}"
+                                       Maximum="{Binding PendingBoxSliderMaxZ}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+                    <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
+                               VerticalAlignment="Center" Margin="4,0,4,0"/>
+                    <xctk:SingleUpDown Value="{Binding PendingBoxMaxZ}"
+                                       Minimum="{Binding PendingBoxSliderMinZ}"
+                                       Maximum="{Binding PendingBoxSliderMaxZ}"
+                                       FormatString="F1" Increment="0.5" Width="62"/>
+                </WrapPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="Shrink to Camera Half"
+                            Command="{Binding ShrinkAlongViewAxisCommand}"
+                            FontSize="11" Padding="8 2"
+                            ToolTip="Halve the pending box along whichever mesh-local axis most aligns with the camera view, keeping the half nearest the camera. Repeat-click to shrink further. Use to exclude an overhanging belly from a hip box, etc."/>
+                    <Button Content="Confirm"
+                            Command="{Binding ConfirmPendingBoxCommand}"
+                            FontSize="11" FontWeight="Bold" Padding="14 2" Margin="12,0,0,0"
+                            Background="#FF2E7D32" Foreground="White"/>
+                    <Button Content="Cancel"
+                            Command="{Binding CancelPendingBoxCommand}"
+                            FontSize="11" Padding="10 2" Margin="6,0,0,0"
+                            Background="#FF8B2525" Foreground="White"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Axis orientation gizmo. Only the inner Border is hit-testable (Canvas has no
+             background), so empty areas pass clicks through to GlControl. Codebehind
+             rebuilds the three line/label positions each GL frame from the camera's view
+             matrix; dragging the Border moves the widget via Canvas.Left/Top. -->
+        <Canvas Grid.Row="5" x:Name="GizmoCanvas" ClipToBounds="True">
+            <Border x:Name="AxisGizmoBorder"
+                    Canvas.Left="10"
+                    Width="80" Height="80"
+                    Background="#80101010"
+                    BorderBrush="#80A0A0A0" BorderThickness="1"
+                    CornerRadius="4"
+                    Cursor="SizeAll"
+                    ToolTip="World-axis orientation gizmo. Drag to reposition."
+                    MouseLeftButtonDown="AxisGizmo_MouseLeftButtonDown"
+                    MouseLeftButtonUp="AxisGizmo_MouseLeftButtonUp"
+                    MouseMove="AxisGizmo_MouseMove">
+                <Canvas>
+                    <Ellipse Canvas.Left="37" Canvas.Top="37" Width="6" Height="6" Fill="#FFCCCCCC"/>
+                    <Line x:Name="AxisX_Line" Stroke="#FFEB5757" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                    <Line x:Name="AxisY_Line" Stroke="#FF57EB57" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                    <Line x:Name="AxisZ_Line" Stroke="#FF57A0EB" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                    <TextBlock x:Name="AxisX_Label" Text="X" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock x:Name="AxisY_Label" Text="Y" Foreground="#FF57EB57" FontSize="11" FontWeight="Bold"/>
+                    <TextBlock x:Name="AxisZ_Label" Text="Z" Foreground="#FF57A0EB" FontSize="11" FontWeight="Bold"/>
+                </Canvas>
+            </Border>
+        </Canvas>
+
         <!-- Loading overlay -->
         <Border Grid.Row="5"
                 Background="#80000000"

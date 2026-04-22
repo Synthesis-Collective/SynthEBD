@@ -309,6 +309,9 @@ public class VM_CharacterViewer : VM
     public ObservableCollection<PickRow> Picks { get; } = new();
 
     public RelayCommand CopyPicksToClipboardCommand { get; private set; } = null!;
+    public RelayCommand ConfirmPendingBoxCommand     { get; private set; } = null!;
+    public RelayCommand CancelPendingBoxCommand      { get; private set; } = null!;
+    public RelayCommand ShrinkAlongViewAxisCommand   { get; private set; } = null!;
 
     /// <summary>
     /// Gates the viewer's informational log output. Errors (<c>LogError</c>) are never gated --
@@ -451,6 +454,15 @@ public class VM_CharacterViewer : VM
         CopyPicksToClipboardCommand = new RelayCommand(
             canExecute: _ => Picks.Count > 0,
             execute: _ => CopyPicksToClipboard());
+        ConfirmPendingBoxCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => ConfirmPendingBox());
+        CancelPendingBoxCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => CancelPendingBox());
+        ShrinkAlongViewAxisCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => ShrinkPendingBoxAlongViewAxis());
     }
 
     /// <summary>Normalizes the per-light fields from a layout+scheme, suppressing
@@ -894,6 +906,37 @@ public class VM_CharacterViewer : VM
     /// </summary>
     public BoxCriterionSelection PendingBoxCriterion { get; set; } = BoxCriterionSelection.MaxX;
 
+    // ──────────────── Pending (pre-commit) box state ────────────────
+    // After a BB drag the resulting AABB is parked here instead of firing immediately, so the
+    // user can adjust per-axis min/max (most importantly the depth axis, to exclude things like
+    // an overhanging belly from the hip box) before confirming. The wireframe overlay reads
+    // these fields each GL frame; Confirm fires AnyKeyVertexBoxPicked with the final values.
+
+    /// <summary>True while a box is drawn but not yet confirmed. Shows the wireframe + edit panel.</summary>
+    public bool HasPendingBox { get; set; }
+
+    public string PendingBoxShapeName { get; set; } = "";
+    public float PendingBoxMinX { get; set; }
+    public float PendingBoxMaxX { get; set; }
+    public float PendingBoxMinY { get; set; }
+    public float PendingBoxMaxY { get; set; }
+    public float PendingBoxMinZ { get; set; }
+    public float PendingBoxMaxZ { get; set; }
+
+    /// <summary>Full-mesh AABB (slightly padded) used as the range for the six min/max editors so
+    /// the user can expand the box beyond the initial rectangle capture if the view-axis cut-off
+    /// was too aggressive.</summary>
+    public float PendingBoxSliderMinX { get; set; }
+    public float PendingBoxSliderMaxX { get; set; }
+    public float PendingBoxSliderMinY { get; set; }
+    public float PendingBoxSliderMaxY { get; set; }
+    public float PendingBoxSliderMinZ { get; set; }
+    public float PendingBoxSliderMaxZ { get; set; }
+
+    /// <summary>Criterion frozen at drag time. The toolbar combo can change while pending without
+    /// retroactively changing this pending pick's criterion.</summary>
+    public BoxCriterionSelection PendingBoxFinalCriterion { get; set; }
+
     /// <summary>
     /// Fired once per successful key-vertex pick (after the marker has been added). Phase 4's
     /// BodyTypeProfile editor subscribes when active so picks route into the selected profile.
@@ -1221,6 +1264,106 @@ public class VM_CharacterViewer : VM
     {
         KeyVertexBoxPicked?.Invoke(pick);
         AnyKeyVertexBoxPicked?.Invoke(this, pick);
+    }
+
+    /// <summary>Parks a freshly-captured rectangle pick in the pending-box editor state
+    /// instead of firing it. The wireframe overlay + edit panel become visible, the user
+    /// tweaks the six min/max values, then <see cref="ConfirmPendingBox"/> or
+    /// <see cref="CancelPendingBox"/> finalizes. Slider ranges come from the full-mesh
+    /// AABB (padded) so the user can expand beyond the initial capture rectangle.</summary>
+    public void BeginPendingBox(KeyVertexBoxPick initial)
+    {
+        OpenTK.Mathematics.Vector3 sliderMin, sliderMax;
+        var positions = GetShapePositions(initial.ShapeName);
+        if (positions != null && positions.Length > 0)
+        {
+            sliderMin = new OpenTK.Mathematics.Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            sliderMax = new OpenTK.Mathematics.Vector3(float.MinValue, float.MinValue, float.MinValue);
+            foreach (var p in positions)
+            {
+                if (p.X < sliderMin.X) sliderMin.X = p.X;
+                if (p.Y < sliderMin.Y) sliderMin.Y = p.Y;
+                if (p.Z < sliderMin.Z) sliderMin.Z = p.Z;
+                if (p.X > sliderMax.X) sliderMax.X = p.X;
+                if (p.Y > sliderMax.Y) sliderMax.Y = p.Y;
+                if (p.Z > sliderMax.Z) sliderMax.Z = p.Z;
+            }
+            var pad = (sliderMax - sliderMin) * 0.1f;
+            sliderMin -= pad;
+            sliderMax += pad;
+        }
+        else
+        {
+            // Fallback: pad the pick itself 50% when the shape can't be resolved.
+            var pad = (initial.BoxMax - initial.BoxMin) * 0.5f;
+            sliderMin = initial.BoxMin - pad;
+            sliderMax = initial.BoxMax + pad;
+        }
+
+        PendingBoxShapeName = initial.ShapeName ?? "";
+        PendingBoxMinX = initial.BoxMin.X;
+        PendingBoxMinY = initial.BoxMin.Y;
+        PendingBoxMinZ = initial.BoxMin.Z;
+        PendingBoxMaxX = initial.BoxMax.X;
+        PendingBoxMaxY = initial.BoxMax.Y;
+        PendingBoxMaxZ = initial.BoxMax.Z;
+        PendingBoxSliderMinX = sliderMin.X;
+        PendingBoxSliderMinY = sliderMin.Y;
+        PendingBoxSliderMinZ = sliderMin.Z;
+        PendingBoxSliderMaxX = sliderMax.X;
+        PendingBoxSliderMaxY = sliderMax.Y;
+        PendingBoxSliderMaxZ = sliderMax.Z;
+        PendingBoxFinalCriterion = initial.Criterion;
+        HasPendingBox = true;
+    }
+
+    /// <summary>Emits the current pending box as a <see cref="KeyVertexBoxPick"/> and clears
+    /// the pending state. Downstream subscribers (BodyTypeProfile editor) receive this via
+    /// <see cref="AnyKeyVertexBoxPicked"/> exactly as if the drag had fired directly.</summary>
+    public void ConfirmPendingBox()
+    {
+        if (!HasPendingBox) return;
+        var pick = new KeyVertexBoxPick(
+            PendingBoxShapeName,
+            new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
+            PendingBoxFinalCriterion);
+        HasPendingBox = false;
+        NotifyKeyVertexBoxPicked(pick);
+    }
+
+    public void CancelPendingBox() => HasPendingBox = false;
+
+    /// <summary>Shrinks the pending box in half along whichever mesh-local axis is most aligned
+    /// with the camera's view direction, keeping the half on the camera side. Lets the user
+    /// carve off an overhanging belly from a hip-pinch box with one click. Subsequent clicks
+    /// keep halving that axis's camera-side range.</summary>
+    public void ShrinkPendingBoxAlongViewAxis()
+    {
+        if (!HasPendingBox) return;
+
+        var eye = Camera.GetEyePosition();
+        var viewDir = Camera.Target - eye;
+        float ax = MathF.Abs(viewDir.X);
+        float ay = MathF.Abs(viewDir.Y);
+        float az = MathF.Abs(viewDir.Z);
+
+        float centerX = (PendingBoxMinX + PendingBoxMaxX) * 0.5f;
+        float centerY = (PendingBoxMinY + PendingBoxMaxY) * 0.5f;
+        float centerZ = (PendingBoxMinZ + PendingBoxMaxZ) * 0.5f;
+
+        if (ax >= ay && ax >= az)
+        {
+            if (eye.X > centerX) PendingBoxMinX = centerX; else PendingBoxMaxX = centerX;
+        }
+        else if (ay >= az)
+        {
+            if (eye.Y > centerY) PendingBoxMinY = centerY; else PendingBoxMaxY = centerY;
+        }
+        else
+        {
+            if (eye.Z > centerZ) PendingBoxMinZ = centerZ; else PendingBoxMaxZ = centerZ;
+        }
     }
 
     /// <summary>Row VM for the pick-info panel. Mirrors a single <see cref="KeyVertexPick"/>

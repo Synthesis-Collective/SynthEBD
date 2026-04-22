@@ -634,18 +634,22 @@ public class VM_BodyTypeProfile : VM
         bool isMirror =
             pick.Criterion == BoxCriterionSelection.MirrorX ||
             pick.Criterion == BoxCriterionSelection.MirrorY ||
-            pick.Criterion == BoxCriterionSelection.MirrorZ;
+            pick.Criterion == BoxCriterionSelection.MirrorZ ||
+            pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
+            pick.Criterion == BoxCriterionSelection.MirrorBulgeX;
 
         if (isMirror)
         {
-            var (maxCrit, minCrit) = pick.Criterion switch
+            var (aCrit, bCrit) = pick.Criterion switch
             {
-                BoxCriterionSelection.MirrorX => (BoundingBoxCriterion.MaxX, BoundingBoxCriterion.MinX),
-                BoxCriterionSelection.MirrorY => (BoundingBoxCriterion.MaxY, BoundingBoxCriterion.MinY),
-                _                              => (BoundingBoxCriterion.MaxZ, BoundingBoxCriterion.MinZ),
+                BoxCriterionSelection.MirrorX      => (BoundingBoxCriterion.MaxX,      BoundingBoxCriterion.MinX),
+                BoxCriterionSelection.MirrorY      => (BoundingBoxCriterion.MaxY,      BoundingBoxCriterion.MinY),
+                BoxCriterionSelection.MirrorZ      => (BoundingBoxCriterion.MaxZ,      BoundingBoxCriterion.MinZ),
+                BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchMaxX, BoundingBoxCriterion.PinchMinX),
+                _                                  => (BoundingBoxCriterion.BulgeMaxX, BoundingBoxCriterion.BulgeMinX),
             };
-            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, maxCrit);
-            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, minCrit);
+            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, aCrit);
+            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, bCrit);
         }
         else
         {

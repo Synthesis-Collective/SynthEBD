@@ -100,7 +100,10 @@ public enum KeyVertexStrategy
 }
 
 /// <summary>Extremum to select inside a <see cref="KeyVertexStrategy.BoundingBox"/> region.
-/// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back).</summary>
+/// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back).
+/// <para>The <c>Pinch*</c> / <c>Bulge*</c> values scan the box's Y range in slices and pick the
+/// silhouette vertex whose X is closest to (pinch) or farthest from (bulge) the midline —
+/// suitable for waist-pinch and widest-hip anchors respectively.</para></summary>
 public enum BoundingBoxCriterion
 {
     MaxX = 0,
@@ -109,15 +112,21 @@ public enum BoundingBoxCriterion
     MinY = 3,
     MaxZ = 4,
     MinZ = 5,
+    PinchMinX = 6,
+    PinchMaxX = 7,
+    BulgeMinX = 8,
+    BulgeMaxX = 9,
 }
 
 /// <summary>
 /// Authoring-time-only companion to <see cref="BoundingBoxCriterion"/>. The UI combo exposes
-/// the six single-axis values plus three <c>Mirror*</c> shortcuts; picking a <c>Mirror*</c>
+/// the single-axis values plus <c>Mirror*</c> shortcuts; picking a <c>Mirror*</c>
 /// value tells the editor to materialize two paired <see cref="NamedKeyVertex"/> rows sharing
 /// the same box but with opposite single-axis criteria (e.g. <c>MirrorX</c> -> <c>MaxX</c> +
-/// <c>MinX</c>). Persistence stores only the single-axis <see cref="BoundingBoxCriterion"/>;
-/// this enum never lands in JSON.
+/// <c>MinX</c>, <c>MirrorPinchX</c> -> <c>PinchMinX</c> + <c>PinchMaxX</c>). Persistence stores
+/// only the single-axis <see cref="BoundingBoxCriterion"/>; this enum never lands in JSON.
+/// <para>Numeric values 0-9 intentionally match <see cref="BoundingBoxCriterion"/> so the editor
+/// can plain-cast for non-mirror entries; mirror values are placed at 100+ to stay out of the way.</para>
 /// </summary>
 public enum BoxCriterionSelection
 {
@@ -127,9 +136,15 @@ public enum BoxCriterionSelection
     MinY = 3,
     MaxZ = 4,
     MinZ = 5,
-    MirrorX = 6,
-    MirrorY = 7,
-    MirrorZ = 8,
+    PinchMinX = 6,
+    PinchMaxX = 7,
+    BulgeMinX = 8,
+    BulgeMaxX = 9,
+    MirrorX = 100,
+    MirrorY = 101,
+    MirrorZ = 102,
+    MirrorPinchX = 103,
+    MirrorBulgeX = 104,
 }
 
 /// <summary>
@@ -400,6 +415,14 @@ public static class MeasurementMath
     {
         if (positions == null || positions.Length == 0) return null;
 
+        switch (criterion)
+        {
+            case BoundingBoxCriterion.PinchMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: true);
+            case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: true);
+            case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: false);
+            case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: false);
+        }
+
         float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
         float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
 
@@ -429,6 +452,71 @@ public static class MeasurementMath
         }
 
         return bestIdx >= 0 ? bestIdx : null;
+    }
+
+    /// <summary>Slice the AABB's Y range into <c>BinCount</c> equal bands; per band, record the
+    /// silhouette vertex on the chosen side (smallest X for left, largest X for right) — that vertex
+    /// is by definition the outer surface at that Y-level. Across bands, return the one whose
+    /// recorded X is closest to the midline (<paramref name="wantPinch"/>=true) or farthest from it
+    /// (<paramref name="wantPinch"/>=false). Suits waist-pinch (<c>PinchMin/MaxX</c>) and widest-hip
+    /// (<c>BulgeMin/MaxX</c>) anchors. 20 bins balances resolution vs. noise for typical box sizes.</summary>
+    private static int? FindPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantPinch)
+    {
+        const int BinCount = 20;
+
+        float minX = kv.BoxMinX, maxX = kv.BoxMaxX;
+        float minY = kv.BoxMinY, maxY = kv.BoxMaxY;
+        float minZ = kv.BoxMinZ, maxZ = kv.BoxMaxZ;
+
+        float yRange = maxY - minY;
+        if (yRange <= 1e-6f) return null;
+
+        var bestIdxPerBin = new int[BinCount];
+        var bestValPerBin = new float[BinCount];
+        for (int i = 0; i < BinCount; i++)
+        {
+            bestIdxPerBin[i] = -1;
+            bestValPerBin[i] = leftSide ? float.MaxValue : float.MinValue;
+        }
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            int bin = (int)((p.Y - minY) / yRange * BinCount);
+            if (bin < 0) bin = 0;
+            else if (bin >= BinCount) bin = BinCount - 1;
+
+            if (leftSide)
+            {
+                if (p.X < bestValPerBin[bin]) { bestValPerBin[bin] = p.X; bestIdxPerBin[bin] = i; }
+            }
+            else
+            {
+                if (p.X > bestValPerBin[bin]) { bestValPerBin[bin] = p.X; bestIdxPerBin[bin] = i; }
+            }
+        }
+
+        int chosenIdx = -1;
+        // Initial bound is set so any real per-bin extremum "wins" on the first comparison.
+        float chosenVal = wantPinch
+            ? (leftSide ? float.MinValue : float.MaxValue)  // pinch-left wants LARGEST MinX; pinch-right wants SMALLEST MaxX
+            : (leftSide ? float.MaxValue : float.MinValue); // bulge-left wants SMALLEST MinX; bulge-right wants LARGEST MaxX
+
+        for (int b = 0; b < BinCount; b++)
+        {
+            if (bestIdxPerBin[b] < 0) continue;
+            float v = bestValPerBin[b];
+            bool isBest = wantPinch
+                ? (leftSide ? v > chosenVal : v < chosenVal)
+                : (leftSide ? v < chosenVal : v > chosenVal);
+            if (isBest) { chosenVal = v; chosenIdx = bestIdxPerBin[b]; }
+        }
+
+        return chosenIdx >= 0 ? chosenIdx : null;
     }
 
     /// <summary>Applies a comparator to a measurement value.</summary>

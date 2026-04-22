@@ -40,6 +40,12 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.SizeChanged += (_, _) => TryStartGl();
         Loaded += (_, _) => { _vm ??= DataContext as VM_CharacterViewer; TryStartGl(); };
 
+        // Place the axis gizmo in the bottom-left once the overlay Canvas has a real size.
+        // Only fires once so subsequent user drags are not clobbered by layout events.
+        GizmoCanvas.SizeChanged += GizmoCanvas_SizeChanged;
+
+        BuildBoxWireframeLines();
+
         // Suspend GL rendering during sleep/wake to prevent context-lost crashes.
         // The GPU's OpenGL context is invalidated when the PC sleeps; collapsing
         // the control unsubscribes from CompositionTarget.Rendering so OnRender
@@ -62,6 +68,22 @@ public partial class UC_CharacterViewer : UserControl
     // rect to the VM's ComputeBoxFromScreenRect + NotifyKeyVertexBoxPicked path.
     private bool _boxDragging;
     private Point _boxDragStart;
+
+    // Axis-gizmo drag state. MouseDown on AxisGizmoBorder seeds the offset between the cursor
+    // and the widget's Canvas.Left/Top; MouseMove keeps that offset constant so the border
+    // tracks the cursor without snapping. MouseUp releases capture.
+    private bool _gizmoDragging;
+    private Point _gizmoDragStart;
+    private double _gizmoStartLeft;
+    private double _gizmoStartTop;
+    // Set true after the first SizeChanged places the widget in the bottom-left corner so
+    // the default position is only applied once (user drags stick after that).
+    private bool _gizmoDefaultPositioned;
+
+    // The 12 AABB-edge lines that make up the pending-box wireframe overlay. Populated once
+    // in the constructor and stored here so UpdateBoxWireframe can rewrite their endpoints
+    // each frame without re-creating Line instances.
+    private readonly System.Windows.Shapes.Line[] _boxWireLines = new System.Windows.Shapes.Line[12];
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -177,6 +199,178 @@ public partial class UC_CharacterViewer : UserControl
         {
             _vm.Renderer.Render(_vm.Camera, w, h);
         }
+
+        UpdateAxisGizmo();
+        UpdateBoxWireframe();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  PENDING-BOX 3D WIREFRAME OVERLAY
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // AABB edge list: index pairs into the 8-corner array built in UpdateBoxWireframe.
+    // Corner indexing: bit 0 = X (0=min, 1=max), bit 1 = Y, bit 2 = Z.
+    // 12 edges = 4 bottom loop + 4 top loop + 4 verticals.
+    private static readonly (int a, int b)[] BoxEdgeIndices =
+    {
+        (0b000, 0b001), (0b001, 0b101), (0b101, 0b100), (0b100, 0b000), // y=min loop
+        (0b010, 0b011), (0b011, 0b111), (0b111, 0b110), (0b110, 0b010), // y=max loop
+        (0b000, 0b010), (0b001, 0b011), (0b100, 0b110), (0b101, 0b111), // verticals
+    };
+
+    private void BuildBoxWireframeLines()
+    {
+        var stroke = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0xCC, 0x40));
+        stroke.Freeze();
+        for (int i = 0; i < _boxWireLines.Length; i++)
+        {
+            var line = new System.Windows.Shapes.Line
+            {
+                Stroke = stroke,
+                StrokeThickness = 1.5,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeStartLineCap = PenLineCap.Round,
+            };
+            _boxWireLines[i] = line;
+            BoxWireframeCanvas.Children.Add(line);
+        }
+    }
+
+    /// <summary>
+    /// Projects the 8 AABB corners of the pending box (mesh-local, pre-ModelScale)
+    /// through model*view*projection each frame and rewrites the 12 edge lines in
+    /// WPF screen coords. Mirrors the projection path in
+    /// <see cref="VM_CharacterViewer.ComputeBoxFromScreenRect"/> so the wireframe
+    /// overlays exactly the vertices the BB-pick would match.
+    /// </summary>
+    private void UpdateBoxWireframe()
+    {
+        if (_vm == null || !_vm.HasPendingBox) return;
+        double vw = GlControl.ActualWidth;
+        double vh = GlControl.ActualHeight;
+        if (vw <= 0 || vh <= 0) return;
+
+        float aspect = (float)(vw / vh);
+        var viewProj = _vm.Camera.GetViewMatrix() * _vm.Camera.GetProjectionMatrix(aspect);
+        float s = _vm.Renderer.ModelScale;
+
+        float minX = _vm.PendingBoxMinX, maxX = _vm.PendingBoxMaxX;
+        float minY = _vm.PendingBoxMinY, maxY = _vm.PendingBoxMaxY;
+        float minZ = _vm.PendingBoxMinZ, maxZ = _vm.PendingBoxMaxZ;
+
+        Span<double> sx = stackalloc double[8];
+        Span<double> sy = stackalloc double[8];
+        Span<bool>   sv = stackalloc bool[8];
+        for (int i = 0; i < 8; i++)
+        {
+            float x = ((i & 1) == 0 ? minX : maxX) * s;
+            float y = ((i & 2) == 0 ? minY : maxY) * s;
+            float z = ((i & 4) == 0 ? minZ : maxZ) * s;
+            var clip = new OpenTK.Mathematics.Vector4(x, y, z, 1f) * viewProj;
+            if (clip.W <= 0f) { sv[i] = false; continue; }
+            double ndcX = clip.X / clip.W;
+            double ndcY = clip.Y / clip.W;
+            sx[i] = (ndcX * 0.5 + 0.5) * vw;
+            sy[i] = (1.0 - (ndcY * 0.5 + 0.5)) * vh;
+            sv[i] = true;
+        }
+
+        for (int i = 0; i < BoxEdgeIndices.Length; i++)
+        {
+            var (a, b) = BoxEdgeIndices[i];
+            var line = _boxWireLines[i];
+            if (!sv[a] || !sv[b]) { line.Visibility = Visibility.Collapsed; continue; }
+            line.Visibility = Visibility.Visible;
+            line.X1 = sx[a]; line.Y1 = sy[a];
+            line.X2 = sx[b]; line.Y2 = sy[b];
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  AXIS ORIENTATION GIZMO
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Rebuilds the three axis lines + labels so their screen directions match the
+    /// camera's current orientation. Uses only the rotation portion of the view matrix
+    /// (W=0 on the basis vectors), then takes the transformed X/Y as screen dx/dy —
+    /// equivalent to an orthographic projection, which is what ViewCube-style gizmos
+    /// want (no perspective distortion on a tiny widget). WPF is Y-down so view-Y is
+    /// flipped when writing screen coordinates. Called every GL frame; cheap.
+    /// </summary>
+    private void UpdateAxisGizmo()
+    {
+        if (_vm == null) return;
+        var view = _vm.Camera.GetViewMatrix();
+
+        var xView = new OpenTK.Mathematics.Vector4(1f, 0f, 0f, 0f) * view;
+        var yView = new OpenTK.Mathematics.Vector4(0f, 1f, 0f, 0f) * view;
+        var zView = new OpenTK.Mathematics.Vector4(0f, 0f, 1f, 0f) * view;
+
+        const float cx = 40f, cy = 40f;
+        const float length = 26f;
+        UpdateAxisLine(AxisX_Line, AxisX_Label, cx, cy, xView.X, xView.Y, length);
+        UpdateAxisLine(AxisY_Line, AxisY_Label, cx, cy, yView.X, yView.Y, length);
+        UpdateAxisLine(AxisZ_Line, AxisZ_Label, cx, cy, zView.X, zView.Y, length);
+    }
+
+    private static void UpdateAxisLine(
+        System.Windows.Shapes.Line line, TextBlock label,
+        float cx, float cy, float dx, float dy, float length)
+    {
+        float ex = cx + dx * length;
+        float ey = cy - dy * length; // WPF Y-down
+        line.X1 = cx; line.Y1 = cy;
+        line.X2 = ex; line.Y2 = ey;
+        Canvas.SetLeft(label, ex - 4);
+        Canvas.SetTop(label, ey - 8);
+    }
+
+    private void GizmoCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_gizmoDefaultPositioned) return;
+        if (GizmoCanvas.ActualHeight <= 0 || AxisGizmoBorder.Height <= 0) return;
+
+        Canvas.SetLeft(AxisGizmoBorder, 10);
+        Canvas.SetTop(AxisGizmoBorder, GizmoCanvas.ActualHeight - AxisGizmoBorder.Height - 10);
+        _gizmoDefaultPositioned = true;
+    }
+
+    private void AxisGizmo_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _gizmoDragging = true;
+        _gizmoDragStart = e.GetPosition(GizmoCanvas);
+        _gizmoStartLeft = Canvas.GetLeft(AxisGizmoBorder);
+        _gizmoStartTop = Canvas.GetTop(AxisGizmoBorder);
+        if (double.IsNaN(_gizmoStartLeft)) _gizmoStartLeft = 10;
+        if (double.IsNaN(_gizmoStartTop))
+            _gizmoStartTop = Math.Max(0, GizmoCanvas.ActualHeight - AxisGizmoBorder.Height - 10);
+        AxisGizmoBorder.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void AxisGizmo_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_gizmoDragging) return;
+        var pos = e.GetPosition(GizmoCanvas);
+        double newLeft = _gizmoStartLeft + (pos.X - _gizmoDragStart.X);
+        double newTop  = _gizmoStartTop  + (pos.Y - _gizmoDragStart.Y);
+
+        double maxLeft = Math.Max(0, GizmoCanvas.ActualWidth  - AxisGizmoBorder.ActualWidth);
+        double maxTop  = Math.Max(0, GizmoCanvas.ActualHeight - AxisGizmoBorder.ActualHeight);
+        newLeft = Math.Clamp(newLeft, 0, maxLeft);
+        newTop  = Math.Clamp(newTop,  0, maxTop);
+
+        Canvas.SetLeft(AxisGizmoBorder, newLeft);
+        Canvas.SetTop(AxisGizmoBorder, newTop);
+    }
+
+    private void AxisGizmo_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_gizmoDragging) return;
+        _gizmoDragging = false;
+        AxisGizmoBorder.ReleaseMouseCapture();
+        e.Handled = true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -314,7 +508,11 @@ public partial class UC_CharacterViewer : UserControl
                 (float)end.X, (float)end.Y,
                 (float)GlControl.ActualWidth, (float)GlControl.ActualHeight,
                 _vm.PendingBoxCriterion);
-            if (pick.HasValue) _vm.NotifyKeyVertexBoxPicked(pick.Value);
+            // Seed the pending-box edit panel + wireframe instead of firing the pick
+            // immediately. The user tweaks the six min/max values (or clicks
+            // Shrink-to-Camera-Half), then Confirm fans out through
+            // NotifyKeyVertexBoxPicked; Cancel discards.
+            if (pick.HasValue) _vm.BeginPendingBox(pick.Value);
 
             e.Handled = true;
             return;
