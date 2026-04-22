@@ -118,6 +118,19 @@ public enum BoundingBoxCriterion
     BulgeMaxX = 9,
 }
 
+/// <summary>World-axis symmetry lock applied to a <see cref="KeyVertexStrategy.BoundingBox"/>
+/// region while it is being authored in the viewer. Flag combinations encode the set of axes
+/// mirrored about 0 (e.g., <c>X | Y</c> locks both X and Y sides). Authoring-time UX only —
+/// never persisted on <see cref="NamedKeyVertex"/> (the final min/max are stored directly).</summary>
+[Flags]
+public enum SymmetryAxes
+{
+    None = 0,
+    X = 1,
+    Y = 2,
+    Z = 4,
+}
+
 /// <summary>
 /// Authoring-time-only companion to <see cref="BoundingBoxCriterion"/>. The UI combo exposes
 /// the single-axis values plus <c>Mirror*</c> shortcuts; picking a <c>Mirror*</c>

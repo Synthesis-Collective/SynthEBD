@@ -207,6 +207,74 @@ public class VM_CharacterViewer : VM
         this.WhenAnyValue(x => x.NpcBaseHeight, x => x.HeightOverride)
             .Subscribe(_ => ApplyCharacterScale())
             .DisposeWith(this);
+
+        // Per-axis symmetry mirror: when the user edits one side of a locked axis, mirror
+        // the opposite side about 0 so the box stays centered on the symmetry plane. Guarded
+        // by _applyingSymmetry so the mirror write doesn't re-enter the handler. We subscribe
+        // to the raw PropertyChanged event (rather than six WhenAnyValue chains) so the write
+        // ordering stays deterministic inside the guard window.
+        PropertyChanged += OnPendingBoxPropertyChanged;
+    }
+
+    private void OnPendingBoxPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_applyingSymmetry || !HasPendingBox) return;
+        if (PendingBoxSymmetry == SymmetryAxes.None) return;
+
+        _applyingSymmetry = true;
+        try
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(PendingBoxMinX) when (PendingBoxSymmetry & SymmetryAxes.X) != 0:
+                    PendingBoxMaxX = -PendingBoxMinX; break;
+                case nameof(PendingBoxMaxX) when (PendingBoxSymmetry & SymmetryAxes.X) != 0:
+                    PendingBoxMinX = -PendingBoxMaxX; break;
+                case nameof(PendingBoxMinY) when (PendingBoxSymmetry & SymmetryAxes.Y) != 0:
+                    PendingBoxMaxY = -PendingBoxMinY; break;
+                case nameof(PendingBoxMaxY) when (PendingBoxSymmetry & SymmetryAxes.Y) != 0:
+                    PendingBoxMinY = -PendingBoxMaxY; break;
+                case nameof(PendingBoxMinZ) when (PendingBoxSymmetry & SymmetryAxes.Z) != 0:
+                    PendingBoxMaxZ = -PendingBoxMinZ; break;
+                case nameof(PendingBoxMaxZ) when (PendingBoxSymmetry & SymmetryAxes.Z) != 0:
+                    PendingBoxMinZ = -PendingBoxMaxZ; break;
+                case nameof(PendingBoxSymmetry):
+                    // When user changes the symmetry flags, immediately enforce them by
+                    // re-centering each locked axis about 0 using the larger-magnitude side.
+                    EnforceSymmetryOnAllLockedAxes();
+                    break;
+            }
+        }
+        finally
+        {
+            _applyingSymmetry = false;
+        }
+    }
+
+    /// <summary>Re-centers each axis with its symmetry flag set so |min| == |max|, using the
+    /// larger of the two magnitudes. Called when the user changes the symmetry ComboBox so
+    /// existing box values are corrected to match the newly-selected lock instead of waiting
+    /// for the next side-edit to propagate.</summary>
+    private void EnforceSymmetryOnAllLockedAxes()
+    {
+        if ((PendingBoxSymmetry & SymmetryAxes.X) != 0)
+        {
+            float half = MathF.Max(MathF.Abs(PendingBoxMinX), MathF.Abs(PendingBoxMaxX));
+            PendingBoxMinX = -half;
+            PendingBoxMaxX = half;
+        }
+        if ((PendingBoxSymmetry & SymmetryAxes.Y) != 0)
+        {
+            float half = MathF.Max(MathF.Abs(PendingBoxMinY), MathF.Abs(PendingBoxMaxY));
+            PendingBoxMinY = -half;
+            PendingBoxMaxY = half;
+        }
+        if ((PendingBoxSymmetry & SymmetryAxes.Z) != 0)
+        {
+            float half = MathF.Max(MathF.Abs(PendingBoxMinZ), MathF.Abs(PendingBoxMaxZ));
+            PendingBoxMinZ = -half;
+            PendingBoxMaxZ = half;
+        }
     }
 
     /// <summary>Pushes the effective NPC-height scale to the renderer. Override
@@ -937,6 +1005,33 @@ public class VM_CharacterViewer : VM
     /// retroactively changing this pending pick's criterion.</summary>
     public BoxCriterionSelection PendingBoxFinalCriterion { get; set; }
 
+    /// <summary>Per-axis symmetry lock applied to the pending box. When a flag is set, editing
+    /// one side of that axis (e.g., PendingBoxMinX) auto-mirrors the opposite side about 0 so
+    /// the box stays centered on the world-space symmetry plane. Auto-seeded in
+    /// <see cref="BeginPendingBox"/> when the captured box already straddles an axis within
+    /// 10%; user can also set it manually via the pending-box panel combo.</summary>
+    public SymmetryAxes PendingBoxSymmetry { get; set; } = SymmetryAxes.None;
+
+    /// <summary>The eight valid <see cref="SymmetryAxes"/> flag combinations in display order,
+    /// used as the ItemsSource for the pending-box symmetry ComboBox. Enum.GetValues returns
+    /// only the single-flag members (None, X, Y, Z) for a [Flags] enum, so the combinations
+    /// are enumerated explicitly.</summary>
+    public static IReadOnlyList<SymmetryAxes> SymmetryAxesChoices { get; } = new[]
+    {
+        SymmetryAxes.None,
+        SymmetryAxes.X,
+        SymmetryAxes.Y,
+        SymmetryAxes.Z,
+        SymmetryAxes.X | SymmetryAxes.Y,
+        SymmetryAxes.X | SymmetryAxes.Z,
+        SymmetryAxes.Y | SymmetryAxes.Z,
+        SymmetryAxes.X | SymmetryAxes.Y | SymmetryAxes.Z,
+    };
+
+    // Guard so the auto-mirror side-effects don't recurse (PropertyChanged fires from the
+    // mirror write, which would then re-enter the same handler).
+    private bool _applyingSymmetry;
+
     /// <summary>
     /// Fired once per successful key-vertex pick (after the marker has been added). Phase 4's
     /// BodyTypeProfile editor subscribes when active so picks route into the selected profile.
@@ -1300,21 +1395,66 @@ public class VM_CharacterViewer : VM
             sliderMax = initial.BoxMax + pad;
         }
 
-        PendingBoxShapeName = initial.ShapeName ?? "";
-        PendingBoxMinX = initial.BoxMin.X;
-        PendingBoxMinY = initial.BoxMin.Y;
-        PendingBoxMinZ = initial.BoxMin.Z;
-        PendingBoxMaxX = initial.BoxMax.X;
-        PendingBoxMaxY = initial.BoxMax.Y;
-        PendingBoxMaxZ = initial.BoxMax.Z;
-        PendingBoxSliderMinX = sliderMin.X;
-        PendingBoxSliderMinY = sliderMin.Y;
-        PendingBoxSliderMinZ = sliderMin.Z;
-        PendingBoxSliderMaxX = sliderMax.X;
-        PendingBoxSliderMaxY = sliderMax.Y;
-        PendingBoxSliderMaxZ = sliderMax.Z;
-        PendingBoxFinalCriterion = initial.Criterion;
+        // Suppress mirror handler while seeding all six min/max values; otherwise the first
+        // write under an auto-detected symmetry flag would overwrite the opposite side before
+        // the other setters had a chance to run, corrupting the captured box.
+        _applyingSymmetry = true;
+        try
+        {
+            PendingBoxShapeName = initial.ShapeName ?? "";
+            PendingBoxMinX = initial.BoxMin.X;
+            PendingBoxMinY = initial.BoxMin.Y;
+            PendingBoxMinZ = initial.BoxMin.Z;
+            PendingBoxMaxX = initial.BoxMax.X;
+            PendingBoxMaxY = initial.BoxMax.Y;
+            PendingBoxMaxZ = initial.BoxMax.Z;
+            PendingBoxSliderMinX = sliderMin.X;
+            PendingBoxSliderMinY = sliderMin.Y;
+            PendingBoxSliderMinZ = sliderMin.Z;
+            PendingBoxSliderMaxX = sliderMax.X;
+            PendingBoxSliderMaxY = sliderMax.Y;
+            PendingBoxSliderMaxZ = sliderMax.Z;
+            PendingBoxFinalCriterion = initial.Criterion;
+
+            // Auto-detect per-axis symmetry: a box that straddles 0 with near-equal reach on
+            // both sides strongly implies the user meant to frame a symmetric feature
+            // (hips/waist/shoulders). Threshold: |min|/|max| must agree to within 10%.
+            PendingBoxSymmetry = DetectSymmetryAxes(initial.BoxMin, initial.BoxMax, 0.10f);
+        }
+        finally
+        {
+            _applyingSymmetry = false;
+        }
+
         HasPendingBox = true;
+        // Auto-disable pick mode so the user can rotate the view with left-drag without
+        // accidentally drawing a second box over the one they just captured. They can
+        // re-enable the toggle to draw a new box.
+        IsBoundingBoxPickMode = false;
+    }
+
+    /// <summary>Tests whether the captured box straddles each world axis (min < 0 < max) with
+    /// sides within <paramref name="tolerance"/> of equal magnitude (e.g., 0.10 = 10%). Returns
+    /// the flag-set of axes that qualify. Used to auto-seed <see cref="PendingBoxSymmetry"/>
+    /// so the mirror-mode ComboBox reflects what the user most likely intended.</summary>
+    private static SymmetryAxes DetectSymmetryAxes(OpenTK.Mathematics.Vector3 min, OpenTK.Mathematics.Vector3 max, float tolerance)
+    {
+        var result = SymmetryAxes.None;
+        if (AxisStraddlesAndIsSymmetric(min.X, max.X, tolerance)) result |= SymmetryAxes.X;
+        if (AxisStraddlesAndIsSymmetric(min.Y, max.Y, tolerance)) result |= SymmetryAxes.Y;
+        if (AxisStraddlesAndIsSymmetric(min.Z, max.Z, tolerance)) result |= SymmetryAxes.Z;
+        return result;
+    }
+
+    private static bool AxisStraddlesAndIsSymmetric(float lo, float hi, float tolerance)
+    {
+        if (!(lo < 0f && hi > 0f)) return false;
+        float absLo = MathF.Abs(lo);
+        float absHi = MathF.Abs(hi);
+        float larger = MathF.Max(absLo, absHi);
+        if (larger <= 1e-5f) return false;
+        float asymmetry = MathF.Abs(absLo - absHi) / larger;
+        return asymmetry <= tolerance;
     }
 
     /// <summary>Emits the current pending box as a <see cref="KeyVertexBoxPick"/> and clears
@@ -1426,12 +1566,50 @@ public class VM_CharacterViewer : VM
     private readonly List<PickRow> _selectedPicks = new();
 
     /// <summary>Called by the view (<see cref="UC_CharacterViewer"/>) whenever the
-    /// picks ListBox selection changes. Replaces the cached selection wholesale.</summary>
+    /// picks ListBox selection changes. Replaces the cached selection wholesale and
+    /// mirrors it into <see cref="GlRenderer.SelectedKeyVertexMarkerIndices"/> so the
+    /// corresponding marker spheres render in the "selected" color.</summary>
     public void SetSelectedPicks(IEnumerable<PickRow> selection)
     {
         _selectedPicks.Clear();
+        Renderer.SelectedKeyVertexMarkerIndices.Clear();
         if (selection == null) return;
-        foreach (var p in selection) _selectedPicks.Add(p);
+        foreach (var p in selection)
+        {
+            _selectedPicks.Add(p);
+            // Picks and Renderer.KeyVertexMarkers are parallel — the row's position
+            // in Picks is also its marker index.
+            int idx = Picks.IndexOf(p);
+            if (idx >= 0) Renderer.SelectedKeyVertexMarkerIndices.Add(idx);
+        }
+    }
+
+    /// <summary>Fired when the VM wants the view's pick-info ListBox to update its
+    /// selection (e.g., the BodyTypeProfile editor highlighted a KeyVertex whose
+    /// (shape, index) matches an existing pick row). View subscribes and flips
+    /// <c>PicksList.SelectedItems</c> accordingly; SetSelectedPicks then runs through
+    /// the normal PicksList_SelectionChanged path and updates the green highlight.</summary>
+    public event Action<IReadOnlyList<PickRow>>? RequestPickSelection;
+
+    /// <summary>Asks the view to select the pick row (if any) matching the supplied
+    /// (shape, vertex index). Silent no-op when no row matches. Used by the
+    /// BodyTypeProfile editor to cross-link its KeyVertex grid selection with the
+    /// viewer's Picks list.</summary>
+    public void RequestSelectPickByShapeAndIndex(string shapeName, int vertexIndex)
+    {
+        if (string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return;
+        PickRow? match = null;
+        foreach (var row in Picks)
+        {
+            if (row.VertexIndex == vertexIndex
+                && string.Equals(row.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase))
+            {
+                match = row;
+                break;
+            }
+        }
+        if (match == null) return;
+        RequestPickSelection?.Invoke(new[] { match });
     }
 
     /// <summary>
@@ -1513,6 +1691,7 @@ public class VM_CharacterViewer : VM
     public void ClearKeyVertexMarkers()
     {
         Renderer.KeyVertexMarkers.Clear();
+        Renderer.SelectedKeyVertexMarkerIndices.Clear();
         _keyVertexPicks.Clear();
         _selectedPicks.Clear();
         Picks.Clear();
@@ -1533,6 +1712,9 @@ public class VM_CharacterViewer : VM
         if (_keyVertexPicks.Count == 0) return;
 
         Renderer.KeyVertexMarkers.Clear();
+        // Indices may shift if any pick fails to resolve mid-list below — clear and
+        // re-derive at the end from the still-valid _selectedPicks row references.
+        Renderer.SelectedKeyVertexMarkerIndices.Clear();
 
         for (int i = 0; i < _keyVertexPicks.Count; i++)
         {
@@ -1556,6 +1738,16 @@ public class VM_CharacterViewer : VM
         }
 
         if (Picks.Count > 0) LastPickSummary = Picks[^1].Display;
+
+        // Re-derive selection indices after the marker list was rebuilt (indices may
+        // have shifted if some picks failed to resolve). PickRow references in
+        // _selectedPicks still point at live rows in Picks because UpdatePosition
+        // mutates in place rather than replacing them.
+        foreach (var row in _selectedPicks)
+        {
+            int idx = Picks.IndexOf(row);
+            if (idx >= 0) Renderer.SelectedKeyVertexMarkerIndices.Add(idx);
+        }
     }
 
     /// <summary>

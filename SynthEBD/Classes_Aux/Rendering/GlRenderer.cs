@@ -34,6 +34,17 @@ public class GlRenderer : IDisposable
     /// <summary>RGB color for the key-vertex marker spheres.</summary>
     public Vector3 KeyVertexMarkerColor { get; set; } = new Vector3(1.0f, 0.38f, 0.15f);
 
+    /// <summary>Indices into <see cref="KeyVertexMarkers"/> that should render in
+    /// <see cref="KeyVertexMarkerSelectedColor"/> instead of the default — driven by the
+    /// pick-info ListBox selection in the viewer so the user can identify which marker
+    /// corresponds to the clicked row.</summary>
+    public HashSet<int> SelectedKeyVertexMarkerIndices { get; } = new();
+
+    /// <summary>RGB color for selected key-vertex marker spheres (overrides
+    /// <see cref="KeyVertexMarkerColor"/> per-marker when the index appears in
+    /// <see cref="SelectedKeyVertexMarkerIndices"/>).</summary>
+    public Vector3 KeyVertexMarkerSelectedColor { get; set; } = new Vector3(0.25f, 1.0f, 0.35f);
+
     /// <summary>Bounding-box-resolved markers — rendered by the same path as
     /// <see cref="KeyVertexMarkers"/> but in a distinguishable color so the user can see
     /// which of their named key vertices are static picks vs. AABB re-scans. Owned by the
@@ -341,7 +352,8 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
-        DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor);
+        DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor,
+            SelectedKeyVertexMarkerIndices, KeyVertexMarkerSelectedColor);
         DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
 
         _debugShader.SetFloat("u_shaded", 0f);
@@ -350,16 +362,31 @@ public class GlRenderer : IDisposable
         GL.BindVertexArray(0);
     }
 
-    private void DrawMarkerList(List<Vector3> markers, Vector3 color)
+    private void DrawMarkerList(
+        List<Vector3> markers, Vector3 color,
+        HashSet<int>? selectedIndices = null, Vector3 selectedColor = default)
     {
         if (markers.Count == 0) return;
-        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
 
         var unit = GetUnitSphereMesh();
         var scratch = _sphereScratch ??= new float[unit.Length];
         float worldRadius = KeyVertexMarkerRadius * ModelScale;
+
+        // Set the default color once; swap to the selected color only when a marker's
+        // index lands in selectedIndices, and only emit the uniform update on transition.
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        bool currentlySelected = false;
+
         for (int i = 0; i < markers.Count; i++)
         {
+            bool markerSelected = selectedIndices != null && selectedIndices.Contains(i);
+            if (markerSelected != currentlySelected)
+            {
+                var c = markerSelected ? selectedColor : color;
+                _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
+                currentlySelected = markerSelected;
+            }
+
             var worldCenter = markers[i] * ModelScale;
             for (int v = 0; v < unit.Length; v += 6)
             {

@@ -533,6 +533,23 @@ public class VM_BodyTypeProfile : VM
             {
                 RefreshMeasurementHighlight();
             }
+            else if (args.PropertyName == nameof(SelectedKeyVertex))
+            {
+                // When the user clicks a KeyVertex row, ask the viewer to select the
+                // matching pick (if the user previously clicked "Show Picks in Viewer"
+                // so the pick exists). The viewer will then turn that marker green.
+                // No-ops silently for BoundingBox-strategy vertices (no single index)
+                // or when the pick isn't present in the current picks list.
+                var kv = SelectedKeyVertex;
+                if (kv != null
+                    && kv.Strategy == KeyVertexStrategy.Explicit
+                    && ActiveViewer != null
+                    && !string.IsNullOrEmpty(kv.ShapeName)
+                    && kv.VertexIndex >= 0)
+                {
+                    ActiveViewer.RequestSelectPickByShapeAndIndex(kv.ShapeName, kv.VertexIndex);
+                }
+            }
         };
     }
 

@@ -88,14 +88,34 @@ public partial class UC_CharacterViewer : UserControl
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_vm != null)
+        {
             _vm.Picks.CollectionChanged -= Picks_CollectionChanged;
+            _vm.RequestPickSelection -= OnVmRequestPickSelection;
+        }
 
         _vm = DataContext as VM_CharacterViewer;
 
         if (_vm != null)
+        {
             _vm.Picks.CollectionChanged += Picks_CollectionChanged;
+            _vm.RequestPickSelection += OnVmRequestPickSelection;
+        }
 
         TryStartGl();
+    }
+
+    /// <summary>Reflects an external selection request (e.g., user picked a KeyVertex in the
+    /// BodyTypeProfile editor) into the PicksList. Setting SelectedItems fires
+    /// PicksList_SelectionChanged which routes into VM.SetSelectedPicks, so the renderer
+    /// marker turns green through the normal path.</summary>
+    private void OnVmRequestPickSelection(IReadOnlyList<VM_CharacterViewer.PickRow> rows)
+    {
+        if (rows == null) return;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            PicksList.SelectedItems.Clear();
+            foreach (var row in rows) PicksList.SelectedItems.Add(row);
+        }));
     }
 
     private void Picks_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
