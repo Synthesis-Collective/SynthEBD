@@ -538,11 +538,12 @@ public class VM_BodyTypeProfile : VM
                 // When the user clicks a KeyVertex row, ask the viewer to select the
                 // matching pick (if the user previously clicked "Show Picks in Viewer"
                 // so the pick exists). The viewer will then turn that marker green.
-                // No-ops silently for BoundingBox-strategy vertices (no single index)
-                // or when the pick isn't present in the current picks list.
+                // Works for both strategies: Explicit uses the stored VertexIndex, and
+                // BoundingBox uses the cached resolved index (see RefreshBoundingBoxMarkerPositions
+                // and RuleMatches, which both write the resolution back to kv.VertexIndex).
+                // No-ops silently when the pick isn't present in the current picks list.
                 var kv = SelectedKeyVertex;
                 if (kv != null
-                    && kv.Strategy == KeyVertexStrategy.Explicit
                     && ActiveViewer != null
                     && !string.IsNullOrEmpty(kv.ShapeName)
                     && kv.VertexIndex >= 0)
@@ -655,6 +656,7 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
             pick.Criterion == BoxCriterionSelection.MirrorBulgeX;
 
+        var newRows = new List<VM_NamedKeyVertex>();
         if (isMirror)
         {
             var (aCrit, bCrit) = pick.Criterion switch
@@ -665,18 +667,28 @@ public class VM_BodyTypeProfile : VM
                 BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchMaxX, BoundingBoxCriterion.PinchMinX),
                 _                                  => (BoundingBoxCriterion.BulgeMaxX, BoundingBoxCriterion.BulgeMinX),
             };
-            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, aCrit);
-            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, bCrit);
+            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, aCrit));
+            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, bCrit));
         }
         else
         {
-            AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, (BoundingBoxCriterion)pick.Criterion);
+            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, (BoundingBoxCriterion)pick.Criterion));
         }
 
+        // Resolves kv.VertexIndex on each new BB row (via RefreshBoundingBoxMarkers).
         RefreshMeasurementValues();
+
+        // Auto-send the newly-authored rows to the viewer's Picks list so the user sees an
+        // orange marker appear at each resolved vertex the moment they confirm the box.
+        // The broader "show a marker for every BB entry in the roster" behavior was removed;
+        // picks now appear only via explicit user action (this auto-send or Show Picks in Viewer).
+        var entries = newRows
+            .Where(kv => !string.IsNullOrEmpty(kv.ShapeName) && kv.VertexIndex >= 0)
+            .Select(kv => (kv.ShapeName, kv.VertexIndex));
+        viewer.ShowKeyVerticesInViewer(entries);
     }
 
-    private void AddBoxRow(
+    private VM_NamedKeyVertex AddBoxRow(
         string shapeName,
         OpenTK.Mathematics.Vector3 boxMin,
         OpenTK.Mathematics.Vector3 boxMax,
@@ -694,6 +706,7 @@ public class VM_BodyTypeProfile : VM
         var vm = new VM_NamedKeyVertex(model, this);
         KeyVertices.Add(vm);
         SelectedKeyVertex = vm;
+        return vm;
     }
 
     /// <summary>
@@ -743,16 +756,23 @@ public class VM_BodyTypeProfile : VM
     }
 
     /// <summary>
-    /// Resolves every <see cref="KeyVertexStrategy.BoundingBox"/> row against the current
-    /// mesh state, caches the resolved index onto the row VM (so the DataGrid reflects it),
-    /// and pushes the resolved world positions to the viewer's yellow BB marker list. Called
-    /// from <see cref="RefreshMeasurementValues"/> so markers track preset/weight change.
+    /// Re-resolves every <see cref="KeyVertexStrategy.BoundingBox"/> row against the current
+    /// mesh state and caches the resolved index onto the row VM (so the DataGrid reflects it,
+    /// and <see cref="MeasurementMath"/> evaluators can read the cached index). When the index
+    /// changes, also updates any corresponding orange pick in the viewer's Picks list via
+    /// <see cref="VM_CharacterViewer.MigrateKeyVertexPick"/> — so entries the user has already
+    /// sent to the viewer (via box-confirm or "Show Picks in Viewer") keep tracking live.
+    /// <para>
+    /// Does NOT push resolved positions to any renderer marker list by itself. Markers are
+    /// added only when the user explicitly sends a KeyVertex to the viewer (box confirm →
+    /// auto-add in <see cref="OnBoxPickedFromViewer"/>, or "Show Picks in Viewer" button),
+    /// so merely defining a BB row in the profile doesn't cause a marker to appear.
+    /// </para>
     /// </summary>
     private void RefreshBoundingBoxMarkers(VM_CharacterViewer viewer)
     {
         if (viewer == null) return;
 
-        var boxPositions = new List<OpenTK.Mathematics.Vector3>();
         foreach (var kv in KeyVertices)
         {
             if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
@@ -764,11 +784,18 @@ public class VM_BodyTypeProfile : VM
             int? idx = MeasurementMath.FindBestInBox(positions, kv.DumpToModel(), kv.Criterion);
             if (idx == null) continue;
 
+            int oldIdx = kv.VertexIndex;
             kv.VertexIndex = idx.Value;
-            boxPositions.Add(positions[idx.Value]);
-        }
 
-        viewer.SetBoxResolvedMarkers(boxPositions);
+            // Keep any orange pick previously shown (via "Show Picks in Viewer" or on box
+            // confirm) in sync with the newly-resolved BB index so selecting this KeyVertex
+            // in the editor continues to green-highlight the right marker across preset/weight
+            // switches. No-op when the pick isn't in the viewer's list yet.
+            if (oldIdx >= 0 && oldIdx != idx.Value)
+            {
+                viewer.MigrateKeyVertexPick(kv.ShapeName, oldIdx, idx.Value);
+            }
+        }
     }
 
     /// <summary>

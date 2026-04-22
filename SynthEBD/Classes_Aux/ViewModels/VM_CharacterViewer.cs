@@ -1612,6 +1612,59 @@ public class VM_CharacterViewer : VM
         RequestPickSelection?.Invoke(new[] { match });
     }
 
+    /// <summary>Rewrites the (shape, oldIdx) pick entry — if present — to point at
+    /// <paramref name="newVertexIndex"/> instead, refreshing its marker position, Display/Tsv
+    /// strings, and backing <see cref="KeyVertexPick"/>. Called by the BodyTypeProfile editor
+    /// after a BoundingBox key vertex re-resolves to a different index on preset/weight switch,
+    /// so the orange pick tracks the live BB resolution (and stays match-able by the editor's
+    /// cross-link into <see cref="RequestSelectPickByShapeAndIndex"/>). Silent no-op when no
+    /// matching row exists or when the new index cannot be resolved on the current mesh.
+    /// Returns true on successful migration.</summary>
+    public bool MigrateKeyVertexPick(string shapeName, int oldVertexIndex, int newVertexIndex)
+    {
+        if (string.IsNullOrEmpty(shapeName) || oldVertexIndex < 0 || newVertexIndex < 0) return false;
+        if (oldVertexIndex == newVertexIndex) return false;
+
+        int rowIdx = -1;
+        for (int i = 0; i < Picks.Count; i++)
+        {
+            if (Picks[i].VertexIndex == oldVertexIndex
+                && string.Equals(Picks[i].ShapeName, shapeName, StringComparison.OrdinalIgnoreCase))
+            {
+                rowIdx = i;
+                break;
+            }
+        }
+        if (rowIdx < 0) return false;
+
+        // New vertex must be in range on the current mesh; bail (keeping old pick) otherwise.
+        if (!TryGetCurrentVertex(shapeName, newVertexIndex, out var newPos)) return false;
+
+        // Mutate PickRow in place — replacing the row object would drop WPF ListBox
+        // selection (tracked by reference).
+        Picks[rowIdx].VertexIndex = newVertexIndex;
+        Picks[rowIdx].UpdatePosition(newPos.X, newPos.Y, newPos.Z);
+
+        // Parallel _keyVertexPicks list. Entries are immutable records, so replace.
+        if (rowIdx < _keyVertexPicks.Count)
+        {
+            var existing = _keyVertexPicks[rowIdx];
+            if (existing.Mesh != null)
+            {
+                _keyVertexPicks[rowIdx] = new KeyVertexPick(existing.Mesh, newVertexIndex, newPos);
+            }
+        }
+
+        // Renderer marker at the same slot (orange sphere list is parallel to _keyVertexPicks).
+        if (rowIdx < Renderer.KeyVertexMarkers.Count)
+        {
+            Renderer.KeyVertexMarkers[rowIdx] = newPos;
+        }
+
+        if (rowIdx == Picks.Count - 1) LastPickSummary = Picks[rowIdx].Display;
+        return true;
+    }
+
     /// <summary>
     /// Look up the current (post-deformation, pre-ModelScale) position of a vertex on a body
     /// mesh by shape name and index. Used by the BodyTypeProfile editor to compute live
