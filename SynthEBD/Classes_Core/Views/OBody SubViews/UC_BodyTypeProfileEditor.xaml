@@ -158,8 +158,10 @@
                                                 ToolTip="Sends this profile's Key Vertices to the viewer as pick markers so they can be re-visualized in a new session. References that don't resolve on the current mesh are silently skipped."/>
                                         <Button Content="Remove Selected" Command="{Binding RemoveSelectedKeyVertex}" Margin="15,0,0,0" Padding="6,1"/>
                                     </StackPanel>
-                                    <DataGrid ItemsSource="{Binding KeyVertices}"
+                                    <DataGrid x:Name="KeyVerticesGrid"
+                                              ItemsSource="{Binding KeyVertices}"
                                               SelectedItem="{Binding SelectedKeyVertex}"
+                                              SelectionChanged="KeyVerticesGrid_SelectionChanged"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"

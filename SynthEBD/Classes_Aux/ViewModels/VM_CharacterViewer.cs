@@ -1612,6 +1612,32 @@ public class VM_CharacterViewer : VM
         RequestPickSelection?.Invoke(new[] { match });
     }
 
+    /// <summary>Multi-selection variant: selects every pick row that matches one of the
+    /// supplied (shape, vertex index) pairs. Fires a single <see cref="RequestPickSelection"/>
+    /// event so the view replaces its whole selection in one pass. Empty/unmatched inputs
+    /// clear the viewer's pick selection.</summary>
+    public void RequestSelectPicksByShapeAndIndices(IEnumerable<(string ShapeName, int VertexIndex)> keys)
+    {
+        var matches = new List<PickRow>();
+        if (keys != null)
+        {
+            foreach (var (shape, idx) in keys)
+            {
+                if (string.IsNullOrEmpty(shape) || idx < 0) continue;
+                foreach (var row in Picks)
+                {
+                    if (row.VertexIndex == idx
+                        && string.Equals(row.ShapeName, shape, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!matches.Contains(row)) matches.Add(row);
+                        break;
+                    }
+                }
+            }
+        }
+        RequestPickSelection?.Invoke(matches);
+    }
+
     /// <summary>Rewrites the (shape, oldIdx) pick entry — if present — to point at
     /// <paramref name="newVertexIndex"/> instead, refreshing its marker position, Display/Tsv
     /// strings, and backing <see cref="KeyVertexPick"/>. Called by the BodyTypeProfile editor

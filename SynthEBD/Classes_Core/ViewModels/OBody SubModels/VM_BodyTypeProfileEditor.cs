@@ -611,6 +611,27 @@ public class VM_BodyTypeProfile : VM
 
     public VM_NamedKeyVertex? SelectedKeyVertex { get; set; }
 
+    /// <summary>Multi-selection routing: takes the full KeyVertices DataGrid selection and
+    /// asks the active viewer to mirror that selection in its Picks list (so every matching
+    /// marker turns green, not just the one SelectedKeyVertex points at). Called from the
+    /// DataGrid's SelectionChanged handler in the code-behind.</summary>
+    public void SelectKeyVerticesInViewer(IEnumerable<VM_NamedKeyVertex> selected)
+    {
+        if (ActiveViewer == null) return;
+        var keys = new List<(string, int)>();
+        if (selected != null)
+        {
+            foreach (var kv in selected)
+            {
+                if (kv == null) continue;
+                if (string.IsNullOrEmpty(kv.ShapeName)) continue;
+                if (kv.VertexIndex < 0) continue;
+                keys.Add((kv.ShapeName, kv.VertexIndex));
+            }
+        }
+        ActiveViewer.RequestSelectPicksByShapeAndIndices(keys);
+    }
+
     /// <summary>Currently highlighted measurement. Drives the colored-line overlay in the active viewer.</summary>
     public VM_MeasurementDefinition? SelectedMeasurement { get; set; }
 
