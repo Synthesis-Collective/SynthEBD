@@ -738,14 +738,18 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
             pick.Criterion == BoxCriterionSelection.MirrorBulgeX;
 
+        // MirrorPinchX / MirrorBulgeX expand into the *paired* criteria so the two generated rows
+        // resolve jointly (same Y-slice) and a PointDistance across them measures true horizontal
+        // thickness. Single-side PinchMin/MaxX and BulgeMin/MaxX remain available for manual use
+        // and for loading legacy profiles that stored those values directly.
         (BoundingBoxCriterion a, BoundingBoxCriterion b)? mirrorPair = isMirror
             ? pick.Criterion switch
             {
-                BoxCriterionSelection.MirrorX      => (BoundingBoxCriterion.MaxX,      BoundingBoxCriterion.MinX),
-                BoxCriterionSelection.MirrorY      => (BoundingBoxCriterion.MaxY,      BoundingBoxCriterion.MinY),
-                BoxCriterionSelection.MirrorZ      => (BoundingBoxCriterion.MaxZ,      BoundingBoxCriterion.MinZ),
-                BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchMaxX, BoundingBoxCriterion.PinchMinX),
-                _                                  => (BoundingBoxCriterion.BulgeMaxX, BoundingBoxCriterion.BulgeMinX),
+                BoxCriterionSelection.MirrorX      => (BoundingBoxCriterion.MaxX,           BoundingBoxCriterion.MinX),
+                BoxCriterionSelection.MirrorY      => (BoundingBoxCriterion.MaxY,           BoundingBoxCriterion.MinY),
+                BoxCriterionSelection.MirrorZ      => (BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ),
+                BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX),
+                _                                  => (BoundingBoxCriterion.BulgePairMaxX, BoundingBoxCriterion.BulgePairMinX),
             }
             : null;
 
@@ -926,6 +930,19 @@ public class VM_BodyTypeProfile : VM
     {
         if (viewer == null) return;
 
+        // Pre-snapshot every BB row as a plain model so pair-sibling lookup can see the peers
+        // without each FindBestInBox call rebuilding the snapshot. Keyed by VM identity so we
+        // can pull the snapshot back out for the current row without a second DumpToModel.
+        var bbSnapshots = new Dictionary<VM_NamedKeyVertex, NamedKeyVertex>(ReferenceEqualityComparer.Instance);
+        foreach (var vm in KeyVertices)
+        {
+            if (vm.Strategy != KeyVertexStrategy.BoundingBox) continue;
+            bbSnapshots[vm] = vm.DumpToModel();
+        }
+
+        Func<NamedKeyVertex, NamedKeyVertex?> findSibling = self =>
+            MeasurementMath.FindPairSibling(self, bbSnapshots.Values);
+
         foreach (var kv in KeyVertices)
         {
             if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
@@ -934,7 +951,8 @@ public class VM_BodyTypeProfile : VM
             var positions = viewer.GetShapePositions(kv.ShapeName);
             if (positions == null || positions.Length == 0) continue;
 
-            int? idx = MeasurementMath.FindBestInBox(positions, kv.DumpToModel(), kv.Criterion);
+            var model = bbSnapshots[kv];
+            int? idx = MeasurementMath.FindBestInBox(positions, model, kv.Criterion, findSibling);
             if (idx == null) continue;
 
             int oldIdx = kv.VertexIndex;

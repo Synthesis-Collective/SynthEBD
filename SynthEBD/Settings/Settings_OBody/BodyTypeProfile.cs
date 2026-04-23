@@ -103,7 +103,14 @@ public enum KeyVertexStrategy
 /// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back).
 /// <para>The <c>Pinch*</c> / <c>Bulge*</c> values scan the box's Y range in slices and pick the
 /// silhouette vertex whose X is closest to (pinch) or farthest from (bulge) the midline —
-/// suitable for waist-pinch and widest-hip anchors respectively.</para></summary>
+/// suitable for waist-pinch and widest-hip anchors respectively.</para>
+/// <para>The <c>*Pair*X</c> values require a sibling row in the same profile with the opposite
+/// pair criterion and identical ShapeName + box coordinates. When a sibling is present the
+/// two rows jointly scan the shared box and pick vertices from the <em>same Y-slice</em> — the
+/// slice that minimizes (pinch) or maximizes (bulge) <c>maxX - minX</c>. This guarantees a
+/// <c>PointDistance</c> between the pair measures horizontal thickness rather than a diagonal
+/// across different Y-levels. When no sibling is found the row gracefully falls back to its
+/// non-paired equivalent (<c>PinchPairMinX</c> → <c>PinchMinX</c>, etc.).</para></summary>
 public enum BoundingBoxCriterion
 {
     MaxX = 0,
@@ -116,6 +123,10 @@ public enum BoundingBoxCriterion
     PinchMaxX = 7,
     BulgeMinX = 8,
     BulgeMaxX = 9,
+    PinchPairMinX = 10,
+    PinchPairMaxX = 11,
+    BulgePairMinX = 12,
+    BulgePairMaxX = 13,
 }
 
 /// <summary>World-axis symmetry lock applied to a <see cref="KeyVertexStrategy.BoundingBox"/>
@@ -153,6 +164,10 @@ public enum BoxCriterionSelection
     PinchMaxX = 7,
     BulgeMinX = 8,
     BulgeMaxX = 9,
+    PinchPairMinX = 10,
+    PinchPairMaxX = 11,
+    BulgePairMinX = 12,
+    BulgePairMaxX = 13,
     MirrorX = 100,
     MirrorY = 101,
     MirrorZ = 102,
@@ -408,7 +423,14 @@ public static class MeasurementMath
             if (shapeLookup == null) return false;
             var positions = shapeLookup(kv.ShapeName);
             if (positions == null || positions.Length == 0) return false;
-            int? idx = FindBestInBox(positions, kv, kv.Criterion);
+            // Paired criteria need to see peer rows to find their sibling. Build the lookup
+            // only when it matters so non-paired resolution stays cheap.
+            Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null;
+            if (IsPairCriterion(kv.Criterion))
+            {
+                findSibling = self => FindPairSibling(self, keyVertsByName.Values);
+            }
+            int? idx = FindBestInBox(positions, kv, kv.Criterion, findSibling);
             if (idx == null) return false;
             kv.VertexIndex = idx.Value; // cache for marker display / downstream lookups
             pos = positions[idx.Value];
@@ -423,8 +445,12 @@ public static class MeasurementMath
 
     /// <summary>Scan a mesh's positions for the vertex inside the <see cref="NamedKeyVertex"/>'s AABB
     /// that best satisfies <paramref name="criterion"/>. Returns null if no vertex falls inside the box.
-    /// Exposed for viewer-side marker refresh, which needs to re-resolve BB entries when the mesh deforms.</summary>
-    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion)
+    /// Exposed for viewer-side marker refresh, which needs to re-resolve BB entries when the mesh deforms.
+    /// <para><paramref name="findSibling"/> is consulted only for paired criteria (<c>*Pair*X</c>); given
+    /// <paramref name="kv"/>, it must return the partner row (same ShapeName, identical box, opposite pair
+    /// criterion) or null. When a sibling is missing the method falls back to the non-paired criterion so
+    /// half-built profiles still resolve.</para></summary>
+    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion, Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null)
     {
         if (positions == null || positions.Length == 0) return null;
 
@@ -434,6 +460,19 @@ public static class MeasurementMath
             case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: true);
             case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: false);
             case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: false);
+            case BoundingBoxCriterion.PinchPairMinX:
+            case BoundingBoxCriterion.PinchPairMaxX:
+            case BoundingBoxCriterion.BulgePairMinX:
+            case BoundingBoxCriterion.BulgePairMaxX:
+            {
+                var sibling = findSibling?.Invoke(kv);
+                if (sibling != null)
+                {
+                    return FindPairedPinchOrBulgeX(positions, kv, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+                }
+                // No sibling — degrade to the non-paired equivalent so the row still resolves.
+                return FindPinchOrBulgeX(positions, kv, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+            }
         }
 
         float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
@@ -593,6 +632,169 @@ public static class MeasurementMath
         }
 
         return chosenIdx;
+    }
+
+    /// <summary>Joint-scan variant of <see cref="FindPinchOrBulgeX"/> used by the paired criteria.
+    /// Collects both the leftmost and rightmost silhouette vertex per Y-bin, then picks the single bin
+    /// that minimizes (pinch) or maximizes (bulge) <c>maxX − minX</c>. Returns the left or right index
+    /// of that winning bin depending on <paramref name="leftSide"/>. Because both the left and right
+    /// row call into this method, they naturally return indices from the same bin — callers get a
+    /// horizontally-aligned pair without having to communicate. Includes parabolic sub-bin refinement
+    /// on the width-vs-bin curve, matching the single-side method's behavior.</summary>
+    private static int? FindPairedPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantPinch)
+    {
+        const int BinCount = 20;
+
+        float minX = kv.BoxMinX, maxX = kv.BoxMaxX;
+        float minY = kv.BoxMinY, maxY = kv.BoxMaxY;
+        float minZ = kv.BoxMinZ, maxZ = kv.BoxMaxZ;
+
+        float yRange = maxY - minY;
+        if (yRange <= 1e-6f) return null;
+
+        var minIdxPerBin = new int[BinCount];
+        var maxIdxPerBin = new int[BinCount];
+        var minXPerBin = new float[BinCount];
+        var maxXPerBin = new float[BinCount];
+        for (int i = 0; i < BinCount; i++)
+        {
+            minIdxPerBin[i] = -1;
+            maxIdxPerBin[i] = -1;
+            minXPerBin[i] = float.MaxValue;
+            maxXPerBin[i] = float.MinValue;
+        }
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            int bin = (int)((p.Y - minY) / yRange * BinCount);
+            if (bin < 0) bin = 0;
+            else if (bin >= BinCount) bin = BinCount - 1;
+
+            if (p.X < minXPerBin[bin]) { minXPerBin[bin] = p.X; minIdxPerBin[bin] = i; }
+            if (p.X > maxXPerBin[bin]) { maxXPerBin[bin] = p.X; maxIdxPerBin[bin] = i; }
+        }
+
+        // Per-bin width. Only bins with both sides occupied are candidates — a half-populated bin
+        // has no meaningful thickness.
+        int winnerBin = -1;
+        float chosenWidth = wantPinch ? float.MaxValue : float.MinValue;
+        for (int b = 0; b < BinCount; b++)
+        {
+            if (minIdxPerBin[b] < 0 || maxIdxPerBin[b] < 0) continue;
+            float width = maxXPerBin[b] - minXPerBin[b];
+            bool isBest = wantPinch ? width < chosenWidth : width > chosenWidth;
+            if (isBest) { chosenWidth = width; winnerBin = b; }
+        }
+
+        if (winnerBin < 0) return null;
+
+        // Parabolic sub-bin refinement on the width curve, mirroring FindPinchOrBulgeX.
+        float binHeight = yRange / BinCount;
+        float centerY = minY + (winnerBin + 0.5f) * binHeight;
+        float refinedY = centerY;
+
+        if (winnerBin > 0 && winnerBin < BinCount - 1
+            && minIdxPerBin[winnerBin - 1] >= 0 && maxIdxPerBin[winnerBin - 1] >= 0
+            && minIdxPerBin[winnerBin + 1] >= 0 && maxIdxPerBin[winnerBin + 1] >= 0)
+        {
+            float w0 = maxXPerBin[winnerBin - 1] - minXPerBin[winnerBin - 1];
+            float w1 = maxXPerBin[winnerBin]     - minXPerBin[winnerBin];
+            float w2 = maxXPerBin[winnerBin + 1] - minXPerBin[winnerBin + 1];
+            float denom = w0 - 2f * w1 + w2;
+            if (MathF.Abs(denom) > 1e-6f)
+            {
+                float offsetBins = 0.5f * (w0 - w2) / denom;
+                if (offsetBins > 0.5f) offsetBins = 0.5f;
+                else if (offsetBins < -0.5f) offsetBins = -0.5f;
+                refinedY = centerY + offsetBins * binHeight;
+            }
+        }
+
+        // Rescan within a 1-bin Y band centered on the refined Y for both silhouette sides
+        // jointly, so both callers still agree on a shared slice after refinement.
+        float bandHalf = binHeight * 0.5f;
+        float bandMinY = refinedY - bandHalf;
+        float bandMaxY = refinedY + bandHalf;
+
+        int chosenMinIdx = minIdxPerBin[winnerBin];
+        int chosenMaxIdx = maxIdxPerBin[winnerBin];
+        float chosenMinX = float.MaxValue;
+        float chosenMaxX = float.MinValue;
+        bool bandHasAny = false;
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < bandMinY || p.Y > bandMaxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            bandHasAny = true;
+            if (p.X < chosenMinX) { chosenMinX = p.X; chosenMinIdx = i; }
+            if (p.X > chosenMaxX) { chosenMaxX = p.X; chosenMaxIdx = i; }
+        }
+        if (!bandHasAny)
+        {
+            // Empty band after refinement — retain the winner bin's picks.
+            chosenMinIdx = minIdxPerBin[winnerBin];
+            chosenMaxIdx = maxIdxPerBin[winnerBin];
+        }
+
+        return leftSide ? chosenMinIdx : chosenMaxIdx;
+    }
+
+    /// <summary>True for the four <c>*Pair*X</c> criteria that require joint sibling resolution.</summary>
+    public static bool IsPairCriterion(BoundingBoxCriterion criterion)
+        => criterion == BoundingBoxCriterion.PinchPairMinX
+        || criterion == BoundingBoxCriterion.PinchPairMaxX
+        || criterion == BoundingBoxCriterion.BulgePairMinX
+        || criterion == BoundingBoxCriterion.BulgePairMaxX;
+
+    /// <summary>Returns the opposite-side partner of a paired criterion (Min ↔ Max within the same
+    /// Pinch/Bulge family). Throws for non-paired inputs since callers must gate on <see cref="IsPairCriterion"/>.</summary>
+    public static BoundingBoxCriterion PartnerCriterion(BoundingBoxCriterion criterion) => criterion switch
+    {
+        BoundingBoxCriterion.PinchPairMinX => BoundingBoxCriterion.PinchPairMaxX,
+        BoundingBoxCriterion.PinchPairMaxX => BoundingBoxCriterion.PinchPairMinX,
+        BoundingBoxCriterion.BulgePairMinX => BoundingBoxCriterion.BulgePairMaxX,
+        BoundingBoxCriterion.BulgePairMaxX => BoundingBoxCriterion.BulgePairMinX,
+        _ => throw new ArgumentException($"Not a pair criterion: {criterion}", nameof(criterion)),
+    };
+
+    private static bool IsPairLeftSide(BoundingBoxCriterion criterion)
+        => criterion == BoundingBoxCriterion.PinchPairMinX
+        || criterion == BoundingBoxCriterion.BulgePairMinX;
+
+    private static bool IsPairPinch(BoundingBoxCriterion criterion)
+        => criterion == BoundingBoxCriterion.PinchPairMinX
+        || criterion == BoundingBoxCriterion.PinchPairMaxX;
+
+    /// <summary>Find the pair partner for <paramref name="kv"/> within <paramref name="candidates"/>.
+    /// A sibling matches on ShapeName (case-insensitive), exact float equality on all six box
+    /// coordinates, and carries the opposite-side pair criterion. Returns null when no match exists.
+    /// Exact equality is intentional — pair rows are always authored together from a shared box, so
+    /// any coordinate mismatch indicates a genuinely different selection, not float drift.</summary>
+    public static NamedKeyVertex? FindPairSibling(NamedKeyVertex kv, IEnumerable<NamedKeyVertex> candidates)
+    {
+        if (kv == null || candidates == null) return null;
+        if (!IsPairCriterion(kv.Criterion)) return null;
+        var partner = PartnerCriterion(kv.Criterion);
+        foreach (var other in candidates)
+        {
+            if (other == null || ReferenceEquals(other, kv)) continue;
+            if (other.Strategy != KeyVertexStrategy.BoundingBox) continue;
+            if (other.Criterion != partner) continue;
+            if (!string.Equals(other.ShapeName, kv.ShapeName, StringComparison.OrdinalIgnoreCase)) continue;
+            if (other.BoxMinX != kv.BoxMinX || other.BoxMaxX != kv.BoxMaxX) continue;
+            if (other.BoxMinY != kv.BoxMinY || other.BoxMaxY != kv.BoxMaxY) continue;
+            if (other.BoxMinZ != kv.BoxMinZ || other.BoxMaxZ != kv.BoxMaxZ) continue;
+            return other;
+        }
+        return null;
     }
 
     /// <summary>Applies a comparator to a measurement value.</summary>
