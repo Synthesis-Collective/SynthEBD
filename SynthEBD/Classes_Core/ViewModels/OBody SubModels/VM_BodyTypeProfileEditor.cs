@@ -586,6 +586,8 @@ public class VM_BodyTypeProfile : VM
                 {
                     ActiveViewer.RequestSelectPickByShapeAndIndex(kv.ShapeName, kv.VertexIndex);
                 }
+
+                SyncPendingBoxEditSessionWithSelection(kv);
             }
         };
     }
@@ -641,12 +643,31 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Most recent viewer to fire a pick targeting this profile. Used for live measurement readouts.</summary>
     public VM_CharacterViewer? ActiveViewer { get; private set; }
 
+    /// <summary>When the user selects a BoundingBox-strategy row in the KeyVertices grid the
+    /// profile reopens that row's box in the viewer's pending-box editor so the user can
+    /// refine it. This field tracks which row is being edited so the follow-up confirm
+    /// updates it in place instead of appending a new row. Null when no edit session is active.</summary>
+    private VM_NamedKeyVertex? _pendingBoxEditTarget;
+
+    /// <summary>Subscription that clears <see cref="_pendingBoxEditTarget"/> whenever the
+    /// viewer's pending box is torn down (user cancels, or confirm path finishes). Rewired
+    /// in <see cref="AttachViewer"/> so the profile follows whichever viewer is bound.</summary>
+    private IDisposable? _viewerHasPendingBoxSub;
+
     /// <summary>Binds this profile to the supplied viewer so live readouts and the
     /// measurement-line overlay target the right scene. Called by the editor when a
     /// preset is loaded in its embedded viewer.</summary>
     public void AttachViewer(VM_CharacterViewer viewer)
     {
         ActiveViewer = viewer;
+
+        // Follow the new viewer's pending-box lifecycle. When HasPendingBox flips to false
+        // (cancel, or post-confirm cleanup) drop any edit-session target so a subsequent
+        // drag-picked box doesn't accidentally overwrite a stale row.
+        _viewerHasPendingBoxSub?.Dispose();
+        _viewerHasPendingBoxSub = viewer?
+            .WhenAnyValue(v => v.HasPendingBox)
+            .Subscribe(hasBox => { if (!hasBox) _pendingBoxEditTarget = null; });
     }
 
     /// <summary>Descriptor the user is currently labeling examples for in suggest mode.</summary>
@@ -700,6 +721,10 @@ public class VM_BodyTypeProfile : VM
     /// with opposite single-axis <see cref="BoundingBoxCriterion"/>s so one drag can
     /// author both sides of a symmetric landmark pair. Single-axis criteria create one
     /// row. Names default to sequential placeholders — the user renames afterwards.
+    /// <para>When <see cref="_pendingBoxEditTarget"/> is set the confirm was for an edit
+    /// session on an existing row (opened by selecting a BoundingBox row); the target is
+    /// updated in place instead of appending. A mirror criterion during edit updates the
+    /// target with the primary half and appends the partner row.</para>
     /// </summary>
     public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
     {
@@ -713,19 +738,42 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
             pick.Criterion == BoxCriterionSelection.MirrorBulgeX;
 
-        var newRows = new List<VM_NamedKeyVertex>();
-        if (isMirror)
-        {
-            var (aCrit, bCrit) = pick.Criterion switch
+        (BoundingBoxCriterion a, BoundingBoxCriterion b)? mirrorPair = isMirror
+            ? pick.Criterion switch
             {
                 BoxCriterionSelection.MirrorX      => (BoundingBoxCriterion.MaxX,      BoundingBoxCriterion.MinX),
                 BoxCriterionSelection.MirrorY      => (BoundingBoxCriterion.MaxY,      BoundingBoxCriterion.MinY),
                 BoxCriterionSelection.MirrorZ      => (BoundingBoxCriterion.MaxZ,      BoundingBoxCriterion.MinZ),
                 BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchMaxX, BoundingBoxCriterion.PinchMinX),
                 _                                  => (BoundingBoxCriterion.BulgeMaxX, BoundingBoxCriterion.BulgeMinX),
-            };
-            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, aCrit));
-            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, bCrit));
+            }
+            : null;
+
+        var editTarget = _pendingBoxEditTarget;
+        // Guard against the row being deleted mid-edit; drop stale target, fall through to
+        // the new-row path so the pick isn't lost.
+        if (editTarget != null && !KeyVertices.Contains(editTarget))
+        {
+            editTarget = null;
+            _pendingBoxEditTarget = null;
+        }
+
+        var newRows = new List<VM_NamedKeyVertex>();
+        if (editTarget != null)
+        {
+            var primaryCrit = mirrorPair?.a ?? (BoundingBoxCriterion)pick.Criterion;
+            UpdateBoxRow(editTarget, shapeName, pick.BoxMin, pick.BoxMax, primaryCrit);
+            newRows.Add(editTarget);
+            if (mirrorPair.HasValue)
+            {
+                newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, mirrorPair.Value.b));
+            }
+            _pendingBoxEditTarget = null;
+        }
+        else if (mirrorPair.HasValue)
+        {
+            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, mirrorPair.Value.a));
+            newRows.Add(AddBoxRow(shapeName, pick.BoxMin, pick.BoxMax, mirrorPair.Value.b));
         }
         else
         {
@@ -743,6 +791,54 @@ public class VM_BodyTypeProfile : VM
             .Where(kv => !string.IsNullOrEmpty(kv.ShapeName) && kv.VertexIndex >= 0)
             .Select(kv => (kv.ShapeName, kv.VertexIndex));
         viewer.ShowKeyVerticesInViewer(entries);
+    }
+
+    /// <summary>Reopens a stored BoundingBox row in the viewer's pending-box editor so the
+    /// user can refine its AABB/criterion and re-confirm. Called from the SelectedKeyVertex
+    /// change handler; no-ops for Explicit rows or when no viewer is attached. Also cancels
+    /// any prior edit session (on a different row) so only one box is ever pending.</summary>
+    private void SyncPendingBoxEditSessionWithSelection(VM_NamedKeyVertex? kv)
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null) return;
+
+        bool isEditable = kv != null && kv.Strategy == KeyVertexStrategy.BoundingBox;
+
+        if (!isEditable)
+        {
+            // Selection moved off a BB row: tear down any active edit session. The viewer's
+            // HasPendingBox subscription below clears _pendingBoxEditTarget.
+            if (_pendingBoxEditTarget != null && viewer.HasPendingBox)
+            {
+                viewer.CancelPendingBox();
+            }
+            return;
+        }
+
+        // Reopen the row's stored box. The criterion enum is cast from BoundingBoxCriterion
+        // (0-9) to BoxCriterionSelection — their numeric ranges are aligned for exactly this
+        // reason (see BoxCriterionSelection doc comment).
+        _pendingBoxEditTarget = kv;
+        var initial = new VM_CharacterViewer.KeyVertexBoxPick(
+            kv!.ShapeName ?? "",
+            new OpenTK.Mathematics.Vector3(kv.BoxMinX, kv.BoxMinY, kv.BoxMinZ),
+            new OpenTK.Mathematics.Vector3(kv.BoxMaxX, kv.BoxMaxY, kv.BoxMaxZ),
+            (BoxCriterionSelection)(int)kv.Criterion);
+        viewer.BeginPendingBox(initial);
+    }
+
+    private static void UpdateBoxRow(
+        VM_NamedKeyVertex row,
+        string shapeName,
+        OpenTK.Mathematics.Vector3 boxMin,
+        OpenTK.Mathematics.Vector3 boxMax,
+        BoundingBoxCriterion criterion)
+    {
+        row.ShapeName = shapeName;
+        row.Strategy = KeyVertexStrategy.BoundingBox;
+        row.BoxMinX = boxMin.X; row.BoxMinY = boxMin.Y; row.BoxMinZ = boxMin.Z;
+        row.BoxMaxX = boxMax.X; row.BoxMaxY = boxMax.Y; row.BoxMaxZ = boxMax.Z;
+        row.Criterion = criterion;
     }
 
     private VM_NamedKeyVertex AddBoxRow(

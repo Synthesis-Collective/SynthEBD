@@ -1424,8 +1424,12 @@ public class VM_CharacterViewer : VM
             new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
             new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
             PendingBoxFinalCriterion);
-        HasPendingBox = false;
+        // Fire the pick event before clearing HasPendingBox so subscribers watching the
+        // flag (e.g., the profile editor's row-edit session) can distinguish a confirm —
+        // pick event THEN flag flip — from a user-cancel, which flips the flag with no
+        // accompanying event.
         NotifyKeyVertexBoxPicked(pick);
+        HasPendingBox = false;
     }
 
     public void CancelPendingBox() => HasPendingBox = false;
