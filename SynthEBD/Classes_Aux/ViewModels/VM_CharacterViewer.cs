@@ -991,18 +991,8 @@ public class VM_CharacterViewer : VM
     public float PendingBoxMinZ { get; set; }
     public float PendingBoxMaxZ { get; set; }
 
-    /// <summary>Full-mesh AABB (slightly padded) used as the range for the six min/max editors so
-    /// the user can expand the box beyond the initial rectangle capture if the view-axis cut-off
-    /// was too aggressive.</summary>
-    public float PendingBoxSliderMinX { get; set; }
-    public float PendingBoxSliderMaxX { get; set; }
-    public float PendingBoxSliderMinY { get; set; }
-    public float PendingBoxSliderMaxY { get; set; }
-    public float PendingBoxSliderMinZ { get; set; }
-    public float PendingBoxSliderMaxZ { get; set; }
-
-    /// <summary>Criterion frozen at drag time. The toolbar combo can change while pending without
-    /// retroactively changing this pending pick's criterion.</summary>
+    /// <summary>Criterion for the pending pick. Seeded at drag time from the toolbar combo; the
+    /// user can still change it via the pending-box panel combo before confirming.</summary>
     public BoxCriterionSelection PendingBoxFinalCriterion { get; set; }
 
     /// <summary>Per-axis symmetry lock applied to the pending box. When a flag is set, editing
@@ -1363,38 +1353,10 @@ public class VM_CharacterViewer : VM
 
     /// <summary>Parks a freshly-captured rectangle pick in the pending-box editor state
     /// instead of firing it. The wireframe overlay + edit panel become visible, the user
-    /// tweaks the six min/max values, then <see cref="ConfirmPendingBox"/> or
-    /// <see cref="CancelPendingBox"/> finalizes. Slider ranges come from the full-mesh
-    /// AABB (padded) so the user can expand beyond the initial capture rectangle.</summary>
+    /// tweaks the six min/max values (and optionally the criterion), then
+    /// <see cref="ConfirmPendingBox"/> or <see cref="CancelPendingBox"/> finalizes.</summary>
     public void BeginPendingBox(KeyVertexBoxPick initial)
     {
-        OpenTK.Mathematics.Vector3 sliderMin, sliderMax;
-        var positions = GetShapePositions(initial.ShapeName);
-        if (positions != null && positions.Length > 0)
-        {
-            sliderMin = new OpenTK.Mathematics.Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
-            sliderMax = new OpenTK.Mathematics.Vector3(float.MinValue, float.MinValue, float.MinValue);
-            foreach (var p in positions)
-            {
-                if (p.X < sliderMin.X) sliderMin.X = p.X;
-                if (p.Y < sliderMin.Y) sliderMin.Y = p.Y;
-                if (p.Z < sliderMin.Z) sliderMin.Z = p.Z;
-                if (p.X > sliderMax.X) sliderMax.X = p.X;
-                if (p.Y > sliderMax.Y) sliderMax.Y = p.Y;
-                if (p.Z > sliderMax.Z) sliderMax.Z = p.Z;
-            }
-            var pad = (sliderMax - sliderMin) * 0.1f;
-            sliderMin -= pad;
-            sliderMax += pad;
-        }
-        else
-        {
-            // Fallback: pad the pick itself 50% when the shape can't be resolved.
-            var pad = (initial.BoxMax - initial.BoxMin) * 0.5f;
-            sliderMin = initial.BoxMin - pad;
-            sliderMax = initial.BoxMax + pad;
-        }
-
         // Suppress mirror handler while seeding all six min/max values; otherwise the first
         // write under an auto-detected symmetry flag would overwrite the opposite side before
         // the other setters had a chance to run, corrupting the captured box.
@@ -1408,12 +1370,6 @@ public class VM_CharacterViewer : VM
             PendingBoxMaxX = initial.BoxMax.X;
             PendingBoxMaxY = initial.BoxMax.Y;
             PendingBoxMaxZ = initial.BoxMax.Z;
-            PendingBoxSliderMinX = sliderMin.X;
-            PendingBoxSliderMinY = sliderMin.Y;
-            PendingBoxSliderMinZ = sliderMin.Z;
-            PendingBoxSliderMaxX = sliderMax.X;
-            PendingBoxSliderMaxY = sliderMax.Y;
-            PendingBoxSliderMaxZ = sliderMax.Z;
             PendingBoxFinalCriterion = initial.Criterion;
 
             // Auto-detect per-axis symmetry: a box that straddles 0 with near-equal reach on

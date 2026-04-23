@@ -457,8 +457,13 @@
                                FontFamily="Consolas" VerticalAlignment="Center" Margin="6,0,0,0"/>
                     <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
                                VerticalAlignment="Center" Margin="15,0,4,0"/>
-                    <TextBlock Text="{Binding PendingBoxFinalCriterion}" Foreground="#FFEEEEEE" FontSize="11"
-                               VerticalAlignment="Center"/>
+                    <!-- Editable while the box is pending so the user can change the algorithm
+                         after drawing without cancelling/re-drawing. ConfirmPendingBox reads
+                         PendingBoxFinalCriterion, so whatever is selected here is what fires. -->
+                    <ComboBox ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
+                              SelectedItem="{Binding PendingBoxFinalCriterion}"
+                              FontSize="11" MinWidth="100" VerticalAlignment="Center"
+                              ToolTip="Vertex selection algorithm applied inside the pending box when confirmed."/>
                     <!-- Symmetry lock: each flag mirrors min<->max about 0 on that axis.
                          Auto-seeded on capture when the drawn box straddles an axis within 10%.
                          ToolTip lists the combinations; enum ToString formats "X, Y" etc. -->
@@ -474,40 +479,34 @@
                     <TextBlock Text="X (L-R):" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"
                                VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMinX}"
-                                       Minimum="{Binding PendingBoxSliderMinX}"
-                                       Maximum="{Binding PendingBoxSliderMaxX}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
                     <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
                                VerticalAlignment="Center" Margin="4,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMaxX}"
-                                       Minimum="{Binding PendingBoxSliderMinX}"
-                                       Maximum="{Binding PendingBoxSliderMaxX}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
 
                     <TextBlock Text="Y (U-D):" Foreground="#FF57EB57" FontSize="11" FontWeight="Bold"
                                VerticalAlignment="Center" Margin="14,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMinY}"
-                                       Minimum="{Binding PendingBoxSliderMinY}"
-                                       Maximum="{Binding PendingBoxSliderMaxY}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
                     <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
                                VerticalAlignment="Center" Margin="4,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMaxY}"
-                                       Minimum="{Binding PendingBoxSliderMinY}"
-                                       Maximum="{Binding PendingBoxSliderMaxY}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
 
                     <TextBlock Text="Z (F-B):" Foreground="#FF57A0EB" FontSize="11" FontWeight="Bold"
                                VerticalAlignment="Center" Margin="14,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMinZ}"
-                                       Minimum="{Binding PendingBoxSliderMinZ}"
-                                       Maximum="{Binding PendingBoxSliderMaxZ}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
                     <TextBlock Text="to" Foreground="#FF888888" FontSize="11"
                                VerticalAlignment="Center" Margin="4,0,4,0"/>
                     <xctk:SingleUpDown Value="{Binding PendingBoxMaxZ}"
-                                       Minimum="{Binding PendingBoxSliderMinZ}"
-                                       Maximum="{Binding PendingBoxSliderMaxZ}"
+                                       Foreground="White"
                                        FormatString="F1" Increment="0.5" Width="62"/>
                 </WrapPanel>
 
