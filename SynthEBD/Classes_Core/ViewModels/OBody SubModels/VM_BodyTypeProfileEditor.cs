@@ -971,10 +971,13 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>
     /// Pushes line segments for <see cref="SelectedMeasurement"/> into the active viewer's
-    /// measurement-line overlay. PointDistance/AxisDistance render one A-B segment;
-    /// RatioDistance renders two segments (A-B in the numerator color, C-D in the
-    /// denominator color). Clears the overlay when there is no selection, no viewer, or
-    /// when the referenced vertices cannot be resolved.
+    /// measurement-line overlay. PointDistance renders one A-B segment in the primary color;
+    /// AxisDistance renders a four-segment decomposition (three axis-aligned legs A→P1→P2→B
+    /// — one yellow for the measurement axis, two white for the secondary axes — plus a grey
+    /// hypotenuse A-B) so the user can see how the A-B offset splits across axes, not just
+    /// the slant; RatioDistance renders two segments (A-B primary, C-D secondary color).
+    /// Clears the overlay when there is no selection, no viewer, or when the referenced
+    /// vertices cannot be resolved.
     /// </summary>
     private void RefreshMeasurementHighlight()
     {
@@ -1005,15 +1008,47 @@ public class VM_BodyTypeProfile : VM
 
         var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>();
 
-        // Yellow for the primary pair, cyan for the ratio denominator pair.
+        // Yellow for the primary pair, cyan for the ratio denominator pair. For AxisDistance
+        // the three axis-aligned legs use: yellow (the measurement axis), white (the two
+        // secondary axes), and grey (the A-B hypotenuse) — white/grey stand in for the
+        // originally-planned dashed styling so the renderer can stay on flat-color lines.
         var primary = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f);
         var secondary = new OpenTK.Mathematics.Vector3(0.1f, 0.85f, 1.0f);
+        var axisSecondary = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
+        var axisHypotenuse = new OpenTK.Mathematics.Vector3(0.5f, 0.5f, 0.5f);
 
         var a = Resolve(sel.VertexRefA);
         var b = Resolve(sel.VertexRefB);
         if (a.HasValue && b.HasValue)
         {
-            segments.Add((a.Value, b.Value, primary));
+            if (sel.Kind == MeasurementKind.AxisDistance)
+            {
+                // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
+                // X, then Y, then Z. The leg matching the measurement axis takes the primary
+                // (yellow) color; the other two take secondary (white). The direct A-B line
+                // is drawn first in grey as the hypotenuse so the colored legs always paint
+                // on top — matters when the vertices differ on a single axis, where the
+                // hypotenuse is collinear with one leg and must not obscure it (depth test
+                // is disabled for this overlay, so painter ordering decides who wins).
+                // Zero-length legs are skipped.
+                var av = a.Value;
+                var bv = b.Value;
+                var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
+                var p2 = new OpenTK.Mathematics.Vector3(bv.X, bv.Y, av.Z); // after Y leg
+
+                var xColor = sel.Axis == MeasurementAxis.X ? primary : axisSecondary;
+                var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
+                var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
+
+                segments.Add((av, bv, axisHypotenuse));
+                if (av.X != bv.X) segments.Add((av, p1, xColor));
+                if (av.Y != bv.Y) segments.Add((p1, p2, yColor));
+                if (av.Z != bv.Z) segments.Add((p2, bv, zColor));
+            }
+            else
+            {
+                segments.Add((a.Value, b.Value, primary));
+            }
         }
 
         if (sel.Kind == MeasurementKind.RatioDistance)
