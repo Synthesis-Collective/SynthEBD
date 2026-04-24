@@ -180,18 +180,33 @@ public class VM_CharacterViewer : VM
         _faceGenPreviewService = faceGenPreviewService;
         _logger = logger;
 
-        // Verbose-log toggle persists in Settings_General so it survives the
-        // viewer-disposal/recreate cycle that happens on every BodySlide preset
-        // switch. Without this hop a per-instance default would silently flip
-        // verbose logging back off whenever a new viewer was constructed.
-        VerboseLog = _generalSettings.CharacterViewerVerboseLog;
-        // Push VerboseLog -> shared gate so helper classes (BsdFileParser, GameAssetResolver,
-        // NpcMeshResolver, BodySlideDeformer, NifMeshBuilder) can consult the same flag.
-        _logGate.Verbose = VerboseLog;
+        // Verbose-log state lives in Settings_General as the single source of truth.
+        // Every live VM_CharacterViewer instance reactively syncs its local VerboseLog
+        // property (for the toolbar checkbox) and the shared _logGate (which helpers
+        // BsdFileParser / GameAssetResolver / NpcMeshResolver / BodySlideDeformer /
+        // NifMeshBuilder / CharacterPreviewCache consult) from the settings value.
+        //
+        // Previously each viewer read settings once at ctor and owned a stale local
+        // copy. With multiple simultaneous viewer instances (main BodySlides menu +
+        // editor's embedded viewer + per-preset VM_BodySlideSetting viewers), a toggle
+        // on one viewer would correctly push false through to the gate, but any
+        // subsequent construction-time push from a viewer whose local was still true
+        // could silently overwrite the gate back to true. Settings is now the
+        // authoritative fan-out — every viewer stays in lockstep with it.
+        _generalSettings.WhenAnyValue(x => x.CharacterViewerVerboseLog)
+            .Subscribe(v =>
+            {
+                if (VerboseLog != v) VerboseLog = v;
+                if (_logGate != null && _logGate.Verbose != v) _logGate.Verbose = v;
+            })
+            .DisposeWith(this);
+
+        // Feed local-property changes (toolbar checkbox toggles) back to settings. The
+        // settings-side subscription above then fans the new value to every other viewer.
         this.WhenAnyValue(x => x.VerboseLog).Skip(1).Subscribe(v =>
         {
-            _logGate.Verbose = v;
-            _generalSettings.CharacterViewerVerboseLog = v;
+            if (_generalSettings.CharacterViewerVerboseLog != v)
+                _generalSettings.CharacterViewerVerboseLog = v;
         }).DisposeWith(this);
 
         // Load persisted lighting state *before* XAML binds. If we defer this to

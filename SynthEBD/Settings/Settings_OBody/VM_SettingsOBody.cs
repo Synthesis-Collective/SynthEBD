@@ -48,6 +48,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         BodyTypeProfileEditorUI = bodyTypeProfileEditor;
 
         BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
+        BodyTypeProfileEditorUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
 
         DisplayedUI = BodySlidesUI;
 

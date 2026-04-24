@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Windows.Media;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -28,6 +29,7 @@ public class VM_BodyTypeProfileEditor : VM
     private readonly Func<VM_SettingsOBody> _oBodyVM;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
+    private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
 
     // Profile currently subscribed for BodyTypeName-change notifications, so the preset
     // dropdown re-filters when the user edits the profile's body-type assignment. Swapped
@@ -47,12 +49,14 @@ public class VM_BodyTypeProfileEditor : VM
         Func<VM_CharacterViewer> characterViewerFactory,
         Func<VM_SettingsOBody> oBodyVM,
         IEnvironmentStateProvider environmentProvider,
-        PatcherState patcherState)
+        PatcherState patcherState,
+        VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory)
     {
         _logger = logger;
         _oBodyVM = oBodyVM;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
+        _filterFactory = filterFactory;
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
@@ -102,6 +106,18 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => true,
             execute: _ => RebuildAvailablePresets());
 
+        ScanAllPresetsCommand = new RelayCommand(
+            canExecute: _ => !IsScanning && SelectedProfile != null,
+            execute: _ => _ = RunScanAsync());
+
+        CancelScanCommand = new RelayCommand(
+            canExecute: _ => IsScanning,
+            execute: _ => CancelScan());
+
+        LoadScanResultCommand = new RelayCommand(
+            canExecute: x => x is VM_PresetScanRow && !IsScanning,
+            execute: x => { if (x is VM_PresetScanRow row) LoadScanResultInViewer(row); });
+
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
 
@@ -140,6 +156,18 @@ public class VM_BodyTypeProfileEditor : VM
                         SelectedProfile.RefreshMeasurementValues();
                     }
                     RebuildFilteredPresets();
+                    // Match-Presets tab reflects the newly-selected profile's scan cache.
+                    ScanCacheStale = SelectedProfile?.ScanResultsStale ?? true;
+                    ScanStatus = SelectedProfile == null
+                        ? "No profile selected."
+                        : (SelectedProfile.ScanResults.Count == 0 ? "No scan yet." : $"Cached scan: {SelectedProfile.ScanResults.Count} preset-weight combinations.");
+                    RebuildWeightFilterOptions();
+                    RefreshMatchingPresets();
+                    break;
+                case nameof(SelectedMatchRow):
+                    // Arrow-key navigation in the Match Presets list auto-previews each row.
+                    if (SelectedMatchRow != null && !IsScanning)
+                        LoadScanResultInViewer(SelectedMatchRow);
                     break;
             }
         };
@@ -163,6 +191,9 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand ExportSelectedProfile { get; }
     public RelayCommand ImportProfile { get; }
     public RelayCommand RefreshPresetList { get; }
+    public RelayCommand ScanAllPresetsCommand { get; }
+    public RelayCommand CancelScanCommand { get; }
+    public RelayCommand LoadScanResultCommand { get; }
 
     /// <summary>Dedicated 3D viewer embedded in the editor. Drives both preset preview
     /// and vertex picking so the user does not have to flip over to the BodySlides menu.</summary>
@@ -177,6 +208,43 @@ public class VM_BodyTypeProfileEditor : VM
     public ObservableCollection<VM_BodySlidePlaceHolder> FilteredPresets { get; } = new();
 
     public ObservableCollection<int> AvailableWeights { get; }
+
+    /// <summary>Descriptor-selector VM bound to the Match Presets tab. Constructed lazily via
+    /// <see cref="InitializeDescriptorFilter"/> from <see cref="VM_SettingsOBody"/> (which owns
+    /// the <c>DescriptorUI</c> and <c>RaceGroupings</c> that the factory needs). Null until
+    /// initialized — the XAML tolerates that by hiding the filter pane.</summary>
+    public VM_BodyShapeDescriptorSelectionMenu DescriptorFilter { get; private set; }
+
+    /// <summary>Presets whose cached scan results match the current <see cref="DescriptorFilter"/>
+    /// selection, one row per (preset, weight) combination. Populated by
+    /// <see cref="RefreshMatchingPresets"/> after a scan completes or the filter selection changes.
+    /// Ordered by (Gender, PresetLabel, Weight) so keyboard navigation iterates through each
+    /// conforming weight for each preset in a predictable sequence.</summary>
+    public ObservableCollection<VM_PresetScanRow> MatchingPresets { get; } = new();
+
+    /// <summary>Weight filter toggles — one per weight slot present in the scan cache. All
+    /// selected by default; user unticks weights they don't want to see. Rebuilt after each
+    /// scan to reflect whatever weights are actually represented in the cache.</summary>
+    public ObservableCollection<VM_WeightFilterOption> WeightFilterOptions { get; } = new();
+
+    /// <summary>Currently-selected row in the Match Presets list. Assigning it auto-loads the
+    /// preset at the row's weight, so arrow-key navigation immediately previews each match.</summary>
+    public VM_PresetScanRow SelectedMatchRow { get; set; }
+
+    /// <summary>Human-readable status string for the Match Presets tab — "Scanning 23/84: X"
+    /// during a run, summary counts after, or a "results stale" nudge when a rule/measurement/
+    /// key-vertex edit invalidated the cache.</summary>
+    public string ScanStatus { get; set; } = "No scan yet.";
+
+    /// <summary>True while a scan is running; button state + spinner visibility bind to this.</summary>
+    public bool IsScanning { get; set; }
+
+    /// <summary>0..100 progress for the progress bar.</summary>
+    public int ScanProgressPercent { get; set; }
+
+    /// <summary>True when the cached scan results are out of date (an edit happened after the
+    /// last scan). Prompts the user to re-scan before trusting the filter output.</summary>
+    public bool ScanCacheStale { get; set; }
 
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
@@ -326,6 +394,26 @@ public class VM_BodyTypeProfileEditor : VM
         profile.OnBoxPickedFromViewer(viewer, pick);
     }
 
+    /// <summary>Wires up <see cref="DescriptorFilter"/> using the same factory + dependencies
+    /// used by <see cref="VM_BodySlidesMenu.InitializeDescriptorFilter"/>. Two-phase init
+    /// because the factory needs <c>VM_SettingsOBody.DescriptorUI</c> and the race-grouping
+    /// collection, neither of which is resolvable at editor ctor time (DI order). Call from
+    /// <see cref="VM_SettingsOBody"/> after both pieces exist.</summary>
+    public void InitializeDescriptorFilter(VM_SettingsOBody oBodyVM, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
+    {
+        if (_filterFactory == null || oBodyVM == null) return;
+        DescriptorFilter = _filterFactory(oBodyVM.DescriptorUI, raceGroupingVMs, oBodyVM, true, DescriptorMatchMode.All, false);
+
+        // Re-run the filter whenever the user's selection changes. The selector fires its
+        // Header string off every selection/match-mode change, so subscribing to it is a
+        // cheap catch-all for "anything in the filter changed". Skip the initial emission
+        // so we don't fire before the scan has any data.
+        this.WhenAnyValue(x => x.DescriptorFilter.Header)
+            .Skip(1)
+            .Subscribe(_ => RefreshMatchingPresets())
+            .DisposeWith(this);
+    }
+
     /// <summary>
     /// Rebuilds <see cref="AvailablePresets"/> from the matching gender's BodySlide list
     /// on <see cref="VM_SettingsOBody.BodySlidesUI"/>. Also refreshes
@@ -436,6 +524,293 @@ public class VM_BodyTypeProfileEditor : VM
     {
         _logger?.LogMessage("BodyTypeProfileEditor: " + message);
     }
+
+    // ---------- Match Presets: scan + filter ----------
+
+    private System.Threading.CancellationTokenSource _scanCts;
+
+    /// <summary>Runs the classifier (including drafts) across every BodySlide preset whose
+    /// <c>SliderGroup</c> matches <see cref="VM_BodyTypeProfile.BodyTypeName"/>, at every
+    /// weight in <c>DefaultWeightSlots</c>, caching matched descriptors on the profile. Drives
+    /// the viewer sequentially (GL is UI-thread-only) so the user sees the mesh flicker
+    /// through presets; progress reports via <see cref="ScanStatus"/> and
+    /// <see cref="ScanProgressPercent"/>. Cancellable via <see cref="_scanCts"/>.</summary>
+    public async System.Threading.Tasks.Task RunScanAsync()
+    {
+        var profile = SelectedProfile;
+        if (profile == null || IsScanning) return;
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (menu == null) return;
+        var viewer = CharacterViewer;
+        if (viewer == null)
+        {
+            ScanStatus = "No viewer available.";
+            return;
+        }
+
+        var weightSlots = _patcherState?.OBodySettings?.DefaultWeightSlots?.ToList();
+        if (weightSlots == null || weightSlots.Count == 0) weightSlots = new List<int> { 0, 100 };
+
+        // Reset progress/status before flipping IsScanning so the UI reflects the fresh
+        // scan immediately (Fody fires PropertyChanged on assignment; a separate yield lets
+        // WPF paint the reset before the first ApplyBodySlide blocks the UI thread).
+        ScanProgressPercent = 0;
+        ScanStatus = "Initializing scan...";
+        IsScanning = true;
+        _scanCts = new System.Threading.CancellationTokenSource();
+        var ct = _scanCts.Token;
+        var savedPreset = SelectedPreset;
+        var savedWeight = PreviewWeight;
+        await System.Threading.Tasks.Task.Yield();
+
+        try
+        {
+            // Same SliderGroup == BodyTypeName match as the Key Vertices preset dropdown
+            // (VM_BodyTypeProfileEditor.RebuildFilteredPresets). SliderGroup is populated
+            // at load time by SaveLoader → ImportBodySlides so both paths see the same
+            // non-empty values.
+            var bodyType = profile.BodyTypeName?.Trim() ?? "";
+            var targets = new List<(VM_BodySlidePlaceHolder ph, Gender gender)>();
+            foreach (var ph in menu.BodySlidesMale)
+            {
+                if (ph?.AssociatedModel == null) continue;
+                if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
+                targets.Add((ph, Gender.Male));
+            }
+            foreach (var ph in menu.BodySlidesFemale)
+            {
+                if (ph?.AssociatedModel == null) continue;
+                if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
+                targets.Add((ph, Gender.Female));
+            }
+
+            int total = targets.Count * weightSlots.Count;
+            if (total == 0)
+            {
+                profile.ScanResults.Clear();
+                RebuildWeightFilterOptions();
+                RefreshMatchingPresets();
+                ScanStatus = $"No presets tagged with SliderGroup=\"{bodyType}\". Check the BodySlides menu or the profile's Body Type field.";
+                return;
+            }
+
+            profile.ScanResults.Clear();
+            var profileModel = profile.DumpToModel();
+            int done = 0;
+            ScanProgressPercent = 0;
+
+            foreach (var (ph, gender) in targets)
+            {
+                if (ct.IsCancellationRequested) break;
+                var model = ph.AssociatedModel;
+                foreach (int weight in weightSlots)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    ScanStatus = $"Scanning {done + 1}/{total}: {model.Label} @ {weight}";
+
+                    viewer.ApplyBodySlide(model, weight);
+                    // Yield to the dispatcher so the GL pipeline can process the deformation
+                    // and CpuPositions are ready for the evaluator to read. Two yields to give
+                    // the deferred-drain path a chance when the scene was mid-rebuild.
+                    await System.Threading.Tasks.Task.Yield();
+                    await System.Threading.Tasks.Task.Yield();
+
+                    var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+                    var matchedSignatures = result.Descriptors
+                        .Select(d => new BodyShapeDescriptor.LabelSignature { Category = d.Category, Value = d.Value })
+                        .ToList();
+                    profile.ScanResults[(model.Label ?? "", gender, weight)] = matchedSignatures;
+
+                    done++;
+                    ScanProgressPercent = total > 0 ? (done * 100) / total : 100;
+                }
+            }
+
+            // Restore the user's previously-loaded preset so the viewer isn't parked on a
+            // random scan target when the run finishes.
+            if (savedPreset?.AssociatedModel != null)
+            {
+                viewer.ApplyBodySlide(savedPreset.AssociatedModel, savedWeight);
+            }
+
+            if (ct.IsCancellationRequested)
+            {
+                ScanStatus = $"Scan cancelled at {done}/{total}.";
+            }
+            else
+            {
+                int withMatches = profile.ScanResults.Count(kv => kv.Value.Count > 0);
+                int empty = profile.ScanResults.Count - withMatches;
+                ScanStatus = $"Scan complete: {done} evaluations across {targets.Count} preset(s). {withMatches} with matches, {empty} empty.";
+                profile.ScanResultsStale = false;
+                ScanCacheStale = false;
+            }
+            RebuildWeightFilterOptions();
+            RefreshMatchingPresets();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("BodyTypeProfile scan failed: " + ExceptionLogger.GetExceptionStack(ex));
+            ScanStatus = "Scan failed (see log).";
+        }
+        finally
+        {
+            IsScanning = false;
+            _scanCts?.Dispose();
+            _scanCts = null;
+        }
+    }
+
+    /// <summary>Rebuilds <see cref="MatchingPresets"/> from the current profile's scan cache
+    /// filtered by the current <see cref="DescriptorFilter"/> selection AND the current
+    /// <see cref="WeightFilterOptions"/> selection. Called from the filter's Header
+    /// subscription, the weight-option IsSelected subscription, and <see cref="RunScanAsync"/>.
+    /// Empty descriptor selection = include every scanned (preset, weight). Empty weight
+    /// selection = no rows (user filtered everything out).
+    /// Emits one row per (preset, weight) so keyboard navigation iterates each conforming
+    /// weight for each preset in a predictable order.</summary>
+    public void RefreshMatchingPresets()
+    {
+        var previouslySelected = SelectedMatchRow;
+        MatchingPresets.Clear();
+        var profile = SelectedProfile;
+        if (profile == null) return;
+        if (profile.ScanResults.Count == 0) return;
+
+        var filterSelection = DescriptorFilter?.DumpToHashSet() ?? new HashSet<BodyShapeDescriptor.LabelSignature>();
+        var filterMode = DescriptorFilter?.MatchMode ?? DescriptorMatchMode.All;
+        var selectionKeys = filterSelection.Select(s => (s.Category, s.Value)).ToHashSet();
+
+        var allowedWeights = WeightFilterOptions
+            .Where(o => o.IsSelected)
+            .Select(o => o.Weight)
+            .ToHashSet();
+        // If the user has the weight filter collection but none are ticked, show nothing.
+        // If the collection is empty (no scan yet), allowedWeights is empty and the loop
+        // short-circuits below anyway.
+        bool weightFilterActive = WeightFilterOptions.Count > 0;
+
+        var ordered = profile.ScanResults
+            .OrderBy(kv => kv.Key.Gender)
+            .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(kv => kv.Key.Weight);
+
+        foreach (var kv in ordered)
+        {
+            if (weightFilterActive && !allowedWeights.Contains(kv.Key.Weight)) continue;
+            if (!DescriptorFilterAccepts(kv.Value, selectionKeys, filterMode)) continue;
+            MatchingPresets.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
+        }
+
+        // Try to re-select the same (preset, gender, weight) row if it still exists so the
+        // ListBox selection doesn't jump to row 0 on every filter edit.
+        if (previouslySelected != null)
+        {
+            foreach (var row in MatchingPresets)
+            {
+                if (row.Weight == previouslySelected.Weight
+                    && row.Gender == previouslySelected.Gender
+                    && string.Equals(row.PresetLabel, previouslySelected.PresetLabel, StringComparison.Ordinal))
+                {
+                    SelectedMatchRow = row;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>Rebuilds <see cref="WeightFilterOptions"/> from the distinct weights present
+    /// in the current profile's scan cache. Preserves existing <see cref="VM_WeightFilterOption.IsSelected"/>
+    /// values where possible so a re-scan doesn't clobber the user's weight filter.</summary>
+    private void RebuildWeightFilterOptions()
+    {
+        var profile = SelectedProfile;
+        var priorSelections = WeightFilterOptions.ToDictionary(o => o.Weight, o => o.IsSelected);
+
+        // Detach old subscriptions
+        foreach (var o in WeightFilterOptions) o.PropertyChanged -= OnWeightFilterOptionChanged;
+        WeightFilterOptions.Clear();
+
+        if (profile == null) return;
+        var weights = profile.ScanResults.Keys.Select(k => k.Weight).Distinct().OrderBy(w => w);
+        foreach (var w in weights)
+        {
+            bool selected = priorSelections.TryGetValue(w, out var wasSelected) ? wasSelected : true;
+            var opt = new VM_WeightFilterOption { Weight = w, IsSelected = selected };
+            opt.PropertyChanged += OnWeightFilterOptionChanged;
+            WeightFilterOptions.Add(opt);
+        }
+    }
+
+    private void OnWeightFilterOptionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_WeightFilterOption.IsSelected))
+            RefreshMatchingPresets();
+    }
+
+    /// <summary>Bound to the Match Presets "All" weight-filter button.</summary>
+    public RelayCommand SelectAllWeightsCommand => new(
+        canExecute: _ => WeightFilterOptions.Any(o => !o.IsSelected),
+        execute: _ => { foreach (var o in WeightFilterOptions) o.IsSelected = true; });
+
+    /// <summary>Bound to the Match Presets "None" weight-filter button.</summary>
+    public RelayCommand SelectNoWeightsCommand => new(
+        canExecute: _ => WeightFilterOptions.Any(o => o.IsSelected),
+        execute: _ => { foreach (var o in WeightFilterOptions) o.IsSelected = false; });
+
+    private static bool DescriptorFilterAccepts(
+        IReadOnlyList<BodyShapeDescriptor.LabelSignature> matches,
+        HashSet<(string Category, string Value)> selectionKeys,
+        DescriptorMatchMode mode)
+    {
+        if (selectionKeys.Count == 0) return true;
+        var matchSet = matches.Select(m => (m.Category, m.Value)).ToHashSet();
+        if (mode == DescriptorMatchMode.All)
+        {
+            foreach (var s in selectionKeys) if (!matchSet.Contains(s)) return false;
+            return true;
+        }
+        // Any
+        foreach (var s in selectionKeys) if (matchSet.Contains(s)) return true;
+        return false;
+    }
+
+    /// <summary>Called by <see cref="VM_BodyTypeProfile.MarkScanResultsStale"/>. If the stale
+    /// profile is the one currently shown, flip the editor's stale flag so the XAML shows the
+    /// "Re-scan" nudge.</summary>
+    internal void OnProfileScanStale(VM_BodyTypeProfile profile)
+    {
+        if (ReferenceEquals(profile, SelectedProfile))
+        {
+            ScanCacheStale = true;
+        }
+    }
+
+    /// <summary>Loads a scan-result row into the editor's viewer at the row's specific weight,
+    /// so arrow-key navigation in the results list flips through each matching (preset, weight)
+    /// combo. Routes via <see cref="SelectedPreset"/>/<see cref="PreviewWeight"/> so the
+    /// existing RefreshPreviewAsync path fires (loads NPC + applies deformation + triggers
+    /// measurement refresh).</summary>
+    internal void LoadScanResultInViewer(VM_PresetScanRow row)
+    {
+        if (row == null || IsScanning) return;
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (menu == null) return;
+        var source = row.Gender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
+        VM_BodySlidePlaceHolder ph = null;
+        foreach (var p in source)
+        {
+            if (p?.AssociatedModel?.Label == row.PresetLabel) { ph = p; break; }
+        }
+        if (ph == null) return;
+
+        PreviewGender = row.Gender;
+        PreviewWeight = row.Weight;
+        SelectedPreset = ph;
+    }
+
+    /// <summary>Cancels an in-flight scan. Safe to call when no scan is running.</summary>
+    public void CancelScan() => _scanCts?.Cancel();
 }
 
 /// <summary>
@@ -557,6 +932,30 @@ public class VM_BodyTypeProfile : VM
         // Re-evaluate when the key-vertex roster changes (a measurement may reference a
         // newly-added vertex name, or lose a deleted one).
         KeyVertices.CollectionChanged += (_, __) => RefreshMeasurementValues();
+
+        // Match-Presets scan cache invalidation. Any change to rules/measurements/key
+        // vertices (structural or value-level) marks the cache stale so the user sees that
+        // re-scanning is needed. Threshold edits on condition rows propagate through the
+        // deep PropertyChanged hooks below.
+        KeyVertices.CollectionChanged += (_, __) => MarkScanResultsStale();
+        foreach (var m in Measurements) m.PropertyChanged += OnScanInvalidatingChange;
+        Measurements.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnScanInvalidatingChange;
+            if (args.NewItems != null)
+                foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnScanInvalidatingChange;
+            MarkScanResultsStale();
+        };
+        foreach (var r in Rules) HookRuleForScanInvalidation(r);
+        Rules.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_MeasurementRule r in args.OldItems) UnhookRuleForScanInvalidation(r);
+            if (args.NewItems != null)
+                foreach (VM_MeasurementRule r in args.NewItems) HookRuleForScanInvalidation(r);
+            MarkScanResultsStale();
+        };
 
         RefreshMeasurementValues();
 
@@ -1314,6 +1713,72 @@ public class VM_BodyTypeProfile : VM
         }
         return result;
     }
+
+    // --- Match Presets scan cache (Phase 5 authoring-time feature) ---
+
+    /// <summary>Per-(preset, weight) matched descriptors from the last scan, keyed by
+    /// (PresetLabel, Gender, Weight). The descriptor lists include both draft and promoted
+    /// matches — the whole point of the scan is to preview what draft rules would do. Cleared
+    /// and repopulated by <see cref="VM_BodyTypeProfileEditor.RunScanAsync"/>.</summary>
+    public Dictionary<(string PresetLabel, Gender Gender, int Weight), List<BodyShapeDescriptor.LabelSignature>> ScanResults { get; } = new();
+
+    /// <summary>True when the cache is empty or out of date (rules/measurements/key vertices
+    /// changed after the last scan). Surfaces in the UI as a "Results stale — re-scan" nudge.</summary>
+    public bool ScanResultsStale { get; set; } = true;
+
+    /// <summary>PropertyChanged forwarder for leaf VM edits (measurement row fields, rule
+    /// descriptor fields, condition threshold values) that should invalidate the scan cache.</summary>
+    private void OnScanInvalidatingChange(object? sender, PropertyChangedEventArgs e) => MarkScanResultsStale();
+
+    /// <summary>Marks the scan cache stale and tells the parent editor to refresh the
+    /// Match Presets list so the stale badge appears immediately.</summary>
+    private void MarkScanResultsStale()
+    {
+        ScanResultsStale = true;
+        _parent?.OnProfileScanStale(this);
+    }
+
+    private void HookRuleForScanInvalidation(VM_MeasurementRule r)
+    {
+        if (r == null) return;
+        r.PropertyChanged += OnScanInvalidatingChange;
+        foreach (var g in r.Groups) HookGroupForScanInvalidation(g);
+        r.Groups.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_AndGatedMeasurementGroup g in args.OldItems) UnhookGroupForScanInvalidation(g);
+            if (args.NewItems != null)
+                foreach (VM_AndGatedMeasurementGroup g in args.NewItems) HookGroupForScanInvalidation(g);
+            MarkScanResultsStale();
+        };
+    }
+
+    private void UnhookRuleForScanInvalidation(VM_MeasurementRule r)
+    {
+        if (r == null) return;
+        r.PropertyChanged -= OnScanInvalidatingChange;
+        foreach (var g in r.Groups) UnhookGroupForScanInvalidation(g);
+    }
+
+    private void HookGroupForScanInvalidation(VM_AndGatedMeasurementGroup g)
+    {
+        if (g == null) return;
+        foreach (var c in g.Conditions) c.PropertyChanged += OnScanInvalidatingChange;
+        g.Conditions.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_MeasurementCondition c in args.OldItems) c.PropertyChanged -= OnScanInvalidatingChange;
+            if (args.NewItems != null)
+                foreach (VM_MeasurementCondition c in args.NewItems) c.PropertyChanged += OnScanInvalidatingChange;
+            MarkScanResultsStale();
+        };
+    }
+
+    private void UnhookGroupForScanInvalidation(VM_AndGatedMeasurementGroup g)
+    {
+        if (g == null) return;
+        foreach (var c in g.Conditions) c.PropertyChanged -= OnScanInvalidatingChange;
+    }
 }
 
 /// <summary>Row VM for a single <see cref="NamedKeyVertex"/>.</summary>
@@ -1673,5 +2138,44 @@ public class VM_PreviewMatch : VM
     /// <summary>Green for promoted matches, orange for drafts. Makes calibration status
     /// readable at a glance.</summary>
     public Brush DisplayBrush => IsDraft ? Brushes.DarkOrange : Brushes.DarkGreen;
+}
+
+/// <summary>Row VM for the Match Presets results list — one row per (preset, weight) combo
+/// that matched the filter, so keyboard arrow navigation iterates through every conforming
+/// weight for every conforming preset. Loading the row applies the preset at this row's
+/// specific weight.</summary>
+public class VM_PresetScanRow : VM
+{
+    public VM_PresetScanRow(
+        string presetLabel,
+        Gender gender,
+        int weight,
+        IReadOnlyList<BodyShapeDescriptor.LabelSignature> matches)
+    {
+        PresetLabel = presetLabel ?? "";
+        Gender = gender;
+        Weight = weight;
+        Matches = matches ?? Array.Empty<BodyShapeDescriptor.LabelSignature>();
+    }
+
+    public string PresetLabel { get; }
+    public Gender Gender { get; }
+    public int Weight { get; }
+    public IReadOnlyList<BodyShapeDescriptor.LabelSignature> Matches { get; }
+
+    public string Display => $"{PresetLabel}  (W{Weight}, {Gender})";
+
+    /// <summary>Comma-separated <c>Category:Value</c> list for this row's single weight.</summary>
+    public string MatchSummary => string.Join(", ", Matches.Select(d => d.Category + ":" + d.Value));
+}
+
+/// <summary>Weight-filter toggle for the Match Presets tab. One per weight slot observed
+/// in the scan cache. <see cref="IsSelected"/> change fires the parent editor's
+/// <see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/>.</summary>
+public class VM_WeightFilterOption : VM
+{
+    public int Weight { get; set; }
+    public bool IsSelected { get; set; } = true;
+    public string Display => $"W{Weight}";
 }
 

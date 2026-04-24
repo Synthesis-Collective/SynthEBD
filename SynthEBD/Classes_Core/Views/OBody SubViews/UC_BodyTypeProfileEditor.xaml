@@ -8,6 +8,9 @@
              d:DataContext="{d:DesignInstance Type=local:VM_BodyTypeProfileEditor}"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1400">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220"/>
@@ -452,6 +455,89 @@
                                         </ItemsControl>
                                     </ScrollViewer>
                                 </DockPanel>
+                            </TabItem>
+
+                            <TabItem Header="Match Presets">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Margin="0,5,0,3" TextWrapping="Wrap"
+                                               Text="Runs the classifier (including drafts) across every preset whose SliderGroup matches this profile's Body Type, at every weight in DefaultWeightSlots. Select descriptors and weights below to filter; arrow-key navigation in the results list live-previews each (preset, weight) combo."/>
+
+                                    <ContentPresenter Grid.Row="1" Content="{Binding DataContext.DescriptorFilter, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,0,5">
+                                        <ContentPresenter.Resources>
+                                            <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
+                                                <local:UC_BodyShapeDescriptorSelectionMenu/>
+                                            </DataTemplate>
+                                        </ContentPresenter.Resources>
+                                    </ContentPresenter>
+
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,5" VerticalAlignment="Center">
+                                        <TextBlock Text="Weights:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ItemsControl ItemsSource="{Binding DataContext.WeightFilterOptions, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:VM_WeightFilterOption}">
+                                                    <CheckBox Content="{Binding Display}" IsChecked="{Binding IsSelected}"
+                                                              Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Content="All"
+                                                Command="{Binding DataContext.SelectAllWeightsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,1" Margin="6,0,2,0"/>
+                                        <Button Content="None"
+                                                Command="{Binding DataContext.SelectNoWeightsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,1"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <Button Content="Scan All Presets"
+                                                Command="{Binding DataContext.ScanAllPresetsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,2" Margin="0,0,5,0"/>
+                                        <Button Content="Cancel"
+                                                Command="{Binding DataContext.CancelScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,2" Margin="0,0,10,0"/>
+                                        <ProgressBar Width="220" Height="16" Minimum="0" Maximum="100"
+                                                     Value="{Binding DataContext.ScanProgressPercent, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                     VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock Text="{Binding DataContext.ScanStatus, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                   FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBlock Text="(results stale — re-scan recommended)" Foreground="OrangeRed"
+                                                   FontWeight="Bold" VerticalAlignment="Center"
+                                                   Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+
+                                    <ListBox Grid.Row="5"
+                                             ItemsSource="{Binding DataContext.MatchingPresets, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                             SelectedItem="{Binding DataContext.SelectedMatchRow, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             HorizontalContentAlignment="Stretch"
+                                             ToolTip="Arrow keys navigate (and auto-preview) each matching (preset, weight) row.">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:VM_PresetScanRow}">
+                                                <StackPanel Margin="2">
+                                                    <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding MatchSummary}" FontFamily="Consolas" FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
                             </TabItem>
 
                         </TabControl>

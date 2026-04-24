@@ -230,15 +230,17 @@ public class CharacterPreviewCache
                     return new DdsPixels(data, width, height);
                 }
                 default:
-                    _logger?.LogMessage("CharacterPreviewCache: Unsupported DDS format " +
-                        image.Format + " for '" + relativeGamePath + "'");
+                    if (_logGate != null && _logGate.Verbose)
+                        _logger?.LogMessage("CharacterPreviewCache: Unsupported DDS format " +
+                            image.Format + " for '" + relativeGamePath + "'");
                     return null;
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogMessage("CharacterPreviewCache: Failed to decode '" +
-                relativeGamePath + "': " + ex.Message);
+            if (_logGate != null && _logGate.Verbose)
+                _logger?.LogMessage("CharacterPreviewCache: Failed to decode '" +
+                    relativeGamePath + "': " + ex.Message);
             return null;
         }
     }

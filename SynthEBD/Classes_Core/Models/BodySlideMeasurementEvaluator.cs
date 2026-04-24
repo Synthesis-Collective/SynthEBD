@@ -49,10 +49,12 @@ public static class BodySlideMeasurementEvaluator
     /// <paramref name="viewer"/>. Caller is responsible for ensuring the viewer has finished
     /// loading + deforming before invoking (e.g. <c>await ApplyBodySlide</c>).
     ///
-    /// Draft rules (<see cref="MeasurementRule.IsDraft"/>) are skipped so unreviewed
-    /// suggestions never produce live descriptors.
+    /// Draft rules (<see cref="MeasurementRule.IsDraft"/>) are skipped by default so unreviewed
+    /// suggestions never produce live descriptors in the production preview path. Set
+    /// <paramref name="includeDrafts"/> = true for authoring-time previews (the profile editor's
+    /// Match Presets scan), where the whole point is to see what draft thresholds would produce.
     /// </summary>
-    public static EvaluationResult Evaluate(VM_CharacterViewer viewer, BodyTypeProfile profile)
+    public static EvaluationResult Evaluate(VM_CharacterViewer viewer, BodyTypeProfile profile, bool includeDrafts = false)
     {
         var result = new EvaluationResult();
         if (viewer == null || profile == null) return result;
@@ -96,7 +98,8 @@ public static class BodySlideMeasurementEvaluator
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var rule in profile.Rules)
             {
-                if (rule == null || rule.IsDraft) continue;
+                if (rule == null) continue;
+                if (rule.IsDraft && !includeDrafts) continue;
                 if (rule.Descriptor == null
                     || string.IsNullOrEmpty(rule.Descriptor.Category)
                     || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;

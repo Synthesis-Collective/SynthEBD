@@ -38,7 +38,22 @@ public partial class UC_CharacterViewer : UserControl
 
         // Start GL when the control gets a valid size (handles deferred layout)
         GlControl.SizeChanged += (_, _) => TryStartGl();
-        Loaded += (_, _) => { _vm ??= DataContext as VM_CharacterViewer; TryStartGl(); };
+        Loaded += (_, _) =>
+        {
+            _vm ??= DataContext as VM_CharacterViewer;
+            TryStartGl();
+            // If GL was already started (navigating back to a reused UC), the visibility
+            // toggle inside TryStartGl doesn't run — but GLWpfControl's render-loop
+            // registration only survives as long as the control's CompositionTarget.Rendering
+            // subscription is alive, and that subscription can be lost when the parent
+            // is unloaded and re-shown. Force the toggle here too so the render loop
+            // resumes regardless of whether this is the first Loaded or a subsequent one.
+            if (_glStarted)
+            {
+                GlControl.Visibility = Visibility.Collapsed;
+                GlControl.Visibility = Visibility.Visible;
+            }
+        };
 
         // Place the axis gizmo in the bottom-left once the overlay Canvas has a real size.
         // Only fires once so subsequent user drags are not clobbered by layout events.
