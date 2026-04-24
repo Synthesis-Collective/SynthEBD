@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows.Media;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -611,6 +612,15 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<VM_MeasurementRule> Rules { get; } = new();
     public ObservableCollection<VM_LabeledExample> LabeledExamples { get; } = new();
 
+    /// <summary>Rules that match the currently-loaded preset's live measurements, including drafts.
+    /// Rebuilt every time <see cref="RefreshMeasurementValues"/> runs. Unlike the real classifier
+    /// pipeline, this list ignores <see cref="VM_MeasurementRule.IsDraft"/> so the user can calibrate
+    /// draft thresholds without promoting them.</summary>
+    public ObservableCollection<VM_PreviewMatch> PreviewMatches { get; } = new();
+
+    /// <summary>Human-readable summary shown above <see cref="PreviewMatches"/>.</summary>
+    public string PreviewStatus { get; set; } = "";
+
     public VM_NamedKeyVertex? SelectedKeyVertex { get; set; }
 
     /// <summary>Multi-selection routing: takes the full KeyVertices DataGrid selection and
@@ -910,7 +920,93 @@ public class VM_BodyTypeProfile : VM
         }
 
         RefreshMeasurementHighlight();
+        RefreshPreviewDescriptors();
     }
+
+    /// <summary>Rebuilds <see cref="PreviewMatches"/> from the current <see cref="VM_MeasurementDefinition.LiveValue"/>s
+    /// on every <see cref="Rules"/> row. Unlike <c>BodySlideMeasurementEvaluator.Evaluate</c> this
+    /// ignores the <see cref="VM_MeasurementRule.IsDraft"/> flag so the user can see what draft
+    /// rules would produce without flipping the flag (which would leak descriptors into the real
+    /// patcher pipeline). Each match row carries a trace of the specific conditions that fired, so
+    /// calibration is a glance, not a hunt.</summary>
+    public void RefreshPreviewDescriptors()
+    {
+        var meas = new Dictionary<string, float>(StringComparer.Ordinal);
+        foreach (var m in Measurements)
+        {
+            if (m.LiveValue.HasValue) meas[m.Name] = m.LiveValue.Value;
+        }
+
+        PreviewMatches.Clear();
+        int drafts = 0, promoted = 0;
+        foreach (var r in Rules)
+        {
+            if (r == null) continue;
+            if (string.IsNullOrEmpty(r.DescriptorCategory)) continue;
+            if (string.IsNullOrEmpty(r.DescriptorValue)) continue;
+
+            var model = r.DumpToModel();
+            if (!MeasurementMath.RuleMatches(model, meas)) continue;
+
+            PreviewMatches.Add(new VM_PreviewMatch
+            {
+                Category = r.DescriptorCategory,
+                Value = r.DescriptorValue,
+                IsDraft = r.IsDraft,
+                ConditionTrace = BuildMatchTrace(model, meas),
+            });
+            if (r.IsDraft) drafts++; else promoted++;
+        }
+
+        if (meas.Count == 0)
+        {
+            PreviewStatus = "No live measurements (load a preset in the viewer).";
+        }
+        else if (PreviewMatches.Count == 0)
+        {
+            PreviewStatus = $"0 matches out of {Rules.Count} rule{(Rules.Count == 1 ? "" : "s")}.";
+        }
+        else
+        {
+            string summary = promoted > 0 && drafts > 0
+                ? $"{promoted} promoted + {drafts} draft"
+                : promoted > 0
+                    ? $"{promoted} promoted"
+                    : $"{drafts} draft";
+            PreviewStatus = $"{PreviewMatches.Count} match{(PreviewMatches.Count == 1 ? "" : "es")} ({summary}) of {Rules.Count} rule{(Rules.Count == 1 ? "" : "s")}.";
+        }
+    }
+
+    private static string BuildMatchTrace(MeasurementRule rule, IReadOnlyDictionary<string, float> meas)
+    {
+        if (rule.GroupsORlogic == null) return "";
+        foreach (var g in rule.GroupsORlogic)
+        {
+            if (g?.ConditionsANDlogic == null || g.ConditionsANDlogic.Count == 0) continue;
+            bool allMatch = true;
+            var parts = new List<string>(g.ConditionsANDlogic.Count);
+            foreach (var c in g.ConditionsANDlogic)
+            {
+                if (c == null || string.IsNullOrEmpty(c.MeasurementName)) { allMatch = false; break; }
+                if (!meas.TryGetValue(c.MeasurementName, out var v)) { allMatch = false; break; }
+                if (!MeasurementMath.Compare(v, c.Comparator, c.Value)) { allMatch = false; break; }
+                parts.Add($"{c.MeasurementName}={v:F3} {ComparatorSymbol(c.Comparator)} {c.Value:F3}");
+            }
+            if (allMatch) return string.Join("  AND  ", parts);
+        }
+        return "";
+    }
+
+    private static string ComparatorSymbol(MeasurementComparator c) => c switch
+    {
+        MeasurementComparator.LessThan => "<",
+        MeasurementComparator.LessThanOrEqual => "<=",
+        MeasurementComparator.GreaterThan => ">",
+        MeasurementComparator.GreaterThanOrEqual => ">=",
+        MeasurementComparator.EqualTo => "==",
+        MeasurementComparator.NotEqualTo => "!=",
+        _ => "?",
+    };
 
     /// <summary>
     /// Re-resolves every <see cref="KeyVertexStrategy.BoundingBox"/> row against the current
@@ -1554,5 +1650,28 @@ public class VM_LabeledExample : VM
         Weight = Weight,
         Polarity = Polarity,
     };
+}
+
+/// <summary>Row VM for one rule whose predicate matched the currently-loaded preset's live
+/// measurements. Includes draft rules that would be skipped by the real classifier pipeline,
+/// so the user can calibrate thresholds before promoting.</summary>
+public class VM_PreviewMatch : VM
+{
+    public string Category { get; set; } = "";
+    public string Value { get; set; } = "";
+    public bool IsDraft { get; set; }
+
+    /// <summary>Line showing which measurement values satisfied which thresholds in the
+    /// matched AND-group — e.g., <c>chest_proj_to_chest_width=0.370 &gt;= 0.320  AND
+    /// chest_proj_to_chest_width=0.370 &lt; 0.400</c>. Helps the user see exactly why a
+    /// descriptor fired.</summary>
+    public string ConditionTrace { get; set; } = "";
+
+    public string DescriptorDisplay =>
+        IsDraft ? $"{Category}: {Value}  (draft)" : $"{Category}: {Value}";
+
+    /// <summary>Green for promoted matches, orange for drafts. Makes calibration status
+    /// readable at a glance.</summary>
+    public Brush DisplayBrush => IsDraft ? Brushes.DarkOrange : Brushes.DarkGreen;
 }
 
