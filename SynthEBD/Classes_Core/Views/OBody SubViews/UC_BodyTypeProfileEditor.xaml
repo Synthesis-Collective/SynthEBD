@@ -284,6 +284,31 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Num Axis" Width="140"
+                                                                    Visibility="Visible">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding RatioAxisOptionsList}"
+                                                                  SelectedValuePath="Value"
+                                                                  DisplayMemberPath="Label"
+                                                                  SelectedValue="{Binding NumeratorAxis, UpdateSourceTrigger=PropertyChanged}"
+                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  ToolTip="RatioDistance only: how to reduce the numerator pair (A, B). 3D = legacy Euclidean length; X/Y/Z = projection onto that axis."/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Denom Axis" Width="140">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding RatioAxisOptionsList}"
+                                                                  SelectedValuePath="Value"
+                                                                  DisplayMemberPath="Label"
+                                                                  SelectedValue="{Binding DenominatorAxis, UpdateSourceTrigger=PropertyChanged}"
+                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  ToolTip="RatioDistance only: how to reduce the denominator pair (C, D). 3D = legacy Euclidean length; X/Y/Z = projection onto that axis."/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Live" Binding="{Binding LiveValue, Mode=OneWay, StringFormat=F3}" Width="80" IsReadOnly="True"/>
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>

@@ -253,6 +253,19 @@ public class MeasurementDefinition
 
     /// <summary>Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.AxisDistance"/>.</summary>
     public MeasurementAxis Axis { get; set; } = MeasurementAxis.X;
+
+    /// <summary>
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.RatioDistance"/>. Selects how
+    /// the numerator pair (A, B) is reduced to a scalar: an axis projection (X/Y/Z) or full 3D length.
+    /// Null = legacy 3D Euclidean, so existing profiles deserialize unchanged.
+    /// </summary>
+    public MeasurementAxis? NumeratorAxis { get; set; } = null;
+
+    /// <summary>
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.RatioDistance"/>. Selects how
+    /// the denominator pair (C, D) is reduced to a scalar. Null = legacy 3D Euclidean.
+    /// </summary>
+    public MeasurementAxis? DenominatorAxis { get; set; } = null;
 }
 
 /// <summary>Threshold comparator applied between a measurement value and a constant.</summary>
@@ -402,9 +415,10 @@ public static class MeasurementMath
             case MeasurementKind.RatioDistance:
                 if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, out var c)) return false;
                 if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, out var d)) return false;
-                float denom = (c - d).Length;
+                float num = AxisOrLength(a - b, def.NumeratorAxis);
+                float denom = AxisOrLength(c - d, def.DenominatorAxis);
                 if (denom < 1e-6f) return false;
-                value = (a - b).Length / denom;
+                value = num / denom;
                 return true;
 
             default:
@@ -796,6 +810,17 @@ public static class MeasurementMath
         }
         return null;
     }
+
+    /// <summary>Reduces a vector to a scalar: |X|, |Y|, or |Z| when an axis is given; full 3D length when null.
+    /// Used by <see cref="MeasurementKind.RatioDistance"/> to honor per-pair NumeratorAxis / DenominatorAxis,
+    /// so a ratio meant as "Z-projection over X-width" computes that instead of mixing axes.</summary>
+    public static float AxisOrLength(OpenTK.Mathematics.Vector3 v, MeasurementAxis? axis) => axis switch
+    {
+        MeasurementAxis.X => Math.Abs(v.X),
+        MeasurementAxis.Y => Math.Abs(v.Y),
+        MeasurementAxis.Z => Math.Abs(v.Z),
+        _ => v.Length,
+    };
 
     /// <summary>Applies a comparator to a measurement value.</summary>
     public static bool Compare(float measurement, MeasurementComparator comparator, float threshold)

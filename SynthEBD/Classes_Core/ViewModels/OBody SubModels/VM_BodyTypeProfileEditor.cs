@@ -1987,6 +1987,8 @@ public class VM_MeasurementDefinition : VM
         Name = source.Name ?? "";
         Kind = source.Kind;
         Axis = source.Axis;
+        NumeratorAxis = source.NumeratorAxis;
+        DenominatorAxis = source.DenominatorAxis;
 
         var refs = source.VertexRefNames ?? new List<string>();
         VertexRefA = refs.Count > 0 ? refs[0] : "";
@@ -2002,6 +2004,14 @@ public class VM_MeasurementDefinition : VM
     public string Name { get; set; }
     public MeasurementKind Kind { get; set; }
     public MeasurementAxis Axis { get; set; }
+
+    /// <summary>How to reduce the numerator pair for a <see cref="MeasurementKind.RatioDistance"/> entry.
+    /// Null = full 3D length (legacy). Ignored for non-ratio kinds.</summary>
+    public MeasurementAxis? NumeratorAxis { get; set; }
+
+    /// <summary>How to reduce the denominator pair for a <see cref="MeasurementKind.RatioDistance"/> entry.
+    /// Null = full 3D length (legacy). Ignored for non-ratio kinds.</summary>
+    public MeasurementAxis? DenominatorAxis { get; set; }
 
     public string VertexRefA { get; set; }
     public string VertexRefB { get; set; }
@@ -2029,6 +2039,18 @@ public class VM_MeasurementDefinition : VM
 
     public IReadOnlyList<AxisOption> AxisOptionsList => AxisOptions;
 
+    /// <summary>Display-friendly labels for the nullable per-pair axis used by RatioDistance. The 3D entry
+    /// (Value = null) preserves the pre-fix behavior where ratios were full Euclidean lengths.</summary>
+    public static IReadOnlyList<RatioAxisOption> RatioAxisOptions { get; } = new[]
+    {
+        new RatioAxisOption(null, "3D (Length)"),
+        new RatioAxisOption(MeasurementAxis.X, "X (Horizontal)"),
+        new RatioAxisOption(MeasurementAxis.Y, "Y (Vertical)"),
+        new RatioAxisOption(MeasurementAxis.Z, "Z (Depth)"),
+    };
+
+    public IReadOnlyList<RatioAxisOption> RatioAxisOptionsList => RatioAxisOptions;
+
     public MeasurementDefinition DumpToModel()
     {
         var refs = new List<string>();
@@ -2044,6 +2066,8 @@ public class VM_MeasurementDefinition : VM
             Name = Name?.Trim() ?? "",
             Kind = Kind,
             Axis = Axis,
+            NumeratorAxis = Kind == MeasurementKind.RatioDistance ? NumeratorAxis : null,
+            DenominatorAxis = Kind == MeasurementKind.RatioDistance ? DenominatorAxis : null,
             VertexRefNames = refs,
         };
     }
@@ -2058,6 +2082,20 @@ public sealed class AxisOption
         Label = label;
     }
     public MeasurementAxis Value { get; }
+    public string Label { get; }
+}
+
+/// <summary>Paired (value, display-label) for the per-pair Ratio axis ComboBox. Value is nullable —
+/// null encodes "use full 3D length" (the pre-fix default), so ratios that should stay 3D (e.g. the
+/// arm-thickness diagonal) just leave the field unset.</summary>
+public sealed class RatioAxisOption
+{
+    public RatioAxisOption(MeasurementAxis? value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+    public MeasurementAxis? Value { get; }
     public string Label { get; }
 }
 
