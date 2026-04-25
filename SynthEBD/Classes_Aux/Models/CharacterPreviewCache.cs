@@ -229,6 +229,24 @@ public class CharacterPreviewCache
                         }
                     return new DdsPixels(data, width, height);
                 }
+                case Pfim.ImageFormat.Rgb8:
+                {
+                    // 8-bit grayscale (e.g. Skyrim _S specular maps): one intensity
+                    // byte per pixel, broadcast to B/G/R with full alpha.
+                    byte[] data = new byte[expectedSize];
+                    int srcStride = image.Stride;
+                    for (int y = 0; y < height; y++)
+                        for (int x = 0; x < width; x++)
+                        {
+                            byte v = image.Data[y * srcStride + x];
+                            int dstIdx = (y * width + x) * 4;
+                            data[dstIdx] = v;
+                            data[dstIdx + 1] = v;
+                            data[dstIdx + 2] = v;
+                            data[dstIdx + 3] = 255;
+                        }
+                    return new DdsPixels(data, width, height);
+                }
                 default:
                     if (_logGate != null && _logGate.Verbose)
                         _logger?.LogMessage("CharacterPreviewCache: Unsupported DDS format " +

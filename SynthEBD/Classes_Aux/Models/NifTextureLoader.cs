@@ -266,6 +266,28 @@ public class NifTextureLoader
                     return CreateTextureModelFromPixels(pixelData, width, height, relativeGamePath);
                 }
 
+                case Pfim.ImageFormat.Rgb8:
+                {
+                    // 8-bit grayscale (e.g. Skyrim _S specular maps): one intensity
+                    // byte per pixel, broadcast to B/G/R with full alpha.
+                    pixelData = new byte[width * height * 4];
+                    int srcStride = image.Stride;
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int x = 0; x < width; x++)
+                        {
+                            byte v = image.Data[y * srcStride + x];
+                            int dstIdx = (y * width + x) * 4;
+                            pixelData[dstIdx] = v;
+                            pixelData[dstIdx + 1] = v;
+                            pixelData[dstIdx + 2] = v;
+                            pixelData[dstIdx + 3] = 255;
+                        }
+                    }
+
+                    return CreateTextureModelFromPixels(pixelData, width, height, relativeGamePath);
+                }
+
                 default:
                     _logger.LogError("CharacterViewer: Unsupported Pfim format " + image.Format +
                         " for '" + relativeGamePath + "'");
@@ -425,6 +447,27 @@ public class NifTextureLoader
                         }
                     }
                     return pixelData;
+
+                case Pfim.ImageFormat.Rgb8:
+                {
+                    // 8-bit grayscale (e.g. Skyrim _S specular maps): one intensity
+                    // byte per pixel, broadcast to B/G/R with full alpha.
+                    pixelData = new byte[expectedSize];
+                    int gStride = image.Stride;
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int x = 0; x < width; x++)
+                        {
+                            byte v = image.Data[y * gStride + x];
+                            int dstIdx = (y * width + x) * 4;
+                            pixelData[dstIdx] = v;
+                            pixelData[dstIdx + 1] = v;
+                            pixelData[dstIdx + 2] = v;
+                            pixelData[dstIdx + 3] = 255;
+                        }
+                    }
+                    return pixelData;
+                }
 
                 default:
                     _logger.LogMessage("CharacterViewer: Unsupported Pfim format " + image.Format +
