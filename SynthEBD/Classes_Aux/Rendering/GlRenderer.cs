@@ -946,4 +946,25 @@ public class GlRenderer : IDisposable
             _disposed = true;
         }
     }
+
+    /// <summary>
+    /// Drops all GL-resource references without issuing any GL calls. Used when the
+    /// owning UC_CharacterViewer is unloaded/recreated: GLWpfControl 4.x creates a new
+    /// GL context per control instance, so the shader-program ID, VAO, VBOs, and mesh
+    /// buffers stored here belong to the old (now-destroyed) context. Calling
+    /// <see cref="GL.DeleteBuffer(int)"/> etc. on those IDs in the new context either
+    /// no-ops or emits GL_INVALID_OPERATION; the resources themselves die with their
+    /// context. Next <see cref="Initialize"/> rebuilds everything on the fresh context.
+    /// </summary>
+    public void ForgetResourcesFromDeadContext()
+    {
+        _meshes.Clear();
+        _shader = null;
+        _debugShader = null;
+        _wireframeShader = null;
+        _debugVao = 0;
+        _debugVbo = 0;
+        _initialized = false;
+        _hasCachedLightDirs = false;
+    }
 }

@@ -263,4 +263,19 @@ public class GlTextureManager : IDisposable
         _allTextures.Clear();
         _textureCache.Clear();
     }
+
+    /// <summary>
+    /// Drops all texture-handle references without issuing any GL calls. Mirrors
+    /// <see cref="GlRenderer.ForgetResourcesFromDeadContext"/>: when the owning UC is
+    /// recreated during navigation, the GL context that minted these texture IDs is
+    /// destroyed, so <see cref="GL.DeleteTexture(int)"/> on them in the new context is
+    /// invalid. The textures themselves are reclaimed with the old context; next
+    /// <see cref="Initialize"/> re-uploads into the new context.
+    /// </summary>
+    public void ForgetResourcesFromDeadContext()
+    {
+        _textureCache.Clear();
+        _allTextures.Clear();
+        WhiteTexture = 0;
+    }
 }

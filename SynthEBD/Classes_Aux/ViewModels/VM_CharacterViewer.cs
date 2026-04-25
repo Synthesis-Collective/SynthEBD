@@ -412,6 +412,16 @@ public class VM_CharacterViewer : VM
         if (VerboseLog) _logger?.LogMessage(message);
     }
 
+    /// <summary>Public verbose-gated log used by <see cref="UC_CharacterViewer"/> for
+    /// view-lifecycle diagnostics (instance-ids, Loaded/Unloaded, first-render details).
+    /// Kept on the VM so multiple UC instances sharing this VM all route through the
+    /// same <see cref="VerboseLog"/> toggle. Does nothing when <see cref="VerboseLog"/>
+    /// is off, so the messages are free for end users.</summary>
+    public void LogViewerDiagnostic(string message)
+    {
+        if (VerboseLog) _logger?.LogMessage(message);
+    }
+
     /// <summary>Verbose checkpoint formatter for the NPC-load pipeline. Prefixes the
     /// message with elapsed-from-LoadNpcAsync-entry so timings can be eyeballed across
     /// the parse/skin/dispatch/GL-upload handoff. No-op when the stopwatch is null
@@ -2049,6 +2059,61 @@ public class VM_CharacterViewer : VM
 
         LogVerbose("CharacterViewer: GL initialized");
     }
+
+    /// <summary>
+    /// Drops all GL-bound state when the owning UC_CharacterViewer is recreated during
+    /// WPF navigation. GLWpfControl 4.x creates a new GL context per control instance,
+    /// so shader programs, VAOs, VBOs, and texture IDs minted by a previous UC's context
+    /// are invalid in the new one — leaving them in place produces 10 "rendered" meshes
+    /// and zero visible pixels (grey screen). Must not issue any GL calls: the old
+    /// context is already destroyed, and the new one isn't necessarily current on this
+    /// thread when Unloaded fires. Forces the next <see cref="LoadNpcAsync"/> to rebuild
+    /// by nulling <see cref="_currentLoadedNpc"/> and setting
+    /// <see cref="_sceneRebuildPending"/> so the same-NPC short-circuit skips.
+    /// </summary>
+    public void HandleGlContextLoss()
+    {
+        LogVerbose("CharacterViewer: HandleGlContextLoss — dropping GL state for new context");
+
+        Renderer.ForgetResourcesFromDeadContext();
+        TextureManager?.ForgetResourcesFromDeadContext();
+        TextureManager = null;
+
+        _meshesByBodyPart.Clear();
+        _builtMeshesByBodyPart.Clear();
+        _cachedBodyMeshes.Clear();
+        _textureApplyInfoByMesh.Clear();
+        _cachedOsdFiles = null;
+        _cachedBodyNifDiskPath = null;
+        _cachedBodyTri = null;
+        _cachedMeshPaths = null;
+
+        // Any pending buffers were captured against the dead context — drop them so
+        // ProcessPendingScene doesn't try to upload stale BuiltMesh data as if it were
+        // fresh. LoadNpcAsync will re-populate on the next preview request.
+        _pendingScene = null;
+        _pendingTextureOverrides = null;
+        _pendingBodySlide = null;
+        _pendingHeadReplace = null;
+
+        _currentLoadedNpc = FormKey.Null;
+        _currentHeadMeshOverride = null;
+        _sceneRebuildPending = true;
+
+        IsGlInitialized = false;
+
+        // Host VMs (editor, annotator, etc.) subscribe to re-issue their last preview
+        // request so the user sees their previously-loaded character without having to
+        // re-click a preset. Raised after state is reset so handlers see a clean VM.
+        GlContextReset?.Invoke();
+    }
+
+    /// <summary>Fires after <see cref="HandleGlContextLoss"/> finishes resetting VM state.
+    /// Host VMs subscribe to re-trigger their last preview (e.g.
+    /// <see cref="VM_BodyTypeProfileEditor.RefreshPreviewAsync"/>) so the viewer isn't
+    /// grey until the user re-clicks a preset. Called on the UI thread from the GL
+    /// render callback, so handlers can safely touch WPF-bound properties.</summary>
+    public event Action? GlContextReset;
 
     /// <summary>
     /// Called from the GL render callback to process any pending scene setup.

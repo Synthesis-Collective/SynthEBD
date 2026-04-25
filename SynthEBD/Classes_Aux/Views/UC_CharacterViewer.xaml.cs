@@ -41,6 +41,9 @@ public partial class UC_CharacterViewer : UserControl
         Loaded += (_, _) =>
         {
             _vm ??= DataContext as VM_CharacterViewer;
+            _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId + " Loaded (w="
+                + GlControl.ActualWidth.ToString("F0") + ", h="
+                + GlControl.ActualHeight.ToString("F0") + ", glStarted=" + _glStarted + ")");
             TryStartGl();
             // If GL was already started (navigating back to a reused UC), the visibility
             // toggle inside TryStartGl doesn't run — but GLWpfControl's render-loop
@@ -66,8 +69,28 @@ public partial class UC_CharacterViewer : UserControl
         // the control unsubscribes from CompositionTarget.Rendering so OnRender
         // (which calls glfwMakeContextCurrent) is never hit with a dead context.
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
-        Unloaded += (_, _) => SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        Unloaded += (_, _) =>
+        {
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            _unloaded = true;
+            _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId + " Unloaded");
+        };
     }
+
+    // Instance-id + lifecycle flags for diagnosing the grey-screen-after-navigation bug.
+    // VM_CharacterViewer is a persistent singleton but UC_CharacterViewer is re-created
+    // by WPF's ContentPresenter every time the user navigates back to the Body Type
+    // Profiles tab. If the old UC's CompositionTarget.Rendering subscription lingers
+    // past Unloaded, its OnRender ticks keep writing to a detached D3D surface while
+    // the new UC's surface stays grey. The id lets us tell which UC is firing which
+    // callback in the verbose log; _firstRenderLogged gates a one-shot "first OnRender"
+    // diagnostic per instance; _unloaded tags any OnRender that fires after Unloaded
+    // as a zombie tick (logged at most once per instance).
+    private static int _instanceCounter;
+    private readonly int _instanceId = System.Threading.Interlocked.Increment(ref _instanceCounter);
+    private bool _firstRenderLogged;
+    private bool _unloaded;
+    private bool _zombieRenderLogged;
 
     private VM_CharacterViewer? _vm;
     private bool _glStarted;
@@ -164,8 +187,19 @@ public partial class UC_CharacterViewer : UserControl
     private void TryStartGl()
     {
         if (_glStarted) return;
-        if (!IsLoaded) return;
-        if (GlControl.ActualWidth <= 0 || GlControl.ActualHeight <= 0) return;
+        if (!IsLoaded)
+        {
+            (_vm ??= DataContext as VM_CharacterViewer)?.LogViewerDiagnostic(
+                "UC_CharacterViewer #" + _instanceId + " TryStartGl skipped: !IsLoaded");
+            return;
+        }
+        if (GlControl.ActualWidth <= 0 || GlControl.ActualHeight <= 0)
+        {
+            (_vm ??= DataContext as VM_CharacterViewer)?.LogViewerDiagnostic(
+                "UC_CharacterViewer #" + _instanceId + " TryStartGl skipped: zero size (w="
+                + GlControl.ActualWidth + ", h=" + GlControl.ActualHeight + ")");
+            return;
+        }
 
         var settings = new GLWpfControlSettings
         {
@@ -182,6 +216,11 @@ public partial class UC_CharacterViewer : UserControl
         // by toggling visibility to trigger the handler.
         GlControl.Visibility = Visibility.Collapsed;
         GlControl.Visibility = Visibility.Visible;
+
+        (_vm ??= DataContext as VM_CharacterViewer)?.LogViewerDiagnostic(
+            "UC_CharacterViewer #" + _instanceId + " TryStartGl: Start() OK + visibility toggled (w="
+            + GlControl.ActualWidth.ToString("F0") + ", h="
+            + GlControl.ActualHeight.ToString("F0") + ")");
     }
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
@@ -211,6 +250,35 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
+        // Zombie-render diagnostic: if OnRender fires after Unloaded, this UC's
+        // CompositionTarget.Rendering subscription was not cleanly released, and
+        // it is now writing to a detached D3D surface. Logged once per instance
+        // so the noise stays bounded on a stuck loop.
+        if (_unloaded && !_zombieRenderLogged)
+        {
+            _zombieRenderLogged = true;
+            _vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " OnRender AFTER Unloaded (zombie render tick)");
+        }
+
+        // Stale-VM detection: GLWpfControl 4.x creates a new GL context per control
+        // instance. When the user navigates away from and back to a page that hosts
+        // UC_CharacterViewer, WPF destroys the old UC (and its context) and spins up
+        // a new one. The persistent VM is unaware of the context swap: IsGlInitialized
+        // stays true, and Renderer keeps the shader/VAO/VBO/texture IDs from the dead
+        // context. Those IDs are invalid in this new context, so Render() draws 10
+        // meshes to nowhere — a grey screen. Detecting the case on this UC's first
+        // OnRender (before anything tries to draw) and asking the VM to forget the
+        // dead IDs lets the normal InitializeGl path below rebuild everything against
+        // this context. LoadNpcAsync's same-NPC short-circuit is disarmed inside
+        // HandleGlContextLoss so the next preview request rebuilds the scene.
+        if (!_firstRenderLogged && _vm.IsGlInitialized)
+        {
+            _vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " first OnRender on reused VM: invoking HandleGlContextLoss to rebind GL resources");
+            _vm.HandleGlContextLoss();
+        }
+
         // Initialize GL on first render — context is guaranteed current here
         if (!_vm.IsGlInitialized)
         {
@@ -233,6 +301,21 @@ public partial class UC_CharacterViewer : UserControl
         if (w > 0 && h > 0)
         {
             _vm.Renderer.Render(_vm.Camera, w, h);
+        }
+
+        // First-render diagnostic (once per UC instance): confirms which instance
+        // actually owns the render loop that reaches pixels, plus the state the
+        // renderer sees at that moment (viewport, mesh count, GL init). If the
+        // new instance's id never logs this line after a grey-screen repro, its
+        // render subscription was never wired up.
+        if (!_firstRenderLogged)
+        {
+            _firstRenderLogged = true;
+            _vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " first OnRender: viewport=" + w + "x" + h
+                + ", meshes=" + _vm.Renderer.Meshes.Count
+                + ", glInit=" + _vm.IsGlInitialized
+                + ", unloaded=" + _unloaded);
         }
 
         UpdateAxisGizmo();

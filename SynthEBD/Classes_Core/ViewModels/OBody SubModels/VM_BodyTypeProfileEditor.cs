@@ -70,6 +70,16 @@ public class VM_BodyTypeProfileEditor : VM
         // Subscribing here guarantees a post-deform recompute regardless of path.
         CharacterViewer.BodySlideApplied += () => SelectedProfile?.RefreshMeasurementValues();
 
+        // When the viewer's GL context is swapped out from under it (user navigated off
+        // the settings page and returned, which recreates UC_CharacterViewer with a fresh
+        // GL context), the viewer has dropped its scene + GL state. Re-issue whatever
+        // preview the user last selected so they don't have to click the preset again
+        // to see their character.
+        CharacterViewer.GlContextReset += () =>
+        {
+            if (SelectedPreset != null) _ = RefreshPreviewAsync();
+        };
+
         AvailableWeights = new ObservableCollection<int> { 0, 25, 50, 75, 100 };
 
         AddProfile = new RelayCommand(
