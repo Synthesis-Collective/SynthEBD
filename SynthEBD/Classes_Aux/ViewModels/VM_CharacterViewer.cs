@@ -100,6 +100,41 @@ public class VM_CharacterViewer : VM
     private (List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
              NpcMeshResolver.NpcMeshPaths MeshPaths)? _pendingScene;
 
+    /// <summary>
+    /// In-flight install state for the sliced GL upload. Non-null between the
+    /// render tick that consumes <see cref="_pendingScene"/> and the tick where
+    /// the queue drains, so the GL upload phase spans multiple frames instead
+    /// of stalling for the whole ~20-texture × N-shape mipmap-gen pass in one.
+    ///
+    /// A new <see cref="_pendingScene"/> arriving mid-install causes the
+    /// in-progress install to be abandoned (its partially-uploaded GL meshes
+    /// are torn down by <see cref="ClearScene"/>) and a fresh install to start.
+    /// </summary>
+    private SceneInstallState? _sceneInstall;
+
+    /// <summary>Per-render-tick GL upload budget for the sliced install. The
+    /// install loop pops shapes from the queue until either it's empty or this
+    /// budget is exceeded; the next render tick continues. 6 ms keeps 60 FPS
+    /// smooth even mid-install. Set to 0 for strict one-shape-per-tick mode.</summary>
+    private const double GlInstallBudgetMs = 6.0;
+
+    private sealed record SceneInstallState(
+        NpcMeshResolver.NpcMeshPaths MeshPaths,
+        Queue<PendingShape> Pending,
+        FormKey LoadNpcKey,
+        string? HeadMeshOverride,
+        Stopwatch? LoadStopwatch,
+        int TotalShapes)
+    {
+        public int Installed { get; set; }
+    }
+
+    private readonly record struct PendingShape(
+        string BodyPart,
+        AssetSource? MeshSource,
+        Dictionary<int, string>? TxstOverrides,
+        NifMeshBuilder.BuiltMesh Built);
+
     /// <summary>True from the moment a new NPC load starts until the render callback
     /// has rebuilt the scene. Routes texture overrides to the pending queue so they
     /// aren't applied to meshes that are about to be destroyed by ClearScene().</summary>
@@ -2090,8 +2125,11 @@ public class VM_CharacterViewer : VM
 
         // Any pending buffers were captured against the dead context — drop them so
         // ProcessPendingScene doesn't try to upload stale BuiltMesh data as if it were
-        // fresh. LoadNpcAsync will re-populate on the next preview request.
+        // fresh. LoadNpcAsync will re-populate on the next preview request. A partial
+        // sliced install also dies with the dead context — its in-flight queue and the
+        // already-uploaded GL handles are equally invalid.
         _pendingScene = null;
+        _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingBodySlide = null;
         _pendingHeadReplace = null;
@@ -2130,108 +2168,111 @@ public class VM_CharacterViewer : VM
             InstallReplacedHead();
         }
 
-        if (_pendingScene == null || !IsGlInitialized) return;
+        if (!IsGlInitialized) return;
 
-        var (loadResults, meshPaths) = _pendingScene.Value;
-        _pendingScene = null;
-        // Hand the timeline off the field so a re-entrant LoadNpcAsync queued
-        // mid-install starts its own clock cleanly.
-        var loadStopwatch = _pendingLoadStopwatch;
-        _pendingLoadStopwatch = null;
-        LogLoadCheckpoint(loadStopwatch, "ProcessPendingScene start (GL upload begin)");
-
-        ClearScene();
-        _cachedMeshPaths = meshPaths;
-
-        int totalShapes = 0;
-        foreach (var (bodyPart, meshSource, meshes) in loadResults)
+        // ── 1. First tick of a new scene: drain _pendingScene into a per-shape
+        //       install queue. If a previous install is still in flight, abandon
+        //       it — ClearScene tears down the partially-uploaded GL meshes so
+        //       the new scene starts from a clean renderer.
+        if (_pendingScene is { } incoming)
         {
-            Dictionary<int, string>? txstOverrides = null;
-            if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
-                txstOverrides = txst;
+            _pendingScene = null;
 
-            foreach (var built in meshes)
+            if (_sceneInstall != null)
             {
-                var glMesh = CreateGlMesh(built);
-                glMesh.MeshSource = meshSource;
-
-                var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
-                if (txstOverrides != null)
-                    foreach (var (slot, path) in txstOverrides)
-                        effectiveTextures[slot] = path;
-
-                bool isHairTint = false;
-                float hairR = 0, hairG = 0, hairB = 0;
-                bool isFaceTint = false;
-                string? faceTintPath = null;
-
-                ApplyTexturesToGlMesh(glMesh, built, effectiveTextures, meshPaths,
-                    ref isHairTint, ref hairR, ref hairG, ref hairB,
-                    ref isFaceTint, ref faceTintPath);
-
-                _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
-                    new Dictionary<int, string>(effectiveTextures),
-                    isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
-
-                glMesh.BodyPart = bodyPart;
-                glMesh.ShowWireframe = ShowWireframe;
-                Renderer.AddMesh(glMesh);
-
-                if (bodyPart == "Head")
-                {
-                    if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey(bodyPart))
-                        _meshesByBodyPart[bodyPart] = glMesh;
-                    if (built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey(bodyPart))
-                        _builtMeshesByBodyPart[bodyPart] = built;
-                }
-                else
-                {
-                    if (!_meshesByBodyPart.ContainsKey(bodyPart))
-                        _meshesByBodyPart[bodyPart] = glMesh;
-                    if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
-                        _builtMeshesByBodyPart[bodyPart] = built;
-                }
-
-                if (bodyPart == "Body")
-                {
-                    _cachedBodyMeshes[built.ShapeName] = built;
-
-                    // Cache the body NIF's disk path once per scene so ApplyBodySlide
-                    // can probe for a sibling .tri (BodySlide's "Build Morphs" output).
-                    // The .tri is topology-matched to this NIF, so it avoids the OSD
-                    // path's reference-mesh mismatch.
-                    if (_cachedBodyNifDiskPath == null && meshSource?.ResolvedDiskPath != null)
-                    {
-                        _cachedBodyNifDiskPath = meshSource.ResolvedDiskPath;
-                    }
-                }
-
-                totalShapes++;
+                LogLoadCheckpoint(_sceneInstall.LoadStopwatch,
+                    "ProcessPendingScene: superseded mid-install (" +
+                    _sceneInstall.Installed + "/" + _sceneInstall.TotalShapes +
+                    " shapes uploaded before abandon)");
+                _sceneInstall = null;
             }
+
+            var (loadResults, meshPaths) = incoming;
+            // Hand the timeline off the field so a re-entrant LoadNpcAsync queued
+            // mid-install starts its own clock cleanly.
+            var loadStopwatch = _pendingLoadStopwatch;
+            _pendingLoadStopwatch = null;
+
+            // Body parts install in a fixed visual order so the progressive reveal
+            // looks coherent (body and accessories first, head/hair last) regardless
+            // of the order NpcMeshResolver returned them in.
+            var queue = new Queue<PendingShape>();
+            foreach (var (bodyPart, meshSource, meshes) in loadResults
+                         .OrderBy(r => InstallOrderRank(r.BodyPart)))
+            {
+                Dictionary<int, string>? txstOverrides = null;
+                if (bodyPart != "Head" && meshPaths.TxstTextures.TryGetValue(bodyPart, out var txst))
+                    txstOverrides = txst;
+                foreach (var built in meshes)
+                    queue.Enqueue(new PendingShape(bodyPart, meshSource, txstOverrides, built));
+            }
+
+            ClearScene();
+            _cachedMeshPaths = meshPaths;
+
+            _sceneInstall = new SceneInstallState(
+                MeshPaths: meshPaths,
+                Pending: queue,
+                LoadNpcKey: _pendingLoadNpcKey,
+                HeadMeshOverride: _pendingLoadHeadMeshOverride,
+                LoadStopwatch: loadStopwatch,
+                TotalShapes: queue.Count);
+            _pendingLoadNpcKey = FormKey.Null;
+            _pendingLoadHeadMeshOverride = null;
+
+            // LoadNpcAsync's success-path finally leaves IsLoading true so the
+            // spinner stays up across the install. Reaffirm here in case any
+            // earlier path dropped it.
+            IsLoading = true;
+            LogLoadCheckpoint(_sceneInstall.LoadStopwatch,
+                "ProcessPendingScene start (sliced GL upload, " +
+                _sceneInstall.TotalShapes + " shapes)");
         }
 
-        StatusText = totalShapes > 0
-            ? $"Loaded {totalShapes} shape(s) for NPC"
-            : "No renderable shapes found for NPC";
-        IsLoading = false;
+        // ── 2. Per-tick install loop: pop shapes until the budget is spent or
+        //       the queue is empty. Each shape upload is the same work the
+        //       single-frame install used to do inline.
+        if (_sceneInstall == null) return;
+        var install = _sceneInstall;
 
-        LogLoadCheckpoint(loadStopwatch, "Scene committed (" + totalShapes +
+        long frameStart = Stopwatch.GetTimestamp();
+        while (install.Pending.Count > 0)
+        {
+            InstallOneShape(install, install.Pending.Dequeue());
+            install.Installed++;
+
+            if (GlInstallBudgetMs <= 0) break; // strict one-shape-per-tick mode
+            double elapsedMs = (Stopwatch.GetTimestamp() - frameStart) * 1000.0
+                               / Stopwatch.Frequency;
+            if (elapsedMs >= GlInstallBudgetMs) break;
+        }
+
+        if (install.Pending.Count > 0)
+        {
+            StatusText = $"Installing scene... {install.Installed}/{install.TotalShapes}";
+            return; // resume next render tick
+        }
+
+        // ── 3. Queue drained: finalize. Promote pending identity into the
+        //       currently-loaded fields, clear the rebuild gate, and drain any
+        //       texture/BodySlide overrides that arrived during the install.
+        LogLoadCheckpoint(install.LoadStopwatch,
+            "Scene committed (" + install.TotalShapes +
             " shapes -> " + Renderer.Meshes.Count + " GL meshes) — load complete");
 
-        // Record the identity of the scene we just committed so LoadNpcAsync
-        // can short-circuit same-NPC re-invocations. Must be done before clearing
-        // _sceneRebuildPending so any re-entrant LoadNpcAsync from the drain below
-        // sees the correct identity.
-        _currentLoadedNpc = _pendingLoadNpcKey;
-        _currentHeadMeshOverride = _pendingLoadHeadMeshOverride;
-        _pendingLoadNpcKey = FormKey.Null;
-        _pendingLoadHeadMeshOverride = null;
+        StatusText = install.TotalShapes > 0
+            ? $"Loaded {install.TotalShapes} shape(s) for NPC"
+            : "No renderable shapes found for NPC";
+
+        _currentLoadedNpc = install.LoadNpcKey;
+        _currentHeadMeshOverride = install.HeadMeshOverride;
+        _sceneInstall = null;
 
         // Scene is now rebuilt — clear the rebuild flag before draining the
         // pending-override queue so ApplyTextureOverrides takes the direct path.
         _sceneRebuildPending = false;
+        IsLoading = false;
 
-        // Process any pending overrides that were queued before the scene was ready
         if (_pendingTextureOverrides != null)
         {
             var overrides = _pendingTextureOverrides;
@@ -2244,6 +2285,80 @@ public class VM_CharacterViewer : VM
             var (preset, weight) = _pendingBodySlide.Value;
             _pendingBodySlide = null;
             ApplyBodySlide(preset, weight);
+        }
+    }
+
+    /// <summary>Body and accessories upload before head/hair so the progressive
+    /// reveal during a sliced install never shows a floating head. Anything
+    /// unrecognized lands at the end.</summary>
+    private static int InstallOrderRank(string bodyPart) => bodyPart switch
+    {
+        "Body" => 0,
+        "Hands" => 1,
+        "Feet" => 2,
+        "Head" => 3,
+        "Hair" => 4,
+        _ => 10,
+    };
+
+    /// <summary>Uploads one shape's GL mesh + textures and registers it in the
+    /// per-body-part dictionaries. Mirrors the inner loop body the single-frame
+    /// install used; called once per shape from the sliced install loop.</summary>
+    private void InstallOneShape(SceneInstallState install, PendingShape shape)
+    {
+        var glMesh = CreateGlMesh(shape.Built);
+        glMesh.MeshSource = shape.MeshSource;
+
+        var effectiveTextures = new Dictionary<int, string>(shape.Built.TexturePaths);
+        if (shape.TxstOverrides != null)
+            foreach (var (slot, path) in shape.TxstOverrides)
+                effectiveTextures[slot] = path;
+
+        bool isHairTint = false;
+        float hairR = 0, hairG = 0, hairB = 0;
+        bool isFaceTint = false;
+        string? faceTintPath = null;
+
+        ApplyTexturesToGlMesh(glMesh, shape.Built, effectiveTextures, install.MeshPaths,
+            ref isHairTint, ref hairR, ref hairG, ref hairB,
+            ref isFaceTint, ref faceTintPath);
+
+        _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
+            new Dictionary<int, string>(effectiveTextures),
+            isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
+
+        glMesh.BodyPart = shape.BodyPart;
+        glMesh.ShowWireframe = ShowWireframe;
+        Renderer.AddMesh(glMesh);
+
+        var bodyPart = shape.BodyPart;
+        if (bodyPart == "Head")
+        {
+            if (shape.Built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey(bodyPart))
+                _meshesByBodyPart[bodyPart] = glMesh;
+            if (shape.Built.IsPrimaryHeadShape || !_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                _builtMeshesByBodyPart[bodyPart] = shape.Built;
+        }
+        else
+        {
+            if (!_meshesByBodyPart.ContainsKey(bodyPart))
+                _meshesByBodyPart[bodyPart] = glMesh;
+            if (!_builtMeshesByBodyPart.ContainsKey(bodyPart))
+                _builtMeshesByBodyPart[bodyPart] = shape.Built;
+        }
+
+        if (bodyPart == "Body")
+        {
+            _cachedBodyMeshes[shape.Built.ShapeName] = shape.Built;
+
+            // Cache the body NIF's disk path once per scene so ApplyBodySlide
+            // can probe for a sibling .tri (BodySlide's "Build Morphs" output).
+            // The .tri is topology-matched to this NIF, so it avoids the OSD
+            // path's reference-mesh mismatch.
+            if (_cachedBodyNifDiskPath == null && shape.MeshSource?.ResolvedDiskPath != null)
+            {
+                _cachedBodyNifDiskPath = shape.MeshSource.ResolvedDiskPath;
+            }
         }
     }
 
@@ -2409,7 +2524,11 @@ public class VM_CharacterViewer : VM
         }
         finally
         {
-            if (_loadCts == cts) IsLoading = false;
+            // Success path: _pendingScene is set and the sliced install will clear
+            // IsLoading when the queue drains in ProcessPendingScene. Cancel/error
+            // paths fall through here with _pendingScene == null and need to drop
+            // the spinner immediately.
+            if (_loadCts == cts && _pendingScene == null) IsLoading = false;
         }
     }
 
@@ -3127,8 +3246,10 @@ public class VM_CharacterViewer : VM
         _loadCts = null;
 
         // Drop every scene-level cache; _pending* holders would otherwise pin
-        // BuiltMesh data (with its vertex/index buffers) until GC.
+        // BuiltMesh data (with its vertex/index buffers) until GC. _sceneInstall
+        // can hold a queue of dozens of unwalked BuiltMesh entries mid-install.
         _pendingScene = null;
+        _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingBodySlide = null;
         _pendingHeadReplace = null;
