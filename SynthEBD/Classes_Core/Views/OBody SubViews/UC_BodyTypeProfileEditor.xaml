@@ -506,6 +506,10 @@
                                         <Button Content="Scan All Presets"
                                                 Command="{Binding DataContext.ScanAllPresetsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 Padding="6,2" Margin="0,0,5,0"/>
+                                        <CheckBox Content="Verbose Scan"
+                                                  IsChecked="{Binding DataContext.VerboseScan, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  VerticalAlignment="Center" Margin="0,0,10,0"
+                                                  ToolTip="Emit diagnostic lines (target count, viewer/key-vertex/fingerprint shape comparison, first-iteration measurement snapshot, first-vs-last identity check, and summary) to the Status Log when scanning. Off by default; enable when investigating why a scan returns zero matches."/>
                                         <Button Content="Cancel"
                                                 Command="{Binding DataContext.CancelScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 Padding="6,2" Margin="0,0,10,0"/>

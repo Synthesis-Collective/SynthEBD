@@ -256,6 +256,13 @@ public class VM_BodyTypeProfileEditor : VM
     /// last scan). Prompts the user to re-scan before trusting the filter output.</summary>
     public bool ScanCacheStale { get; set; }
 
+    /// <summary>Toggle on the Match Presets tab. When enabled, <see cref="RunScanAsync"/>
+    /// emits structured diagnostic lines (target count, viewer/key-vertex/fingerprint shape
+    /// comparison, first-iteration measurement snapshot, first-vs-last identity check, and
+    /// summary) to help diagnose "scan returns zero matches" issues. Off by default so the
+    /// Status Log isn't noisy during normal use.</summary>
+    public bool VerboseScan { get; set; }
+
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
     public Gender PreviewGender { get; set; } = Gender.Female;
@@ -595,6 +602,24 @@ public class VM_BodyTypeProfileEditor : VM
             }
 
             int total = targets.Count * weightSlots.Count;
+            if (VerboseScan)
+            {
+                _logger?.LogMessage($"BodyTypeProfile scan: body type '{bodyType}' matched {targets.Count} preset(s) × {weightSlots.Count} weight(s) = {total} evaluations.");
+
+                // Surface viewer state vs profile expectations so the user can see at a glance
+                // whether the loaded mesh's shape names match the profile's key-vertex
+                // ShapeNames and the captured fingerprint. A topology mismatch + 100% failed
+                // measurements is almost always a shape-name disagreement here.
+                var viewerShapes = viewer.GetCurrentShapeVertexCounts();
+                var viewerShapeStr = viewerShapes.Count == 0 ? "(no mesh loaded)" : string.Join(", ", viewerShapes.Select(kv => $"{kv.Key}={kv.Value}"));
+                var kvShapes = profile.KeyVertices.Select(k => k.ShapeName).Distinct().OrderBy(s => s).ToList();
+                var fingerprintShapes = _patcherState?.OBodySettings?.BodyTypeProfiles
+                    ?.FirstOrDefault(p => p.Id == profile.Id)?.Fingerprint?.ShapeVertexCounts?.Keys
+                    .OrderBy(s => s).ToList() ?? new List<string>();
+                _logger?.LogMessage($"BodyTypeProfile scan diag: viewer shapes = [{viewerShapeStr}]");
+                _logger?.LogMessage($"BodyTypeProfile scan diag: key-vertex ShapeNames = [{string.Join(", ", kvShapes)}]; profile fingerprint shapes = [{string.Join(", ", fingerprintShapes)}]");
+            }
+
             if (total == 0)
             {
                 profile.ScanResults.Clear();
@@ -608,6 +633,15 @@ public class VM_BodyTypeProfileEditor : VM
             var profileModel = profile.DumpToModel();
             int done = 0;
             ScanProgressPercent = 0;
+
+            // Diagnostics for "scan returns zero matches" investigations. Captured even when
+            // VerboseScan is off (cheap dictionary copies); only emitted on completion when
+            // the toggle is on. Identical first/last snapshots across many presets imply the
+            // mesh isn't being re-deformed (ApplyBodySlide queueing or stale CpuPositions).
+            Dictionary<string, float> firstMeasSnapshot = null;
+            Dictionary<string, float> lastMeasSnapshot = null;
+            string firstLabel = null;
+            string lastLabel = null;
 
             foreach (var (ph, gender) in targets)
             {
@@ -631,8 +665,36 @@ public class VM_BodyTypeProfileEditor : VM
                         .ToList();
                     profile.ScanResults[(model.Label ?? "", gender, weight)] = matchedSignatures;
 
+                    if (firstMeasSnapshot == null)
+                    {
+                        firstMeasSnapshot = new Dictionary<string, float>(result.Measurements);
+                        firstLabel = $"{model.Label}@W{weight}";
+                        if (VerboseScan)
+                        {
+                            _logger?.LogMessage($"BodyTypeProfile scan diag: first iter '{firstLabel}' → measurements={result.Measurements.Count}, failed={result.FailedMeasurements.Count}, rule matches={result.Descriptors.Count}, topologyMismatch={result.TopologyMismatch}");
+                        }
+                    }
+                    lastMeasSnapshot = new Dictionary<string, float>(result.Measurements);
+                    lastLabel = $"{model.Label}@W{weight}";
+
                     done++;
                     ScanProgressPercent = total > 0 ? (done * 100) / total : 100;
+                }
+            }
+
+            if (VerboseScan && firstMeasSnapshot != null && lastMeasSnapshot != null)
+            {
+                bool identical = firstMeasSnapshot.Count == lastMeasSnapshot.Count
+                    && firstMeasSnapshot.All(kv => lastMeasSnapshot.TryGetValue(kv.Key, out var v) && Math.Abs(v - kv.Value) < 1e-4f);
+                string firstSample = string.Join(", ", firstMeasSnapshot.Take(5).Select(kv => $"{kv.Key}={kv.Value:F3}"));
+                string lastSample = string.Join(", ", lastMeasSnapshot.Take(5).Select(kv => $"{kv.Key}={kv.Value:F3}"));
+                if (identical)
+                {
+                    _logger?.LogMessage($"BodyTypeProfile scan diag: FIRST and LAST measurements IDENTICAL across {done} evaluations — mesh not re-deforming. Sample: {firstSample}");
+                }
+                else
+                {
+                    _logger?.LogMessage($"BodyTypeProfile scan diag: first '{firstLabel}' vs last '{lastLabel}' differ. First: {firstSample}. Last: {lastSample}");
                 }
             }
 
@@ -652,6 +714,10 @@ public class VM_BodyTypeProfileEditor : VM
                 int withMatches = profile.ScanResults.Count(kv => kv.Value.Count > 0);
                 int empty = profile.ScanResults.Count - withMatches;
                 ScanStatus = $"Scan complete: {done} evaluations across {targets.Count} preset(s). {withMatches} with matches, {empty} empty.";
+                if (VerboseScan)
+                {
+                    _logger?.LogMessage($"BodyTypeProfile scan summary: {withMatches} (preset, weight) combos produced ≥1 match; {empty} produced none.");
+                }
                 profile.ScanResultsStale = false;
                 ScanCacheStale = false;
             }
