@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -578,8 +579,10 @@ public class VM_BodyTypeProfileEditor : VM
         if (weightSlots == null || weightSlots.Count == 0) weightSlots = new List<int> { 0, 100 };
 
         // Reset progress/status before flipping IsScanning so the UI reflects the fresh
-        // scan immediately (Fody fires PropertyChanged on assignment; a separate yield lets
-        // WPF paint the reset before the first ApplyBodySlide blocks the UI thread).
+        // scan immediately (Fody fires PropertyChanged on assignment; the yield below
+        // lets WPF actually paint the reset before the first ApplyBodySlide blocks the
+        // UI thread). Must yield below DispatcherPriority.Render — Task.Yield posts at
+        // Normal which preempts Render, leaving the bindings unpainted.
         ScanProgressPercent = 0;
         ScanStatus = "Initializing scan...";
         IsScanning = true;
@@ -587,7 +590,7 @@ public class VM_BodyTypeProfileEditor : VM
         var ct = _scanCts.Token;
         var savedPreset = SelectedPreset;
         var savedWeight = PreviewWeight;
-        await System.Threading.Tasks.Task.Yield();
+        await Dispatcher.Yield(DispatcherPriority.Background);
 
         try
         {
@@ -726,11 +729,15 @@ public class VM_BodyTypeProfileEditor : VM
                     ScanStatus = $"Scanning {done + 1}/{total}: {model.Label} @ {weight}";
 
                     viewer.ApplyBodySlide(model, weight);
-                    // Yield to the dispatcher so the GL pipeline can process the deformation
-                    // and CpuPositions are ready for the evaluator to read. Two yields to give
-                    // the deferred-drain path a chance when the scene was mid-rebuild.
-                    await System.Threading.Tasks.Task.Yield();
-                    await System.Threading.Tasks.Task.Yield();
+                    // Yield BELOW DispatcherPriority.Render so WPF actually paints the
+                    // progress-bar update before the next iteration. Task.Yield posts at
+                    // Normal (9), which preempts Render (7) — that meant the loop ran
+                    // back-to-back without ever rendering, freezing the UI for the whole
+                    // scan and only repainting once at the end. Background (4) is below
+                    // Render, so the dispatcher must drain Render before resuming us.
+                    // Doubles as the "wait for deferred-drain" yield ApplyBodySlide
+                    // sometimes needs when the scene is mid-rebuild.
+                    await Dispatcher.Yield(DispatcherPriority.Background);
 
                     var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
                     var matchedSignatures = result.Descriptors

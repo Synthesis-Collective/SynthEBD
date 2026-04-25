@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace SynthEBD;
 
@@ -201,10 +202,13 @@ public class VM_PresetAnnotationTable : VM
                     ScanStatus = $"Scanning {done + 1}/{total}: {model.Label} @ {clampedWeight}";
 
                     viewer.ApplyBodySlide(model, clampedWeight);
-                    // Two yields so the GL pipeline processes the deformation before the
-                    // evaluator reads CpuPositions -- same pattern as RunScanAsync.
-                    await Task.Yield();
-                    await Task.Yield();
+                    // Yield BELOW DispatcherPriority.Render so WPF actually paints the
+                    // progress-bar update before the next iteration. Task.Yield posts at
+                    // Normal (9), which preempts Render (7) — that meant the loop ran
+                    // back-to-back without ever rendering, freezing the UI for the whole
+                    // scan and only repainting once at the end. Background (4) yields to
+                    // Render. Same fix as RunScanAsync's per-iteration yield.
+                    await Dispatcher.Yield(DispatcherPriority.Background);
 
                     var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
                     var row = new VM_PresetAnnotationRow(model.Label ?? "", gender, clampedWeight)
