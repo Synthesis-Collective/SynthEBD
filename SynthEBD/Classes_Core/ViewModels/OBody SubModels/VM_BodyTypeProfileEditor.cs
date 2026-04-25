@@ -173,6 +173,14 @@ public class VM_BodyTypeProfileEditor : VM
                     }
                     RebuildFilteredPresets();
                     // Match-Presets tab reflects the newly-selected profile's scan cache.
+                    // If the profile already has cached measurements (from any earlier scan
+                    // — Match Presets or Label-Then-Suggest), derive the descriptor list
+                    // from cache + current rules so the table populates without forcing a
+                    // re-scan on profile switch.
+                    if (SelectedProfile != null && SelectedProfile.MeasurementCache.Count > 0)
+                    {
+                        SelectedProfile.RebuildScanResultsFromCache(SelectedProfile.DumpToModel(), includeDrafts: true);
+                    }
                     ScanCacheStale = SelectedProfile?.ScanResultsStale ?? true;
                     ScanStatus = SelectedProfile == null
                         ? "No profile selected."
@@ -641,6 +649,50 @@ public class VM_BodyTypeProfileEditor : VM
                 return;
             }
 
+            // KeyVertices / MeasurementDefinition changes invalidate the numbers in the cache.
+            // Drop them now so the iteration below misses on every key and re-evaluates.
+            // Rule-only edits leave MeasurementCacheStale false, so the cache survives —
+            // re-scanning after a rule edit is then pure rule re-evaluation (cache hits
+            // everywhere).
+            if (profile.MeasurementCacheStale)
+                profile.MeasurementCache.Clear();
+
+            var profileModel = profile.DumpToModel();
+
+            // Compute the work set: keys this scan needs that aren't in the cache yet. A
+            // prior scan from the other tab (Label-Then-Suggest) at overlapping weights
+            // populates cache entries that this scan can reuse — that's the whole point of
+            // the shared cache.
+            var missing = new List<(VM_BodySlidePlaceHolder ph, Gender gender, int weight)>();
+            foreach (var (ph, gender) in targets)
+            {
+                var label = ph.AssociatedModel.Label ?? "";
+                foreach (int weight in weightSlots)
+                {
+                    if (!profile.MeasurementCache.ContainsKey((label, gender, weight)))
+                        missing.Add((ph, gender, weight));
+                }
+            }
+            int reused = total - missing.Count;
+
+            // All-hit fast path: every (preset, weight) slot is already cached. No mesh
+            // work, no preview-NPC load, no viewer dependency. Just re-derive descriptors
+            // from cached measurements + current rules.
+            if (missing.Count == 0)
+            {
+                profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
+                int withMatchesAll = profile.ScanResults.Count(kv => kv.Value.Count > 0);
+                int emptyAll = profile.ScanResults.Count - withMatchesAll;
+                ScanStatus = $"Rebuilt from cache: {total} slice(s) reused, no scan needed. {withMatchesAll} with matches, {emptyAll} empty.";
+                profile.ScanResultsStale = false;
+                profile.MeasurementCacheStale = false;
+                ScanCacheStale = false;
+                ScanProgressPercent = 100;
+                RebuildWeightFilterOptions();
+                RefreshMatchingPresets();
+                return;
+            }
+
             // Pre-flight: the scan deforms whatever body mesh is currently in the viewer
             // through every preset. If the viewer is empty (first-open with no preset
             // selected; GL context loss with no SelectedPreset to auto-recover from;
@@ -656,7 +708,7 @@ public class VM_BodyTypeProfileEditor : VM
                     return;
                 }
 
-                Gender loadGender = targets[0].gender;
+                Gender loadGender = missing[0].gender;
                 var previewSettings = _patcherState?.OBodySettings?.PreviewNpcs;
                 FormKey loadNpc = FormKey.Null;
                 if (previewSettings != null)
@@ -705,8 +757,6 @@ public class VM_BodyTypeProfileEditor : VM
                 }
             }
 
-            profile.ScanResults.Clear();
-            var profileModel = profile.DumpToModel();
             int done = 0;
             ScanProgressPercent = 0;
 
@@ -714,52 +764,63 @@ public class VM_BodyTypeProfileEditor : VM
             // VerboseScan is off (cheap dictionary copies); only emitted on completion when
             // the toggle is on. Identical first/last snapshots across many presets imply the
             // mesh isn't being re-deformed (ApplyBodySlide queueing or stale CpuPositions).
+            // Only iterated entries (cache misses) participate; cached hits don't re-deform.
             Dictionary<string, float> firstMeasSnapshot = null;
             Dictionary<string, float> lastMeasSnapshot = null;
             string firstLabel = null;
             string lastLabel = null;
 
-            foreach (var (ph, gender) in targets)
+            foreach (var (ph, gender, weight) in missing)
             {
                 if (ct.IsCancellationRequested) break;
                 var model = ph.AssociatedModel;
-                foreach (int weight in weightSlots)
+                ScanStatus = $"Scanning {done + 1}/{missing.Count}: {model.Label} @ {weight}" +
+                             (reused > 0 ? $" ({reused} cached)" : "");
+
+                viewer.ApplyBodySlide(model, weight);
+                // Yield BELOW DispatcherPriority.Render so WPF actually paints the
+                // progress-bar update before the next iteration. Task.Yield posts at
+                // Normal (9), which preempts Render (7) — that meant the loop ran
+                // back-to-back without ever rendering, freezing the UI for the whole
+                // scan and only repainting once at the end. Background (4) is below
+                // Render, so the dispatcher must drain Render before resuming us.
+                // Doubles as the "wait for deferred-drain" yield ApplyBodySlide
+                // sometimes needs when the scene is mid-rebuild.
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+
+                // Persist measurements (not descriptors) into the shared cache. Descriptors
+                // are derived later via DeriveDescriptorsFor + the profile's current rules.
+                // Storing every defined measurement (null for failures) preserves the
+                // "this measurement could not be computed" signal through the cache.
+                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry { TopologyMismatch = result.TopologyMismatch };
+                if (profileModel.Measurements != null)
                 {
-                    if (ct.IsCancellationRequested) break;
-                    ScanStatus = $"Scanning {done + 1}/{total}: {model.Label} @ {weight}";
-
-                    viewer.ApplyBodySlide(model, weight);
-                    // Yield BELOW DispatcherPriority.Render so WPF actually paints the
-                    // progress-bar update before the next iteration. Task.Yield posts at
-                    // Normal (9), which preempts Render (7) — that meant the loop ran
-                    // back-to-back without ever rendering, freezing the UI for the whole
-                    // scan and only repainting once at the end. Background (4) is below
-                    // Render, so the dispatcher must drain Render before resuming us.
-                    // Doubles as the "wait for deferred-drain" yield ApplyBodySlide
-                    // sometimes needs when the scene is mid-rebuild.
-                    await Dispatcher.Yield(DispatcherPriority.Background);
-
-                    var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
-                    var matchedSignatures = result.Descriptors
-                        .Select(d => new BodyShapeDescriptor.LabelSignature { Category = d.Category, Value = d.Value })
-                        .ToList();
-                    profile.ScanResults[(model.Label ?? "", gender, weight)] = matchedSignatures;
-
-                    if (firstMeasSnapshot == null)
+                    foreach (var def in profileModel.Measurements)
                     {
-                        firstMeasSnapshot = new Dictionary<string, float>(result.Measurements);
-                        firstLabel = $"{model.Label}@W{weight}";
-                        if (VerboseScan)
-                        {
-                            _logger?.LogMessage($"BodyTypeProfile scan diag: first iter '{firstLabel}' → measurements={result.Measurements.Count}, failed={result.FailedMeasurements.Count}, rule matches={result.Descriptors.Count}, topologyMismatch={result.TopologyMismatch}");
-                        }
+                        if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                        entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
+                            ? (float?)v
+                            : null;
                     }
-                    lastMeasSnapshot = new Dictionary<string, float>(result.Measurements);
-                    lastLabel = $"{model.Label}@W{weight}";
-
-                    done++;
-                    ScanProgressPercent = total > 0 ? (done * 100) / total : 100;
                 }
+                profile.MeasurementCache[(model.Label ?? "", gender, weight)] = entry;
+
+                if (firstMeasSnapshot == null)
+                {
+                    firstMeasSnapshot = new Dictionary<string, float>(result.Measurements);
+                    firstLabel = $"{model.Label}@W{weight}";
+                    if (VerboseScan)
+                    {
+                        _logger?.LogMessage($"BodyTypeProfile scan diag: first iter '{firstLabel}' → measurements={result.Measurements.Count}, failed={result.FailedMeasurements.Count}, rule matches={result.Descriptors.Count}, topologyMismatch={result.TopologyMismatch}");
+                    }
+                }
+                lastMeasSnapshot = new Dictionary<string, float>(result.Measurements);
+                lastLabel = $"{model.Label}@W{weight}";
+
+                done++;
+                ScanProgressPercent = (done * 100) / missing.Count;
             }
 
             if (VerboseScan && firstMeasSnapshot != null && lastMeasSnapshot != null)
@@ -787,18 +848,25 @@ public class VM_BodyTypeProfileEditor : VM
 
             if (ct.IsCancellationRequested)
             {
-                ScanStatus = $"Scan cancelled at {done}/{total}.";
+                ScanStatus = $"Scan cancelled at {done}/{missing.Count}.";
+                // Even on cancel, derive descriptors for whatever we did populate so the
+                // partial scan is visible in the Match Presets list.
+                profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
             }
             else
             {
+                profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
                 int withMatches = profile.ScanResults.Count(kv => kv.Value.Count > 0);
                 int empty = profile.ScanResults.Count - withMatches;
-                ScanStatus = $"Scan complete: {done} evaluations across {targets.Count} preset(s). {withMatches} with matches, {empty} empty.";
+                ScanStatus = reused > 0
+                    ? $"Scan complete: {done} evaluated, {reused} cached. {withMatches} with matches, {empty} empty."
+                    : $"Scan complete: {done} evaluations across {targets.Count} preset(s). {withMatches} with matches, {empty} empty.";
                 if (VerboseScan)
                 {
                     _logger?.LogMessage($"BodyTypeProfile scan summary: {withMatches} (preset, weight) combos produced ≥1 match; {empty} produced none.");
                 }
                 profile.ScanResultsStale = false;
+                profile.MeasurementCacheStale = false;
                 ScanCacheStale = false;
             }
             RebuildWeightFilterOptions();
@@ -1164,19 +1232,23 @@ public class VM_BodyTypeProfile : VM
         // newly-added vertex name, or lose a deleted one).
         KeyVertices.CollectionChanged += (_, __) => RefreshMeasurementValues();
 
-        // Match-Presets scan cache invalidation. Any change to rules/measurements/key
-        // vertices (structural or value-level) marks the cache stale so the user sees that
-        // re-scanning is needed. Threshold edits on condition rows propagate through the
-        // deep PropertyChanged hooks below.
-        KeyVertices.CollectionChanged += (_, __) => MarkScanResultsStale();
-        foreach (var m in Measurements) m.PropertyChanged += OnScanInvalidatingChange;
+        // Scan cache invalidation. Two distinct staleness signals:
+        //   * MeasurementCache stale — KeyVertices or MeasurementDefinitions changed, so the
+        //     cached numbers themselves are wrong. Requires a real re-scan (mesh deformation
+        //     + Evaluate). Implies ScanResults stale too.
+        //   * ScanResults stale (only) — Rules changed but the underlying measurements are
+        //     still valid. A "re-scan" is just rule re-evaluation against the cache, so it's
+        //     instantaneous and could even auto-rebuild; today it still requires a Scan click,
+        //     but that scan does no mesh work (every iteration is a cache hit).
+        KeyVertices.CollectionChanged += (_, __) => MarkMeasurementCacheStale();
+        foreach (var m in Measurements) m.PropertyChanged += OnMeasurementCacheInvalidatingChange;
         Measurements.CollectionChanged += (_, args) =>
         {
             if (args.OldItems != null)
-                foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnScanInvalidatingChange;
+                foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnMeasurementCacheInvalidatingChange;
             if (args.NewItems != null)
-                foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnScanInvalidatingChange;
-            MarkScanResultsStale();
+                foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnMeasurementCacheInvalidatingChange;
+            MarkMeasurementCacheStale();
         };
         foreach (var r in Rules) HookRuleForScanInvalidation(r);
         Rules.CollectionChanged += (_, args) =>
@@ -1971,6 +2043,98 @@ public class VM_BodyTypeProfile : VM
     {
         if (g == null) return;
         foreach (var c in g.Conditions) c.PropertyChanged -= OnScanInvalidatingChange;
+    }
+
+    // --- Shared measurements cache (Match Presets ↔ Label-Then-Suggest) ---
+
+    /// <summary>Per-iteration output of a Match Presets / Label-Then-Suggest scan, keyed by
+    /// (preset, gender, weight). Both scans write here on a cache miss and read here on a
+    /// cache hit, so scanning from one tab pre-populates the other. Survives rule edits —
+    /// only changes that affect the underlying numbers (KeyVertices, MeasurementDefinitions)
+    /// invalidate it via <see cref="MarkMeasurementCacheStale"/>.</summary>
+    public Dictionary<(string PresetLabel, Gender Gender, int Weight), MeasurementCacheEntry> MeasurementCache { get; } = new();
+
+    /// <summary>True when the measurements cache may not reflect the current key vertices /
+    /// measurement definitions. Set by <see cref="MarkMeasurementCacheStale"/>; cleared
+    /// after a scan repopulates the cache. Implies <see cref="ScanResultsStale"/> too —
+    /// stale measurements means stale derived descriptors.</summary>
+    public bool MeasurementCacheStale { get; set; } = true;
+
+    /// <summary>One cache entry. Measurements stored as float? so "the evaluator could not
+    /// compute this name" survives the cache as null instead of being indistinguishable
+    /// from a missing key.</summary>
+    public class MeasurementCacheEntry
+    {
+        public Dictionary<string, float?> Measurements { get; } = new(StringComparer.Ordinal);
+        public bool TopologyMismatch { get; set; }
+    }
+
+    /// <summary>PropertyChanged forwarder for leaf VM edits on KeyVertices /
+    /// MeasurementDefinitions — fields whose values change the numbers. Distinct from
+    /// <see cref="OnScanInvalidatingChange"/>, which covers rule-only edits that don't
+    /// invalidate the measurements cache.</summary>
+    private void OnMeasurementCacheInvalidatingChange(object? sender, PropertyChangedEventArgs e) => MarkMeasurementCacheStale();
+
+    /// <summary>Marks both the measurements cache and the derived descriptor list stale.
+    /// Used for KeyVertices and MeasurementDefinition changes — the underlying numbers
+    /// will differ, so any cached entry could be wrong.</summary>
+    private void MarkMeasurementCacheStale()
+    {
+        MeasurementCacheStale = true;
+        MarkScanResultsStale();
+    }
+
+    /// <summary>Re-derives one cache entry's descriptor list by running the profile's
+    /// current rules against its cached measurements. Cheap: rule evaluation only, no
+    /// mesh work. Mirrors the rule-loop in <see cref="BodySlideMeasurementEvaluator.Evaluate"/>
+    /// so re-deriving from cache produces the same descriptors as a fresh evaluation.</summary>
+    public List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsFor(
+        (string PresetLabel, Gender Gender, int Weight) key,
+        BodyTypeProfile profileModel,
+        bool includeDrafts)
+    {
+        var result = new List<BodyShapeDescriptor.LabelSignature>();
+        if (!MeasurementCache.TryGetValue(key, out var entry)) return result;
+        if (profileModel?.Rules == null) return result;
+
+        // RuleMatches expects float values, not float?. A null cache entry means the
+        // evaluator failed to compute that measurement, so any rule depending on it
+        // should fail to match — which is what dropping the key from the dict yields.
+        var floats = new Dictionary<string, float>(entry.Measurements.Count, StringComparer.Ordinal);
+        foreach (var kv in entry.Measurements)
+            if (kv.Value.HasValue) floats[kv.Key] = kv.Value.Value;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in profileModel.Rules)
+        {
+            if (rule == null) continue;
+            if (rule.IsDraft && !includeDrafts) continue;
+            if (rule.Descriptor == null
+                || string.IsNullOrEmpty(rule.Descriptor.Category)
+                || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
+            if (!MeasurementMath.RuleMatches(rule, floats)) continue;
+
+            string k = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
+            if (!seen.Add(k)) continue;
+
+            result.Add(new BodyShapeDescriptor.LabelSignature
+            {
+                Category = rule.Descriptor.Category,
+                Value = rule.Descriptor.Value,
+            });
+        }
+        return result;
+    }
+
+    /// <summary>Rebuilds <see cref="ScanResults"/> from the measurements cache + the
+    /// profile's current rules. O(presets × rules) and pure CPU — no mesh work, no GL,
+    /// no viewer needed. Called after a scan and on profile bind so the Match Presets
+    /// display reflects whatever's in the cache without forcing another scan.</summary>
+    public void RebuildScanResultsFromCache(BodyTypeProfile profileModel, bool includeDrafts = true)
+    {
+        ScanResults.Clear();
+        foreach (var key in MeasurementCache.Keys)
+            ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts);
     }
 }
 

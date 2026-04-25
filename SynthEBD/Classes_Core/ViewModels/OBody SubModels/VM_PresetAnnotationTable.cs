@@ -173,13 +173,46 @@ public class VM_PresetAnnotationTable : VM
                 return;
             }
 
+            // KeyVertices / MeasurementDefinition changes invalidate the numbers in the
+            // shared cache. Drop them now so the iteration below misses on every key.
+            if (profile.MeasurementCacheStale)
+                profile.MeasurementCache.Clear();
+
+            var profileModel = profile.DumpToModel();
+
+            // Compute the work set: keys this scan needs that aren't in the shared cache yet.
+            // Any prior Match Presets scan at overlapping weights populated entries we can
+            // reuse.
+            var missing = new List<(VM_BodySlidePlaceHolder ph, Gender gender, int weight)>();
+            foreach (var (ph, gender) in targets)
+            {
+                var label = ph.AssociatedModel.Label ?? "";
+                foreach (int weight in weightSlots)
+                {
+                    int clampedWeight = Math.Clamp(weight, 0, 100);
+                    if (!profile.MeasurementCache.ContainsKey((label, gender, clampedWeight)))
+                        missing.Add((ph, gender, clampedWeight));
+                }
+            }
+            int reused = total - missing.Count;
+
+            // All-hit fast path: every (preset, weight) slice is already cached. No mesh
+            // work or preview-NPC load — just rebuild the table from the cache.
+            if (missing.Count == 0)
+            {
+                PopulateRowsFromCache();
+                ScanStatus = $"Rebuilt from cache: {total} slice(s) reused, no scan needed.";
+                ScanProgressPercent = 100;
+                return;
+            }
+
             // Pre-flight: scan deforms whatever mesh is in the viewer. If the viewer is empty
             // (first-open / context loss) we'd loop with no shapes loaded and get all-null
             // measurements. Defer to the editor's existing auto-load helper.
             if (viewer.GetCurrentShapeVertexCounts().Count == 0)
             {
                 ScanStatus = "Loading preview NPC...";
-                bool loaded = await _editor.EnsurePreviewNpcLoadedAsync(targets[0].gender, ct);
+                bool loaded = await _editor.EnsurePreviewNpcLoadedAsync(missing[0].gender, ct);
                 if (!loaded)
                 {
                     ScanStatus = "No preview NPC available -- cannot scan.";
@@ -187,72 +220,57 @@ public class VM_PresetAnnotationTable : VM
                 }
             }
 
-            var profileModel = profile.DumpToModel();
-            var newRows = new List<VM_PresetAnnotationRow>(total);
             int done = 0;
 
-            foreach (var (ph, gender) in targets)
+            foreach (var (ph, gender, weight) in missing)
             {
                 if (ct.IsCancellationRequested) break;
                 var model = ph.AssociatedModel;
-                foreach (int weight in weightSlots)
+                ScanStatus = $"Scanning {done + 1}/{missing.Count}: {model.Label} @ {weight}" +
+                             (reused > 0 ? $" ({reused} cached)" : "");
+
+                viewer.ApplyBodySlide(model, weight);
+                // Yield BELOW DispatcherPriority.Render so WPF actually paints the
+                // progress-bar update before the next iteration. Task.Yield posts at
+                // Normal (9), which preempts Render (7) — that meant the loop ran
+                // back-to-back without ever rendering, freezing the UI for the whole
+                // scan and only repainting once at the end. Background (4) yields to
+                // Render. Same fix as RunScanAsync's per-iteration yield.
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+
+                // Persist measurements into the shared cache. The Match Presets display
+                // re-derives its descriptor list from these whenever rules change.
+                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry { TopologyMismatch = result.TopologyMismatch };
+                foreach (var def in profileModel.Measurements)
                 {
-                    if (ct.IsCancellationRequested) break;
-                    int clampedWeight = Math.Clamp(weight, 0, 100);
-                    ScanStatus = $"Scanning {done + 1}/{total}: {model.Label} @ {clampedWeight}";
-
-                    viewer.ApplyBodySlide(model, clampedWeight);
-                    // Yield BELOW DispatcherPriority.Render so WPF actually paints the
-                    // progress-bar update before the next iteration. Task.Yield posts at
-                    // Normal (9), which preempts Render (7) — that meant the loop ran
-                    // back-to-back without ever rendering, freezing the UI for the whole
-                    // scan and only repainting once at the end. Background (4) yields to
-                    // Render. Same fix as RunScanAsync's per-iteration yield.
-                    await Dispatcher.Yield(DispatcherPriority.Background);
-
-                    var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
-                    var row = new VM_PresetAnnotationRow(model.Label ?? "", gender, clampedWeight)
-                    {
-                        HasTopologyMismatch = result.TopologyMismatch,
-                    };
-
-                    // Populate measurement values for every defined measurement, even when the
-                    // evaluator didn't produce one (null = "failed to compute"). Indexer binding
-                    // requires the key to exist for every column the grid renders.
-                    foreach (var def in profileModel.Measurements)
-                    {
-                        if (def == null || string.IsNullOrEmpty(def.Name)) continue;
-                        row.MeasurementValues[def.Name] = result.Measurements.TryGetValue(def.Name, out var v) ? (float?)v : null;
-                    }
-
-                    // Hydrate annotations from the profile's persisted PresetAnnotations list so
-                    // re-scanning preserves the user's draft state.
-                    var existing = profile.FindAnnotation(model.Label ?? "", gender, clampedWeight);
-                    if (existing != null)
-                    {
-                        foreach (var d in existing.Descriptors)
-                        {
-                            if (d == null) continue;
-                            row.CurrentDescriptors.Add(new BodyShapeDescriptor.LabelSignature { Category = d.Category, Value = d.Value });
-                        }
-                    }
-
-                    newRows.Add(row);
-                    done++;
-                    ScanProgressPercent = total > 0 ? (done * 100) / total : 100;
+                    if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                    entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v) ? (float?)v : null;
                 }
+                profile.MeasurementCache[(model.Label ?? "", gender, weight)] = entry;
+
+                done++;
+                ScanProgressPercent = (done * 100) / missing.Count;
             }
 
-            Rows.Clear();
-            foreach (var row in newRows) Rows.Add(row);
+            // Rebuild the table from the full cache (newly-scanned + previously-cached
+            // entries from any prior scan). Then propagate the cache into Match Presets'
+            // descriptor view too so switching tabs shows fresh data without re-scanning.
+            PopulateRowsFromCache();
+            profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
+            profile.ScanResultsStale = false;
+            profile.MeasurementCacheStale = false;
 
             if (ct.IsCancellationRequested)
             {
-                ScanStatus = $"Scan cancelled at {done}/{total}.";
+                ScanStatus = $"Scan cancelled at {done}/{missing.Count}.";
             }
             else
             {
-                ScanStatus = $"Scanned {done} (preset, weight) slices across {targets.Count} preset(s).";
+                ScanStatus = reused > 0
+                    ? $"Scan complete: {done} evaluated, {reused} cached. {Rows.Count} row(s)."
+                    : $"Scanned {done} (preset, weight) slices across {targets.Count} preset(s).";
             }
         }
         catch (Exception ex)
@@ -358,9 +376,80 @@ public class VM_PresetAnnotationTable : VM
         Rows.Clear();
         RebuildColumnsFromProfile();
         RebuildWeightSlotsFromProfile();
-        ScanStatus = profile == null
-            ? "No profile selected."
-            : "Press Scan to populate the table.";
+
+        // Auto-populate from the shared cache. If the user (or a prior session) ran a
+        // Match Presets scan that filled MeasurementCache, the table shows those rows
+        // immediately without forcing a Scan click here.
+        PopulateRowsFromCache();
+        if (profile == null)
+            ScanStatus = "No profile selected.";
+        else if (Rows.Count > 0)
+            ScanStatus = $"Loaded {Rows.Count} row(s) from cache.";
+        else
+            ScanStatus = "Press Scan to populate the table.";
+    }
+
+    /// <summary>Rebuilds <see cref="Rows"/> from the profile's shared
+    /// <see cref="VM_BodyTypeProfile.MeasurementCache"/>. Filters cache entries to the
+    /// configured <see cref="WeightSlots"/> so the table reflects the user's per-profile
+    /// weight preference; entries from a different weight set (e.g. a Match Presets scan
+    /// at the global default weights) appear if they fall in the slot list. No mesh work,
+    /// no viewer dependency.</summary>
+    private void PopulateRowsFromCache()
+    {
+        Rows.Clear();
+        var profile = _watchedProfile;
+        if (profile == null || profile.MeasurementCache.Count == 0) return;
+
+        var allowedWeights = new HashSet<int>(WeightSlots);
+        var defs = profile.Measurements
+            .Where(m => m != null && !string.IsNullOrEmpty(m.Name))
+            .Select(m => m.Name)
+            .ToList();
+
+        // Stable order: gender, then preset label, then weight — matches the live scan's
+        // output ordering so re-scanning a populated table doesn't reorder rows.
+        var ordered = profile.MeasurementCache
+            .Where(kv => allowedWeights.Contains(kv.Key.Weight))
+            .OrderBy(kv => kv.Key.Gender)
+            .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(kv => kv.Key.Weight);
+
+        foreach (var kv in ordered)
+        {
+            var (label, gender, weight) = kv.Key;
+            var entry = kv.Value;
+            var row = new VM_PresetAnnotationRow(label, gender, weight)
+            {
+                HasTopologyMismatch = entry.TopologyMismatch,
+            };
+
+            // Indexer binding requires a key for every column the grid renders. Pull from
+            // cached measurements (null = "evaluator failed to compute") and from the
+            // current profile's def list so newly-added defs without cached values still
+            // show up as empty cells.
+            foreach (var name in defs)
+            {
+                row.MeasurementValues[name] = entry.Measurements.TryGetValue(name, out var v) ? v : null;
+            }
+
+            // Hydrate user-applied annotations so re-binding preserves draft state.
+            var existing = profile.FindAnnotation(label, gender, weight);
+            if (existing != null)
+            {
+                foreach (var d in existing.Descriptors)
+                {
+                    if (d == null) continue;
+                    row.CurrentDescriptors.Add(new BodyShapeDescriptor.LabelSignature
+                    {
+                        Category = d.Category,
+                        Value = d.Value
+                    });
+                }
+            }
+
+            Rows.Add(row);
+        }
     }
 
     private void OnProfileMeasurementsChanged(object sender, NotifyCollectionChangedEventArgs e)
