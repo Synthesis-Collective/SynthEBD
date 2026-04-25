@@ -128,6 +128,11 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: x => x is VM_PresetScanRow && !IsScanning,
             execute: x => { if (x is VM_PresetScanRow row) LoadScanResultInViewer(row); });
 
+        AnnotationTable = new VM_PresetAnnotationTable(this);
+        AnnotationEditor = new VM_PresetAnnotationEditor(this, _filterFactory);
+        SuggestMeasurements = new VM_SuggestMeasurementsPanel(this);
+        SuggestRules = new VM_SuggestRulesPanel(this);
+
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
 
@@ -429,6 +434,10 @@ public class VM_BodyTypeProfileEditor : VM
             .Skip(1)
             .Subscribe(_ => RefreshMatchingPresets())
             .DisposeWith(this);
+
+        // Same DI prerequisites (DescriptorUI + race groupings) as the filter, so piggyback
+        // on this call site to wire the new annotation editor's descriptor menu too.
+        AnnotationEditor.InitializeMenu(oBodyVM, raceGroupingVMs);
     }
 
     /// <summary>
@@ -951,6 +960,84 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Cancels an in-flight scan. Safe to call when no scan is running.</summary>
     public void CancelScan() => _scanCts?.Cancel();
+
+    /// <summary>Bottom-section VM for the new Label-then-Suggest tab. Owns the preset
+    /// annotation table, scan state, and column visibility prefs.</summary>
+    public VM_PresetAnnotationTable AnnotationTable { get; }
+
+    /// <summary>Top-section VM for the new Label-then-Suggest tab. Hosts the descriptor menu
+    /// in annotation mode and two-way syncs with <see cref="VM_PresetAnnotationTable.SelectedRow"/>
+    /// so picking a row in the table reloads the menu's checks for that slice.</summary>
+    public VM_PresetAnnotationEditor AnnotationEditor { get; }
+
+    /// <summary>Phase 5 panel: ranks profile measurements by how well they discriminate
+    /// between annotated descriptor-value groups. Output (curated by the user) feeds Phase 6's
+    /// rule synthesis.</summary>
+    public VM_SuggestMeasurementsPanel SuggestMeasurements { get; }
+
+    /// <summary>Phase 6 panel: synthesizes draft <see cref="MeasurementRule"/>s from the
+    /// curated measurement list and the user's annotations. Accepted rules land in the
+    /// active profile's Rules collection with IsDraft = true.</summary>
+    public VM_SuggestRulesPanel SuggestRules { get; }
+
+    /// <summary>Internal accessor so the new annotation table can iterate the same preset list
+    /// as Match Presets without re-implementing the lazy <c>_oBodyVM</c> resolution.</summary>
+    internal VM_BodySlidesMenu GetBodySlidesMenu() => _oBodyVM?.Invoke()?.BodySlidesUI;
+
+    /// <summary>Wrapper around <see cref="Logger.LogError"/> so the new annotation table doesn't
+    /// need a private logger reference. Mirrors the pattern <see cref="RunScanAsync"/> uses
+    /// inline.</summary>
+    internal void LogScanError(Exception ex)
+    {
+        _logger?.LogError("BodyTypeProfile annotation scan failed: " + ExceptionLogger.GetExceptionStack(ex));
+    }
+
+    /// <summary>Pre-flight helper: when the viewer's scene is empty (first-open / context loss /
+    /// reset), auto-load the configured preview NPC for <paramref name="gender"/> so the scan
+    /// has a base mesh to deform. Returns true when the scene is ready to scan, false when no
+    /// preview NPC is configured or the load did not commit a renderable scene.
+    /// <para>Mirrors the pre-flight block inside <see cref="RunScanAsync"/> so both the legacy
+    /// Match Presets scan and the new annotation-table scan share the same recovery path.</para></summary>
+    internal async System.Threading.Tasks.Task<bool> EnsurePreviewNpcLoadedAsync(Gender gender, System.Threading.CancellationToken ct)
+    {
+        var viewer = CharacterViewer;
+        if (viewer == null) return false;
+        if (viewer.GetCurrentShapeVertexCounts().Count > 0) return true;
+
+        if (lk == null) return false;
+        var previewSettings = _patcherState?.OBodySettings?.PreviewNpcs;
+        FormKey loadNpc = FormKey.Null;
+        if (previewSettings != null)
+        {
+            if (previewSettings.WeightPreviewNpcs.TryGetValue(PreviewWeight, out var pair) && pair != null)
+            {
+                loadNpc = gender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+            }
+            // Fall back to any configured weight slot for the same gender.
+            if (loadNpc.IsNull)
+            {
+                foreach (var kv in previewSettings.WeightPreviewNpcs)
+                {
+                    if (kv.Value == null) continue;
+                    var candidate = gender == Gender.Female ? kv.Value.FemaleNpc : kv.Value.MaleNpc;
+                    if (!candidate.IsNull) { loadNpc = candidate; break; }
+                }
+            }
+        }
+
+        if (loadNpc.IsNull) return false;
+
+        await viewer.LoadNpcAsync(loadNpc, lk);
+
+        // LoadNpcAsync returns once the scene is queued; the GL upload lands on the next
+        // ProcessPendingScene tick. Poll until shapes appear (60 × 50ms = 3s ceiling).
+        int waitTicks = 0;
+        while (viewer.GetCurrentShapeVertexCounts().Count == 0 && waitTicks++ < 60 && !ct.IsCancellationRequested)
+        {
+            await System.Threading.Tasks.Task.Delay(50);
+        }
+        return viewer.GetCurrentShapeVertexCounts().Count > 0;
+    }
 }
 
 /// <summary>
@@ -1001,14 +1088,15 @@ public class VM_BodyTypeProfile : VM
                 Rules.Add(new VM_MeasurementRule(r, this));
             }
         }
-        if (_source.LabeledExamples != null)
+        if (_source.PresetAnnotations != null)
         {
-            foreach (var l in _source.LabeledExamples)
+            foreach (var pa in _source.PresetAnnotations)
             {
-                if (l == null) continue;
-                LabeledExamples.Add(new VM_LabeledExample(l, this));
+                if (pa == null) continue;
+                PresetAnnotations.Add(pa);
             }
         }
+        AnnotatorPrefs = _source.AnnotatorPrefs ?? new AnnotatorPreferences();
 
         AddMeasurement = new RelayCommand(
             canExecute: _ => true,
@@ -1032,10 +1120,6 @@ public class VM_BodyTypeProfile : VM
                 FingerprintVertexCount = counts.Values.Sum();
                 FingerprintShapeCounts = string.Join(", ", counts.Select(kv => kv.Key + ":" + kv.Value));
             });
-
-        SuggestThresholds = new RelayCommand(
-            canExecute: _ => SelectedDescriptorForLabeling != null && LabeledExamples.Any(),
-            execute: _ => RunSuggestThresholds());
 
         RemoveSelectedKeyVertex = new RelayCommand(
             canExecute: _ => SelectedKeyVertex != null,
@@ -1149,7 +1233,40 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<VM_NamedKeyVertex> KeyVertices { get; } = new();
     public ObservableCollection<VM_MeasurementDefinition> Measurements { get; } = new();
     public ObservableCollection<VM_MeasurementRule> Rules { get; } = new();
-    public ObservableCollection<VM_LabeledExample> LabeledExamples { get; } = new();
+
+    /// <summary>Persisted draft annotations from the new Label-then-Suggest workflow. One entry
+    /// per (preset, gender, weight) slice the user has touched. Edited directly (no VM wrapper)
+    /// since the data is small and only mutated programmatically by the annotation editor.</summary>
+    public ObservableCollection<PresetAnnotation> PresetAnnotations { get; } = new();
+
+    /// <summary>Persisted UI prefs for the new tab (weight slots, column visibility, algorithm
+    /// choices). Held by reference -- mutating fields on this instance and re-saving the parent
+    /// settings file is enough to persist; no separate VM wrapper.</summary>
+    public AnnotatorPreferences AnnotatorPrefs { get; private set; }
+
+    /// <summary>Returns the persisted prefs, allocating a fresh instance on first access if the
+    /// profile predates this feature. Always returns non-null.</summary>
+    public AnnotatorPreferences GetOrCreateAnnotatorPrefs()
+    {
+        if (AnnotatorPrefs == null) AnnotatorPrefs = new AnnotatorPreferences();
+        return AnnotatorPrefs;
+    }
+
+    /// <summary>Looks up the annotation for one (preset, gender, weight) slice. Returns null
+    /// when the user has not annotated that slice yet.</summary>
+    public PresetAnnotation FindAnnotation(string presetLabel, Gender gender, int weight)
+    {
+        if (string.IsNullOrEmpty(presetLabel)) return null;
+        foreach (var pa in PresetAnnotations)
+        {
+            if (pa == null) continue;
+            if (pa.Weight != weight) continue;
+            if (pa.PresetGender != gender) continue;
+            if (!string.Equals(pa.PresetLabel, presetLabel, StringComparison.Ordinal)) continue;
+            return pa;
+        }
+        return null;
+    }
 
     /// <summary>Rules that match the currently-loaded preset's live measurements, including drafts.
     /// Rebuilt every time <see cref="RefreshMeasurementValues"/> runs. Unlike the real classifier
@@ -1219,13 +1336,9 @@ public class VM_BodyTypeProfile : VM
             .Subscribe(hasBox => { if (!hasBox) _pendingBoxEditTarget = null; });
     }
 
-    /// <summary>Descriptor the user is currently labeling examples for in suggest mode.</summary>
-    public BodyShapeDescriptor.LabelSignature? SelectedDescriptorForLabeling { get; set; }
-
     public RelayCommand AddMeasurement { get; }
     public RelayCommand AddRule { get; }
     public RelayCommand CaptureFingerprintFromActiveViewer { get; }
-    public RelayCommand SuggestThresholds { get; }
     public RelayCommand RemoveSelectedKeyVertex { get; }
     public RelayCommand ShowPicksInViewer { get; }
 
@@ -1705,105 +1818,6 @@ public class VM_BodyTypeProfile : VM
         viewer.SetMeasurementLines(segments);
     }
 
-    /// <summary>
-    /// Generates draft <see cref="MeasurementRule"/>s for <see cref="SelectedDescriptorForLabeling"/>
-    /// using a simple 1-D split heuristic over <see cref="LabeledExamples"/>. The user reviews
-    /// and promotes drafts in the manual rule editor; suggestions are never auto-applied.
-    /// </summary>
-    private void RunSuggestThresholds()
-    {
-        var target = SelectedDescriptorForLabeling;
-        if (target == null) return;
-
-        // Group labeled examples for the target descriptor.
-        var positives = LabeledExamples
-            .Where(l => l.Descriptor != null && SameDescriptor(l.Descriptor, target) && l.Polarity == LabelPolarity.Positive)
-            .Select(l => l.RecordedValuesByMeasurementName)
-            .ToList();
-        var negatives = LabeledExamples
-            .Where(l => l.Descriptor != null && SameDescriptor(l.Descriptor, target) && l.Polarity == LabelPolarity.Negative)
-            .Select(l => l.RecordedValuesByMeasurementName)
-            .ToList();
-
-        if (positives.Count == 0)
-        {
-            _parent.LogMessage("Suggest: need at least one positive example for " + target.Category + ":" + target.Value);
-            return;
-        }
-
-        // For each measurement that has at least one positive value, compute the median split.
-        var measurementNames = positives.SelectMany(d => d.Keys).Concat(negatives.SelectMany(d => d.Keys)).Distinct().ToList();
-
-        var draftGroup = new AndGatedMeasurementGroup();
-        int conditionsAdded = 0;
-
-        foreach (var mname in measurementNames)
-        {
-            var posVals = positives.Where(d => d.ContainsKey(mname)).Select(d => d[mname]).OrderBy(v => v).ToList();
-            var negVals = negatives.Where(d => d.ContainsKey(mname)).Select(d => d[mname]).OrderBy(v => v).ToList();
-            if (posVals.Count == 0) continue;
-
-            float posMedian = posVals[posVals.Count / 2];
-
-            // If we have negatives, place the threshold halfway between medians; otherwise widen to +/- 10% around the positive median.
-            if (negVals.Count > 0)
-            {
-                float negMedian = negVals[negVals.Count / 2];
-                if (Math.Abs(posMedian - negMedian) < 1e-4f) continue; // medians collide -- not a useful split
-
-                float threshold = (posMedian + negMedian) * 0.5f;
-                var comp = posMedian > negMedian ? MeasurementComparator.GreaterThanOrEqual : MeasurementComparator.LessThanOrEqual;
-                draftGroup.ConditionsANDlogic.Add(new MeasurementCondition
-                {
-                    MeasurementName = mname,
-                    Comparator = comp,
-                    Value = (float)Math.Round(threshold, 3),
-                });
-                conditionsAdded++;
-            }
-            else
-            {
-                // No negatives -- bracket around the positive median (band rule -- two conditions ANDed).
-                float lo = posMedian * 0.9f;
-                float hi = posMedian * 1.1f;
-                draftGroup.ConditionsANDlogic.Add(new MeasurementCondition
-                {
-                    MeasurementName = mname,
-                    Comparator = MeasurementComparator.GreaterThanOrEqual,
-                    Value = (float)Math.Round(lo, 3),
-                });
-                draftGroup.ConditionsANDlogic.Add(new MeasurementCondition
-                {
-                    MeasurementName = mname,
-                    Comparator = MeasurementComparator.LessThanOrEqual,
-                    Value = (float)Math.Round(hi, 3),
-                });
-                conditionsAdded += 2;
-            }
-        }
-
-        if (conditionsAdded == 0)
-        {
-            _parent.LogMessage("Suggest: no usable measurements found for " + target.Category + ":" + target.Value);
-            return;
-        }
-
-        var draftRule = new MeasurementRule
-        {
-            Descriptor = new BodyShapeDescriptor.LabelSignature { Category = target.Category, Value = target.Value },
-            IsDraft = true,
-        };
-        draftRule.GroupsORlogic.Add(draftGroup);
-        Rules.Add(new VM_MeasurementRule(draftRule, this));
-    }
-
-    private static bool SameDescriptor(BodyShapeDescriptor.LabelSignature a, BodyShapeDescriptor.LabelSignature b)
-    {
-        return a != null && b != null
-            && string.Equals(a.Category, b.Category, StringComparison.Ordinal)
-            && string.Equals(a.Value, b.Value, StringComparison.Ordinal);
-    }
-
     private static string NextDefaultName(string prefix, IEnumerable<string> existing)
     {
         var taken = new HashSet<string>(existing.Where(s => !string.IsNullOrEmpty(s)));
@@ -1831,9 +1845,41 @@ public class VM_BodyTypeProfile : VM
             KeyVertices = KeyVertices.Select(k => k.DumpToModel()).ToList(),
             Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
             Rules = Rules.Select(r => r.DumpToModel()).ToList(),
-            LabeledExamples = LabeledExamples.Select(l => l.DumpToModel()).ToList(),
+            PresetAnnotations = PresetAnnotations.Select(CloneAnnotation).ToList(),
+            AnnotatorPrefs = CloneAnnotatorPrefs(AnnotatorPrefs),
         };
         return model;
+    }
+
+    private static PresetAnnotation CloneAnnotation(PresetAnnotation src)
+    {
+        if (src == null) return null;
+        var copy = new PresetAnnotation
+        {
+            PresetLabel = src.PresetLabel ?? "",
+            PresetGender = src.PresetGender,
+            Weight = src.Weight,
+        };
+        if (src.Descriptors != null)
+        {
+            foreach (var d in src.Descriptors)
+            {
+                if (d == null) continue;
+                copy.Descriptors.Add(new BodyShapeDescriptor.LabelSignature { Category = d.Category, Value = d.Value });
+            }
+        }
+        return copy;
+    }
+
+    private static AnnotatorPreferences CloneAnnotatorPrefs(AnnotatorPreferences src)
+    {
+        var copy = new AnnotatorPreferences();
+        if (src == null) return copy;
+        copy.SelectionAlgorithm = src.SelectionAlgorithm;
+        copy.SynthesisAlgorithm = src.SynthesisAlgorithm;
+        if (src.WeightSlots != null) copy.WeightSlots = new List<int>(src.WeightSlots);
+        if (src.VisibleMeasurementColumns != null) copy.VisibleMeasurementColumns = new List<string>(src.VisibleMeasurementColumns);
+        return copy;
     }
 
     private static Dictionary<string, int> ParseShapeCounts(string csv)
@@ -2237,61 +2283,6 @@ public class VM_MeasurementCondition : VM
         MeasurementName = MeasurementName?.Trim() ?? "",
         Comparator = Comparator,
         Value = Value,
-    };
-}
-
-/// <summary>
-/// Row VM for a <see cref="LabeledExample"/>. Snapshots the recorded measurement values so the
-/// suggest pass can re-run from persisted data without needing the original viewer state.
-/// </summary>
-public class VM_LabeledExample : VM
-{
-    private readonly VM_BodyTypeProfile _parent;
-
-    public VM_LabeledExample(LabeledExample source, VM_BodyTypeProfile parent)
-    {
-        _parent = parent;
-        DescriptorCategory = source.Descriptor?.Category ?? "";
-        DescriptorValue = source.Descriptor?.Value ?? "";
-        PresetLabel = source.PresetLabel ?? "";
-        PresetGender = source.PresetGender;
-        Weight = source.Weight;
-        Polarity = source.Polarity;
-
-        DeleteCommand = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => _parent.LabeledExamples.Remove(this));
-    }
-
-    public string DescriptorCategory { get; set; }
-    public string DescriptorValue { get; set; }
-    public string PresetLabel { get; set; }
-    public Gender PresetGender { get; set; }
-    public int Weight { get; set; }
-    public LabelPolarity Polarity { get; set; }
-
-    public RelayCommand DeleteCommand { get; }
-
-    /// <summary>
-    /// Measurement readings captured at labeling time. Stored runtime-only on the VM and
-    /// re-emitted into the persisted <see cref="LabeledExample"/> so the suggest pass can
-    /// score across sessions without re-loading the original preset/weight.
-    /// </summary>
-    public Dictionary<string, float> RecordedValuesByMeasurementName { get; set; } = new();
-
-    public BodyShapeDescriptor.LabelSignature Descriptor => new()
-    {
-        Category = DescriptorCategory ?? "",
-        Value = DescriptorValue ?? "",
-    };
-
-    public LabeledExample DumpToModel() => new()
-    {
-        Descriptor = Descriptor,
-        PresetLabel = PresetLabel?.Trim() ?? "",
-        PresetGender = PresetGender,
-        Weight = Weight,
-        Polarity = Polarity,
     };
 }
 

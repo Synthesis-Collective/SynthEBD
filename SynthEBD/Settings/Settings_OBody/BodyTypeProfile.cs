@@ -58,11 +58,19 @@ public class BodyTypeProfile
     public List<MeasurementRule> Rules { get; set; } = new();
 
     /// <summary>
-    /// Labeled training examples from the "Label-then-suggest" authoring mode. Persisted so
-    /// the user can iteratively refine threshold suggestions over multiple sessions.
-    /// Never consumed by the evaluator directly -- suggestions feed the manual rule editor.
+    /// Per-preset descriptor annotations from the new "Label-then-suggest" workflow. Each entry
+    /// records the full descriptor signatures the user assigned to one (preset, gender, weight)
+    /// slice. Persisted as drafts and used as input to the Suggest Measurements / Suggest Rules
+    /// algorithms. Never consumed by the evaluator directly.
     /// </summary>
-    public List<LabeledExample> LabeledExamples { get; set; } = new();
+    public List<PresetAnnotation> PresetAnnotations { get; set; } = new();
+
+    /// <summary>
+    /// Persisted preferences for the Label-then-suggest UI: which weight slots to enumerate,
+    /// which measurement columns are visible in the annotation table, and which algorithms
+    /// the Suggest Measurements / Suggest Rules panels default to.
+    /// </summary>
+    public AnnotatorPreferences AnnotatorPrefs { get; set; } = new();
 }
 
 /// <summary>
@@ -324,40 +332,92 @@ public class MeasurementRule
     public bool IsDraft { get; set; } = false;
 }
 
-/// <summary>Polarity of a <see cref="LabeledExample"/> relative to its target descriptor.</summary>
-public enum LabelPolarity
+/// <summary>
+/// One draft annotation in the Label-then-suggest workflow: the full set of descriptor
+/// signatures the user has tagged onto a single (preset, gender, weight) slice. Persisted on
+/// the profile as draft state -- used as training input for the Suggest Measurements and
+/// Suggest Rules algorithms, never consumed by the evaluator.
+/// </summary>
+[DebuggerDisplay("{PresetLabel}[{Weight}] -> {Descriptors.Count} descriptors")]
+public class PresetAnnotation
 {
-    /// <summary>Preset at this weight should produce the target descriptor.</summary>
-    Positive = 0,
+    /// <summary>BodySlide preset identifier. Uses <see cref="BodySlideSetting.Label"/> -- the same
+    /// stable human-readable key used elsewhere in the editor. If the preset is renamed the
+    /// annotation becomes orphaned and the suggest passes skip it.</summary>
+    public string PresetLabel { get; set; } = "";
 
-    /// <summary>Preset at this weight should NOT produce the target descriptor.</summary>
-    Negative = 1,
+    /// <summary>Gender of the preset (presets are split into male/female lists).</summary>
+    public Gender PresetGender { get; set; } = Gender.Female;
+
+    /// <summary>Weight slot (0-100) at which the annotation was captured. The viewer interpolates
+    /// between the preset's authored weight extremes when computing measurements at this slot.</summary>
+    public int Weight { get; set; } = 50;
+
+    /// <summary>Descriptor signatures the user has assigned to this (preset, weight) slice. A
+    /// preset can carry multiple descriptors (e.g. BodyShape=Athletic + Tone=Toned); each one
+    /// participates in its own per-Category training group during Suggest Measurements.</summary>
+    public List<BodyShapeDescriptor.LabelSignature> Descriptors { get; set; } = new();
+}
+
+/// <summary>Algorithm used by the Suggest Measurements pass to score how well each measurement
+/// discriminates between annotated descriptor-value groups within a Category.</summary>
+public enum MeasurementSelectionAlgorithm
+{
+    /// <summary>One-way ANOVA F-statistic. Default. Handles >=2 groups per Category; ranks
+    /// measurements by between-group variance over within-group variance.</summary>
+    Anova = 0,
+
+    /// <summary>Cohen's d (|mean1 - mean2| / pooled std). Pairwise; for Categories with >2
+    /// values, the largest pairwise d across all value pairs is reported.</summary>
+    CohenD = 1,
+
+    /// <summary>Information gain from a best single-threshold split. Picks the threshold that
+    /// maximises entropy reduction over the descriptor-value labels.</summary>
+    InformationGain = 2,
+}
+
+/// <summary>Algorithm used by the Suggest Rules pass to turn a locked-in set of discriminating
+/// measurements into draft <see cref="MeasurementRule"/>s with concrete thresholds.</summary>
+public enum RuleSynthesisAlgorithm
+{
+    /// <summary>For each (Category, Value) target, pick the threshold per measurement that
+    /// maximises Youden's J (TPR - FPR) treating annotations matching the target as positives.
+    /// Default. Yields one rule per (target, measurement) pair, OR-combined into the final rule.</summary>
+    OptimalThresholdPerValue = 0,
+
+    /// <summary>Legacy median-split: threshold halfway between positive and negative group
+    /// medians, comparator chosen to favour positives. One rule per (target, measurement) pair.</summary>
+    MedianSplit = 1,
+
+    /// <summary>Single-split decision stump per (Category, Value) target: chooses the (measurement,
+    /// threshold) combination that minimises Gini impurity over the positive/negative labels.
+    /// Yields one rule per target rather than one per measurement.</summary>
+    DecisionStump = 2,
 }
 
 /// <summary>
-/// One training datum for the Label-then-suggest mode. Identifies a single
-/// (descriptor, preset, weight) tuple that the user has tagged positive or negative.
+/// Persisted preferences for the Label-then-suggest UI on a <see cref="BodyTypeProfile"/>.
+/// Lives on the profile (not on Settings_OBody) because column visibility is per-measurement-set
+/// and weight-slot needs vary by body type / authoring task.
 /// </summary>
-[DebuggerDisplay("{Descriptor.Category}:{Descriptor.Value} {Polarity} @ {PresetLabel}[{Weight}]")]
-public class LabeledExample
+public class AnnotatorPreferences
 {
-    /// <summary>Descriptor this example is for.</summary>
-    public BodyShapeDescriptor.LabelSignature Descriptor { get; set; } = new();
+    /// <summary>Weight slots to enumerate in the annotation table, one row per (preset, slot).
+    /// Defaults to [0, 25, 50, 75, 100]. Values are clamped to [0, 100] at scan time.</summary>
+    public List<int> WeightSlots { get; set; } = new() { 0, 25, 50, 75, 100 };
 
-    /// <summary>
-    /// BodySlide preset identifier. Uses the preset's <see cref="BodySlideSetting.Label"/> since
-    /// that is the stable human-readable key the UI displays; if the label changes the example
-    /// becomes an orphan that the suggest pass will skip.
-    /// </summary>
-    public string PresetLabel { get; set; } = "";
+    /// <summary>Names of <see cref="MeasurementDefinition"/>s that should be visible as columns
+    /// in the annotation table. Empty list = show every measurement (default for new profiles).
+    /// Names that no longer resolve to a measurement are silently ignored.</summary>
+    public List<string> VisibleMeasurementColumns { get; set; } = new();
 
-    /// <summary>Gender of the preset this example was captured from (presets are split into Male/Female lists).</summary>
-    public Gender PresetGender { get; set; } = Gender.Female;
+    /// <summary>Default algorithm used by the Suggest Measurements panel. The user can switch
+    /// at runtime; switching updates this value so the choice survives across sessions.</summary>
+    public MeasurementSelectionAlgorithm SelectionAlgorithm { get; set; } = MeasurementSelectionAlgorithm.Anova;
 
-    /// <summary>Weight slot (0-100) at which the example was captured.</summary>
-    public int Weight { get; set; } = 50;
-
-    public LabelPolarity Polarity { get; set; } = LabelPolarity.Positive;
+    /// <summary>Default algorithm used by the Suggest Rules panel. Same persistence semantics
+    /// as <see cref="SelectionAlgorithm"/>.</summary>
+    public RuleSynthesisAlgorithm SynthesisAlgorithm { get; set; } = RuleSynthesisAlgorithm.OptimalThresholdPerValue;
 }
 
 /// <summary>

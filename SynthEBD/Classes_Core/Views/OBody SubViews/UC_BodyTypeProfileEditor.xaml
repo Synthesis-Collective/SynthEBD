@@ -395,66 +395,24 @@
                             </TabItem>
 
                             <TabItem Header="Label-then-Suggest">
+                                <!-- The enclosing ContentControl on line 105 sets the DataContext
+                                     to VM_BodyTypeProfile via DataTemplate, but AnnotationEditor /
+                                     AnnotationTable / SuggestMeasurements / SuggestRules live on
+                                     VM_BodyTypeProfileEditor (one level up). Walk RelativeSource
+                                     to the root UserControl and pull from its DataContext. -->
                                 <DockPanel>
-                                    <StackPanel DockPanel.Dock="Top" Margin="0,5">
-                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,5"
-                                                   Text="Tag presets/weights as positive or negative examples for a target descriptor, then run Suggest Thresholds. The pass appends a draft rule to the Rules tab; review and click Promote to enable it."/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Target Descriptor:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                            <ComboBox ItemsSource="{Binding AvailableDescriptors}"
-                                                      SelectedItem="{Binding SelectedDescriptorForLabeling}"
-                                                      MinWidth="220" Margin="0,0,10,0">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock>
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="{}{0}: {1}">
-                                                                    <Binding Path="Category"/>
-                                                                    <Binding Path="Value"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                            <Button Content="Suggest Thresholds (draft rule)" Command="{Binding SuggestThresholds}" Padding="6,1"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <DataGrid ItemsSource="{Binding LabeledExamples}"
-                                              AutoGenerateColumns="False"
-                                              CanUserAddRows="False" CanUserDeleteRows="False"
-                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                                              RowHeaderWidth="0">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Category" Binding="{Binding DescriptorCategory, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
-                                            <DataGridTextColumn Header="Value" Binding="{Binding DescriptorValue, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
-                                            <DataGridTextColumn Header="Preset Label" Binding="{Binding PresetLabel, UpdateSourceTrigger=PropertyChanged}" Width="200"/>
-                                            <DataGridTemplateColumn Header="Gender" Width="90">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <ComboBox SelectedValue="{Binding PresetGender, UpdateSourceTrigger=PropertyChanged}"
-                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="Weight" Binding="{Binding Weight, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
-                                            <DataGridTemplateColumn Header="Polarity" Width="100">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <ComboBox SelectedValue="{Binding Polarity, UpdateSourceTrigger=PropertyChanged}"
-                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:LabelPolarity}}}"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Width="40">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Button Content="X" Command="{Binding DeleteCommand}"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
+                                    <local:UC_PresetAnnotationEditor DockPanel.Dock="Top"
+                                                                      DataContext="{Binding DataContext.AnnotationEditor, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                                      MaxHeight="260"/>
+                                    <Expander DockPanel.Dock="Top" Header="Suggest Measurements" IsExpanded="False" Margin="0,2,0,0">
+                                        <local:UC_SuggestMeasurementsPanel DataContext="{Binding DataContext.SuggestMeasurements, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                                            MaxHeight="240"/>
+                                    </Expander>
+                                    <Expander DockPanel.Dock="Top" Header="Suggest Rules" IsExpanded="False" Margin="0,2,0,0">
+                                        <local:UC_SuggestRulesPanel DataContext="{Binding DataContext.SuggestRules, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                                                     MaxHeight="240"/>
+                                    </Expander>
+                                    <local:UC_PresetAnnotationTable DataContext="{Binding DataContext.AnnotationTable, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
                                 </DockPanel>
                             </TabItem>
 
