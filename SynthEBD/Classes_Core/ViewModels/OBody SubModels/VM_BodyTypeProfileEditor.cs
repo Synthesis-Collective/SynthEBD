@@ -629,6 +629,70 @@ public class VM_BodyTypeProfileEditor : VM
                 return;
             }
 
+            // Pre-flight: the scan deforms whatever body mesh is currently in the viewer
+            // through every preset. If the viewer is empty (first-open with no preset
+            // selected; GL context loss with no SelectedPreset to auto-recover from;
+            // viewer reset / dispose), every ApplyBodySlide call below would hit the
+            // _cachedBodyMeshes.Count == 0 early-return path in CharacterViewer and
+            // produce N queue-and-discard cycles with zero deformations and zero matches.
+            // Auto-load a configured preview NPC so the scan is self-sufficient.
+            if (viewer.GetCurrentShapeVertexCounts().Count == 0)
+            {
+                if (lk == null)
+                {
+                    ScanStatus = "No load order link cache available — cannot auto-load a preview NPC.";
+                    return;
+                }
+
+                Gender loadGender = targets[0].gender;
+                var previewSettings = _patcherState?.OBodySettings?.PreviewNpcs;
+                FormKey loadNpc = FormKey.Null;
+                if (previewSettings != null)
+                {
+                    if (previewSettings.WeightPreviewNpcs.TryGetValue(PreviewWeight, out var pair) && pair != null)
+                    {
+                        loadNpc = loadGender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+                    }
+                    // Fallback to any other configured weight slot for the same gender so the
+                    // scan still proceeds when PreviewWeight's slot is empty.
+                    if (loadNpc.IsNull)
+                    {
+                        foreach (var kv in previewSettings.WeightPreviewNpcs)
+                        {
+                            if (kv.Value == null) continue;
+                            var candidate = loadGender == Gender.Female ? kv.Value.FemaleNpc : kv.Value.MaleNpc;
+                            if (!candidate.IsNull) { loadNpc = candidate; break; }
+                        }
+                    }
+                }
+
+                if (loadNpc.IsNull)
+                {
+                    ScanStatus = $"No preview NPC configured for {loadGender}. Set one in OBody settings → Preview NPCs.";
+                    return;
+                }
+
+                ScanStatus = $"Loading preview NPC for {loadGender}...";
+                await viewer.LoadNpcAsync(loadNpc, lk);
+
+                // LoadNpcAsync returns once the scene is queued; the GL upload that populates
+                // _cachedBodyMeshes happens on the next render frame in ProcessPendingScene.
+                // Poll until shapes appear so the first iteration's ApplyBodySlide hits the
+                // direct-deform path. 60 × 50ms = 3s ceiling: plenty for a normal load,
+                // short enough to fail loudly if something is wrong.
+                int waitTicks = 0;
+                while (viewer.GetCurrentShapeVertexCounts().Count == 0 && waitTicks++ < 60 && !ct.IsCancellationRequested)
+                {
+                    await System.Threading.Tasks.Task.Delay(50);
+                }
+
+                if (viewer.GetCurrentShapeVertexCounts().Count == 0)
+                {
+                    ScanStatus = "Preview NPC load did not commit a renderable scene — cannot scan.";
+                    return;
+                }
+            }
+
             profile.ScanResults.Clear();
             var profileModel = profile.DumpToModel();
             int done = 0;
