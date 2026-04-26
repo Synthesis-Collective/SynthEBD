@@ -32,15 +32,45 @@ public abstract record CameraFraming
     /// <see cref="MeshAware"/> when hair shouldn't be cropped.</summary>
     public sealed record Portrait(float HeadTopOffset, float HeadBottomOffset) : CameraFraming;
 
-    /// <summary>Explicit camera placement. Yaw/Pitch/Roll are degrees;
-    /// X/Y/Z is the camera position in world units; Fov is vertical field
-    /// of view in degrees. Roll and per-render Fov overrides aren't
-    /// currently honored by the orbit camera and are reserved for a future
-    /// enhancement.</summary>
+    /// <summary>Explicit eye-position camera placement. Yaw/Pitch/Roll are
+    /// degrees; X/Y/Z is the camera position in world units; Fov is vertical
+    /// field of view in degrees. The renderer hardcodes the orbit target to
+    /// the head's world Y position and back-solves orbit params from the
+    /// (X, Y, Z) eye offset, so this case is lossy if the desired target
+    /// is anywhere except above-origin at head height.
+    ///
+    /// <para>For a manual-mode UI where the user pans + orbits + zooms
+    /// directly via mouse interaction, prefer <see cref="OrbitState"/> —
+    /// it carries the full orbit state losslessly so preview and saved
+    /// PNG framing match exactly.</para>
+    ///
+    /// <para>Roll and per-render Fov overrides aren't currently honored by
+    /// the orbit camera and are reserved for a future enhancement.</para></summary>
     public sealed record Fixed(
         float Yaw, float Pitch, float Roll,
         float X, float Y, float Z,
         float Fov) : CameraFraming;
+
+    /// <summary>Direct orbit-camera state. Bypasses any auto-framing or
+    /// eye-to-orbit conversion — the renderer writes the values onto
+    /// <c>vm.Camera</c> verbatim. Used by hosts that drive the camera
+    /// from interactive UI (drag-to-orbit, scroll-to-zoom, middle-drag
+    /// to pan) and want the saved PNG to exactly match the preview's
+    /// framing.
+    ///
+    /// <para><see cref="Distance"/> is the orbit radius (must be positive;
+    /// clamped to the camera's MinDistance). <see cref="Azimuth"/> +
+    /// <see cref="Elevation"/> are the orbit angles in degrees (180° / 0°
+    /// = facing the character from the front). <see cref="TargetX"/> /
+    /// <see cref="TargetY"/> / <see cref="TargetZ"/> is the world-space
+    /// point the camera orbits around.</para></summary>
+    public sealed record OrbitState(
+        float Distance,
+        float Azimuth,
+        float Elevation,
+        float TargetX,
+        float TargetY,
+        float TargetZ) : CameraFraming;
 
     /// <summary>
     /// Frames around a bounding box computed from selected loaded shapes
