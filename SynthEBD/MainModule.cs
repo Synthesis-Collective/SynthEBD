@@ -99,6 +99,11 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SynthEbdDataFolderAdapter>().As<IDataFolderProvider>().SingleInstance();
         builder.RegisterType<SynthEbdBsaProviderAdapter>().As<IBsaArchiveProvider>().SingleInstance();
         builder.RegisterType<SynthEbdNpcMeshDataSourceAdapter>().As<INpcMeshDataSource>().SingleInstance();
+        // Routes VM_CharacterViewer's pending-scene field writes to the WPF
+        // dispatcher (UC_CharacterViewer's render callback runs on the UI
+        // thread). The offscreen renderer constructs the VM with the default
+        // InlineRenderThreadMarshaller instead — see Phase D.
+        builder.RegisterType<WpfDispatcherMarshaller>().As<IRenderThreadMarshaller>().SingleInstance();
 
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();

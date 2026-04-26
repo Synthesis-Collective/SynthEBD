@@ -189,6 +189,7 @@ public class VM_CharacterViewer : ViewerVm
     private System.Diagnostics.Stopwatch? _pendingHeadReplaceStopwatch;
 
     private readonly CharacterPreviewCache _previewCache;
+    private readonly IRenderThreadMarshaller _renderThread;
 
     // ═══════════════════════════════════════════════════════════════════════
     //  PUBLIC HOST-EXTENSION SURFACE
@@ -236,7 +237,8 @@ public class VM_CharacterViewer : ViewerVm
         ICharacterViewerSettings generalSettings,
         CharacterPreviewCache previewCache,
         CharacterViewerLogGate logGate,
-        ICharacterViewerLogger logger)
+        ICharacterViewerLogger logger,
+        IRenderThreadMarshaller? renderThread = null)
     {
         _logGate = logGate;
         _previewCache = previewCache;
@@ -250,6 +252,7 @@ public class VM_CharacterViewer : ViewerVm
         _assetResolver = assetResolver;
         _generalSettings = generalSettings;
         _logger = logger;
+        _renderThread = renderThread ?? new InlineRenderThreadMarshaller();
 
         // Verbose-log state lives in Settings_General as the single source of truth.
         // Every live VM_CharacterViewer instance reactively syncs its local VerboseLog
@@ -820,6 +823,13 @@ public class VM_CharacterViewer : ViewerVm
 
     private static string? PromptForName(string title, string message, string defaultValue)
     {
+        // Save/delete-preset commands route here from the WPF toolbar buttons,
+        // so they always run with Application.Current set. Offscreen renderers
+        // never trigger this path; the null guard makes that explicit and
+        // keeps the method offscreen-safe in case a future host wires the
+        // commands somewhere unusual.
+        if (System.Windows.Application.Current?.Dispatcher == null) return null;
+
         string? result = null;
         Application.Current.Dispatcher.Invoke(() =>
         {
@@ -2533,7 +2543,7 @@ public class VM_CharacterViewer : ViewerVm
             int totalShapes = loadResults.Sum(r => r.Meshes.Count);
             LogLoadCheckpoint(loadStopwatch, "NIFs parsed + skinned (" + totalShapes +
                 " shapes across " + loadResults.Count + " parts)");
-            Application.Current.Dispatcher.Invoke(() =>
+            _renderThread.Invoke(() =>
             {
                 _pendingScene = (loadResults, paths);
                 _pendingLoadIdentityKey = identity.CacheKey;
@@ -3084,7 +3094,7 @@ public class VM_CharacterViewer : ViewerVm
 
         LogLoadCheckpoint(headStopwatch, "Head NIF parsed (" + meshes.Count + " shape(s))");
 
-        Application.Current.Dispatcher.Invoke(() =>
+        _renderThread.Invoke(() =>
         {
             _pendingHeadReplace = (headNifPath, meshes);
             _pendingHeadReplaceStopwatch = headStopwatch;
