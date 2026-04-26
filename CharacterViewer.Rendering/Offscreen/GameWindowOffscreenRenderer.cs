@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -8,6 +10,7 @@ using OpenTK.Windowing.Desktop;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
+using NumericsVec3 = System.Numerics.Vector3;
 
 namespace CharacterViewer.Rendering.Offscreen;
 
@@ -242,7 +245,174 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     MathF.Sqrt(dx * dx + dz * dz)) * (180f / MathF.PI);
                 break;
             }
+            case CameraFraming.MeshAware meshAware:
+            {
+                ConfigureMeshAwareCamera(vm, meshAware, request.Width, request.Height);
+                break;
+            }
         }
+    }
+
+    /// <summary>Computes the framing bbox from <paramref name="meshAware"/>'s
+    /// shape selectors / filters / paddings, then sets the orbit camera's
+    /// Distance + Target so the bbox fits inside the requested framing band
+    /// at the framebuffer's aspect ratio.
+    ///
+    /// <para>Empty match (no shapes survived the selectors) leaves the camera
+    /// at its current state — the renderer logs and renders without
+    /// re-framing rather than throwing, so a host that misconfigures a
+    /// selector doesn't lose a whole batch of mugshots.</para></summary>
+    private static void ConfigureMeshAwareCamera(VM_CharacterViewer vm,
+        CameraFraming.MeshAware meshAware, int width, int height)
+    {
+        var camera = vm.Camera;
+        camera.Azimuth = meshAware.Yaw;
+        camera.Elevation = meshAware.Pitch;
+
+        var allMeshes = vm.Renderer.Meshes;
+        if (allMeshes.Count == 0) return;
+
+        // Collect per-FramingShape bboxes, then union.
+        var unionMin = new NumericsVec3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+        var unionMax = new NumericsVec3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+        bool anyContribution = false;
+
+        foreach (var shape in meshAware.Shapes)
+        {
+            var matched = MatchShapes(allMeshes, shape.Selector);
+            if (matched.Count == 0) continue;
+
+            // Resolve the filter's reference Y bound, if any.
+            float? minYBound = ResolveFilterMinY(shape.Filter, allMeshes);
+
+            foreach (var mesh in matched)
+            {
+                var verts = mesh.CpuPositions;
+                if (verts == null || verts.Length == 0) continue;
+
+                NumericsVec3 mn = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+                NumericsVec3 mx = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+                bool meshHadVerts = false;
+
+                for (int i = 0; i < verts.Length; i++)
+                {
+                    var v = verts[i];
+                    if (minYBound.HasValue && v.Y < minYBound.Value) continue;
+                    mn = NumericsVec3.Min(mn, v);
+                    mx = NumericsVec3.Max(mx, v);
+                    meshHadVerts = true;
+                }
+                if (!meshHadVerts) continue;
+
+                if (shape.Padding > 0f)
+                {
+                    var pad = new NumericsVec3(shape.Padding, shape.Padding, shape.Padding);
+                    mn -= pad;
+                    mx += pad;
+                }
+
+                unionMin = NumericsVec3.Min(unionMin, mn);
+                unionMax = NumericsVec3.Max(unionMax, mx);
+                anyContribution = true;
+            }
+        }
+
+        if (!anyContribution) return;
+
+        // Camera target = bbox center on Y; X/Z stay 0 so the orbit revolves
+        // around the character's vertical axis instead of an off-axis point.
+        float centerY = (unionMin.Y + unionMax.Y) * 0.5f;
+        camera.Target = new Vector3(0f, centerY, 0f);
+
+        // Fit the bbox vertical extent into the framing band (top-bottom
+        // fractions of the framebuffer). The band defines what fraction of
+        // the FBO the bbox should occupy vertically; distance scales
+        // inversely with band size.
+        float bboxHeight = unionMax.Y - unionMin.Y;
+        float bboxWidth = unionMax.X - unionMin.X;
+        float band = MathF.Max(0.05f, meshAware.FrameTopFraction - meshAware.FrameBottomFraction);
+
+        // Vertical fit: bboxHeight / band must equal 2 * D * tan(fov/2).
+        float halfFovRad = MathHelper.DegreesToRadians(camera.FieldOfView * 0.5f);
+        float tanHalfFov = MathF.Tan(halfFovRad);
+        float distanceForHeight = (bboxHeight / band) / (2f * tanHalfFov);
+
+        // Horizontal fit at this aspect: bboxWidth must fit in
+        // 2 * D * tan(fov/2) * aspect. If horizontal would clip, push back.
+        float aspect = (height > 0) ? (float)width / height : 1f;
+        float distanceForWidth = (bboxWidth) / (2f * tanHalfFov * aspect);
+
+        float distance = MathF.Max(distanceForHeight, distanceForWidth);
+        camera.Distance = MathF.Max(camera.MinDistance, distance);
+    }
+
+    private static IReadOnlyList<GlMesh> MatchShapes(IReadOnlyList<GlMesh> all, FramingShapeSelector selector)
+    {
+        return selector switch
+        {
+            FramingShapeSelector.AllLoaded => all,
+
+            FramingShapeSelector.PrimaryHead =>
+                all.Where(m => m.IsPrimaryHeadShape).ToList(),
+
+            FramingShapeSelector.HeadAccessories =>
+                all.Where(m => string.Equals(m.BodyPart, "Head", StringComparison.OrdinalIgnoreCase)
+                               && !m.IsPrimaryHeadShape).ToList(),
+
+            FramingShapeSelector.BodyPart bp =>
+                all.Where(m => string.Equals(m.BodyPart, bp.Name, StringComparison.OrdinalIgnoreCase)).ToList(),
+
+            FramingShapeSelector.ShapeNameContains snc =>
+                all.Where(m => m.ShapeName.Contains(snc.Substring, StringComparison.OrdinalIgnoreCase)
+                               && (snc.InBodyPart == null
+                                   || string.Equals(m.BodyPart, snc.InBodyPart, StringComparison.OrdinalIgnoreCase)))
+                   .ToList(),
+
+            _ => Array.Empty<GlMesh>(),
+        };
+    }
+
+    private static float? ResolveFilterMinY(FramingShapeFilter? filter, IReadOnlyList<GlMesh> all)
+    {
+        switch (filter)
+        {
+            case null:
+                return null;
+
+            case FramingShapeFilter.AboveWorldY abs:
+                return abs.Y;
+
+            case FramingShapeFilter.AboveLowerYOfPrimaryHead:
+            {
+                var primary = all.FirstOrDefault(m => m.IsPrimaryHeadShape);
+                return MinYOf(primary);
+            }
+
+            case FramingShapeFilter.AboveLowerYOfBodyPart bp:
+            {
+                float minY = float.PositiveInfinity;
+                bool found = false;
+                foreach (var m in all)
+                {
+                    if (!string.Equals(m.BodyPart, bp.BodyPart, StringComparison.OrdinalIgnoreCase)) continue;
+                    var y = MinYOf(m);
+                    if (y.HasValue && y.Value < minY) { minY = y.Value; found = true; }
+                }
+                return found ? minY : null;
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    private static float? MinYOf(GlMesh? mesh)
+    {
+        if (mesh?.CpuPositions == null || mesh.CpuPositions.Length == 0) return null;
+        float min = float.PositiveInfinity;
+        foreach (var v in mesh.CpuPositions)
+            if (v.Y < min) min = v.Y;
+        return float.IsFinite(min) ? min : null;
     }
 
     /// <summary>Lazily creates / resizes the FBO. Called inside the render
