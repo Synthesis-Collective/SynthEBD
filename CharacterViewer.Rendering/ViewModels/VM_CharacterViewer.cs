@@ -229,6 +229,22 @@ public class VM_CharacterViewer : ViewerVm
     public bool CanRebuildHeadOnly =>
         IsSceneReady && _cachedMeshPaths != null && TextureManager != null;
 
+    /// <summary>
+    /// Priority-ordered loose-file search paths consulted BEFORE the host's
+    /// <see cref="IDataFolderProvider.DataFolderPath"/> by this VM's
+    /// <see cref="GameAssetResolver"/> calls. Mutate via assignment
+    /// (full-list replacement) before calling <see cref="LoadByIdentityAsync"/>
+    /// or <see cref="LoadAsync"/> when the host wants to scope the preview to
+    /// a specific mod's folders. The list is captured on each <c>LoadAsync</c>
+    /// entry so changes mid-load don't race the in-flight resolution; the
+    /// resolver field is cleared after the scene commits (or on cancel/error)
+    /// so the next load starts cleanly.
+    ///
+    /// <para>Last entry wins (MO2-style convention). Set to <c>null</c> or an
+    /// empty list to use vanilla-only resolution.</para>
+    /// </summary>
+    public IReadOnlyList<string>? AdditionalDataFolders { get; set; }
+
     public VM_CharacterViewer(
         BodySlideDeformer bodySlideDeformer,
         BsdFileParser bsdFileParser,
@@ -2380,6 +2396,13 @@ public class VM_CharacterViewer : ViewerVm
         // Fired after the neutral drains above so subscribers see a fully-committed
         // scene, including any pending texture/morph state from the previous scene.
         SceneCommitted?.Invoke();
+
+        // Per-load mod-folder scope ends here — the multi-tick sliced install
+        // is finished, so clear the resolver field. Subsequent narrow updates
+        // (texture overrides, morphs) that need mod-folder scoping require the
+        // host to re-set AdditionalDataFolders and re-trigger LoadAsync; this
+        // matches the per-render contract documented on AdditionalDataFolders.
+        _assetResolver.SetAdditionalFolders(null);
     }
 
     /// <summary>Body and accessories upload before head/hair so the progressive
@@ -2532,6 +2555,14 @@ public class VM_CharacterViewer : ViewerVm
         // applied to the soon-to-be-destroyed current meshes.
         _sceneRebuildPending = true;
 
+        // Capture the host's mod-folder snapshot once and push it to the
+        // resolver before any off-thread NIF parsing kicks off. The resolver
+        // field is volatile so the off-thread Task.Run sees this write; it's
+        // cleared in ProcessPendingScene's finalize block (after SceneCommitted)
+        // or in the cancel/error path below if the load doesn't reach commit.
+        var additionalFolders = AdditionalDataFolders;
+        _assetResolver.SetAdditionalFolders(additionalFolders);
+
         IsLoading = true;
         StatusText = "Loading meshes...";
 
@@ -2605,7 +2636,19 @@ public class VM_CharacterViewer : ViewerVm
             // IsLoading when the queue drains in ProcessPendingScene. Cancel/error
             // paths fall through here with _pendingScene == null and need to drop
             // the spinner immediately.
-            if (_loadCts == cts && _pendingScene == null) IsLoading = false;
+            //
+            // Mod-folder cleanup mirrors that split: success leaves the resolver
+            // scoped for ProcessPendingScene to clear after SceneCommitted (it
+            // still needs the folders during the multi-tick install). Cancel /
+            // error clears here because SceneCommitted won't fire — but only if
+            // we're still the current load. A newer LoadAsync that just took
+            // over has already pushed its own folders; clearing here would
+            // wipe them out mid-flight.
+            if (_loadCts == cts && _pendingScene == null)
+            {
+                IsLoading = false;
+                _assetResolver.SetAdditionalFolders(null);
+            }
         }
     }
 

@@ -117,28 +117,48 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             if (_gw == null) throw new InvalidOperationException("GameWindow not initialized.");
 
             _gw.MakeCurrent();
-            EnsureFbo(request.Width, request.Height);
-
-            var vm = new VM_CharacterViewer(
-                _bodySlideDeformer, _bsdParser, _triParser, _assets,
-                _settings, _previewCache, _logGate, _logger
-                /* renderThread defaults to InlineRenderThreadMarshaller */);
             try
             {
-                LoadAndRender(vm, request);
+                EnsureFbo(request.Width, request.Height);
 
-                byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
-                FlipVertical(pixels, request.Width, request.Height);
+                // Per-render mod-folder scoping (defense-in-depth — VM.LoadAsync
+                // also pushes via vm.AdditionalDataFolders, but we ensure the
+                // resolver field is set before AND cleared after the render
+                // regardless of which code paths the VM hits). See Issue #1 in
+                // NPC_PLUGIN_CHOOSER_2_FOLLOWUPS.md for the rationale.
+                _assets.SetAdditionalFolders(request.AdditionalDataFolders);
+                var vm = new VM_CharacterViewer(
+                    _bodySlideDeformer, _bsdParser, _triParser, _assets,
+                    _settings, _previewCache, _logGate, _logger
+                    /* renderThread defaults to InlineRenderThreadMarshaller */);
+                try
+                {
+                    vm.AdditionalDataFolders = request.AdditionalDataFolders;
+                    LoadAndRender(vm, request);
 
-                GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+                    byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
+                    FlipVertical(pixels, request.Width, request.Height);
 
-                return encodeAsPng
-                    ? EncodePngFromRgba(pixels, request.Width, request.Height)
-                    : RgbaToBgra(pixels);
+                    GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+                    return encodeAsPng
+                        ? EncodePngFromRgba(pixels, request.Width, request.Height)
+                        : RgbaToBgra(pixels);
+                }
+                finally
+                {
+                    vm.Dispose();
+                    _assets.SetAdditionalFolders(null);
+                }
             }
             finally
             {
-                vm.Dispose();
+                // Detach the GL context so the next RenderToPngAsync — which
+                // lands on an arbitrary thread-pool thread via Task.Run — can
+                // MakeCurrent without WGL refusing because the context is
+                // still "in use" on a previous worker thread. Safe path via
+                // IGraphicsContext.MakeNoneCurrent (no unsafe block needed).
+                try { _gw.Context.MakeNoneCurrent(); } catch { /* best-effort */ }
             }
         }
     }

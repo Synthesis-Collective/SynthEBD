@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 
 namespace CharacterViewer.Rendering;
@@ -79,6 +80,22 @@ public class GameAssetResolver
 
     private readonly CharacterViewerLogGate _logGate;
 
+    /// <summary>
+    /// Optional priority-ordered loose-file search paths consulted BEFORE
+    /// <see cref="IDataFolderProvider.DataFolderPath"/> for the active
+    /// render or load. Set via <see cref="SetAdditionalFolders"/> by the
+    /// offscreen renderer (per-render scope) and <see cref="VM_CharacterViewer"/>
+    /// (per-load scope). Cleared back to null at end-of-scope so renders
+    /// don't leak mod folders between calls.
+    ///
+    /// Marked volatile because both writers (renderer's lock-held thread,
+    /// VM's render-thread marshaller) and readers (resolver calls during
+    /// off-thread <c>LoadAllMeshParts</c>) span thread boundaries —
+    /// volatility provides the memory barrier without forcing every
+    /// resolution to take a lock.
+    /// </summary>
+    private volatile IReadOnlyList<string>? _currentAdditionalFolders;
+
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
         IBsaArchiveProvider bsaProvider,
@@ -96,6 +113,29 @@ public class GameAssetResolver
     private void LogVerbose(string message)
     {
         if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
+    }
+
+    /// <summary>
+    /// Sets the priority-ordered loose-file search paths consulted before the
+    /// vanilla Data folder for subsequent resolutions. Pass <c>null</c> (or
+    /// an empty list) to clear back to vanilla-only behavior.
+    ///
+    /// <para>Last entry wins (matches the "later mod folder beats earlier in
+    /// the same conceptual mod" convention used by mod managers like MO2).
+    /// While additional folders are active, the loose-file resolution cache
+    /// is bypassed for both reads and writes — the same relative path may
+    /// resolve to different files between renders depending on which mod's
+    /// folders are currently scoped.</para>
+    ///
+    /// <para>Lifecycle is owned by the caller (offscreen renderer per-render,
+    /// or <see cref="VM_CharacterViewer"/> per-load): set before resolution,
+    /// clear in a finally / SceneCommitted block. The renderer's serialized
+    /// lock and the VM's marshaller-anchored resolution flow ensure no two
+    /// callers race on this state in practice.</para>
+    /// </summary>
+    public void SetAdditionalFolders(IReadOnlyList<string>? folders)
+    {
+        _currentAdditionalFolders = (folders == null || folders.Count == 0) ? null : folders;
     }
 
     /// <summary>
@@ -120,10 +160,20 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
+        // Snapshot the per-render mod-folder list once so a concurrent
+        // SetAdditionalFolders call between checks doesn't change our view
+        // mid-resolution. While folders are active, the loose-file cache is
+        // bypassed entirely — the same relative path may resolve to a
+        // different file depending on which mod's folders are currently
+        // scoped, so cached "vanilla path" or "miss" entries from prior
+        // unscoped resolutions would be wrong.
+        var additionalFolders = _currentAdditionalFolders;
+        bool useLooseCache = additionalFolders == null;
+
         // Fast path: previously-resolved loose file or definitive miss. Covers the
         // viewer's preset-switch re-request storm where the same ~20 texture paths
         // are asked for repeatedly. BSA hits have their own cache checked below.
-        if (_looseSourceCache.TryGetValue(relativeGamePath, out var cachedSource))
+        if (useLooseCache && _looseSourceCache.TryGetValue(relativeGamePath, out var cachedSource))
         {
             return cachedSource;
         }
@@ -135,26 +185,47 @@ public class GameAssetResolver
         if (Path.IsPathRooted(relativeGamePath) && File.Exists(relativeGamePath))
         {
             var src = new AssetSource(AssetOriginKind.Loose, relativeGamePath, relativeGamePath, relativeGamePath, null, null);
-            _looseSourceCache[relativeGamePath] = src;
+            if (useLooseCache) _looseSourceCache[relativeGamePath] = src;
             return src;
         }
 
         // Normalize separators
         string normalized = relativeGamePath.Replace('/', Path.DirectorySeparatorChar);
 
-        // Step 1: Check loose file
+        // Step 1a: Mod-scoped loose-file lookup (if scoped). Last entry wins
+        // per the host's convention (MO2-style) — iterate in reverse so the
+        // highest-priority mod folder takes precedence when multiple ship
+        // the same relative path.
+        if (additionalFolders != null)
+        {
+            for (int i = additionalFolders.Count - 1; i >= 0; i--)
+            {
+                var folder = additionalFolders[i];
+                if (string.IsNullOrEmpty(folder)) continue;
+                string candidate = Path.Combine(folder, normalized);
+                if (File.Exists(candidate))
+                {
+                    LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
+                        "' -> mod-folder loose file at '" + candidate + "'");
+                    return new AssetSource(AssetOriginKind.Loose, relativeGamePath,
+                        candidate, candidate, null, null);
+                }
+            }
+        }
+
+        // Step 1b: Vanilla loose file
         string loosePath = Path.Combine(_dataFolder.DataFolderPath, normalized);
         if (File.Exists(loosePath))
         {
             LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
             var src = new AssetSource(AssetOriginKind.Loose, relativeGamePath, loosePath, loosePath, null, null);
-            _looseSourceCache[relativeGamePath] = src;
+            if (useLooseCache) _looseSourceCache[relativeGamePath] = src;
             return src;
         }
 
         // Step 2: BSA fallback (uses extraction cache internally)
         var bsaResult = TryResolveFromBsa(relativeGamePath, normalized);
-        if (bsaResult.Kind == AssetOriginKind.NotFound)
+        if (bsaResult.Kind == AssetOriginKind.NotFound && useLooseCache)
         {
             // Cache the miss so the BSA traversal doesn't repeat on every
             // subsequent request for the same unresolvable asset.

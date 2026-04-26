@@ -76,4 +76,21 @@ public sealed class OffscreenRenderRequest
     /// <summary>Optional cancellation token. The renderer aborts at the next
     /// await point if cancellation is requested.</summary>
     public CancellationToken Cancellation { get; init; }
+
+    /// <summary>
+    /// Optional priority-ordered loose-file search paths consulted BEFORE
+    /// <see cref="IDataFolderProvider.DataFolderPath"/> for this render only.
+    /// Last entry wins (matches the "later mod folder beats earlier in the
+    /// same conceptual mod" convention used by mod managers like MO2). Hosts
+    /// use this to scope a render to a specific mod's loose overrides without
+    /// mutating shared adapter state — clears automatically when the request
+    /// goes out of scope.
+    ///
+    /// <para>Used by NPC Plugin Chooser 2's per-mod mugshot generation: each
+    /// render targets a specific mod's <c>CorrespondingFolderPaths</c> so
+    /// textures embedded inside NIFs (BSShaderTextureSet blocks) resolve
+    /// against that mod's folders without bleeding into renders of other
+    /// mods that ship the same relative path.</para>
+    /// </summary>
+    public IReadOnlyList<string>? AdditionalDataFolders { get; init; }
 }
