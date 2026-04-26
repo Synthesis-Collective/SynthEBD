@@ -57,6 +57,21 @@ public sealed class ResolvedNpcMeshPaths
     /// the NPC has no TextureLighting set.</summary>
     public (float R, float G, float B)? TextureLightingColor { get; init; }
 
+    /// <summary>NPC weight (0–100) from the NPC record, used by the morph
+    /// interpolator. Defaults to 50 if the host can't determine it.</summary>
+    public int NpcWeight { get; init; } = 50;
+
+    /// <summary>NPC.Height multiplier from the record (1.0 default). Applied
+    /// uniformly to the rendered model. The host should clamp zero/negative
+    /// values from malformed records before populating this.</summary>
+    public float NpcBaseHeight { get; init; } = 1f;
+
+    /// <summary>HCLR record-resolved hair color (RGB, 0..1). In-game Skyrim
+    /// uses this to override the default tint baked into the hair NIF's BSLSP.
+    /// Null when the NPC has no HairColor FormLink set or the host can't
+    /// resolve the HCLR record.</summary>
+    public (float R, float G, float B)? HairColorRgb { get; init; }
+
     /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
     /// the HeadParts preview flow to retarget the viewer at a temp FaceGen NIF
     /// without re-resolving the rest of the record chain.</summary>
@@ -73,5 +88,8 @@ public sealed class ResolvedNpcMeshPaths
             TxstTextures = TxstTextures,
             FaceTintPath = FaceTintPath,
             TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
         };
 }

@@ -66,6 +66,17 @@ public class GameAssetResolver
 
     private readonly string _extractionDir;
 
+    /// <summary>
+    /// Per-normalized-path lock objects so concurrent resolutions for the same
+    /// asset don't both try to extract to the same destination file. The
+    /// BodySlide menu has both a top-level viewer and a per-preset viewer, and
+    /// each viewer's <c>LoadAllMeshParts</c> may resolve the same FaceGen NIF
+    /// in parallel — without this lock the loser of the race gets a "file in
+    /// use" IOException and the head fails to render.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, object> _extractionLocks =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly CharacterViewerLogGate _logGate;
 
     public GameAssetResolver(
@@ -178,7 +189,8 @@ public class GameAssetResolver
 
     private AssetSource TryResolveFromBsa(string relativeGamePath, string normalized)
     {
-        // Check cached BSA source first (covers both re-resolves and re-extractions)
+        // Fast path before locking: if another thread already extracted and
+        // cached, return that immediately.
         if (_bsaSourceCache.TryGetValue(normalized, out var cachedSource) &&
             cachedSource.ResolvedDiskPath != null && File.Exists(cachedSource.ResolvedDiskPath))
         {
@@ -199,26 +211,42 @@ public class GameAssetResolver
         // Build extraction destination preserving the relative directory structure
         string destPath = Path.Combine(_extractionDir, normalized);
 
-        // Reuse a prior extraction if still on disk
-        if (_extractionCache.TryGetValue(normalized, out string? priorExtract) && File.Exists(priorExtract))
+        // Per-path lock: the cache-check + extract sequence must be atomic so
+        // concurrent callers (e.g. the BodySlide menu's main viewer + per-preset
+        // viewer both resolving the same FaceGen NIF) don't both call
+        // TryExtractToDisk on the same destPath and collide on the file write.
+        var lockObj = _extractionLocks.GetOrAdd(normalized, _ => new object());
+        lock (lockObj)
         {
-            var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, priorExtract,
-                null, containingBsaPath, bsaSubpath);
-            _bsaSourceCache[normalized] = source;
-            return source;
-        }
+            // Re-check cache inside the lock — another thread may have completed
+            // the extraction while we were waiting.
+            if (_bsaSourceCache.TryGetValue(normalized, out var racedSource) &&
+                racedSource.ResolvedDiskPath != null && File.Exists(racedSource.ResolvedDiskPath))
+            {
+                return racedSource;
+            }
 
-        if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
-        {
-            _extractionCache[normalized] = destPath;
-            LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
-            var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, destPath,
-                null, containingBsaPath, bsaSubpath);
-            _bsaSourceCache[normalized] = source;
-            return source;
-        }
+            // Reuse a prior extraction if still on disk
+            if (_extractionCache.TryGetValue(normalized, out string? priorExtract) && File.Exists(priorExtract))
+            {
+                var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, priorExtract,
+                    null, containingBsaPath, bsaSubpath);
+                _bsaSourceCache[normalized] = source;
+                return source;
+            }
 
-        _logger.LogError("CharacterViewer: Found '" + relativeGamePath + "' in BSA but extraction failed");
-        return AssetSource.NotFound(relativeGamePath);
+            if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
+            {
+                _extractionCache[normalized] = destPath;
+                LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
+                var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, destPath,
+                    null, containingBsaPath, bsaSubpath);
+                _bsaSourceCache[normalized] = source;
+                return source;
+            }
+
+            _logger.LogError("CharacterViewer: Found '" + relativeGamePath + "' in BSA but extraction failed");
+            return AssetSource.NotFound(relativeGamePath);
+        }
     }
 }

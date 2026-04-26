@@ -121,7 +121,7 @@ public class VM_CharacterViewer : VM
     private sealed record SceneInstallState(
         ResolvedNpcMeshPaths MeshPaths,
         Queue<PendingShape> Pending,
-        FormKey LoadNpcKey,
+        string LoadIdentityKey,
         string? HeadMeshOverride,
         Stopwatch? LoadStopwatch,
         int TotalShapes)
@@ -146,22 +146,24 @@ public class VM_CharacterViewer : VM
     /// <summary>Pending BodySlide to apply after scene setup.</summary>
     private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
 
-    /// <summary>FormKey of the NPC whose scene is currently installed in the renderer.
-    /// Captured at the end of ProcessPendingScene; cleared by ClearScene. Used by
-    /// LoadNpcAsync to short-circuit reloads of the same NPC when narrow editors
-    /// (BodySlide preset change, AssetPack subgroup flip) call LoadNpcAsync
-    /// defensively even though only a narrow downstream update is needed.</summary>
-    private FormKey _currentLoadedNpc = FormKey.Null;
+    /// <summary>NpcIdentity.CacheKey of the NPC whose scene is currently installed
+    /// in the renderer. Captured at the end of ProcessPendingScene; cleared by
+    /// ClearScene. Used by LoadAsync to short-circuit reloads of the same NPC
+    /// when narrow editors (BodySlide preset change, AssetPack subgroup flip)
+    /// call LoadAsync defensively even though only a narrow downstream update
+    /// is needed. Empty string when no NPC is loaded.</summary>
+    private string _currentLoadedIdentityKey = "";
 
     /// <summary>Head-mesh override path baked into the currently-installed scene
-    /// (absolute path from ApplyHeadPartsAsync's FaceGen preview output), or null
-    /// if the scene used the NPC's resolved head mesh. Compared case-insensitively
-    /// as part of the same-NPC short-circuit in LoadNpcAsync.</summary>
+    /// (absolute path from the host's FaceGen preview output), or null if the
+    /// scene used the NPC's resolved head mesh. Compared case-insensitively as
+    /// part of the same-NPC short-circuit in LoadAsync.</summary>
     private string? _currentHeadMeshOverride;
 
-    /// <summary>FormKey of the load whose results are queued in _pendingScene.
-    /// Promoted to _currentLoadedNpc by ProcessPendingScene once the scene commits.</summary>
-    private FormKey _pendingLoadNpcKey = FormKey.Null;
+    /// <summary>NpcIdentity.CacheKey of the load whose results are queued in
+    /// _pendingScene. Promoted to _currentLoadedIdentityKey by
+    /// ProcessPendingScene once the scene commits. Empty when no load pending.</summary>
+    private string _pendingLoadIdentityKey = "";
 
     /// <summary>Head-override path of the load whose results are queued in _pendingScene.
     /// Promoted to _currentHeadMeshOverride by ProcessPendingScene once the scene commits.</summary>
@@ -2102,8 +2104,8 @@ public class VM_CharacterViewer : VM
     /// are invalid in the new one — leaving them in place produces 10 "rendered" meshes
     /// and zero visible pixels (grey screen). Must not issue any GL calls: the old
     /// context is already destroyed, and the new one isn't necessarily current on this
-    /// thread when Unloaded fires. Forces the next <see cref="LoadNpcAsync"/> to rebuild
-    /// by nulling <see cref="_currentLoadedNpc"/> and setting
+    /// thread when Unloaded fires. Forces the next <see cref="LoadAsync"/> to rebuild
+    /// by clearing <see cref="_currentLoadedIdentityKey"/> and setting
     /// <see cref="_sceneRebuildPending"/> so the same-NPC short-circuit skips.
     /// </summary>
     public void HandleGlContextLoss()
@@ -2134,7 +2136,7 @@ public class VM_CharacterViewer : VM
         _pendingBodySlide = null;
         _pendingHeadReplace = null;
 
-        _currentLoadedNpc = FormKey.Null;
+        _currentLoadedIdentityKey = "";
         _currentHeadMeshOverride = null;
         _sceneRebuildPending = true;
 
@@ -2213,11 +2215,11 @@ public class VM_CharacterViewer : VM
             _sceneInstall = new SceneInstallState(
                 MeshPaths: meshPaths,
                 Pending: queue,
-                LoadNpcKey: _pendingLoadNpcKey,
+                LoadIdentityKey: _pendingLoadIdentityKey,
                 HeadMeshOverride: _pendingLoadHeadMeshOverride,
                 LoadStopwatch: loadStopwatch,
                 TotalShapes: queue.Count);
-            _pendingLoadNpcKey = FormKey.Null;
+            _pendingLoadIdentityKey = "";
             _pendingLoadHeadMeshOverride = null;
 
             // LoadNpcAsync's success-path finally leaves IsLoading true so the
@@ -2264,7 +2266,7 @@ public class VM_CharacterViewer : VM
             ? $"Loaded {install.TotalShapes} shape(s) for NPC"
             : "No renderable shapes found for NPC";
 
-        _currentLoadedNpc = install.LoadNpcKey;
+        _currentLoadedIdentityKey = install.LoadIdentityKey;
         _currentHeadMeshOverride = install.HeadMeshOverride;
         _sceneInstall = null;
 
@@ -2366,35 +2368,75 @@ public class VM_CharacterViewer : VM
     //  LOADING — Full NPC
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// SynthEBD-facing wrapper around <see cref="LoadAsync"/>. Builds an
+    /// <see cref="NpcIdentity"/> from the FormKey, resolves mesh paths via
+    /// the preview cache (whose adapter populates NPC weight / height / hair
+    /// color from the LinkCache), then hands off to the neutral entry point.
+    ///
+    /// The <paramref name="linkCache"/> parameter is preserved for backward
+    /// compat with SynthEBD callers but is not used directly here — the cache's
+    /// data-source adapter holds its own LinkCache reference.
+    /// </summary>
     public async Task LoadNpcAsync(FormKey npcFormKey, ILinkCache linkCache, string? overrideHeadMeshAbsolutePath = null)
     {
-        // Same-NPC short-circuit. Narrow editors (BodySlide preset change, BodyGen
-        // spec edit, AssetPack subgroup flip) call LoadNpcAsync defensively before
-        // their narrow update method, but when the NPC hasn't changed the rebuild
-        // is pure waste: full NIF re-parse, CPU re-skinning, DDS re-decode.
-        //
-        // Guard at the top of the single VM choke point so every current and future
-        // caller benefits without per-site tracking.
-        //
-        // Why the override path check is exclusion-only (both sides null), not
-        // equality: when overrideHeadMeshAbsolutePath is non-null it refers to a
-        // FaceGen preview NIF that is rewritten in place on every headpart change.
-        // Path equality would incorrectly skip the reload. ApplyHeadPartsAsync
-        // owns its own fast path (P2); LoadNpcAsync just needs to always rebuild
-        // when an override is involved.
+        var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+
+        ResolvedNpcMeshPaths? meshPaths = null;
+        try
+        {
+            meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(identity));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("CharacterViewer: Failed to resolve NPC " + npcFormKey + ": " +
+                ExceptionLogger.GetExceptionStack(ex));
+        }
+
+        if (meshPaths == null)
+        {
+            StatusText = "Could not resolve NPC mesh paths";
+            IsLoading = false;
+            return;
+        }
+
+        await LoadAsync(identity, meshPaths, overrideHeadMeshAbsolutePath);
+    }
+
+    /// <summary>
+    /// Neutral rendering-tier entry point. Loads <paramref name="paths"/> into
+    /// the GL scene with the given <paramref name="identity"/> as the cache /
+    /// short-circuit key. The host (SynthEBD or NPC2) is responsible for
+    /// producing <see cref="ResolvedNpcMeshPaths"/> beforehand — this method
+    /// has no knowledge of Mutagen, FormKeys, or any host-specific NPC model.
+    ///
+    /// Same-identity short-circuit: narrow editors (BodySlide preset change,
+    /// AssetPack subgroup flip) call this defensively before their narrow
+    /// update method. When the identity hasn't changed and no head override
+    /// is involved, the rebuild is pure waste (full NIF re-parse, CPU
+    /// re-skinning, DDS re-decode) and is skipped at this top-level guard.
+    ///
+    /// Override path check is exclusion-only (both sides null), not equality:
+    /// when <paramref name="overrideHeadMeshAbsolutePath"/> is non-null it
+    /// refers to a temp NIF (e.g. FaceGen preview) that is rewritten in place
+    /// on every change. Path equality would incorrectly skip the reload.
+    /// </summary>
+    public async Task LoadAsync(NpcIdentity identity, ResolvedNpcMeshPaths paths,
+        string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default)
+    {
         if (!_sceneRebuildPending
             && _meshesByBodyPart.Count > 0
-            && npcFormKey == _currentLoadedNpc
+            && identity.CacheKey == _currentLoadedIdentityKey
             && overrideHeadMeshAbsolutePath == null
             && _currentHeadMeshOverride == null)
         {
-            LogVerbose("CharacterViewer: LoadNpcAsync same-NPC short-circuit (" +
-                npcFormKey + ")");
+            LogVerbose("CharacterViewer: LoadAsync same-identity short-circuit (" +
+                identity.CacheKey + ")");
             return;
         }
 
         _loadCts?.Cancel();
-        var cts = new CancellationTokenSource();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
         _loadCts = cts;
 
         // Mark a rebuild as in-flight so any ApplyTextureOverrides calls arriving
@@ -2403,90 +2445,33 @@ public class VM_CharacterViewer : VM
         _sceneRebuildPending = true;
 
         IsLoading = true;
-        StatusText = "Resolving NPC meshes...";
+        StatusText = "Loading meshes...";
 
         var loadStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        LogLoadCheckpoint(loadStopwatch, "LoadNpcAsync begin (NPC=" + npcFormKey + ")");
+        LogLoadCheckpoint(loadStopwatch, "LoadAsync begin (id=" + identity.CacheKey + ")");
 
         try
         {
-            _npcHairColorFromRecord = null;
-            if (linkCache.TryResolve<Mutagen.Bethesda.Skyrim.INpcGetter>(npcFormKey, out var npcGetter))
-            {
-                NpcWeight = Math.Clamp((int)npcGetter.Weight, 0, 100);
-                LogVerbose("CharacterViewer: NPC weight = " + NpcWeight +
-                    " (raw " + npcGetter.Weight.ToString("F2") + ")");
-
-                // NPC.Height is a full-model uniform scale multiplier (1.0 default).
-                // Guard against zero/negative values from malformed records to avoid
-                // a collapsed or mirrored render.
-                float recordHeight = npcGetter.Height;
-                NpcBaseHeight = (float.IsFinite(recordHeight) && recordHeight > 0f) ? recordHeight : 1.0f;
-                LogVerbose("CharacterViewer: NPC height = " + NpcBaseHeight.ToString("F3") +
-                    " (raw " + recordHeight.ToString("F3") + ")");
-
-                // Resolve the NPC's HairColor FormLink (HCLR record) — in-game, this
-                // overrides the default hairTintColor baked into the hair NIF's BSLSP.
-                // Logging both lets us diagnose mismatches between reference images
-                // (which show the NPC's HCLR color) and the viewer (which currently
-                // uses only the NIF's baked tint).
-                if (npcGetter.HairColor.IsNull)
-                {
-                    LogVerbose("CharacterViewer: NPC.HairColor FormLink is null — " +
-                        "no HCLR override available; viewer will use NIF's baked BSLSP tint.");
-                }
-                else
-                {
-                    var hclr = npcGetter.HairColor.TryResolve(linkCache);
-                    if (hclr != null)
-                    {
-                        var c = hclr.Color;
-                        float r = c.R / 255f, g = c.G / 255f, b = c.B / 255f;
-                        _npcHairColorFromRecord = (r, g, b);
-                        string hex = "#" + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
-                        LogVerbose("CharacterViewer: NPC.HairColor HCLR=" +
-                            npcGetter.HairColor.FormKey.ToString() +
-                            " name='" + (hclr.Name?.String ?? "?") + "'" +
-                            " RGB=(" + c.R + "," + c.G + "," + c.B + ")" +
-                            " float=(" + r.ToString("F3") + "," + g.ToString("F3") + "," + b.ToString("F3") + ")" +
-                            " hex=" + hex);
-                    }
-                    else
-                    {
-                        LogVerbose("CharacterViewer: NPC.HairColor FormLink " +
-                            npcGetter.HairColor.FormKey.ToString() + " failed to resolve.");
-                    }
-                }
-            }
-            LogLoadCheckpoint(loadStopwatch, "NPC record resolved");
-
-            // The cache resolves through INpcMeshDataSource, which uses the host's
-            // current LinkCache. The linkCache parameter here is preserved for
-            // backward compat with SynthEBD callers but doesn't drive cache lookups.
-            var npcIdentity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-            var meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(npcIdentity), cts.Token);
-            if (meshPaths == null)
-            {
-                StatusText = "Could not resolve NPC mesh paths";
-                // No scene will be queued for ProcessPendingScene to rebuild, so
-                // clear the flag now — otherwise future ApplyTextureOverrides
-                // calls would be queued forever.
-                if (_loadCts == cts) _sceneRebuildPending = false;
-                return;
-            }
-            LogLoadCheckpoint(loadStopwatch, "Mesh paths resolved");
+            // Pull NPC-record values straight off the resolved POCO. The host's
+            // adapter populates weight/height/hair-color when it builds the POCO;
+            // unset fields fall back to the defaults baked into ResolvedNpcMeshPaths.
+            NpcWeight = paths.NpcWeight;
+            NpcBaseHeight = paths.NpcBaseHeight;
+            _npcHairColorFromRecord = paths.HairColorRgb;
+            LogVerbose("CharacterViewer: NPC weight=" + NpcWeight +
+                ", height=" + NpcBaseHeight.ToString("F3") +
+                ", hairRgb=" + (paths.HairColorRgb?.ToString() ?? "null"));
 
             if (!string.IsNullOrWhiteSpace(overrideHeadMeshAbsolutePath))
             {
-                meshPaths = meshPaths.WithHeadMeshPath(overrideHeadMeshAbsolutePath);
+                paths = paths.WithHeadMeshPath(overrideHeadMeshAbsolutePath);
                 LogVerbose("CharacterViewer: head mesh path overridden -> " + overrideHeadMeshAbsolutePath);
             }
 
-            _cachedMeshPaths = meshPaths;
+            _cachedMeshPaths = paths;
             cts.Token.ThrowIfCancellationRequested();
 
-            StatusText = "Loading meshes...";
-            var loadResults = await Task.Run(() => LoadAllMeshParts(meshPaths), cts.Token);
+            var loadResults = await Task.Run(() => LoadAllMeshParts(paths), cts.Token);
             cts.Token.ThrowIfCancellationRequested();
 
             // Store pending scene data — GL work is deferred to the render callback
@@ -2496,8 +2481,8 @@ public class VM_CharacterViewer : VM
                 " shapes across " + loadResults.Count + " parts)");
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _pendingScene = (loadResults, meshPaths);
-                _pendingLoadNpcKey = npcFormKey;
+                _pendingScene = (loadResults, paths);
+                _pendingLoadIdentityKey = identity.CacheKey;
                 _pendingLoadHeadMeshOverride = overrideHeadMeshAbsolutePath;
                 // Hand the clock to the render thread — ProcessPendingScene will
                 // consume it on the next frame tick and log the GL-upload span.
@@ -2522,7 +2507,7 @@ public class VM_CharacterViewer : VM
             // unhelpful or empty Message. Log the full chained exception so the Status Log
             // actually reveals the failure instead of silently switching tabs.
             StatusText = $"Error: {ex.Message}";
-            _logger.LogError("CharacterViewer: Failed to load NPC " + npcFormKey + Environment.NewLine
+            _logger.LogError("CharacterViewer: Failed to load NPC " + identity.CacheKey + Environment.NewLine
                 + ExceptionLogger.GetExceptionStack(ex));
             if (_loadCts == cts) _sceneRebuildPending = false;
         }
@@ -3065,7 +3050,7 @@ public class VM_CharacterViewer : VM
         if (nifPath != null
             && !_sceneRebuildPending
             && _meshesByBodyPart.Count > 0
-            && npcFormKey == _currentLoadedNpc
+            && npcFormKey.ToString() == _currentLoadedIdentityKey
             && _cachedMeshPaths != null
             && TextureManager != null)
         {
@@ -3217,7 +3202,7 @@ public class VM_CharacterViewer : VM
         _cachedBodyNifDiskPath = null;
         _cachedBodyTri = null;
         BodyTriMissing = false;
-        _currentLoadedNpc = FormKey.Null;
+        _currentLoadedIdentityKey = "";
         _currentHeadMeshOverride = null;
     }
 
