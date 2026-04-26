@@ -245,6 +245,26 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public IReadOnlyList<string>? AdditionalDataFolders { get; set; }
 
+    /// <summary>
+    /// Strict two-phase asset-resolution chain. Counterpart to
+    /// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/> for the
+    /// interactive viewer path. When non-null, OVERRIDES
+    /// <see cref="AdditionalDataFolders"/> + the host's
+    /// <see cref="IDataFolderProvider"/> /
+    /// <see cref="IBsaArchiveProvider.TryLocateInBsa"/> broadcast — the
+    /// resolver follows ONLY the scope chain (loose phase last-to-first,
+    /// then scoped-BSA phase last-to-first), with no implicit vanilla
+    /// fallback. Hosts that want vanilla as a fallback include it as the
+    /// first scope.
+    ///
+    /// <para>Snapshotted by <see cref="LoadAsync"/> at entry and pushed to
+    /// the resolver before the off-thread NIF parse + scene queue;
+    /// <c>ProcessPendingScene</c> clears after <c>SceneCommitted</c>;
+    /// cancel/error paths clear in <c>LoadAsync</c>'s finally guarded by
+    /// <c>_loadCts == cts</c> so newer in-flight loads aren't clobbered.</para>
+    /// </summary>
+    public IReadOnlyList<RenderScope>? AdditionalScopes { get; set; }
+
     public VM_CharacterViewer(
         BodySlideDeformer bodySlideDeformer,
         BsdFileParser bsdFileParser,
@@ -2397,11 +2417,12 @@ public class VM_CharacterViewer : ViewerVm
         // scene, including any pending texture/morph state from the previous scene.
         SceneCommitted?.Invoke();
 
-        // Per-load mod-folder scope ends here — the multi-tick sliced install
-        // is finished, so clear the resolver field. Subsequent narrow updates
-        // (texture overrides, morphs) that need mod-folder scoping require the
-        // host to re-set AdditionalDataFolders and re-trigger LoadAsync; this
-        // matches the per-render contract documented on AdditionalDataFolders.
+        // Per-load asset-resolution scope ends here — the multi-tick sliced
+        // install is finished, so clear both resolver fields. Subsequent
+        // narrow updates (texture overrides, morphs) that need scoping
+        // require the host to re-set AdditionalScopes / AdditionalDataFolders
+        // and re-trigger LoadAsync.
+        _assetResolver.SetAdditionalScopes(null);
         _assetResolver.SetAdditionalFolders(null);
     }
 
@@ -2555,12 +2576,16 @@ public class VM_CharacterViewer : ViewerVm
         // applied to the soon-to-be-destroyed current meshes.
         _sceneRebuildPending = true;
 
-        // Capture the host's mod-folder snapshot once and push it to the
-        // resolver before any off-thread NIF parsing kicks off. The resolver
-        // field is volatile so the off-thread Task.Run sees this write; it's
-        // cleared in ProcessPendingScene's finalize block (after SceneCommitted)
-        // or in the cancel/error path below if the load doesn't reach commit.
+        // Capture the host's asset-resolution scoping snapshot once and push
+        // it to the resolver before any off-thread NIF parsing kicks off. The
+        // resolver fields are volatile so the off-thread Task.Run sees these
+        // writes; they're cleared in ProcessPendingScene's finalize block
+        // (after SceneCommitted) or in the cancel/error path below if the
+        // load doesn't reach commit. AdditionalScopes (1.2.0+) wins over
+        // AdditionalDataFolders (1.1.0) when both are provided.
+        var additionalScopes = AdditionalScopes;
         var additionalFolders = AdditionalDataFolders;
+        _assetResolver.SetAdditionalScopes(additionalScopes);
         _assetResolver.SetAdditionalFolders(additionalFolders);
 
         IsLoading = true;
@@ -2647,6 +2672,7 @@ public class VM_CharacterViewer : ViewerVm
             if (_loadCts == cts && _pendingScene == null)
             {
                 IsLoading = false;
+                _assetResolver.SetAdditionalScopes(null);
                 _assetResolver.SetAdditionalFolders(null);
             }
         }

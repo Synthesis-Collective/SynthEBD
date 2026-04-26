@@ -121,11 +121,13 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             {
                 EnsureFbo(request.Width, request.Height);
 
-                // Per-render mod-folder scoping (defense-in-depth — VM.LoadAsync
-                // also pushes via vm.AdditionalDataFolders, but we ensure the
-                // resolver field is set before AND cleared after the render
-                // regardless of which code paths the VM hits). See Issue #1 in
-                // NPC_PLUGIN_CHOOSER_2_FOLLOWUPS.md for the rationale.
+                // Per-render asset-resolution scoping (defense-in-depth —
+                // VM.LoadAsync also pushes its own scopes/folders, but we
+                // ensure the resolver fields are set before AND cleared
+                // after the render regardless of which code paths the VM
+                // hits). AdditionalScopes (1.2.0+) overrides
+                // AdditionalDataFolders (1.1.0) when both are provided.
+                _assets.SetAdditionalScopes(request.AdditionalScopes);
                 _assets.SetAdditionalFolders(request.AdditionalDataFolders);
                 var vm = new VM_CharacterViewer(
                     _bodySlideDeformer, _bsdParser, _triParser, _assets,
@@ -133,6 +135,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     /* renderThread defaults to InlineRenderThreadMarshaller */);
                 try
                 {
+                    vm.AdditionalScopes = request.AdditionalScopes;
                     vm.AdditionalDataFolders = request.AdditionalDataFolders;
                     LoadAndRender(vm, request);
 
@@ -148,6 +151,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 finally
                 {
                     vm.Dispose();
+                    _assets.SetAdditionalScopes(null);
                     _assets.SetAdditionalFolders(null);
                 }
             }
@@ -158,7 +162,22 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 // MakeCurrent without WGL refusing because the context is
                 // still "in use" on a previous worker thread. Safe path via
                 // IGraphicsContext.MakeNoneCurrent (no unsafe block needed).
-                try { _gw.Context.MakeNoneCurrent(); } catch { /* best-effort */ }
+                int releaseTid = Environment.CurrentManagedThreadId;
+                try
+                {
+                    _gw.Context.MakeNoneCurrent();
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[OffscreenRenderer] MakeNoneCurrent OK tid={releaseTid}");
+                }
+                catch (Exception releaseEx)
+                {
+                    // Don't rethrow — losing the render result over a failed
+                    // release would surprise hosts. Surface it loudly so we
+                    // can debug why subsequent renders fail with WGL "in use".
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[OffscreenRenderer] MakeNoneCurrent FAILED tid={releaseTid} err={releaseEx.Message}");
+                    _logger?.LogError("OffscreenRenderer: MakeNoneCurrent failed: " + releaseEx.Message, releaseEx);
+                }
             }
         }
     }

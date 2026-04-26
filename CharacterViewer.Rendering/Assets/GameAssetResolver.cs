@@ -96,6 +96,23 @@ public class GameAssetResolver
     /// </summary>
     private volatile IReadOnlyList<string>? _currentAdditionalFolders;
 
+    /// <summary>
+    /// Strict two-phase resolution chain. When non-null, OVERRIDES
+    /// <see cref="_currentAdditionalFolders"/> + the host's
+    /// <see cref="_dataFolder"/> + the broadcast
+    /// <see cref="IBsaArchiveProvider.TryLocateInBsa"/>. The resolver runs
+    /// loose-phase across all scopes last-to-first, then scoped-BSA-phase
+    /// across all scopes last-to-first. No implicit vanilla fallback. See
+    /// the contract on <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/>
+    /// for the rationale.
+    ///
+    /// <para>Marked volatile for the same memory-barrier reasons as
+    /// <see cref="_currentAdditionalFolders"/> — written by the renderer's
+    /// lock-held thread (offscreen path) or the VM's render-thread
+    /// marshaller (interactive path), read during off-thread NIF parsing.</para>
+    /// </summary>
+    private volatile IReadOnlyList<RenderScope>? _currentAdditionalScopes;
+
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
         IBsaArchiveProvider bsaProvider,
@@ -139,6 +156,20 @@ public class GameAssetResolver
     }
 
     /// <summary>
+    /// Sets the strict two-phase resolution chain consulted for subsequent
+    /// resolutions. Pass <c>null</c> (or an empty list) to clear back to
+    /// legacy <see cref="SetAdditionalFolders"/> + vanilla-fallback behavior.
+    /// While scopes are active the loose-file resolution cache is bypassed
+    /// for both reads and writes (same reasoning as additional folders).
+    /// Lifecycle is owned by the caller (offscreen renderer per-render or
+    /// <see cref="VM_CharacterViewer"/> per-load).
+    /// </summary>
+    public void SetAdditionalScopes(IReadOnlyList<RenderScope>? scopes)
+    {
+        _currentAdditionalScopes = (scopes == null || scopes.Count == 0) ? null : scopes;
+    }
+
+    /// <summary>
     /// Resolves a game-relative path to a full disk path.
     /// Returns null if the asset cannot be found in loose files or any BSA.
     /// </summary>
@@ -160,15 +191,15 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
-        // Snapshot the per-render mod-folder list once so a concurrent
-        // SetAdditionalFolders call between checks doesn't change our view
-        // mid-resolution. While folders are active, the loose-file cache is
+        // Snapshot the per-render scoping state once so concurrent
+        // SetAdditional* calls don't change our view mid-resolution. Scopes
+        // win over folders if both are set (scopes are strictly more
+        // expressive). While either is active, the loose-file cache is
         // bypassed entirely — the same relative path may resolve to a
-        // different file depending on which mod's folders are currently
-        // scoped, so cached "vanilla path" or "miss" entries from prior
-        // unscoped resolutions would be wrong.
-        var additionalFolders = _currentAdditionalFolders;
-        bool useLooseCache = additionalFolders == null;
+        // different file depending on which scope chain is current.
+        var additionalScopes = _currentAdditionalScopes;
+        var additionalFolders = additionalScopes == null ? _currentAdditionalFolders : null;
+        bool useLooseCache = additionalScopes == null && additionalFolders == null;
 
         // Fast path: previously-resolved loose file or definitive miss. Covers the
         // viewer's preset-switch re-request storm where the same ~20 texture paths
@@ -178,10 +209,11 @@ public class GameAssetResolver
             return cachedSource;
         }
 
-        // Step 0: Absolute-path passthrough. The Headparts preview flow supplies a
-        // rooted path to a temp FaceGen NIF generated outside the game Data folder;
-        // returning it as-is lets the viewer consume it without needing the file to
-        // live under Data or to be prefixed with DataFolderPath.
+        // Absolute-path passthrough. The Headparts preview flow supplies a
+        // rooted path to a temp FaceGen NIF generated outside the game Data
+        // folder; returning it as-is lets the viewer consume it without
+        // needing the file to live under Data or to be prefixed with
+        // DataFolderPath. Applies regardless of scoping.
         if (Path.IsPathRooted(relativeGamePath) && File.Exists(relativeGamePath))
         {
             var src = new AssetSource(AssetOriginKind.Loose, relativeGamePath, relativeGamePath, relativeGamePath, null, null);
@@ -192,10 +224,21 @@ public class GameAssetResolver
         // Normalize separators
         string normalized = relativeGamePath.Replace('/', Path.DirectorySeparatorChar);
 
-        // Step 1a: Mod-scoped loose-file lookup (if scoped). Last entry wins
-        // per the host's convention (MO2-style) — iterate in reverse so the
-        // highest-priority mod folder takes precedence when multiple ship
-        // the same relative path.
+        // ─── Strict two-phase scope chain ──────────────────────────────────
+        // When AdditionalScopes is provided, follow ONLY the scope chain.
+        // No fallback to vanilla data folder loose / BSA broadcast. Hosts
+        // that want vanilla as a fallback include it as scopes[0] (which is
+        // checked LAST due to the last-to-first iteration).
+        if (additionalScopes != null)
+        {
+            return ResolveViaScopes(relativeGamePath, normalized, additionalScopes);
+        }
+
+        // ─── Legacy chain (when AdditionalScopes is null) ──────────────────
+
+        // Mod-scoped loose-file lookup. Last entry wins (MO2-style) — iterate
+        // in reverse so the highest-priority mod folder takes precedence when
+        // multiple ship the same relative path.
         if (additionalFolders != null)
         {
             for (int i = additionalFolders.Count - 1; i >= 0; i--)
@@ -213,7 +256,7 @@ public class GameAssetResolver
             }
         }
 
-        // Step 1b: Vanilla loose file
+        // Vanilla loose file
         string loosePath = Path.Combine(_dataFolder.DataFolderPath, normalized);
         if (File.Exists(loosePath))
         {
@@ -223,7 +266,7 @@ public class GameAssetResolver
             return src;
         }
 
-        // Step 2: BSA fallback (uses extraction cache internally)
+        // BSA fallback (broadcast, uses extraction cache internally)
         var bsaResult = TryResolveFromBsa(relativeGamePath, normalized);
         if (bsaResult.Kind == AssetOriginKind.NotFound && useLooseCache)
         {
@@ -232,6 +275,80 @@ public class GameAssetResolver
             _looseSourceCache[relativeGamePath] = bsaResult;
         }
         return bsaResult;
+    }
+
+    /// <summary>
+    /// Strict two-phase scope iteration matching the contract on
+    /// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/>:
+    /// (1) loose phase across all scopes last-to-first, (2) scoped-BSA
+    /// phase across all scopes last-to-first via
+    /// <see cref="IBsaArchiveProvider.TryLocateInScopedBsa"/>. No implicit
+    /// vanilla fallback — the host includes vanilla as a scope if desired.
+    /// </summary>
+    private AssetSource ResolveViaScopes(string relativeGamePath, string normalized,
+        IReadOnlyList<RenderScope> scopes)
+    {
+        // Phase 1: all loose checks first (last-to-first folder priority).
+        for (int i = scopes.Count - 1; i >= 0; i--)
+        {
+            var folder = scopes[i].FolderPath;
+            if (string.IsNullOrEmpty(folder)) continue;
+            string candidate = Path.Combine(folder, normalized);
+            if (File.Exists(candidate))
+            {
+                LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
+                    "' -> scoped loose file at '" + candidate + "'");
+                return new AssetSource(AssetOriginKind.Loose, relativeGamePath,
+                    candidate, candidate, null, null);
+            }
+        }
+
+        // Phase 2: all scoped-BSA checks (last-to-first folder priority).
+        // BSA-fallback may need to extract; reuse the per-path lock + cache
+        // pattern from TryResolveFromBsa to avoid double-extracting under
+        // concurrency.
+        string bsaSubpath = relativeGamePath.Replace('/', '\\');
+        for (int i = scopes.Count - 1; i >= 0; i--)
+        {
+            var scope = scopes[i];
+            if (string.IsNullOrEmpty(scope.FolderPath)) continue;
+            if (scope.ModKeyFileNames == null || scope.ModKeyFileNames.Count == 0) continue;
+
+            if (_bsaProvider.TryLocateInScopedBsa(bsaSubpath, scope.FolderPath,
+                    scope.ModKeyFileNames, out string? containingBsaPath) &&
+                containingBsaPath != null)
+            {
+                string destPath = Path.Combine(_extractionDir, normalized);
+                var lockObj = _extractionLocks.GetOrAdd(normalized, _ => new object());
+                lock (lockObj)
+                {
+                    if (_extractionCache.TryGetValue(normalized, out string? priorExtract) &&
+                        File.Exists(priorExtract))
+                    {
+                        return new AssetSource(AssetOriginKind.Bsa, relativeGamePath,
+                            priorExtract, null, containingBsaPath, bsaSubpath);
+                    }
+
+                    if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
+                    {
+                        _extractionCache[normalized] = destPath;
+                        LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
+                            "' -> scoped-BSA extraction at '" + destPath +
+                            "' (from '" + containingBsaPath + "')");
+                        return new AssetSource(AssetOriginKind.Bsa, relativeGamePath,
+                            destPath, null, containingBsaPath, bsaSubpath);
+                    }
+
+                    _logger.LogError("CharacterViewer: Found '" + relativeGamePath +
+                        "' in scoped BSA '" + containingBsaPath + "' but extraction failed");
+                    return AssetSource.NotFound(relativeGamePath);
+                }
+            }
+        }
+
+        LogVerbose("CharacterViewer: Could not resolve '" + relativeGamePath +
+            "' in any of " + scopes.Count + " scope(s)");
+        return AssetSource.NotFound(relativeGamePath);
     }
 
     /// <summary>

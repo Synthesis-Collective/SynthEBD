@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Mutagen.Bethesda.Archives;
 
 namespace SynthEBD;
@@ -35,5 +36,24 @@ public sealed class SynthEbdBsaProviderAdapter : IBsaArchiveProvider
             return false;
         }
         return _inner.TryExtractFileFromBSA(archiveFile, destPath);
+    }
+
+    /// <summary>
+    /// Stub: SynthEBD does not currently set <c>OffscreenRenderRequest.AdditionalScopes</c>
+    /// or <c>VM_CharacterViewer.AdditionalScopes</c>, so this method is never
+    /// reached on the SynthEBD code path. NPC Plugin Chooser 2's adapter
+    /// implements the full strict scoped lookup. If SynthEBD ever wants
+    /// per-mod-folder BSA scoping, add the necessary
+    /// <c>TryFindFileInArchiveAtFolder(modKey, folder, subpath, ...)</c>
+    /// helper to <see cref="BSAHandler"/> and wire it through here.
+    /// </summary>
+    public bool TryLocateInScopedBsa(
+        string subpath,
+        string folderPath,
+        IReadOnlyList<string> modKeyFileNames,
+        out string? containingBsaPath)
+    {
+        containingBsaPath = null;
+        return false;
     }
 }

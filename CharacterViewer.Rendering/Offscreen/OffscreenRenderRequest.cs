@@ -93,4 +93,35 @@ public sealed class OffscreenRenderRequest
     /// mods that ship the same relative path.</para>
     /// </summary>
     public IReadOnlyList<string>? AdditionalDataFolders { get; init; }
+
+    /// <summary>
+    /// Strict two-phase asset-resolution chain. When non-null, the resolver
+    /// IGNORES <see cref="AdditionalDataFolders"/> /
+    /// <see cref="IDataFolderProvider.DataFolderPath"/> /
+    /// <see cref="IBsaArchiveProvider.TryLocateInBsa"/> broadcast and
+    /// follows ONLY this chain in two phases:
+    /// <list type="number">
+    /// <item><b>Loose phase</b> — iterate scopes <i>last-to-first</i>; for
+    /// each scope, check <c>Path.Combine(scope.FolderPath, &lt;subpath&gt;)</c>.
+    /// First hit wins.</item>
+    /// <item><b>Scoped-BSA phase</b> — if no loose hit, iterate scopes
+    /// last-to-first again; for each scope, ask
+    /// <see cref="IBsaArchiveProvider.TryLocateInScopedBsa"/> for any BSA
+    /// at <c>scope.FolderPath</c> owned by one of <c>scope.ModKeyFileNames</c>
+    /// that contains the file. First hit wins.</item>
+    /// </list>
+    ///
+    /// <para>If neither phase matches, the asset is genuinely missing —
+    /// no implicit fallback to vanilla data folder or BSA broadcast.
+    /// Hosts that want vanilla as a fallback include it as the FIRST
+    /// scope in the list (<c>scopes[0]</c> is checked LAST due to the
+    /// last-to-first iteration).</para>
+    ///
+    /// <para>Used by NPC Plugin Chooser 2's per-mod mugshot generation
+    /// to faithfully reproduce a single mod's contribution + vanilla
+    /// fallback without cross-mod texture bleed. Mirrors the resolution
+    /// order of NPC Portrait Creator's CLI (<c>--gamedata</c> +
+    /// <c>--data</c> chain).</para>
+    /// </summary>
+    public IReadOnlyList<RenderScope>? AdditionalScopes { get; init; }
 }
