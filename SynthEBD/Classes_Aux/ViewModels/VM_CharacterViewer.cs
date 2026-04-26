@@ -38,13 +38,10 @@ public enum ViewerMode
 public class VM_CharacterViewer : VM
 {
     private readonly NifMeshBuilder _meshBuilder;
-    private readonly NpcMeshResolver _npcMeshResolver;
     private readonly BodySlideDeformer _bodySlideDeformer;
     private readonly BsdFileParser _bsdFileParser;
     private readonly BodyTriFileParser _bodyTriFileParser;
     private readonly GameAssetResolver _assetResolver;
-    private readonly IEnvironmentStateProvider _environmentProvider;
-    private readonly PatcherState _patcherState;
     private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
@@ -91,7 +88,6 @@ public class VM_CharacterViewer : VM
         bool IsFaceTint, string? FaceTintPath);
 
     private readonly ICharacterViewerSettings _generalSettings;
-    private readonly FaceGenPreviewService _faceGenPreviewService;
 
     /// <summary>True when the GL context has been initialized.</summary>
     public bool IsGlInitialized { get; private set; }
@@ -145,12 +141,6 @@ public class VM_CharacterViewer : VM
     /// converts to <see cref="TextureOverride"/> before queueing.</summary>
     private List<TextureOverride>? _pendingTextureOverrides;
 
-    /// <summary>Pending host-coupled BodySlide to apply after scene setup. Held
-    /// as the original <see cref="BodySlideSetting"/> so the queue drain can
-    /// re-load the OSD/.tri context (which depends on PatcherState — only the
-    /// SynthEBD wrapper has access).</summary>
-    private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
-
     /// <summary>Pending neutral morph application to apply after scene setup.
     /// Set by direct callers of <see cref="ApplyMorphSet"/>; assumes the host
     /// has already called <see cref="SetMorphContext"/> (or that a sibling .tri
@@ -197,16 +187,50 @@ public class VM_CharacterViewer : VM
 
     private readonly CharacterPreviewCache _previewCache;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    //  PUBLIC HOST-EXTENSION SURFACE
+    //  These members exist for SynthEBD-side (and future NPC2-side) extension
+    //  methods that wrap the neutral viewer with their own host-coupled
+    //  workflows. The VM itself doesn't reference SynthEBD types.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>Fired at the end of <see cref="ProcessPendingScene"/> after
+    /// the new scene is installed and any pending neutral overrides/morphs
+    /// have drained. Hosts subscribe to drain queues that depend on
+    /// scene-ready state — SynthEbdViewerHostState uses this to apply a
+    /// queued ApplyBodySlide once the body NIF disk path is cached.</summary>
+    public event Action? SceneCommitted;
+
+    /// <summary>True when meshes are uploaded and the viewer is ready for
+    /// narrow-update operations (texture overrides, morph application,
+    /// head-only rebuild). Equivalent to the gate the internal apply paths
+    /// use before entering their work loops.</summary>
+    public bool IsSceneReady => !_sceneRebuildPending && _meshesByBodyPart.Count > 0;
+
+    /// <summary>NpcIdentity.CacheKey of the currently-loaded scene; empty
+    /// before the first load completes. Hosts read this to short-circuit
+    /// narrow updates that target the already-loaded NPC, or to gate
+    /// fast-path rebuilds (e.g. head-only swap) on identity equality.</summary>
+    public string CurrentLoadedIdentityKey => _currentLoadedIdentityKey;
+
+    /// <summary>Resolved disk path of the currently-loaded body NIF, or null
+    /// before the scene commits. Phase B2c-era helpers that load sibling
+    /// files (BodySlide .tri, OSD catalogs) read this to know where to look.</summary>
+    public string? CurrentBodyNifDiskPath => _cachedBodyNifDiskPath;
+
+    /// <summary>Whether the head-only rebuild fast path is callable: scene
+    /// committed, mesh paths cached, and the GL texture manager initialized.
+    /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
+    /// reload vs. <see cref="RebuildHeadOnlyAsync"/>.</summary>
+    public bool CanRebuildHeadOnly =>
+        IsSceneReady && _cachedMeshPaths != null && TextureManager != null;
+
     public VM_CharacterViewer(
-        NpcMeshResolver npcMeshResolver,
         BodySlideDeformer bodySlideDeformer,
         BsdFileParser bsdFileParser,
         BodyTriFileParser bodyTriFileParser,
         GameAssetResolver assetResolver,
-        IEnvironmentStateProvider environmentProvider,
-        PatcherState patcherState,
         ICharacterViewerSettings generalSettings,
-        FaceGenPreviewService faceGenPreviewService,
         CharacterPreviewCache previewCache,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
@@ -217,15 +241,11 @@ public class VM_CharacterViewer : VM
         // survives across viewer instances (the BodySlide menu disposes the
         // previous viewer on every preset switch).
         _meshBuilder = previewCache.MeshBuilder;
-        _npcMeshResolver = npcMeshResolver;
         _bodySlideDeformer = bodySlideDeformer;
         _bsdFileParser = bsdFileParser;
         _bodyTriFileParser = bodyTriFileParser;
         _assetResolver = assetResolver;
-        _environmentProvider = environmentProvider;
-        _patcherState = patcherState;
         _generalSettings = generalSettings;
-        _faceGenPreviewService = faceGenPreviewService;
         _logger = logger;
 
         // Verbose-log state lives in Settings_General as the single source of truth.
@@ -2144,7 +2164,6 @@ public class VM_CharacterViewer : VM
         _pendingScene = null;
         _sceneInstall = null;
         _pendingTextureOverrides = null;
-        _pendingBodySlide = null;
         _pendingMorphSet = null;
         _pendingHeadReplace = null;
 
@@ -2294,19 +2313,18 @@ public class VM_CharacterViewer : VM
             ApplyTextureOverrides(overrides);
         }
 
-        if (_pendingBodySlide != null)
-        {
-            var (preset, weight) = _pendingBodySlide.Value;
-            _pendingBodySlide = null;
-            ApplyBodySlide(preset, weight);
-        }
-
         if (_pendingMorphSet != null)
         {
             var (morphs, weight) = _pendingMorphSet.Value;
             _pendingMorphSet = null;
             ApplyMorphSet(morphs, weight);
         }
+
+        // Notify host-side queues (e.g. SynthEbdViewerHostState's pending
+        // BodySlide preset) that the scene is now ready for narrow updates.
+        // Fired after the neutral drains above so subscribers see a fully-committed
+        // scene, including any pending texture/morph state from the previous scene.
+        SceneCommitted?.Invoke();
     }
 
     /// <summary>Body and accessories upload before head/hair so the progressive
@@ -2877,57 +2895,6 @@ public class VM_CharacterViewer : VM
     private static bool _bodySlideDisabled = false;
 
     /// <summary>
-    /// SynthEBD-facing wrapper around <see cref="ApplyMorphSet"/>. Loads the
-    /// OSD catalog for the preset's SliderGroup (a SynthEBD concern that walks
-    /// PatcherState.OBodySettings.BodyTypeRegistry), translates the preset to
-    /// a neutral <see cref="MorphSet"/>, and hands off. Phase B2c will move
-    /// this overload out to a SynthEBD extension method.
-    /// </summary>
-    public void ApplyBodySlide(BodySlideSetting preset, int weight)
-    {
-        if (_bodySlideDisabled)
-        {
-            NpcWeight = Math.Clamp(weight, 0, 100);
-            LogVerbose("CharacterViewer: [BodySlideDisabled] ApplyBodySlide bypassed" +
-                " (preset='" + (preset?.Label ?? "?") + "', weight=" + NpcWeight + ")");
-            return;
-        }
-
-        // If scene isn't set up yet (pending GL work), queue the original preset.
-        // We can't pre-load the OSD context here because LoadOsdFilesForGroup
-        // depends on _cachedBodyNifDiskPath which isn't set until LoadAllMeshParts
-        // commits — so the queue holds the SynthEBD preset and the drain re-enters
-        // ApplyBodySlide, which then loads the OSD context against the new scene.
-        if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)
-        {
-            _pendingBodySlide = (preset, weight);
-            return;
-        }
-
-        try
-        {
-            // Preferred path: if a sibling .tri exists next to the worn body NIF
-            // (BodySlide's "Build Morphs" output), use it. Its sparse vertex deltas
-            // are authored against this exact NIF's topology, so we sidestep the
-            // OSD path's reference-mesh mismatch (chopped deformation bands).
-            TryLoadSiblingBodyTri();
-
-            // OSD fallback: only load the slider-group OSD catalog when we don't
-            // have a .tri to use. Avoids a wasted ShapeData scan on every
-            // preset/weight change for the common case.
-            if (_cachedBodyTri == null && preset?.SliderGroup != null)
-                LoadOsdFilesForGroup(preset.SliderGroup);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("CharacterViewer: ApplyBodySlide OSD/.tri pre-load failed for preset '"
-                + (preset?.Label ?? "?") + "': " + ExceptionLogger.GetExceptionStack(ex));
-        }
-
-        ApplyMorphSet(ToMorphSet(preset), weight);
-    }
-
-    /// <summary>
     /// Pre-populates the OSD context that <see cref="ApplyMorphSet"/> consumes
     /// when no sibling .tri is present. Hosts call this once per scene change
     /// before invoking ApplyMorphSet on slider-driven morphs. SynthEBD's
@@ -3040,99 +3007,10 @@ public class VM_CharacterViewer : VM
         BodySlideApplied?.Invoke();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  BODYGEN OVERRIDES
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Applies a stack of BodyGen templates by parsing and summing their Specs into
-    /// a virtual BodySlideSetting, then routing through the existing ApplyBodySlide
-    /// path. Matches BodyGen runtime behavior where templates stack additively on
-    /// the same NPC.
-    /// </summary>
-    public void ApplyBodyGen(IEnumerable<BodyGenConfig.BodyGenTemplate> templates, string sliderGroup, int weight)
-    {
-        var list = templates?.Where(t => t != null).ToList() ?? new List<BodyGenConfig.BodyGenTemplate>();
-        if (list.Count == 0) return;
-
-        var merged = BodyGenSpecsParser.ParseAndMerge(
-            list.Select(t => t.Specs ?? string.Empty),
-            sliderGroup,
-            out var errors);
-
-        if (errors.Count > 0)
-        {
-            LogVerbose("CharacterViewer.ApplyBodyGen parse warnings: " + string.Join("; ", errors));
-        }
-
-        if (merged.SliderValues.Count == 0) return;
-        ApplyBodySlide(merged, weight);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    //  HEADPART OVERRIDES
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Reloads <paramref name="npcFormKey"/> with <paramref name="assignments"/> applied
-    /// as head-part overrides. Generates a preview FaceGen NIF via FaceGenPatcher and
-    /// hands its path to <see cref="LoadNpcAsync"/> as the head-mesh override, matching
-    /// the flow used by the Headparts editor (single-type) but supporting a full
-    /// multi-type dictionary.
-    /// </summary>
-    public async Task ApplyHeadPartsAsync(FormKey npcFormKey, ILinkCache linkCache, IReadOnlyDictionary<HeadPart.TypeEnum, FormKey> assignments, CancellationToken ct = default)
-    {
-        if (npcFormKey.IsNull || linkCache == null) return;
-
-        var validAssignments = assignments?
-            .Where(kv => !kv.Value.IsNull)
-            .ToDictionary(kv => kv.Key, kv => kv.Value) ?? new();
-
-        if (validAssignments.Count == 0)
-        {
-            var idNoOverride = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-            await LoadByIdentityAsync(idNoOverride);
-            return;
-        }
-
-        string? nifPath;
-        try
-        {
-            nifPath = await _faceGenPreviewService.GeneratePreviewFaceGenAsync(npcFormKey, validAssignments, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("CharacterViewer.ApplyHeadPartsAsync: preview FaceGen generation failed: " + ex.Message);
-            nifPath = null;
-        }
-
-        ct.ThrowIfCancellationRequested();
-
-        // P2 fast path: if the NPC is already loaded and the scene is committed,
-        // rebuild only the Head shape(s). Body/Hands/Feet keep their current
-        // textures and any in-progress BodySlide deformation — a full LoadNpcAsync
-        // would re-parse all four NIFs and re-decode all their DDS textures just
-        // to swap the head. Fall back to the full-reload branch when any of the
-        // preconditions fail (scene not committed, different NPC, GL not ready,
-        // or no FaceGen NIF was produced).
-        if (nifPath != null
-            && !_sceneRebuildPending
-            && _meshesByBodyPart.Count > 0
-            && npcFormKey.ToString() == _currentLoadedIdentityKey
-            && _cachedMeshPaths != null
-            && TextureManager != null)
-        {
-            await RebuildHeadOnlyAsync(nifPath, ct);
-            return;
-        }
-
-        var idWithOverride = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-        await LoadByIdentityAsync(idWithOverride, overrideHeadMeshAbsolutePath: nifPath);
-    }
+    // ApplyBodyGen and ApplyHeadPartsAsync moved to SynthEbdViewerHostState
+    // and CharacterViewerSynthEbdExtensions in Phase B2c.2 — they reference
+    // SynthEBD-only types (BodyGenConfig.BodyGenTemplate, HeadPart.TypeEnum,
+    // FaceGenPreviewService) that the rendering tier must not depend on.
 
     /// <summary>
     /// Parses <paramref name="headNifPath"/> off-thread and queues the result for
@@ -3141,7 +3019,15 @@ public class VM_CharacterViewer : VM
     /// applies textures using the cached <see cref="_cachedMeshPaths"/> (face tint),
     /// and preserves all Body/Hands/Feet state untouched.
     /// </summary>
-    private async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct)
+    /// <summary>
+    /// Parses <paramref name="headNifPath"/> off-thread and queues the result
+    /// for installation on the render thread via <see cref="ProcessPendingScene"/>.
+    /// The install step removes current Head shape(s), creates new GlMesh(es),
+    /// and re-applies head textures from the cached mesh paths. Used by
+    /// SynthEBD's ApplyHeadPartsAsync extension as the fast path when the
+    /// same NPC is already loaded — see <see cref="CanRebuildHeadOnly"/>.
+    /// </summary>
+    public async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct)
     {
         var headStopwatch = System.Diagnostics.Stopwatch.StartNew();
         LogLoadCheckpoint(headStopwatch, "RebuildHeadOnlyAsync begin (" +
@@ -3316,7 +3202,6 @@ public class VM_CharacterViewer : VM
         _pendingScene = null;
         _sceneInstall = null;
         _pendingTextureOverrides = null;
-        _pendingBodySlide = null;
         _pendingMorphSet = null;
         _pendingHeadReplace = null;
         _meshesByBodyPart.Clear();
@@ -3352,25 +3237,8 @@ public class VM_CharacterViewer : VM
     //  PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Converts a SynthEBD <see cref="BodySlideSetting"/> into the rendering
-    /// tier's neutral <see cref="MorphSet"/>. The deformer accepts no SynthEBD
-    /// types directly so this translation lives in the host (Phase B1).
-    /// </summary>
-    private static MorphSet ToMorphSet(BodySlideSetting preset)
-    {
-        var sliders = new Dictionary<string, MorphSlider>(StringComparer.OrdinalIgnoreCase);
-        if (preset?.SliderValues != null)
-        {
-            foreach (var kvp in preset.SliderValues)
-            {
-                var s = kvp.Value;
-                if (s == null) continue;
-                sliders[kvp.Key] = new MorphSlider(s.Big, s.Small);
-            }
-        }
-        return new MorphSet { Label = preset?.Label ?? "", Sliders = sliders };
-    }
+    // ToMorphSet moved to SynthEbdViewerHostState (Phase B2c.2) — it
+    // references SynthEBD's BodySlideSetting and BodySlideSlider types.
 
     private List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
         ResolvedNpcMeshPaths meshPaths)
@@ -3604,96 +3472,10 @@ public class VM_CharacterViewer : VM
         return null;
     }
 
-    private void LoadOsdFilesForGroup(string sliderGroup)
-    {
-        string dataFolder = _environmentProvider.DataFolderPath;
-        string shapeDataRoot = Path.Combine(dataFolder, "CalienteTools", "BodySlide", "ShapeData");
-        if (!Directory.Exists(shapeDataRoot))
-        {
-            _cachedOsdFiles = new List<OsdFile>();
-            return;
-        }
-
-        // Primary path: look up the body type in the registry and parse the OSD/BSD files in
-        // the entry's declared ShapeDataFolders. If the entry is a superset of another body
-        // (e.g. CBBE 3BA ⊃ CBBE), include the parent's folders too -- a 3BA preset may move
-        // CBBE-shared sliders whose deltas live only in the CBBE shape data.
-        var registry = _patcherState?.OBodySettings?.BodyTypeRegistry;
-        var entry = FindRegistryEntry(registry, sliderGroup);
-        if (entry != null)
-        {
-            var folders = new List<string>();
-            CollectShapeDataFolders(entry, registry, folders, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var registryOsd = new List<OsdFile>();
-            foreach (var rawPath in folders)
-            {
-                var sub = rawPath.Replace('/', Path.DirectorySeparatorChar)
-                                 .Replace('\\', Path.DirectorySeparatorChar)
-                                 .TrimStart(Path.DirectorySeparatorChar);
-                var fullPath = Path.Combine(shapeDataRoot, sub);
-                if (File.Exists(fullPath))
-                {
-                    var osd = string.Equals(Path.GetExtension(fullPath), ".bsd", StringComparison.OrdinalIgnoreCase)
-                        ? _bsdFileParser.ParseBsdFile(fullPath)
-                        : _bsdFileParser.ParseOsdFile(fullPath);
-                    if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
-                }
-                else if (Directory.Exists(fullPath))
-                {
-                    foreach (var osd in _bsdFileParser.ParseAllOsdInDirectory(fullPath, recursive: false))
-                    {
-                        if (osd != null && seen.Add(osd.ShapeName)) registryOsd.Add(osd);
-                    }
-                }
-            }
-            _cachedOsdFiles = registryOsd;
-            return;
-        }
-
-        // Fallback (registry miss / "Unknown" preset): legacy substring scan over every direct
-        // child of ShapeData, then full-tree scan if no name contained the group string.
-        var matchingDirs = Directory.GetDirectories(shapeDataRoot)
-            .Where(d => Path.GetFileName(d).Contains(sliderGroup, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-        if (matchingDirs.Length == 0)
-            matchingDirs = Directory.GetDirectories(shapeDataRoot);
-
-        var allOsd = new List<OsdFile>();
-        foreach (var dir in matchingDirs)
-            allOsd.AddRange(_bsdFileParser.ParseAllOsdInDirectory(dir));
-
-        _cachedOsdFiles = allOsd;
-    }
-
-    private static BodyTypeRegistryEntry FindRegistryEntry(List<BodyTypeRegistryEntry> registry, string name)
-    {
-        if (registry == null || string.IsNullOrWhiteSpace(name)) return null;
-        foreach (var e in registry)
-        {
-            if (e != null && string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)) return e;
-        }
-        return null;
-    }
-
-    private static void CollectShapeDataFolders(BodyTypeRegistryEntry entry, List<BodyTypeRegistryEntry> registry, List<string> folders, HashSet<string> visited)
-    {
-        if (entry == null || !visited.Add(entry.Name)) return;
-        if (entry.ShapeDataFolders != null)
-        {
-            foreach (var f in entry.ShapeDataFolders)
-            {
-                if (!string.IsNullOrWhiteSpace(f)) folders.Add(f);
-            }
-        }
-        if (!string.IsNullOrWhiteSpace(entry.SupersetOfBodyType))
-        {
-            var parent = FindRegistryEntry(registry, entry.SupersetOfBodyType);
-            CollectShapeDataFolders(parent, registry, folders, visited);
-        }
-    }
+    // LoadOsdFilesForGroup, FindRegistryEntry, CollectShapeDataFolders moved
+    // to SynthEbdOsdLoader (Phase B2c.2) — they walk SynthEBD's PatcherState
+    // BodyTypeRegistry and BodyTypeRegistryEntry types. The viewer's neutral
+    // path consumes pre-loaded OSDs via SetMorphContext.
 
     // Derives the weight-0 counterpart path for a NIF path that ends in "_1.nif".
     // Returns null if the input doesn't follow the standard BodySlide weight-pair naming.

@@ -111,6 +111,24 @@ public class MainModule : Autofac.Module
         // BodySlide preset switches don't pay the parse/resolve cost twice.
         builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
         builder.RegisterType<VM_CharacterViewer>().AsSelf();
+
+        // SynthEBD-side helpers for the viewer-host extension methods
+        // (CharacterViewerSynthEbdExtensions). SynthEbdOsdLoader replaces the
+        // viewer's old LoadOsdFilesForGroup; SynthEbdViewerHostStateRegistry
+        // is the per-viewer state lookup the extension methods consult.
+        //
+        // Configure stores LAMBDAS rather than resolved instances: at build
+        // time, SynthEbdOsdLoader's transitive dep IEnvironmentStateProvider
+        // (StandaloneRunEnvironmentStateProvider in standalone mode) isn't
+        // yet constructible because PatcherEnvironmentSourceProvider's
+        // sourcePath argument isn't bound until the standalone bootstrap
+        // completes. The lambdas resolve on first viewer construction, by
+        // which time the environment is fully wired.
+        builder.RegisterType<SynthEbdOsdLoader>().AsSelf().SingleInstance();
+        builder.RegisterBuildCallback(c => SynthEbdViewerHostStateRegistry.Configure(
+            () => c.Resolve<SynthEbdOsdLoader>(),
+            () => c.Resolve<FaceGenPreviewService>(),
+            () => c.Resolve<Logger>()));
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();

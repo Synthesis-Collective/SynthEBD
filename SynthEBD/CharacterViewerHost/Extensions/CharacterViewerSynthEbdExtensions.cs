@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
@@ -66,5 +68,43 @@ public static class CharacterViewerSynthEbdExtensions
         }
 
         viewer.ApplyTextureOverrides(converted);
+    }
+
+    /// <summary>SynthEBD-facing BodySlide application. Loads the OSD context for
+    /// the preset's SliderGroup via <see cref="SynthEbdOsdLoader"/>, translates
+    /// the preset to a neutral <see cref="MorphSet"/>, and calls
+    /// <see cref="VM_CharacterViewer.ApplyMorphSet"/>. Per-viewer queue state
+    /// (for the not-yet-ready scene case) lives in
+    /// <see cref="SynthEbdViewerHostState"/>, which subscribes to
+    /// <see cref="VM_CharacterViewer.SceneCommitted"/> and replays the queued
+    /// preset when the new scene is ready.</summary>
+    public static void ApplyBodySlide(this VM_CharacterViewer viewer,
+        BodySlideSetting preset, int weight)
+    {
+        SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).ApplyBodySlide(preset, weight);
+    }
+
+    /// <summary>SynthEBD-facing BodyGen application. Stacks
+    /// <paramref name="templates"/>' Specs additively, builds a virtual
+    /// <see cref="BodySlideSetting"/>, and routes through
+    /// <see cref="ApplyBodySlide"/>.</summary>
+    public static void ApplyBodyGen(this VM_CharacterViewer viewer,
+        IEnumerable<BodyGenConfig.BodyGenTemplate> templates, string sliderGroup, int weight)
+    {
+        SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).ApplyBodyGen(templates, sliderGroup, weight);
+    }
+
+    /// <summary>SynthEBD-facing head-part swap. Generates a preview FaceGen NIF
+    /// via <see cref="FaceGenPreviewService"/> and reloads
+    /// <paramref name="npcFormKey"/> with that NIF as the head-mesh override.
+    /// Takes the head-only fast path (avoiding a full body re-parse) when the
+    /// same NPC is already loaded and the scene is committed.</summary>
+    public static Task ApplyHeadPartsAsync(this VM_CharacterViewer viewer,
+        FormKey npcFormKey, ILinkCache linkCache,
+        IReadOnlyDictionary<HeadPart.TypeEnum, FormKey> assignments,
+        CancellationToken ct = default)
+    {
+        return SynthEbdViewerHostStateRegistry.GetOrCreate(viewer)
+            .ApplyHeadPartsAsync(npcFormKey, linkCache, assignments, ct);
     }
 }
