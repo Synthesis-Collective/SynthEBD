@@ -76,9 +76,9 @@ public class BodyTriFile
 /// </summary>
 public class BodyTriFileParser
 {
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
 
-    public BodyTriFileParser(Logger logger)
+    public BodyTriFileParser(ICharacterViewerLogger logger)
     {
         _logger = logger;
     }

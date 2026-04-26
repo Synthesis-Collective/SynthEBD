@@ -14,14 +14,14 @@ namespace SynthEBD;
 public class GlTextureManager : IDisposable
 {
     private readonly CharacterPreviewCache _previewCache;
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly Dictionary<string, int> _textureCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<int> _allTextures = new();
 
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
-    public GlTextureManager(CharacterPreviewCache previewCache, Logger logger)
+    public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger)
     {
         _previewCache = previewCache;
         _logger = logger;

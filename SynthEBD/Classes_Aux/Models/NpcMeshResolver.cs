@@ -12,10 +12,10 @@ namespace SynthEBD;
 /// </summary>
 public class NpcMeshResolver
 {
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
-    public NpcMeshResolver(Logger logger, CharacterViewerLogGate logGate)
+    public NpcMeshResolver(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;

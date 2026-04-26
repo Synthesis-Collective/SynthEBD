@@ -45,7 +45,7 @@ public class VM_CharacterViewer : VM
     private readonly GameAssetResolver _assetResolver;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
     private CancellationTokenSource? _loadCts;
@@ -75,7 +75,7 @@ public class VM_CharacterViewer : VM
     /// present next to the NIF -- in that case we fall back to the OSD path.</summary>
     private BodyTriFile? _cachedBodyTri;
 
-    private NpcMeshResolver.NpcMeshPaths? _cachedMeshPaths;
+    private ResolvedNpcMeshPaths? _cachedMeshPaths;
 
     /// <summary>NPC's HairColor record (HCLR) resolved from HeadData.HairColor FormLink,
     /// in 0..1 linear floats. Null if the NPC has no HairColor set or it fails to resolve.
@@ -90,7 +90,7 @@ public class VM_CharacterViewer : VM
         bool IsHairTint, float HairTintR, float HairTintG, float HairTintB,
         bool IsFaceTint, string? FaceTintPath);
 
-    private readonly VM_Settings_General _generalSettings;
+    private readonly ICharacterViewerSettings _generalSettings;
     private readonly FaceGenPreviewService _faceGenPreviewService;
 
     /// <summary>True when the GL context has been initialized.</summary>
@@ -98,7 +98,7 @@ public class VM_CharacterViewer : VM
 
     /// <summary>Pending scene data waiting for GL context to become available.</summary>
     private (List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
-             NpcMeshResolver.NpcMeshPaths MeshPaths)? _pendingScene;
+             ResolvedNpcMeshPaths MeshPaths)? _pendingScene;
 
     /// <summary>
     /// In-flight install state for the sliced GL upload. Non-null between the
@@ -119,7 +119,7 @@ public class VM_CharacterViewer : VM
     private const double GlInstallBudgetMs = 6.0;
 
     private sealed record SceneInstallState(
-        NpcMeshResolver.NpcMeshPaths MeshPaths,
+        ResolvedNpcMeshPaths MeshPaths,
         Queue<PendingShape> Pending,
         FormKey LoadNpcKey,
         string? HeadMeshOverride,
@@ -192,11 +192,11 @@ public class VM_CharacterViewer : VM
         GameAssetResolver assetResolver,
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
-        VM_Settings_General generalSettings,
+        ICharacterViewerSettings generalSettings,
         FaceGenPreviewService faceGenPreviewService,
         CharacterPreviewCache previewCache,
         CharacterViewerLogGate logGate,
-        Logger logger)
+        ICharacterViewerLogger logger)
     {
         _logGate = logGate;
         _previewCache = previewCache;
@@ -2460,7 +2460,11 @@ public class VM_CharacterViewer : VM
             }
             LogLoadCheckpoint(loadStopwatch, "NPC record resolved");
 
-            var meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(npcFormKey, linkCache), cts.Token);
+            // The cache resolves through INpcMeshDataSource, which uses the host's
+            // current LinkCache. The linkCache parameter here is preserved for
+            // backward compat with SynthEBD callers but doesn't drive cache lookups.
+            var npcIdentity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+            var meshPaths = await Task.Run(() => _previewCache.GetOrResolveMeshPaths(npcIdentity), cts.Token);
             if (meshPaths == null)
             {
                 StatusText = "Could not resolve NPC mesh paths";
@@ -2537,7 +2541,7 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
 
     private void ApplyTexturesToGlMesh(GlMesh glMesh, NifMeshBuilder.BuiltMesh built,
-        Dictionary<int, string> effectiveTextures, NpcMeshResolver.NpcMeshPaths meshPaths,
+        Dictionary<int, string> effectiveTextures, ResolvedNpcMeshPaths meshPaths,
         ref bool isHairTint, ref float hairR, ref float hairG, ref float hairB,
         ref bool isFaceTint, ref string? faceTintPath)
     {
@@ -3287,7 +3291,7 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
 
     private List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
-        NpcMeshResolver.NpcMeshPaths meshPaths)
+        ResolvedNpcMeshPaths meshPaths)
     {
         var results = new List<(string, AssetSource?, List<NifMeshBuilder.BuiltMesh>)>();
 

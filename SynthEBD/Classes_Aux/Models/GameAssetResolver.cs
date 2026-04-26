@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
-using Mutagen.Bethesda.Archives;
 
 namespace SynthEBD;
 
@@ -38,9 +37,9 @@ public sealed record AssetSource(
 /// </summary>
 public class GameAssetResolver
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
-    private readonly BSAHandler _bsaHandler;
-    private readonly Logger _logger;
+    private readonly IDataFolderProvider _dataFolder;
+    private readonly IBsaArchiveProvider _bsaProvider;
+    private readonly ICharacterViewerLogger _logger;
 
     /// <summary>
     /// Cache of BSA-extracted files so repeated lookups don't re-extract.
@@ -70,13 +69,13 @@ public class GameAssetResolver
     private readonly CharacterViewerLogGate _logGate;
 
     public GameAssetResolver(
-        IEnvironmentStateProvider environmentProvider,
-        BSAHandler bsaHandler,
+        IDataFolderProvider dataFolder,
+        IBsaArchiveProvider bsaProvider,
         CharacterViewerLogGate logGate,
-        Logger logger)
+        ICharacterViewerLogger logger)
     {
-        _environmentProvider = environmentProvider;
-        _bsaHandler = bsaHandler;
+        _dataFolder = dataFolder;
+        _bsaProvider = bsaProvider;
         _logGate = logGate;
         _logger = logger;
 
@@ -133,7 +132,7 @@ public class GameAssetResolver
         string normalized = relativeGamePath.Replace('/', Path.DirectorySeparatorChar);
 
         // Step 1: Check loose file
-        string loosePath = Path.Combine(_environmentProvider.DataFolderPath, normalized);
+        string loosePath = Path.Combine(_dataFolder.DataFolderPath, normalized);
         if (File.Exists(loosePath))
         {
             LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> loose file at '" + loosePath + "'");
@@ -186,12 +185,12 @@ public class GameAssetResolver
             return cachedSource;
         }
 
-        // Normalize the path for BSA lookup (Mutagen returns backslash-separated paths for Skyrim BSAs).
+        // Normalize the path for BSA lookup (Skyrim BSAs use backslash-separated paths).
         string bsaSubpath = relativeGamePath.Replace('/', '\\');
 
-        _bsaHandler.EnsureAllArchivesOpened();
+        _bsaProvider.EnsureAllArchivesOpened();
 
-        if (!_bsaHandler.TryFindFileInAnyArchive(bsaSubpath, out IArchiveFile archiveFile, out string? containingBsaPath))
+        if (!_bsaProvider.TryLocateInBsa(bsaSubpath, out string? containingBsaPath))
         {
             LogVerbose("CharacterViewer: Could not resolve '" + relativeGamePath + "' in loose files or any BSA");
             return AssetSource.NotFound(relativeGamePath);
@@ -209,7 +208,7 @@ public class GameAssetResolver
             return source;
         }
 
-        if (_bsaHandler.TryExtractFileFromBSA(archiveFile, destPath))
+        if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
         {
             _extractionCache[normalized] = destPath;
             LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");

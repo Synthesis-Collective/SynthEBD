@@ -89,6 +89,17 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SynthEBDPaths>().AsSelf().SingleInstance();
         builder.RegisterType<UpdateHandler>().AsSelf().SingleInstance();
         builder.RegisterType<BSAHandler>().AsSelf().SingleInstance();
+
+        // CharacterViewer host adapters — bind SynthEBD's concrete types behind the
+        // modular CharacterViewer interfaces. The viewer subsystem only sees the
+        // interfaces, so it can be reused by other host apps that supply their own
+        // adapters. See CharacterViewerHost/ for the abstractions and adapters.
+        builder.RegisterType<SynthEbdViewerLoggerAdapter>().As<ICharacterViewerLogger>().SingleInstance();
+        builder.RegisterType<SynthEbdSettingsAdapter>().As<ICharacterViewerSettings>().SingleInstance();
+        builder.RegisterType<SynthEbdDataFolderAdapter>().As<IDataFolderProvider>().SingleInstance();
+        builder.RegisterType<SynthEbdBsaProviderAdapter>().As<IBsaArchiveProvider>().SingleInstance();
+        builder.RegisterType<SynthEbdNpcMeshDataSourceAdapter>().As<INpcMeshDataSource>().SingleInstance();
+
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline

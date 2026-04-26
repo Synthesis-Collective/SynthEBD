@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache;
-using Mutagen.Bethesda.Skyrim;
 using Pfim;
 
 namespace SynthEBD;
@@ -29,36 +26,37 @@ public readonly record struct DdsPixels(byte[] Data, int Width, int Height);
 /// Three layers:
 ///   * <see cref="MeshBuilder"/> — owns the parsed-NIF LRU keyed on
 ///     (nifPath, mtime, skeletonPath, mtime). Shared across all viewers.
-///   * <see cref="GetOrResolveMeshPaths"/> — caches NpcMeshResolver output keyed
-///     on (LinkCache identity, NPC FormKey). The head-override path is applied
-///     by the caller after retrieval since it's a per-load decoration, not part
-///     of the resolved record chain.
+///   * <see cref="GetOrResolveMeshPaths"/> — caches the data source's resolved
+///     paths keyed on (invalidation-token identity, <see cref="NpcIdentity"/>).
+///     The head-override path is applied by the caller after retrieval since
+///     it's a per-load decoration, not part of the resolved record chain.
 ///   * <see cref="GetOrLoadDdsPixels"/> — LRU cache of BGRA32 pixel arrays keyed
 ///     on game-relative texture path. GL texture handles are still created per
 ///     viewer (context-specific), but the Pfim decode + Rgb24→Rgba32 conversion
 ///     happens once. Preset switching is the hot path — a typical NPC pulls
 ///     ~20 textures and decoding dominated the ~3.6s latency per switch.
 ///
-/// Invalidation: a new LinkCache reference (env reload) drops the path cache
-/// automatically on next access. The mesh LRU self-invalidates via file mtimes.
-/// The pixel cache doesn't track mtimes — call <see cref="Clear"/> from an
-/// explicit env-refresh hook if textures may have been edited on disk between
-/// sessions. In normal viewer use the files don't change during a run.
+/// Invalidation: when the data source's <see cref="INpcMeshDataSource.CurrentInvalidationToken"/>
+/// reference changes (env reload), the path cache is dropped on next access. The
+/// mesh LRU self-invalidates via file mtimes. The pixel cache doesn't track
+/// mtimes — call <see cref="Clear"/> from an explicit env-refresh hook if
+/// textures may have been edited on disk between sessions. In normal viewer use
+/// the files don't change during a run.
 /// </summary>
 public class CharacterPreviewCache
 {
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
-    private readonly NpcMeshResolver _npcMeshResolver;
+    private readonly INpcMeshDataSource _dataSource;
     private readonly GameAssetResolver _assetResolver;
 
     public NifMeshBuilder MeshBuilder { get; }
 
     private const int MeshPathsCacheMaxEntries = 32;
-    private readonly Dictionary<FormKey, NpcMeshResolver.NpcMeshPaths?> _meshPathsCache = new();
-    private readonly LinkedList<FormKey> _meshPathsLru = new();
+    private readonly Dictionary<NpcIdentity, ResolvedNpcMeshPaths?> _meshPathsCache = new();
+    private readonly LinkedList<NpcIdentity> _meshPathsLru = new();
     private readonly object _meshPathsLock = new();
-    private object? _meshPathsLinkCacheToken;
+    private object? _meshPathsInvalidationToken;
 
     // Sized for ~4 full NPCs' worth of unique diffuse/normal/specular/env maps
     // (head + body + hands + feet + hair ≈ 30 textures each). LRU eviction is
@@ -69,56 +67,58 @@ public class CharacterPreviewCache
     private readonly object _pixelLock = new();
 
     public CharacterPreviewCache(
-        Logger logger,
-        CharacterViewerLogGate logGate,
-        NpcMeshResolver npcMeshResolver,
-        GameAssetResolver assetResolver)
+        INpcMeshDataSource dataSource,
+        GameAssetResolver assetResolver,
+        ICharacterViewerLogger logger,
+        CharacterViewerLogGate logGate)
     {
+        _dataSource = dataSource;
+        _assetResolver = assetResolver;
         _logger = logger;
         _logGate = logGate;
-        _npcMeshResolver = npcMeshResolver;
-        _assetResolver = assetResolver;
         MeshBuilder = new NifMeshBuilder(logger, logGate);
     }
 
     /// <summary>
-    /// Returns cached NpcMeshPaths for this NPC under the given LinkCache, or
-    /// resolves and caches if absent. A null result (NPC unresolvable) is also
-    /// cached so repeat lookups don't redo the failing traversal.
+    /// Returns cached <see cref="ResolvedNpcMeshPaths"/> for this NPC under the
+    /// data source's current invalidation token, or resolves and caches if absent.
+    /// A null result (NPC unresolvable) is also cached so repeat lookups don't
+    /// redo the failing traversal.
     /// </summary>
-    public NpcMeshResolver.NpcMeshPaths? GetOrResolveMeshPaths(FormKey npcFormKey, ILinkCache linkCache)
+    public ResolvedNpcMeshPaths? GetOrResolveMeshPaths(NpcIdentity identity)
     {
+        var token = _dataSource.CurrentInvalidationToken;
+
         lock (_meshPathsLock)
         {
-            // Drop everything if the active LinkCache instance has been replaced
-            // (e.g. env reload). Reference identity is sufficient — a new
-            // environment build always produces a new ILinkCache instance.
-            if (!ReferenceEquals(_meshPathsLinkCacheToken, linkCache))
+            // Drop everything if the data source's invalidation token has been
+            // replaced (e.g. env reload). Reference identity is sufficient — a
+            // new environment build always produces a new token instance.
+            if (!ReferenceEquals(_meshPathsInvalidationToken, token))
             {
                 _meshPathsCache.Clear();
                 _meshPathsLru.Clear();
-                _meshPathsLinkCacheToken = linkCache;
+                _meshPathsInvalidationToken = token;
             }
-            else if (_meshPathsCache.TryGetValue(npcFormKey, out var cached))
+            else if (_meshPathsCache.TryGetValue(identity, out var cached))
             {
-                // LRU touch
-                _meshPathsLru.Remove(npcFormKey);
-                _meshPathsLru.AddFirst(npcFormKey);
+                _meshPathsLru.Remove(identity);
+                _meshPathsLru.AddFirst(identity);
                 if (_logGate != null && _logGate.Verbose)
-                    _logger?.LogMessage("CharacterPreviewCache: NpcMeshPaths cache hit for " + npcFormKey);
+                    _logger?.LogMessage("CharacterPreviewCache: NpcMeshPaths cache hit for " + identity.CacheKey);
                 return cached;
             }
         }
 
-        var resolved = _npcMeshResolver.ResolveMeshPaths(npcFormKey, linkCache);
+        var resolved = _dataSource.Resolve(identity);
 
         lock (_meshPathsLock)
         {
             // Re-check the token in case another thread invalidated mid-resolve.
-            if (!ReferenceEquals(_meshPathsLinkCacheToken, linkCache)) return resolved;
+            if (!ReferenceEquals(_meshPathsInvalidationToken, token)) return resolved;
 
-            _meshPathsCache[npcFormKey] = resolved;
-            _meshPathsLru.AddFirst(npcFormKey);
+            _meshPathsCache[identity] = resolved;
+            _meshPathsLru.AddFirst(identity);
             while (_meshPathsLru.Count > MeshPathsCacheMaxEntries)
             {
                 var oldest = _meshPathsLru.Last!.Value;
@@ -274,7 +274,7 @@ public class CharacterPreviewCache
         {
             _meshPathsCache.Clear();
             _meshPathsLru.Clear();
-            _meshPathsLinkCacheToken = null;
+            _meshPathsInvalidationToken = null;
         }
         lock (_pixelLock)
         {

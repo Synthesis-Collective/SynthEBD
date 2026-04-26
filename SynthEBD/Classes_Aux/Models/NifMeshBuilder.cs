@@ -17,10 +17,10 @@ namespace SynthEBD;
 /// </summary>
 public class NifMeshBuilder
 {
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
-    public NifMeshBuilder(Logger logger, CharacterViewerLogGate logGate)
+    public NifMeshBuilder(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;

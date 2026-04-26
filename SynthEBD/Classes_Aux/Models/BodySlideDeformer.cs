@@ -21,10 +21,10 @@ namespace SynthEBD;
 /// </summary>
 public class BodySlideDeformer
 {
-    private readonly Logger _logger;
+    private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
-    public BodySlideDeformer(Logger logger, CharacterViewerLogGate logGate)
+    public BodySlideDeformer(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;
