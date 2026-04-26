@@ -2217,6 +2217,30 @@ public class VM_CharacterViewer : ViewerVm
     /// render callback, so handlers can safely touch WPF-bound properties.</summary>
     public event Action? GlContextReset;
 
+    /// <summary>True while a load is queued or actively installing — covers
+    /// all three pending-work fields. Hosts that drive the scene install
+    /// from outside a per-frame render callback (notably the offscreen
+    /// renderer) loop on this until the scene is fully committed.</summary>
+    public bool HasPendingSceneWork =>
+        _pendingScene != null || _sceneInstall != null || _pendingHeadReplace != null;
+
+    /// <summary>Drains <see cref="ProcessPendingScene"/> repeatedly until the
+    /// scene is fully installed or <paramref name="maxIterations"/> is
+    /// exhausted. Used by the offscreen renderer where there's no per-frame
+    /// callback budget — we want the entire scene installed before reading
+    /// the framebuffer back.
+    ///
+    /// In WPF interactive use this would be wrong (it'd block the UI thread
+    /// for the full install span), which is why this is a separate entry
+    /// point rather than the default behavior.</summary>
+    public void ProcessPendingSceneToCompletion(int maxIterations = 200)
+    {
+        for (int i = 0; i < maxIterations && HasPendingSceneWork; i++)
+        {
+            ProcessPendingScene();
+        }
+    }
+
     /// <summary>
     /// Called from the GL render callback to process any pending scene setup.
     /// All GL calls (mesh upload, texture loading) happen here where the

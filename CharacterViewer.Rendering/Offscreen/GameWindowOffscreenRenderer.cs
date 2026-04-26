@@ -27,23 +27,21 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// <c>MakeCurrent</c> per render — the GL context is portable across threads,
 /// only GLFW initialization has the main-thread requirement.</para>
 ///
-/// Phase D.1 implementation status:
-///   * GL context creation, FBO allocation, clear-color render, glReadPixels,
-///     vertical flip, and PNG encoding all wired and tested.
-///   * Mesh rendering deferred to Phase D.2 — this MVP produces an image
-///     of the requested background color at the requested resolution. This
-///     proves the offscreen GL pipeline works (and that <see cref="GameWindow"/>
-///     coexists with WPF's <c>GLWpfControl</c> in the same process) without
-///     needing the full mesh-load + texture-apply refactor.
-///   * NPC Plugin Chooser 2 can integrate against this API surface now;
-///     when D.2 lands the rendered output starts including the actual
-///     character mesh without any caller-side changes required.
+/// <para><b>Per-render flow:</b> a fresh <see cref="VM_CharacterViewer"/> is
+/// constructed for each render with the default
+/// <see cref="InlineRenderThreadMarshaller"/> (no WPF dispatcher). The VM is
+/// initialized against the offscreen GL context, fed the request's
+/// <see cref="ResolvedNpcMeshPaths"/>, drained to completion via
+/// <see cref="VM_CharacterViewer.ProcessPendingSceneToCompletion"/>, then
+/// rendered into the FBO. The VM is disposed before the next render so
+/// GL state can't leak between requests. The <see cref="CharacterPreviewCache"/>
+/// (the only shared cross-request state worth keeping) lives at the host
+/// level and amortizes NIF parses + DDS decodes across calls.</para>
 /// </summary>
 public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 {
     private readonly object _lock = new();
     private GameWindow? _gw;
-    private bool _glInitialized;
 
     private int _fboHandle = -1;
     private int _colorTex = -1;
@@ -52,19 +50,46 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     private bool _disposed;
 
-    internal GameWindowOffscreenRenderer()
+    // VM dependencies — passed to each per-request VM instance.
+    private readonly CharacterPreviewCache _previewCache;
+    private readonly BodySlideDeformer _bodySlideDeformer;
+    private readonly BsdFileParser _bsdParser;
+    private readonly BodyTriFileParser _triParser;
+    private readonly GameAssetResolver _assets;
+    private readonly ICharacterViewerSettings _settings;
+    private readonly CharacterViewerLogGate _logGate;
+    private readonly ICharacterViewerLogger _logger;
+
+    internal GameWindowOffscreenRenderer(
+        CharacterPreviewCache previewCache,
+        BodySlideDeformer bodySlideDeformer,
+        BsdFileParser bsdParser,
+        BodyTriFileParser triParser,
+        GameAssetResolver assets,
+        ICharacterViewerSettings settings,
+        CharacterViewerLogGate logGate,
+        ICharacterViewerLogger logger)
     {
-        // Construct the hidden GameWindow on the constructing thread (typical
-        // behaviour expected by GLFW). It stays at 8×8 and never becomes
-        // visible — the actual render target is the FBO, which can be any
-        // size independent of the window.
+        _previewCache = previewCache;
+        _bodySlideDeformer = bodySlideDeformer;
+        _bsdParser = bsdParser;
+        _triParser = triParser;
+        _assets = assets;
+        _settings = settings;
+        _logGate = logGate;
+        _logger = logger;
+
+        // Construct the hidden GameWindow on the constructing thread — GLFW
+        // installs its event hook on the first thread that touches it.
+        // The window stays at 8×8 and never becomes visible; the actual
+        // render target is the FBO, which can be any size independent
+        // of the window.
         var nws = new NativeWindowSettings
         {
             ClientSize = new Vector2i(8, 8),
             StartVisible = false,
             APIVersion = new Version(4, 0),
             Profile = ContextProfile.Core,
-            // Don't grab focus or steal input; this is purely a context host.
             StartFocused = false,
         };
         _gw = new GameWindow(GameWindowSettings.Default, nws);
@@ -94,27 +119,129 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             _gw.MakeCurrent();
             EnsureFbo(request.Width, request.Height);
 
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
-            GL.Viewport(0, 0, request.Width, request.Height);
+            var vm = new VM_CharacterViewer(
+                _bodySlideDeformer, _bsdParser, _triParser, _assets,
+                _settings, _previewCache, _logGate, _logger
+                /* renderThread defaults to InlineRenderThreadMarshaller */);
+            try
+            {
+                LoadAndRender(vm, request);
 
-            float r = request.BackgroundRgb.R / 255f;
-            float g = request.BackgroundRgb.G / 255f;
-            float b = request.BackgroundRgb.B / 255f;
-            GL.ClearColor(r, g, b, 1f);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
+                FlipVertical(pixels, request.Width, request.Height);
 
-            // PHASE D.2 TODO: load meshes from request.MeshPaths via NifMeshBuilder,
-            // upload to GL, apply textures + morphs, configure camera/lighting,
-            // render via GlRenderer. For D.1 we just clear and read back.
+                GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
-            byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
-            FlipVertical(pixels, request.Width, request.Height);
+                return encodeAsPng
+                    ? EncodePngFromRgba(pixels, request.Width, request.Height)
+                    : RgbaToBgra(pixels);
+            }
+            finally
+            {
+                vm.Dispose();
+            }
+        }
+    }
 
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+    private void LoadAndRender(VM_CharacterViewer vm, OffscreenRenderRequest request)
+    {
+        // Initialize the VM against the offscreen GL context. Shaders ship
+        // beside this assembly via ModuleResourceLocator.
+        vm.InitializeGl(ModuleResourceLocator.ShaderDirectory);
 
-            return encodeAsPng
-                ? EncodePngFromRgba(pixels, request.Width, request.Height)
-                : RgbaToBgra(pixels);
+        // Push lighting from the request before the scene loads so
+        // GlRenderer's lighting state is current by the time we render.
+        if (request.Lighting != null) vm.SelectedLightingLayout = request.Lighting;
+        if (request.Colors != null) vm.SelectedLightingColorScheme = request.Colors;
+
+        // Synchronously load + drain. The marshaller is inline so LoadAsync's
+        // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
+        // then flushes the install queue against the bound FBO.
+        var identity = new NpcIdentity("offscreen", "offscreen");
+        vm.LoadAsync(identity, request.MeshPaths, request.OverrideHeadMeshAbsolutePath,
+            request.Cancellation).GetAwaiter().GetResult();
+        vm.ProcessPendingSceneToCompletion();
+
+        // Optional post-load adjustments. Texture overrides and morphs are
+        // queued internally if the scene wasn't ready; after
+        // ProcessPendingSceneToCompletion above the scene IS ready, so
+        // these apply immediately.
+        if (request.TextureOverrides != null)
+        {
+            vm.ApplyTextureOverrides(request.TextureOverrides);
+        }
+        if (request.Morphs != null)
+        {
+            vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
+        }
+
+        // Re-bind the FBO (VM's GL calls may have unbound it) and clear
+        // before we render the new scene.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
+        GL.Viewport(0, 0, request.Width, request.Height);
+        float r = request.BackgroundRgb.R / 255f;
+        float g = request.BackgroundRgb.G / 255f;
+        float b = request.BackgroundRgb.B / 255f;
+        GL.ClearColor(r, g, b, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        ConfigureCamera(vm, request);
+
+        vm.Renderer.Render(vm.Camera, request.Width, request.Height);
+    }
+
+    /// <summary>Sets the VM camera's orbit parameters from the request's
+    /// <see cref="CameraFraming"/>. Portrait mode auto-frames the head using
+    /// the loaded scene's NPC base height; Fixed mode applies the explicit
+    /// values directly. Both modes leave the renderer in a state where
+    /// <c>vm.Renderer.Render(vm.Camera, w, h)</c> produces the framed image.</summary>
+    private static void ConfigureCamera(VM_CharacterViewer vm, OffscreenRenderRequest request)
+    {
+        var camera = vm.Camera;
+
+        switch (request.Camera)
+        {
+            case CameraFraming.Portrait portrait:
+            {
+                // Frame the head: target it, pull back enough that the head
+                // height (≈22 units in NIF coords for a normal-scale NPC)
+                // fills the requested portion of the framebuffer. The
+                // OrbitCamera defaults (Az=180 facing the camera, El=15)
+                // are reasonable for a portrait; we just dial Distance and
+                // Target to match the request.
+                float headWorldY = 120f * vm.NpcBaseHeight;   // NIF "NPC Head" Z position
+                camera.Target = new Vector3(0f, headWorldY, 0f);
+                // Heuristic: distance ~= head height / tan(half_fov) divided by
+                // the framing band. Headband = HeadTopOffset - HeadBottomOffset
+                // (1.0 = full frame). With OrbitCamera's default ~50° vertical
+                // FOV, distance scales inversely with the framing band.
+                float band = MathF.Max(0.05f, portrait.HeadTopOffset - portrait.HeadBottomOffset);
+                float headHeight = 22f * vm.NpcBaseHeight;
+                camera.Distance = MathF.Max(camera.MinDistance, headHeight / band * 1.6f);
+                camera.Azimuth = 180f;
+                camera.Elevation = 0f;
+                break;
+            }
+            case CameraFraming.Fixed fixedCam:
+            {
+                // OrbitCamera doesn't directly expose eye position; the closest
+                // approximation is to set Target to the head and convert
+                // (X, Y, Z) into a delta from the target. Yaw/Pitch derive
+                // from that delta. Roll is unsupported by OrbitCamera and is
+                // ignored. FOV is camera-internal and currently fixed; if NPC2
+                // needs custom FOV we can extend OrbitCamera later.
+                float headWorldY = 120f * vm.NpcBaseHeight;
+                camera.Target = new Vector3(0f, headWorldY, 0f);
+                var dx = fixedCam.X;
+                var dy = fixedCam.Y - headWorldY;
+                var dz = fixedCam.Z;
+                camera.Distance = MathF.Max(camera.MinDistance,
+                    MathF.Sqrt(dx * dx + dy * dy + dz * dz));
+                camera.Azimuth = MathF.Atan2(dx, dz) * (180f / MathF.PI);
+                camera.Elevation = MathF.Atan2(dy,
+                    MathF.Sqrt(dx * dx + dz * dz)) * (180f / MathF.PI);
+                break;
+            }
         }
     }
 
