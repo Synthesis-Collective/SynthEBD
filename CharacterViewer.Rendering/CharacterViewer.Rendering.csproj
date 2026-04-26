@@ -9,6 +9,13 @@
     <RootNamespace>CharacterViewer.Rendering</RootNamespace>
     <AssemblyName>CharacterViewer.Rendering</AssemblyName>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Library version. Keep in sync with CharacterViewerRendering.Version
+         in CharacterViewerRendering.cs — hosts compare against that constant
+         for staleness checks. Bump together: Major = breaking, Minor =
+         additive, Patch = bugfix. -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
