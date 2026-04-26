@@ -44,17 +44,17 @@ namespace SynthEBD
                 .Subscribe(x => lk = x)
                 .DisposeWith(this);
 
-            DeleteMe = new SynthEBD.RelayCommand(
+            DeleteMe = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => AssociatedPlaceHolder.ParentCollection.Remove(AssociatedPlaceHolder)
             );
 
-            AddAllowedAttribute = new SynthEBD.RelayCommand(
+            AddAllowedAttribute = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, ParentMenu.AttributeGroupMenu.Groups))
             );
 
-            AddDisallowedAttribute = new SynthEBD.RelayCommand(
+            AddDisallowedAttribute = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenu.AttributeGroupMenu.Groups))
             );
@@ -74,7 +74,7 @@ namespace SynthEBD
             }).DisposeWith(this);
 
             /*
-            Clone = new SynthEBD.RelayCommand(
+            Clone = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
                     var cloneModel = VM_HeadPart.DumpViewModelToModel(this);

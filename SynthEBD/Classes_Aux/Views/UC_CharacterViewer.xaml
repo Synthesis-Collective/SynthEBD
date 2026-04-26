@@ -4,12 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:cvr="clr-namespace:CharacterViewer.Rendering;assembly=CharacterViewer.Rendering"
              xmlns:glWpf="clr-namespace:OpenTK.Wpf;assembly=GLWpfControl"
              xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              d:DesignHeight="500" d:DesignWidth="600"
-             d:DataContext="{d:DesignInstance Type=local:VM_CharacterViewer}">
+             d:DataContext="{d:DesignInstance Type=cvr:VM_CharacterViewer}">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -20,7 +21,7 @@
         <ObjectDataProvider x:Key="BoxCriterionValues"
                             MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
             <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="local:BoxCriterionSelection"/>
+                <x:Type TypeName="cvr:BoxCriterionSelection"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
     </UserControl.Resources>
@@ -469,7 +470,7 @@
                          ToolTip lists the combinations; enum ToString formats "X, Y" etc. -->
                     <TextBlock Text="Force Symmetry:" Foreground="#FFAAAAAA" FontSize="11"
                                VerticalAlignment="Center" Margin="15,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding Source={x:Static local:VM_CharacterViewer.SymmetryAxesChoices}}"
+                    <ComboBox ItemsSource="{Binding Source={x:Static cvr:VM_CharacterViewer.SymmetryAxesChoices}}"
                               SelectedItem="{Binding PendingBoxSymmetry}"
                               FontSize="11" MinWidth="90" VerticalAlignment="Center"
                               ToolTip="Lock one or more axes so editing min/max on that axis auto-mirrors the opposite side about 0."/>

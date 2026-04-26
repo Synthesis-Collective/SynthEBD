@@ -40,48 +40,48 @@ public class VM_NavPanel : VM
         _displayedItemVM = displayedItemVm;
         Version = PatcherState.Version;
 
-        ClickSG = new SynthEBD.RelayCommand(
+        ClickSG = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = settingsGeneral
         );
 
-        ClickTM = new SynthEBD.RelayCommand(
+        ClickTM = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = texMesh
         ) ;
-        ClickBG = new SynthEBD.RelayCommand(
+        ClickBG = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = bodyGenSettingsVm
         );
-        ClickOB = new SynthEBD.RelayCommand(
+        ClickOB = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = oBody
         );
-        ClickH = new SynthEBD.RelayCommand(
+        ClickH = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = height
         );
-        ClickHP = new SynthEBD.RelayCommand(
+        ClickHP = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = headparts
         );
-        ClickSA = new SynthEBD.RelayCommand(
+        ClickSA = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = specificNpcAssignmentsUi
         );
-        ClickC = new SynthEBD.RelayCommand(
+        ClickC = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = consistencyUi
         );
-        ClickBL = new SynthEBD.RelayCommand(
+        ClickBL = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = blockListUi
         );
-        ClickLog = new SynthEBD.RelayCommand(
+        ClickLog = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = logDisplay
         );
-        ClickMM = new SynthEBD.RelayCommand(
+        ClickMM = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = modManager
         );

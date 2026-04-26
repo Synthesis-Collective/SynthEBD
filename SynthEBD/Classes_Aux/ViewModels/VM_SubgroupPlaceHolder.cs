@@ -66,7 +66,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
             .Subscribe(_ => RefreshExtendedName())
             .DisposeWith(this);
 
-        DeleteMe = new SynthEBD.RelayCommand(
+        DeleteMe = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
                 //remove this subgroup and child subgroups from the Required/Excluded lists of other subgroups
@@ -82,7 +82,7 @@ public class VM_SubgroupPlaceHolder : VM, ICloneable
             }
         );
 
-        AddSubgroup = new SynthEBD.RelayCommand(
+        AddSubgroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
                 var newSubgroup = new AssetPack.Subgroup();

@@ -1,6 +1,7 @@
-﻿using System.Windows.Input;
+﻿using System;
+using System.Windows.Input;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 public class RelayCommand : ICommand
 {

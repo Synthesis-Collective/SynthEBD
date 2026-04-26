@@ -237,12 +237,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             }
         );
 
-        // Character Viewer: reload NPC mesh when NPCFormKey changes
-        this.WhenAnyValue(x => x.NPCFormKey)
-            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
-            .Where(fk => !fk.IsNull && lk != null)
-            .Subscribe(fk => _ = RefreshViewerNpcAsync())
-            .DisposeWith(this);
+        // Character Viewer: reload NPC mesh when NPCFormKey changes.
+        // Subscribed below in a merged stream alongside the head-part FormKey
+        // observables so all initial-value emissions on screen load share a
+        // single throttle window — preventing concurrent RefreshViewerNpcAsync
+        // calls that would race FaceGenPatcher's temp extraction.
 
         // Character Viewer: reapply BodySlide when ForcedBodySlide changes
         this.WhenAnyValue(x => x.ForcedBodySlide)
@@ -317,16 +316,27 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             .Subscribe(_ => RefreshViewerBodyGen())
             .DisposeWith(this);
 
-        // Character Viewer: re-bake FaceGen when any head-part assignment's FormKey changes.
-        // HeadParts is a fixed dictionary; subscribe to each entry's FormKey once here.
-        foreach (var hp in HeadParts.Values)
-        {
-            if (hp == null) continue;
-            hp.WhenAnyValue(x => x.FormKey)
-                .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
-                .Subscribe(fk => { var _t = RefreshViewerNpcAsync(); })
-                .DisposeWith(this);
-        }
+        // Character Viewer: re-bake FaceGen when the NPC FormKey OR any head-part
+        // assignment's FormKey changes. All viewer-NPC-refresh triggers share a
+        // single throttle stream: per-subscription throttling would let every
+        // head-part type's initial-value emission AND the NPC FormKey's initial-
+        // value emission all race through after the same 300ms window expires —
+        // producing 7+ concurrent RefreshViewerNpcAsync calls on screen load.
+        // Those then race FaceGenPatcher's per-NPC temp extraction at
+        // S:\Temp\<plugin>_<formId>_facegen.nif.
+        var npcRefreshTriggers = new List<IObservable<Unit>>();
+        npcRefreshTriggers.Add(
+            this.WhenAnyValue(x => x.NPCFormKey)
+                .Where(fk => !fk.IsNull && lk != null)
+                .Select(_ => Unit.Default));
+        npcRefreshTriggers.AddRange(
+            HeadParts.Values
+                .Where(hp => hp != null)
+                .Select(hp => hp.WhenAnyValue(x => x.FormKey).Select(_ => Unit.Default)));
+        Observable.Merge(npcRefreshTriggers)
+            .Throttle(TimeSpan.FromMilliseconds(300), RxApp.MainThreadScheduler)
+            .Subscribe(_ => { var _t = RefreshViewerNpcAsync(); })
+            .DisposeWith(this);
 
         CharacterViewer.Mode = ViewerMode.Full;
 
@@ -988,7 +998,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
             }).DisposeWith(this);
 
-            DeleteCommand = new SynthEBD.RelayCommand(
+            DeleteCommand = new RelayCommand(
                 canExecute: _ => true,
                 execute: x =>
                 {
@@ -996,12 +1006,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 }
             );
 
-            DeleteForcedMixInSubgroup = new SynthEBD.RelayCommand(
+            DeleteForcedMixInSubgroup = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => ForcedSubgroups.Remove((VM_SubgroupPlaceHolder)x)
             );
 
-            AddForcedReplacer = new SynthEBD.RelayCommand(
+            AddForcedReplacer = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => ForcedAssetReplacements.Add(new VM_AssetReplacementAssignment(ForcedAssetPack, ForcedAssetReplacements))
             );

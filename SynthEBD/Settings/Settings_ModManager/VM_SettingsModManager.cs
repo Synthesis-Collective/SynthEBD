@@ -16,7 +16,7 @@ public class VM_SettingsModManager : VM
         _patcherState = patcherState;
         _logger = logger;
 
-        SelectTempFolder = new SynthEBD.RelayCommand(
+        SelectTempFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -128,7 +128,7 @@ public class VM_MO2Integration : VM
 {
     public VM_MO2Integration()
     {
-        FindModFolder = new SynthEBD.RelayCommand(
+        FindModFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -139,7 +139,7 @@ public class VM_MO2Integration : VM
             }
         );
 
-        FindExecutable = new SynthEBD.RelayCommand(
+        FindExecutable = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -235,7 +235,7 @@ public class VM_VortexIntergation : VM
 {
     public VM_VortexIntergation()
     {
-        FindStagingFolder = new SynthEBD.RelayCommand(
+        FindStagingFolder = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {

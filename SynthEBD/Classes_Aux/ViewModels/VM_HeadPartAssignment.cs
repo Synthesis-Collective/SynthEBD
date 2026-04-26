@@ -45,7 +45,7 @@ namespace SynthEBD
                 else { BorderColor = new(Colors.Red); }
             }).DisposeWith(this);
 
-            ClearSelection = new SynthEBD.RelayCommand(
+            ClearSelection = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => {
                     FormKey = new();

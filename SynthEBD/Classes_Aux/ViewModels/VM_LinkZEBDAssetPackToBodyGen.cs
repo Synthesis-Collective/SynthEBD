@@ -15,12 +15,12 @@ public class VM_LinkZEBDAssetPackToBodyGen : VM
 
         if (AvailableConfigs.Count > 0) { SelectedConfig = AvailableConfigs.First(); }
 
-        OKcommand = new SynthEBD.RelayCommand(
+        OKcommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => AssociatedWindow.Close()
         );
 
-        ClearCommand = new SynthEBD.RelayCommand(
+        ClearCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {

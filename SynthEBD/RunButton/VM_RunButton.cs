@@ -37,7 +37,7 @@ public class VM_RunButton : VM
         _logger = logger;
         // synchronous version for debugging only
         /*
-        ClickRun = new SynthEBD.RelayCommand(
+        ClickRun = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {

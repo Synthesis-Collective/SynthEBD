@@ -8,7 +8,7 @@ public class VM_BodyGenGroupsMenu : VM
     {
         ParentMenu = parentMenu;
 
-        AddTemplateGroup = new SynthEBD.RelayCommand(
+        AddTemplateGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => TemplateGroups.Add(new VM_CollectionMemberString("", TemplateGroups))
         );

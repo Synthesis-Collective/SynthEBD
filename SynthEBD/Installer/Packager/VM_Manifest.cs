@@ -70,7 +70,7 @@ namespace SynthEBD
                     }
                 });
 
-            SelectedNodeChanged = new SynthEBD.RelayCommand(
+            SelectedNodeChanged = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => this.SelectedNode = (VM_PackagerOption)x
                 );

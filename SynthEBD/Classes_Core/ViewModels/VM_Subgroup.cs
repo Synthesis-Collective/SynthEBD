@@ -107,7 +107,7 @@ public class VM_Subgroup : VM
              }
          }).DisposeWith(this);
 
-        AutoGenerateIDcommand = new SynthEBD.RelayCommand(
+        AutoGenerateIDcommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -118,7 +118,7 @@ public class VM_Subgroup : VM
                 }
             });
 
-        AutoGenerateID_Children_Command = new SynthEBD.RelayCommand(
+        AutoGenerateID_Children_Command = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -129,32 +129,32 @@ public class VM_Subgroup : VM
                 }
             });
 
-        AutoGenerateID_All_Command = new SynthEBD.RelayCommand(
+        AutoGenerateID_All_Command = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentAssetPack.AutoGenerateSubgroupIDs()
         );
 
-        AddAllowedAttribute = new SynthEBD.RelayCommand(
+        AddAllowedAttribute = new RelayCommand(
             canExecute: _ => true,
             execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, true, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
-        AddDisallowedAttribute = new SynthEBD.RelayCommand(
+        AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
-        AddNPCKeyword = new SynthEBD.RelayCommand(
+        AddNPCKeyword = new RelayCommand(
             canExecute: _ => true,
             execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", AddKeywords))
         );
 
-        AddPath = new SynthEBD.RelayCommand(
+        AddPath = new RelayCommand(
             canExecute: _ => true,
             execute: _ => PathsMenu.Paths.Add(filePathReplacementFactory(PathsMenu))
         );
 
-        LinkRequiredSubgroups = new SynthEBD.RelayCommand(
+        LinkRequiredSubgroups = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -165,12 +165,12 @@ public class VM_Subgroup : VM
             }
         );
 
-        ToggleBulkRenameVisibility = new SynthEBD.RelayCommand(
+        ToggleBulkRenameVisibility = new RelayCommand(
             canExecute: _ => true,
             execute: x => RenameVisible = !RenameVisible
         );
 
-        ApplyBulkRename = new SynthEBD.RelayCommand(
+        ApplyBulkRename = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {

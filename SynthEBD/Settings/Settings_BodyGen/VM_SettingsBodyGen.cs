@@ -28,7 +28,7 @@ public class VM_SettingsBodyGen : VM
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
-        DisplayMaleConfig = new SynthEBD.RelayCommand(
+        DisplayMaleConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -38,7 +38,7 @@ public class VM_SettingsBodyGen : VM
             }
         );
 
-        DisplayFemaleConfig = new SynthEBD.RelayCommand(
+        DisplayFemaleConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -48,7 +48,7 @@ public class VM_SettingsBodyGen : VM
             }
         );
 
-        AddNewMaleConfig = new SynthEBD.RelayCommand(
+        AddNewMaleConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {
@@ -62,7 +62,7 @@ public class VM_SettingsBodyGen : VM
                 InitializeNewBodyGenConfig(newConfig, generalSettingsVM);
             });
 
-        AddNewFemaleConfig = new SynthEBD.RelayCommand(
+        AddNewFemaleConfig = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
             {

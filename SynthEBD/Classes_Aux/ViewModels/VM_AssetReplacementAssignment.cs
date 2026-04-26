@@ -11,12 +11,12 @@ public class VM_AssetReplacementAssignment : VM
         ParentAssetPack = parent;
         ParentCollection = parentCollection;
 
-        DeleteCommand = new SynthEBD.RelayCommand(
+        DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: x => ParentCollection.Remove(this)
         );
 
-        AddSubgroupCommand = new SynthEBD.RelayCommand(
+        AddSubgroupCommand = new RelayCommand(
             canExecute: _ => true,
             execute: x => SubgroupIDs.Add(new VM_CollectionMemberString("", SubgroupIDs))
         );

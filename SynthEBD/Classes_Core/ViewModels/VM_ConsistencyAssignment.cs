@@ -47,7 +47,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         this.WhenAnyValue(x => x.BodySlidePreset).Subscribe(x => BodySlideAssigned = BodySlidePreset != null && BodySlidePreset.Any()).DisposeWith(this);
         this.WhenAnyValue(x => x.Height).Subscribe(x => HeightAssigned = Height != null && Height.Any()).DisposeWith(this);
 
-        DeleteAssetPackCommand = new SynthEBD.RelayCommand(
+        DeleteAssetPackCommand = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {
@@ -56,12 +56,12 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             }
         );
 
-        DeleteBodySlideCommand = new SynthEBD.RelayCommand(
+        DeleteBodySlideCommand = new RelayCommand(
             canExecute: _ => true,
             execute: x => this.BodySlidePreset = ""
         );
 
-        DeleteHeightCommand = new SynthEBD.RelayCommand(
+        DeleteHeightCommand = new RelayCommand(
             canExecute: _ => true,
             execute: x => this.Height = ""
         );
@@ -436,7 +436,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         {
             ParentCollection = parentCollection;
 
-            DeleteCommand = new SynthEBD.RelayCommand(
+            DeleteCommand = new RelayCommand(
                 canExecute: _ => true,
                 execute: x =>
                 {

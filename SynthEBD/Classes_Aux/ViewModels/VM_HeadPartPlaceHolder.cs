@@ -39,7 +39,7 @@ namespace SynthEBD
                 BorderColor = CommonColors.Red;
             }
 
-            DeleteMe = new SynthEBD.RelayCommand(
+            DeleteMe = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => ParentCollection.Remove(this)
             );

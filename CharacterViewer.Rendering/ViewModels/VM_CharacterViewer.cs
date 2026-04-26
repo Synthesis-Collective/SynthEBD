@@ -5,19 +5,16 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Cache;
-using Mutagen.Bethesda.Skyrim;
-using Noggog;
 using ReactiveUI;
 using MediaColor = System.Windows.Media.Color;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Controls which editing features are available in the character viewer.
@@ -35,8 +32,14 @@ public enum ViewerMode
 /// ViewModel for the 3D character viewer. Manages the OpenGL rendering scene,
 /// loaded mesh data, textures, and user interaction.
 /// </summary>
-public class VM_CharacterViewer : VM
+public class VM_CharacterViewer : ViewerVm
 {
+    /// <summary>Composite for reactive subscriptions added via
+    /// <see cref="System.Reactive.Disposables.DisposableMixins.DisposeWith{T}"/>.
+    /// Disposed in <see cref="Dispose"/>. Replaces the previous
+    /// <c>SynthEBD.VM</c> base-class IDisposableDropoff plumbing.</summary>
+    private readonly CompositeDisposable _disposables = new();
+
     private readonly NifMeshBuilder _meshBuilder;
     private readonly BodySlideDeformer _bodySlideDeformer;
     private readonly BsdFileParser _bsdFileParser;
@@ -267,7 +270,7 @@ public class VM_CharacterViewer : VM
                 if (VerboseLog != v) VerboseLog = v;
                 if (_logGate != null && _logGate.Verbose != v) _logGate.Verbose = v;
             })
-            .DisposeWith(this);
+            .DisposeWith(_disposables);
 
         // Feed local-property changes (toolbar checkbox toggles) back to settings. The
         // settings-side subscription above then fans the new value to every other viewer.
@@ -275,7 +278,7 @@ public class VM_CharacterViewer : VM
         {
             if (_generalSettings.CharacterViewerVerboseLog != v)
                 _generalSettings.CharacterViewerVerboseLog = v;
-        }).DisposeWith(this);
+        }).DisposeWith(_disposables);
 
         // Load persisted lighting state *before* XAML binds. If we defer this to
         // InitializeGl (which runs from the first GL render callback), the
@@ -289,7 +292,7 @@ public class VM_CharacterViewer : VM
         // recompute, and the owning VM only needs to set HeightOverride.
         this.WhenAnyValue(x => x.NpcBaseHeight, x => x.HeightOverride)
             .Subscribe(_ => ApplyCharacterScale())
-            .DisposeWith(this);
+            .DisposeWith(_disposables);
 
         // Per-axis symmetry mirror: when the user edits one side of a locked axis, mirror
         // the opposite side about 0 so the box stays centered on the symmetry plane. Guarded
@@ -550,7 +553,7 @@ public class VM_CharacterViewer : VM
             _generalSettings.CharacterViewerLightingLayout = layout.Name;
             ApplyPresetToFields(layout, SelectedLightingColorScheme);
             PushAllLightsToRenderer();
-        }).DisposeWith(this);
+        }).DisposeWith(_disposables);
 
         this.WhenAnyValue(x => x.SelectedLightingColorScheme).Skip(1).Subscribe(scheme =>
         {
@@ -560,44 +563,44 @@ public class VM_CharacterViewer : VM
             FillLightColor = MediaFromVec3(scheme.FillColor);
             RimLightColor = MediaFromVec3(scheme.RimColor);
             PushAllLightsToRenderer();
-        }).DisposeWith(this);
+        }).DisposeWith(_disposables);
 
         // Any per-light edit (or enable toggle) re-pushes to the renderer.
         // Skip(1) suppresses the initial value emission so we don't push during
         // construction when the renderer isn't yet initialized. Split per-light
         // because ReactiveUI's WhenAnyValue overloads cap out at a modest arity.
         this.WhenAnyValue(x => x.AmbientIntensity)
-            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
             x => x.KeyLightColor, x => x.KeyLightEnabled)
-            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.FillLightIntensity, x => x.FillLightAzimuth, x => x.FillLightElevation,
             x => x.FillLightColor, x => x.FillLightEnabled)
-            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.RimLightIntensity, x => x.RimLightAzimuth, x => x.RimLightElevation,
             x => x.RimLightColor, x => x.RimLightEnabled)
-            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
 
         this.WhenAnyValue(x => x.SelectedLightIndex)
-            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(this);
+            .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
 
         this.WhenAnyValue(x => x.ShowLightControls).Subscribe(v =>
         {
             Renderer.ShowKeyLightVisualization = v;
             if (!v) SelectedLightIndex = 0;
-        }).DisposeWith(this);
+        }).DisposeWith(_disposables);
 
         this.WhenAnyValue(x => x.ShowWireframe).Subscribe(v =>
         {
             foreach (var mesh in Renderer.Meshes)
                 mesh.ShowWireframe = v;
-        }).DisposeWith(this);
+        }).DisposeWith(_disposables);
 
         // Commands
         SaveLayoutPresetCommand = new RelayCommand(
@@ -691,8 +694,11 @@ public class VM_CharacterViewer : VM
         {
             if (string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase))
             {
-                MessageWindow.DisplayNotificationOK("Name in use",
-                    $"'{name}' is a built-in preset name. Please choose a different name.");
+                System.Windows.MessageBox.Show(
+                    $"'{name}' is a built-in preset name. Please choose a different name.",
+                    "Name in use",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
                 return;
             }
         }
@@ -700,8 +706,11 @@ public class VM_CharacterViewer : VM
         var existing = _generalSettings.UserLightingLayouts.FirstOrDefault(l =>
             string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
         if (existing != null &&
-            !MessageWindow.DisplayNotificationYesNo("Overwrite preset?",
-                $"A user preset named '{name}' already exists. Overwrite it?"))
+            System.Windows.MessageBox.Show(
+                $"A user preset named '{name}' already exists. Overwrite it?",
+                "Overwrite preset?",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
         {
             return;
         }
@@ -731,8 +740,11 @@ public class VM_CharacterViewer : VM
         {
             if (string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase))
             {
-                MessageWindow.DisplayNotificationOK("Name in use",
-                    $"'{name}' is a built-in preset name. Please choose a different name.");
+                System.Windows.MessageBox.Show(
+                    $"'{name}' is a built-in preset name. Please choose a different name.",
+                    "Name in use",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
                 return;
             }
         }
@@ -740,8 +752,11 @@ public class VM_CharacterViewer : VM
         var existing = _generalSettings.UserLightingColorSchemes.FirstOrDefault(c =>
             string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
         if (existing != null &&
-            !MessageWindow.DisplayNotificationYesNo("Overwrite preset?",
-                $"A user color scheme named '{name}' already exists. Overwrite it?"))
+            System.Windows.MessageBox.Show(
+                $"A user color scheme named '{name}' already exists. Overwrite it?",
+                "Overwrite preset?",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
         {
             return;
         }
@@ -763,8 +778,11 @@ public class VM_CharacterViewer : VM
     {
         var sel = SelectedLightingLayout;
         if (sel == null || sel.IsBuiltIn) return;
-        if (!MessageWindow.DisplayNotificationYesNo("Delete preset?",
-                $"Delete the user lighting layout '{sel.Name}'?")) return;
+        if (System.Windows.MessageBox.Show(
+                $"Delete the user lighting layout '{sel.Name}'?",
+                "Delete preset?",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes) return;
 
         _generalSettings.UserLightingLayouts.Remove(sel);
         RebuildLayoutList();
@@ -775,8 +793,11 @@ public class VM_CharacterViewer : VM
     {
         var sel = SelectedLightingColorScheme;
         if (sel == null || sel.IsBuiltIn) return;
-        if (!MessageWindow.DisplayNotificationYesNo("Delete preset?",
-                $"Delete the user color scheme '{sel.Name}'?")) return;
+        if (System.Windows.MessageBox.Show(
+                $"Delete the user color scheme '{sel.Name}'?",
+                "Delete preset?",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes) return;
 
         _generalSettings.UserLightingColorSchemes.Remove(sel);
         RebuildColorSchemeList();
@@ -1567,7 +1588,7 @@ public class VM_CharacterViewer : VM
     /// stored (not expression-bodied) so Fody's PropertyChanged weaver raises change
     /// notifications on them directly without relying on computed-property dependency
     /// inference.</summary>
-    public sealed class PickRow : VM
+    public sealed class PickRow : ViewerVm
     {
         public string ShapeName { get; set; } = "";
         public int VertexIndex { get; set; }
@@ -2423,7 +2444,7 @@ public class VM_CharacterViewer : VM
         catch (Exception ex)
         {
             _logger.LogError("CharacterViewer: Failed to resolve NPC " + identity.CacheKey + ": " +
-                ExceptionLogger.GetExceptionStack(ex));
+                ex.ToString());
         }
 
         if (meshPaths == null)
@@ -2541,7 +2562,7 @@ public class VM_CharacterViewer : VM
             // actually reveals the failure instead of silently switching tabs.
             StatusText = $"Error: {ex.Message}";
             _logger.LogError("CharacterViewer: Failed to load NPC " + identity.CacheKey + Environment.NewLine
-                + ExceptionLogger.GetExceptionStack(ex));
+                + ex.ToString());
             if (_loadCts == cts) _sceneRebuildPending = false;
         }
         finally
@@ -2997,7 +3018,7 @@ public class VM_CharacterViewer : VM
             // silently via LogMessage and the user only saw the tab-switch with no detail.
             _logger.LogError("CharacterViewer: ApplyMorphSet failed for '"
                 + (morphs.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
-                + ExceptionLogger.GetExceptionStack(ex));
+                + ex.ToString());
         }
 
         // Fire regardless of deformation outcome so subscribers can refresh readouts;
@@ -3049,7 +3070,7 @@ public class VM_CharacterViewer : VM
         catch (Exception ex)
         {
             _logger.LogError("CharacterViewer.RebuildHeadOnlyAsync: head NIF parse failed: " +
-                ExceptionLogger.GetExceptionStack(ex));
+                ex.ToString());
             return;
         }
 
@@ -3226,11 +3247,11 @@ public class VM_CharacterViewer : VM
         catch (Exception ex)
         {
             _logger?.LogError("VM_CharacterViewer.Dispose: GL cleanup threw: "
-                + ExceptionLogger.GetExceptionStack(ex));
+                + ex.ToString());
         }
 
-        // Tears down reactive subscriptions added via DisposeWith(this).
-        base.Dispose();
+        // Tears down reactive subscriptions added via DisposeWith(_disposables).
+        _disposables.Dispose();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

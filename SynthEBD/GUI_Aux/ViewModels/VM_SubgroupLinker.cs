@@ -34,7 +34,7 @@ namespace SynthEBD
                 (_, _, _, _, _, _) => { return 0; })
             .Subscribe(_ => CollectMatchingSubgroups()).DisposeWith(this);
 
-            LinkThisTo = new SynthEBD.RelayCommand(
+            LinkThisTo = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     LinkThisToFn();
@@ -42,7 +42,7 @@ namespace SynthEBD
                 }
             );
 
-            UnlinkThisFrom = new SynthEBD.RelayCommand(
+            UnlinkThisFrom = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     UnlinkThisFromFn();
@@ -50,7 +50,7 @@ namespace SynthEBD
                 }
             );
 
-            LinkToThis = new SynthEBD.RelayCommand(
+            LinkToThis = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     LinkToThisFn();
@@ -58,7 +58,7 @@ namespace SynthEBD
                 }
             );
 
-            UnlinkFromThis = new SynthEBD.RelayCommand(
+            UnlinkFromThis = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     UnlinkFromThisFn();
@@ -66,7 +66,7 @@ namespace SynthEBD
                 }
             );
 
-            LinkReciprocally = new SynthEBD.RelayCommand(
+            LinkReciprocally = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     LinkToThisFn();
@@ -75,7 +75,7 @@ namespace SynthEBD
                 }
             );
 
-            LinkWholeGroup = new SynthEBD.RelayCommand(
+            LinkWholeGroup = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     LinkWholeGroupFn();
@@ -83,7 +83,7 @@ namespace SynthEBD
                 }
             );
 
-            UnlinkReciprocally = new SynthEBD.RelayCommand(
+            UnlinkReciprocally = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     UnlinkThisFromFn();
@@ -92,7 +92,7 @@ namespace SynthEBD
                 }
             );
 
-            UnlinkWholeGroup = new SynthEBD.RelayCommand(
+            UnlinkWholeGroup = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     UnlinkWholeGroupFn();
@@ -100,7 +100,7 @@ namespace SynthEBD
                 }
             );
 
-            AddAsLinkedAlternative = new SynthEBD.RelayCommand(
+            AddAsLinkedAlternative = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     AddAsAlternative(_targetSubgroup.AssociatedPlaceHolder, _targetAssetPack, _targetSubgroup, AddAsLinkedAlternativeRecursive, AddAsLinkedAlternativeExcludeNeighbors, new());
@@ -108,7 +108,7 @@ namespace SynthEBD
                 }
             );
 
-            UnlinkAllFromThis = new SynthEBD.RelayCommand(
+            UnlinkAllFromThis = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     UnlinkAllFromThisFn();
@@ -116,7 +116,7 @@ namespace SynthEBD
                 }
             );
 
-            Close = new SynthEBD.RelayCommand(
+            Close = new RelayCommand(
                 canExecute: _ => true,
                 execute: x => {
                     window.Close();

@@ -83,7 +83,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
             execute: _ => ImportFromZEBD()
         );
 
-        ImportBodyGenMorphsIni = new SynthEBD.RelayCommand(
+        ImportBodyGenMorphsIni = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
             {

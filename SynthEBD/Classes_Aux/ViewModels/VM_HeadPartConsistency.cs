@@ -11,7 +11,7 @@ public class VM_HeadPartConsistency : VM
 {
     public VM_HeadPartConsistency()
     {
-        ClearSelection = new SynthEBD.RelayCommand(
+        ClearSelection = new RelayCommand(
             canExecute: _ => true,
             execute: _ => {
                 ClearAssignment();

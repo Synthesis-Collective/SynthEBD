@@ -36,12 +36,12 @@ namespace SynthEBD
             AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(_generalSettingsRaceGroupingEditor.RaceGroupings);
             DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(_generalSettingsRaceGroupingEditor.RaceGroupings);
 
-            AddAllowedAttribute = new SynthEBD.RelayCommand(
+            AddAllowedAttribute = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => AllowedAttributes.Add(_attributeCreator.CreateNewFromUI(AllowedAttributes, false, null, _generalSettingsAttGroupMenu.Groups))
             );
 
-            AddDisallowedAttribute = new SynthEBD.RelayCommand(
+            AddDisallowedAttribute = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, _generalSettingsAttGroupMenu.Groups))
             );

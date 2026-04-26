@@ -41,7 +41,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
             
         }).DisposeWith(this);
 
-        AddGroup = new SynthEBD.RelayCommand(
+        AddGroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ReplacerGroups.Add(assetReplaceGroupFactory(this))
         );
@@ -113,12 +113,12 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
              }
          }).DisposeWith(this);
 
-        Remove = new SynthEBD.RelayCommand(
+        Remove = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ParentMenu.ReplacerGroups.Remove(this)
         );
 
-        AddTopLevelSubgroup = new SynthEBD.RelayCommand(
+        AddTopLevelSubgroup = new RelayCommand(
             canExecute: _ => true,
             execute: _ => Subgroups.Add(subGroupPlaceHolderFactory(new AssetPack.Subgroup(), null, parent.ParentAssetPack, Subgroups))
         );

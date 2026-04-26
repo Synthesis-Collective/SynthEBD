@@ -35,6 +35,17 @@ internal sealed class SynthEbdViewerHostState
 
     private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
 
+    /// <summary>Cancels the previous <see cref="ApplyHeadPartsAsync"/> when a
+    /// new one starts. Necessary because head-part assignment editors
+    /// (VM_SpecificNPCAssignment / VM_ConsistencyAssignment) subscribe to each
+    /// head-part type's FormKey individually with per-subscription throttle —
+    /// when an NPC with a saved override loads, every type fires
+    /// RefreshViewerNpcAsync after the throttle window expires and they all
+    /// race on FaceGenPatcher's per-NPC temp extraction path
+    /// (<c>S:\Temp\&lt;plugin&gt;_&lt;formId&gt;_facegen.nif</c>). Cancelling
+    /// the prior call collapses the pile-up to a single extraction.</summary>
+    private CancellationTokenSource? _headPartsCts;
+
     internal SynthEbdViewerHostState(VM_CharacterViewer vm, SynthEbdOsdLoader osdLoader,
         FaceGenPreviewService faceGen, Logger logger)
     {
@@ -130,9 +141,17 @@ internal sealed class SynthEbdViewerHostState
     /// which only re-parses the head NIF (vs. all four body parts).</summary>
     internal async Task ApplyHeadPartsAsync(FormKey npcFormKey, ILinkCache linkCache,
         IReadOnlyDictionary<HeadPart.TypeEnum, FormKey> assignments,
-        CancellationToken ct = default)
+        CancellationToken externalCt = default)
     {
         if (npcFormKey.IsNull || linkCache == null) return;
+
+        // Cancel any prior in-flight call on this viewer, then chain to the
+        // external token so external cancellations still propagate.
+        _headPartsCts?.Cancel();
+        _headPartsCts?.Dispose();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
+        _headPartsCts = cts;
+        var ct = cts.Token;
 
         var validAssignments = assignments?
             .Where(kv => !kv.Value.IsNull)
@@ -151,7 +170,9 @@ internal sealed class SynthEbdViewerHostState
         }
         catch (OperationCanceledException)
         {
-            throw;
+            // Quietly drop cancelled calls; the newer call that cancelled us
+            // will finish the work the user actually wants reflected.
+            return;
         }
         catch (Exception ex)
         {

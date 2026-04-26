@@ -137,51 +137,12 @@ public enum BoundingBoxCriterion
     BulgePairMaxX = 13,
 }
 
-/// <summary>World-axis symmetry lock applied to a <see cref="KeyVertexStrategy.BoundingBox"/>
-/// region while it is being authored in the viewer. Flag combinations encode the set of axes
-/// mirrored about 0 (e.g., <c>X | Y</c> locks both X and Y sides). Authoring-time UX only —
-/// never persisted on <see cref="NamedKeyVertex"/> (the final min/max are stored directly).</summary>
-[Flags]
-public enum SymmetryAxes
-{
-    None = 0,
-    X = 1,
-    Y = 2,
-    Z = 4,
-}
-
-/// <summary>
-/// Authoring-time-only companion to <see cref="BoundingBoxCriterion"/>. The UI combo exposes
-/// the single-axis values plus <c>Mirror*</c> shortcuts; picking a <c>Mirror*</c>
-/// value tells the editor to materialize two paired <see cref="NamedKeyVertex"/> rows sharing
-/// the same box but with opposite single-axis criteria (e.g. <c>MirrorX</c> -> <c>MaxX</c> +
-/// <c>MinX</c>, <c>MirrorPinchX</c> -> <c>PinchMinX</c> + <c>PinchMaxX</c>). Persistence stores
-/// only the single-axis <see cref="BoundingBoxCriterion"/>; this enum never lands in JSON.
-/// <para>Numeric values 0-9 intentionally match <see cref="BoundingBoxCriterion"/> so the editor
-/// can plain-cast for non-mirror entries; mirror values are placed at 100+ to stay out of the way.</para>
-/// </summary>
-public enum BoxCriterionSelection
-{
-    MaxX = 0,
-    MinX = 1,
-    MaxY = 2,
-    MinY = 3,
-    MaxZ = 4,
-    MinZ = 5,
-    PinchMinX = 6,
-    PinchMaxX = 7,
-    BulgeMinX = 8,
-    BulgeMaxX = 9,
-    PinchPairMinX = 10,
-    PinchPairMaxX = 11,
-    BulgePairMinX = 12,
-    BulgePairMaxX = 13,
-    MirrorX = 100,
-    MirrorY = 101,
-    MirrorZ = 102,
-    MirrorPinchX = 103,
-    MirrorBulgeX = 104,
-}
+// SymmetryAxes and BoxCriterionSelection enums moved to
+// CharacterViewer.Rendering/Abstractions/ClassifierEnums.cs (Phase B2d):
+// VM_CharacterViewer's BB-pick UI state references them and the viewer
+// no longer takes a SynthEBD dependency. The global using
+// `<Using Include="CharacterViewer.Rendering" />` in SynthEBD.csproj
+// keeps the call sites here resolvable without a per-file using directive.
 
 /// <summary>
 /// A user-named vertex handle referencing a single vertex inside a specific body shape mesh.
