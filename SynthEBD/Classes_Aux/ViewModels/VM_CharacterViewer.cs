@@ -2388,19 +2388,15 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SynthEBD-facing wrapper around <see cref="LoadAsync"/>. Builds an
-    /// <see cref="NpcIdentity"/> from the FormKey, resolves mesh paths via
-    /// the preview cache (whose adapter populates NPC weight / height / hair
-    /// color from the LinkCache), then hands off to the neutral entry point.
-    ///
-    /// The <paramref name="linkCache"/> parameter is preserved for backward
-    /// compat with SynthEBD callers but is not used directly here — the cache's
-    /// data-source adapter holds its own LinkCache reference.
+    /// Neutral cache-driven load entry. Resolves <paramref name="identity"/>
+    /// to a <see cref="ResolvedNpcMeshPaths"/> through the preview cache
+    /// (whose <see cref="INpcMeshDataSource"/> adapter does the host-specific
+    /// resolution — Mutagen for SynthEBD, NPC2's own scheme for NPC2), then
+    /// hands off to <see cref="LoadAsync"/>. NPC Plugin Chooser 2 (and any
+    /// other host) calls this directly with their own <see cref="NpcIdentity"/>.
     /// </summary>
-    public async Task LoadNpcAsync(FormKey npcFormKey, ILinkCache linkCache, string? overrideHeadMeshAbsolutePath = null)
+    public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null)
     {
-        var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-
         ResolvedNpcMeshPaths? meshPaths = null;
         try
         {
@@ -2408,7 +2404,7 @@ public class VM_CharacterViewer : VM
         }
         catch (Exception ex)
         {
-            _logger.LogError("CharacterViewer: Failed to resolve NPC " + npcFormKey + ": " +
+            _logger.LogError("CharacterViewer: Failed to resolve NPC " + identity.CacheKey + ": " +
                 ExceptionLogger.GetExceptionStack(ex));
         }
 
@@ -2746,38 +2742,6 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
     //  TEXTURE OVERRIDES
     // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// SynthEBD-facing texture-override wrapper. Parses each
-    /// <see cref="FilePathReplacement.Destination"/> into a (body part, slot)
-    /// pair via <see cref="ParseBodyPart"/> + <see cref="ParseTextureSlot"/>,
-    /// then hands off the neutral set to <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
-    /// Phase B2c will move this overload out to a SynthEBD extension method.
-    /// </summary>
-    public void ApplyTextureOverrides(IEnumerable<FilePathReplacement> overrides)
-    {
-        if (overrides == null) return;
-
-        var converted = new List<TextureOverride>();
-        foreach (var r in overrides)
-        {
-            if (r == null) continue;
-            string dest = r.Destination;
-            if (string.IsNullOrWhiteSpace(dest) || string.IsNullOrWhiteSpace(r.Source)) continue;
-
-            string? bodyPart = ParseBodyPart(dest);
-            int? slot = ParseTextureSlot(dest);
-            if (bodyPart == null || slot == null)
-            {
-                LogVerbose("CharacterViewer: Override unparseable — dest='" + dest + "'");
-                continue;
-            }
-
-            converted.Add(new TextureOverride(bodyPart, slot.Value, r.Source));
-        }
-
-        ApplyTextureOverrides(converted);
-    }
 
     /// <summary>
     /// Neutral texture-override entry. Each <see cref="TextureOverride"/>
@@ -3126,7 +3090,8 @@ public class VM_CharacterViewer : VM
 
         if (validAssignments.Count == 0)
         {
-            await LoadNpcAsync(npcFormKey, linkCache);
+            var idNoOverride = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+            await LoadByIdentityAsync(idNoOverride);
             return;
         }
 
@@ -3165,7 +3130,8 @@ public class VM_CharacterViewer : VM
             return;
         }
 
-        await LoadNpcAsync(npcFormKey, linkCache, overrideHeadMeshAbsolutePath: nifPath);
+        var idWithOverride = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+        await LoadByIdentityAsync(idWithOverride, overrideHeadMeshAbsolutePath: nifPath);
     }
 
     /// <summary>
