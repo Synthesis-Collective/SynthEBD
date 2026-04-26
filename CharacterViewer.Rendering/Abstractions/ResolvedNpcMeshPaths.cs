@@ -1,6 +1,19 @@
 using System.Collections.Generic;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
+
+/// <summary>
+/// Sex of the NPC whose mesh paths were resolved. Lives in the rendering tier
+/// (alongside <see cref="ResolvedNpcMeshPaths"/>) rather than in the host so the
+/// rendering project doesn't take a dependency on SynthEBD's <c>Gender</c> enum.
+/// Values match SynthEBD's <c>Gender</c> ordinal positions so the
+/// <see cref="SynthEbdNpcMeshDataSourceAdapter"/> can cast directly.
+/// </summary>
+public enum Sex
+{
+    Male,
+    Female
+}
 
 /// <summary>
 /// Resolved mesh + texture paths for one NPC, packaged in a Mutagen-free POCO so
@@ -19,7 +32,7 @@ public sealed class ResolvedNpcMeshPaths
     public string? HandsMeshPath { get; init; }
     public string? FeetMeshPath { get; init; }
     public string? HeadMeshPath { get; init; }
-    public Gender Gender { get; init; }
+    public Sex Sex { get; init; }
 
     /// <summary>Race-specific skeleton NIF path (Data-relative); used for CPU-side
     /// bone-weight skinning to close the head-body neck seam.</summary>
@@ -54,7 +67,7 @@ public sealed class ResolvedNpcMeshPaths
             HandsMeshPath = HandsMeshPath,
             FeetMeshPath = FeetMeshPath,
             HeadMeshPath = headMeshPath,
-            Gender = Gender,
+            Sex = Sex,
             SkeletonPath = SkeletonPath,
             ResolutionChains = ResolutionChains,
             TxstTextures = TxstTextures,

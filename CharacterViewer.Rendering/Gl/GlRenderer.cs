@@ -4,7 +4,7 @@ using System.IO;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Core OpenGL renderer for the character viewer. Manages the shader program,

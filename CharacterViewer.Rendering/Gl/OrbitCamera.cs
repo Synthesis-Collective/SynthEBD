@@ -1,7 +1,7 @@
 using System;
 using OpenTK.Mathematics;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Mouse-driven orbit camera for the 3D character viewer.

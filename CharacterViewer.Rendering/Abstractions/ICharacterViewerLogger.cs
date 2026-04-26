@@ -1,6 +1,6 @@
 using System;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Logging surface that the CharacterViewer subsystem uses for all message + error

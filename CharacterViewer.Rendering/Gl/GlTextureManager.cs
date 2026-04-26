@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL4;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Manages OpenGL texture loading from game assets. DDS decoding and asset-path

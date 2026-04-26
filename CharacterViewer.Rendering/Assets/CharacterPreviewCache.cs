@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Pfim;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// BGRA32 pixel payload decoded from a DDS on disk. Data length == Width*Height*4.

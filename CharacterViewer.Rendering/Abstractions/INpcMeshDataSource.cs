@@ -1,4 +1,4 @@
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Resolves an <see cref="NpcIdentity"/> to a <see cref="ResolvedNpcMeshPaths"/>

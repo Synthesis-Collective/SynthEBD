@@ -1,4 +1,4 @@
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Opaque NPC handle that the CharacterViewer subsystem uses to key its caches

@@ -1,4 +1,4 @@
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// BSA enumeration + extraction surface used by <see cref="GameAssetResolver"/>

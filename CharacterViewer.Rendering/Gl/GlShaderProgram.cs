@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using OpenTK.Graphics.OpenGL4;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Compiles and links an OpenGL shader program from vertex + fragment source.

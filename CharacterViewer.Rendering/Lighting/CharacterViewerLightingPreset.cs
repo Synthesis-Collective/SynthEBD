@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using OpenTK.Mathematics;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Placement + intensity of a 3-point lighting rig (ambient + key/fill/rim).

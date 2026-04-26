@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Applies BodySlide slider deformations to mesh vertex positions using OSD
@@ -39,18 +39,18 @@ public class BodySlideDeformer
     /// Applies BodySlide deformations to mesh positions in-place.
     /// </summary>
     /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
-    /// <param name="preset">The BodySlide preset containing slider names and Big/Small values.</param>
+    /// <param name="morphs">The neutral morph payload (slider name → Big/Small) the host has translated from its preset model.</param>
     /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
     /// <param name="osdFiles">Parsed OSD files containing vertex deltas for this body type.</param>
     /// <param name="shapeName">The target shape name to match against OSD file ShapeNames. If null, applies all OSD files.</param>
     public void ApplyDeformation(
         Vector3[] positions,
-        BodySlideSetting preset,
+        MorphSet morphs,
         int weight,
         List<OsdFile> osdFiles,
         string? shapeName = null)
     {
-        if (positions == null || positions.Length == 0 || preset == null || osdFiles == null || osdFiles.Count == 0)
+        if (positions == null || positions.Length == 0 || morphs == null || osdFiles == null || osdFiles.Count == 0)
         {
             return;
         }
@@ -68,7 +68,7 @@ public class BodySlideDeformer
             return;
         }
 
-        ApplyFromSliderDeltaMap(positions, preset, weight, sliderDeltaMap, shapeName, sourceLabel: "OSD");
+        ApplyFromSliderDeltaMap(positions, morphs, weight, sliderDeltaMap, shapeName, sourceLabel: "OSD");
     }
 
     /// <summary>
@@ -78,18 +78,18 @@ public class BodySlideDeformer
     /// topology -- so a matching NIF should see zero out-of-range deltas.
     /// </summary>
     /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
-    /// <param name="preset">The BodySlide preset containing slider names and Big/Small values.</param>
+    /// <param name="morphs">The neutral morph payload (slider name → Big/Small) the host has translated from its preset model.</param>
     /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
     /// <param name="triFile">Parsed body .tri for the NIF being deformed.</param>
     /// <param name="shapeName">The target shape to select inside the .tri. If null, uses the first shape.</param>
     public void ApplyDeformationFromTri(
         Vector3[] positions,
-        BodySlideSetting preset,
+        MorphSet morphs,
         int weight,
         BodyTriFile triFile,
         string? shapeName = null)
     {
-        if (positions == null || positions.Length == 0 || preset == null || triFile == null || triFile.Shapes.Count == 0)
+        if (positions == null || positions.Length == 0 || morphs == null || triFile == null || triFile.Shapes.Count == 0)
         {
             return;
         }
@@ -104,7 +104,7 @@ public class BodySlideDeformer
             return;
         }
 
-        ApplyFromSliderDeltaMap(positions, preset, weight, sliderDeltaMap, shapeName, sourceLabel: "TRI");
+        ApplyFromSliderDeltaMap(positions, morphs, weight, sliderDeltaMap, shapeName, sourceLabel: "TRI");
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class BodySlideDeformer
     /// </summary>
     private void ApplyFromSliderDeltaMap(
         Vector3[] positions,
-        BodySlideSetting preset,
+        MorphSet morphs,
         int weight,
         Dictionary<string, Dictionary<ushort, Vector3>> sliderDeltaMap,
         string? shapeName,
@@ -140,10 +140,10 @@ public class BodySlideDeformer
         // Track which vertices were touched
         var touchedVerts = new HashSet<int>();
 
-        foreach (var kvp in preset.SliderValues)
+        foreach (var kvp in morphs.Sliders)
         {
             string sliderName = kvp.Key;
-            BodySlideSlider slider = kvp.Value;
+            MorphSlider slider = kvp.Value;
 
             if (slider.Big == 0 && slider.Small == 0)
             {
@@ -193,16 +193,16 @@ public class BodySlideDeformer
         if (touchedVerts.Count == 0)
         {
             // Diagnostic: dump enough about both sides of the mismatch to see whether
-            // the preset has zero non-zero sliders, has slider names that just don't
+            // the morph set has zero non-zero sliders, has slider names that just don't
             // appear in the OSD, or something subtler (whitespace / casing / prefix).
-            int presetSliderCount = preset.SliderValues?.Count ?? 0;
+            int presetSliderCount = morphs.Sliders?.Count ?? 0;
             int presetActiveCount = 0;
             var presetSampleNames = new List<string>();
-            if (preset.SliderValues != null)
+            if (morphs.Sliders != null)
             {
-                foreach (var kvp in preset.SliderValues)
+                foreach (var kvp in morphs.Sliders)
                 {
-                    if (kvp.Value != null && (kvp.Value.Big != 0 || kvp.Value.Small != 0))
+                    if (kvp.Value.Big != 0 || kvp.Value.Small != 0)
                     {
                         presetActiveCount++;
                         if (presetSampleNames.Count < 5) presetSampleNames.Add(kvp.Key);
@@ -210,7 +210,7 @@ public class BodySlideDeformer
                 }
             }
             var osdSampleNames = sliderDeltaMap.Keys.Take(5).ToList();
-            LogVerbose("CharacterViewer: BodySlide preset '" + preset.Label +
+            LogVerbose("CharacterViewer: MorphSet '" + morphs.Label +
                 "' matched 0 vertices (no slider data overlap). " +
                 "Preset sliders: " + presetSliderCount + " total, " + presetActiveCount + " with non-zero Big/Small. " +
                 "OSD slider keys available: " + sliderDeltaMap.Count + ". " +
@@ -259,7 +259,7 @@ public class BodySlideDeformer
         // verts (anatomically-similar but not identical), producing chopped bands.
         bool topologyMismatch = deltasOutOfRange > 0 || (osdMaxIndex >= 0 && osdMaxIndex + 1 != vertCount);
 
-        LogVerbose("CharacterViewer: Applied preset '" + preset.Label +
+        LogVerbose("CharacterViewer: Applied preset '" + morphs.Label +
             "' to shape '" + (shapeName ?? "(any)") + "' via " + sourceLabel +
             " (" + slidersApplied + " sliders, " + vertsModified + " vertices modified, weight=" + weight + ")" +
             " | target verts=" + vertCount +

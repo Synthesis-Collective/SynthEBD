@@ -263,26 +263,9 @@
     <Compile Remove="Classes_Aux\Models\NifTextureLoader.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Classes_Aux\Rendering\Shaders\basic.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Classes_Aux\Rendering\Shaders\basic.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Classes_Aux\Rendering\Shaders\debug.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Classes_Aux\Rendering\Shaders\debug.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Classes_Aux\Rendering\Shaders\wireframe.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Classes_Aux\Rendering\Shaders\wireframe.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+  <!-- Shaders moved to CharacterViewer.Rendering project; their Content/CopyToOutputDirectory
+       rules ship them next to CharacterViewer.Rendering.dll in this project's bin folder via
+       the ProjectReference declared below. -->
 
   <ItemGroup>
     <Page Update="Settings\Settings_TexMesh\UC_SettingsTexMesh.xaml">
@@ -311,6 +294,17 @@
     <Content Include="InternalData\EBD Code\SynthEBD Face Texture\SynthEBDTextureLoaderPAScript.pex">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+  </ItemGroup>
+
+  <!-- Treat the rendering tier's namespace as global so the existing SynthEBD
+       call sites (VM_CharacterViewer, NpcMeshResolver, host adapters, settings,
+       MainModule registrations) compile without per-file using directives. -->
+  <ItemGroup>
+    <Using Include="CharacterViewer.Rendering" />
   </ItemGroup>
 
 </Project>

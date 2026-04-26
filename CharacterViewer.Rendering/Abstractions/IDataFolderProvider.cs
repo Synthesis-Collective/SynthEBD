@@ -1,4 +1,4 @@
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Minimal slice of the host environment that <see cref="GameAssetResolver"/>

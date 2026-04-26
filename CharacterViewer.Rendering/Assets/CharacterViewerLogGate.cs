@@ -1,4 +1,4 @@
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Shared runtime flag that gates the character viewer's informational log output across

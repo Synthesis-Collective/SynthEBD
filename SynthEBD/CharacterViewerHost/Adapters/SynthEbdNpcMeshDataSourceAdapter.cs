@@ -46,7 +46,8 @@ public sealed class SynthEbdNpcMeshDataSourceAdapter : INpcMeshDataSource
             HandsMeshPath = src.HandsMeshPath,
             FeetMeshPath = src.FeetMeshPath,
             HeadMeshPath = src.HeadMeshPath,
-            Gender = src.Gender,
+            // Rendering-tier Sex enum matches SynthEBD's Gender ordinal layout.
+            Sex = (Sex)(int)src.Gender,
             SkeletonPath = src.SkeletonPath,
             ResolutionChains = src.ResolutionChains,
             TxstTextures = src.TxstTextures,

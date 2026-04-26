@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using OpenTK.Graphics.OpenGL4;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Per-mesh GPU state: VAO, VBO, EBO, and material properties.

@@ -4,7 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Text;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// One named morph inside a body .tri file. VertexDeltas is sparse -- only

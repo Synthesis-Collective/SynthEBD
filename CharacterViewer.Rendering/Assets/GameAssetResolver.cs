@@ -2,7 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 
-namespace SynthEBD;
+namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Describes where a resolved asset originated.

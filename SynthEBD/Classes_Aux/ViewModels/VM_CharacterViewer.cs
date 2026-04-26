@@ -2933,14 +2933,17 @@ public class VM_CharacterViewer : VM
                 Array.Copy(sourcePositions, positions, sourcePositions.Length);
 
                 // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
-                // fall back to OSD for meshes without "Build Morphs" output.
+                // fall back to OSD for meshes without "Build Morphs" output. The
+                // deformer takes a host-neutral MorphSet, so we translate the
+                // SynthEBD preset at the call site.
+                var morphs = ToMorphSet(preset);
                 if (_cachedBodyTri != null)
                 {
-                    _bodySlideDeformer.ApplyDeformationFromTri(positions, preset, NpcWeight, _cachedBodyTri, shapeName);
+                    _bodySlideDeformer.ApplyDeformationFromTri(positions, morphs, NpcWeight, _cachedBodyTri, shapeName);
                 }
                 else
                 {
-                    _bodySlideDeformer.ApplyDeformation(positions, preset, NpcWeight, _cachedOsdFiles!, shapeName);
+                    _bodySlideDeformer.ApplyDeformation(positions, morphs, NpcWeight, _cachedOsdFiles!, shapeName);
                 }
 
                 // Recalculate normals
@@ -3289,6 +3292,26 @@ public class VM_CharacterViewer : VM
     // ═══════════════════════════════════════════════════════════════════════
     //  PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Converts a SynthEBD <see cref="BodySlideSetting"/> into the rendering
+    /// tier's neutral <see cref="MorphSet"/>. The deformer accepts no SynthEBD
+    /// types directly so this translation lives in the host (Phase B1).
+    /// </summary>
+    private static MorphSet ToMorphSet(BodySlideSetting preset)
+    {
+        var sliders = new Dictionary<string, MorphSlider>(StringComparer.OrdinalIgnoreCase);
+        if (preset?.SliderValues != null)
+        {
+            foreach (var kvp in preset.SliderValues)
+            {
+                var s = kvp.Value;
+                if (s == null) continue;
+                sliders[kvp.Key] = new MorphSlider(s.Big, s.Small);
+            }
+        }
+        return new MorphSet { Label = preset?.Label ?? "", Sliders = sliders };
+    }
 
     private List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
         ResolvedNpcMeshPaths meshPaths)
