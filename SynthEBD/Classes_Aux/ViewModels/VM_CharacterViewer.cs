@@ -140,11 +140,22 @@ public class VM_CharacterViewer : VM
     /// aren't applied to meshes that are about to be destroyed by ClearScene().</summary>
     private bool _sceneRebuildPending;
 
-    /// <summary>Pending texture overrides to apply after scene setup.</summary>
-    private List<FilePathReplacement>? _pendingTextureOverrides;
+    /// <summary>Pending texture overrides (neutral form) to apply after scene
+    /// setup. The host-coupled <see cref="ApplyTextureOverrides(IEnumerable{FilePathReplacement})"/>
+    /// converts to <see cref="TextureOverride"/> before queueing.</summary>
+    private List<TextureOverride>? _pendingTextureOverrides;
 
-    /// <summary>Pending BodySlide to apply after scene setup.</summary>
+    /// <summary>Pending host-coupled BodySlide to apply after scene setup. Held
+    /// as the original <see cref="BodySlideSetting"/> so the queue drain can
+    /// re-load the OSD/.tri context (which depends on PatcherState — only the
+    /// SynthEBD wrapper has access).</summary>
     private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
+
+    /// <summary>Pending neutral morph application to apply after scene setup.
+    /// Set by direct callers of <see cref="ApplyMorphSet"/>; assumes the host
+    /// has already called <see cref="SetMorphContext"/> (or that a sibling .tri
+    /// will be auto-loaded by the apply path).</summary>
+    private (MorphSet Morphs, int Weight)? _pendingMorphSet;
 
     /// <summary>NpcIdentity.CacheKey of the NPC whose scene is currently installed
     /// in the renderer. Captured at the end of ProcessPendingScene; cleared by
@@ -2134,6 +2145,7 @@ public class VM_CharacterViewer : VM
         _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingBodySlide = null;
+        _pendingMorphSet = null;
         _pendingHeadReplace = null;
 
         _currentLoadedIdentityKey = "";
@@ -2287,6 +2299,13 @@ public class VM_CharacterViewer : VM
             var (preset, weight) = _pendingBodySlide.Value;
             _pendingBodySlide = null;
             ApplyBodySlide(preset, weight);
+        }
+
+        if (_pendingMorphSet != null)
+        {
+            var (morphs, weight) = _pendingMorphSet.Value;
+            _pendingMorphSet = null;
+            ApplyMorphSet(morphs, weight);
         }
     }
 
@@ -2728,13 +2747,52 @@ public class VM_CharacterViewer : VM
     //  TEXTURE OVERRIDES
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// SynthEBD-facing texture-override wrapper. Parses each
+    /// <see cref="FilePathReplacement.Destination"/> into a (body part, slot)
+    /// pair via <see cref="ParseBodyPart"/> + <see cref="ParseTextureSlot"/>,
+    /// then hands off the neutral set to <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
+    /// Phase B2c will move this overload out to a SynthEBD extension method.
+    /// </summary>
     public void ApplyTextureOverrides(IEnumerable<FilePathReplacement> overrides)
     {
-        var overrideList = overrides.ToList();
+        if (overrides == null) return;
+
+        var converted = new List<TextureOverride>();
+        foreach (var r in overrides)
+        {
+            if (r == null) continue;
+            string dest = r.Destination;
+            if (string.IsNullOrWhiteSpace(dest) || string.IsNullOrWhiteSpace(r.Source)) continue;
+
+            string? bodyPart = ParseBodyPart(dest);
+            int? slot = ParseTextureSlot(dest);
+            if (bodyPart == null || slot == null)
+            {
+                LogVerbose("CharacterViewer: Override unparseable — dest='" + dest + "'");
+                continue;
+            }
+
+            converted.Add(new TextureOverride(bodyPart, slot.Value, r.Source));
+        }
+
+        ApplyTextureOverrides(converted);
+    }
+
+    /// <summary>
+    /// Neutral texture-override entry. Each <see cref="TextureOverride"/>
+    /// names its target body part + slot explicitly, so the host doesn't
+    /// have to encode that into a destination path the way SynthEBD's
+    /// <see cref="FilePathReplacement"/> does. NPC Plugin Chooser 2 (and
+    /// any future host) calls this directly.
+    /// </summary>
+    public void ApplyTextureOverrides(IEnumerable<TextureOverride> overrides)
+    {
+        var overrideList = overrides as List<TextureOverride> ?? overrides?.ToList() ?? new List<TextureOverride>();
 
         // Queue when the scene is empty, the texture manager isn't ready, OR a
         // rebuild is in-flight. The rebuild check is what catches the subgroup
-        // re-selection case: between LoadNpcAsync queueing _pendingScene and the
+        // re-selection case: between LoadAsync queueing _pendingScene and the
         // render callback running ClearScene()+rebuild, _meshesByBodyPart still
         // holds the previous meshes and without this flag we'd apply overrides
         // to meshes that are about to be destroyed.
@@ -2751,19 +2809,12 @@ public class VM_CharacterViewer : VM
         LogVerbose("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
             " override(s); tracked body parts: [" + string.Join(", ", _meshesByBodyPart.Keys) + "]");
 
-        foreach (var replacement in overrideList)
+        foreach (var ov in overrideList)
         {
-            string dest = replacement.Destination;
-            if (string.IsNullOrWhiteSpace(dest) || string.IsNullOrWhiteSpace(replacement.Source))
-                continue;
-
-            string? bodyPart = ParseBodyPart(dest);
-            int? slot = ParseTextureSlot(dest);
-            if (bodyPart == null || slot == null)
-            {
-                LogVerbose("CharacterViewer: Override unparseable — dest='" + dest + "'");
-                continue;
-            }
+            string bodyPart = ov.BodyPart;
+            int slot = ov.Slot;
+            string source = ov.GameRelativePath;
+            if (string.IsNullOrWhiteSpace(bodyPart) || string.IsNullOrWhiteSpace(source)) continue;
 
             // For Head, target only the primary head shape (the face — face/hair/eyes
             // are separate shapes with different meaning for each slot). For non-head
@@ -2776,7 +2827,7 @@ public class VM_CharacterViewer : VM
             {
                 if (!_meshesByBodyPart.TryGetValue(bodyPart, out var headMesh))
                 {
-                    LogVerbose("CharacterViewer: No Head mesh tracked for override — dest='" + dest + "'");
+                    LogVerbose("CharacterViewer: No Head mesh tracked for override (slot " + slot + ")");
                     continue;
                 }
                 targets = new List<GlMesh> { headMesh };
@@ -2787,43 +2838,43 @@ public class VM_CharacterViewer : VM
                 if (targets.Count == 0)
                 {
                     LogVerbose("CharacterViewer: No meshes with BodyPart='" + bodyPart +
-                        "' (slot " + slot + ") — dest='" + dest + "'");
+                        "' (slot " + slot + ")");
                     continue;
                 }
             }
 
             foreach (var mesh in targets)
             {
-                if (slot.Value == 0)
+                if (slot == 0)
                 {
-                    mesh.DiffuseTexture = TextureManager.LoadTexture(replacement.Source);
-                    RecordTextureSource(mesh, "Diffuse", replacement.Source);
+                    mesh.DiffuseTexture = TextureManager.LoadTexture(source);
+                    RecordTextureSource(mesh, "Diffuse", source);
                 }
-                else if (slot.Value == 1)
+                else if (slot == 1)
                 {
                     // Shader handles MSN natively; no CPU resampling needed.
-                    mesh.NormalTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.NormalTexture = TextureManager.LoadTexture(source);
                     mesh.HasNormalMap = true;
-                    RecordTextureSource(mesh, "Normal Map", replacement.Source);
+                    RecordTextureSource(mesh, "Normal Map", source);
                 }
-                else if (slot.Value == 2)
+                else if (slot == 2)
                 {
                     // Skin/SSS — only meaningful on skin-shader meshes; harmless on others
                     // since HasSkinMap gates shader sampling.
-                    mesh.SkinTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.SkinTexture = TextureManager.LoadTexture(source);
                     mesh.HasSkinMap = true;
-                    RecordTextureSource(mesh, "Skin/SSS", replacement.Source);
+                    RecordTextureSource(mesh, "Skin/SSS", source);
                 }
-                else if (slot.Value == 7)
+                else if (slot == 7)
                 {
-                    mesh.SpecularTexture = TextureManager.LoadTexture(replacement.Source);
+                    mesh.SpecularTexture = TextureManager.LoadTexture(source);
                     mesh.HasSpecularMap = true;
                     mesh.HasSpecular = true;
-                    RecordTextureSource(mesh, "Specular", replacement.Source);
+                    RecordTextureSource(mesh, "Specular", source);
                 }
             }
 
-            LogVerbose("CharacterViewer: Slot " + slot + " override '" + replacement.Source +
+            LogVerbose("CharacterViewer: Slot " + slot + " override '" + source +
                 "' → " + bodyPart + " (" + targets.Count + " shape(s))");
         }
     }
@@ -2861,6 +2912,13 @@ public class VM_CharacterViewer : VM
     // if the seam or another deformation artifact returns.
     private static bool _bodySlideDisabled = false;
 
+    /// <summary>
+    /// SynthEBD-facing wrapper around <see cref="ApplyMorphSet"/>. Loads the
+    /// OSD catalog for the preset's SliderGroup (a SynthEBD concern that walks
+    /// PatcherState.OBodySettings.BodyTypeRegistry), translates the preset to
+    /// a neutral <see cref="MorphSet"/>, and hands off. Phase B2c will move
+    /// this overload out to a SynthEBD extension method.
+    /// </summary>
     public void ApplyBodySlide(BodySlideSetting preset, int weight)
     {
         if (_bodySlideDisabled)
@@ -2871,19 +2929,16 @@ public class VM_CharacterViewer : VM
             return;
         }
 
-        // If scene isn't set up yet (pending GL work), queue for later.
-        // Checking Count == 0 alone isn't enough: during a scene rebuild the previous
-        // scene's meshes linger in _cachedBodyMeshes until the new load overwrites them,
-        // so an ApplyBodySlide fired mid-rebuild would deform the OLD meshes and the
-        // replacement load would then discard the deformation. Also gate on
-        // _sceneRebuildPending so we always queue until the rebuild has committed.
+        // If scene isn't set up yet (pending GL work), queue the original preset.
+        // We can't pre-load the OSD context here because LoadOsdFilesForGroup
+        // depends on _cachedBodyNifDiskPath which isn't set until LoadAllMeshParts
+        // commits — so the queue holds the SynthEBD preset and the drain re-enters
+        // ApplyBodySlide, which then loads the OSD context against the new scene.
         if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)
         {
             _pendingBodySlide = (preset, weight);
             return;
         }
-
-        NpcWeight = Math.Clamp(weight, 0, 100);
 
         try
         {
@@ -2896,8 +2951,63 @@ public class VM_CharacterViewer : VM
             // OSD fallback: only load the slider-group OSD catalog when we don't
             // have a .tri to use. Avoids a wasted ShapeData scan on every
             // preset/weight change for the common case.
-            if (_cachedBodyTri == null && preset.SliderGroup != null)
+            if (_cachedBodyTri == null && preset?.SliderGroup != null)
                 LoadOsdFilesForGroup(preset.SliderGroup);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("CharacterViewer: ApplyBodySlide OSD/.tri pre-load failed for preset '"
+                + (preset?.Label ?? "?") + "': " + ExceptionLogger.GetExceptionStack(ex));
+        }
+
+        ApplyMorphSet(ToMorphSet(preset), weight);
+    }
+
+    /// <summary>
+    /// Pre-populates the OSD context that <see cref="ApplyMorphSet"/> consumes
+    /// when no sibling .tri is present. Hosts call this once per scene change
+    /// before invoking ApplyMorphSet on slider-driven morphs. SynthEBD's
+    /// <see cref="ApplyBodySlide(BodySlideSetting, int)"/> wrapper does this
+    /// internally via <see cref="LoadOsdFilesForGroup"/>; other hosts that
+    /// don't have a SliderGroup → catalog mapping pass their pre-parsed OSD
+    /// files in directly.
+    /// </summary>
+    public void SetMorphContext(List<OsdFile>? osdFiles)
+    {
+        _cachedOsdFiles = osdFiles;
+    }
+
+    /// <summary>
+    /// Neutral morph-application entry. Applies <paramref name="morphs"/> to
+    /// the loaded scene's body shapes at NPC weight <paramref name="weight"/>,
+    /// preferring a sibling .tri (auto-loaded from disk next to the body NIF)
+    /// over the OSD context set via <see cref="SetMorphContext"/>. NPC Plugin
+    /// Chooser 2 (and any future host) calls this directly.
+    /// </summary>
+    public void ApplyMorphSet(MorphSet morphs, int weight)
+    {
+        if (_bodySlideDisabled)
+        {
+            NpcWeight = Math.Clamp(weight, 0, 100);
+            LogVerbose("CharacterViewer: [BodySlideDisabled] ApplyMorphSet bypassed" +
+                " (label='" + (morphs?.Label ?? "?") + "', weight=" + NpcWeight + ")");
+            return;
+        }
+
+        if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)
+        {
+            _pendingMorphSet = (morphs ?? new MorphSet(), weight);
+            return;
+        }
+
+        if (morphs == null) return;
+
+        NpcWeight = Math.Clamp(weight, 0, 100);
+
+        try
+        {
+            // Idempotent — if ApplyBodySlide already loaded the .tri this is a no-op.
+            TryLoadSiblingBodyTri();
 
             bool haveDeltas = _cachedBodyTri != null
                            || (_cachedOsdFiles != null && _cachedOsdFiles.Count > 0);
@@ -2918,10 +3028,7 @@ public class VM_CharacterViewer : VM
                 Array.Copy(sourcePositions, positions, sourcePositions.Length);
 
                 // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
-                // fall back to OSD for meshes without "Build Morphs" output. The
-                // deformer takes a host-neutral MorphSet, so we translate the
-                // SynthEBD preset at the call site.
-                var morphs = ToMorphSet(preset);
+                // fall back to OSD for meshes without "Build Morphs" output.
                 if (_cachedBodyTri != null)
                 {
                     _bodySlideDeformer.ApplyDeformationFromTri(positions, morphs, NpcWeight, _cachedBodyTri, shapeName);
@@ -2957,8 +3064,8 @@ public class VM_CharacterViewer : VM
             // Status Log actually shows what went wrong. Without this catch the exception
             // bubbles up to VM_BodySlideSetting.RefreshPreview, which used to swallow it
             // silently via LogMessage and the user only saw the tab-switch with no detail.
-            _logger.LogError("CharacterViewer: ApplyBodySlide failed for preset '"
-                + (preset?.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
+            _logger.LogError("CharacterViewer: ApplyMorphSet failed for '"
+                + (morphs.Label ?? "?") + "' at weight " + NpcWeight + Environment.NewLine
                 + ExceptionLogger.GetExceptionStack(ex));
         }
 
@@ -3244,6 +3351,7 @@ public class VM_CharacterViewer : VM
         _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingBodySlide = null;
+        _pendingMorphSet = null;
         _pendingHeadReplace = null;
         _meshesByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
