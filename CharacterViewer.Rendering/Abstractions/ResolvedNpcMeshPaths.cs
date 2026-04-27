@@ -32,6 +32,19 @@ public sealed class ResolvedNpcMeshPaths
     public string? HandsMeshPath { get; init; }
     public string? FeetMeshPath { get; init; }
     public string? HeadMeshPath { get; init; }
+
+    /// <summary>Mesh path for the worn armor's hair-slot ARMA (biped slot 31).
+    /// Skyrim mods like High Poly NPC Overhaul use a "bald" FaceGen scalp
+    /// paired with a wig in this slot — without rendering it the NPC appears
+    /// hairless. Vanilla NPCs and most overhauls leave this null and bake
+    /// hair shapes into the FaceGen NIF directly.</summary>
+    public string? HairMeshPath { get; init; }
+
+    /// <summary>Mesh path for the worn armor's tail-slot ARMA (biped slot 40).
+    /// Required for Khajiit and Argonian races whose tails are armatures
+    /// rather than baked-in shapes.</summary>
+    public string? TailMeshPath { get; init; }
+
     public Sex Sex { get; init; }
 
     /// <summary>Race-specific skeleton NIF path (Data-relative); used for CPU-side
@@ -82,6 +95,8 @@ public sealed class ResolvedNpcMeshPaths
             HandsMeshPath = HandsMeshPath,
             FeetMeshPath = FeetMeshPath,
             HeadMeshPath = headMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
             Sex = Sex,
             SkeletonPath = SkeletonPath,
             ResolutionChains = ResolutionChains,

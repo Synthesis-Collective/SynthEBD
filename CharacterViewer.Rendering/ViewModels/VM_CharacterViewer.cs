@@ -3456,6 +3456,15 @@ public class VM_CharacterViewer : ViewerVm
             TryLoad("Hands", meshPaths.HandsMeshPath);
             TryLoad("Feet", meshPaths.FeetMeshPath);
             TryLoad("Head", meshPaths.HeadMeshPath);
+            // Hair / Tail come from worn-armor ARMA entries (biped slots 31
+            // and 40), not from the FaceGen NIF. The Skyrim engine renders
+            // these the same way as Body / Hands / Feet — skinned to the
+            // body skeleton at runtime — so the existing skinning + texture
+            // path handles them once the host populates the mesh path.
+            // High Poly NPC Overhaul uses Hair via a "wig" ARMO on a bald
+            // FaceGen; Khajiit / Argonian races use Tail.
+            TryLoad("Hair", meshPaths.HairMeshPath);
+            TryLoad("Tail", meshPaths.TailMeshPath);
         }
         finally
         {
