@@ -843,6 +843,23 @@ public class NifMeshBuilder
                     }
                     catch { }
 
+                    // Always-on diagnostic for non-default UV transforms.
+                    // Hair scalp / buzz-cut shapes typically encode tiling
+                    // values like (4, 4) or (8, 8) here so a fine noise
+                    // texture reads as fine-detail hair. If a shape that
+                    // should tile shows uvScale=(1.00, 1.00) in the log,
+                    // the niflysharp accessor is returning the wrong value
+                    // for that NIF and the texture renders as a single
+                    // stretched copy (chunky / low-detail look).
+                    if (uvScale.X != 1f || uvScale.Y != 1f ||
+                        uvOffset.X != 0f || uvOffset.Y != 0f)
+                    {
+                        string sName = shape.name?.get() ?? "?";
+                        string msg = $"[NifMeshBuilder] shape=[{sName}] uvScale=({uvScale.X:F2}, {uvScale.Y:F2}) uvOffset=({uvOffset.X:F2}, {uvOffset.Y:F2}) shaderType={shaderType}";
+                        System.Diagnostics.Debug.WriteLine(msg);
+                        System.Diagnostics.Trace.WriteLine(msg);
+                    }
+
                     // Environment map scale and eye cubemap scale
                     try { environmentMapScale = bslsp.environmentMapScale; } catch { }
                     try { eyeCubemapScale = bslsp.eyeCubemapScale; } catch { }

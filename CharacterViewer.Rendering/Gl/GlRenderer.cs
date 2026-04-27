@@ -286,12 +286,22 @@ public class GlRenderer : IDisposable
         // Pass 1: Alpha-tested meshes (discard in shader, depth writes ON).
         // Meshes with both alpha test and alpha blend go here — the discard
         // handles the cutout and depth writes prevent Z-fighting with the face.
+        //
+        // SAMPLE_ALPHA_TO_COVERAGE smooths the cutout edges by converting
+        // alpha into a coverage mask across the MSAA samples, instead of the
+        // hard discard threshold. Has no effect when the bound framebuffer
+        // is single-sample (it just degrades to the normal discard), so this
+        // is safe to enable unconditionally — hosts get smooth hair edges
+        // when they render to a multisampled FBO and unchanged behavior
+        // otherwise.
+        GL.Enable(EnableCap.SampleAlphaToCoverage);
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
             if (!mesh.UseAlphaTest) continue;
             DrawMesh(mesh);
         }
+        GL.Disable(EnableCap.SampleAlphaToCoverage);
 
         // Pass 2: Alpha-blended-only meshes (no alpha test — pure transparency).
         // Depth writes OFF to allow correct back-to-front compositing.

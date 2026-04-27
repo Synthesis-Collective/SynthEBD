@@ -47,10 +47,22 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 {
     private GameWindow? _gw;
 
-    private int _fboHandle = -1;
-    private int _colorTex = -1;
-    private int _depthRbo = -1;
+    // Two-FBO MSAA pipeline:
+    //   _msaaFbo  (4× multisampled color + depth renderbuffers) is the actual
+    //             draw target. Smooths alpha-tested cutout edges via
+    //             SAMPLE_ALPHA_TO_COVERAGE in GlRenderer's Pass 1, and
+    //             general edge anti-aliasing for the rest of the scene.
+    //   _resolveFbo (single-sample Texture2D color + depth renderbuffer)
+    //             is the readback target. Each render blits MSAA → resolve
+    //             before glReadPixels.
+    private int _msaaFbo = -1;
+    private int _msaaColorRbo = -1;
+    private int _msaaDepthRbo = -1;
+    private int _resolveFbo = -1;
+    private int _resolveColorTex = -1;
+    private int _resolveDepthRbo = -1;
     private (int W, int H) _fboSize = (0, 0);
+    private const int MsaaSamples = 4;
 
     private volatile bool _disposed;
 
@@ -258,6 +270,18 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.VanillaLooseOverridesModLoose = request.VanillaLooseOverridesModLoose;
             LoadAndRender(vm, request);
 
+            // Resolve the multisampled draw target into the single-sample
+            // resolve FBO so glReadPixels gets a correctly-AA'd image.
+            // Filter is Nearest because MSAA resolve handles the averaging
+            // (Linear here would double-blur).
+            GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, _msaaFbo);
+            GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, _resolveFbo);
+            GL.BlitFramebuffer(
+                0, 0, request.Width, request.Height,
+                0, 0, request.Width, request.Height,
+                ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _resolveFbo);
+
             byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
             FlipVertical(pixels, request.Width, request.Height);
 
@@ -317,9 +341,12 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
         }
 
-        // Re-bind the FBO (VM's GL calls may have unbound it) and clear
-        // before we render the new scene.
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
+        // Re-bind the multisampled draw FBO (VM's GL calls may have unbound
+        // it) and clear before we render the new scene. MSAA on this FBO is
+        // implicit from the multisampled attachments; the explicit Multisample
+        // enable is defensive — some drivers leave it disabled by default.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _msaaFbo);
+        GL.Enable(EnableCap.Multisample);
         GL.Viewport(0, 0, request.Width, request.Height);
         float r = request.BackgroundRgb.R / 255f;
         float g = request.BackgroundRgb.G / 255f;
@@ -404,47 +431,92 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         }
     }
 
-    /// <summary>Lazily creates / resizes the FBO. Called inside the render
-    /// lock; the FBO is reused across same-size requests.</summary>
+    /// <summary>Lazily creates / resizes the multisampled draw FBO and the
+    /// single-sample resolve FBO. Called inside the render lock; both are
+    /// reused across same-size requests.</summary>
     private void EnsureFbo(int width, int height)
     {
-        if (_fboSize == (width, height) && _fboHandle != -1) return;
+        if (_fboSize == (width, height) && _msaaFbo != -1) return;
 
         DestroyFboIfPresent();
 
-        _fboHandle = GL.GenFramebuffer();
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
+        // ── Multisampled draw FBO ─────────────────────────────────────────
+        _msaaFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _msaaFbo);
 
-        _colorTex = GL.GenTexture();
-        GL.BindTexture(TextureTarget.Texture2D, _colorTex);
+        _msaaColorRbo = GL.GenRenderbuffer();
+        GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _msaaColorRbo);
+        GL.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer,
+            MsaaSamples, RenderbufferStorage.Rgba8, width, height);
+        GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            RenderbufferTarget.Renderbuffer, _msaaColorRbo);
+
+        _msaaDepthRbo = GL.GenRenderbuffer();
+        GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _msaaDepthRbo);
+        GL.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer,
+            MsaaSamples, RenderbufferStorage.Depth24Stencil8, width, height);
+        GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.DepthStencilAttachment,
+            RenderbufferTarget.Renderbuffer, _msaaDepthRbo);
+
+        var msaaStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (msaaStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "Offscreen MSAA FBO incomplete: " + msaaStatus +
+                " (size=" + width + "x" + height + ", samples=" + MsaaSamples + ")");
+        }
+
+        // ── Single-sample resolve FBO (readback target) ───────────────────
+        _resolveFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _resolveFbo);
+
+        _resolveColorTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _resolveColorTex);
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8,
             width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter,
+            (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
+            (int)TextureMagFilter.Linear);
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
-            FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, _colorTex, 0);
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _resolveColorTex, 0);
 
-        _depthRbo = GL.GenRenderbuffer();
-        GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _depthRbo);
+        _resolveDepthRbo = GL.GenRenderbuffer();
+        GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, _resolveDepthRbo);
         GL.RenderbufferStorage(RenderbufferTarget.Renderbuffer,
             RenderbufferStorage.Depth24Stencil8, width, height);
         GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer,
-            FramebufferAttachment.DepthStencilAttachment, RenderbufferTarget.Renderbuffer, _depthRbo);
+            FramebufferAttachment.DepthStencilAttachment,
+            RenderbufferTarget.Renderbuffer, _resolveDepthRbo);
 
-        var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-        if (status != FramebufferErrorCode.FramebufferComplete)
+        var resolveStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (resolveStatus != FramebufferErrorCode.FramebufferComplete)
         {
             throw new InvalidOperationException(
-                "Offscreen FBO incomplete: " + status + " (size=" + width + "x" + height + ")");
+                "Offscreen resolve FBO incomplete: " + resolveStatus +
+                " (size=" + width + "x" + height + ")");
         }
+
+        // Bind the MSAA FBO as the active draw target. Per-render code
+        // assumes this is the bound FBO at the start of every render
+        // (Pass 1's SAMPLE_ALPHA_TO_COVERAGE only smooths edges when MSAA
+        // is the active target).
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _msaaFbo);
+
         _fboSize = (width, height);
     }
 
     private void DestroyFboIfPresent()
     {
-        if (_depthRbo != -1) { GL.DeleteRenderbuffer(_depthRbo); _depthRbo = -1; }
-        if (_colorTex != -1) { GL.DeleteTexture(_colorTex); _colorTex = -1; }
-        if (_fboHandle != -1) { GL.DeleteFramebuffer(_fboHandle); _fboHandle = -1; }
+        if (_msaaDepthRbo != -1) { GL.DeleteRenderbuffer(_msaaDepthRbo); _msaaDepthRbo = -1; }
+        if (_msaaColorRbo != -1) { GL.DeleteRenderbuffer(_msaaColorRbo); _msaaColorRbo = -1; }
+        if (_msaaFbo != -1) { GL.DeleteFramebuffer(_msaaFbo); _msaaFbo = -1; }
+        if (_resolveDepthRbo != -1) { GL.DeleteRenderbuffer(_resolveDepthRbo); _resolveDepthRbo = -1; }
+        if (_resolveColorTex != -1) { GL.DeleteTexture(_resolveColorTex); _resolveColorTex = -1; }
+        if (_resolveFbo != -1) { GL.DeleteFramebuffer(_resolveFbo); _resolveFbo = -1; }
         _fboSize = (0, 0);
     }
 
