@@ -74,11 +74,10 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>When true, renders arrow gizmos showing each directional light's shining
-    /// direction (from source to model) and magnitude (length scales with intensity).</summary>
+    /// direction (from source to model) and magnitude. Arrow tips anchor at
+    /// <c>OrbitCamera.Target</c> and lengths scale with <c>OrbitCamera.Distance</c>
+    /// so the gizmos stay framed regardless of close-up vs. wide camera setups.</summary>
     public bool ShowKeyLightVisualization { get; set; } = false;
-
-    /// <summary>World-space point the arrows point at — matches the orbit camera target.</summary>
-    public Vector3 KeyLightVisualizationTarget { get; set; } = new Vector3(0f, 85f, 0f);
 
     /// <summary>Index of the light currently selected for editing (1=key, 2=fill, 3=rim,
     /// 0=none). Selected arrows render with a highlighted appearance.</summary>
@@ -324,7 +323,7 @@ public class GlRenderer : IDisposable
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
-            DrawDirectionalLightArrows(ref view, ref projection);
+            DrawDirectionalLightArrows(camera, ref view, ref projection);
     }
 
     /// <summary>
@@ -608,8 +607,15 @@ public class GlRenderer : IDisposable
     /// The stored <see cref="LightData.Direction"/> is the surface-to-light
     /// vector, so arrows point along its negation. Selected arrows brighten and
     /// thicken slightly for visual distinction.
+    ///
+    /// <para>Arrows tip at <paramref name="camera"/>.Target and scale with
+    /// <paramref name="camera"/>.Distance so they stay roughly the same
+    /// on-screen size regardless of how tightly the host frames the model.
+    /// Without this, head-only Auto framing would push fixed-size arrows
+    /// (originally sized for full-body framing at distance ≈ 350) clean
+    /// out of the viewport.</para>
     /// </summary>
-    private void DrawDirectionalLightArrows(ref Matrix4 view, ref Matrix4 projection)
+    private void DrawDirectionalLightArrows(OrbitCamera camera, ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
 
@@ -633,6 +639,12 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
+        // Constant on-screen size: world-space length scales linearly with the
+        // camera's orbit distance. Since perspective shrinks objects by
+        // 1/cameraDistance, length ∝ cameraDistance keeps the arrow's pixel
+        // footprint stable across framings (head close-up vs full-body wide).
+        float camDistance = MathF.Max(camera.Distance, camera.MinDistance);
+
         for (int i = 1; i <= 3; i++)
         {
             if (Lights[i].Type != 2) continue;
@@ -644,13 +656,16 @@ public class GlRenderer : IDisposable
             var shineDir = -toLight;
             shineDir.Normalize();
 
-            // Visual length mapping: short saturated tail at 0% intensity, grows
-            // with intensity but compressed above 100% so super-bright lights
-            // don't fly off the viewport. Character is ~128 Skyrim units tall,
-            // so a ~55-unit arrow at 100% reads clearly without crowding the model.
+            // Length-as-fraction-of-camera-distance, modulated by light intensity
+            // so brighter lights still read as longer arrows (preserving the
+            // visual cue from the previous fixed-world-units mapping). Above
+            // 100% the slope flattens so 300% lights don't dominate the view.
             float intensityVis = MathF.Min(Lights[i].Intensity, 3.0f);
-            float length = 12f + 45f * MathF.Min(intensityVis, 1f)
-                               + 12f * MathF.Max(intensityVis - 1f, 0f);
+            float lengthFraction =
+                  0.05f
+                + 0.15f * MathF.Min(intensityVis, 1f)
+                + 0.05f * MathF.Max(intensityVis - 1f, 0f);
+            float length = camDistance * lengthFraction;
 
             bool selected = SelectedLightIndex == i;
             float radius = length * (selected ? 0.040f : 0.030f);
@@ -658,7 +673,10 @@ public class GlRenderer : IDisposable
             float headRad = length * (selected ? 0.085f : 0.065f);
             float shaftLen = length - headLen;
 
-            var tip = KeyLightVisualizationTarget;
+            // Anchor the tip at the camera's look-at point so arrows track
+            // whatever the host framed (head/face for Auto-mode mugshots, full
+            // body for Manual orbits) instead of the old fixed chest-height.
+            var tip = camera.Target;
             var tail = tip - shineDir * length;
             var shaftEnd = tip - shineDir * headLen;
 
