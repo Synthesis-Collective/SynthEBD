@@ -463,17 +463,24 @@ public class GameAssetResolver
             }
         }
 
-        // Phase 1: all loose checks (last-to-first folder priority). When
-        // toggle 1 is off, the vanilla scope's loose check is skipped so a
-        // user-side loose override doesn't preempt a mod-scoped BSA hit.
-        // When the toggle 2 fast-path already checked vanilla loose above,
-        // skip it here too (a no-op since the result would have returned
-        // already, but avoids an unnecessary File.Exists syscall).
+        // Phase 1: all loose checks (last-to-first folder priority). The
+        // vanilla scope (i=0) gets skipped when:
+        //  * toggle 1 is off — strict-BSA mode, vanilla loose can't preempt
+        //    a mod-scoped BSA hit.
+        //  * the path is FaceGen — FaceGen NIFs and FaceTint DDS are
+        //    NPC-keyed (FormID-named) and a vanilla loose copy must never
+        //    preempt the mod's actual override or the original BSA content,
+        //    regardless of toggle state. Mod-folder loose FaceGen still
+        //    applies (that's the mod's intentional override).
+        //  * the toggle 2 fast-path already checked vanilla loose above —
+        //    a no-op since a hit would have returned, but avoids the
+        //    redundant File.Exists syscall.
         for (int i = scopes.Count - 1; i >= 0; i--)
         {
             if (i == 0)
             {
                 if (!toggleVanillaOverridesBsa) continue;
+                if (isFaceGen) continue;
                 if (vanillaLooseAlreadyChecked) continue;
             }
             var folder = scopes[i].FolderPath;

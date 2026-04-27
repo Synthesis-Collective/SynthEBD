@@ -98,6 +98,11 @@ public sealed class OffscreenRenderRequest
     /// that loose Data files override BSA-packed ones. Set false for
     /// strict-BSA mode (useful when previewing the original mod content
     /// without the user's installed loose-file overrides).
+    /// <para>The FaceGen tree (paths containing <c>\FaceGenData\</c>) is
+    /// excluded regardless of this flag — FaceGen NIFs and FaceTint DDS
+    /// are NPC-keyed (FormID-named) and a vanilla loose copy must never
+    /// preempt the mod's actual override or the original BSA content.
+    /// Mod-folder loose FaceGen still applies.</para>
     /// </summary>
     public bool VanillaLooseOverridesBsa { get; init; } = true;
 
