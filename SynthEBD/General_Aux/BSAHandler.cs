@@ -519,6 +519,34 @@ public class BSAHandler : ViewModel
     }
 
     /// <summary>
+    /// Locates <paramref name="subpath"/> in the specific BSA at
+    /// <paramref name="bsaAbsPath"/> rather than broadcasting across every
+    /// indexed archive. Used by hosts that have already chosen a particular
+    /// BSA via scoped resolution and need extraction to honor that choice
+    /// (otherwise broadcast extraction can pick a same-named file from a
+    /// different archive — e.g. vanilla FaceGen leaking into a mod-scoped
+    /// render). Lazily opens deferred BSAs the first time they're touched.
+    /// </summary>
+    public bool TryFindFileInArchive(string bsaAbsPath, string subpath, out IArchiveFile archiveFile)
+    {
+        archiveFile = null;
+        if (string.IsNullOrEmpty(bsaAbsPath)) return false;
+
+        if (_readersByBsaPath.TryGetValue(bsaAbsPath, out var openReader))
+        {
+            return TryGetFile(subpath, openReader, out archiveFile);
+        }
+
+        // Deferred BSA — lazily open and try again.
+        if (_pathOnlyIndex.ContainsKey(bsaAbsPath))
+        {
+            return TryGetFileFromDeferredBsa(subpath, bsaAbsPath, out archiveFile);
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks whether a file exists in a deferred (disk-cached) BSA and, if so,
     /// lazily opens the reader and returns the IArchiveFile for extraction.
     /// </summary>

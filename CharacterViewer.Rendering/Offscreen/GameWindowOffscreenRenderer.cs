@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -15,17 +17,20 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// Reference <see cref="IOffscreenRenderer"/> implementation. Owns a hidden
 /// <see cref="GameWindow"/> for the GL context, an FBO for offscreen
 /// rendering, and an ImageSharp encoder for PNG output. One renderer
-/// instance handles many requests serially via an internal lock.
+/// instance handles many requests serially via a dedicated render thread.
 ///
-/// <para><b>Threading constraint:</b> GLFW (which OpenTK's
-/// <see cref="GameWindow"/> wraps) requires its first call to come from the
-/// process's main thread — that's where it installs its event hook. The
-/// constructor must therefore run on the main thread (typical: the WPF
-/// dispatcher thread). Subsequent <see cref="RenderToPngAsync"/> /
-/// <see cref="RenderToBgra32Async"/> calls run their work via
-/// <see cref="Task.Run(Action)"/>, taking the internal lock and calling
-/// <c>MakeCurrent</c> per render — the GL context is portable across threads,
-/// only GLFW initialization has the main-thread requirement.</para>
+/// <para><b>Threading model (1.3.0+):</b> a single long-lived render thread
+/// owns the GL context for the renderer's entire lifetime. The constructor
+/// creates the hidden <see cref="GameWindow"/> on the calling thread (GLFW
+/// installs its event hook there), immediately releases the context via
+/// <c>Context.MakeNoneCurrent()</c>, then starts the render thread which
+/// calls <c>MakeCurrent</c> exactly once and processes
+/// <see cref="RenderToPngAsync"/> / <see cref="RenderToBgra32Async"/>
+/// requests from a <see cref="BlockingCollection{T}"/> queue. No other
+/// thread ever touches the context — eliminating the WGL "in use" race
+/// that the previous per-render <c>MakeCurrent</c> / <c>MakeNoneCurrent</c>
+/// approach hit when parallel render requests landed on different
+/// thread-pool threads.</para>
 ///
 /// <para><b>Per-render flow:</b> a fresh <see cref="VM_CharacterViewer"/> is
 /// constructed for each render with the default
@@ -40,7 +45,6 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// </summary>
 public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 {
-    private readonly object _lock = new();
     private GameWindow? _gw;
 
     private int _fboHandle = -1;
@@ -48,7 +52,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     private int _depthRbo = -1;
     private (int W, int H) _fboSize = (0, 0);
 
-    private bool _disposed;
+    private volatile bool _disposed;
 
     // VM dependencies — passed to each per-request VM instance.
     private readonly CharacterPreviewCache _previewCache;
@@ -59,6 +63,16 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     private readonly ICharacterViewerSettings _settings;
     private readonly CharacterViewerLogGate _logGate;
     private readonly ICharacterViewerLogger _logger;
+
+    // Dedicated render thread + queue. The thread owns the GL context for
+    // its lifetime so we never migrate context across threads.
+    private readonly Thread _renderThread;
+    private readonly BlockingCollection<RenderJob> _renderQueue = new();
+
+    private readonly record struct RenderJob(
+        OffscreenRenderRequest Request,
+        bool EncodeAsPng,
+        TaskCompletionSource<byte[]> Tcs);
 
     internal GameWindowOffscreenRenderer(
         CharacterPreviewCache previewCache,
@@ -93,15 +107,38 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             StartFocused = false,
         };
         _gw = new GameWindow(GameWindowSettings.Default, nws);
+
+        // GameWindow's constructor binds the GL context to this thread.
+        // Release it so the dedicated render thread's first MakeCurrent
+        // succeeds — without this, WGL would refuse with "resource in use".
+        try
+        {
+            _gw.Context.MakeNoneCurrent();
+        }
+        catch (Exception releaseEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[OffscreenRenderer] Constructor MakeNoneCurrent FAILED: {releaseEx.Message}");
+            // Not fatal — render thread's MakeCurrent may still succeed if
+            // nothing else races for the context. Logged so the host can
+            // diagnose if subsequent renders fail.
+        }
+
+        _renderThread = new Thread(RenderThreadLoop)
+        {
+            IsBackground = true,
+            Name = "CharacterViewer.OffscreenRender",
+        };
+        _renderThread.Start();
     }
 
     public Task<byte[]> RenderToPngAsync(OffscreenRenderRequest request)
-        => Task.Run(() => RenderInternal(request, encodeAsPng: true));
+        => EnqueueRender(request, encodeAsPng: true);
 
     public Task<byte[]> RenderToBgra32Async(OffscreenRenderRequest request)
-        => Task.Run(() => RenderInternal(request, encodeAsPng: false));
+        => EnqueueRender(request, encodeAsPng: false);
 
-    private byte[] RenderInternal(OffscreenRenderRequest request, bool encodeAsPng)
+    private Task<byte[]> EnqueueRender(OffscreenRenderRequest request, bool encodeAsPng)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(GameWindowOffscreenRenderer));
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -109,76 +146,128 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             throw new ArgumentOutOfRangeException(nameof(request),
                 "Width and Height must be positive.");
 
-        request.Cancellation.ThrowIfCancellationRequested();
-
-        lock (_lock)
+        // RunContinuationsAsynchronously prevents host await-continuations
+        // from hijacking the dedicated render thread when the TCS completes —
+        // otherwise the next queued job couldn't start until the host's
+        // continuation finishes.
+        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(GameWindowOffscreenRenderer));
-            if (_gw == null) throw new InvalidOperationException("GameWindow not initialized.");
+            _renderQueue.Add(new RenderJob(request, encodeAsPng, tcs));
+        }
+        catch (InvalidOperationException)
+        {
+            // Race: dispose ran between the _disposed check and Add.
+            throw new ObjectDisposedException(nameof(GameWindowOffscreenRenderer));
+        }
+        return tcs.Task;
+    }
 
-            _gw.MakeCurrent();
-            try
+    private void RenderThreadLoop()
+    {
+        // Take ownership of the GL context for this thread's lifetime.
+        // After this single MakeCurrent, no other thread ever calls MakeCurrent
+        // on _gw, so WGL never sees a context-migration race.
+        try
+        {
+            _gw!.MakeCurrent();
+            System.Diagnostics.Debug.WriteLine(
+                $"[OffscreenRenderer] Render thread MakeCurrent OK tid={Environment.CurrentManagedThreadId}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[OffscreenRenderer] Render thread MakeCurrent FAILED: {ex.Message}");
+            _logger?.LogError(
+                "OffscreenRenderer: dedicated render thread could not bind GL context: " + ex.Message, ex);
+
+            // Mark renderer dead so EnqueueRender starts throwing
+            // ObjectDisposedException, then drain anything already queued
+            // so callers see the failure rather than hanging.
+            _disposed = true;
+            _renderQueue.CompleteAdding();
+            while (_renderQueue.TryTake(out var job))
             {
-                EnsureFbo(request.Width, request.Height);
+                job.Tcs.TrySetException(ex);
+            }
+            return;
+        }
 
-                // Per-render asset-resolution scoping (defense-in-depth —
-                // VM.LoadAsync also pushes its own scopes/folders, but we
-                // ensure the resolver fields are set before AND cleared
-                // after the render regardless of which code paths the VM
-                // hits). AdditionalScopes (1.2.0+) overrides
-                // AdditionalDataFolders (1.1.0) when both are provided.
-                _assets.SetAdditionalScopes(request.AdditionalScopes);
-                _assets.SetAdditionalFolders(request.AdditionalDataFolders);
-                var vm = new VM_CharacterViewer(
-                    _bodySlideDeformer, _bsdParser, _triParser, _assets,
-                    _settings, _previewCache, _logGate, _logger
-                    /* renderThread defaults to InlineRenderThreadMarshaller */);
+        try
+        {
+            foreach (var job in _renderQueue.GetConsumingEnumerable())
+            {
                 try
                 {
-                    vm.AdditionalScopes = request.AdditionalScopes;
-                    vm.AdditionalDataFolders = request.AdditionalDataFolders;
-                    LoadAndRender(vm, request);
-
-                    byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
-                    FlipVertical(pixels, request.Width, request.Height);
-
-                    GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
-                    return encodeAsPng
-                        ? EncodePngFromRgba(pixels, request.Width, request.Height)
-                        : RgbaToBgra(pixels);
+                    if (_disposed)
+                    {
+                        job.Tcs.TrySetException(new ObjectDisposedException(nameof(GameWindowOffscreenRenderer)));
+                        continue;
+                    }
+                    job.Request.Cancellation.ThrowIfCancellationRequested();
+                    byte[] result = RenderInternalCore(job.Request, job.EncodeAsPng);
+                    job.Tcs.TrySetResult(result);
                 }
-                finally
+                catch (OperationCanceledException oce)
                 {
-                    vm.Dispose();
-                    _assets.SetAdditionalScopes(null);
-                    _assets.SetAdditionalFolders(null);
+                    job.Tcs.TrySetCanceled(oce.CancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    job.Tcs.TrySetException(ex);
                 }
             }
-            finally
-            {
-                // Detach the GL context so the next RenderToPngAsync — which
-                // lands on an arbitrary thread-pool thread via Task.Run — can
-                // MakeCurrent without WGL refusing because the context is
-                // still "in use" on a previous worker thread. Safe path via
-                // IGraphicsContext.MakeNoneCurrent (no unsafe block needed).
-                int releaseTid = Environment.CurrentManagedThreadId;
-                try
-                {
-                    _gw.Context.MakeNoneCurrent();
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[OffscreenRenderer] MakeNoneCurrent OK tid={releaseTid}");
-                }
-                catch (Exception releaseEx)
-                {
-                    // Don't rethrow — losing the render result over a failed
-                    // release would surprise hosts. Surface it loudly so we
-                    // can debug why subsequent renders fail with WGL "in use".
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[OffscreenRenderer] MakeNoneCurrent FAILED tid={releaseTid} err={releaseEx.Message}");
-                    _logger?.LogError("OffscreenRenderer: MakeNoneCurrent failed: " + releaseEx.Message, releaseEx);
-                }
-            }
+        }
+        finally
+        {
+            // GL resources must be released on the thread that owns the
+            // context. Best-effort: if any step fails the others still try.
+            try { DestroyFboIfPresent(); } catch { /* best-effort */ }
+            try { _gw?.Context.MakeNoneCurrent(); } catch { /* best-effort */ }
+            try { _gw?.Close(); } catch { /* best-effort */ }
+            try { _gw?.Dispose(); } catch { /* best-effort */ }
+            _gw = null;
+        }
+    }
+
+    private byte[] RenderInternalCore(OffscreenRenderRequest request, bool encodeAsPng)
+    {
+        if (_gw == null) throw new InvalidOperationException("GameWindow not initialized.");
+
+        EnsureFbo(request.Width, request.Height);
+
+        // Per-render asset-resolution scoping (defense-in-depth —
+        // VM.LoadAsync also pushes its own scopes/folders, but we
+        // ensure the resolver fields are set before AND cleared
+        // after the render regardless of which code paths the VM
+        // hits). AdditionalScopes (1.2.0+) overrides
+        // AdditionalDataFolders (1.1.0) when both are provided.
+        _assets.SetAdditionalScopes(request.AdditionalScopes);
+        _assets.SetAdditionalFolders(request.AdditionalDataFolders);
+        var vm = new VM_CharacterViewer(
+            _bodySlideDeformer, _bsdParser, _triParser, _assets,
+            _settings, _previewCache, _logGate, _logger
+            /* renderThread defaults to InlineRenderThreadMarshaller */);
+        try
+        {
+            vm.AdditionalScopes = request.AdditionalScopes;
+            vm.AdditionalDataFolders = request.AdditionalDataFolders;
+            LoadAndRender(vm, request);
+
+            byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
+            FlipVertical(pixels, request.Width, request.Height);
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+            return encodeAsPng
+                ? EncodePngFromRgba(pixels, request.Width, request.Height)
+                : RgbaToBgra(pixels);
+        }
+        finally
+        {
+            vm.Dispose();
+            _assets.SetAdditionalScopes(null);
+            _assets.SetAdditionalFolders(null);
         }
     }
 
@@ -393,19 +482,27 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     public ValueTask DisposeAsync()
     {
-        lock (_lock)
-        {
-            if (_disposed) return ValueTask.CompletedTask;
-            _disposed = true;
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
 
-            if (_gw != null)
-            {
-                try { _gw.MakeCurrent(); DestroyFboIfPresent(); } catch { /* best-effort */ }
-                try { _gw.Close(); } catch { /* best-effort */ }
-                _gw.Dispose();
-                _gw = null;
-            }
+        // Signal the render thread to drain pending jobs and exit. Jobs
+        // queued before this point still run; new ones throw via the
+        // EnqueueRender disposed-check / InvalidOperationException path.
+        // The render thread tears down the GameWindow + FBO on its own
+        // thread inside its finally block — GL resources must be released
+        // by the thread that owns the context.
+        try { _renderQueue.CompleteAdding(); } catch { /* already completed */ }
+
+        // Bounded wait — don't block host shutdown if a render is wedged.
+        // Skip Join when called from the render thread itself (a host
+        // disposing from within an await continuation hijacked by the TCS,
+        // which RunContinuationsAsynchronously normally prevents but is
+        // worth defending against).
+        if (Thread.CurrentThread != _renderThread)
+        {
+            try { _renderThread.Join(TimeSpan.FromSeconds(5)); } catch { /* best-effort */ }
         }
+
         return ValueTask.CompletedTask;
     }
 }

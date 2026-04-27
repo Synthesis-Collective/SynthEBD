@@ -29,9 +29,15 @@ public sealed class SynthEbdBsaProviderAdapter : IBsaArchiveProvider
         return false;
     }
 
-    public bool TryExtractToDisk(string subpath, string destPath)
+    public bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath)
     {
-        if (!_inner.TryFindFileInAnyArchive(subpath, out IArchiveFile archiveFile, out _))
+        // Extract from the EXACT BSA the caller specified — never broadcast.
+        // The renderer's scoped resolution can pick a non-vanilla archive
+        // when multiple BSAs ship the same relative path (e.g. override
+        // FaceGen NIFs); broadcasting here would extract whichever the
+        // index returns first and silently substitute vanilla content.
+        if (string.IsNullOrEmpty(containingBsaPath)) return false;
+        if (!_inner.TryFindFileInArchive(containingBsaPath, subpath, out IArchiveFile archiveFile))
         {
             return false;
         }

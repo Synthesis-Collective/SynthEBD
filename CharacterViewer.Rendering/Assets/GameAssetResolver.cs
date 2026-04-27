@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace CharacterViewer.Rendering;
 
@@ -44,7 +46,13 @@ public class GameAssetResolver
 
     /// <summary>
     /// Cache of BSA-extracted files so repeated lookups don't re-extract.
-    /// Key: lowercase game-relative path, Value: extracted disk path.
+    /// Key: composite of source-BSA path + normalized game-relative path
+    /// (see <see cref="MakeExtractionCacheKey"/>); Value: extracted disk path.
+    /// The BSA path is part of the key because the SAME relative path can
+    /// resolve to different physical files depending on which BSA the strict
+    /// scope chain selects — caching by relative path alone caused vanilla
+    /// FaceGen to leak into mod-scoped renders once any earlier render
+    /// extracted the vanilla copy first.
     /// </summary>
     private readonly ConcurrentDictionary<string, string> _extractionCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -68,14 +76,23 @@ public class GameAssetResolver
     private readonly string _extractionDir;
 
     /// <summary>
-    /// Per-normalized-path lock objects so concurrent resolutions for the same
-    /// asset don't both try to extract to the same destination file. The
-    /// BodySlide menu has both a top-level viewer and a per-preset viewer, and
-    /// each viewer's <c>LoadAllMeshParts</c> may resolve the same FaceGen NIF
-    /// in parallel — without this lock the loser of the race gets a "file in
-    /// use" IOException and the head fails to render.
+    /// Per-(BSA, normalized-path) lock objects so concurrent resolutions for
+    /// the same asset don't both try to extract to the same destination file.
+    /// Keyed the same way as <see cref="_extractionCache"/> — a vanilla
+    /// extraction and a mod-BSA extraction of the same relative path land in
+    /// different on-disk paths and therefore shouldn't share a lock.
     /// </summary>
     private readonly ConcurrentDictionary<string, object> _extractionLocks =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Stable per-process map from a containing-BSA absolute path to a short
+    /// directory token used to scope its extracted files under
+    /// <see cref="_extractionDir"/>. Lazily populated; the token is a SHA256
+    /// prefix so it's stable across sessions (allowing extracted files to
+    /// remain reusable on disk between runs) and never collides in practice.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, string> _bsaPathTokens =
         new(StringComparer.OrdinalIgnoreCase);
 
     private readonly CharacterViewerLogGate _logGate;
@@ -130,6 +147,39 @@ public class GameAssetResolver
     private void LogVerbose(string message)
     {
         if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
+    }
+
+    /// <summary>Composite cache key: same relative path can resolve to
+    /// different physical files depending on which BSA the strict scope
+    /// chain selects, so the cache must distinguish source BSAs.</summary>
+    private static string MakeExtractionCacheKey(string bsaPath, string normalized)
+        => bsaPath + "|" + normalized;
+
+    /// <summary>Builds an on-disk extraction path under
+    /// <see cref="_extractionDir"/> scoped by source BSA so a vanilla
+    /// extraction and a mod-BSA extraction of the same relative path don't
+    /// collide on disk (last-writer-wins would otherwise serve whichever
+    /// extracted last to subsequent renders of either source).</summary>
+    private string MakeExtractionDestPath(string bsaPath, string normalized)
+        => Path.Combine(_extractionDir, GetBsaPathToken(bsaPath), normalized);
+
+    /// <summary>Returns a stable short directory token for a BSA absolute
+    /// path. SHA256-prefix derived so it persists across sessions (extracted
+    /// files remain reusable on disk between runs) and effectively never
+    /// collides — 32 bits ≈ 1 in 4 billion across BSA paths.</summary>
+    private string GetBsaPathToken(string bsaPath)
+    {
+        return _bsaPathTokens.GetOrAdd(bsaPath, p =>
+        {
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(p.ToLowerInvariant()));
+            return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+        });
+    }
+
+    private static void Trace(string message)
+    {
+        System.Diagnostics.Debug.WriteLine("[GameAssetResolver] " + message);
+        System.Diagnostics.Trace.WriteLine("[GameAssetResolver] " + message);
     }
 
     /// <summary>
@@ -318,20 +368,28 @@ public class GameAssetResolver
                     scope.ModKeyFileNames, out string? containingBsaPath) &&
                 containingBsaPath != null)
             {
-                string destPath = Path.Combine(_extractionDir, normalized);
-                var lockObj = _extractionLocks.GetOrAdd(normalized, _ => new object());
+                // Per-source-BSA cache + on-disk destination — see
+                // _extractionCache field doc for why mixing BSAs under one
+                // key/destination caused mod-scoped renders to render
+                // vanilla content.
+                string cacheKey = MakeExtractionCacheKey(containingBsaPath, normalized);
+                string destPath = MakeExtractionDestPath(containingBsaPath, normalized);
+                var lockObj = _extractionLocks.GetOrAdd(cacheKey, _ => new object());
                 lock (lockObj)
                 {
-                    if (_extractionCache.TryGetValue(normalized, out string? priorExtract) &&
+                    if (_extractionCache.TryGetValue(cacheKey, out string? priorExtract) &&
                         File.Exists(priorExtract))
                     {
+                        Trace($"scoped CACHE-HIT file=[{normalized}] bsa=[{containingBsaPath}] dest=[{priorExtract}]");
                         return new AssetSource(AssetOriginKind.Bsa, relativeGamePath,
                             priorExtract, null, containingBsaPath, bsaSubpath);
                     }
 
-                    if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                    if (_bsaProvider.TryExtractToDisk(containingBsaPath, bsaSubpath, destPath))
                     {
-                        _extractionCache[normalized] = destPath;
+                        _extractionCache[cacheKey] = destPath;
+                        Trace($"scoped EXTRACT file=[{normalized}] bsa=[{containingBsaPath}] dest=[{destPath}]");
                         LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
                             "' -> scoped-BSA extraction at '" + destPath +
                             "' (from '" + containingBsaPath + "')");
@@ -396,26 +454,28 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath);
         }
 
-        // Build extraction destination preserving the relative directory structure
-        string destPath = Path.Combine(_extractionDir, normalized);
+        // Per-source-BSA cache + on-disk destination — see _extractionCache
+        // field doc for the mod-scoping bug that motivates BSA-aware keying.
+        string cacheKey = MakeExtractionCacheKey(containingBsaPath!, normalized);
+        string destPath = MakeExtractionDestPath(containingBsaPath!, normalized);
 
-        // Per-path lock: the cache-check + extract sequence must be atomic so
-        // concurrent callers (e.g. the BodySlide menu's main viewer + per-preset
-        // viewer both resolving the same FaceGen NIF) don't both call
-        // TryExtractToDisk on the same destPath and collide on the file write.
-        var lockObj = _extractionLocks.GetOrAdd(normalized, _ => new object());
+        // Per-(BSA, path) lock so the cache-check + extract sequence is atomic
+        // for concurrent callers asking for the same asset from the same BSA.
+        var lockObj = _extractionLocks.GetOrAdd(cacheKey, _ => new object());
         lock (lockObj)
         {
             // Re-check cache inside the lock — another thread may have completed
             // the extraction while we were waiting.
             if (_bsaSourceCache.TryGetValue(normalized, out var racedSource) &&
-                racedSource.ResolvedDiskPath != null && File.Exists(racedSource.ResolvedDiskPath))
+                racedSource.BsaPath == containingBsaPath &&
+                racedSource.ResolvedDiskPath != null &&
+                File.Exists(racedSource.ResolvedDiskPath))
             {
                 return racedSource;
             }
 
             // Reuse a prior extraction if still on disk
-            if (_extractionCache.TryGetValue(normalized, out string? priorExtract) && File.Exists(priorExtract))
+            if (_extractionCache.TryGetValue(cacheKey, out string? priorExtract) && File.Exists(priorExtract))
             {
                 var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, priorExtract,
                     null, containingBsaPath, bsaSubpath);
@@ -423,9 +483,10 @@ public class GameAssetResolver
                 return source;
             }
 
-            if (_bsaProvider.TryExtractToDisk(bsaSubpath, destPath))
+            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+            if (_bsaProvider.TryExtractToDisk(containingBsaPath!, bsaSubpath, destPath))
             {
-                _extractionCache[normalized] = destPath;
+                _extractionCache[cacheKey] = destPath;
                 LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
                 var source = new AssetSource(AssetOriginKind.Bsa, relativeGamePath, destPath,
                     null, containingBsaPath, bsaSubpath);

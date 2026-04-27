@@ -44,7 +44,14 @@ public interface IBsaArchiveProvider
         IReadOnlyList<string> modKeyFileNames,
         out string? containingBsaPath);
 
-    /// <summary>Extracts the named asset from its containing BSA to
-    /// <paramref name="destPath"/>, creating parent directories as needed.</summary>
-    bool TryExtractToDisk(string subpath, string destPath);
+    /// <summary>Extracts <paramref name="subpath"/> from the BSA identified
+    /// by <paramref name="containingBsaPath"/> to <paramref name="destPath"/>,
+    /// creating parent directories as needed. The caller has already located
+    /// the file (via <see cref="TryLocateInBsa"/> or
+    /// <see cref="TryLocateInScopedBsa"/>) and must pass the same BSA path
+    /// here — implementations MUST extract from that exact archive and not
+    /// re-broadcast, otherwise mod-scoped renders would silently extract
+    /// vanilla content when both vanilla and the mod ship the same relative
+    /// path (e.g. override FaceGen NIFs).</summary>
+    bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath);
 }
