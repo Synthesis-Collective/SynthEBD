@@ -283,35 +283,35 @@ public class GlRenderer : IDisposable
             DrawMesh(mesh);
         }
 
-        // Pass 1: Alpha-tested meshes (discard in shader, depth writes ON).
-        // Meshes with both alpha test and alpha blend go here — the discard
-        // handles the cutout and depth writes prevent Z-fighting with the face.
-        //
-        // SAMPLE_ALPHA_TO_COVERAGE smooths the cutout edges by converting
-        // alpha into a coverage mask across the MSAA samples, instead of the
-        // hard discard threshold. Has no effect when the bound framebuffer
-        // is single-sample (it just degrades to the normal discard), so this
-        // is safe to enable unconditionally — hosts get smooth hair edges
-        // when they render to a multisampled FBO and unchanged behavior
-        // otherwise.
-        GL.Enable(EnableCap.SampleAlphaToCoverage);
+        // Pass 1: Alpha-tested-only meshes (discard in shader, depth writes ON,
+        // no blend). Cutout shapes whose NiAlphaProperty has the alpha-test bit
+        // but NOT the alpha-blend bit. Smooth edges come from MSAA on the
+        // private FBO (4× samples) — no SAMPLE_ALPHA_TO_COVERAGE here, since
+        // it interprets sub-1.0 diffuse alpha as partial coverage and would
+        // wash out shapes whose alpha encodes non-cutout data (e.g. vanilla
+        // Khajiit / Argonian heads have alpha < 1 across the whole face).
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
-            if (!mesh.UseAlphaTest) continue;
+            if (!mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
         }
-        GL.Disable(EnableCap.SampleAlphaToCoverage);
 
-        // Pass 2: Alpha-blended-only meshes (no alpha test — pure transparency).
-        // Depth writes OFF to allow correct back-to-front compositing.
+        // Pass 2: Alpha-blended meshes (transparency). Depth writes OFF for
+        // correct back-to-front compositing. Shapes with the alpha-blend bit
+        // come here regardless of whether the alpha-test bit is also set —
+        // the per-shape `use_alpha_test` uniform (set in DrawMesh) handles
+        // any sub-threshold discard. This matches Portrait Creator's
+        // classification ("alphaBlend wins"), and gives hair / beard / brow
+        // edges the soft fade that comes from blending raw alpha values
+        // with the surface beneath, instead of a hard cutout.
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         GL.DepthMask(false);
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
-            if (!mesh.HasAlphaBlend || mesh.UseAlphaTest) continue;
+            if (!mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
         }
         GL.Disable(EnableCap.Blend);

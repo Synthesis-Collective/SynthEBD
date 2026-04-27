@@ -2901,6 +2901,9 @@ public class VM_CharacterViewer : ViewerVm
                 glMesh.IsRendering = false;
             }
         }
+
+        glMesh.IsHairTintShader = built.IsHairTintShader;
+        glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

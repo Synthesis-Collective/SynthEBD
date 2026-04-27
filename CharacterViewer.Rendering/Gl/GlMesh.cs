@@ -46,6 +46,10 @@ public class GlMesh : IDisposable
     public bool UseAlphaTest { get; set; }
     public bool HasAlphaBlend { get; set; }
     public bool IsDoubleSided { get; set; }
+
+    /// <summary>True when the source shape's BSLightingShaderProperty is
+    /// type BSLSP_HAIRTINT. Used elsewhere for hair-color tinting.</summary>
+    public bool IsHairTintShader { get; set; }
     public bool IsRendering { get; set; } = true;
     public bool IsEye { get; set; }
 
