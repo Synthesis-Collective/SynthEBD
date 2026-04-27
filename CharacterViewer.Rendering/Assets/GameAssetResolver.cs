@@ -183,6 +183,57 @@ public class GameAssetResolver
     }
 
     /// <summary>
+    /// Drops every BSA-extracted file currently tracked in the resolver's
+    /// cache and clears the cache itself. Intended for one-and-done batch
+    /// flows (see <see cref="Offscreen.OffscreenRenderRequest.ClearExtractionCacheAfterRender"/>)
+    /// where the host generates each PNG once and the temp directory would
+    /// otherwise grow without bound. Safe to call between renders; not
+    /// safe to call concurrently with a render in progress (the renderer
+    /// invokes this from its own per-render finally block on the dedicated
+    /// render thread, which serializes against the next queued job).
+    /// Returns the number of files actually deleted (best-effort —
+    /// individual delete failures are swallowed and counted as misses).
+    /// </summary>
+    public int ClearExtractedFiles()
+    {
+        // Snapshot before mutating: ToArray takes a stable view of the
+        // ConcurrentDictionary's entries so we don't race a concurrent
+        // writer (defensive — the documented contract is single-threaded
+        // between renders).
+        var snapshot = _extractionCache.ToArray();
+        _extractionCache.Clear();
+        _bsaSourceCache.Clear();
+        _extractionLocks.Clear();
+
+        int deleted = 0;
+        foreach (var kv in snapshot)
+        {
+            try
+            {
+                if (File.Exists(kv.Value))
+                {
+                    File.Delete(kv.Value);
+                    deleted++;
+                }
+            }
+            catch
+            {
+                // Best-effort. A still-open file handle (shouldn't happen
+                // post-render) is left for OS temp-dir cleanup.
+            }
+        }
+
+        // Stale parse / pixel cache entries that referenced the now-deleted
+        // files are detected on the next access (NifMeshBuilder via mtime
+        // mismatch on re-extracted file; the pixel cache by path-hit which
+        // remains valid since the same BSA produces identical decoded
+        // pixels). Leave those caches alone — re-parsing on the next render
+        // is the expected cost of opting into per-render clearing.
+        Trace($"ClearExtractedFiles: deleted={deleted}/{snapshot.Length} cached extractions");
+        return deleted;
+    }
+
+    /// <summary>
     /// Sets the priority-ordered loose-file search paths consulted before the
     /// vanilla Data folder for subsequent resolutions. Pass <c>null</c> (or
     /// an empty list) to clear back to vanilla-only behavior.

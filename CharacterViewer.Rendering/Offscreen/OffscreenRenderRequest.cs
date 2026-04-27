@@ -78,6 +78,19 @@ public sealed class OffscreenRenderRequest
     public CancellationToken Cancellation { get; init; }
 
     /// <summary>
+    /// When true, the renderer drops every BSA-extracted file it touched
+    /// during this render (and the resolver's cache entries for them) once
+    /// the PNG bytes are returned. Suited to one-and-done batch flows like
+    /// NPC Plugin Chooser 2's mugshot tile generation, where the user
+    /// produces each per-NPC PNG once and never needs the extracted
+    /// sources again — the temp cache would otherwise accumulate
+    /// indefinitely. Default <c>false</c> preserves cross-render parse /
+    /// pixel caching for hosts that re-render the same NPC many times
+    /// (e.g. SynthEBD's BodySlide preset switcher).
+    /// </summary>
+    public bool ClearExtractionCacheAfterRender { get; init; } = false;
+
+    /// <summary>
     /// Optional priority-ordered loose-file search paths consulted BEFORE
     /// <see cref="IDataFolderProvider.DataFolderPath"/> for this render only.
     /// Last entry wins (matches the "later mod folder beats earlier in the

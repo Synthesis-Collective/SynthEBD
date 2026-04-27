@@ -268,6 +268,16 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.Dispose();
             _assets.SetAdditionalScopes(null);
             _assets.SetAdditionalFolders(null);
+            // One-and-done batch flows (e.g. NPC2's mugshot tile generation)
+            // opt in to dropping the extraction cache between renders so the
+            // temp dir doesn't grow unboundedly. Runs here on the render
+            // thread so it serializes against the next queued job — the
+            // resolver's caches must not be cleared while another render
+            // is reading or writing them.
+            if (request.ClearExtractionCacheAfterRender)
+            {
+                _assets.ClearExtractedFiles();
+            }
         }
     }
 
