@@ -36,6 +36,19 @@ public class NpcMeshResolver
         public string? HandsMeshPath { get; init; }
         public string? FeetMeshPath { get; init; }
         public string? HeadMeshPath { get; init; }
+
+        /// <summary>Mesh path for the worn armor's hair-slot ARMA (biped slot
+        /// 31). NPC overhauls like High Poly NPC Overhaul ship a "bald"
+        /// FaceGen scalp paired with a wig in this slot. Vanilla NPCs and
+        /// most overhauls leave this null and bake hair shapes into the
+        /// FaceGen NIF directly.</summary>
+        public string? HairMeshPath { get; init; }
+
+        /// <summary>Mesh path for the worn armor's tail-slot ARMA (biped slot
+        /// 40). Required for Khajiit and Argonian races whose tails are
+        /// armatures rather than shapes baked into a body NIF.</summary>
+        public string? TailMeshPath { get; init; }
+
         public Gender Gender { get; init; }
 
         /// <summary>
@@ -87,6 +100,8 @@ public class NpcMeshResolver
                 HandsMeshPath = this.HandsMeshPath,
                 FeetMeshPath = this.FeetMeshPath,
                 HeadMeshPath = headMeshPath,
+                HairMeshPath = this.HairMeshPath,
+                TailMeshPath = this.TailMeshPath,
                 Gender = this.Gender,
                 SkeletonPath = this.SkeletonPath,
                 ResolutionChains = this.ResolutionChains,
@@ -123,6 +138,8 @@ public class NpcMeshResolver
         string? bodyPath = null;
         string? handsPath = null;
         string? feetPath = null;
+        string? hairPath = null;
+        string? tailPath = null;
         var chains = new Dictionary<string, string>();
         var txstTextures = new Dictionary<string, Dictionary<int, string>>();
         string genderLabel = gender == Gender.Female ? "Female" : "Male";
@@ -193,6 +210,31 @@ public class NpcMeshResolver
                     LogVerbose("CharacterViewer: Armature[Feet]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
                     if (txstPaths.Count > 0) txstTextures["Feet"] = txstPaths;
                 }
+
+                // Hair (biped slot 31): NPC overhauls like High Poly NPC
+                // Overhaul ship a "bald" FaceGen scalp + a wig ARMO whose
+                // ARMA occupies this slot. Without picking it up here the
+                // NPC renders hairless.
+                if (hairPath == null && flags.HasFlag(BipedObjectFlag.Hair))
+                {
+                    hairPath = meshPath;
+                    chains["Hair"] = npcName + " → " + armorSource + " → Armature(Hair):" + armaLink.FormKey +
+                        " → " + genderLabel + " → " + meshFileName;
+                    LogVerbose("CharacterViewer: Armature[Hair]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
+                    if (txstPaths.Count > 0) txstTextures["Hair"] = txstPaths;
+                }
+
+                // Tail (biped slot 40): required for Khajiit / Argonian
+                // races whose tails are armatures rather than shapes baked
+                // into a body NIF.
+                if (tailPath == null && flags.HasFlag(BipedObjectFlag.Tail))
+                {
+                    tailPath = meshPath;
+                    chains["Tail"] = npcName + " → " + armorSource + " → Armature(Tail):" + armaLink.FormKey +
+                        " → " + genderLabel + " → " + meshFileName;
+                    LogVerbose("CharacterViewer: Armature[Tail]=" + armaLink.FormKey + ", WorldModel=" + meshPath);
+                    if (txstPaths.Count > 0) txstTextures["Tail"] = txstPaths;
+                }
             }
         }
 
@@ -223,6 +265,8 @@ public class NpcMeshResolver
             HandsMeshPath = handsPath,
             FeetMeshPath = feetPath,
             HeadMeshPath = headPath,
+            HairMeshPath = hairPath,
+            TailMeshPath = tailPath,
             Gender = gender,
             ResolutionChains = chains,
             TxstTextures = txstTextures,
