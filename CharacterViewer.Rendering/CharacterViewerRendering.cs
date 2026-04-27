@@ -37,5 +37,5 @@ namespace CharacterViewer.Rendering;
 public static class CharacterViewerRendering
 {
     /// <summary>Current library version. See class summary for the bump policy.</summary>
-    public static readonly Version Version = new(2, 1, 0);
+    public static readonly Version Version = new(2, 2, 0);
 }
