@@ -244,6 +244,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // AdditionalDataFolders (1.1.0) when both are provided.
         _assets.SetAdditionalScopes(request.AdditionalScopes);
         _assets.SetAdditionalFolders(request.AdditionalDataFolders);
+        _assets.SetVanillaLooseOverridesBsa(request.VanillaLooseOverridesBsa);
+        _assets.SetVanillaLooseOverridesModLoose(request.VanillaLooseOverridesModLoose);
         var vm = new VM_CharacterViewer(
             _bodySlideDeformer, _bsdParser, _triParser, _assets,
             _settings, _previewCache, _logGate, _logger
@@ -252,6 +254,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         {
             vm.AdditionalScopes = request.AdditionalScopes;
             vm.AdditionalDataFolders = request.AdditionalDataFolders;
+            vm.VanillaLooseOverridesBsa = request.VanillaLooseOverridesBsa;
+            vm.VanillaLooseOverridesModLoose = request.VanillaLooseOverridesModLoose;
             LoadAndRender(vm, request);
 
             byte[] pixels = ReadPixelsRgba(request.Width, request.Height);

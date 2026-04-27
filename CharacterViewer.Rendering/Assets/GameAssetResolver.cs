@@ -130,6 +130,18 @@ public class GameAssetResolver
     /// </summary>
     private volatile IReadOnlyList<RenderScope>? _currentAdditionalScopes;
 
+    /// <summary>Default-true companion to
+    /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>.
+    /// When false, scope-chain Phase 1 skips the vanilla scope's loose
+    /// check so vanilla loose files don't preempt mod-scoped BSA hits.</summary>
+    private volatile bool _vanillaLooseOverridesBsa = true;
+
+    /// <summary>Companion to
+    /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesModLoose"/>.
+    /// When true, the resolver checks the vanilla scope's loose folder for
+    /// non-FaceGen paths before walking mod-folder loose files.</summary>
+    private volatile bool _vanillaLooseOverridesModLoose;
+
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
         IBsaArchiveProvider bsaProvider,
@@ -271,6 +283,39 @@ public class GameAssetResolver
     }
 
     /// <summary>
+    /// Sets whether vanilla loose files override BSA-packed files (engine-default
+    /// behavior; default <c>true</c>). When false, Phase 1 of the strict scope
+    /// walk skips the vanilla scope (i=0) so its loose files don't preempt a
+    /// mod-scoped BSA hit. Mod-folder loose files in higher scopes are
+    /// unaffected. See <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>.
+    /// </summary>
+    public void SetVanillaLooseOverridesBsa(bool value)
+    {
+        _vanillaLooseOverridesBsa = value;
+    }
+
+    /// <summary>
+    /// Sets whether vanilla loose files (and only loose, never vanilla BSA)
+    /// take priority over mod-folder loose files for non-FaceGen paths.
+    /// When true, the user's installed body / skin / texture replacers in
+    /// the data folder leak into mod-specific previews. The
+    /// <c>FaceGenData</c> tree is excluded regardless. See
+    /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesModLoose"/>.
+    /// </summary>
+    public void SetVanillaLooseOverridesModLoose(bool value)
+    {
+        _vanillaLooseOverridesModLoose = value;
+    }
+
+    /// <summary>True for paths under the FaceGen tree (FaceGeom NIFs and
+    /// FaceTint DDS). These are NPC-keyed (FormID-named) and a vanilla
+    /// loose copy must NEVER preempt a mod's actual face override.</summary>
+    private static bool IsFaceGenPath(string normalizedPath)
+    {
+        return normalizedPath.IndexOf("FaceGenData", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    /// <summary>
     /// Resolves a game-relative path to a full disk path.
     /// Returns null if the asset cannot be found in loose files or any BSA.
     /// </summary>
@@ -389,9 +434,48 @@ public class GameAssetResolver
     private AssetSource ResolveViaScopes(string relativeGamePath, string normalized,
         IReadOnlyList<RenderScope> scopes)
     {
-        // Phase 1: all loose checks first (last-to-first folder priority).
+        bool toggleVanillaOverridesBsa = _vanillaLooseOverridesBsa;
+        bool toggleVanillaOverridesModLoose = _vanillaLooseOverridesModLoose;
+        bool isFaceGen = IsFaceGenPath(normalized);
+
+        // Toggle 2 fast-path: vanilla loose preempts mod-folder loose for
+        // non-FaceGen assets. Lets the user's installed body / skin /
+        // texture replacers leak into mod-scoped previews. FaceGen is
+        // excluded because its files are NPC-keyed (FormID-named) and a
+        // vanilla copy would defeat the mod's actual face override. Only
+        // checks the vanilla scope's LOOSE folder — vanilla BSA is left
+        // for the normal Phase 2 walk.
+        bool vanillaLooseAlreadyChecked = false;
+        if (toggleVanillaOverridesModLoose && !isFaceGen && scopes.Count > 0)
+        {
+            var vanilla = scopes[0];
+            if (!string.IsNullOrEmpty(vanilla.FolderPath))
+            {
+                string candidate = Path.Combine(vanilla.FolderPath, normalized);
+                if (File.Exists(candidate))
+                {
+                    LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
+                        "' -> vanilla loose (override) at '" + candidate + "'");
+                    return new AssetSource(AssetOriginKind.Loose, relativeGamePath,
+                        candidate, candidate, null, null);
+                }
+                vanillaLooseAlreadyChecked = true;
+            }
+        }
+
+        // Phase 1: all loose checks (last-to-first folder priority). When
+        // toggle 1 is off, the vanilla scope's loose check is skipped so a
+        // user-side loose override doesn't preempt a mod-scoped BSA hit.
+        // When the toggle 2 fast-path already checked vanilla loose above,
+        // skip it here too (a no-op since the result would have returned
+        // already, but avoids an unnecessary File.Exists syscall).
         for (int i = scopes.Count - 1; i >= 0; i--)
         {
+            if (i == 0)
+            {
+                if (!toggleVanillaOverridesBsa) continue;
+                if (vanillaLooseAlreadyChecked) continue;
+            }
             var folder = scopes[i].FolderPath;
             if (string.IsNullOrEmpty(folder)) continue;
             string candidate = Path.Combine(folder, normalized);

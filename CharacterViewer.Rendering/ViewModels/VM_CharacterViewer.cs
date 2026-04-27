@@ -265,6 +265,21 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public IReadOnlyList<RenderScope>? AdditionalScopes { get; set; }
 
+    /// <summary>
+    /// Counterpart to <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>
+    /// for the live preview path. When true (default), vanilla data folder
+    /// loose files override BSA copies. Snapshotted at <see cref="LoadAsync"/>
+    /// entry and pushed to the resolver alongside <see cref="AdditionalScopes"/>.
+    /// </summary>
+    public bool VanillaLooseOverridesBsa { get; set; } = true;
+
+    /// <summary>
+    /// Counterpart to <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesModLoose"/>.
+    /// When true, vanilla loose files preempt mod-folder loose files for
+    /// non-FaceGen paths. Default false.
+    /// </summary>
+    public bool VanillaLooseOverridesModLoose { get; set; } = false;
+
     public VM_CharacterViewer(
         BodySlideDeformer bodySlideDeformer,
         BsdFileParser bsdFileParser,
@@ -2587,6 +2602,13 @@ public class VM_CharacterViewer : ViewerVm
         var additionalFolders = AdditionalDataFolders;
         _assetResolver.SetAdditionalScopes(additionalScopes);
         _assetResolver.SetAdditionalFolders(additionalFolders);
+        // Per-load advanced overrides (2.3.0+). Pushed alongside the scopes
+        // so the off-thread Task.Run + scene queue see consistent state.
+        // Cleared in the same SceneCommitted / cancel-error blocks that
+        // clear the scope chain — see ProcessPendingScene's finalize +
+        // LoadAsync's catch path below.
+        _assetResolver.SetVanillaLooseOverridesBsa(VanillaLooseOverridesBsa);
+        _assetResolver.SetVanillaLooseOverridesModLoose(VanillaLooseOverridesModLoose);
 
         IsLoading = true;
         StatusText = "Loading meshes...";

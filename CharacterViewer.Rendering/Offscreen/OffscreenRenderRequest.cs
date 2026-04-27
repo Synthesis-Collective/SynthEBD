@@ -91,6 +91,31 @@ public sealed class OffscreenRenderRequest
     public bool ClearExtractionCacheAfterRender { get; init; } = false;
 
     /// <summary>
+    /// When true (default), a loose copy of an asset under the host's
+    /// vanilla data folder takes precedence over any BSA copy of the same
+    /// path — including BSAs scoped to a non-vanilla mod via
+    /// <see cref="AdditionalScopes"/>. Mirrors the engine's actual rule
+    /// that loose Data files override BSA-packed ones. Set false for
+    /// strict-BSA mode (useful when previewing the original mod content
+    /// without the user's installed loose-file overrides).
+    /// </summary>
+    public bool VanillaLooseOverridesBsa { get; init; } = true;
+
+    /// <summary>
+    /// When true, a loose copy of an asset in the host's vanilla data
+    /// folder takes precedence over the same path in any mod folder
+    /// listed in <see cref="AdditionalScopes"/> — letting the user's
+    /// installed body / skin / texture replacers leak into mod-specific
+    /// previews. Default false preserves normal mod priority. The
+    /// FaceGen tree (<c>…\FaceGenData\…</c>) is excluded regardless of
+    /// this flag because its NPC-specific assets are keyed by FormID and
+    /// a vanilla loose copy would defeat the mod's actual face override.
+    /// Only matches against the vanilla data folder's loose files —
+    /// vanilla BSAs are NOT consulted for this fast-path.
+    /// </summary>
+    public bool VanillaLooseOverridesModLoose { get; init; } = false;
+
+    /// <summary>
     /// Optional priority-ordered loose-file search paths consulted BEFORE
     /// <see cref="IDataFolderProvider.DataFolderPath"/> for this render only.
     /// Last entry wins (matches the "later mod folder beats earlier in the
