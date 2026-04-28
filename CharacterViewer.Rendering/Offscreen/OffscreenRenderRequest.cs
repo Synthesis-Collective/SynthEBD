@@ -167,4 +167,48 @@ public sealed class OffscreenRenderRequest
     /// <c>--data</c> chain).</para>
     /// </summary>
     public IReadOnlyList<RenderScope>? AdditionalScopes { get; init; }
+
+    /// <summary>
+    /// Optional output collection. If non-null, the renderer appends each
+    /// host-expected mesh game-path that the asset resolver could not
+    /// locate during this render (loose scopes + scoped BSAs all missed).
+    /// Empty after <see cref="IOffscreenRenderer.RenderToPngAsync"/>
+    /// completes means every body / hands / feet / head / hair / tail /
+    /// skeleton path that the host populated did resolve. Non-empty
+    /// means the rendered PNG is missing one or more shapes — useful
+    /// for surfacing an "incomplete render" UI hint over the resulting
+    /// image (NPC Plugin Chooser 2's mugshot tile uses this to show a
+    /// missing-mesh overlay when a mod ships a NIF path that doesn't
+    /// resolve in the user's load order).
+    /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave
+    /// null to skip tracking.</para>
+    /// </summary>
+    public List<string>? MissingMeshPathsOut { get; init; }
+
+    /// <summary>
+    /// Optional output collection. If non-null, the renderer appends each
+    /// texture game-path the host's NIFs referenced that the texture
+    /// manager couldn't decode (asset resolver missed, or the DDS load
+    /// itself failed). The affected shapes are rendered as a wireframe
+    /// placeholder rather than as flat-white billboards. Empty after
+    /// <see cref="IOffscreenRenderer.RenderToPngAsync"/> completes means
+    /// every texture the host expected did decode.
+    /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave
+    /// null to skip tracking. Independent of
+    /// <see cref="MissingMeshPathsOut"/> — a render can have one, both,
+    /// or neither populated.</para>
+    /// </summary>
+    public List<string>? MissingTexturePathsOut { get; init; }
+
+    /// <summary>
+    /// Controls how the renderer handles alpha shapes whose diffuse texture
+    /// couldn't be decoded. <c>true</c> (default): render as a wireframe
+    /// placeholder in the missing-texture color so the missing-texture
+    /// state is visible. <c>false</c>: cull the shape entirely (previous
+    /// pre-2.5.6 behavior). Pairs with
+    /// <see cref="MissingTexturePathsOut"/> — both populated independently
+    /// so the host can show the overlay even when wireframe rendering is
+    /// off.
+    /// </summary>
+    public bool RenderMissingTextureAsWireframe { get; init; } = true;
 }

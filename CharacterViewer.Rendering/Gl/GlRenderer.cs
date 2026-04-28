@@ -25,6 +25,13 @@ public class GlRenderer : IDisposable
     /// default so edges read clearly against both skin and clothing.</summary>
     public Vector3 WireframeColor { get; set; } = new Vector3(0.2f, 1.0f, 0.9f);
 
+    /// <summary>Color used for shapes flagged as
+    /// <see cref="GlMesh.RenderAsWireframeFallback"/> (alpha shapes whose
+    /// diffuse couldn't be decoded). Default green — distinct from the
+    /// teal BodySlide-classifier wireframe color so the two overlays
+    /// don't blur together when both are active on the same scene.</summary>
+    public Vector3 MissingTextureWireframeColor { get; set; } = new Vector3(0.0f, 1.0f, 0.0f);
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -279,6 +286,7 @@ public class GlRenderer : IDisposable
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
             if (mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
         }
@@ -293,6 +301,7 @@ public class GlRenderer : IDisposable
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
         }
@@ -311,6 +320,7 @@ public class GlRenderer : IDisposable
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
         }
@@ -527,9 +537,12 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>
-    /// Draws edges for every mesh with <see cref="GlMesh.ShowWireframe"/> set.
-    /// Uses polygon-mode Line with a negative polygon offset so the wire sits
-    /// just in front of the solid surface without z-fighting.
+    /// Draws edges for every mesh with <see cref="GlMesh.ShowWireframe"/> set
+    /// (BodySlide classifier overlay), and for every mesh with
+    /// <see cref="GlMesh.RenderAsWireframeFallback"/> set (missing-texture
+    /// placeholder — these aren't drawn by the solid passes at all). Uses
+    /// polygon-mode Line with a negative polygon offset so explicit overlay
+    /// edges sit just in front of the solid surface without z-fighting.
     /// </summary>
     private void DrawWireframeOverlay(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection)
     {
@@ -539,7 +552,9 @@ public class GlRenderer : IDisposable
         bool any = false;
         for (int i = 0; i < _meshes.Count; i++)
         {
-            if (_meshes[i].IsRendering && _meshes[i].ShowWireframe) { any = true; break; }
+            if (!_meshes[i].IsRendering) continue;
+            if (_meshes[i].ShowWireframe || _meshes[i].RenderAsWireframeFallback)
+            { any = true; break; }
         }
         if (!any) return;
 
@@ -547,7 +562,6 @@ public class GlRenderer : IDisposable
         _wireframeShader.SetMatrix4("u_model", ref model);
         _wireframeShader.SetMatrix4("u_view", ref view);
         _wireframeShader.SetMatrix4("u_projection", ref projection);
-        _wireframeShader.SetVector3("u_color", WireframeColor.X, WireframeColor.Y, WireframeColor.Z);
 
         GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         GL.Enable(EnableCap.PolygonOffsetLine);
@@ -555,10 +569,29 @@ public class GlRenderer : IDisposable
         GL.Disable(EnableCap.CullFace);
         GL.LineWidth(1.0f);
 
+        // Two color groups. Update the uniform only on transition to keep
+        // GL state-change traffic minimal even though the per-shape branch
+        // is checked unconditionally.
+        bool currentIsFallback = false;
+        _wireframeShader.SetVector3("u_color",
+            WireframeColor.X, WireframeColor.Y, WireframeColor.Z);
+
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
-            if (!mesh.ShowWireframe) continue;
+            bool wantFallback = mesh.RenderAsWireframeFallback;
+            bool wantOverlay = mesh.ShowWireframe;
+            if (!wantFallback && !wantOverlay) continue;
+
+            // Fallback shapes ALWAYS draw in the missing-texture color, even
+            // when ShowWireframe is also true — the missing-texture state is
+            // the more important diagnostic.
+            if (wantFallback != currentIsFallback)
+            {
+                var c = wantFallback ? MissingTextureWireframeColor : WireframeColor;
+                _wireframeShader.SetVector3("u_color", c.X, c.Y, c.Z);
+                currentIsFallback = wantFallback;
+            }
 
             GL.BindVertexArray(mesh.Vao);
             GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,

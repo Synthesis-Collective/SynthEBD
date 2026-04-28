@@ -320,6 +320,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         if (request.Lighting != null) vm.SelectedLightingLayout = request.Lighting;
         if (request.Colors != null) vm.SelectedLightingColorScheme = request.Colors;
 
+        // ApplyMaterial reads RenderMissingTextureAsWireframe per-shape
+        // during the load, so push the request's value before LoadAsync.
+        vm.RenderMissingTextureAsWireframe = request.RenderMissingTextureAsWireframe;
+
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
         // then flushes the install queue against the bound FBO.
@@ -327,6 +331,22 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.LoadAsync(identity, request.MeshPaths, request.OverrideHeadMeshAbsolutePath,
             request.Cancellation).GetAwaiter().GetResult();
         vm.ProcessPendingSceneToCompletion();
+
+        // Surface any unresolved mesh game-paths so the host can flag an
+        // incomplete render. Populated during LoadAllMeshParts.
+        if (request.MissingMeshPathsOut != null && vm.MissingMeshPaths.Count > 0)
+        {
+            request.MissingMeshPathsOut.AddRange(vm.MissingMeshPaths);
+        }
+
+        // Same for textures the NIFs referenced but the texture manager
+        // couldn't decode. The shapes are rendered as wireframe in the
+        // missing-texture color (see GlRenderer.MissingTextureWireframeColor)
+        // and the host pairs the list with a "missing texture" tile overlay.
+        if (request.MissingTexturePathsOut != null && vm.MissingTexturePaths.Count > 0)
+        {
+            request.MissingTexturePathsOut.AddRange(vm.MissingTexturePaths);
+        }
 
         // Optional post-load adjustments. Texture overrides and morphs are
         // queued internally if the scene wasn't ready; after

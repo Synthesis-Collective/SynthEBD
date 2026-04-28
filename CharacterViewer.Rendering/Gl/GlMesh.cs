@@ -59,6 +59,15 @@ public class GlMesh : IDisposable
     // stay solid.
     public bool ShowWireframe { get; set; } = false;
 
+    // When true, the mesh is SKIPPED in the solid passes (Pass 0/1/2) and
+    // rendered ONLY as a wireframe (in the missing-texture wireframe color).
+    // Set by the host when an alpha-tested or alpha-blended shape's diffuse
+    // texture couldn't be decoded — without the diffuse alpha channel the
+    // discard threshold is undefined, so the shape would render as a flat
+    // white billboard. Wireframe-only is a clearer "something's missing"
+    // visual cue and lines up with the host's missing-texture overlay.
+    public bool RenderAsWireframeFallback { get; set; } = false;
+
     // Material properties
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;

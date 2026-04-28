@@ -18,6 +18,22 @@ public class GlTextureManager : IDisposable
     private readonly Dictionary<string, int> _textureCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<int> _allTextures = new();
 
+    // Game-paths that LoadTexture was asked for but couldn't decode (resolver
+    // returned no on-disk file, or the DDS load itself failed). Cleared by
+    // the host (VM_CharacterViewer) at the start of each scene load and
+    // surfaced after load via VM_CharacterViewer.MissingTexturePaths so
+    // hosts can flag the affected shapes (rendered as wireframe instead of
+    // a flat-white billboard) and list the unresolved texture paths in a
+    // tooltip. Path comparison is case-insensitive (Skyrim assets routinely
+    // mix case in the same NIF).
+    private readonly HashSet<string> _missingTexturePaths = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyCollection<string> MissingTexturePaths => _missingTexturePaths;
+
+    /// <summary>Resets the per-load missing-texture diagnostics.
+    /// Called by <see cref="VM_CharacterViewer.LoadAsync"/> alongside
+    /// <see cref="VM_CharacterViewer.MissingMeshPaths"/>.</summary>
+    public void ClearMissingTexturePaths() => _missingTexturePaths.Clear();
+
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
@@ -58,7 +74,13 @@ public class GlTextureManager : IDisposable
 
         var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
+        {
+            // Track for the post-load missing-texture overlay. Only counts
+            // when the host actually asked for a path — empty/null paths
+            // (above) are normal "shape doesn't use this slot" cases.
+            _missingTexturePaths.Add(relativeGamePath);
             return WhiteTexture;
+        }
 
         int handle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
         _textureCache[relativeGamePath] = handle;

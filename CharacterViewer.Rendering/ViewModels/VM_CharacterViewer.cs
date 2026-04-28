@@ -230,6 +230,42 @@ public class VM_CharacterViewer : ViewerVm
     /// files (BodySlide .tri, OSD catalogs) read this to know where to look.</summary>
     public string? CurrentBodyNifDiskPath => _cachedBodyNifDiskPath;
 
+    /// <summary>Game-paths from the most recent <see cref="LoadAsync"/> whose
+    /// asset-resolution returned no on-disk file (loose fallback, BSA, scoped
+    /// chains all missed). Cleared at the start of each load and populated as
+    /// each body part / skeleton path is attempted. A non-empty list after
+    /// load completes means the rendered scene is missing one or more shapes
+    /// the host expected to be there — hosts surface this as a UI hint
+    /// (e.g. an "incomplete mugshot" tile overlay) and / or write it to a
+    /// log. Skeleton, body, hands, feet, head, hair, and tail paths each
+    /// contribute when their gamePath was non-empty but unresolvable.</summary>
+    public IReadOnlyList<string> MissingMeshPaths => _missingMeshPaths;
+    private readonly List<string> _missingMeshPaths = new();
+
+    /// <summary>Texture game-paths from the most recent load that the host
+    /// asked the texture manager to load but couldn't decode (resolver miss
+    /// or DDS load failure). Each affected shape is rendered as wireframe
+    /// in <see cref="GlRenderer.MissingTextureWireframeColor"/> instead of
+    /// a flat-white billboard, and hosts surface this list as a tooltip
+    /// alongside a "missing texture" tile overlay. Empty paths (a shape
+    /// not using a particular slot) are NOT counted.</summary>
+    public IReadOnlyCollection<string> MissingTexturePaths =>
+        TextureManager?.MissingTexturePaths ?? (IReadOnlyCollection<string>)Array.Empty<string>();
+
+    /// <summary>Controls how an alpha-tested / alpha-blended shape with no
+    /// resolvable diffuse is handled during scene build. <c>true</c>
+    /// (default): the shape is rendered as a wireframe placeholder in the
+    /// renderer's <see cref="GlRenderer.MissingTextureWireframeColor"/> so
+    /// the missing-texture state is visible. <c>false</c>: the shape is
+    /// culled entirely (<c>GlMesh.IsRendering = false</c>) — the previous
+    /// behavior, useful when wireframes cluttering the preview is more
+    /// distracting than the silent omission.
+    /// <para>Read by <see cref="ApplyMaterial"/>; hosts mutate it
+    /// before <see cref="LoadAsync"/> / <see cref="LoadByIdentityAsync"/>
+    /// so the next load picks it up. Existing meshes are not retroactively
+    /// reclassified — toggle the setting then re-load.</para></summary>
+    public bool RenderMissingTextureAsWireframe { get; set; } = true;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -2620,6 +2656,13 @@ public class VM_CharacterViewer : ViewerVm
         var cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
         _loadCts = cts;
 
+        // Reset the per-load missing-mesh list. LoadAllMeshParts appends to it
+        // as each TryLoad attempt encounters a gamePath that no scope could
+        // resolve to disk; the renderer / host reads it after LoadAsync
+        // completes to surface incomplete-render warnings.
+        _missingMeshPaths.Clear();
+        TextureManager?.ClearMissingTexturePaths();
+
         // Mark a rebuild as in-flight so any ApplyTextureOverrides calls arriving
         // between now and when ProcessPendingScene finishes are queued rather than
         // applied to the soon-to-be-destroyed current meshes.
@@ -2932,7 +2975,25 @@ public class VM_CharacterViewer : ViewerVm
             }
             else
             {
-                glMesh.IsRendering = false;
+                // Alpha-tested / alpha-blended shape with no resolvable diffuse.
+                // Without a usable alpha channel the discard threshold is
+                // undefined and a flat-white billboard would mislead the user.
+                // Render as wireframe placeholder by default so the shape's
+                // silhouette stays visible alongside the host's missing-texture
+                // overlay; if the host has opted out, fall back to silent
+                // culling (matches pre-2.5.6 behavior).
+                string disposition = RenderMissingTextureAsWireframe
+                    ? "WIREFRAME-FALLBACK" : "CULLED";
+                System.Diagnostics.Trace.WriteLine(
+                    $"[CharacterViewer.ApplyMaterial] {disposition} shape='{glMesh.ShapeName}' " +
+                    $"bodyPart='{glMesh.BodyPart}' " +
+                    $"alphaTest={built.HasAlphaTest} alphaBlend={built.HasAlphaBlend} " +
+                    $"hairTint={built.IsHairTintShader} " +
+                    "(diffuse fell back to WhiteTexture — texture path missing or DDS load failed)");
+                if (RenderMissingTextureAsWireframe)
+                    glMesh.RenderAsWireframeFallback = true;
+                else
+                    glMesh.IsRendering = false;
             }
         }
 
@@ -3441,7 +3502,12 @@ public class VM_CharacterViewer : ViewerVm
                     skeletonNif.Dispose();
                     skeletonNif = null;
                     skelDiskPath = null;
+                    _missingMeshPaths.Add(meshPaths.SkeletonPath);
                 }
+            }
+            else
+            {
+                _missingMeshPaths.Add(meshPaths.SkeletonPath);
             }
         }
 
@@ -3449,10 +3515,33 @@ public class VM_CharacterViewer : ViewerVm
         {
             void TryLoad(string bodyPart, string? gamePath)
             {
-                if (string.IsNullOrWhiteSpace(gamePath)) return;
+                if (string.IsNullOrWhiteSpace(gamePath))
+                {
+                    System.Diagnostics.Trace.WriteLine(
+                        $"[CharacterViewer.LoadAllMeshParts] {bodyPart}: no gamePath (skipped)");
+                    return;
+                }
                 var source = _assetResolver.ResolveAssetSource(gamePath);
-                if (source.ResolvedDiskPath == null) return;
+                if (source.ResolvedDiskPath == null)
+                {
+                    System.Diagnostics.Trace.WriteLine(
+                        $"[CharacterViewer.LoadAllMeshParts] {bodyPart}: gamePath='{gamePath}' UNRESOLVED");
+                    // Host-expected mesh that didn't land on disk anywhere in the
+                    // resolution chain. Track for the post-load diagnostics
+                    // surface so hosts can flag the incomplete render.
+                    _missingMeshPaths.Add(gamePath);
+                    return;
+                }
                 var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath);
+                string shapeSummary = meshes.Count == 0 ? "" :
+                    " [" + string.Join(", ", meshes.Select(m =>
+                        m.ShapeName
+                        + (m.HasAlphaTest ? "+aTest" : "")
+                        + (m.HasAlphaBlend ? "+aBlend" : "")
+                        + (m.IsHairTintShader ? "+hairTint" : ""))) + "]";
+                System.Diagnostics.Trace.WriteLine(
+                    $"[CharacterViewer.LoadAllMeshParts] {bodyPart}: gamePath='{gamePath}' " +
+                    $"-> '{source.ResolvedDiskPath}' built {meshes.Count} shape(s){shapeSummary}");
                 if (meshes.Count == 0) return;
 
                 // Weight morph: armor meshes ship as _0/_1 pairs that the game engine
