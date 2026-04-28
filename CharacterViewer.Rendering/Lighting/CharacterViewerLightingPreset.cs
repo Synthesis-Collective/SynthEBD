@@ -123,9 +123,13 @@ public static class CharacterViewerLightingPresets
     [
         new()
         {
+            // 2.5.9: ambient 40 → 25, key 100 → 110. Lower ambient lets the
+            // key/fill ratio drive richer shadows on the brow / nose / chin;
+            // bumping the key compensates for the lifted darks so overall
+            // brightness stays in the same range.
             Name = "Mugshot Natural", IsBuiltIn = true,
-            Ambient = 40,
-            KeyAzimuth = 180, KeyElevation = 40, KeyIntensity = 100,
+            Ambient = 25,
+            KeyAzimuth = 180, KeyElevation = 40, KeyIntensity = 110,
             FillAzimuth = 180, FillElevation = -20, FillIntensity = 35,
             RimAzimuth = 0, RimElevation = 45, RimIntensity = 55,
         },

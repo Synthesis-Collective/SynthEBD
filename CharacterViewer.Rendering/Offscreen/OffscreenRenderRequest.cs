@@ -211,4 +211,15 @@ public sealed class OffscreenRenderRequest
     /// off.
     /// </summary>
     public bool RenderMissingTextureAsWireframe { get; init; } = true;
+
+    /// <summary>
+    /// Portrait-quality tone-mapping toggle (2.5.9+). When true, the final
+    /// fragment-shader stage applies an ACES filmic tone-mapper, sRGB
+    /// framebuffer encoding, and a mild saturation boost — pushing the
+    /// output closer to a "looks-like-a-portrait" aesthetic and away from
+    /// the flat linear "looks-like-a-render" look. Default false to keep
+    /// hosts that don't opt in on the legacy pipeline; NPC Plugin
+    /// Chooser 2 enables it via the Internal renderer settings panel.
+    /// </summary>
+    public bool EnableToneMapping { get; init; } = false;
 }

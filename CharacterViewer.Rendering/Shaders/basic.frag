@@ -82,6 +82,7 @@ uniform bool is_eye;
 
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
+uniform bool u_enableToneMapping;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -286,11 +287,15 @@ void main()
             }
 
             // Subsurface scattering (skin) -- NdotL-based so it tracks the
-            // diffuse term, safe to keep on in debug mode.
+            // diffuse term, safe to keep on in debug mode. The SSS color
+            // is the warm flesh tint (1.0, 0.3, 0.2) blended halfway with
+            // the local diffuse so dark-skinned NPCs don't get unrealistic
+            // bright-red transmission while still getting the subsurface
+            // warmth in lit-from-behind regions (cheeks, ears, nose).
             vec3 subsurface = vec3(0.0);
             if (has_skin_map && u_enableSkin) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
-                vec3 sss_color = vec3(1.0, 0.3, 0.2);
+                vec3 sss_color = mix(vec3(1.0, 0.3, 0.2), baseColor.rgb, 0.5);
                 float wrap = dot(normal_viewSpace, lightDir) * 0.5 + 0.5;
                 subsurface = lightColor * wrap * sss_color * sss_mask * subsurfaceRolloff;
             }
@@ -318,6 +323,27 @@ void main()
     // --- 5. EMISSIVE ---
     if (has_emissive && u_enableEmissive) {
         finalColor += emissiveColor * emissiveMultiple;
+    }
+
+    // --- 6. TONE-MAPPING & COLOR GRADE (CharacterViewer.Rendering 2.5.9+) ---
+    // ACES filmic approximation (Narkowicz 2015) compresses HDR highlights,
+    // adds a soft toe in the shadows, and produces the warm shoulder that
+    // makes the output read as a portrait rather than a flat linear render.
+    // Pairs with FRAMEBUFFER_SRGB on the host side: this stage outputs
+    // linear values, the framebuffer gamma-encodes on write. Without
+    // FRAMEBUFFER_SRGB the output displays too dark.
+    //
+    // Mild saturation boost (1.10x) afterwards gives skin tones a touch
+    // more warmth without looking gaudy. Skip both when the toggle is
+    // off so the legacy linear pipeline is reproducible bit-for-bit.
+    if (u_enableToneMapping) {
+        // Slight exposure pull-down: the lit color sits ~1.0-1.5 in linear
+        // space typically; 0.6 keeps the tone-curve toe in a useful range.
+        vec3 c = finalColor * 0.6;
+        c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
+        float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        c = mix(vec3(lum), c, 1.10);
+        finalColor = clamp(c, 0.0, 1.0);
     }
 
     FragColor = vec4(finalColor, baseColor.a);

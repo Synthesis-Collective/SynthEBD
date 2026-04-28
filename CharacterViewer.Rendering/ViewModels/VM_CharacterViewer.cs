@@ -266,6 +266,15 @@ public class VM_CharacterViewer : ViewerVm
     /// reclassified — toggle the setting then re-load.</para></summary>
     public bool RenderMissingTextureAsWireframe { get; set; } = true;
 
+    /// <summary>Portrait-quality tone-mapping toggle (2.5.9+). When true,
+    /// <see cref="GlRenderer"/> applies an ACES filmic tone-mapper plus
+    /// sRGB framebuffer encoding plus a mild saturation boost at the end
+    /// of the fragment shader. Hosts mutate before
+    /// <see cref="LoadAsync"/> (or any subsequent render) — the value is
+    /// read each frame, so toggling at runtime is effective on the next
+    /// render without requiring a reload.</summary>
+    public bool EnableToneMapping { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -694,6 +703,13 @@ public class VM_CharacterViewer : ViewerVm
                 Camera.FieldOfView = (float)clamped;
                 ReframeRequested?.Invoke();
             })
+            .DisposeWith(_disposables);
+
+        // Tone-mapping toggle mirrors directly to the renderer; GlRenderer
+        // reads its own field on each Render() so toggling at runtime is
+        // effective on the next frame.
+        this.WhenAnyValue(x => x.EnableToneMapping)
+            .Subscribe(v => Renderer.EnableToneMapping = v)
             .DisposeWith(_disposables);
 
         this.WhenAnyValue(

@@ -72,11 +72,20 @@ public class GlMesh : IDisposable
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;
     public Vector3 TintColor { get; set; } = Vector3.One;
-    public float MaterialGlossiness { get; set; } = 80f;
-    public float MaterialSpecularStrength { get; set; } = 1f;
+    // Default glossiness / specular tuned for portrait skin (2.5.9+). The
+    // pre-2.5.9 defaults (80f / 1f) produced overly tight, plastic-looking
+    // highlights on faces when the source NIF didn't carry explicit shader
+    // values — most modded face NIFs DO provide their own values, so this
+    // only changes the fallback for shapes that were rendering glossy by
+    // accident. Skin in real photography is a low-gloss material with
+    // broad, soft highlights.
+    public float MaterialGlossiness { get; set; } = 30f;
+    public float MaterialSpecularStrength { get; set; } = 0.2f;
     public Vector3 SpecularColor { get; set; } = Vector3.One;
     public float RimlightPower { get; set; } = 2f;
-    public float SubsurfaceRolloff { get; set; } = 0.3f;
+    // SSS rolloff bumped 0.3 → 0.6 so subsurface contribution is visible
+    // on most face shapes (was so subtle it read as plasticky).
+    public float SubsurfaceRolloff { get; set; } = 0.6f;
     public Vector3 EmissiveColor { get; set; }
     public float EmissiveMultiple { get; set; }
     public Vector2 UvScale { get; set; } = Vector2.One;

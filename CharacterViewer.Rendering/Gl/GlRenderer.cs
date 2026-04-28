@@ -32,6 +32,17 @@ public class GlRenderer : IDisposable
     /// don't blur together when both are active on the same scene.</summary>
     public Vector3 MissingTextureWireframeColor { get; set; } = new Vector3(0.0f, 1.0f, 0.0f);
 
+    /// <summary>When true, the fragment shader applies an ACES filmic
+    /// tone-mapper plus a mild saturation boost at the end of the pixel
+    /// pipeline, and the GL framebuffer is treated as sRGB so the linear
+    /// lighting result is gamma-encoded once on write. Compresses HDR
+    /// highlights, lifts shadows into perceptual space, and adds the
+    /// contrast / warmth that makes the output read as a portrait
+    /// rather than a flat render. Off: legacy linear-to-display output
+    /// (pre-2.5.9 look). Hosts mirror their settings toggle here before
+    /// each Render call.</summary>
+    public bool EnableToneMapping { get; set; } = false;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -244,11 +255,21 @@ public class GlRenderer : IDisposable
         if (!_initialized || _shader == null) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
 
+        // Toggle sRGB framebuffer encoding alongside the tone-map shader
+        // path. The tone-mapper outputs values in linear space; with
+        // FRAMEBUFFER_SRGB enabled the GL driver gamma-encodes them on
+        // write. Without the framebuffer flag the linear output would
+        // display too dark (mid-tones crushed). Pairing must be
+        // deterministic — never enable one without the other.
+        if (EnableToneMapping) GL.Enable(EnableCap.FramebufferSrgb);
+        else GL.Disable(EnableCap.FramebufferSrgb);
+
         GL.Viewport(0, 0, viewportWidth, viewportHeight);
         GL.ClearColor(ClearColor.X, ClearColor.Y, ClearColor.Z, 1f);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
         _shader.Use();
+        _shader.SetBool("u_enableToneMapping", EnableToneMapping);
 
         // Camera matrices
         float aspect = (float)viewportWidth / viewportHeight;

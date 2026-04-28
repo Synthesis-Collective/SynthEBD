@@ -323,6 +323,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // ApplyMaterial reads RenderMissingTextureAsWireframe per-shape
         // during the load, so push the request's value before LoadAsync.
         vm.RenderMissingTextureAsWireframe = request.RenderMissingTextureAsWireframe;
+        // Tone-mapping is read at draw time by GlRenderer, so this push
+        // could happen later, but keeping all request->VM forwards in one
+        // place reduces the chance of one being missed for a future feature.
+        vm.EnableToneMapping = request.EnableToneMapping;
 
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
