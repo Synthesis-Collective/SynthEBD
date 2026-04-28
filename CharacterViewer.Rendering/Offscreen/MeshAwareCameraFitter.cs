@@ -34,17 +34,29 @@ public static class MeshAwareCameraFitter
     /// camera. <paramref name="viewportWidth"/> / <paramref name="viewportHeight"/>
     /// determine the aspect ratio used for horizontal-fit calculation —
     /// pass the dimensions of whatever target you're about to render into
-    /// (the offscreen FBO size, or the live preview's pixel size).</summary>
+    /// (the offscreen FBO size, or the live preview's pixel size).
+    /// <para><paramref name="preserveCameraOrientation"/> = false (default):
+    /// camera Az/El are set from <see cref="CameraFraming.MeshAware.Yaw"/> /
+    /// <see cref="CameraFraming.MeshAware.Pitch"/> as before. = true: leaves
+    /// camera Az/El alone and only updates <see cref="OrbitCamera.Target"/>
+    /// and <see cref="OrbitCamera.Distance"/>. Hosts use this for live
+    /// drag-to-rotate-in-Auto-mode workflows: the user's mouse drag mutates
+    /// camera angles directly, then this call re-fits distance for the new
+    /// view so the character stays inside the framing band.</para></summary>
     public static void ApplyTo(VM_CharacterViewer vm,
         CameraFraming.MeshAware framing,
-        int viewportWidth, int viewportHeight)
+        int viewportWidth, int viewportHeight,
+        bool preserveCameraOrientation = false)
     {
         if (vm == null) throw new ArgumentNullException(nameof(vm));
         if (framing == null) throw new ArgumentNullException(nameof(framing));
 
         var camera = vm.Camera;
-        camera.Azimuth = framing.Yaw;
-        camera.Elevation = framing.Pitch;
+        if (!preserveCameraOrientation)
+        {
+            camera.Azimuth = framing.Yaw;
+            camera.Elevation = framing.Pitch;
+        }
 
         var allMeshes = vm.Renderer.Meshes;
         if (allMeshes.Count == 0) return;
@@ -96,28 +108,77 @@ public static class MeshAwareCameraFitter
 
         if (!anyContribution) return;
 
-        // Camera target = bbox center on Y; X/Z stay 0 so the orbit revolves
-        // around the character's vertical axis instead of an off-axis point.
+        // Camera target. Frontal fits keep X/Z at 0 so the orbit axis stays
+        // aligned with world Y (Skyrim NPCs stand at the world origin facing
+        // -Z; the existing offscreen pipeline depends on this for stable,
+        // reproducible mugshot output). When the host has rotated the camera
+        // off-axis (preserveCameraOrientation=true, e.g. drag-to-rotate in
+        // the live preview), the bbox's actual X/Z midpoint is used so the
+        // orbit revolves around the visual center even for asymmetric
+        // characters (Khajiit/Argonian tail, off-center hair pieces).
         float centerY = (unionMin.Y + unionMax.Y) * 0.5f;
-        camera.Target = new Vector3(0f, centerY, 0f);
+        camera.Target = preserveCameraOrientation
+            ? new Vector3((unionMin.X + unionMax.X) * 0.5f, centerY, (unionMin.Z + unionMax.Z) * 0.5f)
+            : new Vector3(0f, centerY, 0f);
 
-        // Fit the bbox vertical extent into the framing band (top-bottom
-        // fractions of the framebuffer). The band defines what fraction of
-        // the FBO the bbox should occupy vertically; distance scales
-        // inversely with band size.
-        float bboxHeight = unionMax.Y - unionMin.Y;
-        float bboxWidth = unionMax.X - unionMin.X;
+        // Project the AABB into camera screen-space (X = right, Y = up) by
+        // dotting each of the 8 corners' offset-from-center against the
+        // camera's right and up basis vectors. The screen-space extent —
+        // not the world-space Y/X extent — is what controls how much
+        // framebuffer the model occupies, so this is the only fit that
+        // remains correct when the camera has been rotated away from the
+        // frontal default.
+        //
+        // For frontal Az=180/El=0 (the default mugshot pose) the right
+        // basis aligns with world -X and the up basis with world +Y, so
+        // the projected extents reduce to the previous bboxWidth/bboxHeight
+        // and there's no behavior change for the offscreen renderer.
+        float azRad = MathHelper.DegreesToRadians(camera.Azimuth);
+        float elRad = MathHelper.DegreesToRadians(camera.Elevation);
+        // zaxis = from target toward eye (matches OpenTK LookAt's zaxis).
+        var zaxis = new Vector3(
+            MathF.Cos(elRad) * MathF.Sin(azRad),
+            MathF.Sin(elRad),
+            MathF.Cos(elRad) * MathF.Cos(azRad));
+        var xaxis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, zaxis));
+        var yaxis = Vector3.Cross(zaxis, xaxis);
+
+        var centerWorld = new Vector3(
+            (unionMin.X + unionMax.X) * 0.5f,
+            centerY,
+            (unionMin.Z + unionMax.Z) * 0.5f);
+
+        float minPx = float.PositiveInfinity, maxPx = float.NegativeInfinity;
+        float minPy = float.PositiveInfinity, maxPy = float.NegativeInfinity;
+        for (int i = 0; i < 8; i++)
+        {
+            var corner = new Vector3(
+                (i & 1) == 0 ? unionMin.X : unionMax.X,
+                (i & 2) == 0 ? unionMin.Y : unionMax.Y,
+                (i & 4) == 0 ? unionMin.Z : unionMax.Z);
+            var d = corner - centerWorld;
+            float px = Vector3.Dot(d, xaxis);
+            float py = Vector3.Dot(d, yaxis);
+            if (px < minPx) minPx = px;
+            if (px > maxPx) maxPx = px;
+            if (py < minPy) minPy = py;
+            if (py > maxPy) maxPy = py;
+        }
+        float bboxScreenW = maxPx - minPx;
+        float bboxScreenH = maxPy - minPy;
+
+        // Fit the projected extent into the framing band (top-bottom
+        // fractions of the framebuffer). distance scales inversely with
+        // band size.
         float band = MathF.Max(0.05f, framing.FrameTopFraction - framing.FrameBottomFraction);
-
-        // Vertical fit: bboxHeight / band must equal 2 * D * tan(fov/2).
         float halfFovRad = MathHelper.DegreesToRadians(camera.FieldOfView * 0.5f);
         float tanHalfFov = MathF.Tan(halfFovRad);
-        float distanceForHeight = (bboxHeight / band) / (2f * tanHalfFov);
+        float distanceForHeight = (bboxScreenH / band) / (2f * tanHalfFov);
 
-        // Horizontal fit at this aspect: bboxWidth must fit in
+        // Horizontal fit at this aspect: bbox screen width must fit in
         // 2 * D * tan(fov/2) * aspect. If horizontal would clip, push back.
         float aspect = (viewportHeight > 0) ? (float)viewportWidth / viewportHeight : 1f;
-        float distanceForWidth = bboxWidth / (2f * tanHalfFov * aspect);
+        float distanceForWidth = bboxScreenW / (2f * tanHalfFov * aspect);
 
         float distance = MathF.Max(distanceForHeight, distanceForWidth);
         camera.Distance = MathF.Max(camera.MinDistance, distance);
