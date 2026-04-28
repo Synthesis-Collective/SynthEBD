@@ -8,6 +8,8 @@ in mat3 v_tangentToViewMatrix;
 in mat3 v_modelToViewNormalMatrix;
 // TEMP DEBUG: world-space normal for DEBUG_VIZ_WORLD_NORMAL branch.
 in vec3 v_worldNormal;
+// World-space position used for shadow-map projection.
+in vec3 v_worldPos;
 
 #define MAX_LIGHTS 5
 
@@ -83,6 +85,9 @@ uniform bool is_eye;
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
 uniform bool u_enableToneMapping;
+uniform bool u_enableShadows;
+uniform mat4 u_lightViewProj;
+uniform sampler2DShadow u_shadowMap;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -126,6 +131,52 @@ float overlayBlend(float b, float l)
 vec3 overlayBlend(vec3 b, vec3 l)
 {
     return vec3(overlayBlend(b.r, l.r), overlayBlend(b.g, l.g), overlayBlend(b.b, l.b));
+}
+
+// PCF shadow lookup for the key directional light. Returns 1.0 (lit)
+// when fully outside the shadow caster, 0.0 (shadowed) when fully
+// occluded, with smooth values in between thanks to (a) the GL hardware
+// PCF on sampler2DShadow + LINEAR filter giving 4-tap bilinear, and
+// (b) a 3x3 manual kernel on top giving 36 effective samples.
+//
+// shadowCoord is in [-1,1] clip space; we map to [0,1] for the texture
+// lookup. Slope-scale bias avoids self-shadowing acne on grazing
+// surfaces while keeping contact shadows tight on flat planes.
+float sampleShadowPCF(vec3 worldPos, vec3 normal_view, vec3 lightDir_view)
+{
+    if (!u_enableShadows) return 1.0;
+
+    vec4 lightClip = u_lightViewProj * vec4(worldPos, 1.0);
+    vec3 ndc = lightClip.xyz / lightClip.w;
+    vec3 uv = ndc * 0.5 + 0.5;
+
+    // Outside the shadow frustum: assume lit. Avoids dark borders where
+    // the shadow map's clamp-to-edge would otherwise return 0.
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || uv.z > 1.0) {
+        return 1.0;
+    }
+
+    // Slope-scale bias: angle between surface normal and light direction
+    // controls the bias amount. Grazing angles (NdotL near 0) need more
+    // bias to avoid acne; head-on (NdotL near 1) need almost none. The
+    // orthographic shadow projection uses a 1200-unit depth range, so
+    // an NDC bias of 0.001 corresponds to ~1.2 world units which is
+    // about right for face geometry (sub-unit features stay sharp,
+    // grazing-angle acne stays at bay).
+    float NdotL = max(dot(normal_view, lightDir_view), 0.0);
+    float bias = max(0.003 * (1.0 - NdotL), 0.0005);
+    uv.z -= bias;
+
+    // 3x3 PCF kernel on top of the hardware bilinear PCF.
+    vec2 texelSize = 1.0 / vec2(textureSize(u_shadowMap, 0));
+    float sum = 0.0;
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            vec2 off = vec2(x, y) * texelSize;
+            sum += texture(u_shadowMap, vec3(uv.xy + off, uv.z));
+        }
+    }
+    return sum / 9.0;
 }
 
 void main()
@@ -248,6 +299,14 @@ void main()
             vec3 lightDir = normalize(lights[i].direction);
             vec3 viewDir = normalize(-v_viewSpacePos);
 
+            // Shadow factor: only the key light (index 1) casts shadows.
+            // Fill and rim lights are typically arranged to bounce or
+            // wrap, so shadowing them would lose their wraparound feel
+            // and create double-darkening in occluded regions.
+            float shadow = (i == 1)
+                ? sampleShadowPCF(v_worldPos, normal_viewSpace, lightDir)
+                : 1.0;
+
             // Diffuse
             float NdotL = dot(normal_viewSpace, lightDir);
             float diffuseStrength;
@@ -258,7 +317,7 @@ void main()
             } else {
                 diffuseStrength = max(NdotL, 0.0);
             }
-            vec3 diffuse = diffuseStrength * lightColor;
+            vec3 diffuse = diffuseStrength * lightColor * shadow;
 
             // Specular (Blinn-Phong)
             vec3 specular = vec3(0.0);
@@ -269,7 +328,7 @@ void main()
                 }
                 vec3 halfwayDir = normalize(lightDir + viewDir);
                 float specAmount = pow(max(dot(normal_viewSpace, halfwayDir), 0.0), materialGlossiness);
-                specular = specAmount * specMask * lightColor * specularColor * materialSpecularStrength;
+                specular = specAmount * specMask * lightColor * specularColor * materialSpecularStrength * shadow;
             }
 
             // Backlight / rimlight (hair)

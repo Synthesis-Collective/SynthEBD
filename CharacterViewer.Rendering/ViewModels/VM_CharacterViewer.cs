@@ -275,6 +275,12 @@ public class VM_CharacterViewer : ViewerVm
     /// render without requiring a reload.</summary>
     public bool EnableToneMapping { get; set; } = false;
 
+    /// <summary>Shadow-map toggle (2.5.10+). When true,
+    /// <see cref="GlRenderer"/> runs an extra depth-only pass from the
+    /// key light's POV and samples the resulting shadow map with PCF
+    /// in <c>basic.frag</c>. Off: legacy occlusion-free lighting.</summary>
+    public bool EnableShadows { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -710,6 +716,9 @@ public class VM_CharacterViewer : ViewerVm
         // effective on the next frame.
         this.WhenAnyValue(x => x.EnableToneMapping)
             .Subscribe(v => Renderer.EnableToneMapping = v)
+            .DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableShadows)
+            .Subscribe(v => Renderer.EnableShadows = v)
             .DisposeWith(_disposables);
 
         this.WhenAnyValue(

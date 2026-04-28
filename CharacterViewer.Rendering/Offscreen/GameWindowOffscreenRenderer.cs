@@ -327,6 +327,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // could happen later, but keeping all request->VM forwards in one
         // place reduces the chance of one being missed for a future feature.
         vm.EnableToneMapping = request.EnableToneMapping;
+        vm.EnableShadows = request.EnableShadows;
 
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion

@@ -15,7 +15,18 @@ public class GlRenderer : IDisposable
     private GlShaderProgram? _shader;
     private GlShaderProgram? _debugShader;
     private GlShaderProgram? _wireframeShader;
+    private GlShaderProgram? _shadowShader;
     private int _debugVao;
+
+    // Shadow-mapping resources (CharacterViewer.Rendering 2.5.10+). Created
+    // lazily on first Render() with EnableShadows=true so hosts that don't
+    // opt in pay zero GPU memory cost. The depth texture is sampled by
+    // basic.frag's sampler2DShadow with hardware-accelerated bilinear PCF
+    // plus a 3x3 manual kernel for soft penumbra.
+    private const int ShadowMapSize = 2048;
+    private int _shadowFbo = -1;
+    private int _shadowDepthTex = -1;
+    private Matrix4 _lightViewProj = Matrix4.Identity;
     private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
@@ -42,6 +53,14 @@ public class GlRenderer : IDisposable
     /// (pre-2.5.9 look). Hosts mirror their settings toggle here before
     /// each Render call.</summary>
     public bool EnableToneMapping { get; set; } = false;
+
+    /// <summary>When true, <see cref="Render"/> runs an extra depth-only
+    /// pass from the key directional light's POV before the main passes,
+    /// then samples the resulting shadow map with PCF in basic.frag to
+    /// cast real shadows from brow / nose / hair onto the face. Off:
+    /// legacy occlusion-free directional lighting (pre-2.5.10 look).
+    /// Hosts mirror their settings toggle here before each Render call.</summary>
+    public bool EnableShadows { get; set; } = false;
 
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
@@ -197,6 +216,7 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_detail", 5);
         _shader.SetInt("texture_envmap", 6);
         _shader.SetInt("texture_envmask", 7);
+        _shader.SetInt("u_shadowMap", 8);
 
         GL.Enable(EnableCap.DepthTest);
         GL.Enable(EnableCap.CullFace);
@@ -212,6 +232,18 @@ public class GlRenderer : IDisposable
         string wireVertPath = Path.Combine(shaderDirectory, "wireframe.vert");
         string wireFragPath = Path.Combine(shaderDirectory, "wireframe.frag");
         _wireframeShader = GlShaderProgram.LoadFromFiles(wireVertPath, wireFragPath);
+
+        // Shadow-depth shader — reads position + texcoords (locations 0, 2)
+        // from the standard mesh VAO, transforms by u_lightViewProj, and
+        // emits depth-only output (no color attachment on the shadow FBO).
+        // Alpha-test path samples the diffuse texture and discards
+        // transparent texels so hair / brow strands cast strand-shaped
+        // shadows instead of solid card-shaped occluders.
+        string shadowVertPath = Path.Combine(shaderDirectory, "shadow_depth.vert");
+        string shadowFragPath = Path.Combine(shaderDirectory, "shadow_depth.frag");
+        _shadowShader = GlShaderProgram.LoadFromFiles(shadowVertPath, shadowFragPath);
+        _shadowShader.Use();
+        _shadowShader.SetInt("texture_diffuse", 0);
 
         _debugVao = GL.GenVertexArray();
         _debugVbo = GL.GenBuffer();
@@ -255,12 +287,27 @@ public class GlRenderer : IDisposable
         if (!_initialized || _shader == null) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
 
+        // Camera matrices (computed up here so the shadow pass can use them
+        // for the light-view-proj fit centered on the camera target).
+        var modelMat = Matrix4.CreateScale(ModelScale);
+
+        // Shadow depth pre-pass. Runs BEFORE the main FBO is rebound so the
+        // host's draw target is preserved. The shadow pass binds its own
+        // FBO; we restore the host's binding (captured here) afterwards.
+        if (EnableShadows)
+        {
+            GL.GetInteger(GetPName.DrawFramebufferBinding, out int hostFbo);
+            ComputeLightViewProj();
+            RenderShadowDepthPass(ref modelMat);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+        }
+
         // Toggle sRGB framebuffer encoding alongside the tone-map shader
         // path. The tone-mapper outputs values in linear space; with
         // FRAMEBUFFER_SRGB enabled the GL driver gamma-encodes them on
         // write. Without the framebuffer flag the linear output would
         // display too dark (mid-tones crushed). Pairing must be
-        // deterministic — never enable one without the other.
+        // deterministic - never enable one without the other.
         if (EnableToneMapping) GL.Enable(EnableCap.FramebufferSrgb);
         else GL.Disable(EnableCap.FramebufferSrgb);
 
@@ -270,15 +317,22 @@ public class GlRenderer : IDisposable
 
         _shader.Use();
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
+        _shader.SetBool("u_enableShadows", EnableShadows);
+        if (EnableShadows && _shadowDepthTex != -1)
+        {
+            _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+            GL.ActiveTexture(TextureUnit.Texture8);
+            GL.BindTexture(TextureTarget.Texture2D, _shadowDepthTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
+        }
 
         // Camera matrices
         float aspect = (float)viewportWidth / viewportHeight;
         var view = camera.GetViewMatrix();
         var projection = camera.GetProjectionMatrix(aspect);
-        // Meshes are pre-transformed to world space; apply the NPC-height
-        // multiplier here so a single matrix update scales the whole character
-        // without touching per-mesh data.
-        var model = Matrix4.CreateScale(ModelScale);
+        // modelMat was already computed at the top of Render() so the
+        // shadow pass could share it.
+        ref var model = ref modelMat;
 
         _shader.SetMatrix4("u_model", ref model);
         _shader.SetMatrix4("u_view", ref view);
@@ -555,6 +609,152 @@ public class GlRenderer : IDisposable
             buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
             buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
         }
+    }
+
+    /// <summary>Lazily creates the shadow FBO + depth texture sized
+    /// <see cref="ShadowMapSize"/>. The depth texture is configured for
+    /// hardware PCF: COMPARE_REF_TO_TEXTURE mode, LINEAR filter (gives
+    /// 4-tap bilinear PCF on top of the manual 3x3 kernel in basic.frag
+    /// for 36 effective samples). Border-clamped to 1.0 so any sample
+    /// outside the shadow frustum reads as fully lit (avoids the dark
+    /// halo around the shadow region).</summary>
+    private void EnsureShadowFbo()
+    {
+        if (_shadowFbo != -1) return;
+
+        _shadowDepthTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _shadowDepthTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.DepthComponent24,
+            ShadowMapSize, ShadowMapSize, 0,
+            PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+        var border = new[] { 1f, 1f, 1f, 1f };
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureBorderColor, border);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureCompareFunc, (int)All.Lequal);
+
+        _shadowFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _shadowFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.DepthAttachment,
+            TextureTarget.Texture2D, _shadowDepthTex, 0);
+        // Depth-only FBO: no color attachments. Tell the driver explicitly
+        // so it doesn't fail FBO completeness on drivers that require it.
+        GL.DrawBuffer(DrawBufferMode.None);
+        GL.ReadBuffer(ReadBufferMode.None);
+
+        var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (status != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "Shadow FBO incomplete: " + status + " (size=" + ShadowMapSize + ")");
+        }
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+    }
+
+    /// <summary>Computes the orthographic light-space view-projection matrix
+    /// for the key directional light. Uses a fixed scene radius (300 world
+    /// units around the camera target) which covers any reasonable Skyrim
+    /// NPC + accessories at the heights the renderer is used at; avoiding
+    /// a per-frame bbox walk keeps the cost negligible. The output is
+    /// uploaded to <c>u_lightViewProj</c> on the main shader so
+    /// <c>basic.frag</c>'s shadow lookup can transform world positions into
+    /// the light's clip space.</summary>
+    private void ComputeLightViewProj()
+    {
+        // Key light = index 1 (0 is ambient). LightData.Direction is the
+        // *surface-to-light* vector (per the LightData comment), i.e. it
+        // points FROM the surface TOWARD the light source. Photons travel
+        // along -Direction. So the light's world-space POSITION is
+        // sceneCenter + Direction * distance (NOT - Direction; that would
+        // place the shadow camera on the opposite side of the model and
+        // every front-facing fragment would read as occluded by the back
+        // of the head).
+        var lightDir = Vector3.Normalize(Lights[1].Direction);
+
+        // Place the light "eye" along the surface-to-light direction far
+        // enough that the whole scene fits inside the orthographic
+        // frustum. Center on a Skyrim-NPC chest height (Y=85 pre-scale)
+        // scaled by ModelScale.
+        var sceneCenter = new Vector3(0f, 85f * ModelScale, 0f);
+        float radius = 300f * ModelScale;
+        var lightEye = sceneCenter + lightDir * radius * 1.5f;
+
+        // Up vector: world up unless the light is shining straight down.
+        var up = MathF.Abs(lightDir.Y) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
+        var lightView = Matrix4.LookAt(lightEye, sceneCenter, up);
+        var lightProj = Matrix4.CreateOrthographic(
+            radius * 2.5f, radius * 2.5f,
+            0.1f, radius * 4f);
+
+        // Match the main render's matrix-multiply convention (basic.vert
+        // does u_projection * u_view * pos with column-major shader
+        // matrices): in OpenTK row-vector C# that's view * proj.
+        _lightViewProj = lightView * lightProj;
+    }
+
+    /// <summary>Renders the scene's opaque + alpha-test geometry to the
+    /// shadow depth texture from the key light's POV. Skips alpha-blend
+    /// shapes (transparent geometry doesn't cast meaningful shadows) and
+    /// wireframe-fallback shapes (no diffuse to alpha-test against).
+    /// Caller must restore the previously bound framebuffer + viewport
+    /// after this method returns.</summary>
+    private void RenderShadowDepthPass(ref Matrix4 model)
+    {
+        if (_shadowShader == null) return;
+        EnsureShadowFbo();
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _shadowFbo);
+        GL.Viewport(0, 0, ShadowMapSize, ShadowMapSize);
+        GL.Clear(ClearBufferMask.DepthBufferBit);
+
+        // Front-face culling reduces self-shadowing acne (the back face of
+        // the geometry casts the shadow, so the front face's depth is
+        // strictly less and the bias has more room to work). Restore the
+        // default at the end.
+        GL.CullFace(CullFaceMode.Front);
+
+        _shadowShader.Use();
+        _shadowShader.SetMatrix4("u_model", ref model);
+        _shadowShader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            // Pure alpha-blend shapes (no alpha-test bit) don't cast useful
+            // shadows; their cast would just be a soft amorphous blob.
+            if (mesh.HasAlphaBlend && !mesh.UseAlphaTest) continue;
+            // Eyes are inside the head — their cast shadow would always be
+            // self-occluding noise. Skip.
+            if (mesh.IsEye) continue;
+
+            _shadowShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+            _shadowShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            if (mesh.UseAlphaTest)
+            {
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
+            }
+
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+
+        GL.BindVertexArray(0);
+        GL.CullFace(CullFaceMode.Back);
     }
 
     /// <summary>
@@ -1044,6 +1244,9 @@ public class GlRenderer : IDisposable
         _shader = null;
         _debugShader = null;
         _wireframeShader = null;
+        _shadowShader = null;
+        _shadowFbo = -1;
+        _shadowDepthTex = -1;
         _debugVao = 0;
         _debugVbo = 0;
         _initialized = false;

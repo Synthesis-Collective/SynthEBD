@@ -222,4 +222,14 @@ public sealed class OffscreenRenderRequest
     /// Chooser 2 enables it via the Internal renderer settings panel.
     /// </summary>
     public bool EnableToneMapping { get; init; } = false;
+
+    /// <summary>
+    /// Shadow-map toggle (2.5.10+). When true, the renderer runs an extra
+    /// depth-only pass from the key directional light's POV and samples
+    /// the resulting shadow map with PCF in the main fragment shader,
+    /// so the brow ridge casts onto the eye sockets, the nose onto the
+    /// cheek, and hair onto the forehead. Default false to preserve
+    /// legacy occlusion-free lighting for hosts that don't opt in.
+    /// </summary>
+    public bool EnableShadows { get; init; } = false;
 }

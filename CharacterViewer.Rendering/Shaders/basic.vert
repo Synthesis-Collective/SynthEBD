@@ -18,6 +18,9 @@ out mat3 v_modelToViewNormalMatrix;
 // used by DEBUG_VIZ_WORLD_NORMAL in the fragment shader. Safe to remove once
 // the 90-degree lighting offset is diagnosed.
 out vec3 v_worldNormal;
+// World-space position of this vertex, used by the fragment shader to
+// transform into the key light's clip space for shadow-map sampling.
+out vec3 v_worldPos;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -32,6 +35,7 @@ void main()
 
     gl_Position = u_projection * u_view * pos_worldSpace;
     v_viewSpacePos = vec3(u_view * pos_worldSpace);
+    v_worldPos = pos_worldSpace.xyz;
 
     // Normal matrix: model-to-view for MSN path
     mat3 normalMatrix_modelToWorld = mat3(transpose(inverse(u_model)));
