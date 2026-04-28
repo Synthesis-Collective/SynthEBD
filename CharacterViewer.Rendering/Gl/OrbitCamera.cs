@@ -35,8 +35,10 @@ public class OrbitCamera
     /// <summary>Far clip plane distance.</summary>
     public float FarPlane { get; set; } = 10000f;
 
-    /// <summary>Vertical field of view in degrees.</summary>
-    public float FieldOfView { get; set; } = 45f;
+    /// <summary>Vertical field of view in degrees. Default 25° matches NPC
+    /// Portrait Creator, which gives a flatter, more natural perspective for
+    /// portrait framing than the wider 45° gameplay-style default.</summary>
+    public float FieldOfView { get; set; } = 25f;
 
     // Mouse interaction state
     private float _lastMouseX, _lastMouseY;

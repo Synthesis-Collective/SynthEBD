@@ -205,6 +205,14 @@ public class VM_CharacterViewer : ViewerVm
     /// queued ApplyBodySlide once the body NIF disk path is cached.</summary>
     public event Action? SceneCommitted;
 
+    /// <summary>Fired when a property that affects how the camera should
+    /// frame the scene changes — currently <see cref="FieldOfView"/>. Hosts
+    /// in mesh-aware framing modes should subscribe and re-apply their
+    /// framing (typically via <c>MeshAwareCameraFitter.ApplyTo</c>) so the
+    /// character stays the same size on-screen across FOV changes; manual
+    /// orbit hosts can ignore this and let the slider act as a pure zoom.</summary>
+    public event Action? ReframeRequested;
+
     /// <summary>True when meshes are uploaded and the viewer is ready for
     /// narrow-update operations (texture overrides, morph application,
     /// head-only rebuild). Equivalent to the gate the internal apply paths
@@ -470,6 +478,19 @@ public class VM_CharacterViewer : ViewerVm
 
     public double AmbientIntensity { get; set; } = CharacterViewerLightingPresets.DefaultLayout.Ambient;
 
+    /// <summary>Vertical field of view in degrees, source-of-truth for the
+    /// camera's perspective projection. Setter pushes through to
+    /// <see cref="OrbitCamera.FieldOfView"/> and raises
+    /// <see cref="ReframeRequested"/> so mesh-aware hosts can recompute
+    /// distance and keep the character the same on-screen size (matching
+    /// NPC Portrait Creator's slider behavior). 25° is the default; the
+    /// 10–90° range covers everything from ultra-tight portrait flatness
+    /// to wide gameplay-style perspective.</summary>
+    public double FieldOfView { get; set; } = 25.0;
+
+    private const double FieldOfViewMin = 10.0;
+    private const double FieldOfViewMax = 90.0;
+
     public double KeyLightIntensity   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyIntensity;
     public double KeyLightAzimuth     { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyAzimuth;
     public double KeyLightElevation   { get; set; } = CharacterViewerLightingPresets.DefaultLayout.KeyElevation;
@@ -625,6 +646,19 @@ public class VM_CharacterViewer : ViewerVm
         // because ReactiveUI's WhenAnyValue overloads cap out at a modest arity.
         this.WhenAnyValue(x => x.AmbientIntensity)
             .Skip(1).Subscribe(_ => PushAllLightsToRenderer()).DisposeWith(_disposables);
+
+        // FOV: clamp, push to OrbitCamera, then ask hosts to re-apply their
+        // framing. Skip(1) so the initial value emission doesn't fire a reframe
+        // before the host has wired its handler / loaded a scene.
+        this.WhenAnyValue(x => x.FieldOfView)
+            .Skip(1)
+            .Subscribe(v =>
+            {
+                var clamped = Math.Clamp(v, FieldOfViewMin, FieldOfViewMax);
+                Camera.FieldOfView = (float)clamped;
+                ReframeRequested?.Invoke();
+            })
+            .DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
