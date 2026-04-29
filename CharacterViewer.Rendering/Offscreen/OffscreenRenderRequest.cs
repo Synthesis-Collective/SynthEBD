@@ -276,4 +276,19 @@ public sealed class OffscreenRenderRequest
     /// portrait reference. Default 0 for back-compat with hosts that
     /// don't opt in.</summary>
     public float SubsurfaceStrength { get; init; } = 0f;
+
+    /// <summary>Vignette inner radius in NDC units (2.5.15+). Pixels
+    /// within this circular zone of screen center are unaffected; the
+    /// darkening smoothsteps from this radius out to the corner
+    /// (sqrt(2)). Folded under the tone-mapping path in basic.frag so
+    /// hosts opting out of <see cref="EnableToneMapping"/> get the
+    /// legacy linear pipeline regardless of vignette settings. Default
+    /// 0.7 mirrors the pre-2.5.15 hardcoded radius.</summary>
+    public float VignetteRadius { get; init; } = 0.7f;
+
+    /// <summary>Vignette darkening strength (2.5.15+). 0 = off (no
+    /// darkening anywhere); 1.0 = corners go to black. Default 0 for
+    /// back-compat with hosts that don't opt in - pre-2.5.15 hardcoded
+    /// behavior is approximately Radius=0.7 / Intensity=0.3.</summary>
+    public float VignetteIntensity { get; init; } = 0f;
 }

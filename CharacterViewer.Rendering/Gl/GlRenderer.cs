@@ -116,6 +116,21 @@ public class GlRenderer : IDisposable
     /// values. Higher = more pronounced warm-flesh look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
+    /// <summary>Vignette inner radius in NDC units (2.5.15+). The
+    /// circular zone of distance &lt;= radius from screen center is
+    /// unaffected; falloff smoothsteps from this radius out to the
+    /// corner (sqrt(2)). Lower = vignette closes in toward center;
+    /// higher = vignette stays wide. Folded under the tone-mapping
+    /// path in basic.frag, so the legacy linear pipeline stays
+    /// untouched when tone-mapping is off.</summary>
+    public float VignetteRadius { get; set; } = 0.7f;
+
+    /// <summary>Vignette darkening strength (2.5.15+). 0 = off (no
+    /// vignette darkening anywhere); 1.0 = corners go to black. The
+    /// pre-2.5.15 hardcoded behavior is approximately reproduced by
+    /// Radius=0.7, Intensity=0.3.</summary>
+    public float VignetteIntensity { get; set; } = 0f;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -444,6 +459,13 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
+        // u_screenSize is consumed by both the SSAO sample lookup AND
+        // the tone-mapping vignette (2.5.15+), so push it on every
+        // frame regardless of which toggles are on.
+        _shader.SetVector2("u_screenSize",
+            (float)viewportWidth, (float)viewportHeight);
+        _shader.SetFloat("u_vignetteRadius", VignetteRadius);
+        _shader.SetFloat("u_vignetteIntensity", VignetteIntensity);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
@@ -453,8 +475,6 @@ public class GlRenderer : IDisposable
         }
         if (EnableAmbientOcclusion && _ssaoBlurTex != -1)
         {
-            _shader.SetVector2("u_screenSize",
-                (float)viewportWidth, (float)viewportHeight);
             // Bind the BLURRED AO map (not the raw _ssaoTex) so the main
             // shader doesn't see the noise-tile pattern.
             GL.ActiveTexture(TextureUnit.Texture9);

@@ -93,6 +93,8 @@ uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
 uniform bool u_enableEyeCatchlight;
 uniform float u_subsurfaceStrength;
+uniform float u_vignetteRadius;
+uniform float u_vignetteIntensity;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -487,6 +489,24 @@ void main()
         c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
         float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
         c = mix(vec3(lum), c, 1.10);
+
+        // Vignette (2.5.15+). Subtle radial darkening from screen
+        // center toward the corners; reads less as a "vignette effect"
+        // and more as the natural lens falloff every photographic
+        // portrait has. Folded under the tone-map toggle so the
+        // legacy bit-for-bit-reproducible linear path stays untouched
+        // when tone-mapping is off.
+        //
+        // u_vignetteRadius (NDC units, ~0..1.4): pixels within this
+        //   distance of screen center are unaffected.
+        // u_vignetteIntensity (0..1): how dark the corner pixels go.
+        //   0 = off, 1 = corners to black.
+        vec2 vignetteUv = gl_FragCoord.xy / u_screenSize;
+        vec2 vignetteCentered = vignetteUv * 2.0 - 1.0;
+        float vignetteDist = length(vignetteCentered);
+        float vignetteFalloff = smoothstep(u_vignetteRadius, 1.4142136, vignetteDist);
+        c *= 1.0 - vignetteFalloff * u_vignetteIntensity;
+
         finalColor = clamp(c, 0.0, 1.0);
     }
 

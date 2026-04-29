@@ -334,6 +334,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.SsaoIntensity = request.SsaoIntensity;
         vm.EnableEyeCatchlight = request.EnableEyeCatchlight;
         vm.SubsurfaceStrength = request.SubsurfaceStrength;
+        vm.VignetteRadius = request.VignetteRadius;
+        vm.VignetteIntensity = request.VignetteIntensity;
 
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion

@@ -302,6 +302,16 @@ public class VM_CharacterViewer : ViewerVm
     /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
+    /// <summary>Vignette inner radius in NDC units (2.5.15+). The
+    /// circular zone within this distance of screen center is
+    /// unaffected; falloff smoothsteps from here out to the corner.
+    /// Folded under <see cref="EnableToneMapping"/> in basic.frag.</summary>
+    public float VignetteRadius { get; set; } = 0.7f;
+
+    /// <summary>Vignette darkening strength (2.5.15+). 0 = off,
+    /// 1.0 = corners to black.</summary>
+    public float VignetteIntensity { get; set; } = 0f;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -754,6 +764,10 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SubsurfaceStrength)
             .Subscribe(v => Renderer.SubsurfaceStrength = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.VignetteRadius)
+            .Subscribe(v => Renderer.VignetteRadius = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.VignetteIntensity)
+            .Subscribe(v => Renderer.VignetteIntensity = v).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
