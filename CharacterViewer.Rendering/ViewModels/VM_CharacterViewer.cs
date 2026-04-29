@@ -294,6 +294,9 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>SSAO power-curve exponent (2.5.12+).</summary>
     public float SsaoIntensity { get; set; } = 1.5f;
 
+    /// <summary>Eye catch-light toggle (2.5.13+).</summary>
+    public bool EnableEyeCatchlight { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -742,6 +745,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SsaoBias = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SsaoIntensity)
             .Subscribe(v => Renderer.SsaoIntensity = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableEyeCatchlight)
+            .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,

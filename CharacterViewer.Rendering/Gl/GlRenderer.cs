@@ -105,6 +105,11 @@ public class GlRenderer : IDisposable
     /// <summary>SSAO power-curve exponent.</summary>
     public float SsaoIntensity { get; set; } = 1.5f;
 
+    /// <summary>Eye catch-light toggle (2.5.13+). When true, basic.frag
+    /// adds a tight high-glossiness specular spot from the key light
+    /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
+    public bool EnableEyeCatchlight { get; set; } = false;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -431,6 +436,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
         _shader.SetBool("u_enableShadows", EnableShadows);
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
+        _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);

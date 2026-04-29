@@ -258,4 +258,11 @@ public sealed class OffscreenRenderRequest
     /// <summary>SSAO power-curve exponent (2.5.12+). Higher = harder
     /// darkening in deep crevices, more subtle elsewhere.</summary>
     public float SsaoIntensity { get; init; } = 1.5f;
+
+    /// <summary>Eye catch-light toggle (2.5.13+). When true, eye shapes
+    /// (those flagged <see cref="GlMesh.IsEye"/>) get an extra tight,
+    /// bright Blinn-Phong specular spot from the key light layered on
+    /// top of their regular specular. The single biggest "alive vs.
+    /// dead" cue for eyes in portrait photography.</summary>
+    public bool EnableEyeCatchlight { get; init; } = false;
 }

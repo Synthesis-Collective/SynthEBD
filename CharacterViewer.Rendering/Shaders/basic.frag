@@ -91,6 +91,7 @@ uniform sampler2DShadow u_shadowMap;
 uniform bool u_enableAO;
 uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
+uniform bool u_enableEyeCatchlight;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -375,6 +376,21 @@ void main()
             // AO modulates the diffuse + SSS + indirect-fill terms but
             // not specular (see comment at the ao sample above).
             finalColor += ((diffuse + subsurface + backlight + rimlight) * ao + specular) * baseColor.rgb;
+
+            // Eye catch-light. Tight high-glossiness Blinn-Phong spot
+            // from the key light only (i==1), only for eye shapes.
+            // Applied AFTER the baseColor multiply so the bright dot
+            // stays white-on-iris regardless of eye color (same way
+            // a real catch-light is the studio key reflecting off the
+            // wet eye surface, not tinted by the iris pigment).
+            if (is_eye && u_enableEyeCatchlight && i == 1 && !DEBUG_DIFFUSE_ONLY) {
+                vec3 halfwayDir = normalize(lightDir + viewDir);
+                float catchSpec = pow(max(dot(normal_viewSpace, halfwayDir), 0.0), 256.0);
+                // Bright but bounded - 1.5 * lightColor with the tight
+                // exponent gives a small, intense reflection without
+                // blowing out the rest of the eye.
+                finalColor += catchSpec * lightColor * 1.5;
+            }
         }
     }
 
@@ -411,6 +427,17 @@ void main()
     // more warmth without looking gaudy. Skip both when the toggle is
     // off so the legacy linear pipeline is reproducible bit-for-bit.
     if (u_enableToneMapping) {
+        // Fresnel contour darkening (2.5.13+). Subtle ~15% darkening
+        // at silhouette edges where the surface normal is nearly
+        // perpendicular to the view direction. Defines the silhouette,
+        // adds the slight rim-shadow that real photography has from
+        // grazing-angle reflections + microfacet shadowing. Folded
+        // under the tone-mapping toggle since both are "finishing"
+        // touches that ship together.
+        vec3 viewDirCam = normalize(-v_viewSpacePos);
+        float fresnel = pow(1.0 - max(dot(normal_viewSpace, viewDirCam), 0.0), 4.0);
+        finalColor *= mix(1.0, 0.85, fresnel);
+
         // Slight exposure pull-down: the lit color sits ~1.0-1.5 in linear
         // space typically; 0.6 keeps the tone-curve toe in a useful range.
         vec3 c = finalColor * 0.6;
