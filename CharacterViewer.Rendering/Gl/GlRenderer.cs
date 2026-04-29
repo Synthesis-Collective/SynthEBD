@@ -27,6 +27,33 @@ public class GlRenderer : IDisposable
     private int _shadowFbo = -1;
     private int _shadowDepthTex = -1;
     private Matrix4 _lightViewProj = Matrix4.Identity;
+
+    // SSAO resources (CharacterViewer.Rendering 2.5.11+). The pipeline:
+    //   1. Depth pre-pass: render opaque + alpha-test geometry to
+    //      _depthPrepassFbo's depth texture using _depthOnlyShader.
+    //   2. SSAO compute: full-screen quad reads _depthPrepassDepthTex +
+    //      _ssaoNoiseTex, computes per-pixel hemispheric occlusion with
+    //      _ssaoSampleKernel, writes a single-channel R8 result into
+    //      _ssaoFbo's color texture.
+    //   3. Main pass: basic.frag samples _ssaoTex via the u_ssaoMap
+    //      sampler and multiplies into the diffuse + SSS terms.
+    // FBOs are sized to the current viewport and re-created when the
+    // viewport size changes (matches the host's MSAA FBO lifecycle).
+    private GlShaderProgram? _depthOnlyShader;
+    private GlShaderProgram? _ssaoShader;
+    private GlShaderProgram? _ssaoBlurShader;
+    private int _depthPrepassFbo = -1;
+    private int _depthPrepassDepthTex = -1;
+    private int _ssaoFbo = -1;
+    private int _ssaoTex = -1;
+    private int _ssaoBlurFbo = -1;
+    private int _ssaoBlurTex = -1;
+    private int _ssaoNoiseTex = -1;
+    private int _ssaoFullscreenVao = -1;
+    private (int Width, int Height) _ssaoFboSize;
+    private Vector3[]? _ssaoSampleKernel;
+    private const int SsaoKernelSize = 16;
+    private const int SsaoNoiseSize = 4;
     private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
@@ -61,6 +88,22 @@ public class GlRenderer : IDisposable
     /// legacy occlusion-free directional lighting (pre-2.5.10 look).
     /// Hosts mirror their settings toggle here before each Render call.</summary>
     public bool EnableShadows { get; set; } = false;
+
+    /// <summary>When true, <see cref="Render"/> runs a depth pre-pass +
+    /// SSAO post-process before the main passes, then samples the AO
+    /// texture per-fragment in basic.frag and multiplies into the
+    /// diffuse term to darken concave crevices. Off: no AO modulation
+    /// (pre-2.5.11 look). Hosts mirror their settings toggle here.</summary>
+    public bool EnableAmbientOcclusion { get; set; } = false;
+
+    /// <summary>SSAO sample radius in world units. Read by ComputeSsao
+    /// each render so toggling at runtime is effective on the next
+    /// frame. Defaults match the hardcoded value from 2.5.11.</summary>
+    public float SsaoRadius { get; set; } = 4.0f;
+    /// <summary>SSAO depth-comparison bias in world units.</summary>
+    public float SsaoBias { get; set; } = 0.05f;
+    /// <summary>SSAO power-curve exponent.</summary>
+    public float SsaoIntensity { get; set; } = 1.5f;
 
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
@@ -245,6 +288,44 @@ public class GlRenderer : IDisposable
         _shadowShader.Use();
         _shadowShader.SetInt("texture_diffuse", 0);
 
+        // Depth-only shader for the SSAO depth pre-pass. Same alpha-test
+        // logic as shadow_depth but renders from the camera's POV
+        // (separate u_view + u_projection uniforms instead of a
+        // pre-multiplied light view-proj matrix).
+        string depthVertPath = Path.Combine(shaderDirectory, "depth_only.vert");
+        string depthFragPath = Path.Combine(shaderDirectory, "depth_only.frag");
+        _depthOnlyShader = GlShaderProgram.LoadFromFiles(depthVertPath, depthFragPath);
+        _depthOnlyShader.Use();
+        _depthOnlyShader.SetInt("texture_diffuse", 0);
+
+        // SSAO post-process shader. Reads u_depthTex (unit 0) +
+        // u_noiseTex (unit 1), writes per-pixel occlusion factor.
+        string fullVertPath = Path.Combine(shaderDirectory, "fullscreen.vert");
+        string ssaoFragPath = Path.Combine(shaderDirectory, "ssao.frag");
+        _ssaoShader = GlShaderProgram.LoadFromFiles(fullVertPath, ssaoFragPath);
+        _ssaoShader.Use();
+        _ssaoShader.SetInt("u_depthTex", 0);
+        _ssaoShader.SetInt("u_noiseTex", 1);
+
+        // SSAO blur post-pass. Reads the raw SSAO texture (unit 0),
+        // averages a 4x4 neighborhood per pixel to cancel the noise
+        // tile pattern, writes the smoothed result. Always runs
+        // between ComputeSsao and the main pass when SSAO is on.
+        string ssaoBlurPath = Path.Combine(shaderDirectory, "ssao_blur.frag");
+        _ssaoBlurShader = GlShaderProgram.LoadFromFiles(fullVertPath, ssaoBlurPath);
+        _ssaoBlurShader.Use();
+        _ssaoBlurShader.SetInt("u_ssaoTex", 0);
+
+        // basic.frag samples the AO map via texture unit 9 (8 is the
+        // shadow map, 0..7 are the standard material slots).
+        _shader.Use();
+        _shader.SetInt("u_ssaoMap", 9);
+
+        // Pre-compute the hemispheric sample kernel + a 4x4 noise tile.
+        // Done once at init since neither depends on the scene.
+        BuildSsaoKernel();
+        BuildSsaoNoiseTexture();
+
         _debugVao = GL.GenVertexArray();
         _debugVbo = GL.GenBuffer();
         GL.BindVertexArray(_debugVao);
@@ -256,6 +337,12 @@ public class GlRenderer : IDisposable
         GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
         GL.EnableVertexAttribArray(1);
         GL.BindVertexArray(0);
+
+        // Fullscreen-quad VAO for post-process passes (SSAO etc.). The
+        // fullscreen.vert generates positions from gl_VertexID alone, so
+        // no VBO is needed - we just need a non-zero VAO bound for the
+        // glDrawArrays(TRIANGLES, 0, 3) call to be valid in core profile.
+        _ssaoFullscreenVao = GL.GenVertexArray();
 
         _initialized = true;
     }
@@ -287,18 +374,43 @@ public class GlRenderer : IDisposable
         if (!_initialized || _shader == null) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
 
-        // Camera matrices (computed up here so the shadow pass can use them
-        // for the light-view-proj fit centered on the camera target).
+        // Camera matrices (computed up here so the pre-passes share them
+        // with the main pass below).
         var modelMat = Matrix4.CreateScale(ModelScale);
+        float aspectPre = (float)viewportWidth / viewportHeight;
+        var viewMatPre = camera.GetViewMatrix();
+        var projMatPre = camera.GetProjectionMatrix(aspectPre);
 
-        // Shadow depth pre-pass. Runs BEFORE the main FBO is rebound so the
-        // host's draw target is preserved. The shadow pass binds its own
-        // FBO; we restore the host's binding (captured here) afterwards.
+        // Pre-passes (shadow + SSAO) run BEFORE the main FBO is rebound,
+        // so we capture the host's bound FBO once and restore at the end.
+        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion;
+        int hostFbo = 0;
+        if (needsHostFboRestore)
+        {
+            GL.GetInteger(GetPName.DrawFramebufferBinding, out hostFbo);
+        }
+
+        // Shadow depth pre-pass.
         if (EnableShadows)
         {
-            GL.GetInteger(GetPName.DrawFramebufferBinding, out int hostFbo);
             ComputeLightViewProj();
             RenderShadowDepthPass(ref modelMat);
+        }
+
+        // SSAO depth pre-pass + post-process. Two passes: first renders
+        // depth from the camera POV (so basic.frag's screen-space SSAO
+        // sample matches the visible silhouette), then runs the SSAO
+        // shader to compute the per-pixel occlusion factor.
+        if (EnableAmbientOcclusion)
+        {
+            RenderDepthPrepass(ref modelMat, ref viewMatPre, ref projMatPre,
+                viewportWidth, viewportHeight);
+            ComputeSsao(ref projMatPre, viewportWidth, viewportHeight);
+            BlurSsao(viewportWidth, viewportHeight);
+        }
+
+        if (needsHostFboRestore)
+        {
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
         }
 
@@ -318,11 +430,22 @@ public class GlRenderer : IDisposable
         _shader.Use();
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
         _shader.SetBool("u_enableShadows", EnableShadows);
+        _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
             GL.ActiveTexture(TextureUnit.Texture8);
             GL.BindTexture(TextureTarget.Texture2D, _shadowDepthTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
+        }
+        if (EnableAmbientOcclusion && _ssaoBlurTex != -1)
+        {
+            _shader.SetVector2("u_screenSize",
+                (float)viewportWidth, (float)viewportHeight);
+            // Bind the BLURRED AO map (not the raw _ssaoTex) so the main
+            // shader doesn't see the noise-tile pattern.
+            GL.ActiveTexture(TextureUnit.Texture9);
+            GL.BindTexture(TextureTarget.Texture2D, _ssaoBlurTex);
             GL.ActiveTexture(TextureUnit.Texture0);
         }
 
@@ -755,6 +878,301 @@ public class GlRenderer : IDisposable
 
         GL.BindVertexArray(0);
         GL.CullFace(CullFaceMode.Back);
+    }
+
+    /// <summary>Builds a 16-sample hemispheric kernel of view-space
+    /// offsets used by ssao.frag. Each offset is randomly oriented within
+    /// the hemisphere centered on the surface normal (TBN reorients in
+    /// the shader), with sample distances accelerated toward the origin
+    /// (closer samples carry more weight). Computed once at init.</summary>
+    private void BuildSsaoKernel()
+    {
+        var rng = new Random(1337); // Fixed seed: deterministic kernel.
+        _ssaoSampleKernel = new Vector3[SsaoKernelSize];
+        for (int i = 0; i < SsaoKernelSize; i++)
+        {
+            // Random vector in upper hemisphere (z >= 0). Normalized to
+            // unit length, then rescaled with a quadratic falloff so the
+            // first samples cluster near the origin.
+            var v = new Vector3(
+                (float)(rng.NextDouble() * 2.0 - 1.0),
+                (float)(rng.NextDouble() * 2.0 - 1.0),
+                (float)rng.NextDouble());
+            v = Vector3.Normalize(v);
+            v *= (float)rng.NextDouble();
+            float scale = (float)i / SsaoKernelSize;
+            // Lerp from 0.1 to 1.0 with a quadratic curve.
+            scale = 0.1f + scale * scale * (1.0f - 0.1f);
+            v *= scale;
+            _ssaoSampleKernel[i] = v;
+        }
+    }
+
+    /// <summary>Builds a small RGB tile of random tangent vectors used by
+    /// ssao.frag to rotate the kernel per-pixel. The tile is repeat-tiled
+    /// across the screen so neighboring pixels use different rotations,
+    /// breaking up the banding a fixed kernel would otherwise produce.
+    /// 4x4 is enough for the post-pass to look noisy rather than
+    /// patterned; the host's MSAA + the inherent low-frequency nature of
+    /// AO smooth the result.</summary>
+    private void BuildSsaoNoiseTexture()
+    {
+        var rng = new Random(2718);
+        var noise = new float[SsaoNoiseSize * SsaoNoiseSize * 3];
+        for (int i = 0; i < SsaoNoiseSize * SsaoNoiseSize; i++)
+        {
+            // Tangent-space vector lies in the X-Y plane (z = 0); the
+            // shader cross-products with the surface normal to produce
+            // a perpendicular tangent.
+            noise[i * 3 + 0] = (float)(rng.NextDouble() * 2.0 - 1.0);
+            noise[i * 3 + 1] = (float)(rng.NextDouble() * 2.0 - 1.0);
+            noise[i * 3 + 2] = 0f;
+        }
+
+        _ssaoNoiseTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoNoiseTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f,
+            SsaoNoiseSize, SsaoNoiseSize, 0, PixelFormat.Rgb, PixelType.Float, noise);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+    }
+
+    /// <summary>Lazily creates / resizes the depth pre-pass FBO and the
+    /// SSAO output FBO at the current viewport size. Same lifecycle as
+    /// the host's MSAA FBO: re-allocated when the viewport size changes,
+    /// otherwise reused across renders.</summary>
+    private void EnsureSsaoFbos(int width, int height)
+    {
+        if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
+
+        // Tear down existing resources before reallocating.
+        if (_depthPrepassDepthTex != -1) { GL.DeleteTexture(_depthPrepassDepthTex); _depthPrepassDepthTex = -1; }
+        if (_depthPrepassFbo != -1) { GL.DeleteFramebuffer(_depthPrepassFbo); _depthPrepassFbo = -1; }
+        if (_ssaoTex != -1) { GL.DeleteTexture(_ssaoTex); _ssaoTex = -1; }
+        if (_ssaoFbo != -1) { GL.DeleteFramebuffer(_ssaoFbo); _ssaoFbo = -1; }
+        if (_ssaoBlurTex != -1) { GL.DeleteTexture(_ssaoBlurTex); _ssaoBlurTex = -1; }
+        if (_ssaoBlurFbo != -1) { GL.DeleteFramebuffer(_ssaoBlurFbo); _ssaoBlurFbo = -1; }
+
+        // Depth pre-pass FBO: depth-only single-sample texture so SSAO
+        // can sample it with bilinear filtering.
+        _depthPrepassDepthTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.DepthComponent24,
+            width, height, 0,
+            PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _depthPrepassFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.DepthAttachment,
+            TextureTarget.Texture2D, _depthPrepassDepthTex, 0);
+        GL.DrawBuffer(DrawBufferMode.None);
+        GL.ReadBuffer(ReadBufferMode.None);
+        var prepassStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (prepassStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO depth-prepass FBO incomplete: " + prepassStatus);
+        }
+
+        // SSAO output FBO: single-channel R8 texture. basic.frag samples
+        // it with linear filtering so the inherent noisiness of the
+        // hemisphere kernel gets smoothed slightly without an explicit
+        // blur pass.
+        _ssaoTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8,
+            width, height, 0, PixelFormat.Red, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _ssaoFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _ssaoTex, 0);
+        var ssaoStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (ssaoStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO output FBO incomplete: " + ssaoStatus);
+        }
+
+        // SSAO blur output FBO. Same R8 format / size as the raw SSAO
+        // texture; receives the box-blur result. basic.frag samples
+        // this (not the raw _ssaoTex) so the noise tile period doesn't
+        // bleed through into the final image.
+        _ssaoBlurTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoBlurTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8,
+            width, height, 0, PixelFormat.Red, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _ssaoBlurFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoBlurFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _ssaoBlurTex, 0);
+        var blurStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (blurStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO blur FBO incomplete: " + blurStatus);
+        }
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        _ssaoFboSize = (width, height);
+    }
+
+    /// <summary>Renders the scene's opaque + alpha-test geometry to the
+    /// depth pre-pass FBO from the camera's POV. The resulting depth
+    /// texture feeds the SSAO post-pass; basic.frag's per-fragment
+    /// gl_FragCoord-based sampling matches what was rendered here so
+    /// AO is consistent with the visible silhouette. Caller must
+    /// restore the previously bound FBO + viewport.</summary>
+    private void RenderDepthPrepass(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection,
+        int width, int height)
+    {
+        if (_depthOnlyShader == null) return;
+        EnsureSsaoFbos(width, height);
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
+        GL.Viewport(0, 0, width, height);
+        GL.Clear(ClearBufferMask.DepthBufferBit);
+
+        _depthOnlyShader.Use();
+        _depthOnlyShader.SetMatrix4("u_model", ref model);
+        _depthOnlyShader.SetMatrix4("u_view", ref view);
+        _depthOnlyShader.SetMatrix4("u_projection", ref projection);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            // Skip pure alpha-blend - their depth would be misleading
+            // (cumulatively transparent). Alpha-test shapes DO contribute
+            // because their cutout silhouette matches what's visible.
+            if (mesh.HasAlphaBlend && !mesh.UseAlphaTest) continue;
+
+            _depthOnlyShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+            _depthOnlyShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            if (mesh.UseAlphaTest)
+            {
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
+            }
+
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Runs the SSAO post-process: reads the depth pre-pass +
+    /// noise textures, writes per-pixel occlusion factor to the SSAO
+    /// FBO. Caller must restore the previously bound FBO + viewport.</summary>
+    private void ComputeSsao(ref Matrix4 projection, int width, int height)
+    {
+        if (_ssaoShader == null || _ssaoSampleKernel == null) return;
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoFbo);
+        GL.Viewport(0, 0, width, height);
+        // Clear isn't strictly needed (the full-screen quad covers every
+        // pixel) but is cheap and avoids surprises if an early-out is
+        // added later.
+        GL.ClearColor(1f, 1f, 1f, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+
+        _ssaoShader.Use();
+
+        // Bind depth + noise textures.
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+        GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoNoiseTex);
+
+        var invProj = projection.Inverted();
+        _ssaoShader.SetMatrix4("u_projection", ref projection);
+        _ssaoShader.SetMatrix4("u_invProjection", ref invProj);
+        // Kernel is uploaded as 16 separate vec3 uniforms (one per index)
+        // because GlShaderProgram doesn't ship an array uploader. The
+        // uniform names match the GLSL declaration "uniform vec3 u_kernel[16]".
+        for (int i = 0; i < _ssaoSampleKernel.Length; i++)
+        {
+            var k = _ssaoSampleKernel[i];
+            _ssaoShader.SetVector3("u_kernel[" + i + "]", k.X, k.Y, k.Z);
+        }
+        _ssaoShader.SetVector2("u_noiseScale",
+            (float)width / SsaoNoiseSize, (float)height / SsaoNoiseSize);
+        // Radius / bias / intensity all driven from the host-mirrored
+        // public properties, so the user's settings sliders take effect
+        // on the next render. Sensible-default suggestions: ~4 units
+        // for radius, ~0.05 for bias, ~1.5 for intensity at Skyrim NPC
+        // head scale (head ~22 units tall).
+        _ssaoShader.SetFloat("u_radius", SsaoRadius);
+        _ssaoShader.SetFloat("u_bias", SsaoBias);
+        _ssaoShader.SetFloat("u_intensity", SsaoIntensity);
+
+        GL.Disable(EnableCap.DepthTest);
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        GL.BindVertexArray(0);
+        GL.Enable(EnableCap.DepthTest);
+    }
+
+    /// <summary>Smooths the raw SSAO texture with a 4x4 box blur to
+    /// cancel the noise tile pattern. Reads <see cref="_ssaoTex"/>,
+    /// writes to <see cref="_ssaoBlurTex"/> which the main pass binds
+    /// instead of the raw output. Caller must restore previously bound
+    /// FBO + viewport.</summary>
+    private void BlurSsao(int width, int height)
+    {
+        if (_ssaoBlurShader == null) return;
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoBlurFbo);
+        GL.Viewport(0, 0, width, height);
+        GL.ClearColor(1f, 1f, 1f, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+
+        _ssaoBlurShader.Use();
+        _ssaoBlurShader.SetVector2("u_texelSize", 1f / width, 1f / height);
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
+
+        GL.Disable(EnableCap.DepthTest);
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        GL.BindVertexArray(0);
+        GL.Enable(EnableCap.DepthTest);
     }
 
     /// <summary>
@@ -1247,6 +1665,18 @@ public class GlRenderer : IDisposable
         _shadowShader = null;
         _shadowFbo = -1;
         _shadowDepthTex = -1;
+        _depthOnlyShader = null;
+        _ssaoShader = null;
+        _ssaoBlurShader = null;
+        _depthPrepassFbo = -1;
+        _depthPrepassDepthTex = -1;
+        _ssaoFbo = -1;
+        _ssaoTex = -1;
+        _ssaoBlurFbo = -1;
+        _ssaoBlurTex = -1;
+        _ssaoNoiseTex = -1;
+        _ssaoFullscreenVao = -1;
+        _ssaoFboSize = (0, 0);
         _debugVao = 0;
         _debugVbo = 0;
         _initialized = false;

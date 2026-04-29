@@ -281,6 +281,19 @@ public class VM_CharacterViewer : ViewerVm
     /// in <c>basic.frag</c>. Off: legacy occlusion-free lighting.</summary>
     public bool EnableShadows { get; set; } = false;
 
+    /// <summary>Screen-space ambient occlusion toggle (2.5.11+). When
+    /// true, <see cref="GlRenderer"/> runs a depth pre-pass + SSAO
+    /// post-process before the main passes and samples the AO texture
+    /// in <c>basic.frag</c> to darken crevices.</summary>
+    public bool EnableAmbientOcclusion { get; set; } = false;
+
+    /// <summary>SSAO radius in world units (2.5.12+).</summary>
+    public float SsaoRadius { get; set; } = 4.0f;
+    /// <summary>SSAO depth-comparison bias in world units (2.5.12+).</summary>
+    public float SsaoBias { get; set; } = 0.05f;
+    /// <summary>SSAO power-curve exponent (2.5.12+).</summary>
+    public float SsaoIntensity { get; set; } = 1.5f;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -720,6 +733,15 @@ public class VM_CharacterViewer : ViewerVm
         this.WhenAnyValue(x => x.EnableShadows)
             .Subscribe(v => Renderer.EnableShadows = v)
             .DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableAmbientOcclusion)
+            .Subscribe(v => Renderer.EnableAmbientOcclusion = v)
+            .DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoRadius)
+            .Subscribe(v => Renderer.SsaoRadius = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoBias)
+            .Subscribe(v => Renderer.SsaoBias = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoIntensity)
+            .Subscribe(v => Renderer.SsaoIntensity = v).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,

@@ -232,4 +232,30 @@ public sealed class OffscreenRenderRequest
     /// legacy occlusion-free lighting for hosts that don't opt in.
     /// </summary>
     public bool EnableShadows { get; init; } = false;
+
+    /// <summary>
+    /// Screen-space ambient occlusion toggle (2.5.11+). When true, the
+    /// renderer runs a depth pre-pass + SSAO post-process and samples
+    /// the resulting AO texture per fragment in basic.frag, multiplying
+    /// the result into the diffuse term so concave crevices (eye
+    /// sockets, nostrils, lip line) read darker. Default false to
+    /// preserve legacy occlusion-free lighting for hosts that don't
+    /// opt in.
+    /// </summary>
+    public bool EnableAmbientOcclusion { get; init; } = false;
+
+    /// <summary>SSAO sample radius in world units (2.5.12+). Larger =
+    /// softer / broader AO; smaller = tight crevice-only AO. Defaults
+    /// match the hardcoded value from 2.5.11 so existing pipelines
+    /// produce identical output without setting this.</summary>
+    public float SsaoRadius { get; init; } = 4.0f;
+
+    /// <summary>SSAO depth-comparison bias in world units (2.5.12+).
+    /// Higher reduces self-shadowing on flat surfaces; too high
+    /// erases real AO.</summary>
+    public float SsaoBias { get; init; } = 0.05f;
+
+    /// <summary>SSAO power-curve exponent (2.5.12+). Higher = harder
+    /// darkening in deep crevices, more subtle elsewhere.</summary>
+    public float SsaoIntensity { get; init; } = 1.5f;
 }

@@ -88,6 +88,9 @@ uniform bool u_enableToneMapping;
 uniform bool u_enableShadows;
 uniform mat4 u_lightViewProj;
 uniform sampler2DShadow u_shadowMap;
+uniform bool u_enableAO;
+uniform sampler2D u_ssaoMap;
+uniform vec2 u_screenSize;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -286,13 +289,23 @@ void main()
     // --- 3. DYNAMIC LIGHTING ---
     vec3 finalColor = vec3(0.0);
 
+    // Sample the SSAO occlusion factor once per fragment (in [0, 1];
+    // 1 = unoccluded, 0 = fully occluded). Used to darken the
+    // ambient + diffuse + SSS + indirect-fill terms - but NOT specular,
+    // since specular is a direct mirror reflection that real-world
+    // surface roughness doesn't AO out the same way diffuse light is
+    // occluded by nearby geometry.
+    float ao = u_enableAO ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
+
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].type == 0) continue;
         vec3 lightColor = lights[i].color * lights[i].intensity;
 
         if (lights[i].type == 1) {
-            // Ambient
-            finalColor += lightColor * baseColor.rgb;
+            // Ambient - the canonical AO target. Crevices that block
+            // sky / hemisphere light should darken proportionally to the
+            // AO factor.
+            finalColor += lightColor * baseColor.rgb * ao;
         }
         else if (lights[i].type == 2) {
             // Directional
@@ -359,7 +372,9 @@ void main()
                 subsurface = lightColor * wrap * sss_color * sss_mask * subsurfaceRolloff;
             }
 
-            finalColor += (diffuse + specular + subsurface + backlight + rimlight) * baseColor.rgb;
+            // AO modulates the diffuse + SSS + indirect-fill terms but
+            // not specular (see comment at the ao sample above).
+            finalColor += ((diffuse + subsurface + backlight + rimlight) * ao + specular) * baseColor.rgb;
         }
     }
 
