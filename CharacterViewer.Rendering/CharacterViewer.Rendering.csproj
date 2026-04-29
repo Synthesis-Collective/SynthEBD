@@ -13,9 +13,9 @@
          in CharacterViewerRendering.cs — hosts compare against that constant
          for staleness checks. Bump together: Major = breaking, Minor =
          additive, Patch = bugfix. -->
-    <Version>2.5.15</Version>
-    <AssemblyVersion>2.5.15.0</AssemblyVersion>
-    <FileVersion>2.5.15.0</FileVersion>
+    <Version>2.5.16</Version>
+    <AssemblyVersion>2.5.16.0</AssemblyVersion>
+    <FileVersion>2.5.16.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,0 +1,117 @@
+<UserControl x:Class="CharacterViewer.Rendering.Views.UC_CharacterViewerRenderPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:cvr="clr-namespace:CharacterViewer.Rendering"
+             xmlns:cvrv="clr-namespace:CharacterViewer.Rendering.Views"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             mc:Ignorable="d"
+             d:DesignHeight="80" d:DesignWidth="900"
+             d:DataContext="{d:DesignInstance Type=cvr:VM_CharacterViewer}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!--
+        Render-pipeline controls panel - bind DataContext to a VM_CharacterViewer
+        instance and the panel will surface the toggles + tunables that affect
+        what the renderer paints (independent of camera framing / portrait
+        layout). Two-way bindings push edits straight into VM_CharacterViewer
+        properties; the existing WhenAnyValue subscriptions in the VM forward
+        the new values to GlRenderer on the next frame, so changes apply
+        immediately without a manual reload.
+
+        Hosts that persist these values (e.g. NPC Plugin Chooser 2's settings
+        JSON) subscribe to property changes on VM_CharacterViewer and write
+        through to their own settings model.
+    -->
+    <StackPanel Orientation="Vertical">
+
+        <!-- Row 1: portrait-quality toggles + missing-texture wireframe -->
+        <Border Background="#FF2A2A2A" Padding="6 3">
+            <WrapPanel Orientation="Horizontal">
+                <CheckBox Content="Tone-mapping" FontSize="11" Foreground="#FFAAAAAA"
+                          VerticalAlignment="Center"
+                          IsChecked="{Binding EnableToneMapping}"
+                          ToolTip="ACES filmic tone-mapper, sRGB framebuffer, mild saturation boost. Compresses HDR highlights, lifts shadows into perceptual space, adds the warmth / contrast that makes the output read as a portrait rather than a flat render. Off: legacy linear-to-display output."/>
+
+                <CheckBox Content="Shadows" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding EnableShadows}"
+                          ToolTip="Renders a shadow-map pass from the key directional light's POV and samples it with PCF in the main fragment shader, so the brow ridge casts a shadow on the eye sockets, the nose casts on the cheek, and hair casts on the forehead."/>
+
+                <CheckBox Content="SSAO" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding EnableAmbientOcclusion}"
+                          ToolTip="Screen-space ambient occlusion: soft shadowing in concave crevices (eye sockets, nostrils, lip line, ear creases) by sampling depth in a hemisphere around each fragment. Fills in the micro-detail darkening that real photography has and a flat render lacks."/>
+
+                <CheckBox Content="Eye catch-light" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding EnableEyeCatchlight}"
+                          ToolTip="Adds a tight, bright specular spot from the key light to eye shapes - the small reflection that makes eyes look alive in real portraits. Layered on top of the eye's regular Blinn-Phong specular."/>
+
+                <TextBlock Text="SSS:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"
+                           ToolTip="Subsurface scattering strength multiplier."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="5" Increment="0.1"
+                                   Value="{Binding SubsurfaceStrength}" VerticalAlignment="Center"
+                                   FormatString="0.00"
+                                   ToolTip="Subsurface scattering strength multiplier. 0 disables SSS; 1.0 is honest SSS at the source NIF rolloff values; 1.5-2.0 boosts toward the more pronounced warm-flesh look in professional portrait reference."/>
+
+                <TextBlock Text="Vignette R:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"
+                           ToolTip="Vignette inner radius (NDC units, ~0..1.4). Pixels within this distance of screen center are unaffected; falloff smoothsteps from this radius out to the corner. Only takes effect when tone-mapping is on."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1.4" Increment="0.05"
+                                   Value="{Binding VignetteRadius}" VerticalAlignment="Center"
+                                   FormatString="0.00"
+                                   ToolTip="Vignette inner radius (NDC units, ~0..1.4). Default 0.7."/>
+
+                <TextBlock Text="I:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="6,0,4,0"
+                           ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.05"
+                                   Value="{Binding VignetteIntensity}" VerticalAlignment="Center"
+                                   FormatString="0.00"
+                                   ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black. Approximates the pre-2.5.15 hardcoded vignette at ~0.3."/>
+
+                <CheckBox Content="Wireframe missing-tex" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding RenderMissingTextureAsWireframe}"
+                          ToolTip="When on (default), an alpha-tested or alpha-blended shape whose diffuse texture failed to load is drawn as a green wireframe placeholder so the missing-texture state is visible. Off: those shapes are silently culled. Toggling fires ReloadRequested - hosts re-load the current NPC because the decision is made at mesh-upload time."/>
+            </WrapPanel>
+        </Border>
+
+        <!-- Row 2: SSAO tunables - visible only when SSAO is on -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding EnableAmbientOcclusion, Converter={StaticResource BoolToVis}}">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="SSAO" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <TextBlock Text="Radius:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0.1" Maximum="20" Increment="0.5"
+                                   Value="{Binding SsaoRadius}" VerticalAlignment="Center"
+                                   FormatString="0.00"
+                                   ToolTip="Sample radius in world units. Larger = softer / broader AO; smaller = tight crevice-only AO. Skyrim NPC heads are ~22 units tall, so values 2-8 work well. Default 4."/>
+
+                <TextBlock Text="Bias:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.01"
+                                   Value="{Binding SsaoBias}" VerticalAlignment="Center"
+                                   FormatString="0.000"
+                                   ToolTip="Minimum depth difference (world units) before a sample counts as occluded. Higher reduces self-shadowing on flat surfaces; too high erases real AO. Default 0.05."/>
+
+                <TextBlock Text="Intensity:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="10" Increment="0.1"
+                                   Value="{Binding SsaoIntensity}" VerticalAlignment="Center"
+                                   FormatString="0.00"
+                                   ToolTip="Power-curve exponent. Higher = harder darkening in deep crevices, more subtle elsewhere; lower = uniformly darker AO. Default 1.5."/>
+            </WrapPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

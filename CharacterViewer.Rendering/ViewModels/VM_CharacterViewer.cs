@@ -213,6 +213,16 @@ public class VM_CharacterViewer : ViewerVm
     /// orbit hosts can ignore this and let the slider act as a pure zoom.</summary>
     public event Action? ReframeRequested;
 
+    /// <summary>Fired when a property that requires re-running the load
+    /// pipeline (NIF parse + texture re-resolve + mesh upload) changes -
+    /// currently <see cref="RenderMissingTextureAsWireframe"/>, since it is
+    /// consumed during ApplyMaterial at upload time and can't take effect
+    /// on already-loaded meshes. Hosts subscribe and call their own
+    /// reload-current-NPC routine. Decoupled from the actual reload
+    /// mechanism (which depends on the host's identity / scope state) so
+    /// the lib doesn't have to know how a host loads NPCs.</summary>
+    public event Action? ReloadRequested;
+
     /// <summary>True when meshes are uploaded and the viewer is ready for
     /// narrow-update operations (texture overrides, morph application,
     /// head-only rebuild). Equivalent to the gate the internal apply paths
@@ -768,6 +778,16 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.VignetteRadius = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VignetteIntensity)
             .Subscribe(v => Renderer.VignetteIntensity = v).DisposeWith(_disposables);
+
+        // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
+        // (mesh-upload time), so toggling it at runtime needs the host to
+        // re-load the current NPC for the change to take effect on
+        // already-loaded shapes. Skip(1) so the initial value emission
+        // doesn't fire a reload before any host has wired the handler.
+        this.WhenAnyValue(x => x.RenderMissingTextureAsWireframe)
+            .Skip(1)
+            .Subscribe(_ => ReloadRequested?.Invoke())
+            .DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
