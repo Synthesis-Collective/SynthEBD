@@ -92,6 +92,7 @@ uniform bool u_enableAO;
 uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
 uniform bool u_enableEyeCatchlight;
+uniform float u_subsurfaceStrength;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -359,23 +360,65 @@ void main()
                 rimlight = rim * lightColor * baseColor.rgb;
             }
 
-            // Subsurface scattering (skin) -- NdotL-based so it tracks the
-            // diffuse term, safe to keep on in debug mode. The SSS color
-            // is the warm flesh tint (1.0, 0.3, 0.2) blended halfway with
-            // the local diffuse so dark-skinned NPCs don't get unrealistic
-            // bright-red transmission while still getting the subsurface
-            // warmth in lit-from-behind regions (cheeks, ears, nose).
+            // Subsurface scattering (skin). Two terms: forward scatter
+            // (light diffusing through the top layer of skin on the lit
+            // side, using subsurfaceRolloff as the proper Bethesda-style
+            // wrap parameter) plus back scatter / translucency (light
+            // passing through thin areas - ears, nostril rims, lip
+            // edges - and emerging on the shadow side). The combined
+            // result is added to finalColor OUTSIDE the *baseColor.rgb
+            // multiply so the warm-flesh hue isn't double-tinted away;
+            // sss_color carries its own already-skin-tinted color.
+            //
+            // u_subsurfaceStrength is a global multiplier letting users
+            // dial the SSS up toward the more pronounced look in
+            // professional portrait reference. 0 disables; 1 is honest
+            // source-value SSS; >1 boosts. At 0 the corrected pipeline
+            // produces zero contribution, matching the pre-2.5.14 look
+            // when the host has SubsurfaceStrength set to 0.
             vec3 subsurface = vec3(0.0);
-            if (has_skin_map && u_enableSkin) {
+            if (has_skin_map && u_enableSkin && u_subsurfaceStrength > 0.0) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
-                vec3 sss_color = mix(vec3(1.0, 0.3, 0.2), baseColor.rgb, 0.5);
-                float wrap = dot(normal_viewSpace, lightDir) * 0.5 + 0.5;
-                subsurface = lightColor * wrap * sss_color * sss_mask * subsurfaceRolloff;
+
+                // Warm flesh tint, slightly biased toward the surface
+                // color so dark-skinned NPCs don't get unrealistic
+                // bright-red SSS while still reading as warm.
+                vec3 sss_color = mix(vec3(1.0, 0.35, 0.25), baseColor.rgb, 0.4);
+
+                // Forward scatter: proper wrap-lighting per BSLighting
+                // "Subsurface Rolloff" semantics. R=0 = standard lambert,
+                // R=1 = half-lambert, in between extends the wrap into
+                // shadow proportionally.
+                float NdotL = dot(normal_viewSpace, lightDir);
+                float R = clamp(subsurfaceRolloff, 0.001, 1.0);
+                float wrap = max((NdotL + R) / (1.0 + R), 0.0);
+
+                // Back scatter / translucency: bright where the light
+                // is BEHIND the surface relative to the viewer. The
+                // viewDir is normalize(-v_viewSpacePos), so a fragment
+                // facing AWAY from the camera but TOWARD the light has
+                // (-NdotL) > 0. pow tightens the falloff so only thin
+                // backlit edges glow.
+                float backlit = max(-NdotL, 0.0);
+                backlit = pow(backlit, 3.0);
+
+                // Combine: forward dominates, back-scatter adds the
+                // characteristic ear / nostril / lip-edge glow.
+                vec3 forward = sss_color * wrap;
+                vec3 transmission = sss_color * backlit * 0.6;
+                subsurface = lightColor * sss_mask * (forward + transmission)
+                           * u_subsurfaceStrength;
             }
 
-            // AO modulates the diffuse + SSS + indirect-fill terms but
-            // not specular (see comment at the ao sample above).
-            finalColor += ((diffuse + subsurface + backlight + rimlight) * ao + specular) * baseColor.rgb;
+            // AO modulates the diffuse + indirect-fill terms but not
+            // specular (real specular doesn't get occluded by nearby
+            // crevices the way diffuse light does).
+            finalColor += ((diffuse + backlight + rimlight) * ao + specular) * baseColor.rgb;
+            // SSS is added separately so its warm-flesh tint isn't
+            // double-multiplied by the surface color - sss_color already
+            // mixes baseColor in at the right ratio. AO still modulates
+            // the SSS contribution since deep crevices block scattering.
+            finalColor += subsurface * ao;
 
             // Eye catch-light. Tight high-glossiness Blinn-Phong spot
             // from the key light only (i==1), only for eye shapes.

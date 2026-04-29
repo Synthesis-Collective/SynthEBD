@@ -297,6 +297,11 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Eye catch-light toggle (2.5.13+).</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
 
+    /// <summary>Subsurface scattering strength multiplier (2.5.14+). 0
+    /// disables SSS contribution from the corrected pipeline; 1.0 is
+    /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
+    public float SubsurfaceStrength { get; set; } = 0f;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -747,6 +752,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SsaoIntensity = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableEyeCatchlight)
             .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SubsurfaceStrength)
+            .Subscribe(v => Renderer.SubsurfaceStrength = v).DisposeWith(_disposables);
 
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,

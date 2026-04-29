@@ -265,4 +265,15 @@ public sealed class OffscreenRenderRequest
     /// top of their regular specular. The single biggest "alive vs.
     /// dead" cue for eyes in portrait photography.</summary>
     public bool EnableEyeCatchlight { get; init; } = false;
+
+    /// <summary>Subsurface scattering strength multiplier (2.5.14+). The
+    /// renderer's SSS math now uses subsurfaceRolloff as the proper
+    /// wrap parameter and adds a back-scatter / translucency term.
+    /// This multiplier scales the visible SSS contribution; 0 disables
+    /// it (matches pre-2.5.14 behavior at runtime - existing v5-stamped
+    /// tiles validate against v5 hashes regardless), 1.0 is "honest"
+    /// SSS at the source values, 1.5-2.0 boosts toward professional
+    /// portrait reference. Default 0 for back-compat with hosts that
+    /// don't opt in.</summary>
+    public float SubsurfaceStrength { get; init; } = 0f;
 }

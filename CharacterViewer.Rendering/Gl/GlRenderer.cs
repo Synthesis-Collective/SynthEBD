@@ -110,6 +110,12 @@ public class GlRenderer : IDisposable
     /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
 
+    /// <summary>SSS strength multiplier (2.5.14+). 0 disables the
+    /// corrected SSS pipeline (matches pre-2.5.14 visual when paired
+    /// with the v5 stamped hash). 1.0 = honest SSS at source rolloff
+    /// values. Higher = more pronounced warm-flesh look.</summary>
+    public float SubsurfaceStrength { get; set; } = 0f;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -437,6 +443,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableShadows", EnableShadows);
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
+        _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
