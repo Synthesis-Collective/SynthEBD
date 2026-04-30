@@ -795,7 +795,12 @@ public class FaceGenPatcher
 
                 if (phaseBShapes != null)
                 {
-                    NiShape sbp30Fallback = null;
+                    // Collect every shape that passes both gates, then score and pick.
+                    // Picking the first SBP_230_HEAD hit is unsafe: some beard / brow
+                    // meshes are mis-authored with SBP_230_HEAD in their dismember
+                    // partitions, so the iteration would land on the beard before
+                    // reaching the actual head and bake head textures into the beard.
+                    var candidates = new List<(NiShape Shape, string Name, int Score)>();
                     int shapeIndex = 0;
 
                     foreach (var shape in phaseBShapes)
@@ -812,8 +817,10 @@ public class FaceGenPatcher
                             continue;
                         }
 
-                        // Gate 2: shape must have a head dismember partition.
-                        if (!HasHeadDismemberPartition(nif, shape, out bool is230))
+                        // Gate 2: shape must have a head dismember partition
+                        // (any of SBP_30 / SBP_130 / SBP_230). All three are
+                        // accepted equally; final pick is by score.
+                        if (!HasHeadDismemberPartition(nif, shape, out int matchedPartitionId))
                         {
                             var actualParts = GetDismemberBodyParts(nif, shape);
                             DebugLog(npcInfo, "  Shape[" + shapeIndex + "] \"" + shapeName +
@@ -823,20 +830,35 @@ public class FaceGenPatcher
                             continue;
                         }
 
+                        bool hasAlpha = shape.HasAlphaProperty();
+                        int score = ScoreHeadShapeCandidate(shapeName, matchedPartitionId, hasAlpha);
+
                         DebugLog(npcInfo, "  Shape[" + shapeIndex + "] \"" + shapeName +
-                            "\" (" + blockType + ") — " + (is230 ? "SBP_230_HEAD (exact match)" : "SBP_30_HEAD (fallback candidate)"));
+                            "\" (" + blockType + ") — SBP_" + matchedPartitionId + "_HEAD" +
+                            " candidate (alpha=" + hasAlpha + ", score=" + score + ")");
 
-                        if (is230)
-                        {
-                            headShape = shape;
-                            break;
-                        }
-
-                        sbp30Fallback ??= shape;
+                        candidates.Add((shape, shapeName, score));
                         shapeIndex++;
                     }
 
-                    headShape ??= sbp30Fallback;
+                    if (candidates.Count > 0)
+                    {
+                        // Highest score wins; ties broken by iteration order (stable).
+                        var winner = candidates[0];
+                        for (int i = 1; i < candidates.Count; i++)
+                        {
+                            if (candidates[i].Score > winner.Score)
+                                winner = candidates[i];
+                        }
+
+                        headShape = winner.Shape;
+
+                        if (candidates.Count > 1)
+                        {
+                            DebugLog(npcInfo, "  Head-shape disambiguation: chose \"" + winner.Name +
+                                "\" (score=" + winner.Score + ") from " + candidates.Count + " candidate(s)");
+                        }
+                    }
                 }
 
                 // ── Phase B: Face Texture Baking ──
@@ -1084,8 +1106,63 @@ public class FaceGenPatcher
     }
 
     /// <summary>
+    /// Scores a head-shape candidate when multiple shapes share a head
+    /// dismember partition. Higher is better.
+    ///
+    /// Beard / brow meshes are sometimes authored with one of the head
+    /// partition IDs (SBP_30, SBP_130, SBP_230) in their dismember list — an
+    /// authoring mistake the engine tolerates because it doesn't enforce
+    /// uniqueness on partition body-part IDs. The name and alpha signals
+    /// must be strong enough to override the partition tier so a beard
+    /// mis-claiming SBP_230 still loses to a real head carrying only SBP_30.
+    /// </summary>
+    private static int ScoreHeadShapeCandidate(string name, int matchedPartitionId, bool hasAlpha)
+    {
+        // Partition tier — secondary signal, kept small enough that name signals dominate.
+        // 230 > 130 > 30, but all three are accepted as legitimate head partitions.
+        int score = matchedPartitionId switch
+        {
+            SBP_230_HEAD => 30,
+            SBP_130_HEAD => 20,
+            SBP_30_HEAD  => 10,
+            _            => 0,
+        };
+
+        string lower = name?.ToLowerInvariant() ?? string.Empty;
+
+        // Negative signal: shape names that clearly indicate non-head geometry.
+        // The actual head is always named "*Head*"; these keywords identify
+        // beards, brows, hair, eyes, mouths, lashes, tails, etc.
+        string[] badKeywords = { "beard", "brow", "hair", "scalp", "eye", "mouth", "lash", "tail", "teeth", "tongue" };
+        bool isBad = false;
+        foreach (var kw in badKeywords)
+        {
+            if (lower.Contains(kw)) { isBad = true; break; }
+        }
+        // Strong penalty — must outweigh the partition-tier delta so a beard
+        // mis-claiming SBP_230 loses to a real head carrying only SBP_30.
+        if (isBad) score -= 100;
+
+        // Positive signal: name contains "head" and is not on the bad list.
+        if (!isBad && lower.Contains("head")) score += 50;
+
+        // Real head shapes are opaque; transparent face attachments (beards,
+        // brows, eyelashes) typically carry a NiAlphaProperty.
+        if (!hasAlpha) score += 10;
+
+        return score;
+    }
+
+    /// <summary>
     /// Checks whether a shape has a BSDismemberSkinInstance whose partition
-    /// list contains SBP_230_HEAD or SBP_30_HEAD.
+    /// list contains any of the head body-part IDs: SBP_30, SBP_130, SBP_230.
+    /// Returns the highest-tier match via <paramref name="matchedPartitionId"/>
+    /// (preference 230 > 130 > 30) so the caller can score candidates.
+    ///
+    /// All three IDs are accepted because beard / brow / hair meshes are
+    /// occasionally mis-authored with any of them; rejecting on partition
+    /// alone would either let beards through or skip legitimate heads.
+    /// Final disambiguation lives in <see cref="ScoreHeadShapeCandidate"/>.
     ///
     /// Uses the niflycpp.BlockCache pattern (same as Jampi0n/Skyrim-NifPatcher)
     /// to access blocks by reference index.
@@ -1093,9 +1170,9 @@ public class FaceGenPatcher
     private static bool HasHeadDismemberPartition(
         NifFile nif,
         NiShape shape,
-        out bool isSBP230)
+        out int matchedPartitionId)
     {
-        isSBP230 = false;
+        matchedPartitionId = 0;
 
         // Get the skin instance reference from the shape.
         // C++ nifly: Ref<NiObject>& NiShape::SkinInstanceRef()
@@ -1122,26 +1199,23 @@ public class FaceGenPatcher
             return false;
         }
 
-        // Iterate the partition list.
+        // Iterate the full partition list and keep the highest-tier head ID
+        // present (230 > 130 > 30). A shape may legitimately carry more than
+        // one (e.g. 30 + 230 in dual-format meshes); we want the strongest.
         // C++ nifly: std::vector<PartitionInfo> BSDismemberSkinInstance::partitions
         //   PartitionInfo has: BSDismemberBodyPartType partID
-        // SWIG exposes the vector as an iterable property.
         var partitionItems = dismember.partitions.items();
         for (int i = 0; i < (int)dismember.partitions.size(); i++)
         {
             int bodyPart = (int)partitionItems[i].partID;
-            if (bodyPart == SBP_230_HEAD)
+            if ((bodyPart == SBP_230_HEAD || bodyPart == SBP_130_HEAD || bodyPart == SBP_30_HEAD)
+                && bodyPart > matchedPartitionId)
             {
-                isSBP230 = true;
-                return true;
-            }
-            if (bodyPart == SBP_30_HEAD)
-            {
-                return true;
+                matchedPartitionId = bodyPart;
             }
         }
 
-        return false;
+        return matchedPartitionId != 0;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
