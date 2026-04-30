@@ -789,6 +789,18 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(_ => ReloadRequested?.Invoke())
             .DisposeWith(_disposables);
 
+        // BackgroundColor (System.Windows.Media.Color, 0..255 channels) ->
+        // Renderer.ClearColor (Vector3, 0..1 floats). Without this wire the
+        // renderer keeps its default DimGray ClearColor for the whole session
+        // regardless of host edits, and even hosts that set GL.ClearColor on
+        // their FBO before calling Render() see it stomped by the Render()
+        // body's own ClearColor reset. Eager subscription (no Skip) so the
+        // initial value lands on the renderer at construction.
+        this.WhenAnyValue(x => x.BackgroundColor)
+            .Subscribe(c => Renderer.ClearColor = new OpenTK.Mathematics.Vector3(
+                c.R / 255f, c.G / 255f, c.B / 255f))
+            .DisposeWith(_disposables);
+
         this.WhenAnyValue(
             x => x.KeyLightIntensity, x => x.KeyLightAzimuth, x => x.KeyLightElevation,
             x => x.KeyLightColor, x => x.KeyLightEnabled)

@@ -381,6 +381,12 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _msaaFbo);
         GL.Enable(EnableCap.Multisample);
         GL.Viewport(0, 0, request.Width, request.Height);
+        // Push the request's background into vm.BackgroundColor so the VM's
+        // WhenAnyValue subscription forwards it to Renderer.ClearColor. The
+        // Render() body resets GL.ClearColor from its own field on every
+        // frame, so setting GL.ClearColor here directly would be stomped.
+        vm.BackgroundColor = System.Windows.Media.Color.FromRgb(
+            request.BackgroundRgb.R, request.BackgroundRgb.G, request.BackgroundRgb.B);
         float r = request.BackgroundRgb.R / 255f;
         float g = request.BackgroundRgb.G / 255f;
         float b = request.BackgroundRgb.B / 255f;
