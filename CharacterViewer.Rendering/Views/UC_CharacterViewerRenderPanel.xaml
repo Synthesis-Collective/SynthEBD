@@ -12,6 +12,21 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Implicit dark-theme style for every xctk:DoubleUpDown in this UC.
+             The toolkit's default template inherits the system-light Windows
+             theme - white interior, dark glyph - which renders as invisible
+             text against the panel's #FF2A2A2A / #FF222222 backdrop. Setting
+             Background + Foreground + BorderBrush + CaretBrush at the spinner
+             root propagates through the embedded TextBox so the typed value
+             stays readable. The matching SsaoBlur / VignetteIntensity etc.
+             pickers inherit the same look without per-control styling. -->
+        <Style TargetType="{x:Type xctk:DoubleUpDown}">
+            <Setter Property="Background" Value="#FF1F1F1F"/>
+            <Setter Property="Foreground" Value="#FFE0E0E0"/>
+            <Setter Property="BorderBrush" Value="#FF555555"/>
+            <Setter Property="CaretBrush" Value="#FFE0E0E0"/>
+        </Style>
     </UserControl.Resources>
 
     <!--
