@@ -34,6 +34,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -90,9 +91,19 @@
                 <Button Content="Controls" FontSize="11" Margin="10,0,0,0"
                         Padding="8 2" VerticalAlignment="Center"
                         Click="ControlsButton_Click"/>
-                <!-- Lighting controls (layout / color scheme dropdowns + Save/Delete +
-                     ambient + Key/Fill/Rim toggles + Show Lights + per-light editor) live
-                     in the shared CharacterViewer.Rendering panel below (Grid.Row="2"). -->
+
+                <!-- Toggle buttons collapse the shared lighting / render panels by default
+                     so the viewport gets the vertical space until the user opts in.
+                     Click handlers flip the panel's Visibility and rewrite this Content. -->
+                <Button x:Name="LightSettingsToggleButton"
+                        Content="Show Light Settings" FontSize="11" Margin="10,0,0,0"
+                        Padding="8 2" VerticalAlignment="Center"
+                        Click="LightSettingsToggleButton_Click"/>
+
+                <Button x:Name="RenderSettingsToggleButton"
+                        Content="Show Render Settings" FontSize="11" Margin="6,0,0,0"
+                        Padding="8 2" VerticalAlignment="Center"
+                        Click="RenderSettingsToggleButton_Click"/>
             </WrapPanel>
         </Border>
 
@@ -167,13 +178,23 @@
             </WrapPanel>
         </Border>
 
-        <!-- Toolbar row 3: shared lighting panel (presets / ambient / per-light editor) -->
-        <cvrv:UC_CharacterViewerLightingPanel Grid.Row="2"/>
+        <!-- Toolbar row 3: shared lighting panel (presets / ambient / per-light editor).
+             Collapsed by default; toggled from LightSettingsToggleButton above. -->
+        <cvrv:UC_CharacterViewerLightingPanel x:Name="LightingPanel"
+                                              Grid.Row="2"
+                                              Visibility="Collapsed"/>
+
+        <!-- Toolbar row 4: shared render-pipeline panel (tone-mapping / shadows / SSAO /
+             SSS / vignette / wireframe-missing-tex). Collapsed by default; toggled from
+             RenderSettingsToggleButton above. -->
+        <cvrv:UC_CharacterViewerRenderPanel x:Name="RenderPanel"
+                                            Grid.Row="3"
+                                            Visibility="Collapsed"/>
 
         <!-- Body .tri missing warning: shown when a BodySlide/BodyGen deform was
              attempted but no sibling .tri was found next to the worn body NIF.
              Prompts the user to run BodySlide's "Build Morphs" on their preset. -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="#FF2A0A0A"
                 BorderBrush="#FFAA2222"
                 BorderThickness="0,1,0,1"
@@ -189,7 +210,7 @@
 
         <!-- Pick info panel: compact readout of vertex picks for classifier authoring.
              Collapses entirely when classifier controls are off so the viewport is unaffected. -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                 Background="#FF1F1F1F"
                 BorderBrush="#FF3A3A3A"
                 BorderThickness="0,1,0,1"
@@ -245,14 +266,14 @@
 
         <!-- OpenGL Viewport -->
         <glWpf:GLWpfControl
-            Grid.Row="5"
+            Grid.Row="6"
             x:Name="GlControl"
             Render="GlControl_OnRender"/>
 
         <!-- Rubber-band overlay for BB-pick drag. IsHitTestVisible=False so clicks continue
              to hit GlControl beneath. Codebehind positions BoxSelectionRect via
              Canvas.Left/Top/Width/Height and flips Visibility during drag. -->
-        <Canvas Grid.Row="5" IsHitTestVisible="False" ClipToBounds="True">
+        <Canvas Grid.Row="6" IsHitTestVisible="False" ClipToBounds="True">
             <Rectangle x:Name="BoxSelectionRect"
                        Visibility="Collapsed"
                        Stroke="#FFFFCC40"
@@ -264,7 +285,7 @@
         <!-- Pending-box 3D wireframe overlay. Canvas is populated with 12 Line children from
              codebehind (one per AABB edge); UpdateBoxWireframe projects the 8 corners through
              view*projection each GL frame. Visibility follows HasPendingBox. -->
-        <Canvas Grid.Row="5" x:Name="BoxWireframeCanvas"
+        <Canvas Grid.Row="6" x:Name="BoxWireframeCanvas"
                 IsHitTestVisible="False" ClipToBounds="True"
                 Visibility="{Binding HasPendingBox, Converter={StaticResource BoolToVis}}"/>
 
@@ -273,7 +294,7 @@
              'Shrink to Camera Half' auto-halves the most-view-aligned axis toward the camera
              (use to carve an overhanging belly from a hip box). Confirm fires the usual
              AnyKeyVertexBoxPicked event; Cancel discards. -->
-        <Border Grid.Row="5"
+        <Border Grid.Row="6"
                 VerticalAlignment="Top" HorizontalAlignment="Stretch"
                 Background="#E01F1F1F" BorderBrush="#FFFFCC40" BorderThickness="0,0,0,2"
                 Padding="8 5"
@@ -360,7 +381,7 @@
              background), so empty areas pass clicks through to GlControl. Codebehind
              rebuilds the three line/label positions each GL frame from the camera's view
              matrix; dragging the Border moves the widget via Canvas.Left/Top. -->
-        <Canvas Grid.Row="5" x:Name="GizmoCanvas" ClipToBounds="True">
+        <Canvas Grid.Row="6" x:Name="GizmoCanvas" ClipToBounds="True">
             <Border x:Name="AxisGizmoBorder"
                     Canvas.Left="10"
                     Width="80" Height="80"
@@ -385,7 +406,7 @@
         </Canvas>
 
         <!-- Loading overlay -->
-        <Border Grid.Row="5"
+        <Border Grid.Row="6"
                 Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Stretch"
@@ -398,7 +419,7 @@
         </Border>
 
         <!-- Status bar -->
-        <Border Grid.Row="6"
+        <Border Grid.Row="7"
                 Background="#FF333333"
                 Padding="6 3">
             <TextBlock Text="{Binding StatusText}"

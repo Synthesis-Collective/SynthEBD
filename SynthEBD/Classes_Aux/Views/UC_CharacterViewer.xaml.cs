@@ -945,6 +945,20 @@ public partial class UC_CharacterViewer : UserControl
         }
     }
 
+    private void LightSettingsToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        bool show = LightingPanel.Visibility != Visibility.Visible;
+        LightingPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        LightSettingsToggleButton.Content = show ? "Hide Light Settings" : "Show Light Settings";
+    }
+
+    private void RenderSettingsToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        bool show = RenderPanel.Visibility != Visibility.Visible;
+        RenderPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        RenderSettingsToggleButton.Content = show ? "Hide Render Settings" : "Show Render Settings";
+    }
+
     private void ControlsButton_Click(object sender, RoutedEventArgs e)
     {
         var msg = new VM_MessageWindowOK(

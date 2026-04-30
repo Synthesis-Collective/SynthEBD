@@ -57,6 +57,7 @@
                            ToolTip="Subsurface scattering strength multiplier."/>
                 <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="5" Increment="0.1"
                                    Value="{Binding SubsurfaceStrength}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Subsurface scattering strength multiplier. 0 disables SSS; 1.0 is honest SSS at the source NIF rolloff values; 1.5-2.0 boosts toward the more pronounced warm-flesh look in professional portrait reference."/>
 
@@ -65,6 +66,7 @@
                            ToolTip="Vignette inner radius (NDC units, ~0..1.4). Pixels within this distance of screen center are unaffected; falloff smoothsteps from this radius out to the corner. Only takes effect when tone-mapping is on."/>
                 <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1.4" Increment="0.05"
                                    Value="{Binding VignetteRadius}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Vignette inner radius (NDC units, ~0..1.4). Default 0.7."/>
 
@@ -73,6 +75,7 @@
                            ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black."/>
                 <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.05"
                                    Value="{Binding VignetteIntensity}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black. Approximates the pre-2.5.15 hardcoded vignette at ~0.3."/>
 
@@ -95,6 +98,7 @@
                            VerticalAlignment="Center" Margin="0,0,4,0"/>
                 <xctk:DoubleUpDown Width="60" Minimum="0.1" Maximum="20" Increment="0.5"
                                    Value="{Binding SsaoRadius}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Sample radius in world units. Larger = softer / broader AO; smaller = tight crevice-only AO. Skyrim NPC heads are ~22 units tall, so values 2-8 work well. Default 4."/>
 
@@ -102,6 +106,7 @@
                            VerticalAlignment="Center" Margin="10,0,4,0"/>
                 <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.01"
                                    Value="{Binding SsaoBias}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.000"
                                    ToolTip="Minimum depth difference (world units) before a sample counts as occluded. Higher reduces self-shadowing on flat surfaces; too high erases real AO. Default 0.05."/>
 
@@ -109,6 +114,7 @@
                            VerticalAlignment="Center" Margin="10,0,4,0"/>
                 <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="10" Increment="0.1"
                                    Value="{Binding SsaoIntensity}" VerticalAlignment="Center"
+                                   Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Power-curve exponent. Higher = harder darkening in deep crevices, more subtle elsewhere; lower = uniformly darker AO. Default 1.5."/>
             </WrapPanel>

@@ -127,6 +127,7 @@
                                VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
                                         Value="{Binding KeyLightIntensity}" VerticalAlignment="Center"
+                                        Foreground="White"
                                         FormatString="0'%'" Increment="5"
                                         ToolTip="Key light brightness. 100 = 1.0 multiplier; above 100 over-drives the light."/>
 
@@ -163,6 +164,7 @@
                                VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
                                         Value="{Binding FillLightIntensity}" VerticalAlignment="Center"
+                                        Foreground="White"
                                         FormatString="0'%'" Increment="5"
                                         ToolTip="Fill light brightness. 100 = 1.0 multiplier."/>
 
@@ -199,6 +201,7 @@
                                VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <xctk:IntegerUpDown Width="70" Minimum="0" Maximum="500"
                                         Value="{Binding RimLightIntensity}" VerticalAlignment="Center"
+                                        Foreground="White"
                                         FormatString="0'%'" Increment="5"
                                         ToolTip="Rim light brightness. 100 = 1.0 multiplier."/>
 
