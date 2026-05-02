@@ -510,5 +510,20 @@ void main()
         finalColor = clamp(c, 0.0, 1.0);
     }
 
-    FragColor = vec4(finalColor, baseColor.a);
+    // Wet-eye outer cornea (shaderType=16, alphaBlend, EnvMap=true) ships with a
+    // placeholder ~all-black diffuse whose alpha is 1.0. In Skyrim the eye-cubemap
+    // reflection writes over that black, so the shape reads as a transparent
+    // glassy overlay. We don't have a per-shape eye cubemap path in slot[4] for
+    // this shape, so the env block is skipped and the cornea would otherwise
+    // render as solid alpha=1 black over the iris — producing the dark void where
+    // the eye should be. Modulate alpha by the lit luminance so dark cornea
+    // pixels become transparent (iris shows through) while specular catchlights
+    // stay opaque (wet-eye sparkle preserved). For non-eye shapes baseColor.a is
+    // unchanged, and for opaque eye shapes (the iris itself) the alpha is unused.
+    float outAlpha = baseColor.a;
+    if (is_eye) {
+        float luma = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
+        outAlpha = min(outAlpha, luma);
+    }
+    FragColor = vec4(finalColor, outAlpha);
 }
