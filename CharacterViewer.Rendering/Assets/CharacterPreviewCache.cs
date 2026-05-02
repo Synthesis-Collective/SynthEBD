@@ -76,7 +76,7 @@ public class CharacterPreviewCache
         _assetResolver = assetResolver;
         _logger = logger;
         _logGate = logGate;
-        MeshBuilder = new NifMeshBuilder(logger, logGate);
+        MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver);
     }
 
     /// <summary>

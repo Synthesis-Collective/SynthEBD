@@ -19,11 +19,17 @@ public class NifMeshBuilder
 {
     private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
+    // Optional: only used by NifDiagnosticDumper for the FULL_LOGGING texture
+    // pass (resolves game-relative paths to disk so the dumper can read DDS
+    // headers). Null in hosts that don't supply a resolver.
+    private readonly GameAssetResolver? _assetResolver;
 
-    public NifMeshBuilder(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
+    public NifMeshBuilder(ICharacterViewerLogger logger, CharacterViewerLogGate logGate,
+        GameAssetResolver? assetResolver = null)
     {
         _logger = logger;
         _logGate = logGate;
+        _assetResolver = assetResolver;
     }
 
     private void LogVerbose(string message)
@@ -296,7 +302,12 @@ public class NifMeshBuilder
         // caching entirely in that case.
         bool cacheable = skeletonNif == null || skeletonPath != null;
 
-        if (cacheable)
+        // While FULL_LOGGING is on we always re-load the NIF so each preview
+        // attempt produces a fresh dump — otherwise the cache short-circuit
+        // would silence subsequent loads of the same file. Reverts to the
+        // normal fast path when the const is flipped back to false.
+        bool fullLogging = NifDiagnosticDumper.FULL_LOGGING && _logGate?.Verbose == true;
+        if (cacheable && !fullLogging)
         {
             var cached = TryGetFromCache(nifPath, skeletonPath, nifMTime, skelMTime);
             if (cached != null) return cached;
@@ -305,6 +316,8 @@ public class NifMeshBuilder
         var results = new List<BuiltMesh>();
         using var nif = new NifFile();
         if (nif.Load(nifPath) != 0) return results;
+
+        NifDiagnosticDumper.DumpIfEnabled(nif, nifPath, _logGate, _logger, _assetResolver);
 
         results = BuildAllShapes(nif, skeletonNif);
 
