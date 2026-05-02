@@ -589,6 +589,23 @@ public class NifMeshBuilder
     private BuiltMesh? BuildShape(NifFile nif, NiShape shape, MatTransform? accessoryOffset,
         NifFile? skeletonNif = null, string? primaryHeadName = null)
     {
+        // Skip non-renderable scaffold geometry. UBE head NIFs ship "*_Dummy" lens
+        // shapes positioned over the eyes as decal anchors; without this skip they
+        // upload as untextured opaque quads and occlude the iris.
+        if ((shape.flags & 1u) != 0)
+        {
+            LogVerbose("CharacterViewer: Skipping hidden shape '" +
+                (shape.name?.get() ?? "?") + "' (NiAVObject AppCulled flag set)");
+            return null;
+        }
+        var preShaderRef = shape.ShaderPropertyRef();
+        if (preShaderRef == null || preShaderRef.IsEmpty())
+        {
+            LogVerbose("CharacterViewer: Skipping shape '" +
+                (shape.name?.get() ?? "?") + "' (no shader property attached)");
+            return null;
+        }
+
         // Extract vertices
         using var nifVerts = nif.GetVertsForShape(shape);
         if (nifVerts == null || nifVerts.Count == 0)
