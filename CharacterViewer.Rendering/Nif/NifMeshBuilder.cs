@@ -489,6 +489,39 @@ public class NifMeshBuilder
         return partId == 30 || partId == 130 || partId == 230;
     }
 
+    /// <summary>Name-based head-shape heuristic. Bethesda's child meshes
+    /// (MaleHeadChild, ChildHead) use non-standard dismember partitions
+    /// [1, 0] for the actual face — the standard partition check misses
+    /// them, leaving accessories like EyesChild (partition 30) and
+    /// HairLine (partition 230) to win the primary-head election. A
+    /// shape qualifies here when its name contains "head" but is not
+    /// one of the well-known accessory categories that occasionally
+    /// embed "head" via word boundaries (hair-line, fore-head, etc.).
+    /// Combined with the partition check, the tallest among all
+    /// candidates still wins, so adult meshes (where the partition
+    /// check already succeeds) are unaffected.</summary>
+    private static bool IsHeadShapeByName(string? shapeName)
+    {
+        if (string.IsNullOrEmpty(shapeName)) return false;
+        if (shapeName.IndexOf("head", StringComparison.OrdinalIgnoreCase) < 0) return false;
+        // Reject accessories whose names embed "head" or are known not to
+        // be the primary face mesh. "Forehead" technically contains "head"
+        // and is a separate accessory in some HPH packs; "HeadBand" is
+        // rare but plausible.
+        string[] accessoryFragments =
+        {
+            "hair", "eye", "lash", "brow", "mouth", "tongue", "tooth",
+            "teeth", "scar", "tint", "forehead", "headband", "headgear",
+            "headdress", "beard", "ear",
+        };
+        foreach (var frag in accessoryFragments)
+        {
+            if (shapeName.IndexOf(frag, StringComparison.OrdinalIgnoreCase) >= 0)
+                return false;
+        }
+        return true;
+    }
+
     /// <summary>
     /// Walks the NIF scene graph from an object up to the root, composing transforms
     /// to get the object's transform in NIF root space (Z-up).
@@ -562,7 +595,7 @@ public class NifMeshBuilder
             if (skinObj is not BSDismemberSkinInstance dismember) continue;
 
             // Check if any partition is a head partition
-            bool isHeadCandidate = false;
+            bool partitionMatch = false;
             var partIdList = new List<ushort>();
             using var partitions = dismember.partitions;
             if (partitions != null)
@@ -573,15 +606,25 @@ public class NifMeshBuilder
                     partIdList.Add(items[pi].partID);
                     if (IsHeadDismemberPartition(items[pi].partID))
                     {
-                        isHeadCandidate = true;
+                        partitionMatch = true;
                     }
                 }
             }
 
             string sName = shape.name?.get() ?? "?";
+            // Fallback: vanilla child meshes (MaleHeadChild, ChildHead) ship
+            // with non-standard partitions [1, 0] and would otherwise lose
+            // the primary-head election to accessories whose partition does
+            // hit the standard set (EyesChild=30, HairLineFemaleNordChild02=230).
+            // Without this, AboveLowerYOfPrimaryHead crops the bbox to the
+            // eye-line, the camera targets the forehead, and the lower face
+            // falls below the mugshot frame.
+            bool nameMatch = IsHeadShapeByName(sName);
+            bool isHeadCandidate = partitionMatch || nameMatch;
             LogVerbose("CharacterViewer: [Skinning] Shape '" + sName +
                 "' partitions=[" + string.Join(",", partIdList) +
-                "] isHeadCandidate=" + isHeadCandidate);
+                "] isHeadCandidate=" + isHeadCandidate
+                + " (partitionMatch=" + partitionMatch + ", nameMatch=" + nameMatch + ")");
 
             if (!isHeadCandidate) continue;
 
