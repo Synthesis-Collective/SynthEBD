@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -291,4 +292,13 @@ public sealed class OffscreenRenderRequest
     /// back-compat with hosts that don't opt in - pre-2.5.15 hardcoded
     /// behavior is approximately Radius=0.7 / Intensity=0.3.</summary>
     public float VignetteIntensity { get; init; } = 0f;
+
+    /// <summary>Optional thread-agnostic diagnostic sink for per-render
+    /// decisions the renderer would otherwise emit silently — currently the
+    /// MeshAware camera fitter's per-shape bbox / union / distance trace.
+    /// Built by the host as a closure that writes to whatever destination
+    /// is appropriate (a flow-scoped log file, an in-memory buffer, etc.)
+    /// and survives the renderer's dedicated render thread, which does NOT
+    /// inherit the host's AsyncLocal call context. Null = silent.</summary>
+    public Action<string>? DiagnosticLog { get; init; }
 }

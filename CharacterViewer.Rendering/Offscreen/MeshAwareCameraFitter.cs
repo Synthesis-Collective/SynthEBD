@@ -42,11 +42,19 @@ public static class MeshAwareCameraFitter
     /// and <see cref="OrbitCamera.Distance"/>. Hosts use this for live
     /// drag-to-rotate-in-Auto-mode workflows: the user's mouse drag mutates
     /// camera angles directly, then this call re-fits distance for the new
-    /// view so the character stays inside the framing band.</para></summary>
+    /// view so the character stays inside the framing band.</para>
+    /// <para><paramref name="log"/> is an optional diagnostic sink. When
+    /// non-null, the fitter emits per-shape bboxes, the unioned bbox, the
+    /// camera-relative screen extents, and the resulting Distance/Target so
+    /// hosts can diagnose unexpected framing (e.g. tall hair pulling the
+    /// bbox center upward and the face into the lower half of the frame).
+    /// Messages use the library's "CharacterViewer: " prefix so adapter
+    /// loggers route them through the same path as other verbose lines.</para></summary>
     public static void ApplyTo(VM_CharacterViewer vm,
         CameraFraming.MeshAware framing,
         int viewportWidth, int viewportHeight,
-        bool preserveCameraOrientation = false)
+        bool preserveCameraOrientation = false,
+        Action<string>? log = null)
     {
         if (vm == null) throw new ArgumentNullException(nameof(vm));
         if (framing == null) throw new ArgumentNullException(nameof(framing));
@@ -59,40 +67,93 @@ public static class MeshAwareCameraFitter
         }
 
         var allMeshes = vm.Renderer.Meshes;
-        if (allMeshes.Count == 0) return;
+        // GlMesh.CpuPositions is in pre-ModelScale (NIF-original) units, but the
+        // renderer multiplies every position by Matrix4.CreateScale(ModelScale)
+        // at draw time. Without scaling the bbox, the camera targets the wrong
+        // Y (the unscaled centerY) while the rendered head is at scaled Y, and
+        // for sub-1 NPC heights the face slides into the lower half of the
+        // frame with only the forehead visible. Multiplying every vertex
+        // observation by ModelScale rebases the bbox into the same render-space
+        // the camera operates in. Padding is treated as render-space too so a
+        // configured "X units of headroom above the hair" stays visually
+        // consistent across short / tall NPCs.
+        float modelScale = vm.Renderer.ModelScale;
+        if (!float.IsFinite(modelScale) || modelScale <= 0f) modelScale = 1f;
+        log?.Invoke("CharacterViewer: [Framing] Begin: yaw=" + framing.Yaw.ToString("F1")
+            + ", pitch=" + framing.Pitch.ToString("F1")
+            + ", topFrac=" + framing.FrameTopFraction.ToString("F2")
+            + ", bottomFrac=" + framing.FrameBottomFraction.ToString("F2")
+            + ", viewport=" + viewportWidth + "x" + viewportHeight
+            + ", preserveOrient=" + preserveCameraOrientation
+            + ", loadedMeshes=" + allMeshes.Count
+            + ", modelScale=" + modelScale.ToString("F3"));
+        if (allMeshes.Count == 0)
+        {
+            log?.Invoke("CharacterViewer: [Framing] No loaded meshes — leaving camera as-is.");
+            return;
+        }
 
         // Collect per-FramingShape bboxes, then union.
         var unionMin = new NumericsVec3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
         var unionMax = new NumericsVec3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
         bool anyContribution = false;
 
-        foreach (var shape in framing.Shapes)
+        for (int si = 0; si < framing.Shapes.Count; si++)
         {
+            var shape = framing.Shapes[si];
             var matched = MatchShapes(allMeshes, shape.Selector);
+            log?.Invoke("CharacterViewer: [Framing] Shape[" + si + "] selector="
+                + DescribeSelector(shape.Selector)
+                + ", filter=" + DescribeFilter(shape.Filter)
+                + ", padding=" + shape.Padding.ToString("F2")
+                + " → matched " + matched.Count + " mesh(es)");
             if (matched.Count == 0) continue;
 
-            // Resolve the filter's reference Y bound, if any.
+            // Resolve the filter's reference Y bound, if any. ResolveFilterMinY
+            // returns the min in CpuPositions space; rebase to render-space so
+            // it can be compared directly against the scaled vertex Y below.
             float? minYBound = ResolveFilterMinY(shape.Filter, allMeshes);
+            if (minYBound.HasValue) minYBound = minYBound.Value * modelScale;
+            if (shape.Filter != null)
+            {
+                log?.Invoke("CharacterViewer: [Framing]   filter resolved minYBound="
+                    + (minYBound.HasValue ? minYBound.Value.ToString("F2") : "null")
+                    + " (render-space)");
+            }
 
             foreach (var mesh in matched)
             {
                 var verts = mesh.CpuPositions;
-                if (verts == null || verts.Length == 0) continue;
+                if (verts == null || verts.Length == 0)
+                {
+                    log?.Invoke("CharacterViewer: [Framing]   '" + mesh.ShapeName
+                        + "' (BodyPart=" + mesh.BodyPart + ", PrimaryHead=" + mesh.IsPrimaryHeadShape
+                        + ") — no CpuPositions, skipped");
+                    continue;
+                }
 
                 NumericsVec3 mn = new(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
                 NumericsVec3 mx = new(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
                 bool meshHadVerts = false;
+                int includedVerts = 0;
 
                 for (int i = 0; i < verts.Length; i++)
                 {
-                    var v = verts[i];
+                    var v = verts[i] * modelScale;
                     if (minYBound.HasValue && v.Y < minYBound.Value) continue;
                     mn = NumericsVec3.Min(mn, v);
                     mx = NumericsVec3.Max(mx, v);
                     meshHadVerts = true;
+                    includedVerts++;
                 }
-                if (!meshHadVerts) continue;
+                if (!meshHadVerts)
+                {
+                    log?.Invoke("CharacterViewer: [Framing]   '" + mesh.ShapeName
+                        + "' — all " + verts.Length + " verts filtered out, skipped");
+                    continue;
+                }
 
+                NumericsVec3 mnRaw = mn, mxRaw = mx;
                 if (shape.Padding > 0f)
                 {
                     var pad = new NumericsVec3(shape.Padding, shape.Padding, shape.Padding);
@@ -100,13 +161,31 @@ public static class MeshAwareCameraFitter
                     mx += pad;
                 }
 
+                log?.Invoke("CharacterViewer: [Framing]   '" + mesh.ShapeName
+                    + "' (BodyPart=" + mesh.BodyPart + ", PrimaryHead=" + mesh.IsPrimaryHeadShape + ")"
+                    + " verts=" + includedVerts + "/" + verts.Length
+                    + " bbox(render) X[" + mnRaw.X.ToString("F2") + ".." + mxRaw.X.ToString("F2") + "]"
+                    + " Y[" + mnRaw.Y.ToString("F2") + ".." + mxRaw.Y.ToString("F2") + "]"
+                    + " Z[" + mnRaw.Z.ToString("F2") + ".." + mxRaw.Z.ToString("F2") + "]"
+                    + (shape.Padding > 0f
+                        ? " (padded to Y[" + mn.Y.ToString("F2") + ".." + mx.Y.ToString("F2") + "])"
+                        : ""));
+
                 unionMin = NumericsVec3.Min(unionMin, mn);
                 unionMax = NumericsVec3.Max(unionMax, mx);
                 anyContribution = true;
             }
         }
 
-        if (!anyContribution) return;
+        if (!anyContribution)
+        {
+            log?.Invoke("CharacterViewer: [Framing] No shape contributed verts — leaving camera as-is.");
+            return;
+        }
+        log?.Invoke("CharacterViewer: [Framing] Union bbox"
+            + " X[" + unionMin.X.ToString("F2") + ".." + unionMax.X.ToString("F2") + "]"
+            + " Y[" + unionMin.Y.ToString("F2") + ".." + unionMax.Y.ToString("F2") + "]"
+            + " Z[" + unionMin.Z.ToString("F2") + ".." + unionMax.Z.ToString("F2") + "]");
 
         // Camera target. Frontal fits keep X/Z at 0 so the orbit axis stays
         // aligned with world Y (Skyrim NPCs stand at the world origin facing
@@ -182,7 +261,51 @@ public static class MeshAwareCameraFitter
 
         float distance = MathF.Max(distanceForHeight, distanceForWidth);
         camera.Distance = MathF.Max(camera.MinDistance, distance);
+
+        if (log != null)
+        {
+            log.Invoke("CharacterViewer: [Framing] centerY=" + centerY.ToString("F2")
+                + ", target=(" + camera.Target.X.ToString("F2")
+                + ", " + camera.Target.Y.ToString("F2")
+                + ", " + camera.Target.Z.ToString("F2") + ")");
+            log.Invoke("CharacterViewer: [Framing] basis: az=" + camera.Azimuth.ToString("F1")
+                + ", el=" + camera.Elevation.ToString("F1")
+                + ", xaxis=(" + xaxis.X.ToString("F3") + "," + xaxis.Y.ToString("F3") + "," + xaxis.Z.ToString("F3") + ")"
+                + ", yaxis=(" + yaxis.X.ToString("F3") + "," + yaxis.Y.ToString("F3") + "," + yaxis.Z.ToString("F3") + ")"
+                + ", zaxis=(" + zaxis.X.ToString("F3") + "," + zaxis.Y.ToString("F3") + "," + zaxis.Z.ToString("F3") + ")");
+            log.Invoke("CharacterViewer: [Framing] screenSpace W=" + bboxScreenW.ToString("F2")
+                + " (px in [" + minPx.ToString("F2") + ".." + maxPx.ToString("F2") + "])"
+                + ", H=" + bboxScreenH.ToString("F2")
+                + " (py in [" + minPy.ToString("F2") + ".." + maxPy.ToString("F2") + "])");
+            log.Invoke("CharacterViewer: [Framing] band=" + band.ToString("F3")
+                + ", fov=" + camera.FieldOfView.ToString("F1")
+                + ", aspect=" + aspect.ToString("F3")
+                + ", distForHeight=" + distanceForHeight.ToString("F2")
+                + ", distForWidth=" + distanceForWidth.ToString("F2")
+                + " → final distance=" + camera.Distance.ToString("F2")
+                + " (clamped MinDistance=" + camera.MinDistance.ToString("F2") + ")");
+        }
     }
+
+    private static string DescribeSelector(FramingShapeSelector selector) => selector switch
+    {
+        FramingShapeSelector.AllLoaded => "AllLoaded",
+        FramingShapeSelector.PrimaryHead => "PrimaryHead",
+        FramingShapeSelector.HeadAccessories => "HeadAccessories",
+        FramingShapeSelector.BodyPart bp => "BodyPart(" + bp.Name + ")",
+        FramingShapeSelector.ShapeNameContains snc => "ShapeNameContains('" + snc.Substring + "'"
+            + (snc.InBodyPart != null ? ", in=" + snc.InBodyPart : "") + ")",
+        _ => selector.GetType().Name,
+    };
+
+    private static string DescribeFilter(FramingShapeFilter? filter) => filter switch
+    {
+        null => "(none)",
+        FramingShapeFilter.AboveLowerYOfPrimaryHead => "AboveLowerYOfPrimaryHead",
+        FramingShapeFilter.AboveLowerYOfBodyPart bp => "AboveLowerYOfBodyPart(" + bp.BodyPart + ")",
+        FramingShapeFilter.AboveWorldY abs => "AboveWorldY(" + abs.Y.ToString("F2") + ")",
+        _ => filter.GetType().Name,
+    };
 
     private static IReadOnlyList<GlMesh> MatchShapes(IReadOnlyList<GlMesh> all, FramingShapeSelector selector)
     {

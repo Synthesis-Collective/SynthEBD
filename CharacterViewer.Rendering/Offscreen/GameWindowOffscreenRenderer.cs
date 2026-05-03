@@ -403,7 +403,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     /// the loaded scene's NPC base height; Fixed mode applies the explicit
     /// values directly. Both modes leave the renderer in a state where
     /// <c>vm.Renderer.Render(vm.Camera, w, h)</c> produces the framed image.</summary>
-    private static void ConfigureCamera(VM_CharacterViewer vm, OffscreenRenderRequest request)
+    private void ConfigureCamera(VM_CharacterViewer vm, OffscreenRenderRequest request)
     {
         var camera = vm.Camera;
 
@@ -452,7 +452,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             }
             case CameraFraming.MeshAware meshAware:
             {
-                MeshAwareCameraFitter.ApplyTo(vm, meshAware, request.Width, request.Height);
+                // Prefer the request's DiagnosticLog when set — hosts using
+                // AsyncLocal flow-scoped capture (like NPC2's per-mugshot
+                // _Mugshot.txt files) MUST snapshot their writer there
+                // because this branch executes on the renderer's dedicated
+                // render thread, which does not inherit the host's logical
+                // call context. Fall back to _logger gated on _logGate.Verbose
+                // for hosts that route framing diagnostics through their
+                // shared verbose-log channel.
+                Action<string>? log = request.DiagnosticLog
+                    ?? ((_logGate != null && _logGate.Verbose && _logger != null)
+                        ? (Action<string>)(msg => _logger.LogMessage(msg))
+                        : null);
+                MeshAwareCameraFitter.ApplyTo(vm, meshAware, request.Width, request.Height, log: log);
                 break;
             }
             case CameraFraming.OrbitState orbit:
