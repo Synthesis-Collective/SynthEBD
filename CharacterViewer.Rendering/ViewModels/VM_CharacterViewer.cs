@@ -3077,6 +3077,8 @@ public class VM_CharacterViewer : ViewerVm
                 glMesh.UseAlphaTest = built.HasAlphaTest;
                 glMesh.HasAlphaBlend = built.HasAlphaBlend;
                 glMesh.AlphaThreshold = built.AlphaThreshold;
+                glMesh.SrcBlendIndex = built.SrcBlendIndex;
+                glMesh.DstBlendIndex = built.DstBlendIndex;
             }
             else
             {

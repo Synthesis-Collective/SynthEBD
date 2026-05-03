@@ -128,6 +128,24 @@ public class NifMeshBuilder
         public float AlphaThreshold { get; init; }
 
         /// <summary>
+        /// SrcBlend factor from NiAlphaProperty.flags bits 1-4 (Bethesda
+        /// enum: 0=ONE, 1=ZERO, 2=SRC_COLOR, ..., 6=SRC_ALPHA, 7=INV_SRC_ALPHA, ...).
+        /// Default 6 (SRC_ALPHA) when no alpha property is present.
+        /// Mapped to OpenTK BlendingFactor at draw time.
+        /// </summary>
+        public int SrcBlendIndex { get; init; } = 6;
+
+        /// <summary>
+        /// DstBlend factor from NiAlphaProperty.flags bits 5-8 (same Bethesda
+        /// enum as SrcBlend). Default 7 (INV_SRC_ALPHA) when no alpha property
+        /// is present. UBE-style wet-eye outer cornea shapes ship with this
+        /// set to 0 (ONE), producing additive blend so a near-black cornea
+        /// adds nothing to the iris underneath while bright catchlight pixels
+        /// add brightness.
+        /// </summary>
+        public int DstBlendIndex { get; init; } = 7;
+
+        /// <summary>
         /// True if this shape has SLSF2_Double_Sided (shaderFlags2 bit 4).
         /// </summary>
         public bool IsDoubleSided { get; init; }
@@ -403,6 +421,8 @@ public class NifMeshBuilder
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
         AlphaThreshold = b.AlphaThreshold,
+        SrcBlendIndex = b.SrcBlendIndex,
+        DstBlendIndex = b.DstBlendIndex,
         IsDoubleSided = b.IsDoubleSided,
         HasGreyscaleToPaletteFlag = b.HasGreyscaleToPaletteFlag,
         Glossiness = b.Glossiness,
@@ -960,6 +980,12 @@ public class NifMeshBuilder
         bool hasAlphaTest = false;
         bool hasAlphaBlend = false;
         float alphaThreshold = 0f;
+        // Default blend factors: SRC_ALPHA / INV_SRC_ALPHA (standard "over"
+        // transparency). Used when there's no NiAlphaProperty or when the
+        // shape isn't alpha-blended. The factors only matter for the alpha-
+        // blend pass; opaque and alpha-test passes don't consult them.
+        int srcBlendIndex = 6; // Bethesda enum: SRC_ALPHA
+        int dstBlendIndex = 7; // Bethesda enum: INV_SRC_ALPHA
         try
         {
             if (shape.HasAlphaProperty())
@@ -976,6 +1002,14 @@ public class NifMeshBuilder
                         hasAlphaBlend = (flags & 1) != 0;
                         // Bit 9 of NiAlphaProperty flags = alpha test enable
                         hasAlphaTest = (flags & (1 << 9)) != 0;
+                        // Bits 1-4 = SrcBlend, bits 5-8 = DstBlend (Bethesda
+                        // enum values, mapped to GL factors at draw time).
+                        // Honoring these per-mesh is what lets shapes with
+                        // additive blend (e.g., UBE wet-eye outer cornea
+                        // ships SrcBlend=SRC_ALPHA / DstBlend=ONE) render
+                        // correctly without special-case shader hacks.
+                        srcBlendIndex = (flags >> 1) & 0xF;
+                        dstBlendIndex = (flags >> 5) & 0xF;
                         alphaThreshold = alphaProp.threshold / 255f;
 
                         // If alpha property exists but no flags set, default to alpha test
@@ -1090,6 +1124,8 @@ public class NifMeshBuilder
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
             AlphaThreshold = alphaThreshold,
+            SrcBlendIndex = srcBlendIndex,
+            DstBlendIndex = dstBlendIndex,
             IsDoubleSided = isDoubleSided,
             HasGreyscaleToPaletteFlag = (shaderFlags1 & SLSF1_GreyscaleToPalette) != 0,
             Glossiness = glossiness,

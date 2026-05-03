@@ -542,20 +542,15 @@ void main()
         finalColor = clamp(c, 0.0, 1.0);
     }
 
-    // Wet-eye outer cornea (shaderType=16, alphaBlend, EnvMap=true) ships with a
-    // placeholder ~all-black diffuse whose alpha is 1.0. In Skyrim the eye-cubemap
-    // reflection writes over that black, so the shape reads as a transparent
-    // glassy overlay. We don't have a per-shape eye cubemap path in slot[4] for
-    // this shape, so the env block is skipped and the cornea would otherwise
-    // render as solid alpha=1 black over the iris — producing the dark void where
-    // the eye should be. Modulate alpha by the lit luminance so dark cornea
-    // pixels become transparent (iris shows through) while specular catchlights
-    // stay opaque (wet-eye sparkle preserved). For non-eye shapes baseColor.a is
-    // unchanged, and for opaque eye shapes (the iris itself) the alpha is unused.
-    float outAlpha = baseColor.a;
-    if (is_eye) {
-        float luma = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
-        outAlpha = min(outAlpha, luma);
-    }
-    FragColor = vec4(finalColor, outAlpha);
+    // Alpha output is just the surface's own alpha. Earlier versions of this
+    // shader had a luma-based hack to make the wet-eye outer cornea (UBE-
+    // style separate alpha-blended overlay shape with a near-black diffuse)
+    // fade where dim, since hard-coded GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA
+    // blending would otherwise paint a solid black void over the iris. The
+    // hack was replaced (commit history) with per-mesh blend factors read
+    // from NiAlphaProperty.SrcBlend/DstBlend -- UBE's wet-eye is authored
+    // with additive blend (SRC_ALPHA, ONE), which produces the engine-
+    // correct "black cornea adds nothing, bright catchlight adds brightness"
+    // behavior natively. No special-case shader logic needed.
+    FragColor = vec4(finalColor, baseColor.a);
 }

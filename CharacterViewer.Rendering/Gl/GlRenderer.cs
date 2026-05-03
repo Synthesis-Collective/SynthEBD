@@ -546,13 +546,29 @@ public class GlRenderer : IDisposable
         // edges the soft fade that comes from blending raw alpha values
         // with the surface beneath, instead of a hard cutout.
         GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         GL.DepthMask(false);
+        // Per-mesh src/dst blend factors honored from NiAlphaProperty.
+        // The vast majority of alpha-blended actor shapes use SRC_ALPHA /
+        // INV_SRC_ALPHA (standard "over" transparency), but some authored
+        // overlays -- notably the UBE-style wet-eye outer cornea -- ship
+        // with SRC_ALPHA / ONE (additive), so a near-black diffuse adds
+        // nothing to the iris underneath while bright catchlight pixels
+        // add brightness. Honoring per-mesh factors removes the need for
+        // any special-case shader hack to handle the cornea.
+        int curSrc = -1, curDst = -1;
         foreach (var mesh in _meshes)
         {
             if (!mesh.IsRendering) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.HasAlphaBlend) continue;
+
+            if (mesh.SrcBlendIndex != curSrc || mesh.DstBlendIndex != curDst)
+            {
+                GL.BlendFunc(MapBethesdaBlendFactor(mesh.SrcBlendIndex),
+                             MapBethesdaBlendFactor(mesh.DstBlendIndex));
+                curSrc = mesh.SrcBlendIndex;
+                curDst = mesh.DstBlendIndex;
+            }
             DrawMesh(mesh);
         }
         GL.Disable(EnableCap.Blend);
@@ -1516,6 +1532,31 @@ public class GlRenderer : IDisposable
 
         return data;
     }
+
+    /// <summary>
+    /// Maps a Bethesda NiAlphaProperty blend-factor enum index (as stored in
+    /// flags bits 1-4 / 5-8) to the corresponding OpenTK BlendingFactor.
+    /// The Bethesda enum order matches the GL convention 1-to-1 except that
+    /// Bethesda reuses an integer-indexed enum (0=ONE, 1=ZERO, ...) instead
+    /// of the GL constants directly.
+    /// </summary>
+    private static BlendingFactor MapBethesdaBlendFactor(int idx) => idx switch
+    {
+        0 => BlendingFactor.One,
+        1 => BlendingFactor.Zero,
+        2 => BlendingFactor.SrcColor,
+        3 => BlendingFactor.OneMinusSrcColor,
+        4 => BlendingFactor.DstColor,
+        5 => BlendingFactor.OneMinusDstColor,
+        6 => BlendingFactor.SrcAlpha,
+        7 => BlendingFactor.OneMinusSrcAlpha,
+        8 => BlendingFactor.DstAlpha,
+        9 => BlendingFactor.OneMinusDstAlpha,
+        10 => BlendingFactor.SrcAlphaSaturate,
+        // Indices 11-15 are reserved by the Bethesda enum and shouldn't appear
+        // on actor meshes. Conservative fallback: standard "over" blending.
+        _ => idx == 0xF ? BlendingFactor.One : BlendingFactor.SrcAlpha,
+    };
 
     private void DrawMesh(GlMesh mesh)
     {

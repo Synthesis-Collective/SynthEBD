@@ -23,7 +23,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Stage 4: environment mapping](#stage-4-environment-mapping)
    - [Stage 5: emissive](#stage-5-emissive)
    - [Stage 6: tone-map, fresnel, vignette](#stage-6-tone-map-fresnel-vignette)
-   - [Final: eye alpha & framebuffer](#final-eye-alpha--framebuffer)
+   - [Final: framebuffer alpha](#final-framebuffer-alpha)
 4. [Part 3 — Comparison with NifSkope and Outfit Studio](#part-3--comparison-with-nifskope-and-outfit-studio)
 5. [Appendix A — Shader flag inventory table](#appendix-a--shader-flag-inventory-table)
 6. [Appendix B — BSLightingShaderProperty field inventory](#appendix-b--bslightingshaderproperty-field-inventory)
@@ -131,7 +131,7 @@ Per shape that has an `AlphaPropertyRef` ([NifMeshBuilder.cs:962-991](Nif/NifMes
 - `flags & 0x0001` → `HasAlphaBlend` — host enables `GL_BLEND` and disables depth write for the shape.
 - `threshold / 255.0f` → `AlphaThreshold` — drives the `discard` cutoff.
 
-`SrcBlend` / `DstBlend` enums in the alpha-property flags are not honored — the renderer assumes standard `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` for any alpha-blended shape. In practice this matches the engine for hair, lashes, brows, and the wet-eye outer cornea; non-default blend equations are extremely rare in actor NIFs.
+`SrcBlend` (bits 1-4) and `DstBlend` (bits 5-8) enums in the alpha-property flags are honored per-mesh. NifMeshBuilder extracts the indices, BuiltMesh / GlMesh carry them through to the renderer, and Pass 2 calls `glBlendFunc` per-mesh via a Bethesda-enum → OpenTK `BlendingFactor` mapping in [GlRenderer.cs](Gl/GlRenderer.cs). The vast majority of actor alpha-blended shapes use `SRC_ALPHA / INV_SRC_ALPHA` (standard "over" transparency); the notable exception is the UBE-style wet-eye outer cornea, which ships `SRC_ALPHA / ONE` (additive) so a near-black cornea adds nothing to the iris underneath while bright catchlight pixels add brightness. Honoring the per-mesh factors is what removes the need for any special-case shader logic to render the cornea correctly.
 
 ### Skinning
 
@@ -375,11 +375,11 @@ ACES filmic compresses HDR highlights, adds a soft toe in shadows, and produces 
 
 `smoothstep(u_vignetteRadius, sqrt(2), distFromCenter)` — radial darkening from screen center toward corners. Reads less as a "vignette effect" and more as the natural lens falloff every photographic portrait has. Tunable from 0 (off) to 1 (corners to black) via `u_vignetteIntensity`.
 
-### Final: eye alpha & framebuffer
+### Final: framebuffer alpha
 
-[basic.frag:545-560](Shaders/basic.frag#L545). The wet-eye outer cornea (BSLSP_EYE + alpha-blend + env-mapping) ships with a near-black diffuse and alpha=1. In the engine, the eye-cubemap reflection writes over that black so the shape reads as a transparent glassy overlay. We don't have a per-shape eye cubemap path in slot 4 for this shape, so the env block is skipped — leaving a solid alpha=1 black void without intervention.
+The fragment shader writes `FragColor = vec4(finalColor, baseColor.a)` — output alpha is just the surface's own alpha, no special-casing.
 
-Workaround: for eye shapes only, modulate alpha by the lit luminance so dark cornea pixels become transparent (iris shows through) while specular catchlights stay opaque (wet-eye sparkle preserved). For non-eye shapes baseColor.a is unchanged.
+Earlier versions of this shader had a luma-driven workaround (`outAlpha = min(baseColor.a, lit_luma)` for any ST_EYE shape) to make UBE's separate wet-eye outer cornea fade where dim, since hard-coded `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` blending would otherwise paint a solid black void over the iris underneath. That workaround was replaced once the renderer started honoring per-mesh `SrcBlend / DstBlend` from `NiAlphaProperty` (see [Part 1 NiAlphaProperty](#nialphaproperty)) — UBE's wet-eye is authored as additive blend (`SRC_ALPHA / ONE`), which produces the engine-correct "black cornea adds nothing, catchlight adds brightness" behaviour natively. No shader logic needed.
 
 ---
 
@@ -423,7 +423,7 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 
   Net: visually we land in a portrait-acceptable place (skin doesn't read as plastic, ear/nostril edges glow when backlit), but it's not a faithful reproduction of the engine's SSS. If we ever need a closer engine match — e.g., to match an in-game screenshot pixel-for-pixel — replacing the analytic forward+transmission terms with a pre-integrated LUT is the next step.
 
-- **Eye catchlight.** Bethesda ships a wet-eye outer cornea NIF shape that relies on the engine's eye-cubemap reflection to fake transparency. Our env-map path is spherical-2D rather than cubemap and the per-NPC eye cubemap isn't in slot 4 for this shape, so without the catchlight + alpha-luminance trick the cornea would render as solid black over the iris.
+- **Eye catchlight.** Neither NifSkope nor Outfit Studio renders a dedicated catchlight. We do, because portrait photographs read as "alive vs. dead" largely on the wet-eye specular dot. Our env-map path is spherical-2D rather than cubemap (see "Where we differ accidentally" below), so the env-cubemap-driven specular highlight that gives in-game eyes their sparkle isn't faithful here; the catchlight pass compensates.
 
 - **Shadows + SSAO + tone-map.** Portrait-quality finishing. NifSkope and Outfit Studio are utility renderers; we're a portrait viewer.
 
@@ -434,8 +434,6 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 - **Wetness, parallax, refraction.** Bethesda's actual face/body shaders support all of these via dedicated BSLSP fields and shader flags. They're rare on actor meshes — almost no skin shapes set the parallax flag — so the omission is practical, not a bug. If this renderer ever needs to handle armor or weapons more accurately, parallax becomes important.
 
 - **Glow maps (slot 2 emissive modulation).** Some emissive shapes use slot 2 as an emissive mask. We use slot 2 only for SSS on skin shapes; for non-skin emissive shapes we apply `Own_Emit` without modulation. Visually incorrect for, e.g., the Daedric armor enchanted glow, irrelevant for actor preview.
-
-- **NiAlphaProperty src/dst blend equations.** We hard-code `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` for all alpha-blended shapes. NifSkope honors the per-shape blend equations. In the actor shapes we render this distinction never matters; for effect shaders (BSEffectShaderProperty) it would.
 
 ---
 

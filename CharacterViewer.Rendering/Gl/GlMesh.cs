@@ -47,6 +47,20 @@ public class GlMesh : IDisposable
     public bool HasAlphaBlend { get; set; }
     public bool IsDoubleSided { get; set; }
 
+    /// <summary>SrcBlend factor for the alpha-blend pass, as a Bethesda enum
+    /// index (0=ONE, 1=ZERO, 2=SRC_COLOR, ..., 6=SRC_ALPHA, 7=INV_SRC_ALPHA, ...).
+    /// Read from NiAlphaProperty.flags bits 1-4 by NifMeshBuilder; mapped to
+    /// OpenTK BlendingFactor at draw time. Default 6 (SRC_ALPHA) for shapes
+    /// without an alpha property.</summary>
+    public int SrcBlendIndex { get; set; } = 6;
+
+    /// <summary>DstBlend factor for the alpha-blend pass (same Bethesda enum
+    /// as SrcBlend; bits 5-8 of NiAlphaProperty.flags). Default 7
+    /// (INV_SRC_ALPHA) for standard "over" transparency. UBE-style wet-eye
+    /// outer cornea ships with 0 (ONE) so it composites additively over the
+    /// iris underneath.</summary>
+    public int DstBlendIndex { get; set; } = 7;
+
     /// <summary>True when the source shape's BSLightingShaderProperty is
     /// type BSLSP_HAIRTINT. Used elsewhere for hair-color tinting.</summary>
     public bool IsHairTintShader { get; set; }
