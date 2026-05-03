@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Pfim;
 
 namespace CharacterViewer.Rendering;
 
@@ -100,6 +101,110 @@ internal static partial class NifDiagnosticDumper
         sb.Append("    format: ").AppendLine(info.Format ?? "?");
         sb.Append("    mips:   ").AppendLine(info.MipCount.ToString());
         if (info.LinearSize > 0) sb.Append("    pitch:  ").AppendLine(info.LinearSize.ToString("N0"));
+
+        // Pfim-decode a sparse sample of pixels and report colour/alpha statistics.
+        // Reveals whether (e.g.) a FaceTint texture has an alpha mask we're
+        // ignoring, or whether two diffuses we expect to match actually differ
+        // significantly in mean tone.
+        TryDumpPixelStats(sb, src.ResolvedDiskPath);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Pixel statistics (mean RGB, mean alpha, alpha histogram)
+    // ════════════════════════════════════════════════════════════════════
+
+    private static void TryDumpPixelStats(StringBuilder sb, string diskPath)
+    {
+        try
+        {
+            using var image = Pfimage.FromFile(diskPath);
+            int w = image.Width, h = image.Height;
+            int stride = image.Stride;
+            byte[] data = image.Data;
+
+            // Sample every Nth pixel along each axis so 8192² textures don't
+            // make the dump take seconds. Target ~10k samples regardless of
+            // input size — that's enough for stable means and an alpha
+            // histogram without paying full O(w·h).
+            int target = 10_000;
+            int totalPx = w * h;
+            int step = Math.Max(1, (int)Math.Sqrt(totalPx / (double)target));
+
+            int bpp; // bytes per pixel in image.Data
+            bool hasAlpha;
+            int rOff, gOff, bOff, aOff;
+            switch (image.Format)
+            {
+                // Pfim's BGRA32 layout (the most common Skyrim DDS output).
+                case ImageFormat.Rgba32:
+                    bpp = 4; rOff = 2; gOff = 1; bOff = 0; aOff = 3; hasAlpha = true; break;
+                case ImageFormat.Rgb24:
+                    bpp = 3; rOff = 2; gOff = 1; bOff = 0; aOff = -1; hasAlpha = false; break;
+                case ImageFormat.Rgb8:
+                    bpp = 1; rOff = 0; gOff = 0; bOff = 0; aOff = -1; hasAlpha = false; break;
+                default:
+                    sb.Append("    pixels: <unsupported pfim format ").Append(image.Format).AppendLine(">");
+                    return;
+            }
+
+            long sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+            int n = 0;
+            // alpha histogram: 4 buckets — [0,64), [64,128), [128,192), [192,256)
+            Span<int> aHist = stackalloc int[4];
+
+            for (int y = 0; y < h; y += step)
+            {
+                int rowBase = y * stride;
+                for (int x = 0; x < w; x += step)
+                {
+                    int idx = rowBase + x * bpp;
+                    if (idx + bpp > data.Length) break;
+                    byte r = data[idx + rOff];
+                    byte g = data[idx + gOff];
+                    byte b = data[idx + bOff];
+                    sumR += r; sumG += g; sumB += b;
+                    if (hasAlpha)
+                    {
+                        byte a = data[idx + aOff];
+                        sumA += a;
+                        aHist[a >> 6]++;
+                    }
+                    n++;
+                }
+            }
+
+            if (n == 0) return;
+
+            sb.Append("    samples:").Append(n.ToString()).Append(" (every ").Append(step).AppendLine("th pixel)");
+            sb.Append("    mean RGB:")
+              .Append("(").Append((sumR / (double)n).ToString("F1"))
+              .Append(", ").Append((sumG / (double)n).ToString("F1"))
+              .Append(", ").Append((sumB / (double)n).ToString("F1"))
+              .AppendLine(")");
+            if (hasAlpha)
+            {
+                double meanA = sumA / (double)n;
+                sb.Append("    mean A: ").Append(meanA.ToString("F1"))
+                  .Append("   alpha hist: [0..63]=").Append(Pct(aHist[0], n))
+                  .Append("  [64..127]=").Append(Pct(aHist[1], n))
+                  .Append("  [128..191]=").Append(Pct(aHist[2], n))
+                  .Append("  [192..255]=").Append(Pct(aHist[3], n))
+                  .AppendLine();
+            }
+            else
+            {
+                sb.AppendLine("    mean A: <no alpha channel>");
+            }
+        }
+        catch (Exception ex)
+        {
+            sb.Append("    pixels: <decode failed: ").Append(ex.Message).AppendLine(">");
+        }
+    }
+
+    private static string Pct(int count, int total)
+    {
+        return ((100.0 * count) / total).ToString("F1") + "%";
     }
 
     // ════════════════════════════════════════════════════════════════════
