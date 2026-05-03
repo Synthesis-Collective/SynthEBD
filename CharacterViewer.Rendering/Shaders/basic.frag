@@ -46,6 +46,29 @@ const bool DEBUG_VIZ_WORLD_NORMAL = false;
 // of the 90-degree lighting offset.
 const bool DEBUG_VIZ_MSN_NORMAL = false;
 
+// FaceTint blend mode selector.
+//
+// Background: NifSkope's source ships TWO Skyrim face shaders --
+// sk_default.frag (used for non-MSN faces) which has NO FaceTint
+// code at all, and sk_msn.frag (used for MSN faces) which applies
+// FaceTint as a Photoshop overlay then doubles the albedo. The
+// in-game engine almost certainly mirrors this split, since vanilla
+// FaceGen always bakes Model_Space_Normals while body/face replacers
+// like UBE deliberately ship tangent-space (non-MSN) faces.
+//
+// Empirical verification (CharacterViewer.Rendering.NifDiagnosticDumper
+// pixel statistics, 2026-05-02):
+//   MSN  + overlay  -> matches body for vanilla NPCs (Hadvar, Solitude
+//                      blacksmith, etc.)
+//   non-MSN + multiply -> matches body for UBE NPCs (Lydia)
+//   non-MSN + overlay  -> face renders ~2x brighter than body (seam)
+//   MSN  + multiply -> face renders ~2x darker than body (seam)
+//
+// Mode 0 (default): auto -- MSN gets overlay, non-MSN gets multiply.
+// Mode 1: always overlay (legacy behavior; pre-2026-05-02).
+// Mode 2: always multiply (useful when verifying just the multiply path).
+const int FACE_TINT_MODE = 0;
+
 struct Light {
     int type; // 0:disabled, 1:ambient, 2:directional
     vec3 direction; // pre-transformed to view space
@@ -250,10 +273,19 @@ void main()
         baseColor.rgb = overlayBlend(baseColor.rgb, detailSample);
     }
 
-    // Face tint overlay (RGB only - alpha channel is not used)
+    // Face tint blend (RGB only - alpha is unused; verified mean=255 across
+    // both vanilla and UBE FaceTints). The blend choice is gated on the
+    // SLSF1_Model_Space_Normals flag, mirroring NifSkope's sk_msn vs
+    // sk_default split. See FACE_TINT_MODE const at file top.
     if (has_face_tint_map && u_enableFaceTint) {
         vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
-        baseColor.rgb = overlayBlend(baseColor.rgb, tintSample);
+        bool useOverlay = (FACE_TINT_MODE == 1)
+                       || (FACE_TINT_MODE == 0 && is_model_space);
+        if (useOverlay) {
+            baseColor.rgb = overlayBlend(baseColor.rgb, tintSample);
+        } else {
+            baseColor.rgb *= tintSample;
+        }
     }
 
     // --- 2. NORMAL CALCULATION ---
