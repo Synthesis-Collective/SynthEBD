@@ -98,7 +98,7 @@ The fields actually consumed downstream are:
 - `subsurfaceRolloff` — drives the SSS wrap term.
 - `rimlightPower` — exponent for the silhouette falloff used by hair backlight and skin rim.
 - `grayscaleToPaletteScale` — multiplier for the hair-tint shader path.
-- `emissiveColor`, `emissiveMultiple` — additive emission.
+- `emissiveColor`, `emissiveMultiple` — emissive contribution. Multiplied by `baseColor.rgb` at the shader's emissive stage so the emissive is "absorbed" by the surface color (matching NifSkope's `albedo * (diffuse + emissive)` math); dark regions of the diffuse don't glow.
 - `uvScale`, `uvOffset` — per-shape UV transform applied in the vertex shader.
 - `environmentMapScale`, `eyeCubemapScale` — env-map intensity (different fields for normal vs eye shader).
 - `hairTintColor` — only when `bslspShaderType == BSLSP_HAIRTINT`.
@@ -342,7 +342,13 @@ finalColor += envColor * envMask * scale;
 
 ### Stage 5: emissive
 
-[basic.frag:490-493](Shaders/basic.frag#L490). When SLSF1_Own_Emit is set: `finalColor += emissiveColor * emissiveMultiple`. Additive, no light interaction — emissive surfaces glow regardless of incident light.
+When SLSF1_Own_Emit is set:
+
+```glsl
+finalColor += emissiveColor * emissiveMultiple * baseColor.rgb;
+```
+
+The multiply by `baseColor.rgb` matches NifSkope's `color = albedo * (diffuse + emissive) + spec` — emissive is bounded by the surface color, so dark regions of the diffuse (e.g., lash hairs that share a mesh with a glowing iris) don't emit. An earlier version of this stage was pure-additive (`finalColor += emissiveColor * emissiveMultiple`), which produced a saturated-yellow stomp across the entire eye-and-lash mesh on shapes like BB's Serana Replacer that ship with strong vampire-eye emissive values like `(0.89, 0.65, 0) × 1.42`.
 
 We do **not** support glow maps (slot 2 modulating emission) currently. This affects very few actor shapes; `Own_Emit` without a glow map is the common case.
 

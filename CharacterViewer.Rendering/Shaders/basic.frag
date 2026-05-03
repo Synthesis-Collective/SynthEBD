@@ -488,8 +488,17 @@ void main()
     }
 
     // --- 5. EMISSIVE ---
+    // Multiplied by baseColor.rgb to match the engine-correct math in
+    // NifSkope's sk_default.frag / sk_msn.frag:
+    //   color.rgb = albedo * (diffuse + emissive) + spec
+    // i.e. the emissive is "absorbed" by the surface color -- a black
+    // surface emits nothing, a bright surface emits at full intensity.
+    // Without this multiply, strong-emissive shapes (e.g., BB's Serana
+    // Replacer's vampire eyes with emissive (0.89, 0.65, 0) x 1.42) leak
+    // saturated yellow onto every fragment of the mesh including dark
+    // regions like lash hairs that are part of the same shape.
     if (has_emissive && u_enableEmissive) {
-        finalColor += emissiveColor * emissiveMultiple;
+        finalColor += emissiveColor * emissiveMultiple * baseColor.rgb;
     }
 
     // --- 6. TONE-MAPPING & COLOR GRADE (CharacterViewer.Rendering 2.5.9+) ---
