@@ -180,5 +180,31 @@
                 </ComboBox>
             </WrapPanel>
         </Border>
+
+        <!-- Row 1c: FaceTint mode selector + multiply-on-empty-slot-3 -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Face Tint" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <TextBlock Text="Mode:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,4,0"
+                           ToolTip="FaceTint blend operator. Auto matches NifSkope's sk_msn / sk_default split (MSN gets overlay, non-MSN gets multiply). Option 4 (Pegtop) is the engine-faithful operator per Community Shaders' GetFacegenBaseColor source."/>
+                <ComboBox Width="180" VerticalAlignment="Center"
+                          SelectedIndex="{Binding FaceTintMode}">
+                    <ComboBoxItem Content="Auto (MSN=overlay)"/>
+                    <ComboBoxItem Content="Always overlay"/>
+                    <ComboBoxItem Content="Always multiply"/>
+                    <ComboBoxItem Content="Always skip"/>
+                    <ComboBoxItem Content="Pegtop (engine)"/>
+                </ComboBox>
+
+                <CheckBox Content="Multiply on empty slot-3" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="20,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding FaceTintMultiplyOnEmptyDetail}"
+                          ToolTip="Experimental: face shapes (ShaderType 4) whose NIF has the SLSF1_Facegen_Detail_Map flag set but slot 3 of the texture set is empty are forced to multiply, ignoring Mode. Resolves the seam on modder faces that omit slot 3 (Brynjolf, Aia Arria, Angeline Morrard) without affecting NPCs whose slot 3 is populated."/>
+            </WrapPanel>
+        </Border>
     </StackPanel>
 </UserControl>

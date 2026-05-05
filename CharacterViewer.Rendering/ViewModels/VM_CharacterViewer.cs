@@ -342,6 +342,17 @@ public class VM_CharacterViewer : ViewerVm
     /// without VC data — those upload (1,1,1,1)), 2 = force off.</summary>
     public int VertexColorMultiplyMode { get; set; } = 0;
 
+    /// <summary>FaceTint blend mode (runtime selectable).
+    /// 0 = Auto (MSN-&gt;overlay, non-MSN-&gt;multiply), 1 = Always overlay,
+    /// 2 = Always multiply, 3 = Always skip, 4 = Pegtop soft-light.</summary>
+    public int FaceTintMode { get; set; } = 0;
+
+    /// <summary>Experimental: force the FaceTint blend to multiply on
+    /// face shapes whose NIF has <c>SLSF1_Facegen_Detail_Map</c> set but
+    /// slot 3 of the texture set is empty. See
+    /// <see cref="GlRenderer.FaceTintMultiplyOnEmptyDetail"/>.</summary>
+    public bool FaceTintMultiplyOnEmptyDetail { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -806,6 +817,10 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SkinTintLerpStrength = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VertexColorMultiplyMode)
             .Subscribe(v => Renderer.VertexColorMultiplyMode = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.FaceTintMode)
+            .Subscribe(v => Renderer.FaceTintMode = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.FaceTintMultiplyOnEmptyDetail)
+            .Subscribe(v => Renderer.FaceTintMultiplyOnEmptyDetail = v).DisposeWith(_disposables);
 
         // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
         // (mesh-upload time), so toggling it at runtime needs the host to
@@ -3096,12 +3111,23 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         // Detail map (SLSF1_Facegen_Detail_Map, bit 10)
-        if ((built.ShaderFlags1 & (1u << 10)) != 0 && effectiveTextures.TryGetValue(3, out string? detailPath))
+        bool detailFlagSet = (built.ShaderFlags1 & (1u << 10)) != 0;
+        bool detailSlotPopulated = effectiveTextures.TryGetValue(3, out string? detailPath);
+        if (detailFlagSet && detailSlotPopulated && detailPath != null)
         {
             glMesh.DetailTexture = TextureManager.LoadTexture(detailPath);
             glMesh.HasDetailMap = true;
             RecordTextureSource(glMesh, "Detail Map", detailPath);
         }
+
+        // Track face shapes with an empty slot 3 for the optional
+        // "force multiply on empty detail" debug path in basic.frag.
+        // Set independently of whether the toggle is on; the shader-side
+        // toggle (FaceTintMultiplyOnEmptyDetail) decides whether to act
+        // on it.
+        glMesh.IsFaceWithEmptyDetailSlot = built.ShaderType == 4
+            && detailFlagSet
+            && !detailSlotPopulated;
 
         // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
         glMesh.IsDoubleSided = built.IsDoubleSided;

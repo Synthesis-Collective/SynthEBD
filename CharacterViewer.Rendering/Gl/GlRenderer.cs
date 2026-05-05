@@ -170,6 +170,28 @@ public class GlRenderer : IDisposable
     /// colors are visibly modulating the diffuse).</summary>
     public int VertexColorMultiplyMode { get; set; } = 0;
 
+    /// <summary>FaceTint blend operator selector -- runtime version of
+    /// the previous <c>FACE_TINT_MODE</c> shader constant.
+    /// 0 = Auto (MSN gets overlay, non-MSN gets multiply,
+    /// matches NifSkope's sk_msn / sk_default split);
+    /// 1 = Always overlay;
+    /// 2 = Always multiply;
+    /// 3 = Always skip;
+    /// 4 = Pegtop soft-light (engine-faithful per Community Shaders'
+    /// GetFacegenBaseColor source).</summary>
+    public int FaceTintMode { get; set; } = 0;
+
+    /// <summary>Experimental: when true, face shapes (ShaderType 4)
+    /// whose <c>SLSF1_Facegen_Detail_Map</c> flag is set but whose
+    /// BSShaderTextureSet slot 3 is empty are rendered with the FaceTint
+    /// operator forced to multiply (overriding <see cref="FaceTintMode"/>
+    /// for those specific meshes). Empirically resolves the seam on
+    /// modder faces that omit slot 3 (Brynjolf / Aia / Angeline) without
+    /// affecting NPCs whose slot 3 is populated. Toggle is reactive —
+    /// the per-mesh "empty slot 3" flag is set at load time, the
+    /// override decision is made each frame in basic.frag.</summary>
+    public bool FaceTintMultiplyOnEmptyDetail { get; set; } = false;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -509,6 +531,8 @@ public class GlRenderer : IDisposable
         _shader.SetInt("u_skinTintOperator", SkinTintOperator);
         _shader.SetFloat("u_skinTintLerpStrength", SkinTintLerpStrength);
         _shader.SetInt("u_vertexColorMode", VertexColorMultiplyMode);
+        _shader.SetInt("u_faceTintMode", FaceTintMode);
+        _shader.SetBool("u_faceTintMultiplyOnEmptyDetail", FaceTintMultiplyOnEmptyDetail);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
@@ -1644,6 +1668,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
         _shader.SetBool("is_face_shape", mesh.IsFaceShape);
         _shader.SetFloat("skin_tint_alpha", mesh.SkinTintAlpha);
+        _shader.SetBool("is_face_empty_detail", mesh.IsFaceWithEmptyDetailSlot);
 
         // Per-shape texture visibility toggles
         _shader.SetBool("u_enableDiffuse", mesh.DiffuseEnabled);

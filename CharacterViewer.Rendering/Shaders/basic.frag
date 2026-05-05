@@ -56,18 +56,19 @@ const bool DEBUG_VIZ_MSN_NORMAL = false;
 // FaceGen always bakes Model_Space_Normals while body/face replacers
 // like UBE deliberately ship tangent-space (non-MSN) faces.
 //
-// Empirical verification (CharacterViewer.Rendering.NifDiagnosticDumper
-// pixel statistics, 2026-05-02):
-//   MSN  + overlay  -> matches body for vanilla NPCs (Hadvar, Solitude
-//                      blacksmith, etc.)
-//   non-MSN + multiply -> matches body for UBE NPCs (Lydia)
-//   non-MSN + overlay  -> face renders ~2x brighter than body (seam)
-//   MSN  + multiply -> face renders ~2x darker than body (seam)
-//
 // Mode 0 (default): auto -- MSN gets overlay, non-MSN gets multiply.
-// Mode 1: always overlay (legacy behavior; pre-2026-05-02).
-// Mode 2: always multiply (useful when verifying just the multiply path).
-const int FACE_TINT_MODE = 0;
+// Mode 1: always overlay.
+// Mode 2: always multiply.
+// Mode 3: always skip (use for vanilla children whose multiply
+//         output looks too brown; opt-in only).
+// Mode 4: Pegtop soft-light (engine-faithful per Community Shaders'
+//         GetFacegenBaseColor reverse-engineered source).
+//
+// Promoted from const to uniform so the host can flip modes at
+// runtime to triangulate the engine's actual FaceTint operator
+// without re-loading the scene or recompiling the shader. Default
+// value applied at the GlRenderer layer.
+uniform int u_faceTintMode;
 
 struct Light {
     int type; // 0:disabled, 1:ambient, 2:directional
@@ -106,6 +107,7 @@ uniform bool has_detail_map;
 uniform bool is_eye;
 uniform bool is_face_shape;
 uniform float skin_tint_alpha;
+uniform bool is_face_empty_detail;
 
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
@@ -134,6 +136,15 @@ uniform float u_skinTintLerpStrength;
 // Debug override for the vertex-color multiply branch.
 // 0 = auto (production), 1 = force on, 2 = force off.
 uniform int u_vertexColorMode;
+
+// Experimental: when true, face shapes whose NIF has the
+// SLSF1_Facegen_Detail_Map flag set but slot 3 is empty in their
+// BSShaderTextureSet (signaled by per-mesh is_face_empty_detail) are
+// rendered with the FaceTint operator forced to multiply, regardless
+// of u_faceTintMode. Empirically resolves the seam on modder faces
+// that omit slot 3 (Brynjolf, Aia Arria, Angeline Morrard) without
+// affecting NPCs whose slot 3 is populated.
+uniform bool u_faceTintMultiplyOnEmptyDetail;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -360,14 +371,33 @@ void main()
     // both vanilla and UBE FaceTints). The blend choice is gated on the
     // SLSF1_Model_Space_Normals flag, mirroring NifSkope's sk_msn vs
     // sk_default split. See FACE_TINT_MODE const at file top.
+    // Face tint blend (RGB only - alpha is unused; verified mean=255 across
+    // both vanilla and UBE FaceTints). The blend choice is gated on
+    // u_faceTintMode (and may be overridden per-mesh by the
+    // multiply-on-empty-slot-3 toggle).
     if (has_face_tint_map && u_enableFaceTint) {
-        vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
-        bool useOverlay = (FACE_TINT_MODE == 1)
-                       || (FACE_TINT_MODE == 0 && is_model_space);
+        // Per-mesh override: face shapes with empty slot 3 (and the
+        // experimental toggle on) force multiply, ignoring u_faceTintMode.
+        bool forceMultiply = u_faceTintMultiplyOnEmptyDetail && is_face_empty_detail;
+        bool useOverlay = !forceMultiply
+                       && ((u_faceTintMode == 1)
+                           || (u_faceTintMode == 0 && is_model_space));
+        bool useMultiply = forceMultiply
+                        || (u_faceTintMode == 2)
+                        || (u_faceTintMode == 0 && !is_model_space);
+        bool usePegtop = !forceMultiply && (u_faceTintMode == 4);
+        // Mode 3 (always skip) falls through with no blend.
         if (useOverlay) {
+            vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
             baseColor.rgb = overlayBlend(baseColor.rgb, tintSample);
-        } else {
+        } else if (useMultiply) {
+            vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
             baseColor.rgb *= tintSample;
+        } else if (usePegtop) {
+            // Mode 4 -- Pegtop soft-light (engine-faithful per Community
+            // Shaders' GetFacegenBaseColor reverse-engineered source).
+            vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
+            baseColor.rgb = pegtopBlend(baseColor.rgb, tintSample);
         }
     }
 

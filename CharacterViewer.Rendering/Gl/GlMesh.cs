@@ -150,6 +150,15 @@ public class GlMesh : IDisposable
     /// produces no visible tint, which is itself a useful test point).</summary>
     public float SkinTintAlpha { get; set; }
 
+    /// <summary>True when this is a face shape (ShaderType 4) whose
+    /// BSLightingShaderProperty has the SLSF1_Facegen_Detail_Map flag
+    /// set but slot 3 of its BSShaderTextureSet is empty. Empirically
+    /// correlates with mod-replacer faces that produce a face/body seam
+    /// under the default overlay-FaceTint blend (Brynjolf, Aia Arria,
+    /// Angeline Morrard from Ordinary People). Drives the optional
+    /// "force multiply on empty detail" debug toggle in basic.frag.</summary>
+    public bool IsFaceWithEmptyDetailSlot { get; set; }
+
     // Source metadata for the hover tooltip. These are display-only and have
     // no effect on rendering; VM_CharacterViewer populates them at load time.
     public AssetSource? MeshSource { get; set; }

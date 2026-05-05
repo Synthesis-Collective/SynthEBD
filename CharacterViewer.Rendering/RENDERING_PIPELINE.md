@@ -316,6 +316,22 @@ This is the only place the renderer makes a decision based on MSN beyond the nor
 
 `FACE_TINT_MODE` const at the top of [basic.frag](Shaders/basic.frag#L70) forces overlay (`1`) or multiply (`2`) for cross-checking.
 
+##### FaceTint runtime mode + Pegtop + multiply-on-empty
+
+The shader-side `FACE_TINT_MODE` const has been promoted to a `u_faceTintMode` uniform so the host can flip operators at runtime to triangulate the engine's actual FaceTint blend without scene reload. Five modes are now available:
+
+| Mode | Behavior |
+|---|---|
+| 0 | Auto (MSN → overlay, non-MSN → multiply) |
+| 1 | Always overlay |
+| 2 | Always multiply |
+| 3 | Always skip (use for vanilla children whose multiply renders too brown) |
+| 4 | Pegtop soft-light (engine-faithful per Community Shaders' `GetFacegenBaseColor`) |
+
+The Pegtop helper (added in the [skin-tint operator selector](#skin-tint-operator-selector-debug) commit) is reused here. Mode 4 is the engine-correct one; the others remain selectable for cross-checking.
+
+**Multiply-on-empty-slot-3 override.** A second toggle (`u_faceTintMultiplyOnEmptyDetail`) forces multiply for face shapes (`ShaderType==4`) whose NIF has `SLSF1_Facegen_Detail_Map` set but whose `BSShaderTextureSet` slot 3 is empty. Empirically resolves the seam on modder faces that omit slot 3 (Brynjolf, Aia Arria, Angeline Morrard from Ordinary People) without affecting NPCs whose slot 3 is populated. The per-mesh `is_face_empty_detail` uniform is set in `ApplyTexturesToGlMesh` based on the NIF flag + slot inspection; the shader-side toggle decides whether to act on it. Useful as a stopgap pending the engine-style detail-map blend, which addresses the same shapes from the detail-map side.
+
 ### Stage 2: normal calculation
 
 [basic.frag:291-323](Shaders/basic.frag#L291). Three paths:
