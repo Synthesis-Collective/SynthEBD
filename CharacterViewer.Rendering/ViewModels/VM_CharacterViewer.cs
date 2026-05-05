@@ -331,8 +331,12 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Debug operator selector for the QNAM tint blend.
     /// 0 multiply / 1 overlay / 2 linear-space multiply / 3 gamma-aware /
     /// 4 lerp(strength) / 5 lerp weighted by NIF skinTintAlpha /
-    /// 6 Pegtop soft-light + body color-shift constant.</summary>
-    public int SkinTintOperator { get; set; } = 0;
+    /// 6 Pegtop soft-light + body color-shift constant. Default 6:
+    /// matches the engine's GetFacegenRGBTintBaseColor per Community
+    /// Shaders' reverse-engineered source and reproduces the engine's
+    /// face/body skin-tone composition across the test NPC set
+    /// (vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, UBE Lydia).</summary>
+    public int SkinTintOperator { get; set; } = 6;
 
     /// <summary>Strength used by SkinTintOperator==4 (lerp).</summary>
     public float SkinTintLerpStrength { get; set; } = 0.5f;
@@ -344,8 +348,12 @@ public class VM_CharacterViewer : ViewerVm
 
     /// <summary>FaceTint blend mode (runtime selectable).
     /// 0 = Auto (MSN-&gt;overlay, non-MSN-&gt;multiply), 1 = Always overlay,
-    /// 2 = Always multiply, 3 = Always skip, 4 = Pegtop soft-light.</summary>
-    public int FaceTintMode { get; set; } = 0;
+    /// 2 = Always multiply, 3 = Always skip, 4 = Pegtop soft-light.
+    /// Default 4 (Pegtop): the engine's actual FaceTint operator per
+    /// Community Shaders' GetFacegenBaseColor source. Pair with
+    /// <see cref="UseEngineStyleDetailMap"/> = true for engine-faithful
+    /// face composition.</summary>
+    public int FaceTintMode { get; set; } = 4;
 
     /// <summary>Experimental: force the FaceTint blend to multiply on
     /// face shapes whose NIF has <c>SLSF1_Facegen_Detail_Map</c> set but
@@ -356,8 +364,10 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Apply the slot-3 detail map the way the Skyrim engine
     /// actually does -- multiplicative post-FaceTint blend with a
     /// specific scale/offset transform. See
-    /// <see cref="GlRenderer.UseEngineStyleDetailMap"/>.</summary>
-    public bool UseEngineStyleDetailMap { get; set; } = false;
+    /// <see cref="GlRenderer.UseEngineStyleDetailMap"/>. Default true:
+    /// pairs with FaceTintMode=4 (Pegtop) and SkinTintOperator=6
+    /// (Pegtop) to reproduce the engine's GetFacegenBaseColor pipeline.</summary>
+    public bool UseEngineStyleDetailMap { get; set; } = true;
 
     /// <summary>Experimental: substitute
     /// <c>textures\actors\character\male\BlankDetailmap.dds</c> when slot 3

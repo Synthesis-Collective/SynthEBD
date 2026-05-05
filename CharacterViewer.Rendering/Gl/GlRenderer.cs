@@ -152,8 +152,10 @@ public class GlRenderer : IDisposable
     /// 3 = gamma-aware multiply (pow(albedo, 1/tint) approximation),
     /// 4 = lerp(albedo, albedo*tint, <see cref="SkinTintLerpStrength"/>),
     /// 5 = lerp weighted by NIF's per-shape skinTintAlpha (0 in our samples),
-    /// 6 = Pegtop soft-light + engine body color-shift constant.</summary>
-    public int SkinTintOperator { get; set; } = 0;
+    /// 6 = Pegtop soft-light + engine body color-shift constant.
+    /// Default 6: matches the engine's GetFacegenRGBTintBaseColor per
+    /// Community Shaders' reverse-engineered source.</summary>
+    public int SkinTintOperator { get; set; } = 6;
 
     /// <summary>Strength used by SkinTintOperator == 4 (lerp).
     /// 0 = no tint; 1 = full multiply.</summary>
@@ -178,8 +180,11 @@ public class GlRenderer : IDisposable
     /// 2 = Always multiply;
     /// 3 = Always skip;
     /// 4 = Pegtop soft-light (engine-faithful per Community Shaders'
-    /// GetFacegenBaseColor source).</summary>
-    public int FaceTintMode { get; set; } = 0;
+    /// GetFacegenBaseColor source).
+    /// Default 4: pairs with <see cref="SkinTintOperator"/> = 6 and
+    /// <see cref="UseEngineStyleDetailMap"/> = true to reproduce the
+    /// engine's face composition pipeline.</summary>
+    public int FaceTintMode { get; set; } = 4;
 
     /// <summary>Experimental: when true, face shapes (ShaderType 4)
     /// whose <c>SLSF1_Facegen_Detail_Map</c> flag is set but whose
@@ -198,10 +203,10 @@ public class GlRenderer : IDisposable
     /// of the post-FaceTint result by
     /// <c>3.984375 * ((1/255, 0, 1/255) + sampledDetail)</c>, applied AFTER
     /// the FaceTint blend rather than as a Photoshop overlay before it.
-    /// Combined with FaceTintMode==4 (Pegtop) and SkinTintOperator==6
-    /// (Pegtop with engine constant), reproduces the engine's face /
-    /// body composition math.</summary>
-    public bool UseEngineStyleDetailMap { get; set; } = false;
+    /// Default true: combined with FaceTintMode==4 (Pegtop) and
+    /// SkinTintOperator==6 (Pegtop with engine constant), reproduces the
+    /// engine's face / body composition math.</summary>
+    public bool UseEngineStyleDetailMap { get; set; } = true;
 
     /// <summary>Experimental: when true, face shapes whose slot 3 is
     /// empty get <c>textures\actors\character\male\BlankDetailmap.dds</c>
