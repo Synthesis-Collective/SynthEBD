@@ -203,6 +203,15 @@ public class GlRenderer : IDisposable
     /// body composition math.</summary>
     public bool UseEngineStyleDetailMap { get; set; } = false;
 
+    /// <summary>Experimental: when true, face shapes whose slot 3 is
+    /// empty get <c>textures\actors\character\male\BlankDetailmap.dds</c>
+    /// substituted at load time, exercising the detail-map blend with
+    /// the standard Bethesda CK fallback (mid-grey). Tests whether the
+    /// engine substitutes a default detail texture when slot 3 is empty.
+    /// Changing this toggle fires <see cref="VM_CharacterViewer.ReloadRequested"/>
+    /// because texture binding is decided at scene-build time.</summary>
+    public bool UseBlankDetailFallback { get; set; } = false;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>

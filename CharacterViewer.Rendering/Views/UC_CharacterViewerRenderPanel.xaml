@@ -209,6 +209,11 @@
                           Margin="20,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding FaceTintMultiplyOnEmptyDetail}"
                           ToolTip="Experimental: face shapes (ShaderType 4) whose NIF has the SLSF1_Facegen_Detail_Map flag set but slot 3 of the texture set is empty are forced to multiply, ignoring Mode. Resolves the seam on modder faces that omit slot 3 (Brynjolf, Aia Arria, Angeline Morrard) without affecting NPCs whose slot 3 is populated."/>
+
+                <CheckBox Content="BlankDetailmap fallback" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="20,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding UseBlankDetailFallback}"
+                          ToolTip="Experimental: face shapes (ShaderType 4) whose NIF has the SLSF1_Facegen_Detail_Map flag set but slot 3 is empty get textures\actors\character\male\BlankDetailmap.dds substituted at load time, exercising the detail-map blend with Bethesda's standard CK fallback (mid-gray). Tests whether the engine substitutes a similar default at runtime. Toggling triggers a scene reload."/>
             </WrapPanel>
         </Border>
     </StackPanel>

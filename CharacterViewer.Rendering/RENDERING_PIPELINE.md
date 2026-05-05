@@ -350,6 +350,10 @@ The constant `3.984375` is roughly `4 - 1/64`; the `(1/255, 0, 1/255)` offset pr
 
 The `u_detailMapEngineStyle` uniform selects between the legacy overlay path and the engine-style multiply path; both are gated on the same `has_detail_map && u_enableDetail` test, so toggling doesn't change which shapes participate, only how they composite. Pairs with `FaceTintMode==4` (Pegtop) and `SkinTintOperator==6` (Pegtop with engine constant) to reproduce the engine's full face composition pipeline.
 
+##### BlankDetailmap fallback (debug)
+
+A separate experimental host-side toggle (`UseBlankDetailFallback`) substitutes `textures\actors\character\male\BlankDetailmap.dds` when slot 3 is empty on a face shape. The substitution happens in `ApplyTexturesToGlMesh` at scene-build time — the toggle therefore fires `ReloadRequested` rather than just pushing a uniform. Tests whether the engine substitutes a similar default at runtime for slot-3-empty faces (Brynjolf, Aia, Angeline). Mostly redundant with the Pegtop + engine-style detail combination: for those shapes the multiply with BlankDetailmap (mid-gray) lands close to identity, which is also what skipping the detail step gets you. Kept as a control point because it isolates "did the engine substitute a texture?" from "what blend math?" for future investigation.
+
 ### Stage 2: normal calculation
 
 [basic.frag:291-323](Shaders/basic.frag#L291). Three paths:

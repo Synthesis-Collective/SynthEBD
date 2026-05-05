@@ -359,6 +359,11 @@ public class VM_CharacterViewer : ViewerVm
     /// <see cref="GlRenderer.UseEngineStyleDetailMap"/>.</summary>
     public bool UseEngineStyleDetailMap { get; set; } = false;
 
+    /// <summary>Experimental: substitute
+    /// <c>textures\actors\character\male\BlankDetailmap.dds</c> when slot 3
+    /// is empty on a face shape. Triggers a scene reload when toggled.</summary>
+    public bool UseBlankDetailFallback { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -829,6 +834,15 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.FaceTintMultiplyOnEmptyDetail = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.UseEngineStyleDetailMap)
             .Subscribe(v => Renderer.UseEngineStyleDetailMap = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.UseBlankDetailFallback)
+            .Subscribe(v => Renderer.UseBlankDetailFallback = v).DisposeWith(_disposables);
+        // Texture substitution is decided at scene-build time, so toggling
+        // requires a reload. Skip(1) so the initial value emission doesn't
+        // fire a reload before any host has wired the handler.
+        this.WhenAnyValue(x => x.UseBlankDetailFallback)
+            .Skip(1)
+            .Subscribe(_ => ReloadRequested?.Invoke())
+            .DisposeWith(_disposables);
 
         // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
         // (mesh-upload time), so toggling it at runtime needs the host to
@@ -3126,6 +3140,18 @@ public class VM_CharacterViewer : ViewerVm
             glMesh.DetailTexture = TextureManager.LoadTexture(detailPath);
             glMesh.HasDetailMap = true;
             RecordTextureSource(glMesh, "Detail Map", detailPath);
+        }
+        else if (detailFlagSet && !detailSlotPopulated && built.ShaderType == 4 && Renderer.UseBlankDetailFallback)
+        {
+            // Experimental fallback: face shape has the detail flag set
+            // but slot 3 is empty in its NIF. Substitute Bethesda's CK
+            // default (the texture used when no complexion / freckle /
+            // dirt / wound option is chosen). Helps test whether the
+            // engine substitutes a similar default at runtime.
+            const string blankDetailPath = "textures\\actors\\character\\male\\BlankDetailmap.dds";
+            glMesh.DetailTexture = TextureManager.LoadTexture(blankDetailPath);
+            glMesh.HasDetailMap = true;
+            RecordTextureSource(glMesh, "Detail Map (BlankDetailmap fallback)", blankDetailPath);
         }
 
         // Track face shapes with an empty slot 3 for the optional
