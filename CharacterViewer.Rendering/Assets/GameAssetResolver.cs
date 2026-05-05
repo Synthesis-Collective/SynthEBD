@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace CharacterViewer.Rendering;
 
@@ -100,18 +101,21 @@ public class GameAssetResolver
     /// <summary>
     /// Optional priority-ordered loose-file search paths consulted BEFORE
     /// <see cref="IDataFolderProvider.DataFolderPath"/> for the active
-    /// render or load. Set via <see cref="SetAdditionalFolders"/> by the
-    /// offscreen renderer (per-render scope) and <see cref="VM_CharacterViewer"/>
-    /// (per-load scope). Cleared back to null at end-of-scope so renders
-    /// don't leak mod folders between calls.
+    /// render or load. Pushed via <see cref="PushScopes"/> by the offscreen
+    /// renderer (per-render) and <see cref="VM_CharacterViewer"/> (per-load,
+    /// re-pushed inside per-tick installs). Restored at end-of-scope so
+    /// renders don't leak between calls.
     ///
-    /// Marked volatile because both writers (renderer's lock-held thread,
-    /// VM's render-thread marshaller) and readers (resolver calls during
-    /// off-thread <c>LoadAllMeshParts</c>) span thread boundaries —
-    /// volatility provides the memory barrier without forcing every
-    /// resolution to take a lock.
+    /// <para>Backed by <see cref="AsyncLocal{T}"/> so the value flows through
+    /// <c>await</c> continuations and <c>Task.Run</c> for off-thread NIF parsing,
+    /// while staying isolated between concurrent renders on different async
+    /// flows. The earlier volatile-field design shared a single value across
+    /// every flow — a 3D preview opening mid-mugshot-batch could overwrite the
+    /// mugshot's scope chain mid-resolve, producing wrong textures or wireframes
+    /// that the path-keyed pixel cache then poisoned. AsyncLocal storage plus
+    /// a per-render <see cref="PushScopes"/> bracket eliminates the race.</para>
     /// </summary>
-    private volatile IReadOnlyList<string>? _currentAdditionalFolders;
+    private readonly AsyncLocal<IReadOnlyList<string>?> _currentAdditionalFolders = new();
 
     /// <summary>
     /// Strict two-phase resolution chain. When non-null, OVERRIDES
@@ -123,24 +127,26 @@ public class GameAssetResolver
     /// the contract on <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/>
     /// for the rationale.
     ///
-    /// <para>Marked volatile for the same memory-barrier reasons as
-    /// <see cref="_currentAdditionalFolders"/> — written by the renderer's
-    /// lock-held thread (offscreen path) or the VM's render-thread
-    /// marshaller (interactive path), read during off-thread NIF parsing.</para>
+    /// <para>Backed by <see cref="AsyncLocal{T}"/> for the same flow-isolation
+    /// reasons as <see cref="_currentAdditionalFolders"/>.</para>
     /// </summary>
-    private volatile IReadOnlyList<RenderScope>? _currentAdditionalScopes;
+    private readonly AsyncLocal<IReadOnlyList<RenderScope>?> _currentAdditionalScopes = new();
 
-    /// <summary>Default-true companion to
+    /// <summary>Companion to
     /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>.
-    /// When false, scope-chain Phase 1 skips the vanilla scope's loose
-    /// check so vanilla loose files don't preempt mod-scoped BSA hits.</summary>
-    private volatile bool _vanillaLooseOverridesBsa = true;
+    /// Effective default is <c>true</c> (engine behavior); a <c>null</c>
+    /// AsyncLocal value reads back as the default. When set false, scope-chain
+    /// Phase 1 skips the vanilla scope's loose check so vanilla loose files
+    /// don't preempt mod-scoped BSA hits.</summary>
+    private readonly AsyncLocal<bool?> _vanillaLooseOverridesBsa = new();
 
     /// <summary>Companion to
     /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesModLoose"/>.
-    /// When true, the resolver checks the vanilla scope's loose folder for
-    /// non-FaceGen paths before walking mod-folder loose files.</summary>
-    private volatile bool _vanillaLooseOverridesModLoose;
+    /// Effective default is <c>false</c> (matches <see cref="AsyncLocal{T}"/>
+    /// of <c>bool</c>). When true, the resolver checks the vanilla scope's
+    /// loose folder for non-FaceGen paths before walking mod-folder loose
+    /// files.</summary>
+    private readonly AsyncLocal<bool> _vanillaLooseOverridesModLoose = new();
 
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
@@ -153,7 +159,10 @@ public class GameAssetResolver
         _logGate = logGate;
         _logger = logger;
 
-        _extractionDir = Path.Combine(Path.GetTempPath(), "SynthEBD_ViewerCache");
+        // Exe-relative so the cache is visible next to the running EXE
+        // rather than buried under %TEMP%. Per-BSA SHA token under here keeps
+        // files reusable across sessions (see GetBsaPathToken).
+        _extractionDir = Path.Combine(AppContext.BaseDirectory, "CharacterViewerCache");
     }
 
     private void LogVerbose(string message)
@@ -196,15 +205,14 @@ public class GameAssetResolver
 
     /// <summary>
     /// Drops every BSA-extracted file currently tracked in the resolver's
-    /// cache and clears the cache itself. Intended for one-and-done batch
-    /// flows (see <see cref="Offscreen.OffscreenRenderRequest.ClearExtractionCacheAfterRender"/>)
-    /// where the host generates each PNG once and the temp directory would
-    /// otherwise grow without bound. Safe to call between renders; not
-    /// safe to call concurrently with a render in progress (the renderer
-    /// invokes this from its own per-render finally block on the dedicated
-    /// render thread, which serializes against the next queued job).
-    /// Returns the number of files actually deleted (best-effort —
-    /// individual delete failures are swallowed and counted as misses).
+    /// cache and clears the cache itself. Hosts can call this on demand
+    /// (e.g. a manual "Clear cache" UI action or app shutdown) when the
+    /// on-disk extraction directory has grown larger than they want to
+    /// keep around. Not safe to call concurrently with a render in
+    /// progress — coordinate with the host's render queue / VM lifecycle
+    /// to ensure quiescence before invoking. Returns the number of files
+    /// actually deleted (best-effort — individual delete failures are
+    /// swallowed and counted as misses).
     /// </summary>
     public int ClearExtractedFiles()
     {
@@ -246,6 +254,45 @@ public class GameAssetResolver
     }
 
     /// <summary>
+    /// Pushes a complete per-flow scoping snapshot onto the resolver and
+    /// returns a token whose <see cref="IDisposable.Dispose"/> restores the
+    /// prior values. Replaces the older <see cref="SetAdditionalScopes"/>
+    /// + <see cref="SetAdditionalFolders"/> + <see cref="SetVanillaLooseOverridesBsa"/>
+    /// + <see cref="SetVanillaLooseOverridesModLoose"/> bracket pattern with
+    /// a single <c>using</c> scope.
+    ///
+    /// <para>Two reasons to prefer this over the four <c>Set*</c> calls:
+    /// (1) all four values move together, so one push is harder to half-clear
+    /// than four; (2) the token snapshots whatever was previously in scope,
+    /// so nested pushes (e.g. an offscreen render's outer push + the VM's
+    /// inner push during <c>LoadAsync</c>) restore correctly instead of
+    /// always clearing to null.</para>
+    ///
+    /// <para>Backed by <see cref="AsyncLocal{T}"/>, so the pushed values flow
+    /// through <c>await</c> continuations and <c>Task.Run</c> for off-thread
+    /// NIF parsing. A peer render on a different async flow sees its own
+    /// values, not this one's — concurrent renders cannot stomp each other.
+    /// The prior volatile-singleton design did not have that property.</para>
+    /// </summary>
+    public IDisposable PushScopes(
+        IReadOnlyList<RenderScope>? scopes,
+        IReadOnlyList<string>? folders,
+        bool vanillaLooseOverridesBsa,
+        bool vanillaLooseOverridesModLoose)
+    {
+        var snapshot = new ScopeSnapshot(
+            _currentAdditionalScopes.Value,
+            _currentAdditionalFolders.Value,
+            _vanillaLooseOverridesBsa.Value,
+            _vanillaLooseOverridesModLoose.Value);
+        _currentAdditionalScopes.Value = (scopes == null || scopes.Count == 0) ? null : scopes;
+        _currentAdditionalFolders.Value = (folders == null || folders.Count == 0) ? null : folders;
+        _vanillaLooseOverridesBsa.Value = vanillaLooseOverridesBsa;
+        _vanillaLooseOverridesModLoose.Value = vanillaLooseOverridesModLoose;
+        return new ScopeToken(this, snapshot);
+    }
+
+    /// <summary>
     /// Sets the priority-ordered loose-file search paths consulted before the
     /// vanilla Data folder for subsequent resolutions. Pass <c>null</c> (or
     /// an empty list) to clear back to vanilla-only behavior.
@@ -257,15 +304,14 @@ public class GameAssetResolver
     /// resolve to different files between renders depending on which mod's
     /// folders are currently scoped.</para>
     ///
-    /// <para>Lifecycle is owned by the caller (offscreen renderer per-render,
-    /// or <see cref="VM_CharacterViewer"/> per-load): set before resolution,
-    /// clear in a finally / SceneCommitted block. The renderer's serialized
-    /// lock and the VM's marshaller-anchored resolution flow ensure no two
-    /// callers race on this state in practice.</para>
+    /// <para>Mutates the AsyncLocal value on the calling flow only — sibling
+    /// flows are unaffected. Prefer <see cref="PushScopes"/> for new code
+    /// because its token-based bracket avoids the leak-on-exception risk of
+    /// a manual set/clear pair.</para>
     /// </summary>
     public void SetAdditionalFolders(IReadOnlyList<string>? folders)
     {
-        _currentAdditionalFolders = (folders == null || folders.Count == 0) ? null : folders;
+        _currentAdditionalFolders.Value = (folders == null || folders.Count == 0) ? null : folders;
     }
 
     /// <summary>
@@ -274,12 +320,12 @@ public class GameAssetResolver
     /// legacy <see cref="SetAdditionalFolders"/> + vanilla-fallback behavior.
     /// While scopes are active the loose-file resolution cache is bypassed
     /// for both reads and writes (same reasoning as additional folders).
-    /// Lifecycle is owned by the caller (offscreen renderer per-render or
-    /// <see cref="VM_CharacterViewer"/> per-load).
+    /// Mutates the AsyncLocal value on the calling flow only. Prefer
+    /// <see cref="PushScopes"/> for new code.
     /// </summary>
     public void SetAdditionalScopes(IReadOnlyList<RenderScope>? scopes)
     {
-        _currentAdditionalScopes = (scopes == null || scopes.Count == 0) ? null : scopes;
+        _currentAdditionalScopes.Value = (scopes == null || scopes.Count == 0) ? null : scopes;
     }
 
     /// <summary>
@@ -287,11 +333,12 @@ public class GameAssetResolver
     /// behavior; default <c>true</c>). When false, Phase 1 of the strict scope
     /// walk skips the vanilla scope (i=0) so its loose files don't preempt a
     /// mod-scoped BSA hit. Mod-folder loose files in higher scopes are
-    /// unaffected. See <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>.
+    /// unaffected. Mutates the AsyncLocal value on the calling flow only.
+    /// See <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>.
     /// </summary>
     public void SetVanillaLooseOverridesBsa(bool value)
     {
-        _vanillaLooseOverridesBsa = value;
+        _vanillaLooseOverridesBsa.Value = value;
     }
 
     /// <summary>
@@ -299,12 +346,47 @@ public class GameAssetResolver
     /// take priority over mod-folder loose files for non-FaceGen paths.
     /// When true, the user's installed body / skin / texture replacers in
     /// the data folder leak into mod-specific previews. The
-    /// <c>FaceGenData</c> tree is excluded regardless. See
+    /// <c>FaceGenData</c> tree is excluded regardless. Mutates the AsyncLocal
+    /// value on the calling flow only. See
     /// <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesModLoose"/>.
     /// </summary>
     public void SetVanillaLooseOverridesModLoose(bool value)
     {
-        _vanillaLooseOverridesModLoose = value;
+        _vanillaLooseOverridesModLoose.Value = value;
+    }
+
+    /// <summary>Captured snapshot of the four scoping values for restoration
+    /// by <see cref="ScopeToken"/>.</summary>
+    private readonly record struct ScopeSnapshot(
+        IReadOnlyList<RenderScope>? Scopes,
+        IReadOnlyList<string>? Folders,
+        bool? VanillaLooseOverridesBsa,
+        bool VanillaLooseOverridesModLoose);
+
+    /// <summary>Restores the captured <see cref="ScopeSnapshot"/> on
+    /// <see cref="Dispose"/>. Idempotent — multiple disposes are no-ops so
+    /// the token is safe inside <c>using</c> + manual dispose pairs.</summary>
+    private sealed class ScopeToken : IDisposable
+    {
+        private readonly GameAssetResolver _owner;
+        private readonly ScopeSnapshot _prev;
+        private bool _disposed;
+
+        public ScopeToken(GameAssetResolver owner, ScopeSnapshot prev)
+        {
+            _owner = owner;
+            _prev = prev;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _owner._currentAdditionalScopes.Value = _prev.Scopes;
+            _owner._currentAdditionalFolders.Value = _prev.Folders;
+            _owner._vanillaLooseOverridesBsa.Value = _prev.VanillaLooseOverridesBsa;
+            _owner._vanillaLooseOverridesModLoose.Value = _prev.VanillaLooseOverridesModLoose;
+        }
     }
 
     /// <summary>True for paths under the FaceGen tree (FaceGeom NIFs and
@@ -337,14 +419,14 @@ public class GameAssetResolver
             return AssetSource.NotFound(relativeGamePath ?? string.Empty);
         }
 
-        // Snapshot the per-render scoping state once so concurrent
-        // SetAdditional* calls don't change our view mid-resolution. Scopes
-        // win over folders if both are set (scopes are strictly more
-        // expressive). While either is active, the loose-file cache is
-        // bypassed entirely — the same relative path may resolve to a
-        // different file depending on which scope chain is current.
-        var additionalScopes = _currentAdditionalScopes;
-        var additionalFolders = additionalScopes == null ? _currentAdditionalFolders : null;
+        // Snapshot the per-flow scoping state once so a sibling flow's
+        // PushScopes can't change our view mid-resolution. Scopes win over
+        // folders if both are set (scopes are strictly more expressive).
+        // While either is active, the loose-file cache is bypassed entirely
+        // — the same relative path may resolve to a different file depending
+        // on which scope chain is current.
+        var additionalScopes = _currentAdditionalScopes.Value;
+        var additionalFolders = additionalScopes == null ? _currentAdditionalFolders.Value : null;
         bool useLooseCache = additionalScopes == null && additionalFolders == null;
 
         // Fast path: previously-resolved loose file or definitive miss. Covers the
@@ -434,8 +516,10 @@ public class GameAssetResolver
     private AssetSource ResolveViaScopes(string relativeGamePath, string normalized,
         IReadOnlyList<RenderScope> scopes)
     {
-        bool toggleVanillaOverridesBsa = _vanillaLooseOverridesBsa;
-        bool toggleVanillaOverridesModLoose = _vanillaLooseOverridesModLoose;
+        // Snapshot once per call. AsyncLocal<bool?> defaults to null when
+        // no caller pushed a value; treat null as the engine-default true.
+        bool toggleVanillaOverridesBsa = _vanillaLooseOverridesBsa.Value ?? true;
+        bool toggleVanillaOverridesModLoose = _vanillaLooseOverridesModLoose.Value;
         bool isFaceGen = IsFaceGenPath(normalized);
 
         // Toggle 2 fast-path: vanilla loose preempts mod-folder loose for

@@ -188,6 +188,25 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Counterpart of _pendingLoadStopwatch for the head-only fast path.</summary>
     private System.Diagnostics.Stopwatch? _pendingHeadReplaceStopwatch;
 
+    // ─── Per-load resolver scope snapshot ───────────────────────────────────
+    // The resolver's scope state is AsyncLocal-backed, so values pushed inside
+    // LoadAsync's flow naturally reach off-thread NIF parsing via Task.Run.
+    // BUT the install side runs on the WPF render callback (CompositionTarget.
+    // Rendering → ProcessPendingScene), which has its own ExecutionContext and
+    // does NOT carry LoadAsync's AsyncLocal value. We snapshot here so the
+    // install ticks can re-push the same values onto the resolver each tick.
+    //
+    // Lifecycle: populated at the top of LoadAsync (and RebuildHeadOnlyAsync),
+    // cleared at the end of ProcessPendingScene's finalize block (success) or
+    // in LoadAsync's catch/finally when SceneCommitted won't fire (cancel /
+    // error before commit). A re-entrant LoadAsync overwrites with its own
+    // snapshot before the previous install finishes — same behavior the prior
+    // singleton-field design had.
+    private IReadOnlyList<RenderScope>? _currentSceneScopes;
+    private IReadOnlyList<string>? _currentSceneFolders;
+    private bool _currentSceneVanillaLooseOverridesBsa = true;
+    private bool _currentSceneVanillaLooseOverridesModLoose;
+
     private readonly CharacterPreviewCache _previewCache;
     private readonly IRenderThreadMarshaller _renderThread;
 
@@ -2549,6 +2568,19 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public void ProcessPendingScene()
     {
+        // Re-push the per-load resolution snapshot onto the resolver for the
+        // duration of this tick's install work. The render callback that
+        // invoked us is on a different ExecutionContext than LoadAsync, so
+        // resolver AsyncLocal values set inside LoadAsync are NOT visible
+        // here — this push is what makes texture/mesh resolves during
+        // InstallOneShape see the right scope chain. Pushing nulls when no
+        // load is pending is a harmless no-op (PushScopes writes null to
+        // the AsyncLocals, then the using restores the prior null).
+        using var __scopes = _assetResolver.PushScopes(
+            _currentSceneScopes, _currentSceneFolders,
+            _currentSceneVanillaLooseOverridesBsa,
+            _currentSceneVanillaLooseOverridesModLoose);
+
         // Head-only rebuild (P2) is independent of full-scene setup and runs
         // without touching Body/Hands/Feet. Drain it here so the render callback
         // owns all GL-side scene mutations.
@@ -2682,13 +2714,13 @@ public class VM_CharacterViewer : ViewerVm
         // scene, including any pending texture/morph state from the previous scene.
         SceneCommitted?.Invoke();
 
-        // Per-load asset-resolution scope ends here — the multi-tick sliced
-        // install is finished, so clear both resolver fields. Subsequent
-        // narrow updates (texture overrides, morphs) that need scoping
-        // require the host to re-set AdditionalScopes / AdditionalDataFolders
-        // and re-trigger LoadAsync.
-        _assetResolver.SetAdditionalScopes(null);
-        _assetResolver.SetAdditionalFolders(null);
+        // Per-load asset-resolution snapshot ends here — the multi-tick sliced
+        // install is finished, so clear the per-VM snapshot. Subsequent narrow
+        // updates (texture overrides, morphs) that need scoping require the
+        // host to re-set AdditionalScopes / AdditionalDataFolders and re-trigger
+        // LoadAsync.
+        _currentSceneScopes = null;
+        _currentSceneFolders = null;
     }
 
     /// <summary>Body and accessories upload before head/hair so the progressive
@@ -2848,24 +2880,22 @@ public class VM_CharacterViewer : ViewerVm
         // applied to the soon-to-be-destroyed current meshes.
         _sceneRebuildPending = true;
 
-        // Capture the host's asset-resolution scoping snapshot once and push
-        // it to the resolver before any off-thread NIF parsing kicks off. The
-        // resolver fields are volatile so the off-thread Task.Run sees these
-        // writes; they're cleared in ProcessPendingScene's finalize block
-        // (after SceneCommitted) or in the cancel/error path below if the
-        // load doesn't reach commit. AdditionalScopes (1.2.0+) wins over
-        // AdditionalDataFolders (1.1.0) when both are provided.
+        // Snapshot the host's resolution scoping into per-VM fields. Two
+        // consumers of these snapshots:
+        //   (a) The PushScopes bracket below covers off-thread NIF parsing
+        //       inside Task.Run — AsyncLocal flows through ExecutionContext.
+        //   (b) ProcessPendingScene re-pushes from the snapshot fields on
+        //       every install tick because the WPF render callback that
+        //       fires it is on a different ExecutionContext that does NOT
+        //       inherit this method's AsyncLocal value.
+        // AdditionalScopes (1.2.0+) wins over AdditionalDataFolders (1.1.0)
+        // when both are provided.
         var additionalScopes = AdditionalScopes;
         var additionalFolders = AdditionalDataFolders;
-        _assetResolver.SetAdditionalScopes(additionalScopes);
-        _assetResolver.SetAdditionalFolders(additionalFolders);
-        // Per-load advanced overrides (2.3.0+). Pushed alongside the scopes
-        // so the off-thread Task.Run + scene queue see consistent state.
-        // Cleared in the same SceneCommitted / cancel-error blocks that
-        // clear the scope chain — see ProcessPendingScene's finalize +
-        // LoadAsync's catch path below.
-        _assetResolver.SetVanillaLooseOverridesBsa(VanillaLooseOverridesBsa);
-        _assetResolver.SetVanillaLooseOverridesModLoose(VanillaLooseOverridesModLoose);
+        _currentSceneScopes = additionalScopes;
+        _currentSceneFolders = additionalFolders;
+        _currentSceneVanillaLooseOverridesBsa = VanillaLooseOverridesBsa;
+        _currentSceneVanillaLooseOverridesModLoose = VanillaLooseOverridesModLoose;
 
         IsLoading = true;
         StatusText = "Loading meshes...";
@@ -2894,7 +2924,19 @@ public class VM_CharacterViewer : ViewerVm
             _cachedMeshPaths = paths;
             cts.Token.ThrowIfCancellationRequested();
 
-            var loadResults = await Task.Run(() => LoadAllMeshParts(paths), cts.Token);
+            // Push the snapshot onto the resolver's AsyncLocal stack for the
+            // duration of the off-thread parse. The using bracket covers only
+            // the Task.Run — ExecutionContext flows into the pool worker so
+            // LoadAllMeshParts → ResolveAssetSource sees these scopes — and
+            // pops on return. The install side later in ProcessPendingScene
+            // re-pushes from _currentScene* fields on its own callback flow.
+            List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> loadResults;
+            using (_assetResolver.PushScopes(additionalScopes, additionalFolders,
+                       _currentSceneVanillaLooseOverridesBsa,
+                       _currentSceneVanillaLooseOverridesModLoose))
+            {
+                loadResults = await Task.Run(() => LoadAllMeshParts(paths), cts.Token);
+            }
             cts.Token.ThrowIfCancellationRequested();
 
             // Store pending scene data — GL work is deferred to the render callback
@@ -2941,18 +2983,18 @@ public class VM_CharacterViewer : ViewerVm
             // paths fall through here with _pendingScene == null and need to drop
             // the spinner immediately.
             //
-            // Mod-folder cleanup mirrors that split: success leaves the resolver
-            // scoped for ProcessPendingScene to clear after SceneCommitted (it
-            // still needs the folders during the multi-tick install). Cancel /
-            // error clears here because SceneCommitted won't fire — but only if
-            // we're still the current load. A newer LoadAsync that just took
-            // over has already pushed its own folders; clearing here would
-            // wipe them out mid-flight.
+            // Snapshot cleanup mirrors that split: success leaves _currentScene*
+            // populated so ProcessPendingScene can re-push them onto the resolver
+            // during the multi-tick install (cleared by ProcessPendingScene's
+            // finalize after SceneCommitted). Cancel / error clears here because
+            // SceneCommitted won't fire — but only if we're still the current
+            // load. A newer LoadAsync that just took over has already overwritten
+            // _currentScene*; clearing here would wipe its snapshot mid-flight.
             if (_loadCts == cts && _pendingScene == null)
             {
                 IsLoading = false;
-                _assetResolver.SetAdditionalScopes(null);
-                _assetResolver.SetAdditionalFolders(null);
+                _currentSceneScopes = null;
+                _currentSceneFolders = null;
             }
         }
     }
@@ -3494,11 +3536,19 @@ public class VM_CharacterViewer : ViewerVm
         // Parse with no skeleton: FaceGen head NIFs are rigid / self-skinned and
         // the body skeleton is not needed to produce correct vertex positions.
         // This matches how LoadAllMeshParts invokes BuildFromFile for the Head
-        // when skeletonNif is null.
+        // when skeletonNif is null. Push the per-load snapshot for the duration
+        // of the off-thread parse — defensive (BuildFromFile parses NIFs and
+        // shouldn't itself touch textures, but anything down the future stack
+        // that does will see consistent scopes via AsyncLocal flow).
         List<NifMeshBuilder.BuiltMesh> meshes;
         try
         {
-            meshes = await Task.Run(() => _meshBuilder.BuildFromFile(headNifPath, skeletonNif: null), ct);
+            using (_assetResolver.PushScopes(_currentSceneScopes, _currentSceneFolders,
+                       _currentSceneVanillaLooseOverridesBsa,
+                       _currentSceneVanillaLooseOverridesModLoose))
+            {
+                meshes = await Task.Run(() => _meshBuilder.BuildFromFile(headNifPath, skeletonNif: null), ct);
+            }
         }
         catch (OperationCanceledException)
         {

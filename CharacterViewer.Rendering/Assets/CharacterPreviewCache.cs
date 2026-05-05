@@ -82,8 +82,11 @@ public class CharacterPreviewCache
     /// <summary>
     /// Returns cached <see cref="ResolvedNpcMeshPaths"/> for this NPC under the
     /// data source's current invalidation token, or resolves and caches if absent.
-    /// A null result (NPC unresolvable) is also cached so repeat lookups don't
-    /// redo the failing traversal.
+    /// Null results are NOT cached — under the strict-scopes contract a miss
+    /// can legitimately differ across scopes (one render's vanilla-only scope
+    /// failing to resolve doesn't tell us what a later mod-scoped render would
+    /// produce). Treating misses as fresh-each-time avoids cross-scope cache
+    /// poisoning.
     /// </summary>
     public ResolvedNpcMeshPaths? GetOrResolveMeshPaths(NpcIdentity identity)
     {
@@ -112,6 +115,9 @@ public class CharacterPreviewCache
 
         var resolved = _dataSource.Resolve(identity);
 
+        // Don't cache misses — see method-level remark.
+        if (resolved == null) return null;
+
         lock (_meshPathsLock)
         {
             // Re-check the token in case another thread invalidated mid-resolve.
@@ -132,9 +138,13 @@ public class CharacterPreviewCache
 
     /// <summary>
     /// Returns BGRA32 pixel data for the given game-relative DDS path, decoding
-    /// through Pfim on cache miss and caching the result for subsequent viewers.
-    /// A null result (unresolvable path / unsupported format / decode failure)
-    /// is also cached so repeat lookups don't redo the failing work.
+    /// through Pfim on cache miss and caching successful results for subsequent
+    /// viewers. Null results are NOT cached — under the strict-scopes contract
+    /// the same path can resolve differently across scopes, so a miss observed
+    /// in one render must not poison a later render whose scope chain would
+    /// have found the file. Re-decoding a legitimately-broken texture is the
+    /// expected (rare) cost; the missing-texture wireframe path bounds the
+    /// visual impact.
     ///
     /// The returned <see cref="DdsPixels.Data"/> array is treated as immutable
     /// by the cache — callers that blend tints on the CPU must clone before
@@ -157,6 +167,9 @@ public class CharacterPreviewCache
         }
 
         var decoded = DecodeDds(relativeGamePath);
+
+        // Don't cache misses — see method-level remark.
+        if (decoded == null) return null;
 
         lock (_pixelLock)
         {

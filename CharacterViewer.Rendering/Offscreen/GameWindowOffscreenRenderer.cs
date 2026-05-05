@@ -248,16 +248,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
         EnsureFbo(request.Width, request.Height);
 
-        // Per-render asset-resolution scoping (defense-in-depth —
-        // VM.LoadAsync also pushes its own scopes/folders, but we
-        // ensure the resolver fields are set before AND cleared
-        // after the render regardless of which code paths the VM
-        // hits). AdditionalScopes (1.2.0+) overrides
-        // AdditionalDataFolders (1.1.0) when both are provided.
-        _assets.SetAdditionalScopes(request.AdditionalScopes);
-        _assets.SetAdditionalFolders(request.AdditionalDataFolders);
-        _assets.SetVanillaLooseOverridesBsa(request.VanillaLooseOverridesBsa);
-        _assets.SetVanillaLooseOverridesModLoose(request.VanillaLooseOverridesModLoose);
+        // Per-render asset-resolution scope. PushScopes binds the four scoping
+        // values to this flow's AsyncLocal stack and returns a token that
+        // restores the prior values on dispose. The VM's LoadAsync pushes the
+        // same values internally — this outer push is defense-in-depth so any
+        // resolver call made before LoadAsync (or inside the post-load
+        // ApplyTextureOverrides / ApplyMorphSet paths) still sees the right
+        // scope chain. AdditionalScopes (1.2.0+) overrides AdditionalDataFolders
+        // (1.1.0) when both are provided.
+        using var scopes = _assets.PushScopes(
+            request.AdditionalScopes,
+            request.AdditionalDataFolders,
+            request.VanillaLooseOverridesBsa,
+            request.VanillaLooseOverridesModLoose);
         var vm = new VM_CharacterViewer(
             _bodySlideDeformer, _bsdParser, _triParser, _assets,
             _settings, _previewCache, _logGate, _logger
@@ -294,18 +297,12 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         finally
         {
             vm.Dispose();
-            _assets.SetAdditionalScopes(null);
-            _assets.SetAdditionalFolders(null);
-            // One-and-done batch flows (e.g. NPC2's mugshot tile generation)
-            // opt in to dropping the extraction cache between renders so the
-            // temp dir doesn't grow unboundedly. Runs here on the render
-            // thread so it serializes against the next queued job — the
-            // resolver's caches must not be cleared while another render
-            // is reading or writing them.
-            if (request.ClearExtractionCacheAfterRender)
-            {
-                _assets.ClearExtractedFiles();
-            }
+            // The using on `scopes` above pops the resolver state. Removed the
+            // per-render ClearExtractedFiles call — it raced with concurrent
+            // interactive previews (whose loads share the same extraction
+            // directory). Hosts that want to flush the cache should call
+            // GameAssetResolver.ClearExtractedFiles() at quiescence (e.g. on
+            // shutdown) instead.
         }
     }
 
