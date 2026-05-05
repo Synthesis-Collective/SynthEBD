@@ -183,6 +183,10 @@ Despite the new paint job, SynthEBD functions very similarly to zEBD so if you'r
 
 ## License
 
+SynthEBD (including the bundled `CharacterViewer.Rendering` library) is licensed under the **GNU General Public License v3.0 or later** — see [LICENSE](LICENSE) for the full text. This matches the upstream license of the project's core dependencies (Mutagen.Bethesda, nifly), and is required to be GPL-compatible because of them.
+
+### Third-party notices
+
 SynthEBD bundles 7-zip's 7z.exe. In compliance with my [understanding of its license](https://sourceforge.net/p/sevenzip/discussion/45797/thread/d4ab546a/), I document that:
 (1) I used parts of the 7-Zip program 
 (2) 7-Zip is licensed under the GNU LGPL license 
