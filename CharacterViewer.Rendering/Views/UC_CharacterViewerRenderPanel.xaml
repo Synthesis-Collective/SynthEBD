@@ -134,5 +134,51 @@
                                    ToolTip="Power-curve exponent. Higher = harder darkening in deep crevices, more subtle elsewhere; lower = uniformly darker AO. Default 1.5."/>
             </WrapPanel>
         </Border>
+
+        <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override) -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Skin Tint" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <CheckBox Content="Apply to face" FontSize="11" Foreground="#FFAAAAAA"
+                          VerticalAlignment="Center"
+                          IsChecked="{Binding SkinTintApplyToFace}"
+                          ToolTip="Debug: also apply the QNAM tint to ShaderType==4 face shapes (production: only ShaderType==5 body shapes get it). Useful for testing the 'engine applies QNAM to both face and body' hypothesis."/>
+
+                <TextBlock Text="Operator:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"/>
+                <ComboBox Width="200" VerticalAlignment="Center"
+                          SelectedIndex="{Binding SkinTintOperator}"
+                          ToolTip="How tint_color combines with the slot-0 diffuse. Multiply is the production default. Option 6 (Pegtop) is the engine-faithful operator per Community Shaders source — gentler than multiply or overlay; symmetric around t=0.5 (identity).">
+                    <ComboBoxItem Content="0 - Multiply"/>
+                    <ComboBoxItem Content="1 - Overlay"/>
+                    <ComboBoxItem Content="2 - Linear-space multiply"/>
+                    <ComboBoxItem Content="3 - Gamma-aware (pow 1/tint)"/>
+                    <ComboBoxItem Content="4 - Lerp(strength)"/>
+                    <ComboBoxItem Content="5 - Lerp(skinTintAlpha)"/>
+                    <ComboBoxItem Content="6 - Pegtop (engine)"/>
+                </ComboBox>
+
+                <TextBlock Text="Lerp:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.05"
+                                   Value="{Binding SkinTintLerpStrength}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Strength used by operator 4 (lerp). 0 = no tint; 1 = full multiply."/>
+
+                <TextBlock Text="Vertex colors:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"/>
+                <ComboBox Width="100" VerticalAlignment="Center"
+                          SelectedIndex="{Binding VertexColorMultiplyMode}"
+                          ToolTip="Per-shape vertex-color multiply override. Auto = use the per-shape HasVertexColors flag (production); Force on = apply to every shape (visually inert when no VC data — sanity-checks the (1,1,1,1) fallback); Force off = skip the multiply for every shape.">
+                    <ComboBoxItem Content="Auto"/>
+                    <ComboBoxItem Content="Force on"/>
+                    <ComboBoxItem Content="Force off"/>
+                </ComboBox>
+            </WrapPanel>
+        </Border>
     </StackPanel>
 </UserControl>

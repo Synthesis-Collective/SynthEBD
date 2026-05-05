@@ -322,6 +322,26 @@ public class VM_CharacterViewer : ViewerVm
     /// 1.0 = corners to black.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
+    // ── Skin-tint debug toggles ──────────────────────────────────────
+    /// <summary>Debug: when true, the QNAM tint that body shapes receive
+    /// is also applied to ShaderType==4 face shapes. See
+    /// <see cref="GlRenderer.SkinTintApplyToFace"/> for context.</summary>
+    public bool SkinTintApplyToFace { get; set; } = false;
+
+    /// <summary>Debug operator selector for the QNAM tint blend.
+    /// 0 multiply / 1 overlay / 2 linear-space multiply / 3 gamma-aware /
+    /// 4 lerp(strength) / 5 lerp weighted by NIF skinTintAlpha /
+    /// 6 Pegtop soft-light + body color-shift constant.</summary>
+    public int SkinTintOperator { get; set; } = 0;
+
+    /// <summary>Strength used by SkinTintOperator==4 (lerp).</summary>
+    public float SkinTintLerpStrength { get; set; } = 0.5f;
+
+    /// <summary>Debug override for vertex-color multiply.
+    /// 0 = auto (production), 1 = force on (visually inert for shapes
+    /// without VC data — those upload (1,1,1,1)), 2 = force off.</summary>
+    public int VertexColorMultiplyMode { get; set; } = 0;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -778,6 +798,14 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.VignetteRadius = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VignetteIntensity)
             .Subscribe(v => Renderer.VignetteIntensity = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinTintApplyToFace)
+            .Subscribe(v => Renderer.SkinTintApplyToFace = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinTintOperator)
+            .Subscribe(v => Renderer.SkinTintOperator = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinTintLerpStrength)
+            .Subscribe(v => Renderer.SkinTintLerpStrength = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.VertexColorMultiplyMode)
+            .Subscribe(v => Renderer.VertexColorMultiplyMode = v).DisposeWith(_disposables);
 
         // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
         // (mesh-upload time), so toggling it at runtime needs the host to
@@ -3021,13 +3049,22 @@ public class VM_CharacterViewer : ViewerVm
         glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 25)) != 0; // SLSF2_Soft_Lighting
         glMesh.HasRimLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Rim_Lighting
 
-        // Skin tint (shader type 5 = ST_SkinTint): apply NPC's QNAM TextureLighting color
-        if (built.ShaderType == 5 && meshPaths.TextureLightingColor.HasValue)
+        // Skin tint: apply NPC's QNAM TextureLighting color to body
+        // (ShaderType 5 = ST_SkinTint, production behavior) and to face
+        // shapes (ShaderType 4 = ST_FaceTint, debug path). For face
+        // shapes we always set the tint color but leave the actual
+        // application gated by the GlRenderer.SkinTintApplyToFace
+        // uniform — that way the host can flip the debug toggle at
+        // runtime without re-loading the scene.
+        if ((built.ShaderType == 5 || built.ShaderType == 4)
+            && meshPaths.TextureLightingColor.HasValue)
         {
             var (r, g, b) = meshPaths.TextureLightingColor.Value;
             glMesh.HasTintColor = true;
             glMesh.TintColor = new System.Numerics.Vector3(r, g, b);
         }
+        glMesh.IsFaceShape = (built.ShaderType == 4);
+        glMesh.SkinTintAlpha = built.SkinTintAlpha;
 
         // Eye shader (shader type 16 = ST_EyeEnvmap)
         if (built.ShaderType == 16)

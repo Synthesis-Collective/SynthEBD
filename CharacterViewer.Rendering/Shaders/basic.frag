@@ -104,6 +104,8 @@ uniform bool has_environment_map;
 uniform bool has_env_mask;
 uniform bool has_detail_map;
 uniform bool is_eye;
+uniform bool is_face_shape;
+uniform float skin_tint_alpha;
 
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
@@ -118,6 +120,20 @@ uniform bool u_enableEyeCatchlight;
 uniform float u_subsurfaceStrength;
 uniform float u_vignetteRadius;
 uniform float u_vignetteIntensity;
+// Skin-tint debug operator (interactive selector). 0 = multiply
+// (production default), 1 = overlay, 2 = linear-space multiply,
+// 3 = gamma-aware multiply, 4 = lerp(strength), 5 = lerp weighted by
+// the NIF's per-shape skin_tint_alpha, 6 = Pegtop soft-light + body
+// color-shift constant (engine-faithful per Community Shaders).
+// u_skinTintApplyToFace gates whether ShaderType==4 face shapes
+// participate (production: false).
+uniform bool u_skinTintApplyToFace;
+uniform int u_skinTintOperator;
+uniform float u_skinTintLerpStrength;
+
+// Debug override for the vertex-color multiply branch.
+// 0 = auto (production), 1 = force on, 2 = force off.
+uniform int u_vertexColorMode;
 
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
@@ -161,6 +177,18 @@ float overlayBlend(float b, float l)
 vec3 overlayBlend(vec3 b, vec3 l)
 {
     return vec3(overlayBlend(b.r, l.r), overlayBlend(b.g, l.g), overlayBlend(b.b, l.b));
+}
+
+// Pegtop soft-light (the formula Skyrim's actual face/body shader uses
+// for SkinTint blends, per Community Shaders Lighting.hlsl
+// reverse-engineered/replacement source):
+//   pegtop(b, t) = b*b + 2*t*b*(1-b)
+// At t=0.5 returns b (identity), at t=0 returns b*b (quadratic darken),
+// at t=1 returns 1-(1-b)^2 (quadratic brighten). Symmetric and gentle
+// vs Photoshop overlay's harsher piecewise behavior.
+vec3 pegtopBlend(vec3 b, vec3 t)
+{
+    return b*b + 2.0 * t * b * (vec3(1.0) - b);
 }
 
 // PCF shadow lookup for the key directional light. Returns 1.0 (lit)
@@ -251,7 +279,16 @@ void main()
         baseColor = vec4(0.8, 0.8, 0.8, 1.0); // neutral gray fallback
     }
 
-    if (has_vertex_colors) {
+    // Vertex-color multiply with debug override.
+    // 0 (auto) -- use the per-shape has_vertex_colors flag.
+    // 1 (force on) -- always multiply (visually inert for shapes
+    //   without VC data because the host uploads (1,1,1,1) per vertex).
+    // 2 (force off) -- never multiply.
+    bool applyVertexColors;
+    if (u_vertexColorMode == 1) applyVertexColors = true;
+    else if (u_vertexColorMode == 2) applyVertexColors = false;
+    else applyVertexColors = has_vertex_colors;
+    if (applyVertexColors) {
         baseColor.rgb *= vertexColor.rgb;
         baseColor.a *= vertexColor.a;
     }
@@ -264,7 +301,53 @@ void main()
     if (has_greyscale_to_palette && u_enableDiffuse) {
         baseColor.rgb = baseColor.rrr * tint_color * greyscaleToPaletteScale;
     } else if (has_tint_color && u_enableTintColor) {
-        baseColor.rgb *= tint_color;
+        // Face shapes (ShaderType 4) only participate when the debug
+        // toggle is on. Body shapes (ShaderType 5) and hair-tint shapes
+        // always participate. is_face_shape is set by the host alongside
+        // tint_color so the toggle can flip without reload.
+        bool applyTint = !is_face_shape || u_skinTintApplyToFace;
+        if (applyTint) {
+            int op = u_skinTintOperator;
+            if (op == 0) {
+                // 0 -- straight multiply (legacy production default)
+                baseColor.rgb *= tint_color;
+            } else if (op == 1) {
+                // 1 -- overlay (Photoshop-style)
+                baseColor.rgb = overlayBlend(baseColor.rgb, tint_color);
+            } else if (op == 2) {
+                // 2 -- linear-space multiply: gamma-decode both, multiply,
+                // re-encode. Models tinting performed in linear lighting
+                // space rather than directly on sRGB-encoded texels.
+                vec3 albedoLin = pow(baseColor.rgb, vec3(2.2));
+                vec3 tintLin = pow(tint_color, vec3(2.2));
+                baseColor.rgb = pow(albedoLin * tintLin, vec3(1.0 / 2.2));
+            } else if (op == 3) {
+                // 3 -- gamma-aware: pow(albedo, 1/tint) with safety floor.
+                // Reduces dark-region darkening for low tint values.
+                vec3 t = max(tint_color, vec3(0.001));
+                baseColor.rgb = pow(baseColor.rgb, vec3(1.0) / t);
+            } else if (op == 4) {
+                // 4 -- lerp by user-controlled strength.
+                vec3 tinted = baseColor.rgb * tint_color;
+                baseColor.rgb = mix(baseColor.rgb, tinted, u_skinTintLerpStrength);
+            } else if (op == 5) {
+                // 5 -- lerp weighted by the NIF's per-shape skinTintAlpha.
+                // Always 0.0 in vanilla / replacer NIFs we've sampled, so
+                // this operator effectively reproduces "no tint." Useful as
+                // a control point.
+                vec3 tinted = baseColor.rgb * tint_color;
+                baseColor.rgb = mix(baseColor.rgb, tinted, skin_tint_alpha);
+            } else if (op == 6) {
+                // 6 -- Pegtop soft-light (engine-faithful for body shapes,
+                // ShaderType 5 / kFaceGenRGBTint). Per Community Shaders'
+                // GetFacegenRGBTintBaseColor, the engine multiplies the
+                // result by a small color-shift constant; we do the same.
+                baseColor.rgb = pegtopBlend(baseColor.rgb, tint_color);
+                baseColor.rgb *= vec3(1.01171875, 0.99609375, 1.01171875);
+            } else {
+                baseColor.rgb *= tint_color; // unknown op => safe fallback
+            }
+        }
     }
 
     // Detail map overlay (applied before face tint, matching NifSkope order)

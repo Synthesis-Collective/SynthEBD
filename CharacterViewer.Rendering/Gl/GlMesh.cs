@@ -137,6 +137,19 @@ public class GlMesh : IDisposable
     public string BodyPart { get; set; } = "";
     public bool IsPrimaryHeadShape { get; set; }
 
+    /// <summary>True when this shape's BSLightingShaderProperty had
+    /// shaderType = 4 (BSLSP_FACE). Drives the optional debug "apply
+    /// QNAM tint to face" path in basic.frag — the path is gated at
+    /// render time so the toggle can flip without re-loading the scene.</summary>
+    public bool IsFaceShape { get; set; }
+
+    /// <summary>NIF-side <c>skinTintAlpha</c> field on
+    /// BSLightingShaderProperty. Always 0.0f in vanilla and most-modder
+    /// authoring; surfaced so the SkinTintAlpha-weighted operator in the
+    /// debug face-tint path can multiply against it (when 0, the operator
+    /// produces no visible tint, which is itself a useful test point).</summary>
+    public float SkinTintAlpha { get; set; }
+
     // Source metadata for the hover tooltip. These are display-only and have
     // no effect on rendering; VM_CharacterViewer populates them at load time.
     public AssetSource? MeshSource { get; set; }

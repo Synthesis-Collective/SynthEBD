@@ -131,6 +131,45 @@ public class GlRenderer : IDisposable
     /// Radius=0.7, Intensity=0.3.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
+    // ── Skin-tint debug toggles (interactive, runtime-flippable) ─────
+    // Promoted from shader-side const to renderer property so the
+    // operator can be flipped at runtime without re-loading the scene
+    // or recompiling the shader. The user changes the operator from the
+    // CharacterViewerRenderPanel and we push it as a uniform every
+    // application so the user can flip operators at runtime and
+    // visually compare against in-game / NifSkope.
+    /// <summary>When true, ShaderType==4 face shapes also receive the
+    /// QNAM tint (currently only ShaderType==5 body shapes do). Useful
+    /// for testing the "engine applies QNAM to both face and body"
+    /// hypothesis.</summary>
+    public bool SkinTintApplyToFace { get; set; } = false;
+
+    /// <summary>Operator used by basic.frag to combine the QNAM tint
+    /// with the diffuse:
+    /// 0 = multiply (legacy production default),
+    /// 1 = overlay,
+    /// 2 = linear-space multiply (gamma-decode -&gt; multiply -&gt; re-encode),
+    /// 3 = gamma-aware multiply (pow(albedo, 1/tint) approximation),
+    /// 4 = lerp(albedo, albedo*tint, <see cref="SkinTintLerpStrength"/>),
+    /// 5 = lerp weighted by NIF's per-shape skinTintAlpha (0 in our samples),
+    /// 6 = Pegtop soft-light + engine body color-shift constant.</summary>
+    public int SkinTintOperator { get; set; } = 0;
+
+    /// <summary>Strength used by SkinTintOperator == 4 (lerp).
+    /// 0 = no tint; 1 = full multiply.</summary>
+    public float SkinTintLerpStrength { get; set; } = 0.5f;
+
+    /// <summary>Debug override for the per-shape vertex-color multiply
+    /// branch in basic.frag. 0 = auto (use the per-shape
+    /// <c>HasVertexColors</c> flag, production behavior); 1 = force ON
+    /// (apply the multiply for every shape — note: shapes without vertex
+    /// color data upload (1,1,1,1) per vertex, so the multiply is
+    /// visually inert on those, useful as a sanity-check on the
+    /// (1,1,1,1) fallback); 2 = force OFF (skip the multiply for every
+    /// shape — useful for diagnosing whether vanilla NPCs' face vertex
+    /// colors are visibly modulating the diffuse).</summary>
+    public int VertexColorMultiplyMode { get; set; } = 0;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -466,6 +505,10 @@ public class GlRenderer : IDisposable
             (float)viewportWidth, (float)viewportHeight);
         _shader.SetFloat("u_vignetteRadius", VignetteRadius);
         _shader.SetFloat("u_vignetteIntensity", VignetteIntensity);
+        _shader.SetBool("u_skinTintApplyToFace", SkinTintApplyToFace);
+        _shader.SetInt("u_skinTintOperator", SkinTintOperator);
+        _shader.SetFloat("u_skinTintLerpStrength", SkinTintLerpStrength);
+        _shader.SetInt("u_vertexColorMode", VertexColorMultiplyMode);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
@@ -1599,6 +1642,8 @@ public class GlRenderer : IDisposable
         _shader.SetBool("has_detail_map", mesh.HasDetailMap);
         _shader.SetBool("is_eye", mesh.IsEye);
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+        _shader.SetBool("is_face_shape", mesh.IsFaceShape);
+        _shader.SetFloat("skin_tint_alpha", mesh.SkinTintAlpha);
 
         // Per-shape texture visibility toggles
         _shader.SetBool("u_enableDiffuse", mesh.DiffuseEnabled);

@@ -285,6 +285,22 @@ Only on shapes with `bslspShaderType == BSLSP_HAIRTINT`. The diffuse texture is 
 
 The NIF's `BSLSP.skinTintColor` is **not** read for this — it's reliably `(1,1,1)` on every body NIF in the wild. The engine doesn't use the NIF field; it uses the NPC record. We follow the engine.
 
+##### Skin-tint operator selector (debug)
+
+The `tint_color` blend has a runtime-selectable operator behind it (`u_skinTintOperator`, surfaced in the render panel). 0 is the production multiply; the rest exist to triangulate which operator the engine actually uses for face-vs-body skin-tone consistency, since multiply produces a visible seam on some replacer NPCs:
+
+| Op | Formula | Notes |
+|---|---|---|
+| 0 | `albedo * tint` | Production default. |
+| 1 | `overlay(albedo, tint)` | Photoshop-style. Brightens 2× where albedo < 0.5 (most skin), darkens above. |
+| 2 | `pow(pow(albedo, 2.2) * pow(tint, 2.2), 1/2.2)` | Linear-space multiply — model the tint as happening in linear lighting space. |
+| 3 | `pow(albedo, 1/tint)` | Gamma-aware. Reduces dark-region darkening for low tint values. |
+| 4 | `mix(albedo, albedo*tint, u_skinTintLerpStrength)` | User-controlled lerp. |
+| 5 | `mix(albedo, albedo*tint, skin_tint_alpha)` | Lerp weighted by NIF's per-shape `BSLSP.skinTintAlpha`. Always 0 in vanilla / replacer NIFs we've sampled — effectively reproduces "no tint." Useful as a control point. |
+| 6 | `pegtop(albedo, tint) * (1.012, 0.996, 1.012)` | Engine-faithful per Community Shaders' `GetFacegenRGBTintBaseColor`. Pegtop soft-light is `b² + 2·t·b·(1-b)`; the trailing constant is the engine's small per-channel color-shift. |
+
+The Pegtop operator (op 6) is the engine-correct one; the others remain selectable for cross-checking against alternate hypotheses. `u_skinTintApplyToFace` additionally extends the operator to ShaderType==4 face shapes (production: only ShaderType==5 body shapes participate); the `is_face_shape` per-mesh uniform gates the branch so the toggle flips without scene reload. `u_vertexColorMode` is an unrelated debug override on the Stage-1 vertex-color multiply (auto / force-on / force-off) that's tucked into the same render-panel row because it's used during the same diagnostic work.
+
 #### Detail map (face)
 
 [basic.frag:271-274](Shaders/basic.frag#L271). When SLSF1_Facegen_Detail_Map is set and slot 3 has a texture, `overlayBlend(baseColor, detailSample)` adds detail (skin pores, stubble) on top of the diffuse before the FaceTint pass.
