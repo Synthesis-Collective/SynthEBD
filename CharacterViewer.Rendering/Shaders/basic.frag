@@ -62,7 +62,7 @@ const bool DEBUG_VIZ_MSN_NORMAL = false;
 // Mode 3: always skip (use for vanilla children whose multiply
 //         output looks too brown; opt-in only).
 // Mode 4: Pegtop soft-light (engine-faithful per Community Shaders'
-//         GetFacegenBaseColor reverse-engineered source).
+//         Lighting.hlsl replacement shader, GetFacegenBaseColor).
 //
 // Promoted from const to uniform so the host can flip modes at
 // runtime to triangulate the engine's actual FaceTint operator
@@ -210,8 +210,8 @@ vec3 overlayBlend(vec3 b, vec3 l)
 }
 
 // Pegtop soft-light (the formula Skyrim's actual face/body shader uses
-// for SkinTint blends, per Community Shaders Lighting.hlsl
-// reverse-engineered/replacement source):
+// for SkinTint blends, per Community Shaders' Lighting.hlsl
+// replacement shader):
 //   pegtop(b, t) = b*b + 2*t*b*(1-b)
 // At t=0.5 returns b (identity), at t=0 returns b*b (quadratic darken),
 // at t=1 returns 1-(1-b)^2 (quadratic brighten). Symmetric and gentle
@@ -421,7 +421,7 @@ void main()
             baseColor.rgb *= tintSample;
         } else if (usePegtop) {
             // Mode 4 -- Pegtop soft-light (engine-faithful per Community
-            // Shaders' GetFacegenBaseColor reverse-engineered source).
+            // Shaders' Lighting.hlsl replacement shader, GetFacegenBaseColor).
             vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
             baseColor.rgb = pegtopBlend(baseColor.rgb, tintSample);
         }

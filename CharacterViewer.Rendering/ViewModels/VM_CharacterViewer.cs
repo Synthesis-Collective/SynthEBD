@@ -333,7 +333,7 @@ public class VM_CharacterViewer : ViewerVm
     /// 4 lerp(strength) / 5 lerp weighted by NIF skinTintAlpha /
     /// 6 Pegtop soft-light + body color-shift constant. Default 6:
     /// matches the engine's GetFacegenRGBTintBaseColor per Community
-    /// Shaders' reverse-engineered source and reproduces the engine's
+    /// Shaders' Lighting.hlsl replacement shader and reproduces the engine's
     /// face/body skin-tone composition across the test NPC set
     /// (vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, UBE Lydia).</summary>
     public int SkinTintOperator { get; set; } = 6;

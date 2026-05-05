@@ -336,7 +336,7 @@ The Pegtop helper (added in the [skin-tint operator selector](#skin-tint-operato
 
 ##### Engine-style detail-map blend
 
-The legacy detail-map path (described under [Detail map (face)](#detail-map-face) above) ran *before* the FaceTint blend as a Photoshop overlay. The Skyrim engine's actual handling, per Community Shaders' `GetFacegenBaseColor` reverse-engineered source, is different on two fronts:
+The legacy detail-map path (described under [Detail map (face)](#detail-map-face) above) ran *before* the FaceTint blend as a Photoshop overlay. The Skyrim engine's actual handling, per Community Shaders' `Lighting.hlsl` replacement shader (`GetFacegenBaseColor`), is different on two fronts:
 
 - **Order**: detail map is applied AFTER the FaceTint blend, not before.
 - **Blend**: it's a multiply against a transformed sample, not an overlay against the raw sample.

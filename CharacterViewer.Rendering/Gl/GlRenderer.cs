@@ -154,7 +154,7 @@ public class GlRenderer : IDisposable
     /// 5 = lerp weighted by NIF's per-shape skinTintAlpha (0 in our samples),
     /// 6 = Pegtop soft-light + engine body color-shift constant.
     /// Default 6: matches the engine's GetFacegenRGBTintBaseColor per
-    /// Community Shaders' reverse-engineered source.</summary>
+    /// Community Shaders' Lighting.hlsl replacement shader.</summary>
     public int SkinTintOperator { get; set; } = 6;
 
     /// <summary>Strength used by SkinTintOperator == 4 (lerp).
