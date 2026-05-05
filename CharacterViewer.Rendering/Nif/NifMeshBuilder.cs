@@ -183,6 +183,12 @@ public class NifMeshBuilder
         public uint ShaderFlags1 { get; init; }
         public uint ShaderFlags2 { get; init; }
         public uint ShaderType { get; init; }
+
+        /// <summary>NIF-side <c>BSLightingShaderProperty.skinTintAlpha</c>.
+        /// Always 0.0 in the vanilla / modder-authored sample we surveyed,
+        /// but read so the SkinTintAlpha-weighted operator in the debug
+        /// face-tint path can use it.</summary>
+        public float SkinTintAlpha { get; init; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -284,6 +290,10 @@ public class NifMeshBuilder
         public long NifMTimeTicks { get; init; }
         public string? SkeletonPath { get; init; }
         public long SkeletonMTimeTicks { get; init; }
+        /// <summary>The host-supplied body-part label this entry was built
+        /// under — affects which shapes survive the dismember-partition
+        /// filter in BuildAllShapes, so it must be part of the cache key.</summary>
+        public string? BipedBodyPart { get; init; }
         public required List<BuiltMesh> Meshes { get; init; }
     }
 
@@ -309,7 +319,20 @@ public class NifMeshBuilder
     /// <param name="skeletonPath">Optional absolute path to the skeleton NIF, used as part of the cache key.
     /// When <paramref name="skeletonNif"/> is non-null, this must also be supplied for caching to apply —
     /// otherwise the cache is bypassed (different skeletons produce different skinning transforms).</param>
-    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null)
+    /// <param name="bipedBodyPart">Optional host-supplied body-part label
+    /// ("Body", "Hands", "Feet", "Head", "Hair", "Tail"). When set to one of
+    /// the labels with a known biped-slot mapping ("Body"=32, "Hands"=33,
+    /// "Feet"=37), shapes whose dismember partitions don't include that slot
+    /// are skipped. Mirrors the engine's behavior of treating each ARMA's
+    /// WorldModel NIF as the source for one biped slot only — vanilla child
+    /// meshes (ChildFeet.nif) bundle placeholder head / mouth / eye shapes
+    /// that the engine ignores via the partition-vs-slot rule, and without
+    /// this filter those placeholders render at world Y≈120 with the loaded
+    /// body part's TXST overrides (body-textures-on-face for Dorthe).
+    /// Default null disables the filter — passing null preserves the
+    /// pre-existing "render every shape in the NIF" behavior for callers
+    /// that don't have body-part context (BuildFromNif, dev paths).</param>
+    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null, string? bipedBodyPart = null)
     {
         long nifMTime = TryGetMTime(nifPath);
         long skelMTime = skeletonPath != null ? TryGetMTime(skeletonPath) : 0;
@@ -327,7 +350,7 @@ public class NifMeshBuilder
         bool fullLogging = NifDiagnosticDumper.FULL_LOGGING && _logGate?.Verbose == true;
         if (cacheable && !fullLogging)
         {
-            var cached = TryGetFromCache(nifPath, skeletonPath, nifMTime, skelMTime);
+            var cached = TryGetFromCache(nifPath, skeletonPath, nifMTime, skelMTime, bipedBodyPart);
             if (cached != null) return cached;
         }
 
@@ -337,7 +360,7 @@ public class NifMeshBuilder
 
         NifDiagnosticDumper.DumpIfEnabled(nif, nifPath, _logGate, _logger, _assetResolver);
 
-        results = BuildAllShapes(nif, skeletonNif);
+        results = BuildAllShapes(nif, skeletonNif, bipedBodyPart);
 
         if (cacheable && results.Count > 0)
         {
@@ -352,6 +375,7 @@ public class NifMeshBuilder
                     NifMTimeTicks = nifMTime,
                     SkeletonPath = skeletonPath,
                     SkeletonMTimeTicks = skelMTime,
+                    BipedBodyPart = bipedBodyPart,
                     Meshes = snapshot,
                 });
                 while (_cache.Count > CacheMaxEntries)
@@ -363,7 +387,7 @@ public class NifMeshBuilder
     }
 
     private List<BuiltMesh>? TryGetFromCache(string nifPath, string? skeletonPath,
-        long nifMTime, long skelMTime)
+        long nifMTime, long skelMTime, string? bipedBodyPart)
     {
         lock (_cacheLock)
         {
@@ -371,6 +395,7 @@ public class NifMeshBuilder
             {
                 var e = node.Value;
                 if (!string.Equals(e.NifPath, nifPath, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(e.BipedBodyPart, bipedBodyPart, StringComparison.Ordinal)) continue;
                 if (e.NifMTimeTicks != nifMTime) continue;
                 if (!string.Equals(e.SkeletonPath, skeletonPath, StringComparison.OrdinalIgnoreCase)) continue;
                 if (e.SkeletonMTimeTicks != skelMTime) continue;
@@ -387,6 +412,180 @@ public class NifMeshBuilder
     {
         try { return System.IO.File.GetLastWriteTimeUtc(path).Ticks; }
         catch { return 0; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  SURVEY (read-only NIF metadata for diagnostic / coverage tools)
+    //
+    //  Pulls the per-shape signals our heuristics depend on (FaceGen-node
+    //  presence, dismember partitions, NiAVObject flags, vertex/triangle
+    //  counts, local-Z height, shader type, baked slot-0 diffuse, primary-
+    //  head election outcome) without going through the build pipeline. No
+    //  GL upload, no skinning, no caching — every call re-reads the file.
+    //  Used by the host's mesh-survey runner to aggregate data across many
+    //  NPCs / mods so heuristic changes can be validated empirically rather
+    //  than per-NPC.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>One row of <see cref="SurveyNif"/> output — the metadata for
+    /// one shape inside a NIF.</summary>
+    public sealed record NifSurveyShape(
+        string ShapeName,
+        uint Flags,
+        bool HasDismember,
+        IReadOnlyList<ushort> Partitions,
+        int VertexCount,
+        int TriangleCount,
+        float LocalZHeight,
+        int ShaderType,
+        string? BakedDiffusePath,
+        bool WouldBePrimaryHead);
+
+    /// <summary>Result of <see cref="SurveyNif"/>. <see cref="LoadOk"/> is
+    /// false when the file is missing / malformed; <see cref="Error"/>
+    /// carries a short reason. Successful loads always populate
+    /// <see cref="Shapes"/> (possibly empty if the NIF has no
+    /// <c>NiShape</c> blocks).</summary>
+    public sealed record NifSurveyResult(
+        bool LoadOk,
+        bool HasFaceGenNode,
+        string? PrimaryHeadShapeName,
+        IReadOnlyList<NifSurveyShape> Shapes,
+        string? Error);
+
+    /// <summary>Reads a NIF from disk and returns per-shape diagnostic
+    /// metadata. Mirrors the data <see cref="BuildAllShapes"/> /
+    /// <see cref="FindAccessoryOffsetAndPrimaryHead"/> consult to make
+    /// decisions, so a host-side survey can record what those decisions
+    /// will be without having to render the result.</summary>
+    public NifSurveyResult SurveyNif(string nifPath)
+    {
+        if (string.IsNullOrWhiteSpace(nifPath) || !System.IO.File.Exists(nifPath))
+            return new NifSurveyResult(false, false, null,
+                Array.Empty<NifSurveyShape>(), "file not found: " + (nifPath ?? "(null)"));
+
+        using var nif = new NifFile();
+        try
+        {
+            if (nif.Load(nifPath) != 0)
+                return new NifSurveyResult(false, false, null,
+                    Array.Empty<NifSurveyShape>(), "NifFile.Load returned non-zero");
+        }
+        catch (Exception ex)
+        {
+            return new NifSurveyResult(false, false, null,
+                Array.Empty<NifSurveyShape>(), "load threw: " + ex.Message);
+        }
+
+        bool hasFaceGen = DetectFaceGenNif(nif);
+
+        using var shapes = nif.GetShapes();
+        var header = nif.GetHeader();
+
+        // Primary-head election only meaningful inside a FaceGen NIF —
+        // matches the gating in BuildAllShapes.
+        string? primaryHeadName = null;
+        if (hasFaceGen && shapes.Count > 0)
+        {
+            try
+            {
+                var (_, name) = FindAccessoryOffsetAndPrimaryHead(nif, shapes);
+                primaryHeadName = name;
+            }
+            catch (Exception ex)
+            {
+                // Survey is best-effort — if the head pre-pass throws,
+                // continue with primary-head undetermined.
+                System.Diagnostics.Debug.WriteLine(
+                    "[SurveyNif] FindAccessoryOffsetAndPrimaryHead threw: " + ex.Message);
+            }
+        }
+
+        var entries = new List<NifSurveyShape>(shapes.Count);
+        for (int i = 0; i < shapes.Count; i++)
+        {
+            try { entries.Add(BuildSurveyShape(nif, header, shapes[i], primaryHeadName)); }
+            catch (Exception ex)
+            {
+                // Per-shape failure shouldn't abort the survey.
+                entries.Add(new NifSurveyShape(
+                    "?error: " + ex.Message, 0u, false, Array.Empty<ushort>(),
+                    0, 0, 0f, -1, null, false));
+            }
+        }
+
+        return new NifSurveyResult(true, hasFaceGen, primaryHeadName, entries, null);
+    }
+
+    private static NifSurveyShape BuildSurveyShape(NifFile nif, NiHeader header,
+        NiShape shape, string? primaryHeadName)
+    {
+        string shapeName = shape.name?.get() ?? "?";
+        uint flags = shape.flags;
+
+        var partitions = ReadDismemberPartitions(header, shape);
+        bool hasDismember = partitions != null;
+        IReadOnlyList<ushort> partitionList = partitions ?? Array.Empty<ushort>();
+
+        // Vertex count + local Z extent (the height heuristic the primary-
+        // head election uses).
+        int vCount = 0;
+        float localZ = 0f;
+        using (var verts = nif.GetVertsForShape(shape))
+        {
+            if (verts != null && verts.Count > 0)
+            {
+                vCount = verts.Count;
+                float minZ = float.MaxValue, maxZ = float.MinValue;
+                for (int j = 0; j < verts.Count; j++)
+                {
+                    float z = verts[j].z;
+                    if (z < minZ) minZ = z;
+                    if (z > maxZ) maxZ = z;
+                }
+                localZ = maxZ - minZ;
+            }
+        }
+
+        // Triangle count
+        int tCount = 0;
+        using (var nifTris = new vectorTriangle())
+        {
+            if (shape.GetTriangles(nifTris)) tCount = nifTris.Count;
+        }
+
+        // Shader type (BSLightingShaderProperty.bslspShaderType, e.g. 5 =
+        // BSLSP_SKINTINT for face shapes). -1 when no BSLSP attached.
+        int shaderType = -1;
+        var shaderRef = shape.ShaderPropertyRef();
+        if (shaderRef != null && !shaderRef.IsEmpty())
+        {
+            try
+            {
+                NiObject shaderObj = header.GetBlockById(shaderRef.index);
+                if (shaderObj is BSLightingShaderProperty bslsp)
+                    shaderType = (int)bslsp.bslspShaderType;
+            }
+            catch { /* best-effort */ }
+        }
+
+        // Slot-0 diffuse texture path, as baked into the NIF (TXST overrides
+        // applied later in the build pipeline aren't part of the NIF data
+        // and so don't appear here — that's intentional, the survey is
+        // about NIF authoring).
+        string? diffuse = null;
+        try
+        {
+            string slot0 = nif.GetTexturePathByIndex(shape, 0);
+            if (!string.IsNullOrWhiteSpace(slot0)) diffuse = slot0;
+        }
+        catch { /* best-effort */ }
+
+        bool wouldBePrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
+
+        return new NifSurveyShape(
+            shapeName, flags, hasDismember, partitionList,
+            vCount, tCount, localZ, shaderType, diffuse, wouldBePrimaryHead);
     }
 
     private static List<BuiltMesh> CloneBuiltMeshList(List<BuiltMesh> source)
@@ -442,6 +641,7 @@ public class NifMeshBuilder
         ShaderFlags1 = b.ShaderFlags1,
         ShaderFlags2 = b.ShaderFlags2,
         ShaderType = b.ShaderType,
+        SkinTintAlpha = b.SkinTintAlpha,
     };
 
     /// <summary>
@@ -450,14 +650,16 @@ public class NifMeshBuilder
     /// </summary>
     public List<BuiltMesh> BuildFromNif(NifFile nif, NifFile? skeletonNif = null)
     {
-        return BuildAllShapes(nif, skeletonNif);
+        // Path-less / body-part-less entry: no slot context is available, so
+        // the dismember-partition filter is disabled (every shape builds).
+        return BuildAllShapes(nif, skeletonNif, bipedBodyPart: null);
     }
 
     /// <summary>
     /// Shared implementation: finds the primary head shape (if any), computes accessory
     /// offset transforms, and builds all shapes with correct positioning.
     /// </summary>
-    private List<BuiltMesh> BuildAllShapes(NifFile nif, NifFile? skeletonNif)
+    private List<BuiltMesh> BuildAllShapes(NifFile nif, NifFile? skeletonNif, string? bipedBodyPart)
     {
         var results = new List<BuiltMesh>();
         using var shapes = nif.GetShapes();
@@ -468,10 +670,55 @@ public class NifMeshBuilder
         // that may have identity transforms with vertices near the origin. We detect the
         // primary head (tallest mesh among head-partition shapes) and use its global transform
         // to correctly position accessories that would otherwise appear at the feet.
-        var (accessoryOffset, primaryHeadName) = FindAccessoryOffsetAndPrimaryHead(nif, shapes);
+        // Detection is gated on the presence of a BSFaceGenNiNodeSkinned block — body /
+        // hands / feet NIFs sometimes bundle placeholder head shapes (ChildHead in
+        // ChildFeet.nif) and we don't want those flagged primary-head; routing them
+        // through ApplyTexturesToGlMesh's FaceTint-blend branch turns the rendered
+        // face dark.
+        bool isFaceGenNif = DetectFaceGenNif(nif);
+        LogVerbose("CharacterViewer: NIF FaceGen detection: BSFaceGenNiNodeSkinned "
+            + (isFaceGenNif ? "found → primary-head detection ENABLED"
+                            : "absent → primary-head detection skipped"));
+        var (accessoryOffset, primaryHeadName) = isFaceGenNif
+            ? FindAccessoryOffsetAndPrimaryHead(nif, shapes)
+            : (null, null);
+
+        // --- Pre-pass: dismember-partition filter ---
+        // Vanilla child body NIFs (ChildFeet.nif) bundle placeholder head /
+        // mouth / eye shapes alongside the actual feet. The Skyrim engine
+        // appears to ignore them at render time by treating each ARMA's
+        // WorldModel NIF as the source for ONE biped slot — and skipping
+        // shapes whose dismember partitions don't include that slot. NifSkope
+        // does NOT do this (its source filters only on the AppCulled flag),
+        // so a standalone NIF view shows the placeholders too — but the in-
+        // game engine doesn't render them. Mirroring the engine here removes
+        // the body-textures-on-face artifact for child NPCs.
+        ushort? expectedBipedSlot = GetExpectedBipedSlot(bipedBodyPart);
+        var skipped = expectedBipedSlot.HasValue ? new HashSet<int>() : null;
+        if (expectedBipedSlot.HasValue)
+        {
+            var header = nif.GetHeader();
+            for (int si = 0; si < shapes.Count; si++)
+            {
+                var shape = shapes[si];
+                var partitions = ReadDismemberPartitions(header, shape);
+                if (partitions == null) continue; // No dismember → no filter info, keep
+                if (partitions.Count == 0) continue; // Empty list → keep
+                if (!partitions.Contains(expectedBipedSlot.Value))
+                {
+                    skipped!.Add(si);
+                    LogVerbose("CharacterViewer: [BipedFilter] Skipping '"
+                        + (shape.name?.get() ?? "?")
+                        + "' partitions=[" + string.Join(",", partitions)
+                        + "] — slot " + expectedBipedSlot.Value
+                        + " (" + bipedBodyPart + ") not present");
+                }
+            }
+        }
 
         for (int si = 0; si < shapes.Count; si++)
         {
+            if (skipped != null && skipped.Contains(si)) continue;
             var shape = shapes[si];
             var built = BuildShape(nif, shape, accessoryOffset, skeletonNif, primaryHeadName);
             if (built != null)
@@ -481,45 +728,114 @@ public class NifMeshBuilder
         return results;
     }
 
+    /// <summary>Returns the primary biped-slot ID for a body-part label, or
+    /// null when no filtering should apply. Slots match the SSE biped-object
+    /// enum: 32 = body / torso, 33 = hands, 37 = feet.
+    ///
+    /// <para>"Body" / "Hands" / "Feet" filter against vanilla child meshes
+    /// that bundle placeholder shapes (ChildFeet.nif → ChildHead, EyesChild,
+    /// MouthChild, BODY, Wrists). A 250-NPC mesh survey across the user's
+    /// mod library showed every Body shape carries 32, every Hands shape
+    /// carries 33, every Feet shape carries 37 — the filter has zero false
+    /// positives in the corpus.</para>
+    ///
+    /// <para>"Head" / "Hair" / "Tail" return null. The same survey found
+    /// 58 face accessories inside FaceGen NIFs (FemaleMouthHumanoidDefault,
+    /// KWA_FemaleBrows, KWA_FemaleEyesHuman, eyelashes, eyeshadow…) authored
+    /// with partition [32] — the body slot — despite being legitimate
+    /// head-region geometry. 5 hair-region shapes and 2 tail-region shapes
+    /// in their respective NIFs likewise carry [32]. Filtering these body
+    /// parts by partition would cull legitimate accessories, so they're
+    /// exempt. Dismember-partition values are not a reliable indicator of
+    /// shape role across modder authoring conventions for the head / hair /
+    /// tail regions.</para>
+    ///
+    /// <para>Mirrors the engine's behavior of treating each ARMA's
+    /// WorldModel NIF as the source for one biped slot only. The precise
+    /// engine mechanism is undocumented but the rule is consistent with
+    /// observed in-game behavior on test NPCs (Dorthe / vanilla child).</para>
+    ///
+    /// <para>Public to let host-side diagnostic tools (e.g. the mesh-survey
+    /// runner) compute the expected filter outcome without re-defining the
+    /// slot mapping. See <c>RENDERING_PIPELINE.md → Dismember partitions
+    /// and shape filtering</c> for the full survey breakdown.</para></summary>
+    public static ushort? GetExpectedBipedSlot(string? bodyPart) => bodyPart switch
+    {
+        "Body" => 32,
+        "Hands" => 33,
+        "Feet" => 37,
+        _ => null,
+    };
+
+    /// <summary>Reads the dismember-partition ID list for a shape. Returns
+    /// null when the shape has no <see cref="BSDismemberSkinInstance"/> at
+    /// all (an unskinned decoration, or a shape using plain
+    /// <c>NiSkinInstance</c>) — callers treat that as "no filter info,
+    /// keep the shape." Returns an empty list when the dismember instance
+    /// exists but has no partitions, which is also treated as keep.</summary>
+    private static IReadOnlyList<ushort>? ReadDismemberPartitions(NiHeader header, NiShape shape)
+    {
+        var skinRef = shape.SkinInstanceRef();
+        if (skinRef == null || skinRef.IsEmpty()) return null;
+        NiObject skinObj = header.GetBlockById(skinRef.index);
+        if (skinObj is not BSDismemberSkinInstance dismember) return null;
+        using var partitions = dismember.partitions;
+        if (partitions == null) return Array.Empty<ushort>();
+        using var items = partitions.items();
+        var ids = new List<ushort>(items.Count);
+        for (int pi = 0; pi < items.Count; pi++)
+            ids.Add(items[pi].partID);
+        return ids;
+    }
+
     /// <summary>
-    /// Skyrim head dismember partition IDs: SBP_30_HEAD, SBP_130_HEAD, SBP_230_HEAD.
+    /// Head dismember partition IDs: SSE's SBP_30_HEAD / SBP_130_HEAD /
+    /// SBP_230_HEAD plus the legacy Oblivion-era BP_HEAD = 1. Bethesda's
+    /// vanilla child face meshes (MaleHeadChild, ChildHead) ship with the
+    /// legacy partition list [1, 0] and never got migrated to the SSE
+    /// numbering — NifSkope still labels partition 1 as "BP_HEAD" via the
+    /// shared body-part enum, so this is the authoritative signal rather
+    /// than a name heuristic.
     /// </summary>
     private static bool IsHeadDismemberPartition(ushort partId)
     {
-        return partId == 30 || partId == 130 || partId == 230;
+        return partId == 30 || partId == 130 || partId == 230 || partId == 1;
     }
 
-    /// <summary>Name-based head-shape heuristic. Bethesda's child meshes
-    /// (MaleHeadChild, ChildHead) use non-standard dismember partitions
-    /// [1, 0] for the actual face — the standard partition check misses
-    /// them, leaving accessories like EyesChild (partition 30) and
-    /// HairLine (partition 230) to win the primary-head election. A
-    /// shape qualifies here when its name contains "head" but is not
-    /// one of the well-known accessory categories that occasionally
-    /// embed "head" via word boundaries (hair-line, fore-head, etc.).
-    /// Combined with the partition check, the tallest among all
-    /// candidates still wins, so adult meshes (where the partition
-    /// check already succeeds) are unaffected.</summary>
-    private static bool IsHeadShapeByName(string? shapeName)
+    /// <summary>True when this NIF contains a node named
+    /// <c>BSFaceGenNiNodeSkinned</c>. SSE FaceGen NIFs (the per-NPC
+    /// <c>…\FaceGenData\FaceGeom\&lt;plugin&gt;\&lt;formid&gt;.nif</c> files)
+    /// always carry one as a child of the root <c>BSFadeNode</c>; vanilla
+    /// body / hands / feet NIFs do not. Scoping primary-head detection to
+    /// this signal prevents the placeholder <c>ChildHead</c> shape that
+    /// Bethesda bundles into <c>ChildFeet.nif</c> (with the same
+    /// <c>partitions=[1,0]</c> as the FaceGen face mesh) from being flagged
+    /// primary head — which would route FaceTint-blend onto the body's
+    /// slot-0 diffuse and turn the rendered face dark.
+    /// <para>The block's <i>type</i> is <c>NiNode</c> (a generic node
+    /// class); the FaceGen-specific marker lives in the block's
+    /// <see cref="NiObjectNET.name"/> field, so we read that instead of
+    /// <c>GetBlockTypeStringById</c>.</para></summary>
+    private static bool DetectFaceGenNif(NifFile nif)
     {
-        if (string.IsNullOrEmpty(shapeName)) return false;
-        if (shapeName.IndexOf("head", StringComparison.OrdinalIgnoreCase) < 0) return false;
-        // Reject accessories whose names embed "head" or are known not to
-        // be the primary face mesh. "Forehead" technically contains "head"
-        // and is a separate accessory in some HPH packs; "HeadBand" is
-        // rare but plausible.
-        string[] accessoryFragments =
+        try
         {
-            "hair", "eye", "lash", "brow", "mouth", "tongue", "tooth",
-            "teeth", "scar", "tint", "forehead", "headband", "headgear",
-            "headdress", "beard", "ear",
-        };
-        foreach (var frag in accessoryFragments)
-        {
-            if (shapeName.IndexOf(frag, StringComparison.OrdinalIgnoreCase) >= 0)
-                return false;
+            var header = nif.GetHeader();
+            uint n = header.GetNumBlocks();
+            for (uint i = 0; i < n; i++)
+            {
+                NiObject? blk = null;
+                try { blk = header.GetBlockById(i); } catch { continue; }
+                if (blk is NiObjectNET named && named.name != null)
+                {
+                    string? raw = null;
+                    try { raw = named.name.get(); } catch { }
+                    if (raw == "BSFaceGenNiNodeSkinned") return true;
+                }
+            }
         }
-        return true;
+        catch { /* niflib errors fall through as "not FaceGen" */ }
+        return false;
     }
 
     /// <summary>
@@ -595,7 +911,7 @@ public class NifMeshBuilder
             if (skinObj is not BSDismemberSkinInstance dismember) continue;
 
             // Check if any partition is a head partition
-            bool partitionMatch = false;
+            bool isHeadCandidate = false;
             var partIdList = new List<ushort>();
             using var partitions = dismember.partitions;
             if (partitions != null)
@@ -606,25 +922,15 @@ public class NifMeshBuilder
                     partIdList.Add(items[pi].partID);
                     if (IsHeadDismemberPartition(items[pi].partID))
                     {
-                        partitionMatch = true;
+                        isHeadCandidate = true;
                     }
                 }
             }
 
             string sName = shape.name?.get() ?? "?";
-            // Fallback: vanilla child meshes (MaleHeadChild, ChildHead) ship
-            // with non-standard partitions [1, 0] and would otherwise lose
-            // the primary-head election to accessories whose partition does
-            // hit the standard set (EyesChild=30, HairLineFemaleNordChild02=230).
-            // Without this, AboveLowerYOfPrimaryHead crops the bbox to the
-            // eye-line, the camera targets the forehead, and the lower face
-            // falls below the mugshot frame.
-            bool nameMatch = IsHeadShapeByName(sName);
-            bool isHeadCandidate = partitionMatch || nameMatch;
             LogVerbose("CharacterViewer: [Skinning] Shape '" + sName +
                 "' partitions=[" + string.Join(",", partIdList) +
-                "] isHeadCandidate=" + isHeadCandidate
-                + " (partitionMatch=" + partitionMatch + ", nameMatch=" + nameMatch + ")");
+                "] isHeadCandidate=" + isHeadCandidate);
 
             if (!isHeadCandidate) continue;
 
@@ -814,6 +1120,43 @@ public class NifMeshBuilder
         }
         catch { /* Shape has no vertex colors */ }
 
+        // Diagnostic: vertex-color statistics. Useful for diagnosing
+        // face/body seam issues where vanilla NPCs have vertex colors on
+        // their face mesh but mod replacers don't — if the vanilla colors
+        // are systematically off-(1,1,1,1) they'd modulate the diffuse in
+        // a way replacer faces miss. Logged per-shape under verbose mode.
+        if (hasVertexColors && vertexColors != null && vertexColors.Length > 0)
+        {
+            float sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+            float minR = float.MaxValue, minG = float.MaxValue, minB = float.MaxValue, minA = float.MaxValue;
+            float maxR = float.MinValue, maxG = float.MinValue, maxB = float.MinValue, maxA = float.MinValue;
+            int nonWhiteCount = 0;
+            foreach (var v in vertexColors)
+            {
+                sumR += v.X; sumG += v.Y; sumB += v.Z; sumA += v.W;
+                if (v.X < minR) minR = v.X; if (v.X > maxR) maxR = v.X;
+                if (v.Y < minG) minG = v.Y; if (v.Y > maxG) maxG = v.Y;
+                if (v.Z < minB) minB = v.Z; if (v.Z > maxB) maxB = v.Z;
+                if (v.W < minA) minA = v.W; if (v.W > maxA) maxA = v.W;
+                if (v.X < 0.999f || v.Y < 0.999f || v.Z < 0.999f || v.W < 0.999f)
+                    nonWhiteCount++;
+            }
+            int n = vertexColors.Length;
+            string vcShapeName = shape.name?.get() ?? "?";
+            LogVerbose("CharacterViewer: [VertexColor] '" + vcShapeName +
+                "' n=" + n +
+                " mean=(" + (sumR / n).ToString("F3") + "," + (sumG / n).ToString("F3") + "," + (sumB / n).ToString("F3") + "," + (sumA / n).ToString("F3") + ")" +
+                " min=(" + minR.ToString("F3") + "," + minG.ToString("F3") + "," + minB.ToString("F3") + "," + minA.ToString("F3") + ")" +
+                " max=(" + maxR.ToString("F3") + "," + maxG.ToString("F3") + "," + maxB.ToString("F3") + "," + maxA.ToString("F3") + ")" +
+                " non-white=" + nonWhiteCount + "/" + n);
+        }
+        else
+        {
+            string vcShapeName = shape.name?.get() ?? "?";
+            LogVerbose("CharacterViewer: [VertexColor] '" + vcShapeName +
+                "' (no vertex color data; uploads (1,1,1,1) per vertex)");
+        }
+
         // Build tangents and bitangents from NIF (Z-up → Y-up)
         var tangents = new Vector3[vertCount];
         var bitangents = new Vector3[vertCount];
@@ -879,6 +1222,7 @@ public class NifMeshBuilder
         Vector2 uvOffset = Vector2.Zero;
         float environmentMapScale = 1f;
         float eyeCubemapScale = 1f;
+        float skinTintAlpha = 0f;
         uint shaderFlags1 = 0, shaderFlags2 = 0, shaderType = 0;
         try
         {
@@ -895,6 +1239,7 @@ public class NifMeshBuilder
                     isModelSpaceNormals = (shaderFlags1 & SLSF1_ModelSpaceNormals) != 0;
                     glossiness = bslsp.glossiness;
                     specularStrength = bslsp.specularStrength;
+                    try { skinTintAlpha = bslsp.skinTintAlpha; } catch { }
 
                     // Extract additional properties safely
                     try { subsurfaceRolloff = bslsp.subsurfaceRolloff; } catch { }
@@ -1188,6 +1533,7 @@ public class NifMeshBuilder
             ShaderFlags1 = shaderFlags1,
             ShaderFlags2 = shaderFlags2,
             ShaderType = shaderType,
+            SkinTintAlpha = skinTintAlpha,
         };
     }
 

@@ -13,6 +13,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [BSShaderTextureSet slots](#bsshadertextureset-slots)
    - [NiAlphaProperty](#nialphaproperty)
    - [Skinning](#skinning)
+   - [Dismember partitions and shape filtering](#dismember-partitions-and-shape-filtering)
    - [Shader flag inventory](#shader-flag-inventory)
 3. [Part 2 — Fragment shader pipeline](#part-2--fragment-shader-pipeline)
    - [Vertex shader (brief)](#vertex-shader-brief)
@@ -145,6 +146,70 @@ CPU-side, in [TryApplyCpuSkinning](Nif/NifMeshBuilder.cs#L1380). For each bone t
 Per vertex: read up to 4 bone-weight pairs from `nif.GetShapeBoneWeights(...)`, accumulate the weighted bone transform on the vertex position and (with the rotation portion only) on the normal. The result becomes the renderer's `Positions` array; the original NIF positions are kept as `BindPosePositions` for BodySlide morphing.
 
 Why CPU-side skinning instead of a GPU vertex shader doing it: BodySlide morphing happens after skinning and needs to operate on the deformed positions. Doing skinning in-shader would require re-running the morph at every redraw, multiplying CPU work for no rendering gain.
+
+### Dismember partitions and shape filtering
+
+NIF shapes that ship with a `BSDismemberSkinInstance` carry a list of dismember-partition IDs — Bethesda's `BIPED_OBJECT` enum (32 = body / torso, 33 = hands, 37 = feet, 30 / 130 / 230 = head, 31 = hair, 40 = tail). NifSkope labels them via the shared body-part enum on each partition entry. The renderer makes two decisions during NIF parse based on these IDs.
+
+**Primary-head election** ([NifMeshBuilder.cs FindAccessoryOffsetAndPrimaryHead](Nif/NifMeshBuilder.cs)). Inside FaceGen NIFs only, the tallest shape (by local Z extent) whose partitions intersect `{30, 130, 230, 1}` is tagged `IsPrimaryHeadShape = true`. Three downstream consumers depend on the flag:
+
+- **MeshAware camera framing** — its `PrimaryHead` selector matches this shape, and `AboveLowerYOfPrimaryHead` filter clips accessory bbox contributions to verts above this shape's chin.
+- **FaceTint application** — `ApplyTexturesToGlMesh` blends the per-NPC FaceTint mask onto this shape's slot-0 diffuse.
+- **Accessory positioning** — for unskinned shapes whose vertices are authored near the origin, this shape's global transform is used to position the accessory.
+
+The election is gated on the presence of a NIF block named `BSFaceGenNiNodeSkinned` in the file's block table. Vanilla SSE FaceGen NIFs always carry one; body / hands / feet NIFs do not. The scope matters because Bethesda's vanilla child meshes (`ChildFeet.nif`) bundle a placeholder `ChildHead` shape with the same `partitions = [1, 0]` as the FaceGen face mesh. Without the scope, that placeholder would win the election in the body NIF, and the FaceTint-blend branch would then composite the per-NPC FaceTint onto the body-slot TXST diffuse, producing a dark-face artifact.
+
+The partition set is `{30, 130, 230, 1}`. The first three are SSE-modern; partition 1 is the legacy Oblivion-era `BP_HEAD` value. Vanilla child face meshes (`MaleHeadChild`, `ChildHead`) ship with `[1, 0]` and never got migrated to the modern numbering — NifSkope still labels partition 1 as `BP_HEAD` via the body-part enum, so this is the authoritative signal rather than a name heuristic.
+
+**Biped-slot shape filter** ([NifMeshBuilder.cs BuildAllShapes](Nif/NifMeshBuilder.cs)). When a NIF is loaded under one of three body parts:
+
+| Body part label | Required partition |
+|---|---|
+| `Body` | 32 |
+| `Hands` | 33 |
+| `Feet` | 37 |
+
+shapes whose dismember partitions don't include that slot are skipped before `BuildShape` runs. Treats each ARMA's WorldModel NIF as the source for one biped slot only. For Dorthe-style child meshes the filter drops `ChildHead`, `EyesChild`, `MouthChild`, `BODY`, `Wrists` from the scene when `ChildFeet.nif` is loaded as Feet — leaving only the actual `Feet` shape (partition 37).
+
+Head / Hair / Tail body parts are intentionally exempt. The reasoning is empirical and discussed under [Survey findings](#survey-findings-shape-filtering) below: dismember partitions are not a reliable indicator of shape role for those NIFs.
+
+**Engine-side mechanism is undocumented.** Skyrim's engine clearly skips these placeholder shapes in-game (no one sees Dorthe with duplicate eyes through her boots), but neither the CK wiki nor any source we have access to describes the precise rule. The most plausible candidate — "engine renders shapes whose partition includes the ARMA's biped slot" — is consistent with the data and with Bethesda's authoring habits, but has not been confirmed against engine source. Treat the biped-slot filter as a working approximation of the engine's behavior, validated empirically (see [Survey findings](#survey-findings-shape-filtering)) but not as a documented contract.
+
+#### Survey findings (shape filtering)
+
+A diagnostic batch run (`MeshSurveyRunner` in NPC Plugin Chooser 2's host code) walked one NPC per enabled appearance mod with a non-empty mod folder — 250 NPCs / 2,943 shapes total — and emitted per-shape metadata to CSV. Notable observations:
+
+| Body part | Distinct partition lists observed |
+|---|---|
+| `Body` | `[32]` (252×), `[38;32;34]` (100×), `[32;38;34]` (99×), `[32;32]` (15×), `[32;34;38]` (3×), `[32;53]` (2×), `[38;32]` (1×), `[32;34]` (1×) |
+| `Hands` | `[33]` (233×), `[33;33]` (16×) |
+| `Feet` | `[37]` (249×) |
+
+Every Body shape carries partition 32. Every Hands shape carries 33. Every Feet shape carries 37. **The biped-slot filter dropped zero shapes across the corpus** — no false positives in adult NPCs.
+
+For Head shapes the partition picture is much messier:
+
+- **58 face accessories carry partition `[32]`** (the body slot) despite being mouth, brows, eyes, lashes, or eyeshadow inside the FaceGen NIF — `FemaleMouthHumanoidDefault`, `KWA_FemaleBrows`, `KWA_FemaleEyesHuman`, `0EyeShadow`, etc. Either an authoring copy-paste or a Bethesda-tools default; either way, partition values do not predict shape role here.
+- 5 Hair NIF shapes carry `[32]`. 2 Tail NIF shapes carry `[32]`. 1 Tail shape carries `[37]`.
+
+These are the empirical reason Head / Hair / Tail are exempt from the biped-slot filter — adding them would cull legitimate face accessories.
+
+For primary-head election, all 252 parseable FaceGen NIFs elected exactly one primary head, and none elected outside a `BSFaceGenNiNodeSkinned`-bearing NIF. Four primary-head shapes have names that do not contain "head":
+
+- `DK_Thogra_Face` (Orc follower)
+- `0FoamimiHPHMaleHumanCore` (Glenmoril overhaul)
+- `MiraiHPHFace`
+- `_000SamathaF1Face`
+
+All four carry partition 230 and were elected via the partition-based path. A name-based detection ("shape name contains 'head'") would have missed all four — confirming partition-based detection is more robust than naming heuristics.
+
+**No shape in the corpus has `flags & 1u` (NiAVObject AppCulled / Hidden) set.** All 2,943 flags values end in `…E` (bits 1/2/3 set, bit 0 clear). Whatever mechanism the engine uses to skip placeholder shapes inside child body NIFs, it is not the AppCulled flag — that's why we can't simply respect it the way [NifSkope's `Node::isHidden`](#NifSkope-comparison-shape-filtering) does and rely on Bethesda's NIFs to carry it.
+
+#### NifSkope comparison (shape filtering)
+
+NifSkope's `Node::isHidden()` only checks `flags.node.hidden` (the AppCulled bit) and walks the parent chain. `Mesh::isHidden()` extends that with "no `TexturingProperty` and no `BSShaderLightingProperty`." There is **zero** partition-based or biped-slot-based filtering in NifSkope's GL pipeline — the only references to `BSDismemberSkinInstance` in NifSkope source are in `spells/skeleton.cpp` for skinning operations, not rendering.
+
+Practical consequence: opening `ChildFeet.nif` directly in NifSkope renders the `ChildHead` / `EyesChild` / `MouthChild` placeholders along with the Feet shape, all visible. NifSkope is a single-file editor with no concept of biped slots or ARMA composition — it has no information that would let it decide a shape "doesn't belong" in a given context. This renderer needs the same information NifSkope lacks (the body-part label the host loaded the NIF under), threaded through `BuildFromFile`'s `bipedBodyPart` parameter.
 
 ### Shader flag inventory
 
