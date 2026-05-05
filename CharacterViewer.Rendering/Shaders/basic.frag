@@ -108,6 +108,16 @@ uniform bool is_eye;
 uniform bool is_face_shape;
 uniform float skin_tint_alpha;
 uniform bool is_face_empty_detail;
+// True for BSLSP_HAIRTINT (ShaderType 6) shapes. These reuse the
+// has_tint_color path (the diffuse is multiplied by the hair color
+// from the NPC record), but they must NOT participate in the
+// SkinTint operator experiments below: the body Pegtop path applies
+// a (1.012, 0.996, 1.012) color-shift constant that has no business
+// being on hair, and the soft-light/gamma/lerp ops would shift hair
+// color away from the simple engine RGB multiply. When set, the
+// operator branch forces op=0 (multiply) regardless of the host's
+// u_skinTintOperator selection.
+uniform bool is_hair_tint;
 
 // --- RENDERER TOGGLES ---
 uniform bool use_alpha_test;
@@ -327,7 +337,10 @@ void main()
         // tint_color so the toggle can flip without reload.
         bool applyTint = !is_face_shape || u_skinTintApplyToFace;
         if (applyTint) {
-            int op = u_skinTintOperator;
+            // Hair tint always uses simple multiply: the operator
+            // experiments are scoped to body/face skin tinting and the
+            // Pegtop body color-shift constant would mis-color hair.
+            int op = is_hair_tint ? 0 : u_skinTintOperator;
             if (op == 0) {
                 // 0 -- straight multiply (legacy production default)
                 baseColor.rgb *= tint_color;

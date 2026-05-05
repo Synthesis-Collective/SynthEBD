@@ -301,6 +301,8 @@ The `tint_color` blend has a runtime-selectable operator behind it (`u_skinTintO
 
 The Pegtop operator (op 6) is the engine-correct one; the others remain selectable for cross-checking against alternate hypotheses. `u_skinTintApplyToFace` additionally extends the operator to ShaderType==4 face shapes (production: only ShaderType==5 body shapes participate); the `is_face_shape` per-mesh uniform gates the branch so the toggle flips without scene reload. `u_vertexColorMode` is an unrelated debug override on the Stage-1 vertex-color multiply (auto / force-on / force-off) that's tucked into the same render-panel row because it's used during the same diagnostic work.
 
+**Hair-tint isolation.** Hair-tint shapes (BSLSP_HAIRTINT, ShaderType 6) without the greyscale-to-palette flag also flow through the `has_tint_color` branch — the diffuse is multiplied by the hair color from the NPC record. They must NOT participate in the SkinTint operator experiments, though: the body Pegtop path's `(1.012, 0.996, 1.012)` color-shift constant has no business being on hair, and the soft-light / gamma / lerp ops would shift hair color away from the simple engine RGB multiply that's the engine-correct hair behavior. The per-mesh `is_hair_tint` uniform forces `op = 0` (multiply) regardless of the host's selection, isolating the operator experiments to body / face skin tinting.
+
 #### Detail map (face)
 
 [basic.frag:271-274](Shaders/basic.frag#L271). When SLSF1_Facegen_Detail_Map is set and slot 3 has a texture, `overlayBlend(baseColor, detailSample)` adds detail (skin pores, stubble) on top of the diffuse before the FaceTint pass.

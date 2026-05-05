@@ -1690,6 +1690,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("is_face_shape", mesh.IsFaceShape);
         _shader.SetFloat("skin_tint_alpha", mesh.SkinTintAlpha);
         _shader.SetBool("is_face_empty_detail", mesh.IsFaceWithEmptyDetailSlot);
+        _shader.SetBool("is_hair_tint", mesh.IsHairTintShader);
 
         // Per-shape texture visibility toggles
         _shader.SetBool("u_enableDiffuse", mesh.DiffuseEnabled);
