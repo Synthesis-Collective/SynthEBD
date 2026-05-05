@@ -192,6 +192,17 @@ public class GlRenderer : IDisposable
     /// override decision is made each frame in basic.frag.</summary>
     public bool FaceTintMultiplyOnEmptyDetail { get; set; } = false;
 
+    /// <summary>When true, the slot-3 detail map is applied to face
+    /// shapes the way the actual Skyrim engine does (per Community
+    /// Shaders' Lighting.hlsl GetFacegenBaseColor): a direct multiply
+    /// of the post-FaceTint result by
+    /// <c>3.984375 * ((1/255, 0, 1/255) + sampledDetail)</c>, applied AFTER
+    /// the FaceTint blend rather than as a Photoshop overlay before it.
+    /// Combined with FaceTintMode==4 (Pegtop) and SkinTintOperator==6
+    /// (Pegtop with engine constant), reproduces the engine's face /
+    /// body composition math.</summary>
+    public bool UseEngineStyleDetailMap { get; set; } = false;
+
     /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
     /// should be drawn. Used by the BodySlide classifier's key-vertex picking
     /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
@@ -533,6 +544,7 @@ public class GlRenderer : IDisposable
         _shader.SetInt("u_vertexColorMode", VertexColorMultiplyMode);
         _shader.SetInt("u_faceTintMode", FaceTintMode);
         _shader.SetBool("u_faceTintMultiplyOnEmptyDetail", FaceTintMultiplyOnEmptyDetail);
+        _shader.SetBool("u_detailMapEngineStyle", UseEngineStyleDetailMap);
         if (EnableShadows && _shadowDepthTex != -1)
         {
             _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);

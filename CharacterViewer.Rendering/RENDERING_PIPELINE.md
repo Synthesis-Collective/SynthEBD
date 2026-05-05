@@ -332,6 +332,24 @@ The Pegtop helper (added in the [skin-tint operator selector](#skin-tint-operato
 
 **Multiply-on-empty-slot-3 override.** A second toggle (`u_faceTintMultiplyOnEmptyDetail`) forces multiply for face shapes (`ShaderType==4`) whose NIF has `SLSF1_Facegen_Detail_Map` set but whose `BSShaderTextureSet` slot 3 is empty. Empirically resolves the seam on modder faces that omit slot 3 (Brynjolf, Aia Arria, Angeline Morrard from Ordinary People) without affecting NPCs whose slot 3 is populated. The per-mesh `is_face_empty_detail` uniform is set in `ApplyTexturesToGlMesh` based on the NIF flag + slot inspection; the shader-side toggle decides whether to act on it. Useful as a stopgap pending the engine-style detail-map blend, which addresses the same shapes from the detail-map side.
 
+##### Engine-style detail-map blend
+
+The legacy detail-map path (described under [Detail map (face)](#detail-map-face) above) ran *before* the FaceTint blend as a Photoshop overlay. The Skyrim engine's actual handling, per Community Shaders' `GetFacegenBaseColor` reverse-engineered source, is different on two fronts:
+
+- **Order**: detail map is applied AFTER the FaceTint blend, not before.
+- **Blend**: it's a multiply against a transformed sample, not an overlay against the raw sample.
+
+The transform is:
+
+```
+detailColor = 3.984375 * (vec3(1/255, 0, 1/255) + sampledDetail)
+postFaceTint *= detailColor
+```
+
+The constant `3.984375` is roughly `4 - 1/64`; the `(1/255, 0, 1/255)` offset prevents the green channel from being lifted off zero (so a black-green-zero detail texel multiplies to mid-gray instead of nuking the surface to black). At a "neutral" detail sample of `(0.25, 0.5, 0.25)` the result is approximately `(1.0, 2.0, 1.0)` — a 2× green boost that the engine then absorbs through subsequent grading. With Bethesda's BlankDetailmap.dds (mid-gray), the multiply lands close to identity; with a populated slot 3 (freckles, dirt, complexion), it brightens.
+
+The `u_detailMapEngineStyle` uniform selects between the legacy overlay path and the engine-style multiply path; both are gated on the same `has_detail_map && u_enableDetail` test, so toggling doesn't change which shapes participate, only how they composite. Pairs with `FaceTintMode==4` (Pegtop) and `SkinTintOperator==6` (Pegtop with engine constant) to reproduce the engine's full face composition pipeline.
+
 ### Stage 2: normal calculation
 
 [basic.frag:291-323](Shaders/basic.frag#L291). Three paths:

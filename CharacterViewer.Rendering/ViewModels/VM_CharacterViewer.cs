@@ -353,6 +353,12 @@ public class VM_CharacterViewer : ViewerVm
     /// <see cref="GlRenderer.FaceTintMultiplyOnEmptyDetail"/>.</summary>
     public bool FaceTintMultiplyOnEmptyDetail { get; set; } = false;
 
+    /// <summary>Apply the slot-3 detail map the way the Skyrim engine
+    /// actually does -- multiplicative post-FaceTint blend with a
+    /// specific scale/offset transform. See
+    /// <see cref="GlRenderer.UseEngineStyleDetailMap"/>.</summary>
+    public bool UseEngineStyleDetailMap { get; set; } = false;
+
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
     /// SynthEBD's ApplyHeadPartsAsync reads this to decide between full
@@ -821,6 +827,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.FaceTintMode = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.FaceTintMultiplyOnEmptyDetail)
             .Subscribe(v => Renderer.FaceTintMultiplyOnEmptyDetail = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.UseEngineStyleDetailMap)
+            .Subscribe(v => Renderer.UseEngineStyleDetailMap = v).DisposeWith(_disposables);
 
         // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
         // (mesh-upload time), so toggling it at runtime needs the host to

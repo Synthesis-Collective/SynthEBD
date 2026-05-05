@@ -146,6 +146,15 @@ uniform int u_vertexColorMode;
 // affecting NPCs whose slot 3 is populated.
 uniform bool u_faceTintMultiplyOnEmptyDetail;
 
+// Experimental: engine-style detail-map handling for face shapes.
+// Per Community Shaders' Lighting.hlsl GetFacegenBaseColor, the
+// engine treats slot 3 as a multiplicative scaling map applied AFTER
+// the FaceTint blend, with a specific transform:
+//   detailColor = 3.984375 * ((1/255, 0, 1/255) + sampled)
+// When this toggle is on, our renderer skips the existing pre-FaceTint
+// overlay step and applies the engine-style multiply post-blend.
+uniform bool u_detailMapEngineStyle;
+
 // --- PER-SHAPE TEXTURE VISIBILITY TOGGLES ---
 uniform bool u_enableDiffuse;
 uniform bool u_enableNormal;
@@ -362,7 +371,11 @@ void main()
     }
 
     // Detail map overlay (applied before face tint, matching NifSkope order)
-    if (has_detail_map && u_enableDetail) {
+    // Detail map: legacy pre-FaceTint overlay. When the engine-style
+    // detail-map toggle is on, this step is skipped and the detail map
+    // is applied AFTER the FaceTint blend as a multiply (matching the
+    // engine's GetFacegenBaseColor order).
+    if (has_detail_map && u_enableDetail && !u_detailMapEngineStyle) {
         vec3 detailSample = texture(texture_detail, TexCoords).rgb;
         baseColor.rgb = overlayBlend(baseColor.rgb, detailSample);
     }
@@ -399,6 +412,19 @@ void main()
             vec3 tintSample = texture(texture_face_tint, TexCoords).rgb;
             baseColor.rgb = pegtopBlend(baseColor.rgb, tintSample);
         }
+    }
+
+    // Detail map: engine-style post-FaceTint multiply. Per Community
+    // Shaders' GetFacegenBaseColor, the engine transforms the slot-3
+    // sample by 4 * ((1/255, 0, 1/255) + sampled) and multiplies onto
+    // the post-FaceTint result. Active only when the toggle is on AND
+    // the shape has a detail map; otherwise the legacy pre-FaceTint
+    // overlay (above) ran instead.
+    if (has_detail_map && u_enableDetail && u_detailMapEngineStyle) {
+        vec3 detailSample = texture(texture_detail, TexCoords).rgb;
+        vec3 detailColor = vec3(3.984375)
+            * (vec3(0.00392156886, 0.0, 0.00392156886) + detailSample);
+        baseColor.rgb *= detailColor;
     }
 
     // --- 2. NORMAL CALCULATION ---

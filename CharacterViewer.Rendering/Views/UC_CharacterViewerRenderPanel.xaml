@@ -200,6 +200,11 @@
                     <ComboBoxItem Content="Pegtop (engine)"/>
                 </ComboBox>
 
+                <CheckBox Content="Engine-style detail" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding UseEngineStyleDetailMap}"
+                          ToolTip="Apply the slot-3 detail map the way the Skyrim engine does (per Community Shaders' GetFacegenBaseColor). The detail map becomes a multiplicative scaling map applied AFTER the FaceTint blend, with transform 3.984375 * ((1/255, 0, 1/255) + sampled). Pair with FaceTint=Pegtop and SkinTint=Pegtop for engine-faithful face/body composition."/>
+
                 <CheckBox Content="Multiply on empty slot-3" FontSize="11" Foreground="#FFAAAAAA"
                           Margin="20,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding FaceTintMultiplyOnEmptyDetail}"
