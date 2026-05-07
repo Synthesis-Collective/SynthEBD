@@ -125,6 +125,8 @@ Read via `nif.GetTexturePathByIndex(shape, slot)` for slots 0–8 ([NifMeshBuild
 
 ARMA TXST records can override slots at render time via `ResolvedNpcMeshPaths.TxstTextures[bodyPart][slot]` — applied in `VM_CharacterViewer.ApplyTexturesToGlMesh` on top of the NIF-baked path before the texture is loaded.
 
+**TXST overrides apply to skin shapes only** (`BSLSP shaderType == 5` / `ST_SkinTint`). Body / Hands / Feet NIFs can ship non-skin shapes that share the same NIF — vanilla `FemaleBody_1.nif` carries a `FemaleUnderwear` brassiere shape alongside the body, hands NIFs sometimes carry fingernail accessories, etc. Those shapes share the body-slot dismember partition (32 / 33 / 37) but use a default-shader path with their own NIF-baked diffuse and normal. The ARMA TXST diffuse for the body part is *skin* (`FemaleBody_1.dds`); applying it indiscriminately to every shape in the NIF clobbers the brassiere with skin and you get a belly button on the underwear. Gating on shader type 5 lets multi-shape skin NIFs (CBBE 3BA's Body+Vagina, etc.) still receive the override on every skin shape, while leaving non-skin attachments alone. Applied in two places: the install-time fold into `effectiveTextures` ([VM_CharacterViewer.cs:2758](ViewModels/VM_CharacterViewer.cs#L2758)) and the post-load `ApplyTextureOverrides` target filter ([VM_CharacterViewer.cs:3334](ViewModels/VM_CharacterViewer.cs#L3334), via `GlMesh.IsSkinShape`).
+
 ### NiAlphaProperty
 
 Per shape that has an `AlphaPropertyRef` ([NifMeshBuilder.cs:962-991](Nif/NifMeshBuilder.cs#L962)):

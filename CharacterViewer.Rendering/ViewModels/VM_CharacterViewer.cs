@@ -2756,7 +2756,12 @@ public class VM_CharacterViewer : ViewerVm
         glMesh.MeshSource = shape.MeshSource;
 
         var effectiveTextures = new Dictionary<int, string>(shape.Built.TexturePaths);
-        if (shape.TxstOverrides != null)
+        // ARMA TXST overrides target the body part's *skin* (e.g. ARMA[Body] → FemaleBody_1.dds).
+        // Body/Hands/Feet NIFs can contain non-skin shapes (FemaleUnderwear, fingernails,
+        // attached armor) that share the NIF but ship their own diffuse/normal. Gate on
+        // BSLSP shader type 5 (ST_SkinTint) so the body skin texture doesn't bleed onto
+        // those shapes — engine behavior, and matches IsSkinShape elsewhere.
+        if (shape.TxstOverrides != null && shape.Built.ShaderType == 5)
             foreach (var (slot, path) in shape.TxstOverrides)
                 effectiveTextures[slot] = path;
 
@@ -3315,10 +3320,12 @@ public class VM_CharacterViewer : ViewerVm
 
             // For Head, target only the primary head shape (the face — face/hair/eyes
             // are separate shapes with different meaning for each slot). For non-head
-            // body parts, apply to every shape in that NIF: some NIFs contain multiple
-            // body-part shapes (e.g. hands + fingernails, body + belt) and previously
-            // only the first-registered shape got the override, leaving the hovered
-            // shape showing the original texture.
+            // body parts, apply to every *skin* shape in that NIF: a body NIF can hold
+            // multiple skin shapes (CBBE 3BA Body+Vagina), and they should all receive
+            // the body diffuse. But non-skin shapes that share the same NIF (underwear
+            // on the vanilla FemaleBody, fingernails on FemaleHands) keep their NIF-baked
+            // textures — without this gate, ARMA[Body] TXST clobbers the brassiere with
+            // FemaleBody_1.dds and you get a belly button on the underwear.
             List<GlMesh> targets;
             if (bodyPart == "Head")
             {
@@ -3331,10 +3338,10 @@ public class VM_CharacterViewer : ViewerVm
             }
             else
             {
-                targets = Renderer.Meshes.Where(m => m.BodyPart == bodyPart).ToList();
+                targets = Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.IsSkinShape).ToList();
                 if (targets.Count == 0)
                 {
-                    LogVerbose("CharacterViewer: No meshes with BodyPart='" + bodyPart +
+                    LogVerbose("CharacterViewer: No skin meshes with BodyPart='" + bodyPart +
                         "' (slot " + slot + ")");
                     continue;
                 }
