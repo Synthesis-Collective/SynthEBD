@@ -19,6 +19,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Vertex shader (brief)](#vertex-shader-brief)
    - [Stage 1: base color & alpha test](#stage-1-base-color--alpha-test)
    - [Stage 1b: tint operations](#stage-1b-tint-operations)
+   - [Stage 1c: skin saturation boost](#stage-1c-skin-saturation-boost)
    - [Stage 2: normal calculation](#stage-2-normal-calculation)
    - [Stage 3: dynamic lighting](#stage-3-dynamic-lighting)
    - [Stage 4: environment mapping](#stage-4-environment-mapping)
@@ -303,6 +304,16 @@ The Pegtop operator (op 6) is the engine-correct one; the others remain selectab
 
 **Hair-tint isolation.** Hair-tint shapes (BSLSP_HAIRTINT, ShaderType 6) without the greyscale-to-palette flag also flow through the `has_tint_color` branch — the diffuse is multiplied by the hair color from the NPC record. They must NOT participate in the SkinTint operator experiments, though: the body Pegtop path's `(1.012, 0.996, 1.012)` color-shift constant has no business being on hair, and the soft-light / gamma / lerp ops would shift hair color away from the simple engine RGB multiply that's the engine-correct hair behavior. The per-mesh `is_hair_tint` uniform forces `op = 0` (multiply) regardless of the host's selection, isolating the operator experiments to body / face skin tinting.
 
+##### Engine-source cross-check (verified against CS)
+
+Op 6, FaceTint mode 4, and the engine-style detail-map blend are verified byte-for-byte against the Community Shaders source. Three checkpoints, all matching:
+
+- **Tint formula** — `Lighting.hlsl: GetFacegenRGBTintBaseColor` is `K · (b² + 2tb(1-b))` with `K = (1.01171875, 0.99609375, 1.01171875)`. Op 6 implements this identically.
+
+- **Tint source** — `Actor::UpdateSkinColor` reads `npc->bodyTintColor` (the QNAM byte triple at offset 246 on TESNPC), divides each byte by 255, and calls `UpdateBodyTint(NiColor)`, which traverses the scene graph and writes the float color straight into `BSLightingShaderMaterialFacegenTint::tintColor` — the source of the HLSL `TintColor` uniform. The host's QNAM passthrough at `NpcMeshResolver.cs:349-356` does the same byte/255 conversion. Source matches engine byte-for-byte.
+
+- **Color space** — `Color::Diffuse` (in CS's `Color.hlsli`) is identity in non-PBR mode and `linear → gamma` in PBR mode. The PBR branch existing only to deliver gamma values to the rest of the pipeline means the vanilla (non-PBR) pipeline operates on gamma-encoded values throughout — texture samplers do not auto-decode, lighting math runs in gamma space, ACES tonemap + framebuffer-srgb encoding at the end. The renderer matches: `PixelInternalFormat.Rgba8` upload (no auto-decode) with `GL_FRAMEBUFFER_SRGB` at output. Confirmed by inverting this experimentally — uploading diffuses as `PixelInternalFormat.Srgb8Alpha8` for sampler-side auto-decode produced uniform red-shift across all NPCs because the downstream lighting + tonemap stack was tuned for gamma-space inputs. Reverted; gamma-space upload is engine-correct.
+
 #### Detail map (face)
 
 [basic.frag:271-274](Shaders/basic.frag#L271). When SLSF1_Facegen_Detail_Map is set and slot 3 has a texture, `overlayBlend(baseColor, detailSample)` adds detail (skin pores, stubble) on top of the diffuse before the FaceTint pass.
@@ -357,6 +368,23 @@ The `u_detailMapEngineStyle` uniform selects between the legacy overlay path and
 ##### BlankDetailmap fallback (debug)
 
 A separate experimental host-side toggle (`UseBlankDetailFallback`) substitutes `textures\actors\character\male\BlankDetailmap.dds` when slot 3 is empty on a face shape. The substitution happens in `ApplyTexturesToGlMesh` at scene-build time — the toggle therefore fires `ReloadRequested` rather than just pushing a uniform. Tests whether the engine substitutes a similar default at runtime for slot-3-empty faces (Brynjolf, Aia, Angeline). Mostly redundant with the Pegtop + engine-style detail combination: for those shapes the multiply with BlankDetailmap (mid-gray) lands close to identity, which is also what skipping the detail step gets you. Kept as a control point because it isolates "did the engine substitute a texture?" from "what blend math?" for future investigation.
+
+### Stage 1c: skin saturation boost
+
+[basic.frag:456-467](Shaders/basic.frag#L456). Optional, host-tunable chroma adjustment applied AFTER all Stage-1b tint stages (skin tint, detail, FaceTint) and BEFORE Stage 2 normal calculation. Gated on the per-mesh `is_skin` uniform (true for shader types 4 and 5 — face plus body, hands, feet) and a non-1.0 `u_skinSaturationBoost`:
+
+```glsl
+if (is_skin && u_skinSaturationBoost != 1.0) {
+    float lum = dot(baseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    baseColor.rgb = max(mix(vec3(lum), baseColor.rgb, u_skinSaturationBoost), 0.0);
+}
+```
+
+Same luminance-preserving formulation as `Color::Saturation` in CS's `Color.hlsli`, with a non-negative clamp. Default 1.0 is no-op. Values > 1 boost chroma along the original hue, restoring race-distinguishing skin character that the downstream pipeline tends to compress toward neutral (Imperials look pale, Redguards Mediterranean, Orcs olive at high SSS settings). Values < 1 desaturate skin while leaving hair/eyes untouched.
+
+Applied to the diffuse albedo before lighting, so specular highlights stay achromatic — wet/oily skin highlights consume `specularColor`, not `baseColor`. Hair (BSLSP_HAIRTINT, type 6), eyes (BSLSP_EYE, type 16), and any other non-skin shapes pass through unchanged.
+
+Practical context: at high SSS strength (the host's old default of 2.0, since changed to 0.0), the warm-flesh injection desaturates skin broadly. A boost in the 1.25–1.75 range typically recovers correct appearance for all races simultaneously. After lowering the SSS default the boost remains useful as a per-NPC dial when scene lighting biases skin toward neutral.
 
 ### Stage 2: normal calculation
 
@@ -563,6 +591,8 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 - **Wetness, parallax, refraction.** Bethesda's actual face/body shaders support all of these via dedicated BSLSP fields and shader flags. They're rare on actor meshes — almost no skin shapes set the parallax flag — so the omission is practical, not a bug. If this renderer ever needs to handle armor or weapons more accurately, parallax becomes important.
 
 - **Glow maps (slot 2 emissive modulation).** Some emissive shapes use slot 2 as an emissive mask. We use slot 2 only for SSS on skin shapes; for non-skin emissive shapes we apply `Own_Emit` without modulation. Visually incorrect for, e.g., the Daedric armor enchanted glow, irrelevant for actor preview.
+
+- **Skin desaturates at high SSS strength.** With `SubsurfaceStrength` at 0 (the current default), skin tones render correctly across all races — Imperials warm, Redguards distinctly dark, Orcs saturated green. Raising it toward the prior default of 2.0 globally desaturates skin (Imperials pale, Redguards Mediterranean, Orcs olive), washing race-distinguishing character toward neutral. The tint pipeline itself is engine-faithful at all SSS strengths — Pegtop + color-shift, QNAM passthrough, and gamma-space rendering all match the CS source byte-for-byte (per the [engine-source cross-check](#engine-source-cross-check-verified-against-cs)) — so the desaturation almost certainly originates in the SSS shader stage or a lighting-interaction issue rather than the tint pipeline. The [skin saturation boost](#stage-1c-skin-saturation-boost) is the user-facing compensation dial; SSS shader audit is a separate follow-up. Causes eliminated during the investigation that traced this back to SSS: NIF `skinTintColor` (always (1,1,1) per render logs), Pegtop math, the color-shift constant, QNAM source/passthrough, color-space mismatch (sRGB-vs-gamma explicitly tested and falsified).
 
 ---
 
