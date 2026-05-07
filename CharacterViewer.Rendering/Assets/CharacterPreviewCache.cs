@@ -13,6 +13,16 @@ namespace CharacterViewer.Rendering;
 public readonly record struct DdsPixels(byte[] Data, int Width, int Height);
 
 /// <summary>
+/// BGRA32 pixel payload for a cubemap DDS — six square faces in standard order
+/// +X, -X, +Y, -Y, +Z, -Z. Each face's array length == Width*Height*4. Pfim
+/// 0.11.4 reads only the first face of a cubemap DDS, so cubemaps are detected
+/// by parsing the DDS header (Caps2 cubemap bits) directly and fed face-by-face
+/// through Pfim with the cubemap flags cleared so each face decodes as a 2D
+/// image. See <see cref="CharacterPreviewCache.GetOrLoadDdsCubemap"/>.
+/// </summary>
+public readonly record struct DdsCubemapPixels(byte[][] Faces, int Width, int Height);
+
+/// <summary>
 /// Process-wide cache of expensive read-only inputs to the 3D preview pipeline.
 ///
 /// Each VM_CharacterViewer is short-lived (e.g. the BodySlide menu disposes the
@@ -65,6 +75,16 @@ public class CharacterPreviewCache
     private readonly Dictionary<string, DdsPixels?> _pixelCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _pixelLru = new();
     private readonly object _pixelLock = new();
+
+    // Parallel cache for cubemap DDS payloads. Kept separate from _pixelCache
+    // because the value type differs (six face buffers vs one) and a single
+    // texture path can't legitimately be both at once. Sized smaller — the
+    // typical NPC pulls one envmap (and many share the default cubemap), so
+    // 16 slots covers a working set of ~16 distinct cubemaps.
+    private const int CubemapCacheMaxEntries = 16;
+    private readonly Dictionary<string, DdsCubemapPixels?> _cubemapCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LinkedList<string> _cubemapLru = new();
+    private readonly object _cubemapLock = new();
 
     public CharacterPreviewCache(
         INpcMeshDataSource dataSource,
@@ -195,11 +215,12 @@ public class CharacterPreviewCache
     }
 
     /// <summary>
-    /// Decodes a DDS via Pfim into BGRA32. Handles the two formats Pfim emits
-    /// for Skyrim assets — Rgba32 (blittable) and Rgb24 (needs padding to 4-byte
-    /// stride). Matches the behavior previously in GlTextureManager.LoadDdsPixels
-    /// so swapping callers from the direct Pfim path to this cached path yields
-    /// pixel-identical output.
+    /// Decodes a DDS via Pfim into BGRA32. Handles the formats Pfim emits for
+    /// Skyrim assets — Rgba32 (blittable), Rgb24 (needs padding to 4-byte
+    /// stride), and Rgb8 (8-bit greyscale broadcast to BGR). Matches the
+    /// behavior previously in GlTextureManager.LoadDdsPixels so swapping
+    /// callers from the direct Pfim path to this cached path yields pixel-
+    /// identical output.
     /// </summary>
     private DdsPixels? DecodeDds(string relativeGamePath)
     {
@@ -209,63 +230,9 @@ public class CharacterPreviewCache
         try
         {
             using var image = Pfimage.FromFile(resolved);
-            int width = image.Width;
-            int height = image.Height;
-            int rowBytes = width * 4;
-            int expectedSize = height * rowBytes;
-
-            switch (image.Format)
-            {
-                case Pfim.ImageFormat.Rgba32:
-                {
-                    byte[] data = new byte[expectedSize];
-                    if (image.Stride == rowBytes)
-                        Buffer.BlockCopy(image.Data, 0, data, 0, expectedSize);
-                    else
-                        for (int y = 0; y < height; y++)
-                            Buffer.BlockCopy(image.Data, y * image.Stride, data, y * rowBytes, rowBytes);
-                    return new DdsPixels(data, width, height);
-                }
-                case Pfim.ImageFormat.Rgb24:
-                {
-                    byte[] data = new byte[expectedSize];
-                    int srcStride = image.Stride;
-                    for (int y = 0; y < height; y++)
-                        for (int x = 0; x < width; x++)
-                        {
-                            int srcIdx = y * srcStride + x * 3;
-                            int dstIdx = (y * width + x) * 4;
-                            data[dstIdx] = image.Data[srcIdx];
-                            data[dstIdx + 1] = image.Data[srcIdx + 1];
-                            data[dstIdx + 2] = image.Data[srcIdx + 2];
-                            data[dstIdx + 3] = 255;
-                        }
-                    return new DdsPixels(data, width, height);
-                }
-                case Pfim.ImageFormat.Rgb8:
-                {
-                    // 8-bit grayscale (e.g. Skyrim _S specular maps): one intensity
-                    // byte per pixel, broadcast to B/G/R with full alpha.
-                    byte[] data = new byte[expectedSize];
-                    int srcStride = image.Stride;
-                    for (int y = 0; y < height; y++)
-                        for (int x = 0; x < width; x++)
-                        {
-                            byte v = image.Data[y * srcStride + x];
-                            int dstIdx = (y * width + x) * 4;
-                            data[dstIdx] = v;
-                            data[dstIdx + 1] = v;
-                            data[dstIdx + 2] = v;
-                            data[dstIdx + 3] = 255;
-                        }
-                    return new DdsPixels(data, width, height);
-                }
-                default:
-                    if (_logGate != null && _logGate.Verbose)
-                        _logger?.LogMessage("CharacterPreviewCache: Unsupported DDS format " +
-                            image.Format + " for '" + relativeGamePath + "'");
-                    return null;
-            }
+            byte[]? bgra = PfimageToBgra32(image, relativeGamePath);
+            if (bgra == null) return null;
+            return new DdsPixels(bgra, image.Width, image.Height);
         }
         catch (Exception ex)
         {
@@ -273,6 +240,213 @@ public class CharacterPreviewCache
                 _logger?.LogMessage("CharacterPreviewCache: Failed to decode '" +
                     relativeGamePath + "': " + ex.Message);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns six BGRA32 face buffers for the given game-relative cubemap DDS,
+    /// or null if the file is missing, unreadable, or not a complete cubemap.
+    /// Caching mirrors <see cref="GetOrLoadDdsPixels"/> — successful results
+    /// are cached, failures are not.
+    /// </summary>
+    public DdsCubemapPixels? GetOrLoadDdsCubemap(string relativeGamePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeGamePath)) return null;
+
+        lock (_cubemapLock)
+        {
+            if (_cubemapCache.TryGetValue(relativeGamePath, out var cached))
+            {
+                _cubemapLru.Remove(relativeGamePath);
+                _cubemapLru.AddFirst(relativeGamePath);
+                if (_logGate != null && _logGate.Verbose)
+                    _logger?.LogMessage("CharacterPreviewCache: DdsCubemap cache hit for '" + relativeGamePath + "'");
+                return cached;
+            }
+        }
+
+        var decoded = DecodeDdsCubemap(relativeGamePath);
+        if (decoded == null) return null;
+
+        lock (_cubemapLock)
+        {
+            if (_cubemapCache.TryGetValue(relativeGamePath, out var racedCached))
+            {
+                _cubemapLru.Remove(relativeGamePath);
+                _cubemapLru.AddFirst(relativeGamePath);
+                return racedCached;
+            }
+
+            _cubemapCache[relativeGamePath] = decoded;
+            _cubemapLru.AddFirst(relativeGamePath);
+            while (_cubemapLru.Count > CubemapCacheMaxEntries)
+            {
+                var oldest = _cubemapLru.Last!.Value;
+                _cubemapLru.RemoveLast();
+                _cubemapCache.Remove(oldest);
+            }
+        }
+
+        return decoded;
+    }
+
+    /// <summary>
+    /// Detects a cubemap DDS by reading the 124-byte header's Caps2 field, then
+    /// feeds each of the six faces through Pfim individually. Pfim 0.11.4 only
+    /// reads the first face of a multi-face DDS, so the workaround is to
+    /// synthesize six "single-face" DDS streams in memory — same header with
+    /// the cubemap bits cleared, prefixed to that face's slice of the original
+    /// pixel payload — and decode each as a normal 2D image.
+    ///
+    /// DDS layout reference (Microsoft spec):
+    ///   bytes  0–3  : "DDS " magic (0x20534444 little-endian)
+    ///   bytes  4–127: 124-byte DDS_HEADER, with dwCaps2 at offset 112
+    /// dwCaps2 bits:
+    ///   0x0200 DDSCAPS2_CUBEMAP            — base cubemap flag
+    ///   0x0400 DDSCAPS2_CUBEMAP_POSITIVEX  — face 0
+    ///   0x0800 DDSCAPS2_CUBEMAP_NEGATIVEX  — face 1
+    ///   0x1000 DDSCAPS2_CUBEMAP_POSITIVEY  — face 2
+    ///   0x2000 DDSCAPS2_CUBEMAP_NEGATIVEY  — face 3
+    ///   0x4000 DDSCAPS2_CUBEMAP_POSITIVEZ  — face 4
+    ///   0x8000 DDSCAPS2_CUBEMAP_NEGATIVEZ  — face 5
+    /// All seven bits combined: 0xFE00. Faces are stored sequentially after the
+    /// header (each with its own mip chain inline), all the same size. We
+    /// require a complete cubemap (mask 0xFE00) — partial cubemaps are rare in
+    /// the wild and Skyrim envmaps are always complete.
+    /// </summary>
+    private DdsCubemapPixels? DecodeDdsCubemap(string relativeGamePath)
+    {
+        string? resolved = _assetResolver.ResolveAssetPath(relativeGamePath);
+        if (resolved == null || !File.Exists(resolved)) return null;
+
+        try
+        {
+            byte[] fileBytes = File.ReadAllBytes(resolved);
+            if (fileBytes.Length < 128) return null;
+
+            uint magic = BitConverter.ToUInt32(fileBytes, 0);
+            if (magic != 0x20534444u) return null; // not a DDS
+
+            const uint DDSCAPS2_CUBEMAP_COMPLETE = 0x0000FE00;
+            uint caps2 = BitConverter.ToUInt32(fileBytes, 112);
+            if ((caps2 & DDSCAPS2_CUBEMAP_COMPLETE) != DDSCAPS2_CUBEMAP_COMPLETE)
+                return null; // not a cubemap (or partial cubemap)
+
+            int payloadLen = fileBytes.Length - 128;
+            if (payloadLen <= 0 || payloadLen % 6 != 0) return null;
+            int perFaceLen = payloadLen / 6;
+
+            // Build a header for the single-face streams: same as the original
+            // but with all cubemap bits in Caps2 cleared so Pfim sees a normal
+            // 2D DDS. Done once and copied into each face's buffer below.
+            byte[] singleFaceHeader = new byte[128];
+            Buffer.BlockCopy(fileBytes, 0, singleFaceHeader, 0, 128);
+            uint clearedCaps2 = caps2 & ~DDSCAPS2_CUBEMAP_COMPLETE;
+            BitConverter.GetBytes(clearedCaps2).CopyTo(singleFaceHeader, 112);
+
+            var faces = new byte[6][];
+            int faceWidth = 0, faceHeight = 0;
+
+            for (int i = 0; i < 6; i++)
+            {
+                byte[] faceFile = new byte[128 + perFaceLen];
+                Buffer.BlockCopy(singleFaceHeader, 0, faceFile, 0, 128);
+                Buffer.BlockCopy(fileBytes, 128 + i * perFaceLen, faceFile, 128, perFaceLen);
+
+                using var stream = new MemoryStream(faceFile, writable: false);
+                using var image = Pfimage.FromStream(stream);
+                byte[]? bgra = PfimageToBgra32(image, relativeGamePath);
+                if (bgra == null) return null;
+
+                faces[i] = bgra;
+                if (i == 0)
+                {
+                    faceWidth = image.Width;
+                    faceHeight = image.Height;
+                }
+                else if (image.Width != faceWidth || image.Height != faceHeight)
+                {
+                    if (_logGate != null && _logGate.Verbose)
+                        _logger?.LogMessage("CharacterPreviewCache: Cubemap face " + i +
+                            " has mismatched size for '" + relativeGamePath + "'");
+                    return null;
+                }
+            }
+
+            return new DdsCubemapPixels(faces, faceWidth, faceHeight);
+        }
+        catch (Exception ex)
+        {
+            if (_logGate != null && _logGate.Verbose)
+                _logger?.LogMessage("CharacterPreviewCache: Failed to decode cubemap '" +
+                    relativeGamePath + "': " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Converts a Pfim-decoded image to a tightly-packed BGRA32 buffer. Shared
+    /// between <see cref="DecodeDds"/> and <see cref="DecodeDdsCubemap"/> so
+    /// the two paths produce pixel-identical output for the same source bytes.
+    /// </summary>
+    private byte[]? PfimageToBgra32(Pfim.IImage image, string relativeGamePath)
+    {
+        int width = image.Width;
+        int height = image.Height;
+        int rowBytes = width * 4;
+        int expectedSize = height * rowBytes;
+
+        switch (image.Format)
+        {
+            case Pfim.ImageFormat.Rgba32:
+            {
+                byte[] data = new byte[expectedSize];
+                if (image.Stride == rowBytes)
+                    Buffer.BlockCopy(image.Data, 0, data, 0, expectedSize);
+                else
+                    for (int y = 0; y < height; y++)
+                        Buffer.BlockCopy(image.Data, y * image.Stride, data, y * rowBytes, rowBytes);
+                return data;
+            }
+            case Pfim.ImageFormat.Rgb24:
+            {
+                byte[] data = new byte[expectedSize];
+                int srcStride = image.Stride;
+                for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
+                    {
+                        int srcIdx = y * srcStride + x * 3;
+                        int dstIdx = (y * width + x) * 4;
+                        data[dstIdx] = image.Data[srcIdx];
+                        data[dstIdx + 1] = image.Data[srcIdx + 1];
+                        data[dstIdx + 2] = image.Data[srcIdx + 2];
+                        data[dstIdx + 3] = 255;
+                    }
+                return data;
+            }
+            case Pfim.ImageFormat.Rgb8:
+            {
+                // 8-bit greyscale (e.g. Skyrim _S specular maps): one intensity
+                // byte per pixel, broadcast to B/G/R with full alpha.
+                byte[] data = new byte[expectedSize];
+                int srcStride = image.Stride;
+                for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
+                    {
+                        byte v = image.Data[y * srcStride + x];
+                        int dstIdx = (y * width + x) * 4;
+                        data[dstIdx] = v;
+                        data[dstIdx + 1] = v;
+                        data[dstIdx + 2] = v;
+                        data[dstIdx + 3] = 255;
+                    }
+                return data;
+            }
+            default:
+                if (_logGate != null && _logGate.Verbose)
+                    _logger?.LogMessage("CharacterPreviewCache: Unsupported DDS format " +
+                        image.Format + " for '" + relativeGamePath + "'");
+                return null;
         }
     }
 
@@ -293,6 +467,11 @@ public class CharacterPreviewCache
         {
             _pixelCache.Clear();
             _pixelLru.Clear();
+        }
+        lock (_cubemapLock)
+        {
+            _cubemapCache.Clear();
+            _cubemapLru.Clear();
         }
         MeshBuilder.ClearCache();
     }

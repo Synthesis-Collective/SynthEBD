@@ -58,6 +58,12 @@ public class GlRenderer : IDisposable
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
     private bool _disposed;
+    // 1x1 black cubemap bound to texture unit 6 whenever the active mesh has
+    // no envmap or its envmap is the 2D sphere-map fallback. Keeps unit 6's
+    // samplerCube binding "complete" so drivers don't warn about sampling
+    // from an incomplete cubemap target even when the shader's
+    // has_environment_map / is_env_map_2d gates skip the sample.
+    private int _defaultBlackCubemap = -1;
 
     /// <summary>RGB color used for the wireframe overlay pass. Bright cyan by
     /// default so edges read clearly against both skin and clothing.</summary>
@@ -376,13 +382,54 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_specular", 3);
         _shader.SetInt("texture_face_tint", 4);
         _shader.SetInt("texture_detail", 5);
+        // Unit 6 carries the cubemap environment map (samplerCube). Unit 10
+        // carries the 2D sphere-map fallback (sampler2D) used for mod-shipped
+        // panoramic envmaps that aren't packaged as DDS cubemaps. The shader
+        // chooses between them per-mesh via the is_env_map_2d flag.
         _shader.SetInt("texture_envmap", 6);
+        _shader.SetInt("texture_envmap_2d", 10);
         _shader.SetInt("texture_envmask", 7);
         _shader.SetInt("u_shadowMap", 8);
 
         GL.Enable(EnableCap.DepthTest);
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
+
+        // Smooth filtering across cubemap face seams. Implicit on most modern
+        // drivers in core 3.2+, but enable explicitly so the cubemap edge
+        // interpolation is consistent across vendors.
+        GL.Enable(EnableCap.TextureCubeMapSeamless);
+
+        // 1x1 opaque-black fallback cubemap. Bound to unit 6 whenever the
+        // active mesh has no real cubemap envmap, so the samplerCube uniform
+        // is always backed by a complete cube target.
+        _defaultBlackCubemap = GL.GenTexture();
+        GL.BindTexture(TextureTarget.TextureCubeMap, _defaultBlackCubemap);
+        byte[] blackPixel = { 0, 0, 0, 255 };
+        var faceTargets = new[]
+        {
+            TextureTarget.TextureCubeMapPositiveX,
+            TextureTarget.TextureCubeMapNegativeX,
+            TextureTarget.TextureCubeMapPositiveY,
+            TextureTarget.TextureCubeMapNegativeY,
+            TextureTarget.TextureCubeMapPositiveZ,
+            TextureTarget.TextureCubeMapNegativeZ,
+        };
+        foreach (var target in faceTargets)
+        {
+            GL.TexImage2D(target, 0, PixelInternalFormat.Rgba8,
+                1, 1, 0, PixelFormat.Bgra, PixelType.UnsignedByte, blackPixel);
+        }
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter,
+            (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter,
+            (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR,
+            (int)TextureWrapMode.ClampToEdge);
 
         // Debug (line-based) shader for the key-light arrow gizmo
         string debugVertPath = Path.Combine(shaderDirectory, "debug.vert");
@@ -594,6 +641,13 @@ public class GlRenderer : IDisposable
         _shader.SetMatrix4("u_model", ref model);
         _shader.SetMatrix4("u_view", ref view);
         _shader.SetMatrix4("u_projection", ref projection);
+
+        // World-space camera position for the cubemap-envmap reflection
+        // direction (reflect(-(cameraPos - worldPos), worldNormal)). Pushed
+        // once per frame; the orbit camera already exposes this so we don't
+        // need to invert the view matrix.
+        var camPos = camera.GetEyePosition();
+        _shader.SetVector3("u_cameraPos", camPos.X, camPos.Y, camPos.Z);
 
         // Set light uniforms — transform directions to view space
         EnsureViewSpaceLightDirs(ref view);
@@ -1676,10 +1730,21 @@ public class GlRenderer : IDisposable
         GL.BindTexture(TextureTarget.Texture2D, mesh.FaceTintTexture);
         GL.ActiveTexture(TextureUnit.Texture5);
         GL.BindTexture(TextureTarget.Texture2D, mesh.DetailTexture);
+        // Envmap dual binding: unit 6 is samplerCube, unit 10 is sampler2D.
+        // Whichever path the mesh isn't using gets a neutral binding (default
+        // black cubemap or texture 0) so both sampler uniforms stay valid.
         GL.ActiveTexture(TextureUnit.Texture6);
-        GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMapTexture);
+        if (mesh.HasEnvironmentMap && !mesh.IsEnvMap2D && mesh.EnvMapTexture != 0)
+            GL.BindTexture(TextureTarget.TextureCubeMap, mesh.EnvMapTexture);
+        else
+            GL.BindTexture(TextureTarget.TextureCubeMap, _defaultBlackCubemap);
         GL.ActiveTexture(TextureUnit.Texture7);
         GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMaskTexture);
+        GL.ActiveTexture(TextureUnit.Texture10);
+        if (mesh.HasEnvironmentMap && mesh.IsEnvMap2D && mesh.EnvMapTexture != 0)
+            GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMapTexture);
+        else
+            GL.BindTexture(TextureTarget.Texture2D, 0);
 
         // Set material flags
         _shader.SetBool("has_normal_map", mesh.HasNormalMap);
@@ -1697,6 +1762,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("has_vertex_colors", mesh.HasVertexColors);
         _shader.SetBool("has_environment_map", mesh.HasEnvironmentMap);
         _shader.SetBool("has_env_mask", mesh.HasEnvMask);
+        _shader.SetBool("is_env_map_2d", mesh.IsEnvMap2D);
         _shader.SetBool("has_detail_map", mesh.HasDetailMap);
         _shader.SetBool("is_eye", mesh.IsEye);
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);

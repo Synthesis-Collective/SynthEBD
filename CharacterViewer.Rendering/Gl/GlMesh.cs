@@ -112,6 +112,12 @@ public class GlMesh : IDisposable
     public int EnvMaskTexture { get; set; }
     public bool HasEnvironmentMap { get; set; }
     public bool HasEnvMask { get; set; }
+    /// <summary>True when EnvMapTexture is a 2D sphere-map fallback rather
+    /// than a real GL_TEXTURE_CUBE_MAP. Set by the loader when the source
+    /// DDS is missing the cubemap flag (mod-shipped panoramic envmap). The
+    /// shader uses this flag to switch between cube sampling and the legacy
+    /// spherical UV math.</summary>
+    public bool IsEnvMap2D { get; set; }
 
     // Detail map
     public int DetailTexture { get; set; }

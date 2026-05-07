@@ -3178,14 +3178,17 @@ public class VM_CharacterViewer : ViewerVm
         bool hasEyeEnvMap = (built.ShaderFlags1 & (1u << 17)) != 0;
         if ((hasEnvMap || hasEyeEnvMap) && effectiveTextures.TryGetValue(4, out string? envMapPath))
         {
-            var envTex = TextureManager.LoadCubemap(envMapPath);
+            var (envTex, envIsCube) = TextureManager.LoadEnvMap(envMapPath);
             if (envTex != 0)
             {
                 glMesh.EnvMapTexture = envTex;
                 glMesh.HasEnvironmentMap = true;
+                glMesh.IsEnvMap2D = !envIsCube;
                 glMesh.EnvMapScale = built.EnvironmentMapScale;
                 glMesh.EyeCubemapScale = built.EyeCubemapScale;
-                RecordTextureSource(glMesh, "Environment Cubemap", envMapPath);
+                RecordTextureSource(glMesh,
+                    envIsCube ? "Environment Cubemap" : "Environment Map (2D fallback)",
+                    envMapPath);
             }
 
             if (effectiveTextures.TryGetValue(5, out string? envMaskPath))

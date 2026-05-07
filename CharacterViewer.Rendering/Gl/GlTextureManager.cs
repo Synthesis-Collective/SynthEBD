@@ -168,28 +168,88 @@ public class GlTextureManager : IDisposable
     }
 
     /// <summary>
-    /// Loads an environment map texture (spherical 2D mapping).
-    /// Skyrim environment maps are DDS files loaded as standard 2D textures;
-    /// the shader converts reflection vectors to spherical UV coordinates.
-    /// Returns 0 if the texture can't be loaded.
+    /// Loads an environment-map DDS as a real GL_TEXTURE_CUBE_MAP if the file
+    /// is a complete cubemap, or returns <c>(handle, isCube=false)</c> as a
+    /// 2D texture if the file isn't a cubemap (mod-shipped 2D sphere-maps).
+    /// Returns <c>(0, false)</c> if the texture can't be loaded at all.
+    ///
+    /// The caller (<see cref="GlMesh"/> + the shader) chooses the sampling
+    /// path based on <see cref="GlMesh.IsEnvMap2D"/>: cube-mapped reflections
+    /// for proper cubemaps, the legacy spherical-2D math for the 2D fallback.
     /// </summary>
-    public int LoadCubemap(string relativeGamePath)
+    public (int Handle, bool IsCube) LoadEnvMap(string relativeGamePath)
     {
         if (string.IsNullOrWhiteSpace(relativeGamePath))
-            return 0;
+            return (0, false);
 
-        if (_textureCache.TryGetValue("env:" + relativeGamePath, out int cached))
-            return cached;
+        if (_textureCache.TryGetValue("envcube:" + relativeGamePath, out int cubeCached))
+            return (cubeCached, true);
+        if (_textureCache.TryGetValue("env2d:" + relativeGamePath, out int flatCached))
+            return (flatCached, false);
 
+        var cubemap = _previewCache.GetOrLoadDdsCubemap(relativeGamePath);
+        if (cubemap != null)
+        {
+            int cubeHandle = UploadCubemap(cubemap.Value.Faces, cubemap.Value.Width, cubemap.Value.Height);
+            _textureCache["envcube:" + relativeGamePath] = cubeHandle;
+            return (cubeHandle, true);
+        }
+
+        // Not a cubemap (or not a readable DDS): fall through to the legacy
+        // 2D sphere-map path so mod-shipped panoramic envmaps still render.
         var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
             _logger.LogMessage("GlTextures: Env map not found '" + relativeGamePath + "'");
-            return 0;
+            return (0, false);
         }
 
-        int handle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
-        _textureCache["env:" + relativeGamePath] = handle;
+        int flatHandle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
+        _textureCache["env2d:" + relativeGamePath] = flatHandle;
+        return (flatHandle, false);
+    }
+
+    /// <summary>
+    /// Uploads six BGRA32 face buffers as a GL_TEXTURE_CUBE_MAP. Faces are in
+    /// standard order +X, -X, +Y, -Y, +Z, -Z. ClampToEdge wrap on all three
+    /// axes is required for cubemap seam continuity (Repeat would produce
+    /// visible seams at face boundaries).
+    /// </summary>
+    private int UploadCubemap(byte[][] faces, int width, int height)
+    {
+        int handle = GL.GenTexture();
+        GL.BindTexture(TextureTarget.TextureCubeMap, handle);
+
+        // DDS cubemap face order matches GL's TextureCubeMap{Positive,Negative}{X,Y,Z}.
+        var targets = new[]
+        {
+            TextureTarget.TextureCubeMapPositiveX,
+            TextureTarget.TextureCubeMapNegativeX,
+            TextureTarget.TextureCubeMapPositiveY,
+            TextureTarget.TextureCubeMapNegativeY,
+            TextureTarget.TextureCubeMapPositiveZ,
+            TextureTarget.TextureCubeMapNegativeZ,
+        };
+        for (int i = 0; i < 6; i++)
+        {
+            GL.TexImage2D(targets[i], 0, PixelInternalFormat.Rgba8,
+                width, height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, faces[i]);
+        }
+
+        GL.GenerateMipmap(GenerateMipmapTarget.TextureCubeMap);
+
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter,
+            (int)TextureMinFilter.LinearMipmapLinear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter,
+            (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR,
+            (int)TextureWrapMode.ClampToEdge);
+
+        _allTextures.Add(handle);
         return handle;
     }
 

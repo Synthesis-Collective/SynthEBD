@@ -84,7 +84,13 @@ uniform sampler2D texture_skin;
 uniform sampler2D texture_specular;
 uniform sampler2D texture_face_tint;
 uniform sampler2D texture_detail;
-uniform sampler2D texture_envmap;
+// Cubemap envmap (engine-faithful path) and 2D sphere-map fallback for
+// mod-shipped panoramic envmaps. The host binds the matching one per mesh
+// and pushes is_env_map_2d to choose which sampler the fragment shader
+// reads. Skyrim's vanilla envmaps in slot 4 are DDS cubemaps; CS samples
+// them via TextureCube as well (Lighting.hlsl, EmatEnvmap path).
+uniform samplerCube texture_envmap;
+uniform sampler2D texture_envmap_2d;
 uniform sampler2D texture_envmask;
 
 // --- MATERIAL FLAGS ---
@@ -102,6 +108,12 @@ uniform bool has_soft_lighting;
 uniform bool has_rim_lighting;
 uniform bool has_vertex_colors;
 uniform bool has_environment_map;
+// True when the slot-4 envmap was loaded as a 2D sphere-map fallback rather
+// than a real GL_TEXTURE_CUBE_MAP. Vanilla Skyrim envmaps are cubemaps, but
+// some mods ship panoramic 2D sphere-maps; the host detects this at load
+// time and toggles this flag so we sample texture_envmap_2d with the legacy
+// spherical UV math instead of texture_envmap (samplerCube).
+uniform bool is_env_map_2d;
 uniform bool has_env_mask;
 uniform bool has_detail_map;
 uniform bool is_eye;
@@ -207,6 +219,10 @@ uniform float eyeCubemapScale;
 uniform Light lights[MAX_LIGHTS];
 uniform vec3 u_backlightColor;
 uniform mat4 u_view;
+// World-space camera position. Used for the cubemap reflection-vector
+// calculation (reflect(-(cameraPos - worldPos), worldNormal)). Pushed once
+// per frame from OrbitCamera.GetEyePosition() in GlRenderer.
+uniform vec3 u_cameraPos;
 
 // Photoshop-style overlay blend (matches NifSkope / Bethesda engine)
 float overlayBlend(float b, float l)
@@ -649,17 +665,33 @@ void main()
         }
     }
 
-    // --- 4. ENVIRONMENT MAPPING (spherical 2D) ---
-    // TEMP DEBUG: disabled so reflections don't disguise the unlit side.
+    // --- 4. ENVIRONMENT MAPPING (cubemap, with 2D sphere-map fallback) ---
+    //
+    // Vanilla Skyrim envmaps (slot 4) are DDS cubemaps; CS samples them via
+    // TextureCube on the world-space reflection vector. Some mods ship 2D
+    // sphere-maps instead -- the host loader detects this at decode time and
+    // sets is_env_map_2d so this branch falls back to the legacy spherical
+    // UV math.
+    //
+    // Reflection is computed in world space against v_worldNormal (the
+    // vertex/geometry normal, not the per-pixel bumped normal). CS does the
+    // same -- envmap reflections track the macro shape; bumped reflections
+    // would require transforming normal_viewSpace back to world space and
+    // are out of scope for this pass.
     if (!DEBUG_DIFFUSE_ONLY && has_environment_map && u_enableEnvMap) {
-        vec3 viewDir = normalize(-v_viewSpacePos);
-        vec3 reflectDir = reflect(-viewDir, normal_viewSpace);
-        // Spherical environment mapping: convert reflection vector to 2D UV
-        // This maps a 3D reflection direction to a sphere map texture coordinate
-        float m = 2.0 * sqrt(reflectDir.x * reflectDir.x + reflectDir.y * reflectDir.y +
-                             (reflectDir.z + 1.0) * (reflectDir.z + 1.0));
-        vec2 envUV = vec2(reflectDir.x / m + 0.5, reflectDir.y / m + 0.5);
-        vec3 envColor = texture(texture_envmap, envUV).rgb;
+        vec3 viewDirWorld = normalize(u_cameraPos - v_worldPos);
+        vec3 nWorld       = normalize(v_worldNormal);
+        vec3 reflectWorld = reflect(-viewDirWorld, nWorld);
+        vec3 envColor;
+        if (is_env_map_2d) {
+            float m = 2.0 * sqrt(reflectWorld.x * reflectWorld.x
+                              +  reflectWorld.y * reflectWorld.y
+                              + (reflectWorld.z + 1.0) * (reflectWorld.z + 1.0));
+            vec2 envUV = vec2(reflectWorld.x / m + 0.5, reflectWorld.y / m + 0.5);
+            envColor = texture(texture_envmap_2d, envUV).rgb;
+        } else {
+            envColor = texture(texture_envmap, reflectWorld).rgb;
+        }
         float envMask = has_env_mask ? texture(texture_envmask, TexCoords).r : 1.0;
         float scale = is_eye ? eyeCubemapScale : envMapScale;
         finalColor += envColor * envMask * scale;

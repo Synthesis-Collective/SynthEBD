@@ -475,21 +475,36 @@ When `is_eye` (BSLSP_EYE shader type, ID 16) and the light is the key light: a t
 
 ### Stage 4: environment mapping
 
-[basic.frag:474-488](Shaders/basic.frag#L474). When SLSF1_Environment_Mapping or SLSF1_Eye_Environment_Mapping is set and slot 4 has a texture:
+[basic.frag:668-697](Shaders/basic.frag#L668). When SLSF1_Environment_Mapping or SLSF1_Eye_Environment_Mapping is set and slot 4 has a texture:
 
-```
-reflectDir = reflect(-viewDir, normal_viewSpace);
-// Spherical 2D mapping (NOT a cubemap)
-uv.x = reflectDir.x / m + 0.5;
-uv.y = reflectDir.y / m + 0.5;  // m = 2 * sqrt(rx² + ry² + (rz+1)²)
-envColor = texture(envmap, uv).rgb;
+```glsl
+viewDirWorld = normalize(u_cameraPos - v_worldPos);
+reflectWorld = reflect(-viewDirWorld, normalize(v_worldNormal));
+
+if (is_env_map_2d) {
+    // Legacy spherical-2D fallback for mod-shipped panoramic envmaps
+    float m = 2.0 * sqrt(rx*rx + ry*ry + (rz+1)*(rz+1));
+    envColor = texture(texture_envmap_2d, vec2(rx/m + 0.5, ry/m + 0.5)).rgb;
+} else {
+    // Engine-faithful cubemap path (vanilla DDS cubemaps)
+    envColor = texture(texture_envmap, reflectWorld).rgb;
+}
+
 envMask = has_env_mask ? texture(envmask, TexCoords).r : 1.0;
 finalColor += envColor * envMask * scale;
 ```
 
 `scale` is `eyeCubemapScale` for eye shapes, `envMapScale` otherwise.
 
-**Why spherical 2D and not a cube map**: this is technically wrong, just visually invisible. Bethesda's `EyeCubeMap.dds` ships as 128×32 BC7_UNORM — a 4:1 aspect ratio that's almost certainly a strip or cross cubemap layout, not an equirectangular spherical projection. NifSkope and Outfit Studio both load it as a real `samplerCube` and sample with `texture(cubemap, reflectionVector)`. Our [GlTextureManager.LoadCubemap()](Gl/GlTextureManager.cs#L176) uploads it as a `TextureTarget.Texture2D` and the shader samples it with sphere-map UV math — the math is incorrect for the actual texture layout. The mismatch is hidden by content: the file's mean RGB is `(5.4, 5.5, 5.4)` (≈2% intensity), so the env-map contribution is dim enough that the dominant eye highlight comes from the dedicated catchlight pass (which *is* correct), not from the env reflection. If we ever bump the env intensity or use a brighter cubemap, the artifact would surface as a wrong rotation of the reflection vs the head pose. Logged as future-work; the fix is to call `glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, ...)` six times after splitting the strip layout, and switch the shader sampler to `samplerCube`.
+**Cubemap loading.** Vanilla Skyrim envmaps in slot 4 are DDS cubemaps (`Caps2 & 0xFE00 == 0xFE00` → all six face flags set). Pfim 0.11.4 reads only the first face of a multi-face DDS, so [`CharacterPreviewCache.DecodeDdsCubemap`](Assets/CharacterPreviewCache.cs) parses the 124-byte DDS_HEADER itself, slices the payload into six equal face buffers (DDS spec stores faces in `+X, -X, +Y, -Y, +Z, -Z` order, sequentially after the header), and feeds each face through Pfim as a synthesized "single-face" DDS stream — same header with the cubemap bits cleared from `Caps2`, prefixed to that face's bytes. This decouples the cubemap-detection step from Pfim's lack of multi-face support without requiring a different DDS library.
+
+[`GlTextureManager.LoadEnvMap()`](Gl/GlTextureManager.cs) returns `(handle, isCube)`. If the file is a complete cubemap, `UploadCubemap` issues six `glTexImage2D` calls onto `GL_TEXTURE_CUBE_MAP_POSITIVE_X..NEGATIVE_Z` with `GL_CLAMP_TO_EDGE` on all three axes (necessary for cubemap seam continuity; `GL_REPEAT` would produce visible joins). If the file isn't a cubemap (mod-shipped panoramic 2D), we fall back to the legacy 2D path and the host sets `glMesh.IsEnvMap2D = true` so the shader takes the spherical-UV branch.
+
+**Reflection vector coordinate space.** Computed in **world space** using `u_cameraPos` (per-frame, from `OrbitCamera.GetEyePosition()`) and `v_worldNormal` (vertex/geometry normal, not the per-pixel bumped normal). This matches Community Shaders' `Lighting.hlsl` envmap path — bumped reflections would require transforming the per-pixel `normal_viewSpace` back to world via `inverse(u_view)` and aren't part of the engine-faithful pipeline.
+
+**Why the geometry normal, not the bumped one.** Cubemap reflections track macro shape; the eye is a sphere, the body is a body, regardless of fine surface detail in the normal map. Sampling the cubemap with the bumped normal would make per-texel reflections that the eye reads as noisy texture rather than reflective surface. CS, NifSkope, and Outfit Studio all use the geometry normal for envmap.
+
+**Driver completeness.** Texture unit 6 is `samplerCube`; unit 10 is the 2D fallback `sampler2D`. `GlRenderer` always binds *something* to both units per draw call: a real cubemap or the 1×1 black `_defaultBlackCubemap` to unit 6, and either the 2D envmap or texture 0 to unit 10. This avoids "incomplete texture target" warnings on strict drivers when `has_environment_map` is false. `EnableCap.TextureCubeMapSeamless` is enabled at renderer init for consistent edge filtering across vendors.
 
 ### Stage 5: emissive
 
