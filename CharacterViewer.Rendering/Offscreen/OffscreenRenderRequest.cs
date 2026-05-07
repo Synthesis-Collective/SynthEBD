@@ -265,6 +265,14 @@ public sealed class OffscreenRenderRequest
     /// don't opt in.</summary>
     public float SubsurfaceStrength { get; init; } = 0f;
 
+    /// <summary>Skin-only saturation multiplier applied post-tint,
+    /// pre-lighting. 1.0 is no-op (default). &gt;1 boosts chroma on
+    /// shapes flagged as skin (BSLSP_FACE / BSLSP_SKINTINT); hair, eyes,
+    /// and brows pass through unchanged. Compensates for downstream
+    /// desaturation that washes race-distinguishing skin character
+    /// toward neutral.</summary>
+    public float SkinSaturationBoost { get; init; } = 1.0f;
+
     /// <summary>Vignette inner radius in NDC units (2.5.15+). Pixels
     /// within this circular zone of screen center are unaffected; the
     /// darkening smoothsteps from this radius out to the corner

@@ -143,6 +143,15 @@ public class GlMesh : IDisposable
     /// render time so the toggle can flip without re-loading the scene.</summary>
     public bool IsFaceShape { get; set; }
 
+    /// <summary>True when this shape's BSLightingShaderProperty had
+    /// shaderType = 4 (BSLSP_FACE) or 5 (BSLSP_SKINTINT). Identifies
+    /// "skin shapes" (face + body + hands + feet) for the optional
+    /// host-tunable saturation boost in basic.frag, which compensates
+    /// for downstream desaturation that washes Imperials pale, Redguards
+    /// Mediterranean, and Orcs olive. Hair / eyes / brows are excluded
+    /// since they don't share the desaturation symptom.</summary>
+    public bool IsSkinShape { get; set; }
+
     /// <summary>NIF-side <c>skinTintAlpha</c> field on
     /// BSLightingShaderProperty. Always 0.0f in vanilla and most-modder
     /// authoring; surfaced so the SkinTintAlpha-weighted operator in the

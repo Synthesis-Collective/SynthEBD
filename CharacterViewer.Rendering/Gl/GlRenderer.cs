@@ -116,6 +116,13 @@ public class GlRenderer : IDisposable
     /// values. Higher = more pronounced warm-flesh look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
+    /// <summary>Skin-only saturation multiplier applied post-tint,
+    /// pre-lighting. 1.0 is no-op. &gt;1 boosts chroma on shapes flagged
+    /// <see cref="GlMesh.IsSkinShape"/>; hair, eyes, and brows are
+    /// excluded. Compensates for downstream desaturation that washes
+    /// race-distinguishing skin character toward neutral.</summary>
+    public float SkinSaturationBoost { get; set; } = 1.0f;
+
     /// <summary>Vignette inner radius in NDC units (2.5.15+). The
     /// circular zone of distance &lt;= radius from screen center is
     /// unaffected; falloff smoothsteps from this radius out to the
@@ -545,6 +552,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
+        _shader.SetFloat("u_skinSaturationBoost", SkinSaturationBoost);
         // u_screenSize is consumed by both the SSAO sample lookup AND
         // the tone-mapping vignette (2.5.15+), so push it on every
         // frame regardless of which toggles are on.
@@ -1693,6 +1701,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("is_eye", mesh.IsEye);
         _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
         _shader.SetBool("is_face_shape", mesh.IsFaceShape);
+        _shader.SetBool("is_skin", mesh.IsSkinShape);
         _shader.SetFloat("skin_tint_alpha", mesh.SkinTintAlpha);
         _shader.SetBool("is_face_empty_detail", mesh.IsFaceWithEmptyDetailSlot);
         _shader.SetBool("is_hair_tint", mesh.IsHairTintShader);

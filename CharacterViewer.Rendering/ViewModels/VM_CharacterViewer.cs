@@ -331,6 +331,15 @@ public class VM_CharacterViewer : ViewerVm
     /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
+    /// <summary>Skin-only saturation multiplier applied post-tint,
+    /// pre-lighting. 1.0 is no-op (default). &gt;1 boosts chroma, restoring
+    /// race-distinguishing skin character that the downstream pipeline
+    /// (ACES tonemap + lighting + post-process) tends to compress toward
+    /// neutral — Orc green, Redguard brown, and Imperial warmth all
+    /// recover at the same setting. Gated on IsSkinShape, so hair, eyes,
+    /// and brows are excluded.</summary>
+    public float SkinSaturationBoost { get; set; } = 1.0f;
+
     /// <summary>Vignette inner radius in NDC units (2.5.15+). The
     /// circular zone within this distance of screen center is
     /// unaffected; falloff smoothsteps from here out to the corner.
@@ -845,6 +854,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SubsurfaceStrength)
             .Subscribe(v => Renderer.SubsurfaceStrength = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinSaturationBoost)
+            .Subscribe(v => Renderer.SkinSaturationBoost = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VignetteRadius)
             .Subscribe(v => Renderer.VignetteRadius = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VignetteIntensity)
@@ -3153,6 +3164,7 @@ public class VM_CharacterViewer : ViewerVm
             glMesh.TintColor = new System.Numerics.Vector3(r, g, b);
         }
         glMesh.IsFaceShape = (built.ShaderType == 4);
+        glMesh.IsSkinShape = (built.ShaderType == 4 || built.ShaderType == 5);
         glMesh.SkinTintAlpha = built.SkinTintAlpha;
 
         // Eye shader (shader type 16 = ST_EyeEnvmap)

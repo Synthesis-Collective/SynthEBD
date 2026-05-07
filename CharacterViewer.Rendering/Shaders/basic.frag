@@ -106,6 +106,12 @@ uniform bool has_env_mask;
 uniform bool has_detail_map;
 uniform bool is_eye;
 uniform bool is_face_shape;
+// True for BSLSP_FACE (4) or BSLSP_SKINTINT (5) shapes -- i.e. the
+// "skin shapes" (face + body + hands + feet). Hair / eyes / brows are
+// excluded. Gates the host-tunable u_skinSaturationBoost which
+// compensates for downstream desaturation that washes Imperials pale,
+// Redguards Mediterranean, and Orcs olive. Set per-mesh by the host.
+uniform bool is_skin;
 uniform float skin_tint_alpha;
 uniform bool is_face_empty_detail;
 // True for BSLSP_HAIRTINT (ShaderType 6) shapes. These reuse the
@@ -130,6 +136,13 @@ uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
 uniform bool u_enableEyeCatchlight;
 uniform float u_subsurfaceStrength;
+// Skin-only saturation multiplier applied post-tint, pre-lighting.
+// 1.0 = no-op (default). >1 boosts chroma along the original hue
+// (luminance-preserving lerp from luma-grey toward source). Compensates
+// for downstream desaturation in the lighting + tonemap stack that
+// washes race-distinguishing skin character toward neutral. Gated on
+// is_skin, so hair/eyes/brows pass through unchanged.
+uniform float u_skinSaturationBoost;
 uniform float u_vignetteRadius;
 uniform float u_vignetteIntensity;
 // Skin-tint debug operator (interactive selector). 0 = multiply
@@ -438,6 +451,19 @@ void main()
         vec3 detailColor = vec3(3.984375)
             * (vec3(0.00392156886, 0.0, 0.00392156886) + detailSample);
         baseColor.rgb *= detailColor;
+    }
+
+    // Skin-only saturation boost (pragmatic compensation for downstream
+    // desaturation in the lighting + tonemap stack). Applied AFTER all
+    // diffuse-modulation stages (tint, detail, FaceTint) and BEFORE
+    // normal/lighting, so it goes into the diffuse albedo. Specular
+    // remains achromatic (uses specularColor, not baseColor) which is
+    // what skin should look like -- wet/oily highlights stay neutral
+    // while skin chroma is restored. Engine-faithful Saturation
+    // formulation per Color::Saturation in CS Color.hlsli.
+    if (is_skin && u_skinSaturationBoost != 1.0) {
+        float lum = dot(baseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+        baseColor.rgb = max(mix(vec3(lum), baseColor.rgb, u_skinSaturationBoost), 0.0);
     }
 
     // --- 2. NORMAL CALCULATION ---

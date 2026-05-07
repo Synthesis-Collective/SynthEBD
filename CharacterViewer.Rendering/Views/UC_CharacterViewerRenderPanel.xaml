@@ -76,6 +76,15 @@
                                    FormatString="0.00"
                                    ToolTip="Subsurface scattering strength multiplier. 0 disables SSS; 1.0 is honest SSS at the source NIF rolloff values; 1.5-2.0 boosts toward the more pronounced warm-flesh look in professional portrait reference."/>
 
+                <TextBlock Text="Skin Sat:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"
+                           ToolTip="Skin-only saturation multiplier."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="3" Increment="0.05"
+                                   Value="{Binding SkinSaturationBoost}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Skin-only saturation multiplier applied post-tint, pre-lighting. 1.0 = no-op (default). >1 boosts chroma along the original hue, restoring race-distinguishing skin character (Orc green, Redguard brown, Imperial warmth) that the downstream pipeline tends to compress toward neutral. Gated on shader type 4/5 so hair/eyes/brows pass through unchanged."/>
+
                 <TextBlock Text="Vignette R:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="15,0,4,0"
                            ToolTip="Vignette inner radius (NDC units, ~0..1.4). Pixels within this distance of screen center are unaffected; falloff smoothsteps from this radius out to the corner. Only takes effect when tone-mapping is on."/>
