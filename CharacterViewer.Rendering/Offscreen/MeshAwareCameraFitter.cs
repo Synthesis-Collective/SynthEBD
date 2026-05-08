@@ -30,6 +30,15 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// </summary>
 public static class MeshAwareCameraFitter
 {
+    // Multiplier applied to the primary head's height to derive an upper-Y
+    // cutoff for AboveLowerYOfPrimaryHead. Vertices above
+    // primaryHead.MaxY + N * primaryHead.Height are treated as degenerate
+    // (e.g. a handful of head-accessory verts weighted to a far-away bone in
+    // the rest pose) and excluded from the bbox. 5× is much larger than any
+    // realistic hair / head accessory extent (~2× head height in vanilla)
+    // but small enough to catch the ~10× outliers seen in the wild.
+    private const float HeadAccessoryUpperMarginMultiplier = 5f;
+
     /// <summary>Applies <paramref name="framing"/> to <paramref name="vm"/>'s
     /// camera. <paramref name="viewportWidth"/> / <paramref name="viewportHeight"/>
     /// determine the aspect ratio used for horizontal-fit calculation —
@@ -109,15 +118,21 @@ public static class MeshAwareCameraFitter
                 + " → matched " + matched.Count + " mesh(es)");
             if (matched.Count == 0) continue;
 
-            // Resolve the filter's reference Y bound, if any. ResolveFilterMinY
+            // Resolve the filter's reference Y bounds, if any. ResolveFilterMinY
             // returns the min in CpuPositions space; rebase to render-space so
             // it can be compared directly against the scaled vertex Y below.
+            // ResolveFilterMaxY returns an adaptive upper cutoff for filters
+            // that reject degenerate-far verts (currently AboveLowerYOfPrimaryHead).
             float? minYBound = ResolveFilterMinY(shape.Filter, allMeshes);
             if (minYBound.HasValue) minYBound = minYBound.Value * modelScale;
+            float? maxYBound = ResolveFilterMaxY(shape.Filter, allMeshes);
+            if (maxYBound.HasValue) maxYBound = maxYBound.Value * modelScale;
             if (shape.Filter != null)
             {
                 log?.Invoke("CharacterViewer: [Framing]   filter resolved minYBound="
                     + (minYBound.HasValue ? minYBound.Value.ToString("F2") : "null")
+                    + ", maxYBound="
+                    + (maxYBound.HasValue ? maxYBound.Value.ToString("F2") : "null")
                     + " (render-space)");
             }
 
@@ -141,6 +156,7 @@ public static class MeshAwareCameraFitter
                 {
                     var v = verts[i] * modelScale;
                     if (minYBound.HasValue && v.Y < minYBound.Value) continue;
+                    if (maxYBound.HasValue && v.Y > maxYBound.Value) continue;
                     mn = NumericsVec3.Min(mn, v);
                     mx = NumericsVec3.Max(mx, v);
                     meshHadVerts = true;
@@ -374,5 +390,41 @@ public static class MeshAwareCameraFitter
         foreach (var v in mesh.CpuPositions)
             if (v.Y < min) min = v.Y;
         return float.IsFinite(min) ? min : null;
+    }
+
+    /// <summary>Adaptive upper-Y cutoff used to reject degenerate-far verts.
+    /// Currently only <see cref="FramingShapeFilter.AboveLowerYOfPrimaryHead"/>
+    /// supplies one — the cutoff sits at the primary head's MaxY plus
+    /// <see cref="HeadAccessoryUpperMarginMultiplier"/> × head height, which
+    /// is well above any realistic hair / accessory extent but tight enough
+    /// to drop a handful of rest-pose-stretched verts that would otherwise
+    /// blow out the framing bbox.</summary>
+    private static float? ResolveFilterMaxY(FramingShapeFilter? filter, IReadOnlyList<GlMesh> all)
+    {
+        switch (filter)
+        {
+            case FramingShapeFilter.AboveLowerYOfPrimaryHead:
+            {
+                var primary = all.FirstOrDefault(m => m.IsPrimaryHeadShape);
+                var min = MinYOf(primary);
+                var max = MaxYOf(primary);
+                if (!min.HasValue || !max.HasValue) return null;
+                float height = max.Value - min.Value;
+                if (height <= 0f) return null;
+                return max.Value + HeadAccessoryUpperMarginMultiplier * height;
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    private static float? MaxYOf(GlMesh? mesh)
+    {
+        if (mesh?.CpuPositions == null || mesh.CpuPositions.Length == 0) return null;
+        float max = float.NegativeInfinity;
+        foreach (var v in mesh.CpuPositions)
+            if (v.Y > max) max = v.Y;
+        return float.IsFinite(max) ? max : null;
     }
 }
