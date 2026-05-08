@@ -608,18 +608,30 @@ void main()
             if (has_skin_map && u_enableSkin && u_subsurfaceStrength > 0.0) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
 
-                // Warm flesh tint, slightly biased toward the surface
-                // color so dark-skinned NPCs don't get unrealistic
-                // bright-red SSS while still reading as warm.
+                // Warm flesh tint, biased toward surface color. Only
+                // applied to the terminator/back-scatter delta below,
+                // never to the fully-lit hemisphere -- so non-warm
+                // skin (orcs, dark-skinned NPCs) keep their hue.
                 vec3 sss_color = mix(vec3(1.0, 0.35, 0.25), baseColor.rgb, 0.4);
 
-                // Forward scatter: proper wrap-lighting per BSLighting
-                // "Subsurface Rolloff" semantics. R=0 = standard lambert,
-                // R=1 = half-lambert, in between extends the wrap into
-                // shadow proportionally.
+                // Forward scatter: wrap-lighting per BSLighting
+                // "Subsurface Rolloff" semantics. R=0 = lambert,
+                // R=1 = half-lambert, in between extends the wrap
+                // into shadow proportionally.
                 float NdotL = dot(normal_viewSpace, lightDir);
                 float R = clamp(subsurfaceRolloff, 0.001, 1.0);
                 float wrap = max((NdotL + R) / (1.0 + R), 0.0);
+                float lambert = max(NdotL, 0.0);
+
+                // Forward-scatter delta: the part of the wrap that
+                // bleeds past the standard lambert terminator. Zero
+                // on fully-lit pixels (wrap == lambert) so we don't
+                // add a fixed-hue brightening that desaturates the
+                // surface; positive only at/past the terminator,
+                // peaking at NdotL = 0 with magnitude R/(1+R). This
+                // is conceptually what pre-integrated SSS (Penner
+                // 2011) does -- only the terminator gets warmth.
+                float fwd_amount = max(wrap - lambert, 0.0);
 
                 // Back scatter / translucency: bright where the light
                 // is BEHIND the surface relative to the viewer. The
@@ -630,9 +642,10 @@ void main()
                 float backlit = max(-NdotL, 0.0);
                 backlit = pow(backlit, 3.0);
 
-                // Combine: forward dominates, back-scatter adds the
-                // characteristic ear / nostril / lip-edge glow.
-                vec3 forward = sss_color * wrap;
+                // Combine: terminator bleed + back-scatter ear/nose
+                // glow. Forward is the delta over lambert, not a
+                // wholesale brightening of the lit side.
+                vec3 forward = sss_color * fwd_amount;
                 vec3 transmission = sss_color * backlit * 0.6;
                 subsurface = lightColor * sss_mask * (forward + transmission)
                            * u_subsurfaceStrength;
