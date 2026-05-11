@@ -453,6 +453,56 @@ public class NifMeshBuilder
         IReadOnlyList<NifSurveyShape> Shapes,
         string? Error);
 
+    /// <summary>Aggregate metadata for a single FaceGen NIF — totals across
+    /// every shape, plus the file size on disk. Returned by
+    /// <see cref="AnalyzeFaceGen"/>. <see cref="LoadOk"/> is false when the
+    /// NIF could not be parsed; the file-size field is still populated in
+    /// that case (it doesn't require a successful parse) so a host UI can
+    /// still report size when polycount is unavailable.</summary>
+    public readonly record struct FaceGenStats(
+        bool LoadOk,
+        int TotalVertices,
+        int TotalTriangles,
+        int ShapeCount,
+        long FileSizeBytes);
+
+    /// <summary>Reads a NIF from disk and returns aggregate vertex / triangle /
+    /// shape totals plus the file size. When <paramref name="measureGeometry"/>
+    /// is false, skips the NIF parse entirely and returns just the file size —
+    /// this is the fast path when a host only wants size reporting and not
+    /// polycount.
+    /// <para>This is a synchronous CPU-bound method. The underlying
+    /// <c>NifFile.Load</c> is a native call that won't observe a
+    /// <see cref="System.Threading.CancellationToken"/>; callers wanting
+    /// cancellability should run it inside <c>Task.Run</c> and check the
+    /// token before / after the call.</para></summary>
+    public FaceGenStats AnalyzeFaceGen(string nifPath, bool measureGeometry)
+    {
+        long size = 0;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(nifPath) && System.IO.File.Exists(nifPath))
+                size = new System.IO.FileInfo(nifPath).Length;
+        }
+        catch { /* best-effort */ }
+
+        if (!measureGeometry || size == 0)
+            return new FaceGenStats(size > 0, 0, 0, 0, size);
+
+        var survey = SurveyNif(nifPath);
+        if (!survey.LoadOk)
+            return new FaceGenStats(false, 0, 0, 0, size);
+
+        int verts = 0;
+        int tris = 0;
+        for (int i = 0; i < survey.Shapes.Count; i++)
+        {
+            verts += survey.Shapes[i].VertexCount;
+            tris += survey.Shapes[i].TriangleCount;
+        }
+        return new FaceGenStats(true, verts, tris, survey.Shapes.Count, size);
+    }
+
     /// <summary>Reads a NIF from disk and returns per-shape diagnostic
     /// metadata. Mirrors the data <see cref="BuildAllShapes"/> /
     /// <see cref="FindAccessoryOffsetAndPrimaryHead"/> consult to make
