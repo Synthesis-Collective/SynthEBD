@@ -107,6 +107,17 @@
                           Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding RenderMissingTextureAsWireframe}"
                           ToolTip="When on (default), an alpha-tested or alpha-blended shape whose diffuse texture failed to load is drawn as a green wireframe placeholder so the missing-texture state is visible. Off: those shapes are silently culled. Toggling fires ReloadRequested - hosts re-load the current NPC because the decision is made at mesh-upload time."/>
+
+                <!-- Reveal toggle for the Skin Tint / Face Tint debug rows below.
+                     ElementName-bound from those rows' Visibility, so state is
+                     ephemeral (resets per panel instance) and doesn't need a
+                     VM property - the underlying tint operators / modes are
+                     already persisted independently. -->
+                <CheckBox x:Name="ShaderTroubleshootingCheck"
+                          Content="Shader Troubleshooting" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="False"
+                          ToolTip="Reveal the Skin Tint and Face Tint debug rows below. These operators / modes are intended for diagnosing shader pipeline differences against the engine, not routine adjustment - hidden by default to reclaim vertical space."/>
             </WrapPanel>
         </Border>
 
@@ -144,9 +155,11 @@
             </WrapPanel>
         </Border>
 
-        <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override) -->
+        <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override).
+             Gated on the Row 1 "Shader Troubleshooting" toggle - this row is debug-only. -->
         <Border Background="#FF222222" Padding="6 3"
-                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsChecked, ElementName=ShaderTroubleshootingCheck, Converter={StaticResource BoolToVis}}">
             <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="Skin Tint" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -190,9 +203,11 @@
             </WrapPanel>
         </Border>
 
-        <!-- Row 1c: FaceTint mode selector + multiply-on-empty-slot-3 -->
+        <!-- Row 1c: FaceTint mode selector + multiply-on-empty-slot-3.
+             Gated on the Row 1 "Shader Troubleshooting" toggle - this row is debug-only. -->
         <Border Background="#FF222222" Padding="6 3"
-                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsChecked, ElementName=ShaderTroubleshootingCheck, Converter={StaticResource BoolToVis}}">
             <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="Face Tint" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
