@@ -77,6 +77,9 @@ public class GlShaderProgram : IDisposable
     public void SetMatrix4(string name, ref OpenTK.Mathematics.Matrix4 matrix) =>
         GL.UniformMatrix4(GetUniformLocation(name), false, ref matrix);
 
+    public void SetMatrix3(string name, ref OpenTK.Mathematics.Matrix3 matrix) =>
+        GL.UniformMatrix3(GetUniformLocation(name), false, ref matrix);
+
     private static int CompileShader(ShaderType type, string source)
     {
         int shader = GL.CreateShader(type);

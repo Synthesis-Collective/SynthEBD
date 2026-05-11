@@ -59,6 +59,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
       ▼
 [Gl/GlRenderer.cs] DrawScene
    ├─ shadow pass (Shaders/shadow_depth.*)
+   ├─ SSAO depth + normal prepass (Shaders/depth_only.*)
    ├─ SSAO pass (Shaders/ssao.frag, ssao_blur.frag)
    ├─ main pass (Shaders/basic.vert + basic.frag)
    └─ wireframe pass (Shaders/wireframe.*)
@@ -601,7 +602,7 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 
 - **Eye catchlight.** Neither NifSkope nor Outfit Studio renders a dedicated catchlight. We do, because portrait photographs read as "alive vs. dead" largely on the wet-eye specular dot. Our env-map path is spherical-2D rather than cubemap (see "Where we differ accidentally" below), so the env-cubemap-driven specular highlight that gives in-game eyes their sparkle isn't faithful here; the catchlight pass compensates.
 
-- **Shadows + SSAO + tone-map.** Portrait-quality finishing. NifSkope and Outfit Studio are utility renderers; we're a portrait viewer.
+- **Shadows + SSAO + tone-map.** Portrait-quality finishing. NifSkope and Outfit Studio are utility renderers; we're a portrait viewer. SSAO uses a depth + normal prepass ([Shaders/depth_only.vert](Shaders/depth_only.vert), [Shaders/depth_only.frag](Shaders/depth_only.frag)) that writes view-space normals to an RGB8 G-buffer alongside depth; [ssao.frag](Shaders/ssao.frag) samples those normals directly rather than reconstructing them via `cross(dFdx, dFdy)`. Reconstructed normals are constant per triangle (position varies linearly in screen space inside a triangle, so its derivatives are constant), which makes the hemisphere orient off the *flat geometric face normal* and the triangulation pop on smooth surfaces — collarbone, neck, cheek — at any non-trivial radius. The 4×4 box blur in [ssao_blur.frag](Shaders/ssao_blur.frag) cannot hide that because polygon edges are far larger than its footprint and `pow(occlusion, u_intensity)` amplifies the per-triangle contrast before the blur runs. Sampling the interpolated smooth normal from the G-buffer eliminates the artifact at the source.
 
 ### Where we differ accidentally / by omission
 

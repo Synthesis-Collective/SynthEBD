@@ -1,22 +1,26 @@
 #version 330 core
 
 // Screen-space ambient occlusion post-process. Reads the camera's depth
-// texture, reconstructs view-space positions and surface normals via
-// depth gradients, then samples a hemispheric kernel of 16 offsets per
-// pixel to estimate how occluded each fragment is by nearby geometry.
-// Outputs a single-channel R8 occlusion factor in [0,1] (1 = fully lit,
-// 0 = fully occluded) which basic.frag multiplies into its diffuse term.
+// texture and a view-space normal G-buffer from the prepass, then samples
+// a hemispheric kernel of 16 offsets per pixel to estimate how occluded
+// each fragment is by nearby geometry. Outputs a single-channel R8
+// occlusion factor in [0,1] (1 = fully lit, 0 = fully occluded) which
+// basic.frag multiplies into its diffuse term.
 //
-// Algorithm: classic Crytek SSAO with depth-only normal reconstruction
-// (no separate normal G-buffer). The noise texture rotates the kernel
-// per-pixel to break up the banding that a fixed sample pattern would
-// produce; basic.frag does the final blur implicitly via texture
-// linear filtering when sampling.
+// Algorithm: classic Crytek SSAO. Normals come from the prepass G-buffer
+// (interpolated vertex normals transformed to view space), NOT from depth
+// gradients - cross(dFdx, dFdy) yields a flat geometric face normal that
+// is constant inside each triangle, which makes the triangulation pop on
+// smooth surfaces (collarbone, neck, cheeks) at any non-trivial radius.
+// The noise texture rotates the kernel per-pixel to break up banding
+// from a fixed sample pattern; ssao_blur.frag then averages a 4x4
+// neighborhood to cancel the noise-tile period.
 
 in vec2 v_uv;
 out float fragOcclusion;
 
 uniform sampler2D u_depthTex;
+uniform sampler2D u_normalTex;
 uniform sampler2D u_noiseTex;
 uniform mat4 u_projection;
 uniform mat4 u_invProjection;
@@ -47,12 +51,9 @@ void main()
         return;
     }
 
-    // Reconstruct view-space normal from depth gradients. dFdx/dFdy of
-    // the reconstructed view position give two tangent vectors of the
-    // surface; their cross product is the surface normal.
-    vec3 ddx = dFdx(fragPos);
-    vec3 ddy = dFdy(fragPos);
-    vec3 normal = normalize(cross(ddx, ddy));
+    // Sample the smooth view-space normal from the prepass G-buffer
+    // (encoded as *0.5+0.5 into an unsigned RGB8 texture).
+    vec3 normal = normalize(texture(u_normalTex, v_uv).xyz * 2.0 - 1.0);
 
     // Tile the noise texture across the screen at 4x4-pixel resolution
     // so neighboring fragments use different rotations of the kernel.

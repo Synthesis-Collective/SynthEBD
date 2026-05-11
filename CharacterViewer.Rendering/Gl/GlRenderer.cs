@@ -29,14 +29,21 @@ public class GlRenderer : IDisposable
     private Matrix4 _lightViewProj = Matrix4.Identity;
 
     // SSAO resources (CharacterViewer.Rendering 2.5.11+). The pipeline:
-    //   1. Depth pre-pass: render opaque + alpha-test geometry to
-    //      _depthPrepassFbo's depth texture using _depthOnlyShader.
+    //   1. Depth + normal prepass: render opaque + alpha-test geometry
+    //      with _depthOnlyShader. Writes depth to _depthPrepassDepthTex
+    //      and view-space normals (encoded *0.5+0.5 into RGB8) to
+    //      _depthPrepassNormalTex. The normal G-buffer is what avoids
+    //      faceting - reconstructing the normal via cross(dFdx, dFdy)
+    //      yields a flat per-triangle normal and the triangulation
+    //      pops on smooth surfaces.
     //   2. SSAO compute: full-screen quad reads _depthPrepassDepthTex +
-    //      _ssaoNoiseTex, computes per-pixel hemispheric occlusion with
-    //      _ssaoSampleKernel, writes a single-channel R8 result into
-    //      _ssaoFbo's color texture.
-    //   3. Main pass: basic.frag samples _ssaoTex via the u_ssaoMap
-    //      sampler and multiplies into the diffuse + SSS terms.
+    //      _depthPrepassNormalTex + _ssaoNoiseTex, computes per-pixel
+    //      hemispheric occlusion with _ssaoSampleKernel, writes a
+    //      single-channel R8 result into _ssaoFbo's color texture.
+    //   3. SSAO blur: averages a 4x4 neighborhood to cancel the noise
+    //      tile period, writes to _ssaoBlurTex.
+    //   4. Main pass: basic.frag samples _ssaoBlurTex via u_ssaoMap and
+    //      multiplies into the diffuse + SSS terms.
     // FBOs are sized to the current viewport and re-created when the
     // viewport size changes (matches the host's MSAA FBO lifecycle).
     private GlShaderProgram? _depthOnlyShader;
@@ -44,6 +51,7 @@ public class GlRenderer : IDisposable
     private GlShaderProgram? _ssaoBlurShader;
     private int _depthPrepassFbo = -1;
     private int _depthPrepassDepthTex = -1;
+    private int _depthPrepassNormalTex = -1;
     private int _ssaoFbo = -1;
     private int _ssaoTex = -1;
     private int _ssaoBlurFbo = -1;
@@ -465,13 +473,17 @@ public class GlRenderer : IDisposable
         _depthOnlyShader.SetInt("texture_diffuse", 0);
 
         // SSAO post-process shader. Reads u_depthTex (unit 0) +
-        // u_noiseTex (unit 1), writes per-pixel occlusion factor.
+        // u_normalTex (unit 1) + u_noiseTex (unit 2), writes per-pixel
+        // occlusion factor. The normal G-buffer comes from the depth
+        // prepass so the hemisphere orients off smooth interpolated
+        // vertex normals (not faceted dFdx/dFdy reconstruction).
         string fullVertPath = Path.Combine(shaderDirectory, "fullscreen.vert");
         string ssaoFragPath = Path.Combine(shaderDirectory, "ssao.frag");
         _ssaoShader = GlShaderProgram.LoadFromFiles(fullVertPath, ssaoFragPath);
         _ssaoShader.Use();
         _ssaoShader.SetInt("u_depthTex", 0);
-        _ssaoShader.SetInt("u_noiseTex", 1);
+        _ssaoShader.SetInt("u_normalTex", 1);
+        _ssaoShader.SetInt("u_noiseTex", 2);
 
         // SSAO blur post-pass. Reads the raw SSAO texture (unit 0),
         // averages a 4x4 neighborhood per pixel to cancel the noise
@@ -1147,24 +1159,25 @@ public class GlRenderer : IDisposable
             TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
     }
 
-    /// <summary>Lazily creates / resizes the depth pre-pass FBO and the
-    /// SSAO output FBO at the current viewport size. Same lifecycle as
-    /// the host's MSAA FBO: re-allocated when the viewport size changes,
-    /// otherwise reused across renders.</summary>
+    /// <summary>Lazily creates / resizes the depth+normal prepass FBO and
+    /// the SSAO output FBO at the current viewport size. Same lifecycle
+    /// as the host's MSAA FBO: re-allocated when the viewport size
+    /// changes, otherwise reused across renders.</summary>
     private void EnsureSsaoFbos(int width, int height)
     {
         if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
 
         // Tear down existing resources before reallocating.
         if (_depthPrepassDepthTex != -1) { GL.DeleteTexture(_depthPrepassDepthTex); _depthPrepassDepthTex = -1; }
+        if (_depthPrepassNormalTex != -1) { GL.DeleteTexture(_depthPrepassNormalTex); _depthPrepassNormalTex = -1; }
         if (_depthPrepassFbo != -1) { GL.DeleteFramebuffer(_depthPrepassFbo); _depthPrepassFbo = -1; }
         if (_ssaoTex != -1) { GL.DeleteTexture(_ssaoTex); _ssaoTex = -1; }
         if (_ssaoFbo != -1) { GL.DeleteFramebuffer(_ssaoFbo); _ssaoFbo = -1; }
         if (_ssaoBlurTex != -1) { GL.DeleteTexture(_ssaoBlurTex); _ssaoBlurTex = -1; }
         if (_ssaoBlurFbo != -1) { GL.DeleteFramebuffer(_ssaoBlurFbo); _ssaoBlurFbo = -1; }
 
-        // Depth pre-pass FBO: depth-only single-sample texture so SSAO
-        // can sample it with bilinear filtering.
+        // Depth prepass texture: depth-only single-sample so SSAO can
+        // sample it with bilinear filtering.
         _depthPrepassDepthTex = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
         GL.TexImage2D(TextureTarget.Texture2D, 0,
@@ -1180,12 +1193,34 @@ public class GlRenderer : IDisposable
         GL.TexParameter(TextureTarget.Texture2D,
             TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 
+        // Normal G-buffer: RGB8 unsigned, encoded view-space normal
+        // (*0.5+0.5 in the shader). Linear filter is fine - neighboring
+        // smooth-shaded pixels lerp to a still-valid intermediate normal
+        // before renormalization in ssao.frag.
+        _depthPrepassNormalTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassNormalTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.Rgb8,
+            width, height, 0,
+            PixelFormat.Rgb, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
         _depthPrepassFbo = GL.GenFramebuffer();
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
             FramebufferAttachment.DepthAttachment,
             TextureTarget.Texture2D, _depthPrepassDepthTex, 0);
-        GL.DrawBuffer(DrawBufferMode.None);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _depthPrepassNormalTex, 0);
+        GL.DrawBuffer(DrawBufferMode.ColorAttachment0);
         GL.ReadBuffer(ReadBufferMode.None);
         var prepassStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
         if (prepassStatus != FramebufferErrorCode.FramebufferComplete)
@@ -1270,12 +1305,28 @@ public class GlRenderer : IDisposable
 
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
         GL.Viewport(0, 0, width, height);
-        GL.Clear(ClearBufferMask.DepthBufferBit);
+        // Background clear value (0.5, 0.5, 1.0) decodes to (0, 0, +1) in
+        // view space - a safe "facing camera" fallback for pixels with no
+        // geometry, so ssao.frag's normal sample at the far plane doesn't
+        // pull garbage. ssao.frag early-outs on far-plane depth anyway,
+        // but defensible default in case the early-out is ever loosened.
+        GL.ClearColor(0.5f, 0.5f, 1.0f, 1.0f);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        // Normal matrix is transpose(inverse(mat3(view * model))). Built
+        // once per pass since model / view are uniform across all meshes
+        // in this prepass (matches the main render pass - per-mesh local
+        // transforms are baked into vertex positions).
+        var viewModel = model * view;
+        var normalMatrix = new Matrix3(viewModel);
+        normalMatrix.Invert();
+        normalMatrix.Transpose();
 
         _depthOnlyShader.Use();
         _depthOnlyShader.SetMatrix4("u_model", ref model);
         _depthOnlyShader.SetMatrix4("u_view", ref view);
         _depthOnlyShader.SetMatrix4("u_projection", ref projection);
+        _depthOnlyShader.SetMatrix3("u_normalMatrix", ref normalMatrix);
 
         foreach (var mesh in _meshes)
         {
@@ -1301,9 +1352,10 @@ public class GlRenderer : IDisposable
         GL.BindVertexArray(0);
     }
 
-    /// <summary>Runs the SSAO post-process: reads the depth pre-pass +
-    /// noise textures, writes per-pixel occlusion factor to the SSAO
-    /// FBO. Caller must restore the previously bound FBO + viewport.</summary>
+    /// <summary>Runs the SSAO post-process: reads the depth prepass
+    /// depth + normal textures and the noise texture, writes per-pixel
+    /// occlusion factor to the SSAO FBO. Caller must restore the
+    /// previously bound FBO + viewport.</summary>
     private void ComputeSsao(ref Matrix4 projection, int width, int height)
     {
         if (_ssaoShader == null || _ssaoSampleKernel == null) return;
@@ -1318,10 +1370,12 @@ public class GlRenderer : IDisposable
 
         _ssaoShader.Use();
 
-        // Bind depth + noise textures.
+        // Bind depth (unit 0), normal G-buffer (unit 1), noise (unit 2).
         GL.ActiveTexture(TextureUnit.Texture0);
         GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
         GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassNormalTex);
+        GL.ActiveTexture(TextureUnit.Texture2);
         GL.BindTexture(TextureTarget.Texture2D, _ssaoNoiseTex);
 
         var invProj = projection.Inverted();
@@ -1916,6 +1970,7 @@ public class GlRenderer : IDisposable
         _ssaoBlurShader = null;
         _depthPrepassFbo = -1;
         _depthPrepassDepthTex = -1;
+        _depthPrepassNormalTex = -1;
         _ssaoFbo = -1;
         _ssaoTex = -1;
         _ssaoBlurFbo = -1;
