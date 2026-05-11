@@ -525,7 +525,21 @@ void main()
     // since specular is a direct mirror reflection that real-world
     // surface roughness doesn't AO out the same way diffuse light is
     // occluded by nearby geometry.
-    float ao = u_enableAO ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
+    //
+    // Eye shapes (is_eye, BSLSP shader type 16) opt OUT of receiving AO:
+    // eyeballs sit a tiny ΔZ behind the lash cards in the depth prepass
+    // (lashes set HasAlphaBlend+HasAlphaTest both, so they pass the
+    // prepass gate at GlRenderer.cs RenderDepthPrepass and write depth
+    // wherever their alpha-test passes - see Nif/NifMeshBuilder.cs flag
+    // parsing). That depth step is small but sharp, and SSAO amplifies
+    // it into a visible horizontal darkening across the eyeball that
+    // scales with u_intensity. The eyeball is also a wet glossy sphere
+    // that physically wouldn't benefit from diffuse AO anyway, so
+    // skipping it here costs nothing visual and eliminates the
+    // lash-edge artifact entirely. Lashes still occlude AO on the
+    // surrounding face skin, which is the contact-shadow we want to
+    // keep (e.g. faint darkening under the upper lid on the cheekbone).
+    float ao = (u_enableAO && !is_eye) ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
 
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].type == 0) continue;
