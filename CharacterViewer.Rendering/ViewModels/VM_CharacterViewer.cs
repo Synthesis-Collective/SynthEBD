@@ -3818,7 +3818,7 @@ public class VM_CharacterViewer : ViewerVm
                     _missingMeshPaths.Add(gamePath);
                     return;
                 }
-                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath);
+                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart);
                 string shapeSummary = meshes.Count == 0 ? "" :
                     " [" + string.Join(", ", meshes.Select(m =>
                         m.ShapeName
@@ -3844,7 +3844,7 @@ public class VM_CharacterViewer : ViewerVm
                         var weight0Source = _assetResolver.ResolveAssetSource(weight0Path);
                         if (weight0Source.ResolvedDiskPath != null)
                         {
-                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath);
+                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart);
                             float t = NpcWeight / 100f;
                             BlendWeightMorph(meshes0, meshes, t, bodyPart);
                         }
