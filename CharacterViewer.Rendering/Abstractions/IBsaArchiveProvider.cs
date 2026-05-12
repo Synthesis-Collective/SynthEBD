@@ -52,6 +52,11 @@ public interface IBsaArchiveProvider
     /// here — implementations MUST extract from that exact archive and not
     /// re-broadcast, otherwise mod-scoped renders would silently extract
     /// vanilla content when both vanilla and the mod ship the same relative
-    /// path (e.g. override FaceGen NIFs).</summary>
-    bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath);
+    /// path (e.g. override FaceGen NIFs).
+    /// <para><paramref name="error"/> receives a diagnostic message (exception
+    /// stack, "not found in BSA", reader-cache miss, etc.) when the result is
+    /// <c>false</c> — used by the caller to surface the underlying cause in
+    /// the render log instead of a bare "extraction failed" line. Should be
+    /// <c>null</c> on success.</para></summary>
+    bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath, out string? error);
 }

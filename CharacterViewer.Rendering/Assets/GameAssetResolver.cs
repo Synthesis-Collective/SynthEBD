@@ -612,7 +612,7 @@ public class GameAssetResolver
                     }
 
                     Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                    if (_bsaProvider.TryExtractToDisk(containingBsaPath, bsaSubpath, destPath))
+                    if (_bsaProvider.TryExtractToDisk(containingBsaPath, bsaSubpath, destPath, out string? scopedExtractError))
                     {
                         _extractionCache[cacheKey] = destPath;
                         Trace($"scoped EXTRACT file=[{normalized}] bsa=[{containingBsaPath}] dest=[{destPath}]");
@@ -624,7 +624,8 @@ public class GameAssetResolver
                     }
 
                     _logger.LogError("CharacterViewer: Found '" + relativeGamePath +
-                        "' in scoped BSA '" + containingBsaPath + "' but extraction failed");
+                        "' in scoped BSA '" + containingBsaPath + "' but extraction failed: " +
+                        (scopedExtractError ?? "(no detail)"));
                     return AssetSource.NotFound(relativeGamePath);
                 }
             }
@@ -710,7 +711,7 @@ public class GameAssetResolver
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-            if (_bsaProvider.TryExtractToDisk(containingBsaPath!, bsaSubpath, destPath))
+            if (_bsaProvider.TryExtractToDisk(containingBsaPath!, bsaSubpath, destPath, out string? extractError))
             {
                 _extractionCache[cacheKey] = destPath;
                 LogVerbose("CharacterViewer: Resolved '" + relativeGamePath + "' -> BSA extraction at '" + destPath + "'");
@@ -720,7 +721,8 @@ public class GameAssetResolver
                 return source;
             }
 
-            _logger.LogError("CharacterViewer: Found '" + relativeGamePath + "' in BSA but extraction failed");
+            _logger.LogError("CharacterViewer: Found '" + relativeGamePath + "' in BSA but extraction failed: " +
+                (extractError ?? "(no detail)"));
             return AssetSource.NotFound(relativeGamePath);
         }
     }

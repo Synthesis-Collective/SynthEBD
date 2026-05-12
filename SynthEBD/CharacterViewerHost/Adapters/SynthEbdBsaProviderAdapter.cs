@@ -29,19 +29,29 @@ public sealed class SynthEbdBsaProviderAdapter : IBsaArchiveProvider
         return false;
     }
 
-    public bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath)
+    public bool TryExtractToDisk(string containingBsaPath, string subpath, string destPath, out string? error)
     {
         // Extract from the EXACT BSA the caller specified — never broadcast.
         // The renderer's scoped resolution can pick a non-vanilla archive
         // when multiple BSAs ship the same relative path (e.g. override
         // FaceGen NIFs); broadcasting here would extract whichever the
         // index returns first and silently substitute vanilla content.
-        if (string.IsNullOrEmpty(containingBsaPath)) return false;
-        if (!_inner.TryFindFileInArchive(containingBsaPath, subpath, out IArchiveFile archiveFile))
+        if (string.IsNullOrEmpty(containingBsaPath))
         {
+            error = "empty containingBsaPath";
             return false;
         }
-        return _inner.TryExtractFileFromBSA(archiveFile, destPath);
+        if (!_inner.TryFindFileInArchive(containingBsaPath, subpath, out IArchiveFile archiveFile))
+        {
+            error = $"could not find '{subpath}' inside '{containingBsaPath}'";
+            return false;
+        }
+        // SynthEBD's BSAHandler does not currently surface its underlying
+        // exception text through TryExtractFileFromBSA; if/when that's plumbed
+        // we should propagate it here.
+        bool ok = _inner.TryExtractFileFromBSA(archiveFile, destPath);
+        error = ok ? null : "BSAHandler.TryExtractFileFromBSA returned false";
+        return ok;
     }
 
     /// <summary>
