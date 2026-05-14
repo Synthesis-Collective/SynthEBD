@@ -1038,6 +1038,25 @@ public class NifMeshBuilder
             return null;
         }
 
+        // SMP hair physics-collision meshes (e.g. "UpperCollision" in
+        // EvelynnHair_1.nif) carry a real BSLightingShaderProperty but bind
+        // zero textures and have no NiAlphaProperty. Without this skip they
+        // upload as opaque untextured geometry that lights up white where it
+        // faces the camera and goes black on the back-side, producing the
+        // "splotches over the chest/neck" symptom. Name-based filtering was
+        // rejected because mod authors freely choose collision-shape names.
+        string preDiffuse = nif.GetTexturePathByIndex(shape, 0);
+        string preNormal = nif.GetTexturePathByIndex(shape, 1);
+        if (string.IsNullOrWhiteSpace(preDiffuse)
+            && string.IsNullOrWhiteSpace(preNormal)
+            && !shape.HasAlphaProperty())
+        {
+            LogVerbose("CharacterViewer: Skipping shape '" +
+                (shape.name?.get() ?? "?") +
+                "' (no diffuse/normal and no alpha property - likely physics/collision mesh)");
+            return null;
+        }
+
         // Extract vertices
         using var nifVerts = nif.GetVertsForShape(shape);
         if (nifVerts == null || nifVerts.Count == 0)
