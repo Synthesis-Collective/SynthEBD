@@ -3392,7 +3392,61 @@ public class VM_CharacterViewer : ViewerVm
         {
             if (glMesh.DiffuseTexture != TextureManager.WhiteTexture)
             {
-                glMesh.UseAlphaTest = built.HasAlphaTest;
+                // Suppress the GL discard on BSLSP_FACE shapes (ShaderType=4)
+                // that carry the NiAlphaProperty alpha-test bit.
+                //
+                // What we observed:
+                //   - Vanilla Khajiit MaleHeadKhajiit carries
+                //     NiAlphaProperty.AlphaTest=True with threshold 73 (≈0.286).
+                //   - Its diffuse texture has alpha < 1 across the entire face
+                //     (this is independently noted in the renderer's Pass-1
+                //     comment in GlRenderer.cs, which deliberately disables
+                //     SAMPLE_ALPHA_TO_COVERAGE for that reason).
+                //   - It also has SLSF1_Vertex_Alpha set with vertex-color
+                //     alpha varying from 1.0 down to ~0.325 (a low-alpha ring
+                //     around the head/body seam — 133 of 1356 vertices on
+                //     Ri'saad).
+                //   - basic.frag multiplies vertex alpha into texture alpha
+                //     before the discard test, so face fragments near the
+                //     seam produce α ≈ 0.276 (below the 0.286 threshold) and
+                //     discard. At ~750 px portrait resolution each discarded
+                //     fragment spans a perceptible pixel-sized hole.
+                //   - In vanilla in-game Skyrim, Khajiit faces render solid;
+                //     this discard pattern does not appear there.
+                //
+                // What we have NOT verified:
+                //   - The exact engine-side mechanism that produces the
+                //     solid in-game face. Plausible candidates we haven't
+                //     traced: (a) the engine ignoring the alpha-test bit on
+                //     BSLSP_FACE entirely, (b) alpha-to-coverage running on
+                //     a framebuffer configured differently from ours,
+                //     (c) BSLSP_FACE being routed through a separate draw
+                //     call that doesn't consult NiAlphaProperty,
+                //     (d) Bethesda's actual vertex-alpha values differing
+                //     from what niflysharp reads back. We haven't read
+                //     engine source or Community Shaders' replacement shader
+                //     for this specific path.
+                //   - Authorial intent for the vertex_alpha ring. The
+                //     seam-localized distribution makes a head/body seam
+                //     fade a plausible reading, but Bethesda's authoring
+                //     intent isn't documented.
+                //
+                // What this fix does:
+                //   - For ShaderType==4 face shapes only, skip writing
+                //     `built.HasAlphaTest` to `glMesh.UseAlphaTest`. The
+                //     NIF's HasAlphaBlend / AlphaThreshold / blend factors
+                //     are still propagated unchanged so any other shader
+                //     path that consults them continues to see the
+                //     NIF-authored values.
+                //
+                // The result is that face fragments along the seam render
+                // with their actual partial alpha instead of being
+                // discarded. That partial alpha then lands in the off-screen
+                // pipeline's readback bytes — see the alpha-strip step in
+                // GameWindowOffscreenRenderer.RenderInternalCore for the
+                // companion piece of this two-half fix.
+                bool suppressAlphaTestForFace = built.ShaderType == 4 && built.HasAlphaTest;
+                glMesh.UseAlphaTest = built.HasAlphaTest && !suppressAlphaTestForFace;
                 glMesh.HasAlphaBlend = built.HasAlphaBlend;
                 glMesh.AlphaThreshold = built.AlphaThreshold;
                 glMesh.SrcBlendIndex = built.SrcBlendIndex;

@@ -301,6 +301,61 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             byte[] pixels = ReadPixelsRgba(request.Width, request.Height);
             FlipVertical(pixels, request.Width, request.Height);
 
+            // Force every pixel's alpha to 255 (fully opaque) before PNG
+            // encode.
+            //
+            // What we observed:
+            //   - basic.frag writes FragColor = vec4(finalColor, baseColor.a)
+            //     at the end of the shader. baseColor.a is the result of
+            //     texture_alpha × vertex_alpha (after the multiply earlier
+            //     in the shader).
+            //   - glClear sets the FBO to alpha=1.0 across all pixels, but
+            //     shader writes overwrite alpha wherever a fragment is drawn.
+            //   - For shapes whose texture alpha and/or vertex alpha falls
+            //     below 1 (vanilla Khajiit faces with SLSF1_Vertex_Alpha;
+            //     alpha-tested hair card silhouettes; anything cutout-like),
+            //     framebuffer pixels end up storing α < 1.
+            //   - ReadPixelsRgba pulls all four channels into bytes. The PNG
+            //     encoder writes all four channels. PNG viewers — including
+            //     the WPF Image control that NPC2's gallery uses to render
+            //     mugshot tiles — honor PNG alpha and composite the image
+            //     over their panel background. Khajiit face pixels with
+            //     α ≈ 0.5 alpha-blend with the gray panel underneath at 50%
+            //     mix, producing the visible "head darker than body" /
+            //     "skin swallows the illumination" effect that looks like
+            //     dimmed shading but is actually alpha bleed-through.
+            //   - The live 3D preview pathway empirically displays opaque
+            //     for the same scene (no transparency visible in the preview
+            //     window). We have NOT verified the exact mechanism that
+            //     produces that opaque display: candidates we didn't trace
+            //     are GLWpfControl explicitly normalizing alpha during its
+            //     present, WPF's D3DImage compositor ignoring source alpha
+            //     at composition time, or the display path's underlying
+            //     D3D9 surface format not having a usable alpha channel.
+            //     What we know is the per-fragment α values from the shader
+            //     reach the off-screen pipeline's readback bytes but never
+            //     surface in the on-screen pathway.
+            //
+            // Why this is safe for hair / cutout silhouettes:
+            //   The RGB channel is already correctly anti-aliased by the
+            //   MSAA resolve. At a hair-card silhouette pixel where some
+            //   subsamples passed alpha-test and others discarded, the
+            //   resolve averages the passed samples' hair color with the
+            //   discarded samples' cleared-background color in the RGB
+            //   channel. The resulting RGB is the correct soft blend.
+            //   Stripping alpha to 255 doesn't change RGB — edge softness
+            //   lives in the RGB blend, not in the PNG alpha channel — so
+            //   hair silhouettes stay smooth.
+            //
+            // Mugshots are tiles rendered against an opaque background, not
+            // transparent overlays, so the alpha channel carries no useful
+            // information in the output PNG. If transparent-background
+            // mugshot exports are ever wanted (portrait stickers for
+            // external use), this stamp should become conditional on a
+            // request flag rather than unconditional.
+            for (int i = 3; i < pixels.Length; i += 4)
+                pixels[i] = 255;
+
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
             return encodeAsPng

@@ -138,6 +138,16 @@ Per shape that has an `AlphaPropertyRef` ([NifMeshBuilder.cs:962-991](Nif/NifMes
 
 `SrcBlend` (bits 1-4) and `DstBlend` (bits 5-8) enums in the alpha-property flags are honored per-mesh. NifMeshBuilder extracts the indices, BuiltMesh / GlMesh carry them through to the renderer, and Pass 2 calls `glBlendFunc` per-mesh via a Bethesda-enum → OpenTK `BlendingFactor` mapping in [GlRenderer.cs](Gl/GlRenderer.cs). The vast majority of actor alpha-blended shapes use `SRC_ALPHA / INV_SRC_ALPHA` (standard "over" transparency); the notable exception is the UBE-style wet-eye outer cornea, which ships `SRC_ALPHA / ONE` (additive) so a near-black cornea adds nothing to the iris underneath while bright catchlight pixels add brightness. Honoring the per-mesh factors is what removes the need for any special-case shader logic to render the cornea correctly.
 
+#### `HasAlphaTest` is suppressed for `ShaderType == 4` face shapes
+
+`VM_CharacterViewer.ApplyTexturesToGlMesh` overrides `glMesh.UseAlphaTest = false` when `built.ShaderType == 4 && built.HasAlphaTest`. The NIF's `HasAlphaBlend` and `AlphaThreshold` are preserved unchanged; only the GL-side `discard` gate flips off.
+
+**Observed:** Vanilla `MaleHeadKhajiit` (and likely other beast-race face NIFs) carries `NiAlphaProperty.AlphaTest=True, threshold=73` together with diffuse alpha < 1 across the entire face surface and `SLSF1_Vertex_Alpha` with per-vertex alpha varying down to ~0.325 in a ring around the head/body seam (133 of 1356 vertices on Ri'saad's head). The shader's vertex-alpha-into-texture-alpha multiply produces face fragments with α ≈ 0.27–0.28 along that seam — below the 0.286 threshold — and the GL `discard` drops them. At ~750 px portrait resolution each dropped fragment is a pixel-sized hole that lets the cleared background bleed through; the visible result is the head reading as dimmer or smaller than the body. Vanilla in-game Skyrim does **not** produce this discard pattern.
+
+**Inferred but not verified:** The engine-side mechanism that makes vanilla Khajiit faces render solid. Plausible candidates we haven't traced: the engine ignoring the alpha-test bit on `BSLSP_FACE`, an alpha-to-coverage path running on a differently-configured framebuffer (note that this renderer's Pass-1 deliberately disables `SAMPLE_ALPHA_TO_COVERAGE` per the comment in `GlRenderer.cs`), `BSLSP_FACE` being routed through a separate engine draw call that doesn't read `NiAlphaProperty`, or the actual in-game vertex-alpha values differing from what niflysharp reads back from the NIF. No engine source or Community Shaders' replacement-shader review has been done for this specific path.
+
+Suppressing the discard at `ShaderType == 4` produces output that empirically matches vanilla in-game appearance even though the engine-side mechanism for the match remains open. The face's alpha data still reaches `FragColor.a` (the shader writes it honestly); the off-screen pipeline's alpha-strip at readback handles the downstream PNG consequence (see [Part 2 framebuffer alpha](#final-framebuffer-alpha)). Vertex_alpha-driven head/body seam fade could be reintroduced via a soft-blend path later if a use case appears; the seam is invisible at typical portrait viewing angles.
+
 ### Skinning
 
 CPU-side, in [TryApplyCpuSkinning](Nif/NifMeshBuilder.cs#L1380). For each bone the shape weights to:
@@ -557,6 +567,44 @@ ACES filmic compresses HDR highlights, adds a soft toe in shadows, and produces 
 The fragment shader writes `FragColor = vec4(finalColor, baseColor.a)` — output alpha is just the surface's own alpha, no special-casing.
 
 Earlier versions of this shader had a luma-driven workaround (`outAlpha = min(baseColor.a, lit_luma)` for any ST_EYE shape) to make UBE's separate wet-eye outer cornea fade where dim, since hard-coded `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` blending would otherwise paint a solid black void over the iris underneath. That workaround was replaced once the renderer started honoring per-mesh `SrcBlend / DstBlend` from `NiAlphaProperty` (see [Part 1 NiAlphaProperty](#nialphaproperty)) — UBE's wet-eye is authored as additive blend (`SRC_ALPHA / ONE`), which produces the engine-correct "black cornea adds nothing, catchlight adds brightness" behaviour natively. No shader logic needed.
+
+#### Off-screen readback forces output alpha to 1.0
+
+`GameWindowOffscreenRenderer.RenderInternalCore` stamps `alpha = 255` over every pixel of the resolved byte buffer between `ReadPixelsRgba` and PNG encode. The shader still writes its honest per-fragment alpha — this is a CPU-side overwrite of the readback bytes before they reach the PNG encoder.
+
+**Observed:** the shader's per-fragment alpha is `texture_alpha × vertex_alpha` (after the multiply in Stage 1). For most shapes that's 1.0. But for shapes where:
+
+- the diffuse texture has `alpha < 1` somewhere (vanilla Khajiit faces stamp alpha < 1 across the entire face; alpha-tested hair cards have alpha < 1 at strand silhouettes; any cutout geometry), or
+- the `SLSF1_Vertex_Alpha` flag is set on the BSLSP and vertex colors carry alpha < 1 (Khajiit faces have a low-alpha ring around the head/body seam, alpha dropping as low as 0.325),
+
+…the framebuffer ends up storing partial alpha in those pixels. `glClear` sets alpha=1.0 across the FBO initially, then shader writes overwrite alpha wherever a fragment is drawn.
+
+**Live preview empirically displays opaque** for the same scene. The exact mechanism producing the opaque display hasn't been traced — candidates include GLWpfControl explicitly normalizing alpha during its present step, WPF's `D3DImage` compositor ignoring source alpha at composition time, or the underlying D3D9 surface format not surfacing a usable alpha channel to WPF. The verified empirical outcome is: per-fragment α values from the shader reach the off-screen pipeline's readback bytes but never surface in the on-screen pathway.
+
+**Off-screen mugshot** ends in `glReadPixels` + PNG encode. PNG keeps the alpha channel. PNG viewers — including the WPF Image controls NPC2's gallery uses to render mugshot tiles — honor PNG alpha and composite the image over their panel background. Khajiit faces with α ≈ 0.5 alpha-blend with NPC2's gray gallery panel at 50% mix, producing the "head darker than body" / "skin swallows the illumination" effect that looks like dimmed shading but is actually alpha bleed-through to the UI panel underneath. This was caught by opening the PNG in IrfanView with transparency-aware display: the whole Khajiit face read as a transparency checkerboard, and human reference NPCs showed transparency around the hair silhouettes (a long-known artifact users had been compensating for with a black background in the gallery preview panel).
+
+The fix is a one-loop CPU pass forcing alpha=255 on every pixel. It works because:
+
+- Mugshots are rendered against an opaque background (`glClear` with the requested background color, alpha=1.0). Output alpha carries no useful information in the PNG.
+- Anti-aliasing at hair / cutout silhouettes already lives in the RGB channel — the MSAA resolve blends edge-fragment samples that passed alpha-test with samples that didn't (which stay at the cleared background color), producing the correct soft RGB blend without needing the PNG alpha channel for edge softness. Stripping alpha doesn't introduce jaggy silhouettes.
+- The pre-stamp alpha bytes are display-pipeline noise downstream of a pipeline whose actual color information lives entirely in RGB.
+
+If transparent-background mugshot exports are ever wanted (e.g. portrait stickers for external use), this should become conditional via a request flag rather than unconditional. Currently it's always-on because no caller wants transparent tiles.
+
+##### Related dead ends
+
+Two earlier attempts went down the gamma rabbit hole because the symptom looked like a brightness asymmetry between the off-screen tile and the live preview. Both were reverted once the alpha-channel write-through was understood:
+
+1. **`Srgb8Alpha8` resolve FBO + `GL_FRAMEBUFFER_SRGB` around the blit.** Produced washed-out mugshots across all races. The gamma encoding was brightening pixels on top of the underlying alpha-blend symptom but not addressing the actual transparency issue.
+2. **CPU-side linear → sRGB IEC 61966-2-1 LUT after `glReadPixels`, gated on `EnableToneMapping`.** Same problem at a different layer — the math was correct in isolation, but stacked on top of the alpha-blend display problem produced "skin lifted to washed-out highlights, then alpha-blended against panel gray, producing pale-but-muddy tones."
+
+In both cases the PNG's RGB was always correct; the dimming was happening at display time via UI panel show-through. No gamma adjustment was needed.
+
+#### History: where this bug was hiding
+
+For a long time the only visible symptom was transparency around hair-card silhouettes — fine cutout edges with alpha < 1 from MSAA sample coverage. The NPC2 gallery worked around it with a black background panel that masked the hair transparency. The fact that **all** Khajiit faces stored partial alpha across the *entire* face surface was hidden behind a separate symptom: `MaleHeadKhajiit`'s `NiAlphaProperty.AlphaTest=True, threshold=73` caused the shader's `discard` to drop partial-alpha fragments at the head/body seam (where vertex alpha was low enough to drag `tex_α × vert_α` below 0.286), leaving a salt-and-pepper of *fully opaque cleared-background grey* pixels through the face. The face looked "head darker than body" but had alpha=1.0 in the PNG — gallery panels didn't blend through.
+
+Suppressing the alpha-test discard on `ShaderType==4` face shapes (see [Part 1 NiAlphaProperty](#nialphaproperty), specifically the face-shape suppression rationale) made all face fragments render. Their `tex_α × vert_α` then became the per-pixel framebuffer alpha and surfaced in the PNG. That's when the alpha-strip step was needed — the alpha-test suppression and the alpha-strip are two halves of the same fix.
 
 ---
 
