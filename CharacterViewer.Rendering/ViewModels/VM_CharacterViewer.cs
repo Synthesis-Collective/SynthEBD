@@ -3322,7 +3322,17 @@ public class VM_CharacterViewer : ViewerVm
         glMesh.SkinTintAlpha = built.SkinTintAlpha;
 
         // Eye shader (shader type 16 = ST_EyeEnvmap)
-        if (built.ShaderType == 16)
+        //
+        // Some FaceGen NIFs ship eyes authored as BSLSP_ENVMAP (1) instead
+        // of BSLSP_EYE (16) and would otherwise miss the is_eye AO gate in
+        // basic.frag, leaving the eyeball to receive SSAO darkening along
+        // the eye-opening rim. Skyrim's naming convention uses plural
+        // "Eyes" for actual eye shapes (MaleEyesHumanIceBlue, EyesChild,
+        // KWA_FemaleEyesHuman) and singular "Eye" for accessories
+        // (EyeShadow, 0EyeShadow, Eyelashes), so the substring check is
+        // sufficient to disambiguate.
+        if (built.ShaderType == 16
+            || built.ShapeName.Contains("Eyes", StringComparison.Ordinal))
         {
             glMesh.IsEye = true;
         }

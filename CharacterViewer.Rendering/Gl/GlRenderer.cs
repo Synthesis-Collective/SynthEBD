@@ -1341,10 +1341,22 @@ public class GlRenderer : IDisposable
         {
             if (!mesh.IsRendering) continue;
             if (mesh.RenderAsWireframeFallback) continue;
-            // Skip pure alpha-blend - their depth would be misleading
-            // (cumulatively transparent). Alpha-test shapes DO contribute
-            // because their cutout silhouette matches what's visible.
-            if (mesh.HasAlphaBlend && !mesh.UseAlphaTest) continue;
+            // Skip every transparent mesh (alpha-blend AND alpha-test).
+            //
+            // Alpha-blend: cumulative transparency makes any depth value misleading.
+            //
+            // Alpha-test: the per-pixel discard produces a hard binary depth edge
+            // wherever the threshold flips. SSAO (ssao.frag) samples this prepass
+            // depth with a hemispheric kernel and a smoothstep range check, which
+            // reads those edges as nearby occluders and darkens the surface
+            // underneath - producing a "mask-like" halo around alpha-tested
+            // perimeters (hair fringes, eyelashes, brow cards, lace, fur trim).
+            // See basic.frag's is_eye AO gate for the same artifact class gated
+            // downstream instead of at the source.
+            //
+            // Shadow and main color passes still include alpha-test geometry;
+            // only this SSAO depth prepass excludes it.
+            if (mesh.HasAlphaBlend || mesh.UseAlphaTest) continue;
 
             _depthOnlyShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
             _depthOnlyShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
