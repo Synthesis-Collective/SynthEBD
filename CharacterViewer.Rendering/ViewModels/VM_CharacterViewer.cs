@@ -485,6 +485,15 @@ public class VM_CharacterViewer : ViewerVm
         _logger = logger;
         _renderThread = renderThread ?? new InlineRenderThreadMarshaller();
 
+        // Forward the renderer's one-shot GL-state dump (FRAMEBUFFER_SRGB,
+        // viewport, color-attachment encoding, ...) to the same logger pipeline
+        // the rest of the VM uses. The renderer itself has no logger reference,
+        // so we wire its DiagnosticLog delegate to _logger here. NpcChooserViewerLoggerAdapter's
+        // AsyncLocal sink routes the resulting line into the active capture file
+        // (mugshot or live-preview), matching how Built shape / [Skinning] / etc.
+        // already reach the same file from NifMeshBuilder and friends.
+        Renderer.DiagnosticLog = msg => _logger.LogMessage(msg);
+
         // Verbose-log state lives in Settings_General as the single source of truth.
         // Every live VM_CharacterViewer instance reactively syncs its local VerboseLog
         // property (for the toolbar checkbox) and the shared _logGate (which helpers
@@ -1242,9 +1251,129 @@ public class VM_CharacterViewer : ViewerVm
     {
         LogVerbose($"CharacterViewer: LIGHTING — Layout='{SelectedLightingLayout?.Name}', " +
             $"Colors='{SelectedLightingColorScheme?.Name}', Ambient={AmbientIntensity:F0}%, " +
-            $"Key={KeyLightIntensity:F0}%@({KeyLightAzimuth:F0}°,{KeyLightElevation:F0}°), " +
-            $"Fill={FillLightIntensity:F0}%@({FillLightAzimuth:F0}°,{FillLightElevation:F0}°), " +
-            $"Rim={RimLightIntensity:F0}%@({RimLightAzimuth:F0}°,{RimLightElevation:F0}°)");
+            $"Key={KeyLightIntensity:F0}%@({KeyLightAzimuth:F0}°,{KeyLightElevation:F0}°)En={KeyLightEnabled}, " +
+            $"Fill={FillLightIntensity:F0}%@({FillLightAzimuth:F0}°,{FillLightElevation:F0}°)En={FillLightEnabled}, " +
+            $"Rim={RimLightIntensity:F0}%@({RimLightAzimuth:F0}°,{RimLightElevation:F0}°)En={RimLightEnabled}");
+        LogVerbose($"CharacterViewer: LIGHT-COLORS — " +
+            $"Key=({KeyLightColor.R},{KeyLightColor.G},{KeyLightColor.B}), " +
+            $"Fill=({FillLightColor.R},{FillLightColor.G},{FillLightColor.B}), " +
+            $"Rim=({RimLightColor.R},{RimLightColor.G},{RimLightColor.B})");
+    }
+
+    /// <summary>One-shot render-state snapshot for diagnostic capture. Emits a
+    /// compact multi-line dump of host-visible state that participates in
+    /// final pixel brightness: lighting (layout + per-light intensity/angle/
+    /// enable/color), the QNAM tint operator + face tint mode + detail-map
+    /// mode + vertex-color mode (all uniforms that route through basic.frag's
+    /// diffuse-composition chain), the post-shading render-quality toggles,
+    /// camera framing, and background color. Useful for side-by-side
+    /// comparison of two render pathways' state at a single point in time.
+    /// Note that this captures host VM state only; per-fragment effects (PNG
+    /// alpha-channel write-through, MSAA-resolve behavior, driver-side
+    /// gamma handling) won't show up here and need separate instrumentation
+    /// (see <see cref="GlRenderer.EmitGlStateDiagnostic"/> for the GL-side
+    /// view, and the per-render mugshot capture file for downstream encoding).
+    /// <para>Emits via <see cref="_logger"/> directly (NOT through
+    /// <see cref="LogVerbose"/>) so it's not gated by the VM's
+    /// <see cref="VerboseLog"/> property, which defaults false and is
+    /// independent of NPC2's per-capture <c>LogRenderLogic</c> toggle.
+    /// The logger adapter's thread-local sink routes the lines to the active
+    /// capture file when a capture session is open; outside a capture they
+    /// land in Debug output only. Cost is six lines per scene load, which
+    /// is negligible.</para></summary>
+    public void LogRenderStateSnapshot()
+    {
+        if (_logger == null) return;
+        _logger.LogMessage($"CharacterViewer: LIGHTING — Layout='{SelectedLightingLayout?.Name}', " +
+            $"Colors='{SelectedLightingColorScheme?.Name}', Ambient={AmbientIntensity:F0}%, " +
+            $"Key={KeyLightIntensity:F0}%@({KeyLightAzimuth:F0}°,{KeyLightElevation:F0}°)En={KeyLightEnabled}, " +
+            $"Fill={FillLightIntensity:F0}%@({FillLightAzimuth:F0}°,{FillLightElevation:F0}°)En={FillLightEnabled}, " +
+            $"Rim={RimLightIntensity:F0}%@({RimLightAzimuth:F0}°,{RimLightElevation:F0}°)En={RimLightEnabled}");
+        _logger.LogMessage($"CharacterViewer: LIGHT-COLORS — " +
+            $"Key=({KeyLightColor.R},{KeyLightColor.G},{KeyLightColor.B}), " +
+            $"Fill=({FillLightColor.R},{FillLightColor.G},{FillLightColor.B}), " +
+            $"Rim=({RimLightColor.R},{RimLightColor.G},{RimLightColor.B})");
+        _logger.LogMessage($"CharacterViewer: TINT-UNIFORMS — " +
+            $"SkinTintApplyToFace={SkinTintApplyToFace}, " +
+            $"SkinTintOperator={SkinTintOperator}, " +
+            $"SkinTintLerpStrength={SkinTintLerpStrength:F3}, " +
+            $"FaceTintMode={FaceTintMode}, " +
+            $"FaceTintMultiplyOnEmptyDetail={FaceTintMultiplyOnEmptyDetail}, " +
+            $"UseEngineStyleDetailMap={UseEngineStyleDetailMap}, " +
+            $"UseBlankDetailFallback={UseBlankDetailFallback}, " +
+            $"VertexColorMultiplyMode={VertexColorMultiplyMode}");
+        _logger.LogMessage($"CharacterViewer: RENDER-QUALITY — " +
+            $"ToneMapping={EnableToneMapping}, " +
+            $"Shadows={EnableShadows}, " +
+            $"AO={EnableAmbientOcclusion} (R={SsaoRadius:F2} B={SsaoBias:F3} I={SsaoIntensity:F2}), " +
+            $"EyeCatchlight={EnableEyeCatchlight}, " +
+            $"SSS={SubsurfaceStrength:F3}, " +
+            $"SkinSat={SkinSaturationBoost:F3}, " +
+            $"Vignette(R={VignetteRadius:F2} I={VignetteIntensity:F2})");
+        _logger.LogMessage($"CharacterViewer: CAMERA — FOV={FieldOfView:F1}°, " +
+            $"Distance={Camera.Distance:F2}, " +
+            $"Az={Camera.Azimuth:F1}°, El={Camera.Elevation:F1}°, " +
+            $"Target=({Camera.Target.X:F2},{Camera.Target.Y:F2},{Camera.Target.Z:F2})");
+        _logger.LogMessage($"CharacterViewer: BACKGROUND — RGB=({BackgroundColor.R},{BackgroundColor.G},{BackgroundColor.B})");
+    }
+
+    /// <summary>Per-mesh GlMesh state at scene-install time. The on-NIF
+    /// shader properties (specularColor, glossiness, alpha flags, ...) were
+    /// already verified to match between offscreen and live-preview pathways
+    /// via the dense verbose dumps, but the host-side GlMesh fields that
+    /// drive the actual per-shape shader uniforms (HasTintColor / TintColor /
+    /// IsFaceShape / IsSkinShape / ...) are set during InstallOneShape and
+    /// only become observable after the scene-install queue drains in
+    /// ProcessPendingScene. Calling this immediately after
+    /// <see cref="SceneCommitted"/> guarantees the meshes are populated.
+    /// Emits via <see cref="_logger.LogMessage"/> directly so the AsyncLocal
+    /// sink routes the lines to the active capture file.
+    /// <para>Only the offscreen mugshot pathway reliably catches these
+    /// lines, because the live-preview host scopes its
+    /// <c>RenderLogCapture</c> to the span of <c>await Viewer.LoadAsync(...)</c>
+    /// and the render tick that drains the scene fires after LoadAsync
+    /// returns. The mugshot's offscreen pathway holds its capture open
+    /// across the whole render request and drains the scene synchronously
+    /// inside that window, so it captures both.</para></summary>
+    public void LogMeshStateSnapshot()
+    {
+        if (_logger == null) return;
+        try
+        {
+            for (int i = 0; i < Renderer.Meshes.Count; i++)
+            {
+                var m = Renderer.Meshes[i];
+                _logger.LogMessage($"CharacterViewer: GLMESH[{i}] '{m.ShapeName}' BodyPart={m.BodyPart} " +
+                    $"IsFaceShape={m.IsFaceShape}, IsSkinShape={m.IsSkinShape}, " +
+                    $"IsHairTintShader={m.IsHairTintShader}, IsEye={m.IsEye}, " +
+                    $"HasTintColor={m.HasTintColor}, " +
+                    $"TintColor=({m.TintColor.X:F3},{m.TintColor.Y:F3},{m.TintColor.Z:F3}), " +
+                    $"TintColorEnabled={m.TintColorEnabled}, " +
+                    $"FaceTintEnabled={m.FaceTintEnabled}, " +
+                    $"DiffuseEnabled={m.DiffuseEnabled}, " +
+                    $"NormalEnabled={m.NormalEnabled}, " +
+                    $"SpecularEnabled={m.SpecularEnabled}, " +
+                    $"DetailEnabled={m.DetailEnabled}, " +
+                    $"EmissiveEnabled={m.EmissiveEnabled}, " +
+                    $"EnvMapEnabled={m.EnvMapEnabled}, " +
+                    $"UseAlphaTest={m.UseAlphaTest}, AlphaThreshold={m.AlphaThreshold:F3}, " +
+                    $"HasAlphaBlend={m.HasAlphaBlend}, " +
+                    $"HasDetailMap={m.HasDetailMap}, IsFaceWithEmptyDetailSlot={m.IsFaceWithEmptyDetailSlot}, " +
+                    $"HasFaceTintMap={m.HasFaceTintMap}, " +
+                    $"HasGreyscaleToPalette={m.HasGreyscaleToPalette}, " +
+                    $"SpecularColor=({m.SpecularColor.X:F3},{m.SpecularColor.Y:F3},{m.SpecularColor.Z:F3}), " +
+                    $"MaterialGlossiness={m.MaterialGlossiness:F2}, " +
+                    $"MaterialSpecularStrength={m.MaterialSpecularStrength:F3}, " +
+                    $"RimlightPower={m.RimlightPower:F2}, " +
+                    $"IsDoubleSided={m.IsDoubleSided}, " +
+                    $"IsRendering={m.IsRendering}, " +
+                    $"RenderAsWireframeFallback={m.RenderAsWireframeFallback}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage($"CharacterViewer: GLMESH dump failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -2725,6 +2854,12 @@ public class VM_CharacterViewer : ViewerVm
         // scene, including any pending texture/morph state from the previous scene.
         SceneCommitted?.Invoke();
 
+        // Per-mesh state dump for diagnostic capture. Lives here (not at end
+        // of LoadAsync) because the GlMesh array isn't populated until
+        // InstallOneShape runs on the render thread — which only happens
+        // after LoadAsync queues _pendingScene and the render thread ticks.
+        LogMeshStateSnapshot();
+
         // Per-load asset-resolution snapshot ends here — the multi-tick sliced
         // install is finished, so clear the per-VM snapshot. Subsequent narrow
         // updates (texture overrides, morphs) that need scoping require the
@@ -2973,6 +3108,20 @@ public class VM_CharacterViewer : ViewerVm
                     : "No renderable shapes found for NPC";
             });
             LogLoadCheckpoint(loadStopwatch, "Scene queued for GL upload");
+
+            // One-shot diagnostic dump of every render-state value that affects
+            // final pixel brightness. Emitted here (before LoadAsync returns)
+            // rather than from ProcessPendingScene's post-SceneCommitted hook,
+            // because the live-preview host scopes its RenderLogCapture to the
+            // span of `await Viewer.LoadAsync(...)` — by the time the render
+            // thread actually drains _pendingScene and fires SceneCommitted, the
+            // preview's capture file is already closed and the snapshot would
+            // be dropped. The mugshot pathway holds its capture open across the
+            // whole RenderToPngAsync call, so it catches the snapshot either
+            // way. Side-by-side diffing of the two pathways' snapshots locates
+            // pipeline divergences (lighting, tint operators, render quality
+            // toggles) that cause off-by-tone renders.
+            LogRenderStateSnapshot();
         }
         catch (OperationCanceledException)
         {

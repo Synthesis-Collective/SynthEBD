@@ -246,6 +246,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     {
         if (_gw == null) throw new InvalidOperationException("GameWindow not initialized.");
 
+        // Route the renderer's verbose diagnostic lines into the host's
+        // per-request capture sink (when supplied). The host installs an
+        // AsyncLocal flow writer on its own thread before calling
+        // RenderToPngAsync, then snapshots a thread-agnostic closure into
+        // request.DiagnosticLog. Without this push, _logger.LogMessage calls
+        // from this dedicated render thread would see a null AsyncLocal on
+        // the host side and the per-mesh / shader / texture dumps would be
+        // silently dropped (the bare Thread we're running on doesn't inherit
+        // the host's ExecutionContext). Hosts that haven't overridden
+        // PushDiagnosticSink get the interface's default no-op and so are
+        // unaffected by this push.
+        using var diagnosticSinkScope = _logger.PushDiagnosticSink(request.DiagnosticLog);
+
         EnsureFbo(request.Width, request.Height);
 
         // Per-render asset-resolution scope. PushScopes binds the four scoping

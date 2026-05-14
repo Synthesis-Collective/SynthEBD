@@ -544,6 +544,13 @@ public class GlRenderer : IDisposable
 
     public IReadOnlyList<GlMesh> Meshes => _meshes;
 
+    /// <summary>Optional diagnostic sink for one-shot GL-state dumps emitted at
+    /// the top of <see cref="Render"/>. Hosts wire this to their per-render
+    /// capture file so renderer-side state (GL_FRAMEBUFFER_SRGB, viewport,
+    /// bound FBO, color-attachment format) lands alongside the host-side
+    /// resolver / lighting / material trace. Null = no emission.</summary>
+    public Action<string>? DiagnosticLog { get; set; }
+
     /// <summary>
     /// Renders all meshes with the given camera matrices.
     /// </summary>
@@ -551,6 +558,8 @@ public class GlRenderer : IDisposable
     {
         if (!_initialized || _shader == null) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+        EmitGlStateDiagnostic(viewportWidth, viewportHeight);
 
         // Camera matrices (computed up here so the pre-passes share them
         // with the main pass below).
@@ -1868,6 +1877,99 @@ public class GlRenderer : IDisposable
         // Restore culling default
         if (mesh.IsDoubleSided)
             GL.Enable(EnableCap.CullFace);
+    }
+
+    // Once-per-render-lifetime guard so the diagnostic dump doesn't spam every
+    // frame of the live preview's continuous render loop. Reset to false when
+    // the host re-binds <see cref="DiagnosticLog"/> (typically per capture session).
+    private bool _glStateLogged;
+
+    /// <summary>Queries and emits the renderer's current GL state to
+    /// <see cref="DiagnosticLog"/> once per assignment of that delegate. The
+    /// state captured — GL_FRAMEBUFFER_SRGB, viewport, bound draw-FBO, and
+    /// the FBO's color-attachment color-encoding + component-type — surfaces
+    /// driver / framebuffer-level info that CPU-side property dumps don't see.
+    /// Intended as a general diagnostic for portrait-rendering differences
+    /// between the offscreen mugshot pathway (private Rgba8 resolve FBO +
+    /// ReadPixels) and the live-preview pathway (blits to GLWpfControl's
+    /// WPF-managed backbuffer, whose format is opaque from this side).
+    /// Whether any specific bug is explained by this state depends on the
+    /// bug; for the Khajiit mugshot transparency issue traced in late 2026
+    /// this query confirmed both pathways had matching MSAA Rgba8 FBOs and
+    /// the actual cause was downstream (PNG alpha-channel write-through),
+    /// not GL state.</summary>
+    private void EmitGlStateDiagnostic(int viewportWidth, int viewportHeight)
+    {
+        var sink = DiagnosticLog;
+        if (sink == null) return;
+        if (_glStateLogged) return;
+        _glStateLogged = true;
+        try
+        {
+            bool framebufferSrgb = GL.IsEnabled(EnableCap.FramebufferSrgb);
+            int[] vp = new int[4];
+            GL.GetInteger(GetPName.Viewport, vp);
+            GL.GetInteger(GetPName.DrawFramebufferBinding, out int drawFbo);
+            int colorEncoding = 0;
+            int componentType = 0;
+            int redSize = 0;
+            int alphaSize = 0;
+            try
+            {
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentColorEncoding,
+                    out colorEncoding);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentComponentType,
+                    out componentType);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentRedSize,
+                    out redSize);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentAlphaSize,
+                    out alphaSize);
+            }
+            catch { /* default framebuffer attachment may not support all queries */ }
+
+            // Color-encoding constants: 0x8C40 = GL_SRGB, 0x8DA8 = GL_LINEAR
+            // (the GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING enum reuses
+            // values from the broader GL constants list). Component-type
+            // constants below are the standard GL_BYTE / GL_UNSIGNED_BYTE
+            // / etc. enum range starting at 0x1400.
+            string encName = colorEncoding switch
+            {
+                0x8C40 => "SRGB",
+                0x8DA8 => "LINEAR",
+                _ => "0x" + colorEncoding.ToString("X")
+            };
+            string typeName = componentType switch
+            {
+                0x1400 => "BYTE",
+                0x1401 => "UNSIGNED_BYTE",
+                0x1402 => "SHORT",
+                0x1403 => "UNSIGNED_SHORT",
+                0x1404 => "INT",
+                0x1405 => "UNSIGNED_INT",
+                0x1406 => "FLOAT",
+                0x8DF4 => "FLOAT_VEC4",
+                0x140B => "HALF_FLOAT",
+                0x8C17 => "UNSIGNED_NORMALIZED",
+                0x8F9C => "SIGNED_NORMALIZED",
+                _ => "0x" + componentType.ToString("X")
+            };
+            sink($"CharacterViewer: GL-STATE — FramebufferSRGB={framebufferSrgb}, " +
+                $"viewport=({vp[0]},{vp[1]},{vp[2]}x{vp[3]}), passedW={viewportWidth}, passedH={viewportHeight}, " +
+                $"drawFBO={drawFbo}, color0(encoding={encName}, componentType={typeName}, redBits={redSize}, alphaBits={alphaSize})");
+        }
+        catch { /* swallow; diagnostic is best-effort */ }
     }
 
     /// <summary>
