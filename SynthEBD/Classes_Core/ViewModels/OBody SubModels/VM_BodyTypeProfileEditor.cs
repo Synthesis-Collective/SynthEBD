@@ -421,7 +421,12 @@ public class VM_BodyTypeProfileEditor : VM
         if (!ReferenceEquals(viewer, CharacterViewer)) return;
 
         var profile = SelectedProfile;
-        if (profile == null || !profile.CapturePicks) return;
+        if (profile == null) return;
+        // Box picks bypass the CapturePicks toggle — that toggle gates the per-click
+        // single-vertex flow where every Pick Vertex click would otherwise spam the roster.
+        // Box confirms are always explicit (a deliberate button press on the pending-box
+        // editor, often after the user opened an edit session by clicking a row), so the
+        // gate is overly conservative here and would silently swallow the confirm.
         profile.OnBoxPickedFromViewer(viewer, pick);
     }
 
@@ -1216,6 +1221,44 @@ public class VM_BodyTypeProfile : VM
                 ActiveViewer.ShowKeyVerticesInViewer(entries);
             });
 
+        // Explicit one-shot import that bypasses the CapturePicks toggle: takes whatever pick
+        // rows are currently highlighted in the viewer's pick-info list and appends them as
+        // KeyVertex rows, skipping any (shape, index) already present so re-clicking the
+        // button is a safe no-op. Lets the user pick freely in the viewer, then promote only
+        // the interesting ones instead of having every click flow into the roster.
+        CaptureSelectedPicks = new RelayCommand(
+            canExecute: _ => ActiveViewer != null && ActiveViewer.SelectedPicks.Count > 0,
+            execute: _ =>
+            {
+                var viewer = ActiveViewer;
+                if (viewer == null) return;
+                VM_NamedKeyVertex? firstAdded = null;
+                foreach (var row in viewer.SelectedPicks)
+                {
+                    if (row == null) continue;
+                    var shapeName = row.ShapeName ?? "";
+                    if (string.IsNullOrEmpty(shapeName) || row.VertexIndex < 0) continue;
+                    bool duplicate = KeyVertices.Any(k =>
+                        k.VertexIndex == row.VertexIndex
+                        && string.Equals(k.ShapeName ?? "", shapeName, StringComparison.OrdinalIgnoreCase));
+                    if (duplicate) continue;
+                    var model = new NamedKeyVertex
+                    {
+                        Name = NextDefaultName("KV", KeyVertices.Select(k => k.Name)),
+                        ShapeName = shapeName,
+                        VertexIndex = row.VertexIndex,
+                    };
+                    var vm = new VM_NamedKeyVertex(model, this);
+                    KeyVertices.Add(vm);
+                    firstAdded ??= vm;
+                }
+                if (firstAdded != null)
+                {
+                    SelectedKeyVertex = firstAdded;
+                    RefreshMeasurementValues();
+                }
+            });
+
         // Re-evaluate live values whenever the measurement collection changes shape or
         // any row's definition fields (Kind / Axis / VertexRefA..D) are edited in the grid.
         foreach (var m in Measurements) m.PropertyChanged += OnMeasurementRowPropertyChanged;
@@ -1420,6 +1463,7 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand CaptureFingerprintFromActiveViewer { get; }
     public RelayCommand RemoveSelectedKeyVertex { get; }
     public RelayCommand ShowPicksInViewer { get; }
+    public RelayCommand CaptureSelectedPicks { get; }
 
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
@@ -1465,7 +1509,10 @@ public class VM_BodyTypeProfile : VM
     /// <para>When <see cref="_pendingBoxEditTarget"/> is set the confirm was for an edit
     /// session on an existing row (opened by selecting a BoundingBox row); the target is
     /// updated in place instead of appending. A mirror criterion during edit updates the
-    /// target with the primary half and appends the partner row.</para>
+    /// target with the primary half and appends the partner row. A
+    /// <see cref="VM_CharacterViewer.KeyVertexBoxPick.IsDuplicate"/> pick (from "Confirm as
+    /// Duplicate") always forks to a new row even with an edit session active, leaving the
+    /// edit target intact so a later regular Confirm still updates the original.</para>
     /// </summary>
     public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
     {
@@ -1501,6 +1548,14 @@ public class VM_BodyTypeProfile : VM
         {
             editTarget = null;
             _pendingBoxEditTarget = null;
+        }
+
+        // "Confirm as Duplicate" always forks to a new row, even when an edit session is
+        // active. The edit-session target is preserved (not cleared) so a follow-up regular
+        // Confirm can still update the originally-selected row.
+        if (pick.IsDuplicate)
+        {
+            editTarget = null;
         }
 
         var newRows = new List<VM_NamedKeyVertex>();

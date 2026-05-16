@@ -152,9 +152,14 @@
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
-                                        <CheckBox Content="Capture picks from viewer (toggle Pick Vertex on the viewer toolbar)"
+                                        <CheckBox Content="Capture picks from viewer"
                                                   IsChecked="{Binding CapturePicks}"
-                                                  VerticalAlignment="Center"/>
+                                                  VerticalAlignment="Center"
+                                                  ToolTip="When enabled, every pick made in the viewer is appended to this profile's Key Vertices automatically. Toggle Pick Vertex on the viewer toolbar to start picking."/>
+                                        <Button Content="Capture Selected Picks"
+                                                Command="{Binding CaptureSelectedPicks}"
+                                                Margin="10,0,0,0" Padding="6,1"
+                                                ToolTip="Imports the picks currently highlighted in the viewer's pick list as Key Vertex rows. Picks already in this profile (same shape and vertex index) are skipped. Works even when 'Capture picks from viewer' is off."/>
                                         <Button Content="Show picks in viewer"
                                                 Command="{Binding ShowPicksInViewer}"
                                                 Margin="10,0,0,0" Padding="6,1"

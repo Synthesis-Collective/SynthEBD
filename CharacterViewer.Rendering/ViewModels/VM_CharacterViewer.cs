@@ -1666,17 +1666,23 @@ public class VM_CharacterViewer : ViewerVm
             string shapeName,
             OpenTK.Mathematics.Vector3 boxMin,
             OpenTK.Mathematics.Vector3 boxMax,
-            BoxCriterionSelection criterion)
+            BoxCriterionSelection criterion,
+            bool isDuplicate = false)
         {
             ShapeName = shapeName ?? "";
             BoxMin = boxMin;
             BoxMax = boxMax;
             Criterion = criterion;
+            IsDuplicate = isDuplicate;
         }
         public string ShapeName { get; }
         public OpenTK.Mathematics.Vector3 BoxMin { get; }
         public OpenTK.Mathematics.Vector3 BoxMax { get; }
         public BoxCriterionSelection Criterion { get; }
+        /// <summary>True when the pick originated from "Confirm as Duplicate" — signals the
+        /// consumer to always create a new row even if an edit session is active, so the box
+        /// can be reused with a different criterion alongside the row being edited.</summary>
+        public bool IsDuplicate { get; }
     }
 
     /// <summary>
@@ -2031,11 +2037,13 @@ public class VM_CharacterViewer : ViewerVm
             PendingBoxShapeName,
             new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
             new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
-            PendingBoxFinalCriterion);
+            PendingBoxFinalCriterion,
+            isDuplicate: true);
         NotifyKeyVertexBoxPicked(pick);
-        // Intentionally leave HasPendingBox = true. Any edit-session target downstream has
-        // already been consumed by the pick handler, so the next ConfirmPendingBox will fall
-        // into the AddBoxRow path and append a fresh row with the new criterion.
+        // Intentionally leave HasPendingBox = true so the user can change criterion and
+        // duplicate again. The IsDuplicate flag tells downstream consumers to force the
+        // AddBoxRow path without consuming any active edit-session target, so a subsequent
+        // regular Confirm can still update the originally-edited row.
     }
 
     public void CancelPendingBox() => HasPendingBox = false;
@@ -2130,6 +2138,12 @@ public class VM_CharacterViewer : ViewerVm
     /// on just the highlighted row(s) rather than every pick in the session.
     /// </summary>
     private readonly List<PickRow> _selectedPicks = new();
+
+    /// <summary>Read-only view of the picks currently highlighted in the pick-info ListBox.
+    /// Snapshotted each <see cref="SetSelectedPicks"/> call. Consumed by external tools that
+    /// want to act on the user's current marker selection (e.g. the BodyTypeProfile editor's
+    /// "Capture Selected Picks" button, which imports them as KeyVertex rows).</summary>
+    public IReadOnlyList<PickRow> SelectedPicks => _selectedPicks;
 
     /// <summary>Called by the view (<see cref="UC_CharacterViewer"/>) whenever the
     /// picks ListBox selection changes. Replaces the cached selection wholesale and
