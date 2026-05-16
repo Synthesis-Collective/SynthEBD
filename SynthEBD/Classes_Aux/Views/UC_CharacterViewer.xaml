@@ -293,7 +293,9 @@
              Six SingleUpDowns drive PendingBox{Min,Max}{X,Y,Z}; the wireframe redraws live.
              'Shrink to Camera Half' auto-halves the most-view-aligned axis toward the camera
              (use to carve an overhanging belly from a hip box). Confirm fires the usual
-             AnyKeyVertexBoxPicked event; Cancel discards. -->
+             AnyKeyVertexBoxPicked event; Confirm as Duplicate fires it but leaves the box
+             pending so a follow-up confirm with a different criterion reuses the same AABB;
+             Cancel discards. -->
         <Border Grid.Row="6"
                 VerticalAlignment="Top" HorizontalAlignment="Stretch"
                 Background="#E01F1F1F" BorderBrush="#FFFFCC40" BorderThickness="0,0,0,2"
@@ -369,6 +371,11 @@
                             Command="{Binding ConfirmPendingBoxCommand}"
                             FontSize="11" FontWeight="Bold" Padding="14 2" Margin="12,0,0,0"
                             Background="#FF2E7D32" Foreground="White"/>
+                    <Button Content="Confirm as Duplicate"
+                            Command="{Binding ConfirmPendingBoxAsDuplicateCommand}"
+                            FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,0"
+                            Background="#FF1565C0" Foreground="White"
+                            ToolTip="Fire the pick now but keep this box on screen so you can change the Criterion and confirm again. Use to capture multiple measurements (e.g. MaxX and BulgePairMinX) from one drawn box."/>
                     <Button Content="Cancel"
                             Command="{Binding CancelPendingBoxCommand}"
                             FontSize="11" Padding="10 2" Margin="6,0,0,0"

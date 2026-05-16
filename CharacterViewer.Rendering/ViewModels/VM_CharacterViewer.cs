@@ -718,10 +718,11 @@ public class VM_CharacterViewer : ViewerVm
     /// the current session, in pick order. Cleared by <see cref="ClearKeyVertexMarkers"/>.</summary>
     public ObservableCollection<PickRow> Picks { get; } = new();
 
-    public RelayCommand CopyPicksToClipboardCommand { get; private set; } = null!;
-    public RelayCommand ConfirmPendingBoxCommand     { get; private set; } = null!;
-    public RelayCommand CancelPendingBoxCommand      { get; private set; } = null!;
-    public RelayCommand ShrinkAlongViewAxisCommand   { get; private set; } = null!;
+    public RelayCommand CopyPicksToClipboardCommand        { get; private set; } = null!;
+    public RelayCommand ConfirmPendingBoxCommand           { get; private set; } = null!;
+    public RelayCommand ConfirmPendingBoxAsDuplicateCommand{ get; private set; } = null!;
+    public RelayCommand CancelPendingBoxCommand            { get; private set; } = null!;
+    public RelayCommand ShrinkAlongViewAxisCommand         { get; private set; } = null!;
 
     /// <summary>
     /// Gates the viewer's informational log output. Errors (<c>LogError</c>) are never gated --
@@ -964,6 +965,9 @@ public class VM_CharacterViewer : ViewerVm
         ConfirmPendingBoxCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => ConfirmPendingBox());
+        ConfirmPendingBoxAsDuplicateCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => ConfirmPendingBoxAsDuplicate());
         CancelPendingBoxCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => CancelPendingBox());
@@ -2014,6 +2018,24 @@ public class VM_CharacterViewer : ViewerVm
         // accompanying event.
         NotifyKeyVertexBoxPicked(pick);
         HasPendingBox = false;
+    }
+
+    /// <summary>Same as <see cref="ConfirmPendingBox"/> but leaves the pending box on screen so
+    /// the user can pick a different <see cref="PendingBoxFinalCriterion"/> and confirm again,
+    /// re-using the exact same AABB. Lets the author capture multiple measurements (e.g. MaxX
+    /// and BulgePairMinX) from one drawn box without re-drawing.</summary>
+    public void ConfirmPendingBoxAsDuplicate()
+    {
+        if (!HasPendingBox) return;
+        var pick = new KeyVertexBoxPick(
+            PendingBoxShapeName,
+            new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
+            PendingBoxFinalCriterion);
+        NotifyKeyVertexBoxPicked(pick);
+        // Intentionally leave HasPendingBox = true. Any edit-session target downstream has
+        // already been consumed by the pick handler, so the next ConfirmPendingBox will fall
+        // into the AddBoxRow path and append a fresh row with the new criterion.
     }
 
     public void CancelPendingBox() => HasPendingBox = false;
