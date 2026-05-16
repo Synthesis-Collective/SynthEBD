@@ -2306,6 +2306,23 @@ public class VM_CharacterViewer : ViewerVm
         foreach (var p in positions) Renderer.BoxResolvedMarkers.Add(p);
     }
 
+    /// <summary>Replaces the single preview marker (see
+    /// <see cref="GlRenderer.PreviewKeyVertexMarkers"/>) with the resolved position of
+    /// <paramref name="shapeName"/>[<paramref name="vertexIndex"/>]. Pass null/empty shape or
+    /// negative index to clear. Used by the BodyTypeProfile editor to render a transient
+    /// "you-are-here" sphere when the user selects a KeyVertex row, without populating the
+    /// picks ListBox. Silently no-ops when the (shape, index) can't be resolved on the
+    /// current mesh state.</summary>
+    public void SetPreviewKeyVertex(string? shapeName, int vertexIndex)
+    {
+        Renderer.PreviewKeyVertexMarkers.Clear();
+        if (string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return;
+        if (TryGetCurrentVertex(shapeName, vertexIndex, out var pos))
+        {
+            Renderer.PreviewKeyVertexMarkers.Add(pos);
+        }
+    }
+
     /// <summary>
     /// Returns every vertex position for a shape in the same pre-ModelScale local space as
     /// <see cref="TryGetCurrentVertex"/>, or null when the shape isn't currently loaded.

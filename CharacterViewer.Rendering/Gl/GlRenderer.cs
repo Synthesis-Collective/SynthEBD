@@ -267,6 +267,18 @@ public class GlRenderer : IDisposable
     /// <summary>RGB color for BB-resolved marker spheres. Yellow matches the Pick Box UI accent.</summary>
     public Vector3 BoxResolvedMarkerColor { get; set; } = new Vector3(1.0f, 0.80f, 0.25f);
 
+    /// <summary>Transient preview marker — one position, owned by the BodyTypeProfile editor
+    /// to show the currently-selected KeyVertex row's location without populating
+    /// <see cref="KeyVertexMarkers"/> (which would add a row to the picks ListBox). Cleared
+    /// when the user deselects or switches profile. Renders in
+    /// <see cref="PreviewKeyVertexMarkerColor"/> via the same DrawMarkerList path.</summary>
+    public List<Vector3> PreviewKeyVertexMarkers { get; } = new();
+
+    /// <summary>RGB color for the preview marker. Defaults to the same green as the
+    /// selected-pick color so the visual language is consistent — "this dot is the row
+    /// you have highlighted in the editor".</summary>
+    public Vector3 PreviewKeyVertexMarkerColor { get; set; } = new Vector3(0.25f, 1.0f, 0.35f);
+
     /// <summary>World-space radius of each marker sphere before ModelScale is
     /// applied. Small enough not to obscure neighbouring vertices on a dense
     /// classifier mesh, while still readable at typical viewer zooms.</summary>
@@ -778,7 +790,7 @@ public class GlRenderer : IDisposable
     private void DrawKeyVertexMarkers(ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
-        if (KeyVertexMarkers.Count == 0 && BoxResolvedMarkers.Count == 0) return;
+        if (KeyVertexMarkers.Count == 0 && BoxResolvedMarkers.Count == 0 && PreviewKeyVertexMarkers.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -797,6 +809,7 @@ public class GlRenderer : IDisposable
         DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor,
             SelectedKeyVertexMarkerIndices, KeyVertexMarkerSelectedColor);
         DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
+        DrawMarkerList(PreviewKeyVertexMarkers, PreviewKeyVertexMarkerColor);
 
         _debugShader.SetFloat("u_shaded", 0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);

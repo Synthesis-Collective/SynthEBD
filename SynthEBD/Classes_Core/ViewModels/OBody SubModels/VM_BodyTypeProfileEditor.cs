@@ -166,6 +166,12 @@ public class VM_BodyTypeProfileEditor : VM
                     _watchedProfile = SelectedProfile;
                     if (_watchedProfile != null)
                         _watchedProfile.PropertyChanged += OnWatchedProfilePropertyChanged;
+                    // Drop any preview marker the previous profile's selected row may have
+                    // left in the viewer — the new profile's SelectedKeyVertex won't fire a
+                    // PropertyChanged on profile switch (the value carries over), so without
+                    // this the old marker would linger until the user clicked into the new
+                    // profile's grid.
+                    CharacterViewer?.SetPreviewKeyVertex(null, -1);
                     if (SelectedProfile != null)
                     {
                         SelectedProfile.AttachViewer(CharacterViewer);
@@ -1331,6 +1337,17 @@ public class VM_BodyTypeProfile : VM
                     && kv.VertexIndex >= 0)
                 {
                     ActiveViewer.RequestSelectPickByShapeAndIndex(kv.ShapeName, kv.VertexIndex);
+                    // Transient "you-are-here" sphere for the selected row, drawn even when
+                    // no matching Picks entry exists. Doesn't add a Picks row (so the picks
+                    // ListBox stays uncluttered) and is cleared automatically when the user
+                    // selects a different row, deselects, or switches profile.
+                    ActiveViewer.SetPreviewKeyVertex(kv.ShapeName, kv.VertexIndex);
+                }
+                else
+                {
+                    // Deselection (or unresolved row): drop the preview so it doesn't linger
+                    // on the model after the user clicks away from a row.
+                    ActiveViewer?.SetPreviewKeyVertex(null, -1);
                 }
 
                 SyncPendingBoxEditSessionWithSelection(kv);
@@ -1684,6 +1701,18 @@ public class VM_BodyTypeProfile : VM
         var viewer = ActiveViewer;
 
         RefreshBoundingBoxMarkers(viewer);
+        // Re-push the preview marker for whatever row is currently selected so it tracks
+        // mesh deformation (preset/weight changes) and BB re-resolution. RefreshBoundingBoxMarkers
+        // has just updated kv.VertexIndex for BB rows, so this picks up the new resolved vertex.
+        // No-op for Explicit rows where the index doesn't change, but TryGetCurrentVertex still
+        // pulls a fresh CpuPositions slot in case the underlying mesh deformed.
+        var selKv = SelectedKeyVertex;
+        if (viewer != null && selKv != null
+            && !string.IsNullOrEmpty(selKv.ShapeName)
+            && selKv.VertexIndex >= 0)
+        {
+            viewer.SetPreviewKeyVertex(selKv.ShapeName, selKv.VertexIndex);
+        }
 
         if (Measurements.Count == 0)
         {
