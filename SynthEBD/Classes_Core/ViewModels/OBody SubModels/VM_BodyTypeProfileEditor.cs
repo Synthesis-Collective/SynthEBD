@@ -1459,6 +1459,11 @@ public class VM_BodyTypeProfile : VM
     /// in <see cref="AttachViewer"/> so the profile follows whichever viewer is bound.</summary>
     private IDisposable? _viewerHasPendingBoxSub;
 
+    /// <summary>Subscription that re-resolves the pending-box pick preview (purple markers)
+    /// whenever any of the pending-box inputs change — coords, criterion, shape, or pending
+    /// flag. Rewired in <see cref="AttachViewer"/>.</summary>
+    private IDisposable? _viewerPendingBoxPreviewSub;
+
     /// <summary>Binds this profile to the supplied viewer so live readouts and the
     /// measurement-line overlay target the right scene. Called by the editor when a
     /// preset is loaded in its embedded viewer.</summary>
@@ -1473,7 +1478,89 @@ public class VM_BodyTypeProfile : VM
         _viewerHasPendingBoxSub = viewer?
             .WhenAnyValue(v => v.HasPendingBox)
             .Subscribe(hasBox => { if (!hasBox) _pendingBoxEditTarget = null; });
+
+        // Recompute the purple pick-preview markers whenever any pending-box input changes —
+        // the user adjusting a coord spinner or swapping the criterion gets immediate visual
+        // feedback for what Confirm would commit. Merging single-property streams (rather
+        // than the 9-arg WhenAnyValue) keeps the wiring readable.
+        _viewerPendingBoxPreviewSub?.Dispose();
+        _viewerPendingBoxPreviewSub = viewer == null ? null : Observable.Merge(
+            viewer.WhenAnyValue(v => v.HasPendingBox).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxShapeName).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxFinalCriterion).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMinX).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMaxX).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMinY).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMaxY).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMinZ).Select(_ => 0),
+            viewer.WhenAnyValue(v => v.PendingBoxMaxZ).Select(_ => 0)
+        ).Subscribe(_ => RefreshPendingBoxPreview(viewer));
     }
+
+    /// <summary>Re-runs <see cref="MeasurementMath.FindBestInBox"/> against the viewer's
+    /// current pending-box state and pushes the resolved positions to
+    /// <see cref="VM_CharacterViewer.SetPreviewPickMarkers"/>. Returns immediately and clears
+    /// the preview when the pending box is dismissed, the shape isn't loaded, or the box is
+    /// empty. Mirror-style authoring criteria expand into multiple resolutions; the synthetic
+    /// rows are made each other's pair siblings so PinchPair / BulgePair criteria resolve via
+    /// the joint-Y-slice path instead of the non-paired fallback.</summary>
+    private static void RefreshPendingBoxPreview(VM_CharacterViewer? viewer)
+    {
+        if (viewer == null) return;
+        if (!viewer.HasPendingBox) { viewer.SetPreviewPickMarkers(null); return; }
+
+        var shapeName = viewer.PendingBoxShapeName ?? "";
+        if (string.IsNullOrEmpty(shapeName)) { viewer.SetPreviewPickMarkers(null); return; }
+
+        var positions = viewer.GetShapePositions(shapeName);
+        if (positions == null || positions.Length == 0) { viewer.SetPreviewPickMarkers(null); return; }
+
+        var boxMin = new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ);
+        var boxMax = new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ);
+
+        var criteria = ExpandSelectionToPersistedCriteria(viewer.PendingBoxFinalCriterion);
+        var synthetics = criteria.Select(c => new NamedKeyVertex
+        {
+            ShapeName = shapeName,
+            Strategy = KeyVertexStrategy.BoundingBox,
+            BoxMinX = boxMin.X, BoxMinY = boxMin.Y, BoxMinZ = boxMin.Z,
+            BoxMaxX = boxMax.X, BoxMaxY = boxMax.Y, BoxMaxZ = boxMax.Z,
+            Criterion = c,
+        }).ToList();
+
+        Func<NamedKeyVertex, NamedKeyVertex?> findSibling =
+            self => MeasurementMath.FindPairSibling(self, synthetics);
+
+        var resolved = new List<OpenTK.Mathematics.Vector3>(synthetics.Count);
+        foreach (var s in synthetics)
+        {
+            int? idx = MeasurementMath.FindBestInBox(positions, s, s.Criterion, findSibling);
+            if (idx == null) continue;
+            if (idx.Value < 0 || idx.Value >= positions.Length) continue;
+            resolved.Add(positions[idx.Value]);
+        }
+        viewer.SetPreviewPickMarkers(resolved);
+    }
+
+    /// <summary>Expands an authoring-time <see cref="BoxCriterionSelection"/> into the one
+    /// or two persisted <see cref="BoundingBoxCriterion"/> values it would materialize as
+    /// rows on Confirm. Mirror shortcuts return both sides; everything else returns the
+    /// matching single value. Kept aligned with the editor's mirrorPair switch in
+    /// <see cref="OnBoxPickedFromViewer"/> — both need to map shortcuts to the same persisted
+    /// pair, just consumed differently.</summary>
+    private static IReadOnlyList<BoundingBoxCriterion> ExpandSelectionToPersistedCriteria(BoxCriterionSelection sel) => sel switch
+    {
+        BoxCriterionSelection.MirrorX              => new[] { BoundingBoxCriterion.MaxX,           BoundingBoxCriterion.MinX },
+        BoxCriterionSelection.MirrorY              => new[] { BoundingBoxCriterion.MaxY,           BoundingBoxCriterion.MinY },
+        BoxCriterionSelection.MirrorZ              => new[] { BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ },
+        BoxCriterionSelection.MirrorPinchX         => new[] { BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX },
+        BoxCriterionSelection.MirrorBulgeX         => new[] { BoundingBoxCriterion.BulgePairMaxX,  BoundingBoxCriterion.BulgePairMinX },
+        BoxCriterionSelection.MinYMirroredAcrossX  => new[] { BoundingBoxCriterion.MinYRightOfX,   BoundingBoxCriterion.MinYLeftOfX },
+        BoxCriterionSelection.MaxYMirroredAcrossX  => new[] { BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX },
+        BoxCriterionSelection.MinZMirroredAcrossX  => new[] { BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX },
+        BoxCriterionSelection.MaxZMirroredAcrossX  => new[] { BoundingBoxCriterion.MaxZRightOfX,   BoundingBoxCriterion.MaxZLeftOfX },
+        _                                          => new[] { (BoundingBoxCriterion)sel },
+    };
 
     public RelayCommand AddMeasurement { get; }
     public RelayCommand AddRule { get; }

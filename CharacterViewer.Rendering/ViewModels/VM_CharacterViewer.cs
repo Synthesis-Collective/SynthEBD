@@ -2323,6 +2323,19 @@ public class VM_CharacterViewer : ViewerVm
         }
     }
 
+    /// <summary>Replaces the pending-box pick preview markers (see
+    /// <see cref="GlRenderer.PreviewPickMarkers"/>) with the supplied world-space positions.
+    /// Pass null or an empty enumerable to clear. Driven by the BodyTypeProfile editor while
+    /// a pending box is being authored — it re-runs FindBestInBox on every box-coord /
+    /// criterion change and pushes the resolved vertex (or pair) here so the user sees
+    /// exactly what Confirm would commit.</summary>
+    public void SetPreviewPickMarkers(IEnumerable<OpenTK.Mathematics.Vector3>? positions)
+    {
+        Renderer.PreviewPickMarkers.Clear();
+        if (positions == null) return;
+        foreach (var p in positions) Renderer.PreviewPickMarkers.Add(p);
+    }
+
     /// <summary>
     /// Returns every vertex position for a shape in the same pre-ModelScale local space as
     /// <see cref="TryGetCurrentVertex"/>, or null when the shape isn't currently loaded.
