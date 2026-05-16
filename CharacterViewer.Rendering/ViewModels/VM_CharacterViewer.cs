@@ -2428,6 +2428,19 @@ public class VM_CharacterViewer : ViewerVm
         }
         LogVerbose("CharacterViewer: ShowKeyVerticesInViewer added " + added
             + " marker(s); " + skipped + " reference(s) unresolved.");
+        if (added == 0 && skipped > 0)
+        {
+            var requested = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (shapeName, _) in entries)
+            {
+                if (!string.IsNullOrEmpty(shapeName)) requested.Add(shapeName);
+            }
+            var available = GetCurrentShapeVertexCounts();
+            LogVerbose("CharacterViewer: ShowKeyVerticesInViewer requested shapes ["
+                + string.Join(", ", requested)
+                + "]; viewer currently has [" + string.Join(", ",
+                    available.Select(kv => kv.Key + ":" + kv.Value)) + "].");
+        }
         return added;
     }
 
