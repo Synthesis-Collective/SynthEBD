@@ -16,15 +16,23 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:IntEqualsToVisibilityConverter x:Key="IntEqVis" />
+        <local:EnumDescriptionConverter x:Key="EnumDesc" />
 
-        <!-- Values for the BB-pick Criterion combo: six single-axis picks + three UX-level
-             'Mirror*' shortcuts that expand into paired rows on the editor side. -->
+        <!-- Values for the BB-pick Criterion combo: single-axis picks + UX-level 'Mirror*'
+             shortcuts that expand into paired rows on the editor side. -->
         <ObjectDataProvider x:Key="BoxCriterionValues"
                             MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
             <ObjectDataProvider.MethodParameters>
                 <x:Type TypeName="cvr:BoxCriterionSelection"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+
+        <!-- Per-option tooltip style for any ComboBox bound to BoxCriterionValues. Pulls the
+             [Description] attribute off each enum value so the dropdown surfaces inline help
+             when the user hovers over an option. -->
+        <Style x:Key="CriterionItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -134,8 +142,9 @@
                 <ComboBox Width="92" FontSize="10" VerticalAlignment="Center"
                           ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
                           SelectedItem="{Binding PendingBoxCriterion}"
+                          ItemContainerStyle="{StaticResource CriterionItemStyle}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Which vertex inside the painted box gets picked at runtime. Max/Min operate on the mesh-local axis (X=left-right, Y=up-down, Z=front-back). Mirror* expands to two paired rows with opposite-axis criteria — draw a box that covers both sides and pick e.g. MirrorX to get L/R shoulder at once."/>
+                          ToolTip="Which vertex inside the painted box gets picked at runtime. Hover an option in the dropdown for its specific definition. Max/Min operate on the mesh-local axis (X=left-right, Y=up-down, Z=front-back). Mirror* expands to two paired rows — draw a box that covers both sides and pick e.g. MirrorX to get L/R shoulder at once."/>
 
                 <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
@@ -314,8 +323,9 @@
                          PendingBoxFinalCriterion, so whatever is selected here is what fires. -->
                     <ComboBox ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
                               SelectedItem="{Binding PendingBoxFinalCriterion}"
+                              ItemContainerStyle="{StaticResource CriterionItemStyle}"
                               FontSize="11" MinWidth="100" VerticalAlignment="Center"
-                              ToolTip="Vertex selection algorithm applied inside the pending box when confirmed."/>
+                              ToolTip="Vertex selection algorithm applied inside the pending box when confirmed. Hover an option in the dropdown for its specific definition."/>
                     <!-- Symmetry lock: each flag mirrors min<->max about 0 on that axis.
                          Auto-seeded on capture when the drawn box straddles an axis within 10%.
                          ToolTip lists the combinations; enum ToString formats "X, Y" etc. -->

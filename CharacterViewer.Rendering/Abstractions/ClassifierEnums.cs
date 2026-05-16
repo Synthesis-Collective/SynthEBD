@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace CharacterViewer.Rendering;
 
 /// <summary>World-axis symmetry lock applied to a bounding-box region while it
@@ -36,23 +38,66 @@ public enum SymmetryAxes
 /// </summary>
 public enum BoxCriterionSelection
 {
+    [Description("Vertex with the largest X (rightmost) inside the box.")]
     MaxX = 0,
+    [Description("Vertex with the smallest X (leftmost) inside the box.")]
     MinX = 1,
+    [Description("Vertex with the largest Y (highest) inside the box.")]
     MaxY = 2,
+    [Description("Vertex with the smallest Y (lowest) inside the box.")]
     MinY = 3,
+    [Description("Vertex with the largest Z (front-most) inside the box.")]
     MaxZ = 4,
+    [Description("Vertex with the smallest Z (back-most) inside the box.")]
     MinZ = 5,
+    [Description("Pinch — left side: slice the box's Y range and pick the silhouette vertex whose X is closest to the midline. Suits waist-pinch landmarks.")]
     PinchMinX = 6,
+    [Description("Pinch — right side: same Y-slice scan as PinchMinX but on the X>0 half.")]
     PinchMaxX = 7,
+    [Description("Bulge — left side: slice the box's Y range and pick the silhouette vertex whose X is furthest from the midline. Suits widest-hip landmarks.")]
     BulgeMinX = 8,
+    [Description("Bulge — right side: same Y-slice scan as BulgeMinX but on the X>0 half.")]
     BulgeMaxX = 9,
+    [Description("Paired pinch — left side. Requires a sibling row (PinchPairMaxX) with the same box; the pair jointly picks from the same Y-slice so a PointDistance between them measures horizontal thickness.")]
     PinchPairMinX = 10,
+    [Description("Paired pinch — right side. Sibling of PinchPairMinX.")]
     PinchPairMaxX = 11,
+    [Description("Paired bulge — left side. Sibling of BulgePairMaxX; same joint-Y-slice constraint as PinchPair.")]
     BulgePairMinX = 12,
+    [Description("Paired bulge — right side. Sibling of BulgePairMinX.")]
     BulgePairMaxX = 13,
+    [Description("Lowest-Y vertex among those with X<0 inside the box. Pairs with MinYRightOfX (authored via MinYMirroredAcrossX).")]
+    MinYLeftOfX = 14,
+    [Description("Lowest-Y vertex among those with X≥0 inside the box. Pairs with MinYLeftOfX.")]
+    MinYRightOfX = 15,
+    [Description("Highest-Y vertex among those with X<0 inside the box. Pairs with MaxYRightOfX (authored via MaxYMirroredAcrossX).")]
+    MaxYLeftOfX = 16,
+    [Description("Highest-Y vertex among those with X≥0 inside the box. Pairs with MaxYLeftOfX.")]
+    MaxYRightOfX = 17,
+    [Description("Back-most-Z vertex among those with X<0 inside the box. Pairs with MinZRightOfX (authored via MinZMirroredAcrossX).")]
+    MinZLeftOfX = 18,
+    [Description("Back-most-Z vertex among those with X≥0 inside the box. Pairs with MinZLeftOfX.")]
+    MinZRightOfX = 19,
+    [Description("Front-most-Z vertex among those with X<0 inside the box. Pairs with MaxZRightOfX (authored via MaxZMirroredAcrossX).")]
+    MaxZLeftOfX = 20,
+    [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
+    MaxZRightOfX = 21,
+    [Description("Authoring shortcut: expands into MaxX + MinX rows sharing this box. One drag captures both sides of a symmetric L/R feature.")]
     MirrorX = 100,
+    [Description("Authoring shortcut: expands into MaxY + MinY rows sharing this box (highest + lowest Y).")]
     MirrorY = 101,
+    [Description("Authoring shortcut: expands into MaxZ + MinZ rows sharing this box (front + back).")]
     MirrorZ = 102,
+    [Description("Authoring shortcut: expands into PinchPairMinX + PinchPairMaxX rows (joint Y-slice) for symmetric pinch landmarks.")]
     MirrorPinchX = 103,
+    [Description("Authoring shortcut: expands into BulgePairMinX + BulgePairMaxX rows for symmetric bulge landmarks.")]
     MirrorBulgeX = 104,
+    [Description("Authoring shortcut: expands into MinYLeftOfX + MinYRightOfX rows sharing this box. Captures the lowest Y on each side of X=0 — paired bottom landmark.")]
+    MinYMirroredAcrossX = 105,
+    [Description("Authoring shortcut: expands into MaxYLeftOfX + MaxYRightOfX rows sharing this box. Captures the highest Y on each side of X=0 — paired top landmark.")]
+    MaxYMirroredAcrossX = 106,
+    [Description("Authoring shortcut: expands into MinZLeftOfX + MinZRightOfX rows sharing this box. Captures the back-most Z on each side of X=0 — paired rear landmark.")]
+    MinZMirroredAcrossX = 107,
+    [Description("Authoring shortcut: expands into MaxZLeftOfX + MaxZRightOfX rows sharing this box. Captures the front-most Z on each side of X=0 — paired front landmark.")]
+    MaxZMirroredAcrossX = 108,
 }

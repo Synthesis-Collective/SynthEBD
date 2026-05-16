@@ -10,6 +10,10 @@
              d:DesignHeight="700" d:DesignWidth="1400">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:EnumDescriptionConverter x:Key="EnumDesc"/>
+        <Style x:Key="CriterionItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
@@ -190,7 +194,8 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <ComboBox SelectedValue="{Binding Criterion, UpdateSourceTrigger=PropertyChanged}"
-                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BoundingBoxCriterion}}}"/>
+                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BoundingBoxCriterion}}}"
+                                                                  ItemContainerStyle="{StaticResource CriterionItemStyle}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>

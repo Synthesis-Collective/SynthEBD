@@ -1524,20 +1524,31 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MirrorY ||
             pick.Criterion == BoxCriterionSelection.MirrorZ ||
             pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
-            pick.Criterion == BoxCriterionSelection.MirrorBulgeX;
+            pick.Criterion == BoxCriterionSelection.MirrorBulgeX ||
+            pick.Criterion == BoxCriterionSelection.MinYMirroredAcrossX ||
+            pick.Criterion == BoxCriterionSelection.MaxYMirroredAcrossX ||
+            pick.Criterion == BoxCriterionSelection.MinZMirroredAcrossX ||
+            pick.Criterion == BoxCriterionSelection.MaxZMirroredAcrossX;
 
         // MirrorPinchX / MirrorBulgeX expand into the *paired* criteria so the two generated rows
         // resolve jointly (same Y-slice) and a PointDistance across them measures true horizontal
         // thickness. Single-side PinchMin/MaxX and BulgeMin/MaxX remain available for manual use
         // and for loading legacy profiles that stored those values directly.
+        // Min/Max{Y,Z}MirroredAcrossX expand into LeftOfX/RightOfX rows that share the full box but
+        // each scans only its half of X=0 — one anchor per side of the body for paired top/bottom
+        // (Y) or front/back (Z) landmarks.
         (BoundingBoxCriterion a, BoundingBoxCriterion b)? mirrorPair = isMirror
             ? pick.Criterion switch
             {
-                BoxCriterionSelection.MirrorX      => (BoundingBoxCriterion.MaxX,           BoundingBoxCriterion.MinX),
-                BoxCriterionSelection.MirrorY      => (BoundingBoxCriterion.MaxY,           BoundingBoxCriterion.MinY),
-                BoxCriterionSelection.MirrorZ      => (BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ),
-                BoxCriterionSelection.MirrorPinchX => (BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX),
-                _                                  => (BoundingBoxCriterion.BulgePairMaxX, BoundingBoxCriterion.BulgePairMinX),
+                BoxCriterionSelection.MirrorX              => (BoundingBoxCriterion.MaxX,           BoundingBoxCriterion.MinX),
+                BoxCriterionSelection.MirrorY              => (BoundingBoxCriterion.MaxY,           BoundingBoxCriterion.MinY),
+                BoxCriterionSelection.MirrorZ              => (BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ),
+                BoxCriterionSelection.MirrorPinchX         => (BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX),
+                BoxCriterionSelection.MirrorBulgeX         => (BoundingBoxCriterion.BulgePairMaxX,  BoundingBoxCriterion.BulgePairMinX),
+                BoxCriterionSelection.MinYMirroredAcrossX  => (BoundingBoxCriterion.MinYRightOfX,   BoundingBoxCriterion.MinYLeftOfX),
+                BoxCriterionSelection.MaxYMirroredAcrossX  => (BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX),
+                BoxCriterionSelection.MinZMirroredAcrossX  => (BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX),
+                _                                          => (BoundingBoxCriterion.MaxZRightOfX,   BoundingBoxCriterion.MaxZLeftOfX),
             }
             : null;
 

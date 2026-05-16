@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace SynthEBD;
@@ -121,20 +122,50 @@ public enum KeyVertexStrategy
 /// non-paired equivalent (<c>PinchPairMinX</c> → <c>PinchMinX</c>, etc.).</para></summary>
 public enum BoundingBoxCriterion
 {
+    [Description("Vertex with the largest X (rightmost) inside the box.")]
     MaxX = 0,
+    [Description("Vertex with the smallest X (leftmost) inside the box.")]
     MinX = 1,
+    [Description("Vertex with the largest Y (highest) inside the box.")]
     MaxY = 2,
+    [Description("Vertex with the smallest Y (lowest) inside the box.")]
     MinY = 3,
+    [Description("Vertex with the largest Z (front-most) inside the box.")]
     MaxZ = 4,
+    [Description("Vertex with the smallest Z (back-most) inside the box.")]
     MinZ = 5,
+    [Description("Pinch — left side: slice the box's Y range and pick the silhouette vertex whose X is closest to the midline. Suits waist-pinch landmarks.")]
     PinchMinX = 6,
+    [Description("Pinch — right side: same Y-slice scan as PinchMinX but on the X>0 half.")]
     PinchMaxX = 7,
+    [Description("Bulge — left side: slice the box's Y range and pick the silhouette vertex whose X is furthest from the midline. Suits widest-hip landmarks.")]
     BulgeMinX = 8,
+    [Description("Bulge — right side: same Y-slice scan as BulgeMinX but on the X>0 half.")]
     BulgeMaxX = 9,
+    [Description("Paired pinch — left side. Requires a sibling row with PinchPairMaxX, same box; the pair jointly picks from the same Y-slice so a PointDistance between them measures horizontal thickness.")]
     PinchPairMinX = 10,
+    [Description("Paired pinch — right side. Sibling of PinchPairMinX.")]
     PinchPairMaxX = 11,
+    [Description("Paired bulge — left side. Sibling of BulgePairMaxX, same joint-Y-slice constraint as PinchPair.")]
     BulgePairMinX = 12,
+    [Description("Paired bulge — right side. Sibling of BulgePairMinX.")]
     BulgePairMaxX = 13,
+    [Description("Lowest-Y vertex among those with X<0 inside the box. Pairs with MinYRightOfX (authored via MinYMirroredAcrossX).")]
+    MinYLeftOfX = 14,
+    [Description("Lowest-Y vertex among those with X≥0 inside the box. Pairs with MinYLeftOfX.")]
+    MinYRightOfX = 15,
+    [Description("Highest-Y vertex among those with X<0 inside the box. Pairs with MaxYRightOfX (authored via MaxYMirroredAcrossX).")]
+    MaxYLeftOfX = 16,
+    [Description("Highest-Y vertex among those with X≥0 inside the box. Pairs with MaxYLeftOfX.")]
+    MaxYRightOfX = 17,
+    [Description("Back-most-Z vertex among those with X<0 inside the box. Pairs with MinZRightOfX (authored via MinZMirroredAcrossX).")]
+    MinZLeftOfX = 18,
+    [Description("Back-most-Z vertex among those with X≥0 inside the box. Pairs with MinZLeftOfX.")]
+    MinZRightOfX = 19,
+    [Description("Front-most-Z vertex among those with X<0 inside the box. Pairs with MaxZRightOfX (authored via MaxZMirroredAcrossX).")]
+    MaxZLeftOfX = 20,
+    [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
+    MaxZRightOfX = 21,
 }
 
 // SymmetryAxes and BoxCriterionSelection enums moved to
@@ -508,6 +539,14 @@ public static class MeasurementMath
                 // No sibling — degrade to the non-paired equivalent so the row still resolves.
                 return FindPinchOrBulgeX(positions, kv, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
             }
+            case BoundingBoxCriterion.MinYLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: false, useY: true);
+            case BoundingBoxCriterion.MinYRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: false, useY: true);
+            case BoundingBoxCriterion.MaxYLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: true,  useY: true);
+            case BoundingBoxCriterion.MaxYRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: true,  useY: true);
+            case BoundingBoxCriterion.MinZLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: false, useY: false);
+            case BoundingBoxCriterion.MinZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: false, useY: false);
+            case BoundingBoxCriterion.MaxZLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: true,  useY: false);
+            case BoundingBoxCriterion.MaxZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: true,  useY: false);
         }
 
         float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
@@ -807,6 +846,40 @@ public static class MeasurementMath
     private static bool IsPairPinch(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
         || criterion == BoundingBoxCriterion.PinchPairMaxX;
+
+    /// <summary>Scan vertices inside the AABB filtered to one side of the X=0 midline and return the
+    /// index whose Y (when <paramref name="useY"/>) or Z (otherwise) is most extreme.
+    /// <paramref name="leftSide"/> selects X&lt;0 (true) vs. X&gt;=0 (false);
+    /// <paramref name="wantMax"/> selects the largest value (true) vs. smallest (false). Returns null
+    /// when no vertex on the requested side falls inside the box. Used by the <c>MinY/MaxY/MinZ/MaxZ*OfX</c>
+    /// criteria to author paired top/bottom or front/back landmarks where each side of the body
+    /// contributes one anchor (e.g. lowest point of each foot, front-most point of each breast).</summary>
+    private static int? FindExtremumOnXSide(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantMax, bool useY)
+    {
+        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
+        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
+
+        int bestIdx = -1;
+        float bestVal = wantMax ? float.MinValue : float.MaxValue;
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+            // Midline filter: left = strictly negative X, right = zero-or-positive X. The asymmetry
+            // around 0 is intentional — a vertex exactly on the midline contributes to the right
+            // side only, so the two paired rows partition the box without overlap.
+            if (leftSide ? !(p.X < 0f) : !(p.X >= 0f)) continue;
+
+            float v = useY ? p.Y : p.Z;
+            bool isBest = wantMax ? v > bestVal : v < bestVal;
+            if (isBest) { bestVal = v; bestIdx = i; }
+        }
+
+        return bestIdx >= 0 ? bestIdx : null;
+    }
 
     /// <summary>Find the pair partner for <paramref name="kv"/> within <paramref name="candidates"/>.
     /// A sibling matches on ShapeName (case-insensitive), exact float equality on all six box
