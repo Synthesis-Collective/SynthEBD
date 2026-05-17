@@ -166,17 +166,17 @@ public enum BoundingBoxCriterion
     MaxZLeftOfX = 20,
     [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
     MaxZRightOfX = 21,
-    [Description("Vertex closest to the center of the box's max-X (right) face — balances 'far right' against 'near the Y/Z center'. Use for centerline-anchored side landmarks.")]
+    [Description("Largest-X (rightmost) vertex within a central tube along X — vertices in the middle third of Y and Z. Use for centerline-anchored side landmarks.")]
     MaxXAtCenter = 22,
-    [Description("Vertex closest to the center of the box's min-X (left) face — balances 'far left' against 'near the Y/Z center'.")]
+    [Description("Smallest-X (leftmost) vertex within a central tube along X — vertices in the middle third of Y and Z.")]
     MinXAtCenter = 23,
-    [Description("Vertex closest to the center of the box's max-Y (top) face — balances 'highest' against 'near the X/Z center'. Use for top-of-feature landmarks (crown, shoulder peak).")]
+    [Description("Largest-Y (highest) vertex within a central tube along Y — vertices in the middle third of X and Z. Use for top-of-feature landmarks (crown, shoulder peak).")]
     MaxYAtCenter = 24,
-    [Description("Vertex closest to the center of the box's min-Y (bottom) face — balances 'lowest' against 'near the X/Z center'.")]
+    [Description("Smallest-Y (lowest) vertex within a central tube along Y — vertices in the middle third of X and Z.")]
     MinYAtCenter = 25,
-    [Description("Vertex closest to the center of the box's max-Z (front) face — balances 'front-most' against 'near the X/Y center'. Use for protrusion landmarks (navel, nipple).")]
+    [Description("Largest-Z (front-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for protrusion landmarks (navel, nipple).")]
     MaxZAtCenter = 26,
-    [Description("Vertex closest to the center of the box's min-Z (back) face — balances 'back-most' against 'near the X/Y center'. Use for centerline-anchored rear landmarks (spine).")]
+    [Description("Smallest-Z (back-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for centerline-anchored rear landmarks (spine).")]
     MinZAtCenter = 27,
 }
 
@@ -899,37 +899,75 @@ public static class MeasurementMath
         return bestIdx >= 0 ? bestIdx : null;
     }
 
-    /// <summary>Picks the vertex inside the AABB that minimizes Euclidean distance to the
-    /// center point of one box face. The "face" is selected by <paramref name="axis"/>
-    /// (0=X, 1=Y, 2=Z) and <paramref name="wantMax"/> (true = max-side face, false = min-side
-    /// face); the other two coordinates of the target point are the box midpoints on those
-    /// axes. Equivalent to "the vertex at the extremum on the chosen axis, closest to the
-    /// center on the other two" but expressed as a single distance metric, so a vertex
-    /// slightly inset from the face still wins over a vertex on the face that's offset to
-    /// the side. Suits centerline-anchored landmarks (navel, spine, crown).</summary>
+    /// <summary>Picks the primary-axis extremum vertex from inside a "central tube" along
+    /// that axis — vertices that lie within a tolerance of the box midpoints on the two
+    /// perpendicular axes. Implements the user's mental model of <c>Min/Max{X,Y,Z}AtCenter</c>:
+    /// "the back-most (or top-most, etc.) vertex on the centerline". Tolerance is 33% of
+    /// each perpendicular half-extent, so an X-symmetric box of width 5 admits vertices in
+    /// X ∈ [−0.83, 0.83]. Falls back to a plain primary-axis extremum across the whole box
+    /// when no vertex lies in the tube (asymmetric features, very narrow tubes); without
+    /// the fallback the criterion would silently return null and confuse the editor.
+    /// <para>This replaces an earlier single-objective "Euclidean distance to face-center"
+    /// formulation that, on Z-elongated boxes, let a slightly-off-face but on-center vertex
+    /// lose to a slightly-off-center vertex that was deeper on Z — the primary axis's
+    /// magnitude dominated the metric. The tube formulation makes centering a hard
+    /// constraint instead of a soft weight, which matches "AtCenter" semantically.</para></summary>
     private static int? FindClosestToBoxFaceCenter(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
     {
         float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
         float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
         float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
 
-        float tx = axis == 0 ? (wantMax ? kv.BoxMaxX : kv.BoxMinX) : cx;
-        float ty = axis == 1 ? (wantMax ? kv.BoxMaxY : kv.BoxMinY) : cy;
-        float tz = axis == 2 ? (wantMax ? kv.BoxMaxZ : kv.BoxMinZ) : cz;
+        // 15% of half-extent on each perpendicular axis defines the central tube — tight
+        // enough that "AtCenter" actually constrains the result to the centerline, but
+        // wide enough to catch a vertex on a typical mesh (vertex spacing is rarely tighter
+        // than ~5% of feature extent). Earlier 33% let the primary-axis extremum win at
+        // the edge of the tube, defeating the centering intent.
+        const float PerpTolFraction = 0.15f;
+        float xTol = (kv.BoxMaxX - kv.BoxMinX) * 0.5f * PerpTolFraction;
+        float yTol = (kv.BoxMaxY - kv.BoxMinY) * 0.5f * PerpTolFraction;
+        float zTol = (kv.BoxMaxZ - kv.BoxMinZ) * 0.5f * PerpTolFraction;
 
         int bestIdx = -1;
-        float bestDist2 = float.MaxValue;
+        float bestPrimary = wantMax ? float.MinValue : float.MaxValue;
 
-        for (int i = 0; i < positions.Length; i++)
+        // Two-pass: first restricted to the central tube; if nothing qualified, fall back
+        // to the full box on the second pass. Single loop body keyed by the inTubeFilter
+        // flag keeps the in/out predicate readable.
+        for (int pass = 0; pass < 2; pass++)
         {
-            var p = positions[i];
-            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
-            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
-            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+            bool inTubeFilter = pass == 0;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                var p = positions[i];
+                if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
+                if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
+                if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
 
-            float dx = p.X - tx, dy = p.Y - ty, dz = p.Z - tz;
-            float d2 = dx * dx + dy * dy + dz * dz;
-            if (d2 < bestDist2) { bestDist2 = d2; bestIdx = i; }
+                if (inTubeFilter)
+                {
+                    switch (axis)
+                    {
+                        case 0: // X primary → Y/Z perpendicular
+                            if (MathF.Abs(p.Y - cy) > yTol) continue;
+                            if (MathF.Abs(p.Z - cz) > zTol) continue;
+                            break;
+                        case 1: // Y primary → X/Z perpendicular
+                            if (MathF.Abs(p.X - cx) > xTol) continue;
+                            if (MathF.Abs(p.Z - cz) > zTol) continue;
+                            break;
+                        default: // Z primary → X/Y perpendicular
+                            if (MathF.Abs(p.X - cx) > xTol) continue;
+                            if (MathF.Abs(p.Y - cy) > yTol) continue;
+                            break;
+                    }
+                }
+
+                float primary = axis == 0 ? p.X : (axis == 1 ? p.Y : p.Z);
+                bool isBest = wantMax ? primary > bestPrimary : primary < bestPrimary;
+                if (isBest) { bestPrimary = primary; bestIdx = i; }
+            }
+            if (bestIdx >= 0) break; // tube pass found a candidate; skip fallback
         }
         return bestIdx >= 0 ? bestIdx : null;
     }

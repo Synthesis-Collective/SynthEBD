@@ -82,17 +82,17 @@ public enum BoxCriterionSelection
     MaxZLeftOfX = 20,
     [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
     MaxZRightOfX = 21,
-    [Description("Vertex closest to the center of the box's max-X (right) face — balances 'far right' against 'near the Y/Z center'. Use for centerline-anchored side landmarks.")]
+    [Description("Largest-X (rightmost) vertex within a central tube along X — vertices in the middle third of Y and Z. Use for centerline-anchored side landmarks.")]
     MaxXAtCenter = 22,
-    [Description("Vertex closest to the center of the box's min-X (left) face — balances 'far left' against 'near the Y/Z center'.")]
+    [Description("Smallest-X (leftmost) vertex within a central tube along X — vertices in the middle third of Y and Z.")]
     MinXAtCenter = 23,
-    [Description("Vertex closest to the center of the box's max-Y (top) face — balances 'highest' against 'near the X/Z center'. Use for top-of-feature landmarks (crown, shoulder peak).")]
+    [Description("Largest-Y (highest) vertex within a central tube along Y — vertices in the middle third of X and Z. Use for top-of-feature landmarks (crown, shoulder peak).")]
     MaxYAtCenter = 24,
-    [Description("Vertex closest to the center of the box's min-Y (bottom) face — balances 'lowest' against 'near the X/Z center'.")]
+    [Description("Smallest-Y (lowest) vertex within a central tube along Y — vertices in the middle third of X and Z.")]
     MinYAtCenter = 25,
-    [Description("Vertex closest to the center of the box's max-Z (front) face — balances 'front-most' against 'near the X/Y center'. Use for protrusion landmarks (navel, nipple).")]
+    [Description("Largest-Z (front-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for protrusion landmarks (navel, nipple).")]
     MaxZAtCenter = 26,
-    [Description("Vertex closest to the center of the box's min-Z (back) face — balances 'back-most' against 'near the X/Y center'. Use for centerline-anchored rear landmarks (spine).")]
+    [Description("Smallest-Z (back-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for centerline-anchored rear landmarks (spine).")]
     MinZAtCenter = 27,
     [Description("Authoring shortcut: expands into MaxX + MinX rows sharing this box. One drag captures both sides of a symmetric L/R feature.")]
     MirrorX = 100,
