@@ -895,7 +895,10 @@ public class GlRenderer : IDisposable
 
         bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
         GL.Disable(EnableCap.DepthTest);
-        GL.LineWidth(2.5f);
+        // Thicker than the historical 2.5 so the overlay reads at typical zoom levels —
+        // user reported the prior width was too thin to see against busy body textures.
+        // 4.5 stays under the typical driver-clamped maximum (5–10 for aliased lines).
+        GL.LineWidth(4.5f);
 
         // Two verts per line, 6 floats per vert (pos + unused normal).
         var buf = new float[12];

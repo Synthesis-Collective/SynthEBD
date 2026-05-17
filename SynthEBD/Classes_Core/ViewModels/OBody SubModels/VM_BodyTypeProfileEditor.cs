@@ -2320,6 +2320,19 @@ public class VM_BodyTypeProfile : VM
         var axisSecondary = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
         var axisHypotenuse = new OpenTK.Mathematics.Vector3(0.5f, 0.5f, 0.5f);
 
+        // Axis-aligned leg from a to a + projection of (b - a) onto the named axis. Length
+        // equals |b - a| on that axis (matches MeasurementMath.AxisOrLength). Inline so the
+        // visualization code can mirror the metric for both AxisDistance and the
+        // axis-projected RatioDistance pairs.
+        static OpenTK.Mathematics.Vector3 AxisLegEnd(OpenTK.Mathematics.Vector3 av,
+            OpenTK.Mathematics.Vector3 bv, MeasurementAxis axis) => axis switch
+        {
+            MeasurementAxis.X => new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z),
+            MeasurementAxis.Y => new OpenTK.Mathematics.Vector3(av.X, bv.Y, av.Z),
+            MeasurementAxis.Z => new OpenTK.Mathematics.Vector3(av.X, av.Y, bv.Z),
+            _ => bv,
+        };
+
         var a = Resolve(sel.VertexRefA);
         var b = Resolve(sel.VertexRefB);
         if (a.HasValue && b.HasValue)
@@ -2348,6 +2361,18 @@ public class VM_BodyTypeProfile : VM
                 if (av.Y != bv.Y) segments.Add((p1, p2, yColor));
                 if (av.Z != bv.Z) segments.Add((p2, bv, zColor));
             }
+            else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
+            {
+                // RatioDistance numerator pair (A,B) is being reduced along a single axis
+                // via NumeratorAxis. Draw the full A→B vector in grey as the hypotenuse
+                // (preserves the visual cue for where A and B sit) and overlay the
+                // axis-projected leg in the primary color — that leg's length equals the
+                // actual scalar being fed into the ratio. Without this branch the line
+                // implied the full 3D distance was the measurement, which it isn't.
+                var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
+                segments.Add((a.Value, b.Value, axisHypotenuse));
+                segments.Add((a.Value, legEnd, primary));
+            }
             else
             {
                 segments.Add((a.Value, b.Value, primary));
@@ -2360,7 +2385,18 @@ public class VM_BodyTypeProfile : VM
             var d = Resolve(sel.VertexRefD);
             if (c.HasValue && d.HasValue)
             {
-                segments.Add((c.Value, d.Value, secondary));
+                if (sel.DenominatorAxis.HasValue)
+                {
+                    // Symmetric treatment for the denominator pair — grey hypotenuse plus
+                    // a cyan axis-projected leg whose length is the denominator scalar.
+                    var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
+                    segments.Add((c.Value, d.Value, axisHypotenuse));
+                    segments.Add((c.Value, legEnd, secondary));
+                }
+                else
+                {
+                    segments.Add((c.Value, d.Value, secondary));
+                }
             }
         }
 
