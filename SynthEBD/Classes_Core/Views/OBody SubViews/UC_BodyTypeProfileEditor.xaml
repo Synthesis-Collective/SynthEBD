@@ -15,14 +15,12 @@
             <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
         </Style>
 
-        <!-- Name-cell TextBox style with red highlight when the row's HasDuplicateName flag
-             is set. Shared by both the KeyVertices and Measurements grids' Name columns
-             (each row VM carries an identically-named property). Hover for the rationale. -->
-        <Style x:Key="DuplicateNameTextBoxStyle" TargetType="TextBox">
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="3,1"/>
+        <!-- Cell-level red wash for any Name cell whose row carries HasDuplicateName=True.
+             Shared by both the KeyVertices and Measurements grids (each row VM exposes the
+             identically-named bool). CellStyle is used in preference to ElementStyle so the
+             highlight spans both display and edit modes — the TextBox that DataGridTextColumn
+             swaps in during editing sits on top of the cell background, which stays colored. -->
+        <Style x:Key="DuplicateNameCellStyle" TargetType="DataGridCell">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasDuplicateName}" Value="True">
                     <Setter Property="Background" Value="#33FF6B6B"/>
@@ -220,19 +218,16 @@
                                               ItemsSource="{Binding KeyVertices}"
                                               SelectedItem="{Binding SelectedKeyVertex}"
                                               SelectionChanged="KeyVerticesGrid_SelectionChanged"
+                                              CellEditEnding="NameCell_EditEnding"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="Name" Width="160" SortMemberPath="Name">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                                                 Style="{StaticResource DuplicateNameTextBoxStyle}"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Name"
+                                                                Binding="{Binding Name}"
+                                                                Width="160"
+                                                                CellStyle="{StaticResource DuplicateNameCellStyle}"/>
                                             <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
                                             <DataGridTemplateColumn Header="Strategy" Width="110">
                                                 <DataGridTemplateColumn.CellTemplate>
@@ -292,21 +287,19 @@
                                     </Border>
                                     <Button DockPanel.Dock="Top" Content="Add Measurement" Command="{Binding AddMeasurement}"
                                             HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
-                                    <DataGrid ItemsSource="{Binding Measurements}"
+                                    <DataGrid x:Name="MeasurementsGrid"
+                                              ItemsSource="{Binding Measurements}"
                                               SelectedItem="{Binding SelectedMeasurement}"
+                                              CellEditEnding="NameCell_EditEnding"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="Name" Width="160" SortMemberPath="Name">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
-                                                                 Style="{StaticResource DuplicateNameTextBoxStyle}"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Name"
+                                                                Binding="{Binding Name}"
+                                                                Width="160"
+                                                                CellStyle="{StaticResource DuplicateNameCellStyle}"/>
                                             <DataGridTemplateColumn Header="Kind" Width="140">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

@@ -2184,6 +2184,33 @@ public class VM_BodyTypeProfile : VM
         return prefix + "_" + Guid.NewGuid().ToString("N").Substring(0, 6);
     }
 
+    /// <summary>Returns the first <c>{typed}_N</c> (N starting at 2) that doesn't collide
+    /// with any name in <paramref name="taken"/>, comparing case-sensitively to match the
+    /// downstream lookup dictionaries. Used by the edit-time collision dialog's "Rename"
+    /// branch — distinct from <see cref="NextDefaultName"/> which generates fresh sequential
+    /// names from a bare prefix. Starts at 2 because the typed name itself is the implied
+    /// "_1"; the suffix gives the user's intended name a numeric sibling rather than
+    /// shifting them into a generic prefix sequence.</summary>
+    public static string GenerateUniqueNameFrom(string typed, IEnumerable<string> taken)
+    {
+        var typedTrimmed = (typed ?? "").Trim();
+        if (string.IsNullOrEmpty(typedTrimmed)) typedTrimmed = "Name";
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (taken != null)
+        {
+            foreach (var t in taken)
+            {
+                if (!string.IsNullOrEmpty(t)) set.Add(t.Trim());
+            }
+        }
+        for (int i = 2; i < 1000; i++)
+        {
+            var candidate = typedTrimmed + "_" + i;
+            if (!set.Contains(candidate)) return candidate;
+        }
+        return typedTrimmed + "_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+    }
+
     public BodyTypeProfile DumpToModel()
     {
         var model = new BodyTypeProfile
