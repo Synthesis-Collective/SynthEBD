@@ -1275,11 +1275,26 @@ public class VM_BodyTypeProfile : VM
             if (args.NewItems != null)
                 foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnMeasurementRowPropertyChanged;
             RefreshMeasurementValues();
+            RecomputeDuplicateMeasurementNames();
         };
 
         // Re-evaluate when the key-vertex roster changes (a measurement may reference a
         // newly-added vertex name, or lose a deleted one).
         KeyVertices.CollectionChanged += (_, __) => RefreshMeasurementValues();
+
+        // Mirror the Measurement hookup for KeyVertices so per-row Name edits drive the
+        // duplicate-name highlight. Kept as its own subscription rather than folded into
+        // the existing scan-invalidation block below so the duplicate logic is easy to
+        // locate next to its companion Measurement subscription.
+        foreach (var k in KeyVertices) k.PropertyChanged += OnKeyVertexRowPropertyChanged;
+        KeyVertices.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_NamedKeyVertex k in args.OldItems) k.PropertyChanged -= OnKeyVertexRowPropertyChanged;
+            if (args.NewItems != null)
+                foreach (VM_NamedKeyVertex k in args.NewItems) k.PropertyChanged += OnKeyVertexRowPropertyChanged;
+            RecomputeDuplicateKeyVertexNames();
+        };
 
         // Scan cache invalidation. Two distinct staleness signals:
         //   * MeasurementCache stale — KeyVertices or MeasurementDefinitions changed, so the
@@ -1310,6 +1325,12 @@ public class VM_BodyTypeProfile : VM
         };
 
         RefreshMeasurementValues();
+
+        // First-paint duplicate-name detection. Profiles loaded from JSON (legacy or
+        // hand-edited) may already contain colliding names; without this call the red
+        // highlights and banner counts wouldn't appear until the user actually edited a row.
+        RecomputeDuplicateKeyVertexNames();
+        RecomputeDuplicateMeasurementNames();
 
         // Repaint the measurement-line overlay whenever the user picks a different
         // measurement. Using the raw PropertyChanged event keeps this file free of
@@ -1359,7 +1380,80 @@ public class VM_BodyTypeProfile : VM
     {
         // LiveValue updates are the result of recomputation; re-running on that would loop.
         if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
+        // HasDuplicateName is written by RecomputeDuplicateMeasurementNames itself; reacting
+        // to it would recurse. Same for the KV peer below.
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.HasDuplicateName)) return;
         RefreshMeasurementValues();
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.Name))
+        {
+            RecomputeDuplicateMeasurementNames();
+        }
+    }
+
+    /// <summary>Per-row PropertyChanged handler for the KeyVertices grid that drives the
+    /// duplicate-name highlight. Mirror of <see cref="OnMeasurementRowPropertyChanged"/>;
+    /// kept separate so each grid's invalidation rules stay readable.</summary>
+    private void OnKeyVertexRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_NamedKeyVertex.HasDuplicateName)) return;
+        if (e.PropertyName == nameof(VM_NamedKeyVertex.Name))
+        {
+            RecomputeDuplicateKeyVertexNames();
+        }
+    }
+
+    /// <summary>Set of trimmed names that appear on more than one row in <see cref="KeyVertices"/>.
+    /// Authoritative source of truth for each row's <see cref="VM_NamedKeyVertex.HasDuplicateName"/>;
+    /// rows never compute their own state.</summary>
+    private readonly HashSet<string> _duplicateKeyVertexNames = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _duplicateMeasurementNames = new(StringComparer.Ordinal);
+
+    /// <summary>Count of distinct duplicate names in <see cref="KeyVertices"/> (each shared
+    /// name counted once, not per row). Drives the visibility + text of the warning banner
+    /// above the KeyVertices grid.</summary>
+    public int DuplicateKeyVertexCount { get; set; }
+    public int DuplicateMeasurementCount { get; set; }
+
+    /// <summary>Recomputes <see cref="_duplicateKeyVertexNames"/> + <see cref="DuplicateKeyVertexCount"/>
+    /// and pushes <see cref="VM_NamedKeyVertex.HasDuplicateName"/> onto every row. Called from
+    /// the KeyVertices CollectionChanged handler, the per-row Name change handler, and once at
+    /// the end of the ctor. O(n) where n is row count — negligible at typical profile sizes.</summary>
+    private void RecomputeDuplicateKeyVertexNames()
+    {
+        // Trim + Ordinal match the downstream dictionary builders at RefreshMeasurementValues
+        // and BodySlideMeasurementEvaluator. Empty names are skipped — an empty Name is already
+        // filtered out of the lookup dictionary (AvailableKeyVertexNames), so collisions on ""
+        // aren't user-facing ambiguity.
+        _duplicateKeyVertexNames.Clear();
+        foreach (var grp in KeyVertices
+            .Where(k => !string.IsNullOrWhiteSpace(k.Name))
+            .GroupBy(k => (k.Name ?? "").Trim(), StringComparer.Ordinal))
+        {
+            if (grp.Skip(1).Any()) _duplicateKeyVertexNames.Add(grp.Key);
+        }
+        foreach (var kv in KeyVertices)
+        {
+            var key = (kv.Name ?? "").Trim();
+            kv.HasDuplicateName = !string.IsNullOrEmpty(key) && _duplicateKeyVertexNames.Contains(key);
+        }
+        DuplicateKeyVertexCount = _duplicateKeyVertexNames.Count;
+    }
+
+    private void RecomputeDuplicateMeasurementNames()
+    {
+        _duplicateMeasurementNames.Clear();
+        foreach (var grp in Measurements
+            .Where(m => !string.IsNullOrWhiteSpace(m.Name))
+            .GroupBy(m => (m.Name ?? "").Trim(), StringComparer.Ordinal))
+        {
+            if (grp.Skip(1).Any()) _duplicateMeasurementNames.Add(grp.Key);
+        }
+        foreach (var m in Measurements)
+        {
+            var key = (m.Name ?? "").Trim();
+            m.HasDuplicateName = !string.IsNullOrEmpty(key) && _duplicateMeasurementNames.Contains(key);
+        }
+        DuplicateMeasurementCount = _duplicateMeasurementNames.Count;
     }
 
     public string Id { get; }
@@ -2357,6 +2451,12 @@ public class VM_NamedKeyVertex : VM
     public float BoxMaxZ { get; set; }
     public BoundingBoxCriterion Criterion { get; set; }
 
+    /// <summary>True when at least one other row in the parent profile's <see cref="VM_BodyTypeProfile.KeyVertices"/>
+    /// collection has the same <see cref="Name"/> (Ordinal, trimmed). Driven by
+    /// <see cref="VM_BodyTypeProfile.RecomputeDuplicateKeyVertexNames"/>; the row VM never
+    /// computes this itself. Surfaces in the editor as a red highlight on the Name cell.</summary>
+    public bool HasDuplicateName { get; set; }
+
     public RelayCommand DeleteCommand { get; }
 
     public NamedKeyVertex DumpToModel() => new()
@@ -2419,6 +2519,12 @@ public class VM_MeasurementDefinition : VM
 
     /// <summary>Latest evaluated value against the active viewer; null when no viewer or evaluation failed.</summary>
     public float? LiveValue { get; set; }
+
+    /// <summary>True when at least one other row in the parent profile's <see cref="VM_BodyTypeProfile.Measurements"/>
+    /// collection has the same <see cref="Name"/> (Ordinal, trimmed). Driven by
+    /// <see cref="VM_BodyTypeProfile.RecomputeDuplicateMeasurementNames"/>. Surfaces in the
+    /// editor as a red highlight on the Name cell.</summary>
+    public bool HasDuplicateName { get; set; }
 
     public RelayCommand DeleteCommand { get; }
 

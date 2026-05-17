@@ -14,6 +14,46 @@
         <Style x:Key="CriterionItemStyle" TargetType="ComboBoxItem">
             <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
         </Style>
+
+        <!-- Name-cell TextBox style with red highlight when the row's HasDuplicateName flag
+             is set. Shared by both the KeyVertices and Measurements grids' Name columns
+             (each row VM carries an identically-named property). Hover for the rationale. -->
+        <Style x:Key="DuplicateNameTextBoxStyle" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="3,1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasDuplicateName}" Value="True">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="ToolTip"
+                            Value="Duplicate name — downstream resolution is first-wins, so only the first row with this name will be used at evaluation time. Rename one of the rows to remove the ambiguity."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Profile-level warning banner that surfaces above each grid when one or more
+             names are duplicated. Visibility flips Collapsed when the bound count is 0,
+             so the banner takes no space in the clean case. Drives off an int Count
+             property bound directly (no IntToVisibility converter needed thanks to the
+             DataTrigger). Bound count is set on the Border via a DataContext-relative
+             binding by the caller; the message text references {Binding} which resolves
+             to that same int. -->
+        <Style x:Key="DuplicateNameBannerStyle" TargetType="Border">
+            <Setter Property="Background" Value="#33FF6B6B"/>
+            <Setter Property="BorderBrush" Value="#FFE53935"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="0">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
@@ -155,6 +195,12 @@
 
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
+                                    <Border DockPanel.Dock="Top"
+                                            DataContext="{Binding SelectedProfile.DuplicateKeyVertexCount}"
+                                            Style="{StaticResource DuplicateNameBannerStyle}">
+                                        <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
+                                                   Text="{Binding StringFormat='{}{0} duplicate key-vertex name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
+                                    </Border>
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
                                         <CheckBox Content="Capture picks from viewer"
                                                   IsChecked="{Binding CapturePicks}"
@@ -179,7 +225,14 @@
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                                            <DataGridTemplateColumn Header="Name" Width="160" SortMemberPath="Name">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                                                 Style="{StaticResource DuplicateNameTextBoxStyle}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
                                             <DataGridTemplateColumn Header="Strategy" Width="110">
                                                 <DataGridTemplateColumn.CellTemplate>
@@ -231,6 +284,12 @@
 
                             <TabItem Header="Measurements">
                                 <DockPanel>
+                                    <Border DockPanel.Dock="Top"
+                                            DataContext="{Binding SelectedProfile.DuplicateMeasurementCount}"
+                                            Style="{StaticResource DuplicateNameBannerStyle}">
+                                        <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
+                                                   Text="{Binding StringFormat='{}{0} duplicate measurement name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
+                                    </Border>
                                     <Button DockPanel.Dock="Top" Content="Add Measurement" Command="{Binding AddMeasurement}"
                                             HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
                                     <DataGrid ItemsSource="{Binding Measurements}"
@@ -240,7 +299,14 @@
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                                            <DataGridTemplateColumn Header="Name" Width="160" SortMemberPath="Name">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"
+                                                                 Style="{StaticResource DuplicateNameTextBoxStyle}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Header="Kind" Width="140">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
