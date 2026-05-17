@@ -166,6 +166,18 @@ public enum BoundingBoxCriterion
     MaxZLeftOfX = 20,
     [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
     MaxZRightOfX = 21,
+    [Description("Vertex closest to the center of the box's max-X (right) face — balances 'far right' against 'near the Y/Z center'. Use for centerline-anchored side landmarks.")]
+    MaxXAtCenter = 22,
+    [Description("Vertex closest to the center of the box's min-X (left) face — balances 'far left' against 'near the Y/Z center'.")]
+    MinXAtCenter = 23,
+    [Description("Vertex closest to the center of the box's max-Y (top) face — balances 'highest' against 'near the X/Z center'. Use for top-of-feature landmarks (crown, shoulder peak).")]
+    MaxYAtCenter = 24,
+    [Description("Vertex closest to the center of the box's min-Y (bottom) face — balances 'lowest' against 'near the X/Z center'.")]
+    MinYAtCenter = 25,
+    [Description("Vertex closest to the center of the box's max-Z (front) face — balances 'front-most' against 'near the X/Y center'. Use for protrusion landmarks (navel, nipple).")]
+    MaxZAtCenter = 26,
+    [Description("Vertex closest to the center of the box's min-Z (back) face — balances 'back-most' against 'near the X/Y center'. Use for centerline-anchored rear landmarks (spine).")]
+    MinZAtCenter = 27,
 }
 
 // SymmetryAxes and BoxCriterionSelection enums moved to
@@ -547,6 +559,12 @@ public static class MeasurementMath
             case BoundingBoxCriterion.MinZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: false, useY: false);
             case BoundingBoxCriterion.MaxZLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: true,  useY: false);
             case BoundingBoxCriterion.MaxZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: true,  useY: false);
+            case BoundingBoxCriterion.MaxXAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 0, wantMax: true);
+            case BoundingBoxCriterion.MinXAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 0, wantMax: false);
+            case BoundingBoxCriterion.MaxYAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 1, wantMax: true);
+            case BoundingBoxCriterion.MinYAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 1, wantMax: false);
+            case BoundingBoxCriterion.MaxZAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 2, wantMax: true);
+            case BoundingBoxCriterion.MinZAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 2, wantMax: false);
         }
 
         float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
@@ -878,6 +896,41 @@ public static class MeasurementMath
             if (isBest) { bestVal = v; bestIdx = i; }
         }
 
+        return bestIdx >= 0 ? bestIdx : null;
+    }
+
+    /// <summary>Picks the vertex inside the AABB that minimizes Euclidean distance to the
+    /// center point of one box face. The "face" is selected by <paramref name="axis"/>
+    /// (0=X, 1=Y, 2=Z) and <paramref name="wantMax"/> (true = max-side face, false = min-side
+    /// face); the other two coordinates of the target point are the box midpoints on those
+    /// axes. Equivalent to "the vertex at the extremum on the chosen axis, closest to the
+    /// center on the other two" but expressed as a single distance metric, so a vertex
+    /// slightly inset from the face still wins over a vertex on the face that's offset to
+    /// the side. Suits centerline-anchored landmarks (navel, spine, crown).</summary>
+    private static int? FindClosestToBoxFaceCenter(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
+    {
+        float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
+        float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
+        float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
+
+        float tx = axis == 0 ? (wantMax ? kv.BoxMaxX : kv.BoxMinX) : cx;
+        float ty = axis == 1 ? (wantMax ? kv.BoxMaxY : kv.BoxMinY) : cy;
+        float tz = axis == 2 ? (wantMax ? kv.BoxMaxZ : kv.BoxMinZ) : cz;
+
+        int bestIdx = -1;
+        float bestDist2 = float.MaxValue;
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
+            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
+            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+
+            float dx = p.X - tx, dy = p.Y - ty, dz = p.Z - tz;
+            float d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < bestDist2) { bestDist2 = d2; bestIdx = i; }
+        }
         return bestIdx >= 0 ? bestIdx : null;
     }
 

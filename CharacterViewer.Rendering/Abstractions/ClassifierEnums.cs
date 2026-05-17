@@ -82,6 +82,18 @@ public enum BoxCriterionSelection
     MaxZLeftOfX = 20,
     [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
     MaxZRightOfX = 21,
+    [Description("Vertex closest to the center of the box's max-X (right) face — balances 'far right' against 'near the Y/Z center'. Use for centerline-anchored side landmarks.")]
+    MaxXAtCenter = 22,
+    [Description("Vertex closest to the center of the box's min-X (left) face — balances 'far left' against 'near the Y/Z center'.")]
+    MinXAtCenter = 23,
+    [Description("Vertex closest to the center of the box's max-Y (top) face — balances 'highest' against 'near the X/Z center'. Use for top-of-feature landmarks (crown, shoulder peak).")]
+    MaxYAtCenter = 24,
+    [Description("Vertex closest to the center of the box's min-Y (bottom) face — balances 'lowest' against 'near the X/Z center'.")]
+    MinYAtCenter = 25,
+    [Description("Vertex closest to the center of the box's max-Z (front) face — balances 'front-most' against 'near the X/Y center'. Use for protrusion landmarks (navel, nipple).")]
+    MaxZAtCenter = 26,
+    [Description("Vertex closest to the center of the box's min-Z (back) face — balances 'back-most' against 'near the X/Y center'. Use for centerline-anchored rear landmarks (spine).")]
+    MinZAtCenter = 27,
     [Description("Authoring shortcut: expands into MaxX + MinX rows sharing this box. One drag captures both sides of a symmetric L/R feature.")]
     MirrorX = 100,
     [Description("Authoring shortcut: expands into MaxY + MinY rows sharing this box (highest + lowest Y).")]
