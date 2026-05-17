@@ -80,6 +80,13 @@ public static class BodySlideMeasurementEvaluator
             foreach (var def in profile.Measurements)
             {
                 if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                // First-wins on duplicate measurement names — matches the KeyVertex side's
+                // GroupBy.First() at VM_BodyTypeProfileEditor.cs and the equivalent dictionary
+                // build above. The editor surfaces duplicates visually, but pre-existing /
+                // hand-edited profiles may still contain them; skipping the second occurrence
+                // keeps evaluation deterministic and consistent across both grids.
+                if (result.Measurements.ContainsKey(def.Name)
+                    || result.FailedMeasurements.ContainsKey(def.Name)) continue;
                 if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, out float v))
                 {
                     result.Measurements[def.Name] = v;
