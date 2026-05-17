@@ -45,6 +45,66 @@
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
+
+        <!-- ComboBox styles for the Measurements grid's vertex-ref columns. Each fires its
+             red wash on a different per-row IsRef{A|B|C|D}Valid bool — WPF DataTrigger Value
+             doesn't take a parameter, so four styles are required even though their bodies
+             are identical except for the bound property. ToolTip surfaces the explanation so
+             the user knows the red means "ref doesn't resolve to a current Key Vertex". -->
+        <Style x:Key="InvalidRefAComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRefAValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Reference does not match any current Key Vertex name — the source vertex was renamed or deleted. Pick an existing name or fix the typo."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="InvalidRefBComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRefBValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Reference does not match any current Key Vertex name — the source vertex was renamed or deleted. Pick an existing name or fix the typo."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="InvalidRefCComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRefCValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Reference does not match any current Key Vertex name — the source vertex was renamed or deleted. Pick an existing name or fix the typo."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="InvalidRefDComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRefDValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Reference does not match any current Key Vertex name — the source vertex was renamed or deleted. Pick an existing name or fix the typo."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ComboBox style for the Rules tab's per-condition MeasurementName combo. Fires
+             when the condition references a measurement that no longer exists in the
+             profile. -->
+        <Style x:Key="InvalidConditionRefComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMeasurementRefValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Reference does not match any current Measurement name — the source measurement was renamed or deleted. Pick an existing name or fix the typo."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
@@ -305,7 +365,8 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  Text="{Binding VertexRefA, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                  Text="{Binding VertexRefA, UpdateSourceTrigger=PropertyChanged}"
+                                                                  Style="{StaticResource InvalidRefAComboBoxStyle}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -313,7 +374,8 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                  Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"
+                                                                  Style="{StaticResource InvalidRefBComboBoxStyle}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -322,7 +384,8 @@
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
                                                                   IsEnabled="{Binding ShowSecondPair}"
-                                                                  Text="{Binding VertexRefC, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                  Text="{Binding VertexRefC, UpdateSourceTrigger=PropertyChanged}"
+                                                                  Style="{StaticResource InvalidRefCComboBoxStyle}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -331,7 +394,8 @@
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
                                                                   IsEnabled="{Binding ShowSecondPair}"
-                                                                  Text="{Binding VertexRefD, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                  Text="{Binding VertexRefD, UpdateSourceTrigger=PropertyChanged}"
+                                                                  Style="{StaticResource InvalidRefDComboBoxStyle}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -431,6 +495,7 @@
                                                                                             <StackPanel Orientation="Horizontal" Margin="0,1">
                                                                                                 <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
                                                                                                           Text="{Binding MeasurementName, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          Style="{StaticResource InvalidConditionRefComboBoxStyle}"
                                                                                                           MinWidth="160" Margin="0,0,5,0"/>
                                                                                                 <ComboBox SelectedValue="{Binding Comparator, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementComparator}}}"

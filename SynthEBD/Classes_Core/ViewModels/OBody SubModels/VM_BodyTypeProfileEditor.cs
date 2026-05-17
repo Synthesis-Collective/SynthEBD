@@ -1271,16 +1271,33 @@ public class VM_BodyTypeProfile : VM
         Measurements.CollectionChanged += (_, args) =>
         {
             if (args.OldItems != null)
-                foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnMeasurementRowPropertyChanged;
+                foreach (VM_MeasurementDefinition m in args.OldItems)
+                {
+                    m.PropertyChanged -= OnMeasurementRowPropertyChanged;
+                    _measurementLastNames.Remove(m);
+                }
             if (args.NewItems != null)
-                foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnMeasurementRowPropertyChanged;
+                foreach (VM_MeasurementDefinition m in args.NewItems)
+                {
+                    m.PropertyChanged += OnMeasurementRowPropertyChanged;
+                    _measurementLastNames[m] = m.Name ?? "";
+                }
             RefreshMeasurementValues();
             RecomputeDuplicateMeasurementNames();
+            // Adding a Measurement can fix a previously-invalid condition reference;
+            // removing one can break previously-valid ones. Re-derive both ways.
+            RecomputeConditionRefValidity();
         };
 
         // Re-evaluate when the key-vertex roster changes (a measurement may reference a
         // newly-added vertex name, or lose a deleted one).
-        KeyVertices.CollectionChanged += (_, __) => RefreshMeasurementValues();
+        KeyVertices.CollectionChanged += (_, __) =>
+        {
+            RefreshMeasurementValues();
+            // Same dual-direction logic as Measurements above: deleting a referenced KV
+            // breaks the measurements that pointed at it, adding one can fix stale refs.
+            RecomputeMeasurementRefValidity();
+        };
 
         // Mirror the Measurement hookup for KeyVertices so per-row Name edits drive the
         // duplicate-name highlight. Kept as its own subscription rather than folded into
@@ -1290,9 +1307,17 @@ public class VM_BodyTypeProfile : VM
         KeyVertices.CollectionChanged += (_, args) =>
         {
             if (args.OldItems != null)
-                foreach (VM_NamedKeyVertex k in args.OldItems) k.PropertyChanged -= OnKeyVertexRowPropertyChanged;
+                foreach (VM_NamedKeyVertex k in args.OldItems)
+                {
+                    k.PropertyChanged -= OnKeyVertexRowPropertyChanged;
+                    _kvLastNames.Remove(k);
+                }
             if (args.NewItems != null)
-                foreach (VM_NamedKeyVertex k in args.NewItems) k.PropertyChanged += OnKeyVertexRowPropertyChanged;
+                foreach (VM_NamedKeyVertex k in args.NewItems)
+                {
+                    k.PropertyChanged += OnKeyVertexRowPropertyChanged;
+                    _kvLastNames[k] = k.Name ?? "";
+                }
             RecomputeDuplicateKeyVertexNames();
         };
 
@@ -1331,6 +1356,18 @@ public class VM_BodyTypeProfile : VM
         // highlights and banner counts wouldn't appear until the user actually edited a row.
         RecomputeDuplicateKeyVertexNames();
         RecomputeDuplicateMeasurementNames();
+
+        // Prime the per-row Name caches so the first user-driven rename produces a correct
+        // (old, new) diff. Subsequent rows added via the grid get their entry in the
+        // CollectionChanged handler above.
+        foreach (var k in KeyVertices) _kvLastNames[k] = k.Name ?? "";
+        foreach (var m in Measurements) _measurementLastNames[m] = m.Name ?? "";
+
+        // First-paint ref-validity detection. Same rationale as the duplicate-name block:
+        // a JSON-loaded profile may already reference a non-existent key vertex (deleted
+        // in an earlier session) and the red wash needs to appear on first paint.
+        RecomputeMeasurementRefValidity();
+        RecomputeConditionRefValidity();
 
         // Repaint the measurement-line overlay whenever the user picks a different
         // measurement. Using the raw PropertyChanged event keeps this file free of
@@ -1380,25 +1417,61 @@ public class VM_BodyTypeProfile : VM
     {
         // LiveValue updates are the result of recomputation; re-running on that would loop.
         if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
-        // HasDuplicateName is written by RecomputeDuplicateMeasurementNames itself; reacting
-        // to it would recurse. Same for the KV peer below.
+        // HasDuplicateName + ref-validity flags are written by the recompute methods
+        // themselves; reacting to them would recurse.
         if (e.PropertyName == nameof(VM_MeasurementDefinition.HasDuplicateName)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefAValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
         RefreshMeasurementValues();
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.Name))
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.Name)
+            && sender is VM_MeasurementDefinition mr)
         {
+            // Cascade rename into MeasurementCondition.MeasurementName before recomputing
+            // condition validity. Without the cascade, otherwise-valid conditions would
+            // briefly flash red between the Name commit and a manual re-edit.
+            if (_measurementLastNames.TryGetValue(mr, out var oldName))
+            {
+                CascadeMeasurementRename(oldName, mr.Name ?? "");
+            }
+            _measurementLastNames[mr] = mr.Name ?? "";
             RecomputeDuplicateMeasurementNames();
+            RecomputeConditionRefValidity();
+        }
+        // User-driven edits to a vertex-ref field (or to Kind, which gates whether C/D
+        // matter) can leave the row in an invalid state — re-derive the row's flags.
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefA)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefB)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefC)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefD)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.Kind))
+        {
+            RecomputeMeasurementRefValidity();
         }
     }
 
     /// <summary>Per-row PropertyChanged handler for the KeyVertices grid that drives the
-    /// duplicate-name highlight. Mirror of <see cref="OnMeasurementRowPropertyChanged"/>;
-    /// kept separate so each grid's invalidation rules stay readable.</summary>
+    /// duplicate-name highlight, the rename cascade into Measurements, and the
+    /// downstream measurement-ref validity flags. Mirror of
+    /// <see cref="OnMeasurementRowPropertyChanged"/>; kept separate so each grid's
+    /// invalidation rules stay readable.</summary>
     private void OnKeyVertexRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(VM_NamedKeyVertex.HasDuplicateName)) return;
-        if (e.PropertyName == nameof(VM_NamedKeyVertex.Name))
+        if (e.PropertyName == nameof(VM_NamedKeyVertex.Name)
+            && sender is VM_NamedKeyVertex kv)
         {
+            // Cascade rename into Measurement.VertexRefA/B/C/D so existing references
+            // survive the rename. Done before the validity recompute so cascaded
+            // references stay marked valid without flickering.
+            if (_kvLastNames.TryGetValue(kv, out var oldName))
+            {
+                CascadeKeyVertexRename(oldName, kv.Name ?? "");
+            }
+            _kvLastNames[kv] = kv.Name ?? "";
             RecomputeDuplicateKeyVertexNames();
+            RecomputeMeasurementRefValidity();
         }
     }
 
@@ -1462,6 +1535,116 @@ public class VM_BodyTypeProfile : VM
         }
         DuplicateMeasurementCount = _duplicateMeasurementNames.Count;
         HasDuplicateMeasurementNames = _duplicateMeasurementNames.Count > 0;
+    }
+
+    // ─── Reference-name cascade + validity tracking ────────────────────────────────────
+    //
+    // When the user renames a KeyVertex, every Measurement that referenced its old name
+    // through VertexRefA/B/C/D is rewritten to the new name so the logical link survives.
+    // Symmetric for Measurement renames into MeasurementCondition.MeasurementName. When a
+    // referenced row is *deleted*, the cascade can't preserve the link — instead we mark
+    // the orphaned reference invalid so the editor paints it red.
+    //
+    // Cascade needs the OLD name. Fody's PropertyChanged raises after the value changed,
+    // so we cache each row's last-known name in a dictionary and diff in the handler.
+
+    /// <summary>Last-known Name per KeyVertex row. Diffed in <see cref="OnKeyVertexRowPropertyChanged"/>
+    /// to derive the (old, new) pair Fody's PropertyChanged event doesn't expose. Primed at
+    /// the end of the ctor with every loaded row's initial name so the first user-driven
+    /// edit produces a correct diff rather than treating the seed name as "old".</summary>
+    private readonly Dictionary<VM_NamedKeyVertex, string> _kvLastNames = new();
+    private readonly Dictionary<VM_MeasurementDefinition, string> _measurementLastNames = new();
+
+    /// <summary>Rewrites every <see cref="VM_MeasurementDefinition.VertexRefA"/>/B/C/D
+    /// equal to <paramref name="oldName"/> (Ordinal) to <paramref name="newName"/>. Triggered
+    /// from <see cref="OnKeyVertexRowPropertyChanged"/> when a KV's Name actually changes.
+    /// No-ops when oldName is empty (initial value) or unchanged.</summary>
+    private void CascadeKeyVertexRename(string oldName, string newName)
+    {
+        if (string.IsNullOrEmpty(oldName)) return;
+        if (string.Equals(oldName, newName, StringComparison.Ordinal)) return;
+        foreach (var m in Measurements)
+        {
+            if (string.Equals(m.VertexRefA, oldName, StringComparison.Ordinal)) m.VertexRefA = newName;
+            if (string.Equals(m.VertexRefB, oldName, StringComparison.Ordinal)) m.VertexRefB = newName;
+            if (string.Equals(m.VertexRefC, oldName, StringComparison.Ordinal)) m.VertexRefC = newName;
+            if (string.Equals(m.VertexRefD, oldName, StringComparison.Ordinal)) m.VertexRefD = newName;
+        }
+    }
+
+    /// <summary>Rewrites every <see cref="VM_MeasurementCondition.MeasurementName"/> equal
+    /// to <paramref name="oldName"/> across all Rules → Groups → Conditions.</summary>
+    private void CascadeMeasurementRename(string oldName, string newName)
+    {
+        if (string.IsNullOrEmpty(oldName)) return;
+        if (string.Equals(oldName, newName, StringComparison.Ordinal)) return;
+        foreach (var r in Rules)
+        {
+            if (r?.Groups == null) continue;
+            foreach (var g in r.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    if (string.Equals(c.MeasurementName, oldName, StringComparison.Ordinal))
+                        c.MeasurementName = newName;
+                }
+            }
+        }
+    }
+
+    /// <summary>Pushes <see cref="VM_MeasurementDefinition.IsRefAValid"/>/B/C/D onto every
+    /// row based on the current <see cref="AvailableKeyVertexNames"/>. Empty refs are
+    /// considered valid (they're inert, not broken). C and D are also considered valid when
+    /// the measurement's <see cref="VM_MeasurementDefinition.ShowSecondPair"/> is false —
+    /// for non-Ratio kinds, stale C/D fields don't affect evaluation and the red wash there
+    /// would be noise.</summary>
+    private void RecomputeMeasurementRefValidity()
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var kv in KeyVertices)
+        {
+            var n = (kv.Name ?? "").Trim();
+            if (!string.IsNullOrEmpty(n)) names.Add(n);
+        }
+        foreach (var m in Measurements)
+        {
+            m.IsRefAValid = RefIsValid(m.VertexRefA, names);
+            m.IsRefBValid = RefIsValid(m.VertexRefB, names);
+            m.IsRefCValid = !m.ShowSecondPair || RefIsValid(m.VertexRefC, names);
+            m.IsRefDValid = !m.ShowSecondPair || RefIsValid(m.VertexRefD, names);
+        }
+    }
+
+    private static bool RefIsValid(string? r, HashSet<string> names)
+    {
+        var t = (r ?? "").Trim();
+        return string.IsNullOrEmpty(t) || names.Contains(t);
+    }
+
+    /// <summary>Pushes <see cref="VM_MeasurementCondition.IsMeasurementRefValid"/> onto every
+    /// condition across all Rules → Groups → Conditions based on the current
+    /// <see cref="AvailableMeasurementNames"/>.</summary>
+    private void RecomputeConditionRefValidity()
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var m in Measurements)
+        {
+            var n = (m.Name ?? "").Trim();
+            if (!string.IsNullOrEmpty(n)) names.Add(n);
+        }
+        foreach (var r in Rules)
+        {
+            if (r?.Groups == null) continue;
+            foreach (var g in r.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    c.IsMeasurementRefValid = RefIsValid(c.MeasurementName, names);
+                }
+            }
+        }
     }
 
     public string Id { get; }
@@ -2304,7 +2487,22 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>PropertyChanged forwarder for leaf VM edits (measurement row fields, rule
     /// descriptor fields, condition threshold values) that should invalidate the scan cache.</summary>
-    private void OnScanInvalidatingChange(object? sender, PropertyChangedEventArgs e) => MarkScanResultsStale();
+    private void OnScanInvalidatingChange(object? sender, PropertyChangedEventArgs e)
+    {
+        MarkScanResultsStale();
+        // Piggyback ref-validity recompute on the existing per-condition subscription. The
+        // sender's MeasurementName change is the only condition-side edit that affects
+        // validity; gating on the property name keeps the per-keystroke threshold/value
+        // edits from re-walking the rule tree. IsMeasurementRefValid is written by the
+        // recompute itself — skip to avoid recursion.
+        if (sender is VM_MeasurementCondition
+            && e.PropertyName != nameof(VM_MeasurementCondition.IsMeasurementRefValid)
+            && (e.PropertyName == nameof(VM_MeasurementCondition.MeasurementName)
+                || string.IsNullOrEmpty(e.PropertyName)))
+        {
+            RecomputeConditionRefValidity();
+        }
+    }
 
     /// <summary>Marks the scan cache stale and tells the parent editor to refresh the
     /// Match Presets list so the stale badge appears immediately.</summary>
@@ -2561,6 +2759,20 @@ public class VM_MeasurementDefinition : VM
     /// editor as a red highlight on the Name cell.</summary>
     public bool HasDuplicateName { get; set; }
 
+    /// <summary>True when this row's <see cref="VertexRefA"/> (etc.) names an existing
+    /// <see cref="VM_NamedKeyVertex"/> in the parent profile, or is empty. False when the
+    /// reference is a non-empty string that doesn't match any current key vertex — typically
+    /// because the user deleted the referenced KV or typed a stale name. Set by
+    /// <see cref="VM_BodyTypeProfile.RecomputeMeasurementRefValidity"/>; defaults to true so
+    /// fresh / loading rows don't briefly flash red before the first recompute. Surfaces in
+    /// the Measurements grid as a per-cell red wash on the invalid ref column. Cells C and D
+    /// only flag invalid when <see cref="ShowSecondPair"/> is true — for non-Ratio kinds the
+    /// fields are inert, so a stale value there doesn't represent a broken evaluation.</summary>
+    public bool IsRefAValid { get; set; } = true;
+    public bool IsRefBValid { get; set; } = true;
+    public bool IsRefCValid { get; set; } = true;
+    public bool IsRefDValid { get; set; } = true;
+
     public RelayCommand DeleteCommand { get; }
 
     public IEnumerable<string> AvailableKeyVertexNames => _parent.AvailableKeyVertexNames;
@@ -2769,6 +2981,14 @@ public class VM_MeasurementCondition : VM
     public MeasurementComparator Comparator { get; set; }
     public float Value { get; set; }
     public RelayCommand DeleteCommand { get; }
+
+    /// <summary>True when <see cref="MeasurementName"/> is empty or matches an existing
+    /// <see cref="VM_MeasurementDefinition"/> in the parent profile. False when it names a
+    /// measurement that no longer exists (typically because the user deleted it after this
+    /// condition was authored). Set by <see cref="VM_BodyTypeProfile.RecomputeConditionRefValidity"/>;
+    /// defaults to true so freshly-loaded conditions don't flash red before the first
+    /// recompute. Surfaces in the Rules tab as a red wash on the MeasurementName combo.</summary>
+    public bool IsMeasurementRefValid { get; set; } = true;
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
