@@ -62,6 +62,15 @@ public class VM_BodyTypeProfileEditor : VM
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
         CharacterViewer.ShowClassifierControls = true;
+        // Lock the embedded viewer at default model scale (HeightOverride = 1.0) so the
+        // body isn't scaled to the preview NPC's record Height. BoundingBox key vertices
+        // are authored in mesh-local coordinates that don't carry through ModelScale, so a
+        // non-1 scale would shrink/grow the mesh out from under the stored box AABBs and
+        // the resolved vertex would no longer match the anatomical landmark. Override is
+        // sticky across NPC loads — once set on the viewer instance it wins over every
+        // future NpcBaseHeight pulled from a record. The Assignments viewers leave
+        // HeightOverride null so they can still honor per-NPC heights.
+        CharacterViewer.HeightOverride = 1.0f;
         CharacterViewer.DisposeWith(this);
 
         // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt
