@@ -1409,10 +1409,16 @@ public class VM_BodyTypeProfile : VM
     private readonly HashSet<string> _duplicateMeasurementNames = new(StringComparer.Ordinal);
 
     /// <summary>Count of distinct duplicate names in <see cref="KeyVertices"/> (each shared
-    /// name counted once, not per row). Drives the visibility + text of the warning banner
-    /// above the KeyVertices grid.</summary>
+    /// name counted once, not per row). Drives the text of the warning banner above the
+    /// KeyVertices grid; banner visibility uses <see cref="HasDuplicateKeyVertexNames"/>
+    /// instead because WPF's DataTrigger Value="0" comparison against a boxed int via
+    /// int.Equals("0") always returns false, which would leave the banner visible even at
+    /// zero. The bool variant goes through the standard BoolToVisibilityConverter and
+    /// behaves correctly.</summary>
     public int DuplicateKeyVertexCount { get; set; }
     public int DuplicateMeasurementCount { get; set; }
+    public bool HasDuplicateKeyVertexNames { get; set; }
+    public bool HasDuplicateMeasurementNames { get; set; }
 
     /// <summary>Recomputes <see cref="_duplicateKeyVertexNames"/> + <see cref="DuplicateKeyVertexCount"/>
     /// and pushes <see cref="VM_NamedKeyVertex.HasDuplicateName"/> onto every row. Called from
@@ -1437,6 +1443,7 @@ public class VM_BodyTypeProfile : VM
             kv.HasDuplicateName = !string.IsNullOrEmpty(key) && _duplicateKeyVertexNames.Contains(key);
         }
         DuplicateKeyVertexCount = _duplicateKeyVertexNames.Count;
+        HasDuplicateKeyVertexNames = _duplicateKeyVertexNames.Count > 0;
     }
 
     private void RecomputeDuplicateMeasurementNames()
@@ -1454,6 +1461,7 @@ public class VM_BodyTypeProfile : VM
             m.HasDuplicateName = !string.IsNullOrEmpty(key) && _duplicateMeasurementNames.Contains(key);
         }
         DuplicateMeasurementCount = _duplicateMeasurementNames.Count;
+        HasDuplicateMeasurementNames = _duplicateMeasurementNames.Count > 0;
     }
 
     public string Id { get; }

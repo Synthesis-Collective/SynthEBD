@@ -33,24 +33,17 @@
         </Style>
 
         <!-- Profile-level warning banner that surfaces above each grid when one or more
-             names are duplicated. Visibility flips Collapsed when the bound count is 0,
-             so the banner takes no space in the clean case. Drives off an int Count
-             property bound directly (no IntToVisibility converter needed thanks to the
-             DataTrigger). Bound count is set on the Border via a DataContext-relative
-             binding by the caller; the message text references {Binding} which resolves
-             to that same int. -->
+             names are duplicated. The caller binds Visibility through BoolToVis on a
+             HasDuplicate* bool — earlier attempts used a DataTrigger on the int count
+             property, but WPF compares the boxed int to the trigger's string Value via
+             int.Equals(string) which always returns false, so the trigger never fired and
+             the banner stayed visible at zero. -->
         <Style x:Key="DuplicateNameBannerStyle" TargetType="Border">
             <Setter Property="Background" Value="#33FF6B6B"/>
             <Setter Property="BorderBrush" Value="#FFE53935"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
-            <Setter Property="Visibility" Value="Visible"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding}" Value="0">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-            </Style.Triggers>
         </Style>
     </UserControl.Resources>
     <Grid Margin="5">
@@ -194,10 +187,10 @@
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
                                     <Border DockPanel.Dock="Top"
-                                            DataContext="{Binding SelectedProfile.DuplicateKeyVertexCount}"
-                                            Style="{StaticResource DuplicateNameBannerStyle}">
+                                            Style="{StaticResource DuplicateNameBannerStyle}"
+                                            Visibility="{Binding HasDuplicateKeyVertexNames, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
-                                                   Text="{Binding StringFormat='{}{0} duplicate key-vertex name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
+                                                   Text="{Binding DuplicateKeyVertexCount, StringFormat='{}{0} duplicate key-vertex name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
                                     </Border>
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
                                         <CheckBox Content="Capture picks from viewer"
@@ -280,10 +273,10 @@
                             <TabItem Header="Measurements">
                                 <DockPanel>
                                     <Border DockPanel.Dock="Top"
-                                            DataContext="{Binding SelectedProfile.DuplicateMeasurementCount}"
-                                            Style="{StaticResource DuplicateNameBannerStyle}">
+                                            Style="{StaticResource DuplicateNameBannerStyle}"
+                                            Visibility="{Binding HasDuplicateMeasurementNames, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
-                                                   Text="{Binding StringFormat='{}{0} duplicate measurement name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
+                                                   Text="{Binding DuplicateMeasurementCount, StringFormat='{}{0} duplicate measurement name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
                                     </Border>
                                     <Button DockPanel.Dock="Top" Content="Add Measurement" Command="{Binding AddMeasurement}"
                                             HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
