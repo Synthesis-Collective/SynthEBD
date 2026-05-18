@@ -878,58 +878,19 @@ public static class MeasurementMath
 
         if (winnerBin < 0) return null;
 
-        // Parabolic sub-bin refinement on the width curve, mirroring FindPinchOrBulgeX.
-        float binHeight = yRange / BinCount;
-        float centerY = minY + (winnerBin + 0.5f) * binHeight;
-        float refinedY = centerY;
-
-        if (winnerBin > 0 && winnerBin < BinCount - 1
-            && minIdxPerBin[winnerBin - 1] >= 0 && maxIdxPerBin[winnerBin - 1] >= 0
-            && minIdxPerBin[winnerBin + 1] >= 0 && maxIdxPerBin[winnerBin + 1] >= 0)
-        {
-            float w0 = maxXPerBin[winnerBin - 1] - minXPerBin[winnerBin - 1];
-            float w1 = maxXPerBin[winnerBin]     - minXPerBin[winnerBin];
-            float w2 = maxXPerBin[winnerBin + 1] - minXPerBin[winnerBin + 1];
-            float denom = w0 - 2f * w1 + w2;
-            if (MathF.Abs(denom) > 1e-6f)
-            {
-                float offsetBins = 0.5f * (w0 - w2) / denom;
-                if (offsetBins > 0.5f) offsetBins = 0.5f;
-                else if (offsetBins < -0.5f) offsetBins = -0.5f;
-                refinedY = centerY + offsetBins * binHeight;
-            }
-        }
-
-        // Rescan within a 1-bin Y band centered on the refined Y for both silhouette sides
-        // jointly, so both callers still agree on a shared slice after refinement.
-        float bandHalf = binHeight * 0.5f;
-        float bandMinY = refinedY - bandHalf;
-        float bandMaxY = refinedY + bandHalf;
-
-        int chosenMinIdx = minIdxPerBin[winnerBin];
-        int chosenMaxIdx = maxIdxPerBin[winnerBin];
-        float chosenMinX = float.MaxValue;
-        float chosenMaxX = float.MinValue;
-        bool bandHasAny = false;
-        for (int i = 0; i < positions.Length; i++)
-        {
-            var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < bandMinY || p.Y > bandMaxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
-
-            bandHasAny = true;
-            if (p.X < chosenMinX) { chosenMinX = p.X; chosenMinIdx = i; }
-            if (p.X > chosenMaxX) { chosenMaxX = p.X; chosenMaxIdx = i; }
-        }
-        if (!bandHasAny)
-        {
-            // Empty band after refinement — retain the winner bin's picks.
-            chosenMinIdx = minIdxPerBin[winnerBin];
-            chosenMaxIdx = maxIdxPerBin[winnerBin];
-        }
-
-        return leftSide ? chosenMinIdx : chosenMaxIdx;
+        // Return the winning bin's stored optima directly. An earlier version of this
+        // function did a parabolic-refinement-on-widths pass followed by a band rescan
+        // within ±0.5 bin of the refined Y, but the rescan ran an independent smallest-X
+        // search over that Y window — which can land on a different vertex than
+        // minIdxPerBin[winnerBin] when the inner edge has many near-co-X silhouette
+        // vertices spread across Z (i.e. virtually every body mesh in the dataset). The
+        // resolver's pick then visibly drifts in Z away from the bin's actual stored
+        // min/max — confirmed by the BulgeBin debug overlay. Skipping the rescan keeps
+        // the resolver aligned with what the overlay (and the snapshot helper used by
+        // it) shows. The sub-bin precision loss is bounded by binHeight (yRange / 20),
+        // typically 0.5-0.7 model units on a thigh box, which is below the noise floor
+        // of subsequent measurement ratios.
+        return leftSide ? minIdxPerBin[winnerBin] : maxIdxPerBin[winnerBin];
     }
 
     /// <summary>True for the four <c>*Pair*X</c> criteria that require joint sibling resolution.</summary>
