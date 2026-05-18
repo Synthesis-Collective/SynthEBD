@@ -186,36 +186,45 @@
         </Style>
     </UserControl.Resources>
     <Grid Margin="5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
             <ColumnDefinition Width="*" MinWidth="480"/>
             <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="420" MinWidth="220"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left rail: profile list + add/delete -->
-        <DockPanel Grid.Column="0" Margin="0,0,5,0">
-            <TextBlock DockPanel.Dock="Top" FontWeight="Bold" Margin="0,0,0,5"
-                       Text="Body Type Profiles"/>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
+        <!-- Top profile toolbar: title, profile selector, profile-management buttons.
+             Lives above all three columns so the left rail it replaces can be reclaimed
+             by the middle pane. The ListBox-of-profiles collapses into a ComboBox here
+             because a visible list in a horizontal bar would waste either width (always
+             showing every row) or height (wrapping). -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                BorderBrush="Gray" BorderThickness="0,0,0,1"
+                Padding="0,0,0,5" Margin="0,0,0,5">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Body Type Profiles:" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox ItemsSource="{Binding Profiles}"
+                          SelectedItem="{Binding SelectedProfile}"
+                          DisplayMemberPath="Name"
+                          MinWidth="220" Margin="0,0,12,0"
+                          VerticalAlignment="Center"/>
                 <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
                 <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1" Margin="0,0,4,0"/>
-                <Button Content="Duplicate" Command="{Binding DuplicateSelectedProfile}" Padding="6,1"
+                <Button Content="Duplicate" Command="{Binding DuplicateSelectedProfile}" Padding="6,1" Margin="0,0,12,0"
                         ToolTip="Clones the selected profile in place — equivalent to Export then Import without the disk round-trip. The copy gets a fresh Id and a default '&lt;name&gt; - copy' name (with a numeric suffix if that's already taken)."/>
-            </StackPanel>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
                 <Button Content="Export" Command="{Binding ExportSelectedProfile}" Padding="6,1" Margin="0,0,4,0"
                         ToolTip="Save the selected profile to a JSON file for sharing or backup."/>
                 <Button Content="Import" Command="{Binding ImportProfile}" Padding="6,1"
                         ToolTip="Load a profile from a JSON file and append it to this list."/>
             </StackPanel>
-            <ListBox ItemsSource="{Binding Profiles}"
-                     SelectedItem="{Binding SelectedProfile}"
-                     DisplayMemberPath="Name"/>
-        </DockPanel>
+        </Border>
 
         <!-- Resizable splitter between the profile panel and the embedded viewer. -->
-        <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch"
+        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch" Background="#333333"
                       ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
                       ShowsPreview="True"
@@ -223,7 +232,7 @@
 
         <!-- Right rail: embedded CharacterViewer + searchable preset picker. Lets the user
              load any BodySlide preset and pick key vertices without leaving this menu. -->
-        <DockPanel Grid.Column="3" Margin="5,0,0,0">
+        <DockPanel Grid.Row="1" Grid.Column="2" Margin="5,0,0,0">
             <Border DockPanel.Dock="Top" Background="#FF2A2A2A" Padding="6,4" Margin="0,0,0,5">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -278,7 +287,7 @@
         </DockPanel>
 
         <!-- Middle pane: tabs for the active profile -->
-        <ContentControl Grid.Column="1" Content="{Binding SelectedProfile}">
+        <ContentControl Grid.Row="1" Grid.Column="0" Content="{Binding SelectedProfile}">
             <ContentControl.ContentTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyTypeProfile}">
                     <Grid>
