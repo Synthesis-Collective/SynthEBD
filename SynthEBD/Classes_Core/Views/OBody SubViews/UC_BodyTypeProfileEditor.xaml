@@ -105,6 +105,85 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Per-row badge for each VM_NamedKeyVertex's ResolutionState. Hard-failure states
+             (ShapeNotLoaded, IndexOutOfRange) use the same red as the duplicate-name styles
+             so the visual vocabulary stays consistent. NeedsRepick uses amber because the
+             row still "renders" — it just renders against stale anatomy after a Capture
+             remap. Unknown / no-viewer uses neutral grey. Tooltips spell out the cause +
+             remedy so the user doesn't have to guess. -->
+        <Style x:Key="ResolutionStateBadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#22000000"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Resolved">
+                    <Setter Property="Background" Value="#338BC34A"/>
+                    <Setter Property="ToolTip" Value="Resolved — this key vertex maps to a vertex on the active mesh."/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="ShapeNotLoaded">
+                    <Setter Property="Background" Value="#FFE53935"/>
+                    <Setter Property="ToolTip" Value="Shape not loaded — no mesh in the active viewer has this Shape name, so overlays and measurements that reference this row will silently skip. Click 'Capture from active viewer' to auto-remap onto the loaded body, or edit the Shape column directly."/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="IndexOutOfRange">
+                    <Setter Property="Background" Value="#FFE53935"/>
+                    <Setter Property="ToolTip" Value="Index out of range — Shape matched but Vertex Index is past the end of the mesh's vertex buffer. Pick a new vertex or fix the index."/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="NeedsRepick">
+                    <Setter Property="Background" Value="#FFFB8C00"/>
+                    <Setter Property="ToolTip" Value="Needs re-pick — Capture from active viewer just remapped this row's Shape onto a different body. The stored Vertex Index almost certainly points at unrelated anatomy on the new topology; pick the vertex again on the loaded mesh. The flag clears as soon as you edit the index."/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Unknown">
+                    <Setter Property="Background" Value="#22000000"/>
+                    <Setter Property="ToolTip" Value="No active viewer — load a body in the viewer to evaluate this row."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- TextBlock inside the badge: maps each ResolutionState to a short user-facing
+             label. Kept separate from the Border style so the cell template can compose
+             them without duplicating the trigger list. -->
+        <Style x:Key="ResolutionStateLabelStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Text" Value="?"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Resolved">
+                    <Setter Property="Text" Value="OK"/>
+                    <Setter Property="Foreground" Value="#2E7D32"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="ShapeNotLoaded">
+                    <Setter Property="Text" Value="Shape?"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="IndexOutOfRange">
+                    <Setter Property="Text" Value="Idx?"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="NeedsRepick">
+                    <Setter Property="Text" Value="Re-pick"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Unknown">
+                    <Setter Property="Text" Value="—"/>
+                    <Setter Property="Foreground" Value="#666"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Amber-tinted variant of DuplicateNameBannerStyle for the unresolved-KV banner
+             above the KeyVertices grid. Amber rather than red so it visually separates from
+             the duplicate-name banner when both are active — the user sees two distinct
+             problems instead of one merged red bar. -->
+        <Style x:Key="UnresolvedKeyVertexBannerStyle" TargetType="Border">
+            <Setter Property="Background" Value="#33FFA726"/>
+            <Setter Property="BorderBrush" Value="#FFFB8C00"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
@@ -263,6 +342,12 @@
                                         <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
                                                    Text="{Binding DuplicateKeyVertexCount, StringFormat='{}{0} duplicate key-vertex name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows to remove the ambiguity.'}"/>
                                     </Border>
+                                    <Border DockPanel.Dock="Top"
+                                            Style="{StaticResource UnresolvedKeyVertexBannerStyle}"
+                                            Visibility="{Binding HasUnresolvedKeyVertices, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Foreground="#E65100" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                   Text="{Binding UnresolvedKeyVertexCount, StringFormat='{}{0} key-vertex row(s) can''t be resolved on the active mesh — preview markers, picks, and any measurement that references them will be silently skipped. See the Status column on each row for the cause (hover for tooltip).'}"/>
+                                    </Border>
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
                                         <CheckBox Content="Capture picks from viewer"
                                                   IsChecked="{Binding CapturePicks}"
@@ -292,6 +377,15 @@
                                                                 Binding="{Binding Name}"
                                                                 Width="160"
                                                                 CellStyle="{StaticResource DuplicateNameCellStyle}"/>
+                                            <DataGridTemplateColumn Header="Status" Width="70" IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource ResolutionStateBadgeStyle}">
+                                                            <TextBlock Style="{StaticResource ResolutionStateLabelStyle}"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
                                             <DataGridTemplateColumn Header="Strategy" Width="110">
                                                 <DataGridTemplateColumn.CellTemplate>
