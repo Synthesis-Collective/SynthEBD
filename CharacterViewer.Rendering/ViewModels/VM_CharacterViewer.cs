@@ -1562,6 +1562,14 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public BoxCriterionSelection PendingBoxCriterion { get; set; } = BoxCriterionSelection.MaxX;
 
+    /// <summary>Toolbar toggle for the BodyTypeProfile editor's per-Y-bin paired-X debug
+    /// overlay. The viewer doesn't act on this directly — the active profile subscribes via
+    /// <c>VM_BodyTypeProfile.AttachViewer</c> and drives its own line-channel refresh. Lives
+    /// on the viewer VM so the checkbox can bind to it from <c>UC_CharacterViewer.xaml</c>
+    /// without reaching across to the editor VM. Gated by <see cref="ShowClassifierControls"/>
+    /// in XAML so non-classifier viewer usages don't see the option.</summary>
+    public bool ShowBulgeBinOverlay { get; set; } = false;
+
     // ──────────────── Pending (pre-commit) box state ────────────────
     // After a BB drag the resulting AABB is parked here instead of firing immediately, so the
     // user can adjust per-axis min/max (most importantly the depth axis, to exclude things like

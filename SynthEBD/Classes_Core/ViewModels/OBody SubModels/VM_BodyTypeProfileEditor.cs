@@ -1470,7 +1470,11 @@ public class VM_BodyTypeProfile : VM
         {
             if (args.PropertyName == nameof(SelectedMeasurement))
             {
-                RefreshMeasurementHighlight();
+                // Measurement highlight is suppressed while the bulge debug overlay is on;
+                // the toggle's off-handler restores it via the same RefreshMeasurementHighlight
+                // call, so picking a different measurement while the overlay is active
+                // simply queues the new highlight to appear after the next toggle-off.
+                if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
             }
             else if (args.PropertyName == nameof(SelectedKeyVertex))
             {
@@ -1502,6 +1506,24 @@ public class VM_BodyTypeProfile : VM
                 }
 
                 SyncPendingBoxEditSessionWithSelection(kv);
+
+                // The selected row defines which box the bulge debug overlay targets when
+                // no pending-box edit is active, so refresh when switching rows.
+                if (ShowBulgeOverlay) RefreshBulgeOverlay();
+            }
+            else if (args.PropertyName == nameof(ShowBulgeOverlay))
+            {
+                if (ShowBulgeOverlay)
+                {
+                    RefreshBulgeOverlay();
+                }
+                else
+                {
+                    // Restore whatever measurement highlight was selected before the overlay
+                    // took over the line channel. SetMeasurementLines(null) inside the
+                    // refresh covers the no-selection case.
+                    RefreshMeasurementHighlight();
+                }
             }
         };
     }
@@ -1839,6 +1861,15 @@ public class VM_BodyTypeProfile : VM
     /// <summary>When true, key-vertex picks from any viewer add a new entry to this profile.</summary>
     public bool CapturePicks { get; set; } = false;
 
+    /// <summary>Mirror of the viewer toolbar's <c>VM_CharacterViewer.ShowBulgeBinOverlay</c>
+    /// checkbox, wired up in <see cref="AttachViewer"/>. When true, the editor draws one
+    /// line per Y-bin used by the paired Pinch/Bulge X algorithm against the
+    /// currently-editable bounding box, with the winner (largest width for Bulge, smallest
+    /// for Pinch) drawn in cyan and the rest in white. Only renders for paired criteria;
+    /// non-pair criteria leave the overlay empty. Replaces the SelectedMeasurement
+    /// highlight while active; toggling off restores it.</summary>
+    public bool ShowBulgeOverlay { get; set; } = false;
+
     /// <summary>Most recent viewer to fire a pick targeting this profile. Used for live measurement readouts.</summary>
     public VM_CharacterViewer? ActiveViewer { get; private set; }
 
@@ -1857,6 +1888,11 @@ public class VM_BodyTypeProfile : VM
     /// whenever any of the pending-box inputs change — coords, criterion, shape, or pending
     /// flag. Rewired in <see cref="AttachViewer"/>.</summary>
     private IDisposable? _viewerPendingBoxPreviewSub;
+
+    /// <summary>Subscription that mirrors the viewer toolbar's bulge-bin overlay checkbox
+    /// into this profile's <see cref="ShowBulgeOverlay"/> so the editor's existing
+    /// property-changed wiring drives the actual refresh.</summary>
+    private IDisposable? _viewerBulgeOverlaySub;
 
     /// <summary>Binds this profile to the supplied viewer so live readouts and the
     /// measurement-line overlay target the right scene. Called by the editor when a
@@ -1877,6 +1913,11 @@ public class VM_BodyTypeProfile : VM
         // the user adjusting a coord spinner or swapping the criterion gets immediate visual
         // feedback for what Confirm would commit. Merging single-property streams (rather
         // than the 9-arg WhenAnyValue) keeps the wiring readable.
+        _viewerBulgeOverlaySub?.Dispose();
+        _viewerBulgeOverlaySub = viewer?
+            .WhenAnyValue(v => v.ShowBulgeBinOverlay)
+            .Subscribe(b => ShowBulgeOverlay = b);
+
         _viewerPendingBoxPreviewSub?.Dispose();
         _viewerPendingBoxPreviewSub = viewer == null ? null : Observable.Merge(
             viewer.WhenAnyValue(v => v.HasPendingBox).Select(_ => 0),
@@ -1897,8 +1938,14 @@ public class VM_BodyTypeProfile : VM
     /// the preview when the pending box is dismissed, the shape isn't loaded, or the box is
     /// empty. Mirror-style authoring criteria expand into multiple resolutions; the synthetic
     /// rows are made each other's pair siblings so PinchPair / BulgePair criteria resolve via
-    /// the joint-Y-slice path instead of the non-paired fallback.</summary>
-    private static void RefreshPendingBoxPreview(VM_CharacterViewer? viewer)
+    /// the joint-Y-slice path instead of the non-paired fallback.
+    /// <para>For a non-mirror single-criterion edit (e.g. authoring just <c>BulgePairMinX</c>),
+    /// the synthetic list contains only that one row — but if the profile already has the
+    /// partner row (committed earlier with an identical box), we synthesize a sibling at the
+    /// pending-box coords so the preview still runs the paired algorithm. Without this,
+    /// preview falls back to the single-side variant in <see cref="MeasurementMath.FindBestInBox"/>
+    /// and shows a marker at a different Y than what the committed resolve would produce.</para></summary>
+    private void RefreshPendingBoxPreview(VM_CharacterViewer? viewer)
     {
         if (viewer == null) return;
         if (!viewer.HasPendingBox) { viewer.SetPreviewPickMarkers(null); return; }
@@ -1922,8 +1969,47 @@ public class VM_BodyTypeProfile : VM
             Criterion = c,
         }).ToList();
 
+        // Pair-criterion preview fallback: for each synthetic whose paired partner isn't
+        // already in synthetics, look in the profile's KeyVertices for a row with the same
+        // shape and the partner criterion. If found, synthesize a partner stub at the
+        // pending-box coords so FindPairSibling (which requires exact box-coord match)
+        // succeeds. The stub is only used for sibling lookup — we don't add it to the
+        // displayed-marker iteration below, so the preview only renders dots for the
+        // criteria the user is actually editing.
+        var siblingPool = new List<NamedKeyVertex>(synthetics);
+        foreach (var s in synthetics)
+        {
+            if (!MeasurementMath.IsPairCriterion(s.Criterion)) continue;
+            var partnerCrit = MeasurementMath.PartnerCriterion(s.Criterion);
+            bool alreadyInSynthetics = false;
+            foreach (var existing in synthetics)
+            {
+                if (existing.Criterion == partnerCrit) { alreadyInSynthetics = true; break; }
+            }
+            if (alreadyInSynthetics) continue;
+            bool partnerExistsInProfile = false;
+            foreach (var kv in KeyVertices)
+            {
+                if (kv == null) continue;
+                if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
+                if (kv.Criterion != partnerCrit) continue;
+                if (!string.Equals(kv.ShapeName, s.ShapeName, StringComparison.OrdinalIgnoreCase)) continue;
+                partnerExistsInProfile = true;
+                break;
+            }
+            if (!partnerExistsInProfile) continue;
+            siblingPool.Add(new NamedKeyVertex
+            {
+                ShapeName = s.ShapeName,
+                Strategy = KeyVertexStrategy.BoundingBox,
+                BoxMinX = s.BoxMinX, BoxMinY = s.BoxMinY, BoxMinZ = s.BoxMinZ,
+                BoxMaxX = s.BoxMaxX, BoxMaxY = s.BoxMaxY, BoxMaxZ = s.BoxMaxZ,
+                Criterion = partnerCrit,
+            });
+        }
+
         Func<NamedKeyVertex, NamedKeyVertex?> findSibling =
-            self => MeasurementMath.FindPairSibling(self, synthetics);
+            self => MeasurementMath.FindPairSibling(self, siblingPool);
 
         var resolved = new List<OpenTK.Mathematics.Vector3>(synthetics.Count);
         foreach (var s in synthetics)
@@ -1934,6 +2020,10 @@ public class VM_BodyTypeProfile : VM
             resolved.Add(positions[idx.Value]);
         }
         viewer.SetPreviewPickMarkers(resolved);
+
+        // The debug overlay reads the same pending-box state, so re-run it whenever the
+        // preview refreshes. Internal guard makes this a no-op when the toggle is off.
+        if (ShowBulgeOverlay) RefreshBulgeOverlay();
     }
 
     /// <summary>Expands an authoring-time <see cref="BoxCriterionSelection"/> into the one
@@ -2556,6 +2646,113 @@ public class VM_BodyTypeProfile : VM
     /// Clears the overlay when there is no selection, no viewer, or when the referenced
     /// vertices cannot be resolved.
     /// </summary>
+    /// <summary>Builds the per-Y-bin paired-X debug overlay for the currently-edited box
+    /// and pushes it through the viewer's measurement-line channel. Targets the pending
+    /// box if one is open (so the overlay tracks live coord edits); otherwise targets the
+    /// SelectedKeyVertex's stored box. Each occupied bin produces a single horizontal
+    /// segment from its min-X vertex to its max-X vertex; the winner (largest Bulge width,
+    /// smallest Pinch width) is drawn in cyan, the rest in white. Clears the line channel
+    /// when there's no valid target or the criterion isn't a pair criterion. The internal
+    /// <see cref="ShowBulgeOverlay"/> guard is intentional: callers from property-change
+    /// subscriptions don't have to re-check the toggle.</summary>
+    private void RefreshBulgeOverlay()
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null) return;
+        if (!ShowBulgeOverlay) return;
+
+        string? shapeName;
+        float minX, minY, minZ, maxX, maxY, maxZ;
+        BoundingBoxCriterion criterion;
+
+        if (viewer.HasPendingBox && !string.IsNullOrEmpty(viewer.PendingBoxShapeName))
+        {
+            // Pending box wins because the user is actively editing — the overlay should
+            // reflect the in-flight coords, not whatever was last confirmed.
+            shapeName = viewer.PendingBoxShapeName;
+            minX = viewer.PendingBoxMinX; maxX = viewer.PendingBoxMaxX;
+            minY = viewer.PendingBoxMinY; maxY = viewer.PendingBoxMaxY;
+            minZ = viewer.PendingBoxMinZ; maxZ = viewer.PendingBoxMaxZ;
+            var expanded = ExpandSelectionToPersistedCriteria(viewer.PendingBoxFinalCriterion);
+            criterion = expanded.Count > 0 ? expanded[0] : BoundingBoxCriterion.MaxX;
+        }
+        else
+        {
+            // Fall back to the selected row's committed box; nothing to draw if no row is
+            // selected or it's an Explicit-strategy row.
+            var sel = SelectedKeyVertex;
+            if (sel == null || sel.Strategy != KeyVertexStrategy.BoundingBox)
+            {
+                viewer.SetMeasurementLines(null);
+                return;
+            }
+            shapeName = sel.ShapeName;
+            minX = sel.BoxMinX; maxX = sel.BoxMaxX;
+            minY = sel.BoxMinY; maxY = sel.BoxMaxY;
+            minZ = sel.BoxMinZ; maxZ = sel.BoxMaxZ;
+            criterion = sel.Criterion;
+        }
+
+        if (string.IsNullOrEmpty(shapeName))
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        // Only the four paired Pinch/Bulge criteria use the per-Y-bin pairing this overlay
+        // visualizes. For non-pair criteria the user picks a single side per bin and the
+        // notion of a "paired width per slice" doesn't apply, so we just clear.
+        if (!MeasurementMath.IsPairCriterion(criterion))
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        var positions = viewer.GetShapePositions(shapeName);
+        if (positions == null || positions.Length == 0)
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        var stub = new NamedKeyVertex
+        {
+            ShapeName = shapeName,
+            Strategy = KeyVertexStrategy.BoundingBox,
+            BoxMinX = minX, BoxMinY = minY, BoxMinZ = minZ,
+            BoxMaxX = maxX, BoxMaxY = maxY, BoxMaxZ = maxZ,
+            Criterion = criterion,
+        };
+
+        bool wantPinch = criterion == BoundingBoxCriterion.PinchPairMinX
+                      || criterion == BoundingBoxCriterion.PinchPairMaxX;
+        var snapshot = MeasurementMath.GetPairXBinSnapshot(positions, stub, wantPinch);
+        if (snapshot == null)
+        {
+            viewer.SetMeasurementLines(null);
+            return;
+        }
+
+        // Colors match the user's spec: white for non-winner bins, cyan for the winner.
+        // Slightly brighter cyan than the existing ratio-denominator highlight so the
+        // winner reads even against the cluster of white slice lines.
+        var white = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
+        var cyan = new OpenTK.Mathematics.Vector3(0.0f, 1.0f, 1.0f);
+
+        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>();
+        foreach (var bin in snapshot)
+        {
+            if (!bin.HasMin || !bin.HasMax) continue;
+            if (bin.MinVertexIndex < 0 || bin.MinVertexIndex >= positions.Length) continue;
+            if (bin.MaxVertexIndex < 0 || bin.MaxVertexIndex >= positions.Length) continue;
+            var a = positions[bin.MinVertexIndex];
+            var b = positions[bin.MaxVertexIndex];
+            segments.Add((a, b, bin.IsWinner ? cyan : white));
+        }
+
+        viewer.SetMeasurementLines(segments);
+    }
+
     private void RefreshMeasurementHighlight()
     {
         var viewer = ActiveViewer;

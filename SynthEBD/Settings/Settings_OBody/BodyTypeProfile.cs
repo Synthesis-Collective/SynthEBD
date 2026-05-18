@@ -733,6 +733,99 @@ public static class MeasurementMath
     /// row call into this method, they naturally return indices from the same bin — callers get a
     /// horizontally-aligned pair without having to communicate. Includes parabolic sub-bin refinement
     /// on the width-vs-bin curve, matching the single-side method's behavior.</summary>
+    /// <summary>Debug-overlay snapshot of one Y-bin used by <see cref="FindPairedPinchOrBulgeX"/>.
+    /// Exposes both side-vertex indices and the resulting paired width so a viewer overlay can
+    /// draw one line per slice and highlight the winner. <c>HasMin</c>/<c>HasMax</c> distinguish
+    /// "no vertex found on this side" (sparse bin) from a valid pick.</summary>
+    public struct BulgeBinSnapshot
+    {
+        public int BinIndex;
+        public float BinYCenter;
+        public int MinVertexIndex;
+        public int MaxVertexIndex;
+        public float MinX;
+        public float MaxX;
+        public bool HasMin;
+        public bool HasMax;
+        public bool IsWinner;
+        public float Width;   // maxX - minX; only meaningful when HasMin && HasMax
+    }
+
+    /// <summary>Public read-only inspection of the per-Y-bin pairing used internally by
+    /// <see cref="FindPairedPinchOrBulgeX"/>. Identical binning (20 bands) and identical box
+    /// filtering, so the returned <see cref="BulgeBinSnapshot.IsWinner"/> matches what
+    /// <see cref="FindBestInBox"/> would select for the corresponding <c>BulgePair*X</c> /
+    /// <c>PinchPair*X</c> criterion. Exposed for editor overlays — the marker resolution path
+    /// continues to use the private routine. Returns null when the box is degenerate or no
+    /// vertices fall inside it.</summary>
+    public static BulgeBinSnapshot[]? GetPairXBinSnapshot(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool wantPinch)
+    {
+        if (positions == null || positions.Length == 0) return null;
+        const int BinCount = 20;
+        float minX = kv.BoxMinX, maxX = kv.BoxMaxX;
+        float minY = kv.BoxMinY, maxY = kv.BoxMaxY;
+        float minZ = kv.BoxMinZ, maxZ = kv.BoxMaxZ;
+        float yRange = maxY - minY;
+        if (yRange <= 1e-6f) return null;
+
+        var minIdxPerBin = new int[BinCount];
+        var maxIdxPerBin = new int[BinCount];
+        var minXPerBin = new float[BinCount];
+        var maxXPerBin = new float[BinCount];
+        for (int i = 0; i < BinCount; i++)
+        {
+            minIdxPerBin[i] = -1;
+            maxIdxPerBin[i] = -1;
+            minXPerBin[i] = float.MaxValue;
+            maxXPerBin[i] = float.MinValue;
+        }
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+            int bin = (int)((p.Y - minY) / yRange * BinCount);
+            if (bin < 0) bin = 0;
+            else if (bin >= BinCount) bin = BinCount - 1;
+            if (p.X < minXPerBin[bin]) { minXPerBin[bin] = p.X; minIdxPerBin[bin] = i; }
+            if (p.X > maxXPerBin[bin]) { maxXPerBin[bin] = p.X; maxIdxPerBin[bin] = i; }
+        }
+
+        int winnerBin = -1;
+        float chosenWidth = wantPinch ? float.MaxValue : float.MinValue;
+        for (int b = 0; b < BinCount; b++)
+        {
+            if (minIdxPerBin[b] < 0 || maxIdxPerBin[b] < 0) continue;
+            float width = maxXPerBin[b] - minXPerBin[b];
+            bool isBest = wantPinch ? width < chosenWidth : width > chosenWidth;
+            if (isBest) { chosenWidth = width; winnerBin = b; }
+        }
+
+        float binHeight = yRange / BinCount;
+        var result = new BulgeBinSnapshot[BinCount];
+        for (int b = 0; b < BinCount; b++)
+        {
+            bool hasMin = minIdxPerBin[b] >= 0;
+            bool hasMax = maxIdxPerBin[b] >= 0;
+            result[b] = new BulgeBinSnapshot
+            {
+                BinIndex = b,
+                BinYCenter = minY + (b + 0.5f) * binHeight,
+                MinVertexIndex = hasMin ? minIdxPerBin[b] : -1,
+                MaxVertexIndex = hasMax ? maxIdxPerBin[b] : -1,
+                MinX = hasMin ? minXPerBin[b] : 0f,
+                MaxX = hasMax ? maxXPerBin[b] : 0f,
+                HasMin = hasMin,
+                HasMax = hasMax,
+                IsWinner = b == winnerBin,
+                Width = (hasMin && hasMax) ? (maxXPerBin[b] - minXPerBin[b]) : 0f,
+            };
+        }
+        return result;
+    }
+
     private static int? FindPairedPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantPinch)
     {
         const int BinCount = 20;

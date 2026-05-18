@@ -176,6 +176,12 @@
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                         ToolTip="Removes every picked-vertex marker from the viewport."/>
 
+                <CheckBox Content="Show Bulge Bins" FontSize="11" Foreground="#FF66E6FF"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding ShowBulgeBinOverlay}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Draws the per-Y-bin paired-X optima used by the BulgePair*X / PinchPair*X criteria. Each occupied slice gets one horizontal line from its min-X vertex to its max-X vertex. The winner bin (largest width for Bulge, smallest for Pinch) draws in cyan; the rest in white. Targets the pending box if one is open, else the selected KeyVertex row's box. Only renders for paired criteria."/>
+
                 <CheckBox Content="Verbose Log" FontSize="11" Foreground="#FFAAAAAA"
                           Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding VerboseLog}"
