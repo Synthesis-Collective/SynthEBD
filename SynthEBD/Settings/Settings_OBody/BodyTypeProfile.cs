@@ -956,41 +956,50 @@ public static class MeasurementMath
     /// <summary>Picks the primary-axis extremum vertex from inside a "central tube" along
     /// that axis — vertices that lie within a tolerance of the box midpoints on the two
     /// perpendicular axes. Implements the user's mental model of <c>Min/Max{X,Y,Z}AtCenter</c>:
-    /// "the back-most (or top-most, etc.) vertex on the centerline". Tolerance is 33% of
-    /// each perpendicular half-extent, so an X-symmetric box of width 5 admits vertices in
-    /// X ∈ [−0.83, 0.83]. Falls back to a plain primary-axis extremum across the whole box
-    /// when no vertex lies in the tube (asymmetric features, very narrow tubes); without
-    /// the fallback the criterion would silently return null and confuse the editor.
-    /// <para>This replaces an earlier single-objective "Euclidean distance to face-center"
-    /// formulation that, on Z-elongated boxes, let a slightly-off-face but on-center vertex
-    /// lose to a slightly-off-center vertex that was deeper on Z — the primary axis's
-    /// magnitude dominated the metric. The tube formulation makes centering a hard
-    /// constraint instead of a soft weight, which matches "AtCenter" semantically.</para></summary>
+    /// "the back-most (or top-most, etc.) vertex on the centerline".
+    /// <para>The tolerance is set by a progressively-widened schedule of perpendicular
+    /// fractions: 15% of each perpendicular half-extent first, then 30%, 50%, and finally
+    /// 100% (the entire box). The loop accepts the tightest tube whose candidate count is
+    /// ≥ 2, because the criterion is meaningful only when there are multiple near-center
+    /// vertices to extremize over — a tube with one candidate returns the same vertex for
+    /// MinZAtCenter and MaxZAtCenter, leaving paired PointDistance measurements at zero.
+    /// The 100% step caps the loop for boxes that only intersect one side of the mesh; the
+    /// algorithm then returns whatever single-vertex result that full-box pass produced
+    /// (or null if the box is empty), so a poorly-drawn box degrades to a stable best-effort
+    /// pick instead of an infinite loop or a silent null.</para>
+    /// <para>This formulation replaces an earlier single-objective "Euclidean distance to
+    /// face-center" pick that, on Z-elongated boxes, let a slightly-off-face but on-center
+    /// vertex lose to a slightly-off-center vertex that was deeper on Z — the primary
+    /// axis's magnitude dominated the distance. The tube formulation makes centering a
+    /// hard constraint instead of a soft weight, which matches "AtCenter" semantically.</para></summary>
     private static int? FindClosestToBoxFaceCenter(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
     {
         float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
         float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
         float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
 
-        // 15% of half-extent on each perpendicular axis defines the central tube — tight
-        // enough that "AtCenter" actually constrains the result to the centerline, but
-        // wide enough to catch a vertex on a typical mesh (vertex spacing is rarely tighter
-        // than ~5% of feature extent). Earlier 33% let the primary-axis extremum win at
-        // the edge of the tube, defeating the centering intent.
-        const float PerpTolFraction = 0.15f;
-        float xTol = (kv.BoxMaxX - kv.BoxMinX) * 0.5f * PerpTolFraction;
-        float yTol = (kv.BoxMaxY - kv.BoxMinY) * 0.5f * PerpTolFraction;
-        float zTol = (kv.BoxMaxZ - kv.BoxMinZ) * 0.5f * PerpTolFraction;
+        // Schedule of perpendicular-tube fractions, applied to each perpendicular
+        // half-extent. 0.15 is the "AtCenter" intent at full strength — tight enough that
+        // a well-tessellated mesh resolves the criterion to a vertex clearly on the
+        // centerline. 0.30 and 0.50 cover sparse-mesh cases (special-meso w=50 bicep was
+        // the canonical example: one vertex landed in the 15% tube, so MinZAtCenter and
+        // MaxZAtCenter both returned it and arm_thickness collapsed to zero). 1.00 is the
+        // full half-extent — the tube becomes the entire box — and acts as the loop's
+        // upper bound for one-sided-intersection boxes that can never reach 2 candidates.
+        var fractions = new[] { 0.15f, 0.30f, 0.50f, 1.0f };
 
         int bestIdx = -1;
-        float bestPrimary = wantMax ? float.MinValue : float.MaxValue;
 
-        // Two-pass: first restricted to the central tube; if nothing qualified, fall back
-        // to the full box on the second pass. Single loop body keyed by the inTubeFilter
-        // flag keeps the in/out predicate readable.
-        for (int pass = 0; pass < 2; pass++)
+        foreach (var fraction in fractions)
         {
-            bool inTubeFilter = pass == 0;
+            float xTol = (kv.BoxMaxX - kv.BoxMinX) * 0.5f * fraction;
+            float yTol = (kv.BoxMaxY - kv.BoxMinY) * 0.5f * fraction;
+            float zTol = (kv.BoxMaxZ - kv.BoxMinZ) * 0.5f * fraction;
+
+            int passBestIdx = -1;
+            float passBestPrimary = wantMax ? float.MinValue : float.MaxValue;
+            int candidateCount = 0;
+
             for (int i = 0; i < positions.Length; i++)
             {
                 var p = positions[i];
@@ -998,31 +1007,38 @@ public static class MeasurementMath
                 if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
                 if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
 
-                if (inTubeFilter)
+                switch (axis)
                 {
-                    switch (axis)
-                    {
-                        case 0: // X primary → Y/Z perpendicular
-                            if (MathF.Abs(p.Y - cy) > yTol) continue;
-                            if (MathF.Abs(p.Z - cz) > zTol) continue;
-                            break;
-                        case 1: // Y primary → X/Z perpendicular
-                            if (MathF.Abs(p.X - cx) > xTol) continue;
-                            if (MathF.Abs(p.Z - cz) > zTol) continue;
-                            break;
-                        default: // Z primary → X/Y perpendicular
-                            if (MathF.Abs(p.X - cx) > xTol) continue;
-                            if (MathF.Abs(p.Y - cy) > yTol) continue;
-                            break;
-                    }
+                    case 0: // X primary → Y/Z perpendicular
+                        if (MathF.Abs(p.Y - cy) > yTol) continue;
+                        if (MathF.Abs(p.Z - cz) > zTol) continue;
+                        break;
+                    case 1: // Y primary → X/Z perpendicular
+                        if (MathF.Abs(p.X - cx) > xTol) continue;
+                        if (MathF.Abs(p.Z - cz) > zTol) continue;
+                        break;
+                    default: // Z primary → X/Y perpendicular
+                        if (MathF.Abs(p.X - cx) > xTol) continue;
+                        if (MathF.Abs(p.Y - cy) > yTol) continue;
+                        break;
                 }
 
+                candidateCount++;
                 float primary = axis == 0 ? p.X : (axis == 1 ? p.Y : p.Z);
-                bool isBest = wantMax ? primary > bestPrimary : primary < bestPrimary;
-                if (isBest) { bestPrimary = primary; bestIdx = i; }
+                bool isBest = wantMax ? primary > passBestPrimary : primary < passBestPrimary;
+                if (isBest) { passBestPrimary = primary; passBestIdx = i; }
             }
-            if (bestIdx >= 0) break; // tube pass found a candidate; skip fallback
+
+            // Overwrite the outer bestIdx with this iteration's pick. Tube candidates are
+            // monotone non-decreasing in `fraction`, so a wider tube either retains or
+            // adds to the previous pass's candidate set, and the new extremum is at least
+            // as informative as the old one. The final iteration (fraction=1.0) thus
+            // always produces a valid pick when any vertex sits in the box at all.
+            bestIdx = passBestIdx;
+
+            if (candidateCount >= 2) break;
         }
+
         return bestIdx >= 0 ? bestIdx : null;
     }
 
