@@ -120,7 +120,9 @@
                        Text="Body Type Profiles"/>
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
                 <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
-                <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1"/>
+                <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1" Margin="0,0,4,0"/>
+                <Button Content="Duplicate" Command="{Binding DuplicateSelectedProfile}" Padding="6,1"
+                        ToolTip="Clones the selected profile in place — equivalent to Export then Import without the disk round-trip. The copy gets a fresh Id and a default '&lt;name&gt; - copy' name (with a numeric suffix if that's already taken)."/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,5">
                 <Button Content="Export" Command="{Binding ExportSelectedProfile}" Padding="6,1" Margin="0,0,4,0"

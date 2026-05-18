@@ -126,6 +126,10 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => true,
             execute: _ => DoImportProfile());
 
+        DuplicateSelectedProfile = new RelayCommand(
+            canExecute: _ => SelectedProfile != null,
+            execute: _ => DoDuplicateProfile(SelectedProfile));
+
         RefreshPresetList = new RelayCommand(
             canExecute: _ => true,
             execute: _ => RebuildAvailablePresets());
@@ -233,6 +237,7 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand DeleteSelectedProfile { get; }
     public RelayCommand ExportSelectedProfile { get; }
     public RelayCommand ImportProfile { get; }
+    public RelayCommand DuplicateSelectedProfile { get; }
     public RelayCommand RefreshPresetList { get; }
     public RelayCommand ScanAllPresetsCommand { get; }
     public RelayCommand CancelScanCommand { get; }
@@ -415,6 +420,41 @@ public class VM_BodyTypeProfileEditor : VM
         Profiles.Add(vm);
         SelectedProfile = vm;
         _logger?.LogMessage("BodyTypeProfileEditor: imported profile '" + loaded.Name + "' from " + path);
+    }
+
+    /// <summary>Duplicates <paramref name="source"/> in place — equivalent to
+    /// Export-then-Import without the disk round-trip. Round-trips through DumpToModel so
+    /// the copy is a fully independent deep clone (no shared row VMs, no shared
+    /// MeasurementCache, no shared annotation entries); a fresh Id keeps it distinct from
+    /// the original; the default Name is "<original> - copy" with the same
+    /// " (N)" collision suffix the import path uses. The new profile is selected so the
+    /// user can immediately edit it.</summary>
+    private void DoDuplicateProfile(VM_BodyTypeProfile? source)
+    {
+        if (source == null) return;
+        var clone = source.DumpToModel();
+        // Fresh Id — the model's own Id field is the stable cross-session reference and
+        // must be unique. Without this the duplicate would shadow the original in any
+        // lookup keyed by Id.
+        clone.Id = Guid.NewGuid().ToString("N");
+
+        string baseName = string.IsNullOrWhiteSpace(clone.Name)
+            ? "Profile - copy"
+            : clone.Name.TrimEnd() + " - copy";
+        var existingNames = new HashSet<string>(Profiles.Select(p => p.Name ?? ""), StringComparer.OrdinalIgnoreCase);
+        clone.Name = baseName;
+        int suffix = 2;
+        while (existingNames.Contains(clone.Name))
+        {
+            clone.Name = baseName + " (" + suffix + ")";
+            suffix++;
+        }
+
+        var vm = new VM_BodyTypeProfile(clone, this);
+        Profiles.Add(vm);
+        SelectedProfile = vm;
+        _logger?.LogMessage("BodyTypeProfileEditor: duplicated profile '" + source.Name
+            + "' as '" + clone.Name + "'");
     }
 
     private static string SanitizeFileName(string name)
