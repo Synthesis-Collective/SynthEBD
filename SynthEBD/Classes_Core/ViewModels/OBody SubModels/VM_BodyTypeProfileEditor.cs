@@ -1296,6 +1296,8 @@ public class VM_BodyTypeProfile : VM
                 var counts = ActiveViewer.GetCurrentShapeVertexCounts();
                 FingerprintVertexCount = counts.Values.Sum();
                 FingerprintShapeCounts = string.Join(", ", counts.Select(kv => kv.Key + ":" + kv.Value));
+                AutoRemapKeyVertexShapeNames(counts);
+                RefreshMeasurementValues();
             });
 
         RemoveSelectedKeyVertex = new RelayCommand(
@@ -1550,6 +1552,7 @@ public class VM_BodyTypeProfile : VM
     private void OnKeyVertexRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(VM_NamedKeyVertex.HasDuplicateName)) return;
+        if (e.PropertyName == nameof(VM_NamedKeyVertex.ResolutionState)) return;
         if (e.PropertyName == nameof(VM_NamedKeyVertex.Name)
             && sender is VM_NamedKeyVertex kv)
         {
@@ -1563,6 +1566,21 @@ public class VM_BodyTypeProfile : VM
             _kvLastNames[kv] = kv.Name ?? "";
             RecomputeDuplicateKeyVertexNames();
             RecomputeMeasurementRefValidity();
+        }
+        // User-initiated edit to VertexIndex (manual cell edit) or Strategy switch (Explicit
+        // -> BoundingBox) implicitly resolves the post-Capture "this index is stale on the new
+        // topology" warning, so clear the flag and refresh the resolution badges immediately
+        // (otherwise the banner would linger until the next preset change). The auto-remap path
+        // sets ShapeName before NeedsRepick, so it's already false when the ShapeName edit fires
+        // there — only manual edits land here with NeedsRepick still true.
+        if ((e.PropertyName == nameof(VM_NamedKeyVertex.VertexIndex)
+                || e.PropertyName == nameof(VM_NamedKeyVertex.Strategy)
+                || e.PropertyName == nameof(VM_NamedKeyVertex.ShapeName))
+            && sender is VM_NamedKeyVertex repickRow
+            && repickRow.NeedsRepick)
+        {
+            repickRow.NeedsRepick = false;
+            RecomputeKeyVertexResolutionStates();
         }
     }
 
@@ -2162,6 +2180,170 @@ public class VM_BodyTypeProfile : VM
     }
 
     /// <summary>
+    /// Counts of <see cref="VM_NamedKeyVertex"/> rows whose <see cref="VM_NamedKeyVertex.ResolutionState"/>
+    /// is not <see cref="KeyVertexResolutionState.Resolved"/>. Updated by
+    /// <see cref="RecomputeKeyVertexResolutionStates"/>; drives the unresolved-KV banner above the grid.
+    /// <see cref="HasUnresolvedKeyVertices"/> is the bool variant for binding to
+    /// <c>BoolToVisibilityConverter</c> (the int variant misbehaves with WPF DataTrigger Value="0"
+    /// — see <see cref="HasDuplicateKeyVertexNames"/> for the same reasoning).
+    /// </summary>
+    public int UnresolvedKeyVertexCount { get; set; }
+    public bool HasUnresolvedKeyVertices { get; set; }
+
+    /// <summary>Called from <see cref="CaptureFingerprintFromActiveViewer"/> after the fingerprint
+    /// is refreshed. Rewrites <see cref="VM_NamedKeyVertex.ShapeName"/> on any row whose shape no
+    /// longer exists in the loaded mesh, using the largest-shape-by-vertex-count heuristic to pick
+    /// the new target (the body torso reliably dominates over sub-shapes like
+    /// <c>3BA_Vagina</c> / <c>3BA_Anus</c>). Explicit-strategy rows get their <see cref="VM_NamedKeyVertex.NeedsRepick"/>
+    /// flag set because their stored index almost certainly points at unrelated anatomy on the
+    /// new topology; BoundingBox-strategy rows self-heal on the next <see cref="RefreshBoundingBoxMarkers"/>
+    /// pass via the box scanner. Ambiguous cases (two equally-large candidate shapes, or the row
+    /// shape already matches another row that resolves correctly) are left alone with a single
+    /// log line so the user sees what was skipped.</summary>
+    private void AutoRemapKeyVertexShapeNames(IReadOnlyDictionary<string, int> currentShapes)
+    {
+        if (currentShapes == null || currentShapes.Count == 0) return;
+        if (KeyVertices.Count == 0) return;
+
+        var loadedShapeSet = new HashSet<string>(currentShapes.Keys, StringComparer.OrdinalIgnoreCase);
+
+        // Build the set of profile shape names that DO currently resolve. We won't remap onto
+        // a target that's already claimed by a resolving row, because that would silently merge
+        // two distinct shape references onto one mesh and create cross-contamination.
+        var claimedTargets = new HashSet<string>(
+            KeyVertices
+                .Select(k => k.ShapeName ?? "")
+                .Where(s => !string.IsNullOrEmpty(s) && loadedShapeSet.Contains(s)),
+            StringComparer.OrdinalIgnoreCase);
+
+        // For each distinct unresolved shape name in the profile, pick at most one remap target.
+        var unresolvedSources = KeyVertices
+            .Select(k => k.ShapeName ?? "")
+            .Where(s => !string.IsNullOrEmpty(s) && !loadedShapeSet.Contains(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (unresolvedSources.Count == 0) return;
+
+        // Heuristic: the loaded shape with the largest vertex count is the main body. Reject if
+        // two shapes tie for the maximum (ambiguous), or if it's already claimed.
+        var ranked = currentShapes
+            .OrderByDescending(kvp => kvp.Value)
+            .ToList();
+        string? primaryTarget = null;
+        if (ranked.Count > 0)
+        {
+            int top = ranked[0].Value;
+            int tieCount = ranked.Count(kvp => kvp.Value == top);
+            if (tieCount == 1) primaryTarget = ranked[0].Key;
+        }
+
+        var remaps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var skipped = new List<string>();
+        foreach (var src in unresolvedSources)
+        {
+            // If we can't pick a single primary, or it's already in use by another resolving
+            // row, we can't safely remap without prompting — leave it for the user.
+            if (primaryTarget == null || claimedTargets.Contains(primaryTarget))
+            {
+                skipped.Add(src);
+                continue;
+            }
+            remaps[src] = primaryTarget;
+            // Claim the target so a second unresolved source can't also collapse onto it.
+            claimedTargets.Add(primaryTarget);
+            primaryTarget = null;
+        }
+
+        if (remaps.Count == 0 && skipped.Count == 0) return;
+
+        int remapped = 0, flaggedForRepick = 0;
+        if (remaps.Count > 0)
+        {
+            foreach (var kv in KeyVertices)
+            {
+                var src = kv.ShapeName ?? "";
+                if (!remaps.TryGetValue(src, out var dst)) continue;
+                kv.ShapeName = dst;
+                remapped++;
+                if (kv.Strategy == KeyVertexStrategy.Explicit)
+                {
+                    kv.NeedsRepick = true;
+                    flaggedForRepick++;
+                }
+            }
+        }
+
+        var logger = _parent?.Logger;
+        if (logger != null)
+        {
+            if (remaps.Count > 0)
+            {
+                var pairs = string.Join(", ", remaps.Select(kvp => $"'{kvp.Key}' -> '{kvp.Value}'"));
+                logger.LogMessage($"BodyTypeProfile: Capture remapped {remapped} key vertex shape name(s): {pairs}. {flaggedForRepick} Explicit row(s) flagged for re-pick.");
+            }
+            if (skipped.Count > 0)
+            {
+                logger.LogMessage($"BodyTypeProfile: Capture left {skipped.Count} unresolved shape name(s) alone (ambiguous target on loaded mesh): {string.Join(", ", skipped.Select(s => "'" + s + "'"))}");
+            }
+        }
+    }
+
+    /// <summary>Recomputes <see cref="VM_NamedKeyVertex.ResolutionState"/> for every row in
+    /// <see cref="KeyVertices"/> against the active viewer, plus the aggregate
+    /// <see cref="UnresolvedKeyVertexCount"/> / <see cref="HasUnresolvedKeyVertices"/> that drive
+    /// the editor's banner. Called at the tail of <see cref="RefreshMeasurementValues"/> so the
+    /// state tracks every preset/weight/mesh change. O(n) in KV count — negligible at typical
+    /// profile sizes (the live shape lookup per row is a single dictionary probe).</summary>
+    private void RecomputeKeyVertexResolutionStates()
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null)
+        {
+            foreach (var kv in KeyVertices)
+            {
+                kv.ResolutionState = KeyVertexResolutionState.Unknown;
+            }
+            UnresolvedKeyVertexCount = 0;
+            HasUnresolvedKeyVertices = false;
+            return;
+        }
+
+        var counts = viewer.GetCurrentShapeVertexCounts();
+        int unresolved = 0;
+        foreach (var kv in KeyVertices)
+        {
+            KeyVertexResolutionState state;
+            if (kv.NeedsRepick && kv.Strategy == KeyVertexStrategy.Explicit)
+            {
+                state = KeyVertexResolutionState.NeedsRepick;
+            }
+            else if (string.IsNullOrEmpty(kv.ShapeName))
+            {
+                state = KeyVertexResolutionState.ShapeNotLoaded;
+            }
+            else if (!counts.TryGetValue(kv.ShapeName, out int n))
+            {
+                state = KeyVertexResolutionState.ShapeNotLoaded;
+            }
+            else if (kv.VertexIndex < 0 || kv.VertexIndex >= n)
+            {
+                state = KeyVertexResolutionState.IndexOutOfRange;
+            }
+            else
+            {
+                state = KeyVertexResolutionState.Resolved;
+            }
+
+            kv.ResolutionState = state;
+            if (state != KeyVertexResolutionState.Resolved) unresolved++;
+        }
+
+        UnresolvedKeyVertexCount = unresolved;
+        HasUnresolvedKeyVertices = unresolved > 0;
+    }
+
+    /// <summary>
     /// Re-evaluates every measurement against <see cref="ActiveViewer"/> and writes the
     /// result back into each <see cref="VM_MeasurementDefinition.LiveValue"/>. Called after
     /// any structural change (vertex add, measurement edit) and externally when the viewer's
@@ -2188,6 +2370,7 @@ public class VM_BodyTypeProfile : VM
         if (Measurements.Count == 0)
         {
             RefreshMeasurementHighlight();
+            RecomputeKeyVertexResolutionStates();
             return;
         }
 
@@ -2218,6 +2401,7 @@ public class VM_BodyTypeProfile : VM
 
         RefreshMeasurementHighlight();
         RefreshPreviewDescriptors();
+        RecomputeKeyVertexResolutionStates();
     }
 
     /// <summary>Rebuilds <see cref="PreviewMatches"/> from the current <see cref="VM_MeasurementDefinition.LiveValue"/>s
@@ -3161,6 +3345,29 @@ public class VM_BodyTypeProfile : VM
     }
 }
 
+/// <summary>Per-row diagnostic for whether a <see cref="VM_NamedKeyVertex"/> can be
+/// resolved against the currently-loaded mesh in <see cref="VM_BodyTypeProfile.ActiveViewer"/>.
+/// Driven by <see cref="VM_BodyTypeProfile.RefreshMeasurementValues"/>; never persisted.
+/// Surfaces in the KV grid as a small badge and feeds the top-level unresolved-KV banner.</summary>
+public enum KeyVertexResolutionState
+{
+    /// <summary>No active viewer yet, or no evaluation has run. Treated as "not yet a problem" by the UI.</summary>
+    Unknown = 0,
+    /// <summary>ShapeName matched a loaded mesh and VertexIndex is in range — overlays will render.</summary>
+    Resolved = 1,
+    /// <summary>No loaded mesh has a shape with this <see cref="VM_NamedKeyVertex.ShapeName"/>.
+    /// Almost always means the profile was authored against a different body (e.g. duplicated
+    /// from CBBE then used against 3BA before Capture-from-Active-Viewer remapped names).</summary>
+    ShapeNotLoaded = 2,
+    /// <summary>ShapeName matched but <see cref="VM_NamedKeyVertex.VertexIndex"/> &gt;= mesh vertex count.</summary>
+    IndexOutOfRange = 3,
+    /// <summary>Capture-from-Active-Viewer rewrote this Explicit-strategy KV's ShapeName onto a
+    /// new body. The old VertexIndex is no longer trustworthy — the user must re-pick on the
+    /// new mesh before evaluation can use it. BoundingBox-strategy KVs self-heal and never
+    /// receive this state.</summary>
+    NeedsRepick = 4,
+}
+
 /// <summary>Row VM for a single <see cref="NamedKeyVertex"/>.</summary>
 public class VM_NamedKeyVertex : VM
 {
@@ -3203,6 +3410,18 @@ public class VM_NamedKeyVertex : VM
     /// <see cref="VM_BodyTypeProfile.RecomputeDuplicateKeyVertexNames"/>; the row VM never
     /// computes this itself. Surfaces in the editor as a red highlight on the Name cell.</summary>
     public bool HasDuplicateName { get; set; }
+
+    /// <summary>Whether this KV can be resolved on the active mesh. See
+    /// <see cref="KeyVertexResolutionState"/> for the states. Recomputed by
+    /// <see cref="VM_BodyTypeProfile.RefreshMeasurementValues"/>; never written by the row VM.</summary>
+    public KeyVertexResolutionState ResolutionState { get; set; } = KeyVertexResolutionState.Unknown;
+
+    /// <summary>Transient (non-persisted) sticky flag set by Capture-from-Active-Viewer when
+    /// it rewrote this Explicit-strategy KV's ShapeName onto a new body. The stored VertexIndex
+    /// almost certainly points at unrelated anatomy on the new topology, so we keep the warning
+    /// visible until the user either re-picks (which clears via the VertexIndex change handler)
+    /// or switches Strategy to BoundingBox (which clears via the Strategy change handler).</summary>
+    public bool NeedsRepick { get; set; }
 
     public RelayCommand DeleteCommand { get; }
 
