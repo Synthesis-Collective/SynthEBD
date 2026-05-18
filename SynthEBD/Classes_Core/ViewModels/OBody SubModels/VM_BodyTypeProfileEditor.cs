@@ -27,6 +27,10 @@ public class VM_BodyTypeProfileEditor : VM
     public delegate VM_BodyTypeProfileEditor Factory();
 
     private readonly Logger _logger;
+    /// <summary>Logger accessor for child VMs (per-profile) that need to emit messages
+    /// through the editor's shared log sink. Internal because VM_BodyTypeProfile is the
+    /// only legitimate consumer; making it public would invite misuse from unrelated VMs.</summary>
+    internal Logger? Logger => _logger;
     private readonly Func<VM_SettingsOBody> _oBodyVM;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -1197,6 +1201,44 @@ public class VM_BodyTypeProfile : VM
             canExecute: _ => true,
             execute: _ => Measurements.Add(new VM_MeasurementDefinition(new MeasurementDefinition { Name = NextDefaultName("Measurement", Measurements.Select(x => x.Name)) }, this)));
 
+        // Developer convenience: uniform Ctrl+S/Ctrl+L on every Body Type Profile sub-tab
+        // (KeyVertices, Measurements, Rules) saves and loads that tab's collection as a
+        // standalone JSON envelope. Format matches the Revised_BodyTypeProfile_Rules.json
+        // reference style — top-level { "<CollectionName>": [...] } with documentation
+        // __comment_* siblings tolerated on load (Newtonsoft ignores unknown properties).
+        // Load is wholesale-replace with a YesNo confirmation when the target collection
+        // is non-empty, so the load is hard to do accidentally.
+        SaveKeyVerticesToJson = new RelayCommand(
+            canExecute: _ => KeyVertices.Count > 0,
+            execute: _ => SaveKeyVerticesToJsonFile());
+        LoadKeyVerticesFromJson = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LoadKeyVerticesFromJsonFile());
+        SaveMeasurementsToJson = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0,
+            execute: _ => SaveMeasurementsToJsonFile());
+        LoadMeasurementsFromJson = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LoadMeasurementsFromJsonFile());
+        SaveRulesToJson = new RelayCommand(
+            canExecute: _ => Rules.Count > 0,
+            execute: _ => SaveRulesToJsonFile());
+        LoadRulesFromJson = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LoadRulesFromJsonFile());
+
+        // Measurements tab also has secondary export shortcuts that pre-date the uniform
+        // JSON contract — Ctrl+Shift+S writes a CSV for spreadsheet analysis (includes
+        // the LiveValue column resolved against the loaded mesh), Ctrl+C copies the same
+        // table as TSV onto the clipboard for direct Excel/Sheets paste. Both are
+        // one-way developer conveniences — round-trip authoring uses the JSON path.
+        SaveMeasurementsToCsv = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0,
+            execute: _ => SaveMeasurementsToCsvFile());
+        CopyMeasurementsToClipboard = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0,
+            execute: _ => CopyMeasurementsToClipboardTsv());
+
         AddRule = new RelayCommand(
             canExecute: _ => true,
             execute: _ =>
@@ -1862,6 +1904,14 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand RemoveSelectedKeyVertex { get; }
     public RelayCommand ShowPicksInViewer { get; }
     public RelayCommand CaptureSelectedPicks { get; }
+    public RelayCommand SaveMeasurementsToCsv { get; }
+    public RelayCommand CopyMeasurementsToClipboard { get; }
+    public RelayCommand SaveKeyVerticesToJson { get; }
+    public RelayCommand LoadKeyVerticesFromJson { get; }
+    public RelayCommand SaveMeasurementsToJson { get; }
+    public RelayCommand LoadMeasurementsFromJson { get; }
+    public RelayCommand SaveRulesToJson { get; }
+    public RelayCommand LoadRulesFromJson { get; }
 
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
@@ -2407,6 +2457,385 @@ public class VM_BodyTypeProfile : VM
         }
 
         viewer.SetMeasurementLines(segments);
+    }
+
+    /// <summary>Dumps the Measurements grid to a CSV file via the standard save dialog.
+    /// Includes the LiveValue column so the snapshot captures what's currently evaluated
+    /// against the loaded mesh; developer-only convenience, not exposed in the UI beyond
+    /// the Ctrl+S keybinding. Default filename derives from the profile name.</summary>
+    private void SaveMeasurementsToCsvFile()
+    {
+        if (Measurements.Count == 0) return;
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "measurements" : Name.Trim().Replace(' ', '_');
+        string defaultName = baseName + "_measurements.csv";
+        if (!IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                ".csv", "Save Measurements as CSV", out string path, defaultName))
+        {
+            return;
+        }
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            AppendMeasurementsTable(sb, ',', quoteCsv: true);
+            System.IO.File.WriteAllText(path, sb.ToString(), new System.Text.UTF8Encoding(false));
+            _parent?.Logger?.LogMessage("BodyTypeProfile: exported " + Measurements.Count
+                + " measurement(s) of profile '" + Name + "' to " + path);
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveMeasurementsToCsvFile failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>Copies the Measurements grid as TSV onto the clipboard so it pastes
+    /// straight into Excel / Google Sheets without import wizards. Tab-separated avoids
+    /// the comma-decimal locale headaches CSV runs into.</summary>
+    private void CopyMeasurementsToClipboardTsv()
+    {
+        if (Measurements.Count == 0) return;
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            AppendMeasurementsTable(sb, '\t', quoteCsv: false);
+            System.Windows.Clipboard.SetText(sb.ToString());
+            _parent?.Logger?.LogMessage("BodyTypeProfile: copied " + Measurements.Count
+                + " measurement(s) to clipboard.");
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("CopyMeasurementsToClipboardTsv failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>Builds the Name / Kind / A / B / C / D / Axis / NumeratorAxis /
+    /// DenominatorAxis / LiveValue table into <paramref name="sb"/> with one row per
+    /// measurement. <paramref name="separator"/> is comma for CSV or tab for TSV;
+    /// <paramref name="quoteCsv"/> enables RFC 4180 quoting of fields containing the
+    /// separator, a double quote, or a newline. Floats and enums format with
+    /// <c>CultureInfo.InvariantCulture</c> so the CSV survives locale roundtrips.</summary>
+    private void AppendMeasurementsTable(System.Text.StringBuilder sb, char separator, bool quoteCsv)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        string[] headers = { "Name", "Kind", "A", "B", "C", "D", "Axis",
+                              "NumeratorAxis", "DenominatorAxis", "LiveValue" };
+        AppendRow(sb, separator, quoteCsv, headers);
+
+        foreach (var m in Measurements)
+        {
+            bool isRatio = m.Kind == MeasurementKind.RatioDistance;
+            string[] row =
+            {
+                m.Name ?? "",
+                m.Kind.ToString(),
+                m.VertexRefA ?? "",
+                m.VertexRefB ?? "",
+                isRatio ? (m.VertexRefC ?? "") : "",
+                isRatio ? (m.VertexRefD ?? "") : "",
+                m.Kind == MeasurementKind.AxisDistance ? m.Axis.ToString() : "",
+                isRatio && m.NumeratorAxis.HasValue   ? m.NumeratorAxis.Value.ToString()   : "",
+                isRatio && m.DenominatorAxis.HasValue ? m.DenominatorAxis.Value.ToString() : "",
+                m.LiveValue.HasValue ? m.LiveValue.Value.ToString("F4", inv) : "",
+            };
+            AppendRow(sb, separator, quoteCsv, row);
+        }
+    }
+
+    private static void AppendRow(System.Text.StringBuilder sb, char separator, bool quoteCsv, string[] fields)
+    {
+        for (int i = 0; i < fields.Length; i++)
+        {
+            if (i > 0) sb.Append(separator);
+            sb.Append(quoteCsv ? CsvEscape(fields[i], separator) : fields[i]);
+        }
+        sb.Append('\n');
+    }
+
+    /// <summary>RFC 4180 quoting: wrap in double quotes when the field contains the
+    /// separator, a double quote, or a line break; double internal quotes.</summary>
+    private static string CsvEscape(string field, char separator)
+    {
+        if (string.IsNullOrEmpty(field)) return "";
+        bool needsQuoting = field.IndexOf(separator) >= 0
+                         || field.IndexOf('"') >= 0
+                         || field.IndexOf('\n') >= 0
+                         || field.IndexOf('\r') >= 0;
+        if (!needsQuoting) return field;
+        return "\"" + field.Replace("\"", "\"\"") + "\"";
+    }
+
+    /// <summary>Envelope classes used by the per-tab Save/Load shortcuts (Ctrl+S / Ctrl+L
+    /// on the KeyVertices, Measurements, and Rules tabs). Field shape mirrors the
+    /// Revised_BodyTypeProfile_Rules.json reference: a top-level array named after the
+    /// collection, with documentation <c>__comment_*</c> siblings ignored by Newtonsoft
+    /// on load. One class per tab so the file's top-level key documents the payload.</summary>
+    private class KeyVerticesExportPayload
+    {
+        public List<NamedKeyVertex> KeyVertices { get; set; } = new();
+    }
+    private class MeasurementsExportPayload
+    {
+        public List<MeasurementDefinition> Measurements { get; set; } = new();
+    }
+    private class RulesExportPayload
+    {
+        public List<MeasurementRule> Rules { get; set; } = new();
+    }
+
+    /// <summary>Replaces every item in <paramref name="target"/> with <paramref name="newItems"/>
+    /// via per-item Remove + Add (rather than Clear()) so each existing
+    /// <c>CollectionChanged</c> handler sees individual Remove/Add events for the affected
+    /// rows. Clear() raises a single Reset that this codebase's per-row PropertyChanged
+    /// hooks don't iterate, leaving stale subscriptions on the discarded items and stale
+    /// entries in the parent's per-row caches (_kvLastNames, _measurementLastNames).
+    /// O(n) and n is tiny for typical profiles, so the overhead doesn't matter.</summary>
+    private static void ReplaceObservableCollection<T>(ObservableCollection<T> target, IEnumerable<T> newItems)
+    {
+        while (target.Count > 0) target.RemoveAt(target.Count - 1);
+        foreach (var it in newItems)
+        {
+            if (it != null) target.Add(it);
+        }
+    }
+
+    /// <summary>Writes the current KeyVertices to a user-chosen path as
+    /// { "KeyVertices": [...] } JSON.</summary>
+    private void SaveKeyVerticesToJsonFile()
+    {
+        if (KeyVertices.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Key Vertices", "There are no key vertices to save.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "keyvertices" : Name.Trim().Replace(' ', '_');
+        if (!IO_Aux.SelectFileSave("", "Key Vertices JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Key Vertices", out string path, baseName + "_keyvertices.json"))
+        {
+            return;
+        }
+        var payload = new KeyVerticesExportPayload
+        {
+            KeyVertices = KeyVertices.Select(k => k.DumpToModel()).ToList(),
+        };
+        JSONhandler<KeyVerticesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + KeyVertices.Count
+            + " key vertex/vertices of profile '" + Name + "' to " + path);
+    }
+
+    /// <summary>Parses a Key Vertices JSON file and wholesale-replaces the current
+    /// KeyVertices collection. Confirms before overwriting non-empty collections.</summary>
+    private void LoadKeyVerticesFromJsonFile()
+    {
+        if (!IO_Aux.SelectFile("", "Key Vertices JSON (*.json)|*.json|All files (*.*)|*.*",
+                "Load Key Vertices", out string path))
+        {
+            return;
+        }
+        KeyVerticesExportPayload? loaded;
+        bool success;
+        string exception;
+        try
+        {
+            loaded = JSONhandler<KeyVerticesExportPayload>.LoadJSONFile(path, out success, out exception);
+        }
+        catch (Exception ex)
+        {
+            loaded = null;
+            success = false;
+            exception = ex.Message;
+        }
+        if (!success || loaded == null)
+        {
+            MessageWindow.DisplayNotificationOK("Load Failed",
+                string.IsNullOrEmpty(exception) ? "Could not parse Key Vertices JSON." : exception);
+            return;
+        }
+        var newItems = loaded.KeyVertices ?? new List<NamedKeyVertex>();
+        if (newItems.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Key Vertices Found",
+                "The selected file contains no 'KeyVertices' array (or it is empty).");
+            return;
+        }
+        if (KeyVertices.Count > 0)
+        {
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Replace Key Vertices?",
+                "This will replace the current " + KeyVertices.Count + " key vertex/vertices with "
+                + newItems.Count + " loaded entries.\n\nContinue?");
+            if (!confirm) return;
+        }
+        ReplaceObservableCollection(KeyVertices, newItems.Where(k => k != null).Select(k => new VM_NamedKeyVertex(k, this)));
+        _parent?.Logger?.LogMessage("BodyTypeProfile: loaded " + KeyVertices.Count
+            + " key vertex/vertices into profile '" + Name + "' from " + path);
+    }
+
+    /// <summary>Writes the current Measurements to a user-chosen path as
+    /// { "Measurements": [...] } JSON. The LiveValue column is not persisted — it's a
+    /// runtime readout, not a field of <see cref="MeasurementDefinition"/>.</summary>
+    private void SaveMeasurementsToJsonFile()
+    {
+        if (Measurements.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Measurements", "There are no measurements to save.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "measurements" : Name.Trim().Replace(' ', '_');
+        if (!IO_Aux.SelectFileSave("", "Measurements JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Measurements", out string path, baseName + "_measurements.json"))
+        {
+            return;
+        }
+        var payload = new MeasurementsExportPayload
+        {
+            Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
+        };
+        JSONhandler<MeasurementsExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + Measurements.Count
+            + " measurement(s) of profile '" + Name + "' to " + path);
+    }
+
+    /// <summary>Parses a Measurements JSON file and wholesale-replaces the current
+    /// Measurements collection. Confirms before overwriting non-empty collections.</summary>
+    private void LoadMeasurementsFromJsonFile()
+    {
+        if (!IO_Aux.SelectFile("", "Measurements JSON (*.json)|*.json|All files (*.*)|*.*",
+                "Load Measurements", out string path))
+        {
+            return;
+        }
+        MeasurementsExportPayload? loaded;
+        bool success;
+        string exception;
+        try
+        {
+            loaded = JSONhandler<MeasurementsExportPayload>.LoadJSONFile(path, out success, out exception);
+        }
+        catch (Exception ex)
+        {
+            loaded = null;
+            success = false;
+            exception = ex.Message;
+        }
+        if (!success || loaded == null)
+        {
+            MessageWindow.DisplayNotificationOK("Load Failed",
+                string.IsNullOrEmpty(exception) ? "Could not parse Measurements JSON." : exception);
+            return;
+        }
+        var newItems = loaded.Measurements ?? new List<MeasurementDefinition>();
+        if (newItems.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Measurements Found",
+                "The selected file contains no 'Measurements' array (or it is empty).");
+            return;
+        }
+        if (Measurements.Count > 0)
+        {
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Replace Measurements?",
+                "This will replace the current " + Measurements.Count + " measurement(s) with "
+                + newItems.Count + " loaded measurement(s).\n\nContinue?");
+            if (!confirm) return;
+        }
+        ReplaceObservableCollection(Measurements, newItems.Where(m => m != null).Select(m => new VM_MeasurementDefinition(m, this)));
+        _parent?.Logger?.LogMessage("BodyTypeProfile: loaded " + Measurements.Count
+            + " measurement(s) into profile '" + Name + "' from " + path);
+    }
+
+    /// <summary>Writes the current Rules collection to a user-chosen path as
+    /// { "Rules": [...] } JSON. Default filename derives from the profile name.</summary>
+    private void SaveRulesToJsonFile()
+    {
+        if (Rules.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Rules", "There are no rules to save.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "rules" : Name.Trim().Replace(' ', '_');
+        string defaultName = baseName + "_rules.json";
+        if (!IO_Aux.SelectFileSave("", "Rules JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Rules", out string path, defaultName))
+        {
+            return;
+        }
+        var payload = new RulesExportPayload
+        {
+            Rules = Rules.Select(r => r.DumpToModel()).ToList(),
+        };
+        JSONhandler<RulesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + Rules.Count
+            + " rule(s) of profile '" + Name + "' to " + path);
+    }
+
+    /// <summary>Parses a Rules JSON file at a user-chosen path and wholesale-replaces
+    /// the current Rules collection. Confirms before overwriting non-empty Rules so the
+    /// load is hard to do accidentally. Tolerates the documentation comment fields in
+    /// the reference format (they deserialize as unknown properties Newtonsoft ignores).</summary>
+    private void LoadRulesFromJsonFile()
+    {
+        if (!IO_Aux.SelectFile("", "Rules JSON (*.json)|*.json|All files (*.*)|*.*",
+                "Load Rules", out string path))
+        {
+            return;
+        }
+        RulesExportPayload? loaded;
+        bool success;
+        string exception;
+        try
+        {
+            loaded = JSONhandler<RulesExportPayload>.LoadJSONFile(path, out success, out exception);
+        }
+        catch (Exception ex)
+        {
+            loaded = null;
+            success = false;
+            exception = ex.Message;
+        }
+        if (!success || loaded == null)
+        {
+            MessageWindow.DisplayNotificationOK("Load Failed",
+                string.IsNullOrEmpty(exception) ? "Could not parse Rules JSON." : exception);
+            return;
+        }
+        var newRules = loaded.Rules ?? new List<MeasurementRule>();
+        if (newRules.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Rules Found",
+                "The selected file contains no 'Rules' array (or it is empty).");
+            return;
+        }
+        if (Rules.Count > 0)
+        {
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Replace Rules?",
+                "This will replace the current " + Rules.Count + " rule(s) with "
+                + newRules.Count + " loaded rule(s).\n\nContinue?");
+            if (!confirm) return;
+        }
+        // Defensive: a hand-edited file may omit Id or leave nested collections null.
+        // Fix in place before the VM ctor sees them, rather than crashing it.
+        foreach (var r in newRules)
+        {
+            if (r == null) continue;
+            if (string.IsNullOrEmpty(r.Id)) r.Id = Guid.NewGuid().ToString("N");
+            if (r.Descriptor == null) r.Descriptor = new BodyShapeDescriptor.LabelSignature();
+            if (r.GroupsORlogic == null) r.GroupsORlogic = new List<AndGatedMeasurementGroup>();
+        }
+        ReplaceObservableCollection(Rules, newRules.Where(r => r != null).Select(r => new VM_MeasurementRule(r, this)));
+        _parent?.Logger?.LogMessage("BodyTypeProfile: loaded " + Rules.Count
+            + " rule(s) into profile '" + Name + "' from " + path);
     }
 
     private static string NextDefaultName(string prefix, IEnumerable<string> existing)

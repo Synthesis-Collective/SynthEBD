@@ -246,6 +246,15 @@
 
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
+                                    <!-- Developer convenience: Ctrl+S writes the current KeyVertices to a
+                                         JSON file ({ "KeyVertices": [...] }, drop-in compatible with the
+                                         per-tab JSON format used by Measurements and Rules). Ctrl+L parses
+                                         the same shape and replaces the current KeyVertices wholesale,
+                                         prompting for confirmation if any exist. -->
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveKeyVerticesToJson}"/>
+                                        <KeyBinding Modifiers="Control" Key="L" Command="{Binding LoadKeyVerticesFromJson}"/>
+                                    </DockPanel.InputBindings>
                                     <Border DockPanel.Dock="Top"
                                             Style="{StaticResource DuplicateNameBannerStyle}"
                                             Visibility="{Binding HasDuplicateKeyVertexNames, Converter={StaticResource BoolToVis}}">
@@ -332,6 +341,23 @@
 
                             <TabItem Header="Measurements">
                                 <DockPanel>
+                                    <!-- Developer convenience shortcuts, scoped to this tab's DockPanel
+                                         so they only fire while focus is inside the Measurements tab.
+                                           Ctrl+S         → save JSON ({ "Measurements": [...] }) — uniform
+                                                            with the KeyVertices and Rules tabs.
+                                           Ctrl+L         → load JSON, wholesale-replacing the current
+                                                            Measurements after a confirm dialog.
+                                           Ctrl+Shift+S   → secondary export: CSV file including the
+                                                            live-evaluated LiveValue column for
+                                                            spreadsheet analysis.
+                                           Ctrl+C         → copy the same table as TSV onto the clipboard
+                                                            for direct paste into Excel / Sheets. -->
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control"       Key="S" Command="{Binding SaveMeasurementsToJson}"/>
+                                        <KeyBinding Modifiers="Control"       Key="L" Command="{Binding LoadMeasurementsFromJson}"/>
+                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                        <KeyBinding Modifiers="Control"       Key="C" Command="{Binding CopyMeasurementsToClipboard}"/>
+                                    </DockPanel.InputBindings>
                                     <Border DockPanel.Dock="Top"
                                             Style="{StaticResource DuplicateNameBannerStyle}"
                                             Visibility="{Binding HasDuplicateMeasurementNames, Converter={StaticResource BoolToVis}}">
@@ -347,6 +373,7 @@
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
                                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              ClipboardCopyMode="None"
                                               RowHeaderWidth="0">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Name"
@@ -450,6 +477,16 @@
 
                             <TabItem Header="Rules">
                                 <DockPanel>
+                                    <!-- Developer convenience: Ctrl+S writes the current rules to a JSON
+                                         file (top-level { "Rules": [...] }, drop-in compatible with the
+                                         Revised_BodyTypeProfile_Rules.json reference). Ctrl+L parses the
+                                         same shape and replaces the current rules wholesale, prompting
+                                         for confirmation if any exist. Documentation __comment_* fields
+                                         in the source file are tolerated. -->
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveRulesToJson}"/>
+                                        <KeyBinding Modifiers="Control" Key="L" Command="{Binding LoadRulesFromJson}"/>
+                                    </DockPanel.InputBindings>
                                     <Button DockPanel.Dock="Top" Content="Add Rule" Command="{Binding AddRule}"
                                             HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
