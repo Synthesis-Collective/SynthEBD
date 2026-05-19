@@ -11,9 +11,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:EnumDescriptionConverter x:Key="EnumDesc"/>
-        <Style x:Key="CriterionItemStyle" TargetType="ComboBoxItem">
-            <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
-        </Style>
+        <local:EnumShortLabelConverter x:Key="EnumShortLabel"/>
 
         <!-- Cell-level red wash for any Name cell whose row carries HasDuplicateName=True.
              Shared by both the KeyVertices and Measurements grids (each row VM exposes the
@@ -405,12 +403,51 @@
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Vertex Index" Binding="{Binding VertexIndex, UpdateSourceTrigger=PropertyChanged}" Width="90"/>
-                                            <DataGridTemplateColumn Header="Criterion" Width="90">
+                                            <!-- Criterion picker: closed button shows the short [DisplayName] of the
+                                                 current criterion with its long [Description] as tooltip; clicking the
+                                                 button opens a Popup containing a TreeView grouped by algorithm category
+                                                 (Axis Extremes / Mirrored Across Midline / Waist Pinch / Hip Bulge /
+                                                 Paired / Centerline-Anchored). The tree's structure lives in
+                                                 BoundingBoxCriterionTree.Categories; per-leaf labels and tooltips come
+                                                 from the enum's [DisplayName] and [Description] attributes via reflection
+                                                 — single source of truth. TreeView.Tag carries the row VM so the
+                                                 SelectedItemChanged handler in code-behind can write Criterion back
+                                                 without coupling to the surrounding DataGrid's selected row. -->
+                                            <DataGridTemplateColumn Header="Criterion" Width="170">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <ComboBox SelectedValue="{Binding Criterion, UpdateSourceTrigger=PropertyChanged}"
-                                                                  ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BoundingBoxCriterion}}}"
-                                                                  ItemContainerStyle="{StaticResource CriterionItemStyle}"/>
+                                                        <Grid>
+                                                            <ToggleButton x:Name="CritToggle"
+                                                                          Content="{Binding Criterion, Converter={StaticResource EnumShortLabel}}"
+                                                                          ToolTip="{Binding Criterion, Converter={StaticResource EnumDesc}}"
+                                                                          HorizontalContentAlignment="Stretch"
+                                                                          VerticalContentAlignment="Center"
+                                                                          Padding="4,1"/>
+                                                            <Popup IsOpen="{Binding IsChecked, ElementName=CritToggle, Mode=TwoWay}"
+                                                                   PlacementTarget="{Binding ElementName=CritToggle}"
+                                                                   Placement="Bottom"
+                                                                   StaysOpen="False"
+                                                                   AllowsTransparency="True">
+                                                                <Border Background="#FF2A2A2A" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                                                                    <TreeView ItemsSource="{x:Static local:BoundingBoxCriterionTree.Categories}"
+                                                                              Tag="{Binding}"
+                                                                              SelectedItemChanged="CriterionTree_SelectedItemChanged"
+                                                                              MinWidth="380" MaxHeight="520"
+                                                                              Background="Transparent" BorderThickness="0">
+                                                                        <TreeView.Resources>
+                                                                            <HierarchicalDataTemplate DataType="{x:Type local:BoundingBoxCriterionCategory}"
+                                                                                                      ItemsSource="{Binding Children}">
+                                                                                <TextBlock Text="{Binding Header}" FontWeight="SemiBold"
+                                                                                           ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                                                            </HierarchicalDataTemplate>
+                                                                            <DataTemplate DataType="{x:Type local:BoundingBoxCriterionLeaf}">
+                                                                                <TextBlock Text="{Binding Label}" ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                                                            </DataTemplate>
+                                                                        </TreeView.Resources>
+                                                                    </TreeView>
+                                                                </Border>
+                                                            </Popup>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>

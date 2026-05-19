@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 
 namespace SynthEBD;
@@ -33,6 +34,26 @@ public partial class UC_BodyTypeProfileEditor : UserControl
             vm.RebuildAvailablePresets();
             _presetsPrimed = true;
         }
+    }
+
+    /// <summary>Handles a selection in the Criterion column's Popup TreeView. Categories
+    /// (non-leaf nodes) are ignored so clicking a header doesn't blank the row's criterion.
+    /// The target row VM travels via TreeView.Tag (bound to the cell's DataContext in XAML),
+    /// which keeps this handler decoupled from the surrounding DataGrid's selected row —
+    /// selecting in row B's popup while row A is the DataGrid's SelectedItem still writes to
+    /// row B. The popup is closed by walking the logical tree (Popup is in the logical tree
+    /// but not the visual tree, so VisualTreeHelper wouldn't find it).</summary>
+    private void CriterionTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (sender is not TreeView tree) return;
+        if (e.NewValue is not BoundingBoxCriterionLeaf leaf) return;
+        if (tree.Tag is not VM_NamedKeyVertex row) return;
+        row.Criterion = leaf.Value;
+
+        DependencyObject? parent = tree;
+        while (parent != null && parent is not Popup)
+            parent = LogicalTreeHelper.GetParent(parent);
+        if (parent is Popup popup) popup.IsOpen = false;
     }
 
     /// <summary>Forwards the KeyVertices DataGrid's full multi-selection to the current

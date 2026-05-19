@@ -109,7 +109,9 @@ public enum KeyVertexStrategy
 }
 
 /// <summary>Extremum to select inside a <see cref="KeyVertexStrategy.BoundingBox"/> region.
-/// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back).
+/// Operates on mesh-local axes (NIF: X = left-right, Y = up-down, Z = front-back). The default
+/// model orientation in the viewer is facing the -Z direction, so smaller Z = in front of the
+/// body (toward the viewer / "Min Z = front-most"), larger Z = behind the body ("Max Z = back-most").
 /// <para>The <c>Pinch*</c> / <c>Bulge*</c> values scan the box's Y range in slices and pick the
 /// silhouette vertex whose X is closest to (pinch) or farthest from (bulge) the midline —
 /// suitable for waist-pinch and widest-hip anchors respectively.</para>
@@ -122,61 +124,94 @@ public enum KeyVertexStrategy
 /// non-paired equivalent (<c>PinchPairMinX</c> → <c>PinchMinX</c>, etc.).</para></summary>
 public enum BoundingBoxCriterion
 {
-    [Description("Vertex with the largest X (rightmost) inside the box.")]
+    // DisplayName = short label shown on the closed picker button and the TreeView leaf.
+    // Description = long, plain-language tooltip: how it picks, what it's good for, how
+    // many vertices it selects. The TreeView's category grouping (Axis Extremes /
+    // Mirrored Across Midline / Waist Pinch / Hip Bulge / Paired Pinch & Bulge /
+    // Centerline-Anchored) lives in BoundingBoxCriterionTree.cs alongside this enum.
+    [ShortLabel("Rightmost (Max X)")]
+    [Description("Picks the single vertex inside the box with the largest X coordinate — the one furthest to the model's right. Use for: rightmost-shoulder, right-hip-side, outer right bicep. Selects 1 vertex.")]
     MaxX = 0,
-    [Description("Vertex with the smallest X (leftmost) inside the box.")]
+    [ShortLabel("Leftmost (Min X)")]
+    [Description("Picks the single vertex inside the box with the smallest X coordinate — the one furthest to the model's left. Use for: leftmost-shoulder, left-hip-side, outer left bicep. Selects 1 vertex.")]
     MinX = 1,
-    [Description("Vertex with the largest Y (highest) inside the box.")]
+    [ShortLabel("Highest (Max Y)")]
+    [Description("Picks the single vertex inside the box with the largest Y coordinate — the highest one. Use for: top-of-head, top-of-bust, peak of shoulder. Selects 1 vertex.")]
     MaxY = 2,
-    [Description("Vertex with the smallest Y (lowest) inside the box.")]
+    [ShortLabel("Lowest (Min Y)")]
+    [Description("Picks the single vertex inside the box with the smallest Y coordinate — the lowest one. Use for: bottom-of-foot, bottom-of-bust fold, bottom of buttock. Selects 1 vertex.")]
     MinY = 3,
-    [Description("Vertex with the largest Z (front-most) inside the box.")]
+    [ShortLabel("Backmost (Max Z)")]
+    [Description("Picks the single vertex inside the box with the largest Z coordinate — the one furthest back. (The default model orientation faces -Z, so larger Z = behind the body.) Use for: spine-back, sacrum-back, back-of-buttock. Selects 1 vertex.")]
     MaxZ = 4,
-    [Description("Vertex with the smallest Z (back-most) inside the box.")]
+    [ShortLabel("Frontmost (Min Z)")]
+    [Description("Picks the single vertex inside the box with the smallest Z coordinate — the one furthest forward. (The default model orientation faces -Z, so smaller Z = in front of the body.) Use for: nipple-front, navel, belly-front. Selects 1 vertex.")]
     MinZ = 5,
-    [Description("Pinch — left side: slice the box's Y range and pick the silhouette vertex whose X is closest to the midline. Suits waist-pinch landmarks.")]
+    [ShortLabel("Waist-pinch Left")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body's left silhouette sits closest to the centerline (the narrowest band), then picks that band's left-side vertex. Use for: marking the inner edge of the left waist on a body whose waist height varies between presets. Selects 1 vertex. For honest left-to-right waist-width measurement, prefer the Paired variant — it guarantees the left and right picks come from the same horizontal band.")]
     PinchMinX = 6,
-    [Description("Pinch — right side: same Y-slice scan as PinchMinX but on the X>0 half.")]
+    [ShortLabel("Waist-pinch Right")]
+    [Description("Mirror of Waist-pinch Left: scans for the narrowest horizontal band and picks that band's right-side vertex. Selects 1 vertex. For waist-width measurement, prefer the Paired variant.")]
     PinchMaxX = 7,
-    [Description("Bulge — left side: slice the box's Y range and pick the silhouette vertex whose X is furthest from the midline. Suits widest-hip landmarks.")]
+    [ShortLabel("Hip-bulge Left")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body's left silhouette sits furthest from the centerline (the widest band), then picks that band's left-side vertex. Use for: marking the outer edge of the left hip on a body whose widest-hip height varies between presets. Selects 1 vertex. For honest left-to-right hip-width measurement, prefer the Paired variant.")]
     BulgeMinX = 8,
-    [Description("Bulge — right side: same Y-slice scan as BulgeMinX but on the X>0 half.")]
+    [ShortLabel("Hip-bulge Right")]
+    [Description("Mirror of Hip-bulge Left: scans for the widest horizontal band and picks that band's right-side vertex. Selects 1 vertex. For hip-width measurement, prefer the Paired variant.")]
     BulgeMaxX = 9,
-    [Description("Paired pinch — left side. Requires a sibling row with PinchPairMaxX, same box; the pair jointly picks from the same Y-slice so a PointDistance between them measures horizontal thickness.")]
+    [ShortLabel("Paired Waist-pinch Left")]
+    [Description("Co-operates with a sibling row using 'Paired Waist-pinch Right' that shares the same Shape and box. The two rows together scan the box, find the single horizontal band where the body is narrowest, and pick from THAT band — left row gets the left-side vertex, right row gets the right-side vertex. The joint scan guarantees both picks come from the same height, so a PointDistance between them measures honest horizontal waist width rather than a diagonal across different heights. Use for: waist-width measurement landmarks. Selects 1 vertex per row; the pair selects 2 at the same Y. Without a sibling, falls back to plain Waist-pinch Left.")]
     PinchPairMinX = 10,
-    [Description("Paired pinch — right side. Sibling of PinchPairMinX.")]
+    [ShortLabel("Paired Waist-pinch Right")]
+    [Description("Sibling of Paired Waist-pinch Left — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
     PinchPairMaxX = 11,
-    [Description("Paired bulge — left side. Sibling of BulgePairMaxX, same joint-Y-slice constraint as PinchPair.")]
+    [ShortLabel("Paired Hip-bulge Left")]
+    [Description("Co-operates with a sibling row using 'Paired Hip-bulge Right' that shares the same Shape and box. The two rows together scan the box, find the single horizontal band where the body is widest, and pick from THAT band — left row gets the left-side vertex, right row gets the right-side vertex. Guarantees honest left-to-right hip-width measurement. Use for: hip-width landmarks. Selects 1 vertex per row; the pair selects 2. Without a sibling, falls back to plain Hip-bulge Left.")]
     BulgePairMinX = 12,
-    [Description("Paired bulge — right side. Sibling of BulgePairMinX.")]
+    [ShortLabel("Paired Hip-bulge Right")]
+    [Description("Sibling of Paired Hip-bulge Left — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
     BulgePairMaxX = 13,
-    [Description("Lowest-Y vertex among those with X<0 inside the box. Pairs with MinYRightOfX (authored via MinYMirroredAcrossX).")]
+    [ShortLabel("Lowest on Left Half (X<0)")]
+    [Description("Among vertices in the box whose X coordinate is negative (the model's left half), picks the one with the smallest Y — the lowest one on that side. Typically authored together with its right-half twin so the two rows together capture both sides of a symmetric feature. Use for: bottom-of-left-bust, lowest-fold of left shoulder, bottom of left buttock. Selects 1 vertex per row; the pair selects 2.")]
     MinYLeftOfX = 14,
-    [Description("Lowest-Y vertex among those with X≥0 inside the box. Pairs with MinYLeftOfX.")]
+    [ShortLabel("Lowest on Right Half (X>=0)")]
+    [Description("Mirror of 'Lowest on Left Half': picks the lowest vertex on the model's right side. Selects 1 vertex per row; the pair selects 2.")]
     MinYRightOfX = 15,
-    [Description("Highest-Y vertex among those with X<0 inside the box. Pairs with MaxYRightOfX (authored via MaxYMirroredAcrossX).")]
+    [ShortLabel("Highest on Left Half (X<0)")]
+    [Description("Among vertices in the box whose X coordinate is negative (the model's left half), picks the one with the largest Y — the highest one on that side. Typically authored together with its right-half twin. Use for: top-of-left-bust, peak of left shoulder, top of left thigh. Selects 1 vertex per row; the pair selects 2.")]
     MaxYLeftOfX = 16,
-    [Description("Highest-Y vertex among those with X≥0 inside the box. Pairs with MaxYLeftOfX.")]
+    [ShortLabel("Highest on Right Half (X>=0)")]
+    [Description("Mirror of 'Highest on Left Half': picks the highest vertex on the model's right side. Selects 1 vertex per row; the pair selects 2.")]
     MaxYRightOfX = 17,
-    [Description("Back-most-Z vertex among those with X<0 inside the box. Pairs with MinZRightOfX (authored via MinZMirroredAcrossX).")]
+    [ShortLabel("Frontmost on Left Half (X<0)")]
+    [Description("Among vertices in the box whose X coordinate is negative (the model's left half), picks the one with the smallest Z — the one furthest forward on that side. (Model faces -Z, so smaller Z = in front.) Use for: front of left bust, front of left bicep. Authored together with its right-half twin. Selects 1 vertex per row; the pair selects 2.")]
     MinZLeftOfX = 18,
-    [Description("Back-most-Z vertex among those with X≥0 inside the box. Pairs with MinZLeftOfX.")]
+    [ShortLabel("Frontmost on Right Half (X>=0)")]
+    [Description("Mirror of 'Frontmost on Left Half': picks the front-most vertex on the model's right side. Selects 1 vertex per row; the pair selects 2.")]
     MinZRightOfX = 19,
-    [Description("Front-most-Z vertex among those with X<0 inside the box. Pairs with MaxZRightOfX (authored via MaxZMirroredAcrossX).")]
+    [ShortLabel("Backmost on Left Half (X<0)")]
+    [Description("Among vertices in the box whose X coordinate is negative (the model's left half), picks the one with the largest Z — the one furthest back on that side. (Model faces -Z, so larger Z = behind.) Use for: back-of-left-buttock, back of left tricep. Authored together with its right-half twin. Selects 1 vertex per row; the pair selects 2.")]
     MaxZLeftOfX = 20,
-    [Description("Front-most-Z vertex among those with X≥0 inside the box. Pairs with MaxZLeftOfX.")]
+    [ShortLabel("Backmost on Right Half (X>=0)")]
+    [Description("Mirror of 'Backmost on Left Half': picks the back-most vertex on the model's right side. Selects 1 vertex per row; the pair selects 2.")]
     MaxZRightOfX = 21,
-    [Description("Largest-X (rightmost) vertex within a central tube along X — vertices in the middle third of Y and Z. Use for centerline-anchored side landmarks.")]
+    [ShortLabel("Rightmost on Centerline")]
+    [Description("Restricts the search to vertices whose Y AND Z coordinates both fall in the middle third of the box (a tubular column running through the box along X), then picks the one with the largest X inside that tube. Use for: side-of-waist landmarks that should sit at the body's vertical mid-height and depth-center rather than at a corner of the box. Selects 1 vertex.")]
     MaxXAtCenter = 22,
-    [Description("Smallest-X (leftmost) vertex within a central tube along X — vertices in the middle third of Y and Z.")]
+    [ShortLabel("Leftmost on Centerline")]
+    [Description("Mirror of 'Rightmost on Centerline': restricts the search to the central Y/Z tube and picks the smallest X. Selects 1 vertex.")]
     MinXAtCenter = 23,
-    [Description("Largest-Y (highest) vertex within a central tube along Y — vertices in the middle third of X and Z. Use for top-of-feature landmarks (crown, shoulder peak).")]
+    [ShortLabel("Highest on Centerline")]
+    [Description("Restricts the search to vertices whose X AND Z coordinates both fall in the middle third of the box (a tubular column running through the box along Y), then picks the one with the largest Y inside that tube. Use for: top-of-head, peak of bust at the body's mid-line, top-of-shoulder — top landmarks that should sit on the body's centerline rather than at a corner of the box. Selects 1 vertex.")]
     MaxYAtCenter = 24,
-    [Description("Smallest-Y (lowest) vertex within a central tube along Y — vertices in the middle third of X and Z.")]
+    [ShortLabel("Lowest on Centerline")]
+    [Description("Mirror of 'Highest on Centerline': restricts the search to the central X/Z tube and picks the smallest Y. Selects 1 vertex.")]
     MinYAtCenter = 25,
-    [Description("Largest-Z (front-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for protrusion landmarks (navel, nipple).")]
+    [ShortLabel("Backmost on Centerline")]
+    [Description("Restricts the search to vertices whose X AND Y coordinates both fall in the middle third of the box (a tubular column running through the box along Z), then picks the one with the largest Z inside that tube. (Model faces -Z, so larger Z = behind.) Use for: spine landmarks, upper-back peak, sacrum-back — rear landmarks that should sit on the body's centerline rather than at a corner of the box. Selects 1 vertex.")]
     MaxZAtCenter = 26,
-    [Description("Smallest-Z (back-most) vertex within a central tube along Z — vertices in the middle third of X and Y. Use for centerline-anchored rear landmarks (spine).")]
+    [ShortLabel("Frontmost on Centerline")]
+    [Description("Restricts the search to the central X/Y tube and picks the smallest Z. (Model faces -Z, so smaller Z = in front.) Use for: navel, nipple, peak-of-belly — front protrusion landmarks that should sit on the body's centerline rather than at a corner of the box. Selects 1 vertex.")]
     MinZAtCenter = 27,
 }
 

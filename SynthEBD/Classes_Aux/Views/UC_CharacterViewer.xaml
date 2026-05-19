@@ -17,22 +17,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:IntEqualsToVisibilityConverter x:Key="IntEqVis" />
         <local:EnumDescriptionConverter x:Key="EnumDesc" />
-
-        <!-- Values for the BB-pick Criterion combo: single-axis picks + UX-level 'Mirror*'
-             shortcuts that expand into paired rows on the editor side. -->
-        <ObjectDataProvider x:Key="BoxCriterionValues"
-                            MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
-            <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="cvr:BoxCriterionSelection"/>
-            </ObjectDataProvider.MethodParameters>
-        </ObjectDataProvider>
-
-        <!-- Per-option tooltip style for any ComboBox bound to BoxCriterionValues. Pulls the
-             [Description] attribute off each enum value so the dropdown surfaces inline help
-             when the user hovers over an option. -->
-        <Style x:Key="CriterionItemStyle" TargetType="ComboBoxItem">
-            <Setter Property="ToolTip" Value="{Binding ., Converter={StaticResource EnumDesc}}"/>
-        </Style>
+        <local:EnumShortLabelConverter x:Key="EnumShortLabel" />
     </UserControl.Resources>
 
     <Grid>
@@ -139,12 +124,48 @@
                 <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="8,0,3,0"
                            Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>
-                <ComboBox Width="92" FontSize="10" VerticalAlignment="Center"
-                          ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
-                          SelectedItem="{Binding PendingBoxCriterion}"
-                          ItemContainerStyle="{StaticResource CriterionItemStyle}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Which vertex inside the painted box gets picked at runtime. Hover an option in the dropdown for its specific definition. Max/Min operate on the mesh-local axis (X=left-right, Y=up-down, Z=front-back). Mirror* expands to two paired rows — draw a box that covers both sides and pick e.g. MirrorX to get L/R shoulder at once."/>
+                <!-- Criterion picker: closed button shows the short [ShortLabel] of the
+                     current selection with its long [Description] as tooltip; clicking opens a
+                     Popup containing a TreeView grouped by algorithm category (Axis Extremes /
+                     Mirrored Across Midline / Waist Pinch / Hip Bulge / Paired / Centerline /
+                     Mirror Shortcuts). Tree structure lives in BoxCriterionSelectionTree; per-leaf
+                     labels and tooltips come from the enum attributes via reflection.
+                     TreeView.Tag carries the route key ("Pending") that the code-behind handler
+                     uses to dispatch the write — symmetric with the pending-box-confirm picker
+                     below ("PendingFinal"). -->
+                <Grid Width="180" VerticalAlignment="Center"
+                      Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}">
+                    <ToggleButton x:Name="CritToggleBBPick" FontSize="10"
+                                  Content="{Binding PendingBoxCriterion, Converter={StaticResource EnumShortLabel}}"
+                                  ToolTip="{Binding PendingBoxCriterion, Converter={StaticResource EnumDesc}}"
+                                  HorizontalContentAlignment="Stretch"
+                                  VerticalContentAlignment="Center"
+                                  Padding="4,1"/>
+                    <Popup IsOpen="{Binding IsChecked, ElementName=CritToggleBBPick, Mode=TwoWay}"
+                           PlacementTarget="{Binding ElementName=CritToggleBBPick}"
+                           Placement="Bottom"
+                           StaysOpen="False"
+                           AllowsTransparency="True">
+                        <Border Background="#FF2A2A2A" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                            <TreeView ItemsSource="{x:Static cvr:BoxCriterionSelectionTree.Categories}"
+                                      Tag="Pending"
+                                      SelectedItemChanged="BoxCriterionSelectionTree_SelectedItemChanged"
+                                      MinWidth="400" MaxHeight="520"
+                                      Background="Transparent" BorderThickness="0">
+                                <TreeView.Resources>
+                                    <HierarchicalDataTemplate DataType="{x:Type cvr:BoxCriterionSelectionCategory}"
+                                                              ItemsSource="{Binding Children}">
+                                        <TextBlock Text="{Binding Header}" FontWeight="SemiBold"
+                                                   ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                    </HierarchicalDataTemplate>
+                                    <DataTemplate DataType="{x:Type cvr:BoxCriterionSelectionLeaf}">
+                                        <TextBlock Text="{Binding Label}" ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                    </DataTemplate>
+                                </TreeView.Resources>
+                            </TreeView>
+                        </Border>
+                    </Popup>
+                </Grid>
 
                 <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
@@ -327,11 +348,40 @@
                     <!-- Editable while the box is pending so the user can change the algorithm
                          after drawing without cancelling/re-drawing. ConfirmPendingBox reads
                          PendingBoxFinalCriterion, so whatever is selected here is what fires. -->
-                    <ComboBox ItemsSource="{Binding Source={StaticResource BoxCriterionValues}}"
-                              SelectedItem="{Binding PendingBoxFinalCriterion}"
-                              ItemContainerStyle="{StaticResource CriterionItemStyle}"
-                              FontSize="11" MinWidth="100" VerticalAlignment="Center"
-                              ToolTip="Vertex selection algorithm applied inside the pending box when confirmed. Hover an option in the dropdown for its specific definition."/>
+                    <!-- Same picker as the BB-pick toolbar above; routes to PendingBoxFinalCriterion
+                         instead of PendingBoxCriterion via TreeView.Tag = "PendingFinal". -->
+                    <Grid MinWidth="180" VerticalAlignment="Center">
+                        <ToggleButton x:Name="CritTogglePendingFinal" FontSize="11"
+                                      Content="{Binding PendingBoxFinalCriterion, Converter={StaticResource EnumShortLabel}}"
+                                      ToolTip="{Binding PendingBoxFinalCriterion, Converter={StaticResource EnumDesc}}"
+                                      HorizontalContentAlignment="Stretch"
+                                      VerticalContentAlignment="Center"
+                                      Padding="4,1"/>
+                        <Popup IsOpen="{Binding IsChecked, ElementName=CritTogglePendingFinal, Mode=TwoWay}"
+                               PlacementTarget="{Binding ElementName=CritTogglePendingFinal}"
+                               Placement="Bottom"
+                               StaysOpen="False"
+                               AllowsTransparency="True">
+                            <Border Background="#FF2A2A2A" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                                <TreeView ItemsSource="{x:Static cvr:BoxCriterionSelectionTree.Categories}"
+                                          Tag="PendingFinal"
+                                          SelectedItemChanged="BoxCriterionSelectionTree_SelectedItemChanged"
+                                          MinWidth="400" MaxHeight="520"
+                                          Background="Transparent" BorderThickness="0">
+                                    <TreeView.Resources>
+                                        <HierarchicalDataTemplate DataType="{x:Type cvr:BoxCriterionSelectionCategory}"
+                                                                  ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Header}" FontWeight="SemiBold"
+                                                       ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                        </HierarchicalDataTemplate>
+                                        <DataTemplate DataType="{x:Type cvr:BoxCriterionSelectionLeaf}">
+                                            <TextBlock Text="{Binding Label}" ToolTip="{Binding Description}" TextWrapping="NoWrap"/>
+                                        </DataTemplate>
+                                    </TreeView.Resources>
+                                </TreeView>
+                            </Border>
+                        </Popup>
+                    </Grid>
                     <!-- Symmetry lock: each flag mirrors min<->max about 0 on that axis.
                          Auto-seeded on capture when the drawn box straddles an axis within 10%.
                          ToolTip lists the combinations; enum ToString formats "X, Y" etc. -->

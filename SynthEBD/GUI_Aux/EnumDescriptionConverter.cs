@@ -6,6 +6,10 @@ using System.Windows.Data;
 
 namespace SynthEBD;
 
+// ShortLabelAttribute moved to CharacterViewer.Rendering/Abstractions/ShortLabelAttribute.cs
+// so the authoring-time BoxCriterionSelection enum (which lives over there) can use it too.
+// Resolves at call sites here via the SynthEBD.csproj global `<Using Include="CharacterViewer.Rendering" />`.
+
 /// <summary>One-way converter that maps an enum value to its [Description] attribute text, or the
 /// raw name when no attribute is present. Bound to <c>ToolTip</c> on a ComboBox's ItemContainerStyle
 /// to surface per-option help text without hard-coding the text in XAML. Falls back to ToString()
@@ -24,6 +28,30 @@ public sealed class EnumDescriptionConverter : IValueConverter
         var field = enumType.GetField(name, BindingFlags.Public | BindingFlags.Static);
         var attr = field?.GetCustomAttribute<DescriptionAttribute>();
         return attr?.Description ?? name;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>One-way converter that maps an enum value to its [ShortLabel] attribute text, or the
+/// raw name when no attribute is present. Used alongside <see cref="EnumDescriptionConverter"/> on
+/// enums that want a short label (for the closed picker display / tree leaf) AND a long tooltip
+/// (Description). Falls back to ToString() so enums without the attribute still render harmlessly.</summary>
+public sealed class EnumShortLabelConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value == null) return string.Empty;
+        var enumType = value.GetType();
+        if (!enumType.IsEnum) return value.ToString() ?? string.Empty;
+
+        var name = Enum.GetName(enumType, value);
+        if (name == null) return value.ToString() ?? string.Empty;
+
+        var field = enumType.GetField(name, BindingFlags.Public | BindingFlags.Static);
+        var attr = field?.GetCustomAttribute<ShortLabelAttribute>();
+        return attr?.Label ?? name;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

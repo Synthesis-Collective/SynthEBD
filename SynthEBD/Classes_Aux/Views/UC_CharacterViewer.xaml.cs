@@ -830,6 +830,33 @@ public partial class UC_CharacterViewer : UserControl
         _vm?.ProjectLastPickAcrossAxis();
     }
 
+    /// <summary>Handles a selection in either of the BB-pick Criterion popups. The XAML sets
+    /// TreeView.Tag = "Pending" (BB-pick toolbar) or "PendingFinal" (pending-box confirm bar)
+    /// to dispatch the write to the correct VM property; both popups otherwise share the same
+    /// tree data and template. Category headers (non-leaf nodes) are ignored so clicking a
+    /// header doesn't blank the current selection. The popup is closed by walking the logical
+    /// tree (Popup is in the logical tree but not the visual tree, so VisualTreeHelper
+    /// wouldn't find it).</summary>
+    private void BoxCriterionSelectionTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (sender is not System.Windows.Controls.TreeView tree) return;
+        if (e.NewValue is not BoxCriterionSelectionLeaf leaf) return;
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        switch (tree.Tag as string)
+        {
+            case "Pending":      _vm.PendingBoxCriterion      = leaf.Value; break;
+            case "PendingFinal": _vm.PendingBoxFinalCriterion = leaf.Value; break;
+            default: return;
+        }
+
+        DependencyObject? parent = tree;
+        while (parent != null && parent is not System.Windows.Controls.Primitives.Popup)
+            parent = LogicalTreeHelper.GetParent(parent);
+        if (parent is System.Windows.Controls.Primitives.Popup popup) popup.IsOpen = false;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  HOVER TOOLTIP — MESH & TEXTURE SOURCE PATHS
     // ═══════════════════════════════════════════════════════════════════════
