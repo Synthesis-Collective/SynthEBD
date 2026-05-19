@@ -74,6 +74,10 @@ public static class BodySlideMeasurementEvaluator
         MeasurementMath.VertexLookup lookup = (shape, idx) =>
             viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null;
         MeasurementMath.ShapePositionsLookup shapeLookup = shape => viewer.GetShapePositions(shape);
+        // Bone-info lookup is consulted only by the BoneTransition criterion; everything else
+        // ignores it. Surface it unconditionally — the per-criterion gate in TryResolve avoids
+        // the actual fetch when the row's criterion isn't BoneTransition*.
+        MeasurementMath.ShapeBoneInfoLookup boneLookup = shape => viewer.GetShapeBoneInfo(shape);
 
         if (profile.Measurements != null)
         {
@@ -87,7 +91,7 @@ public static class BodySlideMeasurementEvaluator
                 // keeps evaluation deterministic and consistent across both grids.
                 if (result.Measurements.ContainsKey(def.Name)
                     || result.FailedMeasurements.ContainsKey(def.Name)) continue;
-                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, out float v))
+                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, out float v))
                 {
                     result.Measurements[def.Name] = v;
                 }

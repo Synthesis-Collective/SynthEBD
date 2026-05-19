@@ -2011,10 +2011,21 @@ public class VM_BodyTypeProfile : VM
         Func<NamedKeyVertex, NamedKeyVertex?> findSibling =
             self => MeasurementMath.FindPairSibling(self, siblingPool);
 
+        // Bone-info is only consulted when one of the synthetics uses a BoneTransition criterion;
+        // fetch lazily so the common Pinch/Bulge/AxisExtremum preview paths don't pay for it.
+        int[]? previewBoneIndices = null;
+        float[]? previewBoneWeights = null;
+        bool boneFetched = false;
+
         var resolved = new List<OpenTK.Mathematics.Vector3>(synthetics.Count);
         foreach (var s in synthetics)
         {
-            int? idx = MeasurementMath.FindBestInBox(positions, s, s.Criterion, findSibling);
+            if (MeasurementMath.IsBoneTransitionCriterion(s.Criterion) && !boneFetched)
+            {
+                (previewBoneIndices, previewBoneWeights) = viewer.GetShapeBoneInfo(shapeName);
+                boneFetched = true;
+            }
+            int? idx = MeasurementMath.FindBestInBox(positions, s, s.Criterion, findSibling, previewBoneIndices, previewBoneWeights);
             if (idx == null) continue;
             if (idx.Value < 0 || idx.Value >= positions.Length) continue;
             resolved.Add(positions[idx.Value]);
@@ -2043,6 +2054,7 @@ public class VM_BodyTypeProfile : VM
         BoxCriterionSelection.MaxYMirroredAcrossX  => new[] { BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX },
         BoxCriterionSelection.MinZMirroredAcrossX  => new[] { BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX },
         BoxCriterionSelection.MaxZMirroredAcrossX  => new[] { BoundingBoxCriterion.MaxZRightOfX,   BoundingBoxCriterion.MaxZLeftOfX },
+        BoxCriterionSelection.MirrorBoneTransitionX => new[] { BoundingBoxCriterion.BoneTransitionPairMaxX, BoundingBoxCriterion.BoneTransitionPairMinX },
         _                                          => new[] { (BoundingBoxCriterion)sel },
     };
 
@@ -2124,7 +2136,8 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MinYMirroredAcrossX ||
             pick.Criterion == BoxCriterionSelection.MaxYMirroredAcrossX ||
             pick.Criterion == BoxCriterionSelection.MinZMirroredAcrossX ||
-            pick.Criterion == BoxCriterionSelection.MaxZMirroredAcrossX;
+            pick.Criterion == BoxCriterionSelection.MaxZMirroredAcrossX ||
+            pick.Criterion == BoxCriterionSelection.MirrorBoneTransitionX;
 
         // MirrorPinchX / MirrorBulgeX expand into the *paired* criteria so the two generated rows
         // resolve jointly (same Y-slice) and a PointDistance across them measures true horizontal
@@ -2144,6 +2157,8 @@ public class VM_BodyTypeProfile : VM
                 BoxCriterionSelection.MinYMirroredAcrossX  => (BoundingBoxCriterion.MinYRightOfX,   BoundingBoxCriterion.MinYLeftOfX),
                 BoxCriterionSelection.MaxYMirroredAcrossX  => (BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX),
                 BoxCriterionSelection.MinZMirroredAcrossX  => (BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX),
+                BoxCriterionSelection.MaxZMirroredAcrossX  => (BoundingBoxCriterion.MaxZRightOfX,   BoundingBoxCriterion.MaxZLeftOfX),
+                BoxCriterionSelection.MirrorBoneTransitionX => (BoundingBoxCriterion.BoneTransitionPairMaxX, BoundingBoxCriterion.BoneTransitionPairMinX),
                 _                                          => (BoundingBoxCriterion.MaxZRightOfX,   BoundingBoxCriterion.MaxZLeftOfX),
             }
             : null;
@@ -2479,6 +2494,7 @@ public class VM_BodyTypeProfile : VM
             if (MeasurementMath.TryEvaluate(m.DumpToModel(), keyVertsByName,
                 (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null,
                 shape => viewer.GetShapePositions(shape),
+                shape => viewer.GetShapeBoneInfo(shape),
                 out float v))
             {
                 m.LiveValue = v;
@@ -2610,6 +2626,11 @@ public class VM_BodyTypeProfile : VM
         Func<NamedKeyVertex, NamedKeyVertex?> findSibling = self =>
             MeasurementMath.FindPairSibling(self, bbSnapshots.Values);
 
+        // Per-shape bone-info cache so a profile with many BoneTransition rows on the same
+        // shape pays the lookup once. Most marker refreshes use Pinch/Bulge/AxisExtremum and
+        // never trigger the fetch at all.
+        var boneCache = new Dictionary<string, (int[]? Indices, float[]? Weights)>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var kv in KeyVertices)
         {
             if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
@@ -2618,8 +2639,21 @@ public class VM_BodyTypeProfile : VM
             var positions = viewer.GetShapePositions(kv.ShapeName);
             if (positions == null || positions.Length == 0) continue;
 
+            int[]? rowBoneIndices = null;
+            float[]? rowBoneWeights = null;
+            if (MeasurementMath.IsBoneTransitionCriterion(kv.Criterion))
+            {
+                if (!boneCache.TryGetValue(kv.ShapeName, out var cached))
+                {
+                    cached = viewer.GetShapeBoneInfo(kv.ShapeName);
+                    boneCache[kv.ShapeName] = cached;
+                }
+                rowBoneIndices = cached.Indices;
+                rowBoneWeights = cached.Weights;
+            }
+
             var model = bbSnapshots[kv];
-            int? idx = MeasurementMath.FindBestInBox(positions, model, kv.Criterion, findSibling);
+            int? idx = MeasurementMath.FindBestInBox(positions, model, kv.Criterion, findSibling, rowBoneIndices, rowBoneWeights);
             if (idx == null) continue;
 
             int oldIdx = kv.VertexIndex;

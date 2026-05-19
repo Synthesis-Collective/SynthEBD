@@ -213,6 +213,18 @@ public enum BoundingBoxCriterion
     [ShortLabel("Frontmost on Centerline")]
     [Description("Restricts the search to the central X/Y tube and picks the smallest Z. (Model faces -Z, so smaller Z = in front.) Use for: navel, nipple, peak-of-belly — front protrusion landmarks that should sit on the body's centerline rather than at a corner of the box. Selects 1 vertex.")]
     MinZAtCenter = 27,
+    [ShortLabel("Bone Transition Left (Min X)")]
+    [Description("Finds the anatomical seam between two rigged body parts by following the skinning data. Identifies the dominant bone of the vertex closest to the box center (the 'root' bone), then walks vertices on the X<center side outward and returns the last vertex that still belongs to the root bone — i.e. the last vertex on the inboard side before the boundary into a neighboring bone region. Use for: left underarm (root=spine, neighbor=arm), wrist, ankle, neck-base, hip socket — any anatomical landmark that sits on a bone-weight boundary. Robust across body types because the algorithm reads the rig, not the silhouette. Each side is picked independently, so the left and right rows may land at slightly different Y heights — use the Paired variant when you need both picks at the same Y. Selects 1 vertex. Falls back to plain Leftmost (Min X) on unskinned shapes.")]
+    BoneTransitionMinX = 28,
+    [ShortLabel("Bone Transition Right (Max X)")]
+    [Description("Mirror of 'Bone Transition Left': walks vertices on the X>center side outward from the box-center vertex and returns the last vertex still belonging to the root bone before the boundary into a neighboring bone region. Use for: right underarm (root=spine, neighbor=arm), and mirrored siblings of every Bone Transition Left use case. Each side is picked independently. Selects 1 vertex. Falls back to plain Rightmost (Max X) on unskinned shapes.")]
+    BoneTransitionMaxX = 29,
+    [ShortLabel("Paired Bone Transition Left (joint-Y)")]
+    [Description("Co-operates with a sibling row using 'Paired Bone Transition Right' that shares the same Shape and box. Each side independently locates its bone-transition pick (most-lateral root-bone vertex on its half), then both rows are snapped onto the average of the two picks' Y coordinates — so a PointDistance between them measures the seam-to-seam X-distance at one consistent height rather than a diagonal across slightly different Y values. Use for: underarm-to-underarm width measurement, wrist-to-wrist, ankle-to-ankle. Selects 1 vertex per row; the pair selects 2 at the same Y. Without a sibling, falls back to plain Bone Transition Left.")]
+    BoneTransitionPairMinX = 30,
+    [ShortLabel("Paired Bone Transition Right (joint-Y)")]
+    [Description("Sibling of Paired Bone Transition Left — see that entry for the joint-Y mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    BoneTransitionPairMaxX = 31,
 }
 
 // SymmetryAxes and BoxCriterionSelection enums moved to
@@ -474,6 +486,13 @@ public static class MeasurementMath
     /// per-index <see cref="VertexLookup"/> can't scan an AABB on its own.</summary>
     public delegate OpenTK.Mathematics.Vector3[]? ShapePositionsLookup(string shapeName);
 
+    /// <summary>Per-shape bone-info lookup, paired with <see cref="ShapePositionsLookup"/>. Returns the
+    /// per-vertex bone indices and weights (4 entries each, flat-packed: <c>boneIndices[vi*4+k]</c> is the
+    /// k-th bone for vertex vi with weight <c>boneWeights[vi*4+k]</c>) for the shape, or <c>(null, null)</c>
+    /// when the shape is unskinned / not loaded. Consulted only by <see cref="BoundingBoxCriterion.BoneTransitionMinX"/>
+    /// and <see cref="BoundingBoxCriterion.BoneTransitionMaxX"/>; everything else ignores it.</summary>
+    public delegate (int[]? BoneIndices, float[]? BoneWeights) ShapeBoneInfoLookup(string shapeName);
+
     /// <summary>
     /// Evaluates a measurement against a vertex lookup. Returns false when any required vertex
     /// is missing (orphaned reference, shape not loaded), denominator is near zero (ratio), or
@@ -482,9 +501,12 @@ public static class MeasurementMath
     /// entries; pass null when only Explicit vertices are in play.
     /// </summary>
     public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, out float value)
-        => TryEvaluate(def, keyVertsByName, lookup, null, out value);
+        => TryEvaluate(def, keyVertsByName, lookup, null, null, out value);
 
     public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, out float value)
+        => TryEvaluate(def, keyVertsByName, lookup, shapeLookup, null, out value);
+
+    public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, out float value)
     {
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
@@ -492,8 +514,8 @@ public static class MeasurementMath
         int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
         if (def.VertexRefNames.Count < needed) return false;
 
-        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, out var a)) return false;
-        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, out var b)) return false;
+        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, out var a)) return false;
+        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, boneLookup, out var b)) return false;
 
         switch (def.Kind)
         {
@@ -512,8 +534,8 @@ public static class MeasurementMath
                 return true;
 
             case MeasurementKind.RatioDistance:
-                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, out var c)) return false;
-                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, out var d)) return false;
+                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, out var c)) return false;
+                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, out var d)) return false;
                 float num = AxisOrLength(a - b, def.NumeratorAxis);
                 float denom = AxisOrLength(c - d, def.DenominatorAxis);
                 if (denom < 1e-6f) return false;
@@ -525,7 +547,7 @@ public static class MeasurementMath
         }
     }
 
-    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, out OpenTK.Mathematics.Vector3 pos)
+    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, out OpenTK.Mathematics.Vector3 pos)
     {
         pos = default;
         if (string.IsNullOrEmpty(vertexRefName)) return false;
@@ -543,7 +565,16 @@ public static class MeasurementMath
             {
                 findSibling = self => FindPairSibling(self, keyVertsByName.Values);
             }
-            int? idx = FindBestInBox(positions, kv, kv.Criterion, findSibling);
+            // Bone-info is only fetched when the criterion actually consults it; for everything
+            // else the lookup stays a no-op so non-skinned shapes (and host code that doesn't
+            // bother to surface a boneLookup) keep working unchanged.
+            int[]? boneIndices = null;
+            float[]? boneWeights = null;
+            if (IsBoneTransitionCriterion(kv.Criterion) && boneLookup != null)
+            {
+                (boneIndices, boneWeights) = boneLookup(kv.ShapeName);
+            }
+            int? idx = FindBestInBox(positions, kv, kv.Criterion, findSibling, boneIndices, boneWeights);
             if (idx == null) return false;
             kv.VertexIndex = idx.Value; // cache for marker display / downstream lookups
             pos = positions[idx.Value];
@@ -563,7 +594,7 @@ public static class MeasurementMath
     /// <paramref name="kv"/>, it must return the partner row (same ShapeName, identical box, opposite pair
     /// criterion) or null. When a sibling is missing the method falls back to the non-paired criterion so
     /// half-built profiles still resolve.</para></summary>
-    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion, Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null)
+    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion, Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null, int[]? boneIndices = null, float[]? boneWeights = null)
     {
         if (positions == null || positions.Length == 0) return null;
 
@@ -573,6 +604,36 @@ public static class MeasurementMath
             case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: true);
             case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: false);
             case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: false);
+            case BoundingBoxCriterion.BoneTransitionMinX:
+            case BoundingBoxCriterion.BoneTransitionMaxX:
+            {
+                bool leftSide = criterion == BoundingBoxCriterion.BoneTransitionMinX;
+                // Skinning data is required for the algorithm to mean anything. Without it
+                // (unskinned shape, host that doesn't surface a boneLookup), degrade to plain
+                // axis-extreme so the row still resolves — same fallback shape as the unpaired
+                // degradation path for Pinch/Bulge pairs.
+                if (boneIndices == null || boneWeights == null)
+                {
+                    return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+                }
+                return FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+            }
+            case BoundingBoxCriterion.BoneTransitionPairMinX:
+            case BoundingBoxCriterion.BoneTransitionPairMaxX:
+            {
+                bool leftSide = criterion == BoundingBoxCriterion.BoneTransitionPairMinX;
+                if (boneIndices == null || boneWeights == null)
+                {
+                    return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+                }
+                var sibling = findSibling?.Invoke(kv);
+                if (sibling != null)
+                {
+                    return FindPairedBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+                }
+                // No sibling — degrade to the non-paired equivalent so the row still resolves.
+                return FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+            }
             case BoundingBoxCriterion.PinchPairMinX:
             case BoundingBoxCriterion.PinchPairMaxX:
             case BoundingBoxCriterion.BulgePairMinX:
@@ -928,27 +989,43 @@ public static class MeasurementMath
         return leftSide ? minIdxPerBin[winnerBin] : maxIdxPerBin[winnerBin];
     }
 
-    /// <summary>True for the four <c>*Pair*X</c> criteria that require joint sibling resolution.</summary>
+    /// <summary>True for the six <c>*Pair*X</c> criteria that require joint sibling resolution
+    /// (four Pinch/Bulge family + two BoneTransition family).</summary>
     public static bool IsPairCriterion(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
         || criterion == BoundingBoxCriterion.PinchPairMaxX
         || criterion == BoundingBoxCriterion.BulgePairMinX
-        || criterion == BoundingBoxCriterion.BulgePairMaxX;
+        || criterion == BoundingBoxCriterion.BulgePairMaxX
+        || criterion == BoundingBoxCriterion.BoneTransitionPairMinX
+        || criterion == BoundingBoxCriterion.BoneTransitionPairMaxX;
+
+    /// <summary>True for the four criteria that need per-vertex skin weights to evaluate
+    /// (two single-side + two paired). Gating <c>boneLookup</c> on this in <see cref="TryResolve"/>
+    /// keeps the unrelated resolution paths from paying for a weight fetch they won't use.</summary>
+    public static bool IsBoneTransitionCriterion(BoundingBoxCriterion criterion)
+        => criterion == BoundingBoxCriterion.BoneTransitionMinX
+        || criterion == BoundingBoxCriterion.BoneTransitionMaxX
+        || criterion == BoundingBoxCriterion.BoneTransitionPairMinX
+        || criterion == BoundingBoxCriterion.BoneTransitionPairMaxX;
 
     /// <summary>Returns the opposite-side partner of a paired criterion (Min ↔ Max within the same
-    /// Pinch/Bulge family). Throws for non-paired inputs since callers must gate on <see cref="IsPairCriterion"/>.</summary>
+    /// Pinch/Bulge/BoneTransition family). Throws for non-paired inputs since callers must gate on
+    /// <see cref="IsPairCriterion"/>.</summary>
     public static BoundingBoxCriterion PartnerCriterion(BoundingBoxCriterion criterion) => criterion switch
     {
         BoundingBoxCriterion.PinchPairMinX => BoundingBoxCriterion.PinchPairMaxX,
         BoundingBoxCriterion.PinchPairMaxX => BoundingBoxCriterion.PinchPairMinX,
         BoundingBoxCriterion.BulgePairMinX => BoundingBoxCriterion.BulgePairMaxX,
         BoundingBoxCriterion.BulgePairMaxX => BoundingBoxCriterion.BulgePairMinX,
+        BoundingBoxCriterion.BoneTransitionPairMinX => BoundingBoxCriterion.BoneTransitionPairMaxX,
+        BoundingBoxCriterion.BoneTransitionPairMaxX => BoundingBoxCriterion.BoneTransitionPairMinX,
         _ => throw new ArgumentException($"Not a pair criterion: {criterion}", nameof(criterion)),
     };
 
     private static bool IsPairLeftSide(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
-        || criterion == BoundingBoxCriterion.BulgePairMinX;
+        || criterion == BoundingBoxCriterion.BulgePairMinX
+        || criterion == BoundingBoxCriterion.BoneTransitionPairMinX;
 
     private static bool IsPairPinch(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
@@ -1075,6 +1152,214 @@ public static class MeasurementMath
         }
 
         return bestIdx >= 0 ? bestIdx : null;
+    }
+
+    /// <summary>Single-axis extremum inside the AABB. Lifted out of the default-case loop in
+    /// <see cref="FindBestInBox"/> so the bone-transition fallback can call it directly without
+    /// re-entering the public dispatch.</summary>
+    private static int? FindAxisExtremum(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
+    {
+        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
+        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
+
+        int bestIdx = -1;
+        float bestVal = wantMax ? float.MinValue : float.MaxValue;
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            float val = axis == 0 ? p.X : (axis == 1 ? p.Y : p.Z);
+            bool isBest = wantMax ? val > bestVal : val < bestVal;
+            if (isBest) { bestVal = val; bestIdx = i; }
+        }
+        return bestIdx >= 0 ? bestIdx : null;
+    }
+
+    /// <summary>Bone-transition search. Anchors on the vertex closest to the AABB center, reads
+    /// its dominant bone, then walks vertices on the chosen side of the box's X-center outward
+    /// in X order. Returns the last vertex whose dominant bone matches the anchor's — the one
+    /// immediately inboard of the first bone change. Use cases are anatomical seams: underarm
+    /// (torso↔arm), wrist (forearm↔hand), neck base (spine↔head), etc. Configuration is
+    /// implicit in box placement (the box center defines the root bone); no name lists needed.
+    /// <para>"Dominant bone" is the bone with the highest weight among the (up to) 4 entries
+    /// for that vertex — i.e. majority-flip detection. A vertex with weights {Spine2: 0.55,
+    /// UpperArm: 0.45} is still classified Spine2; the transition triggers only after the
+    /// UpperArm weight wins outright. Simpler than an epsilon-based "any non-root weight"
+    /// rule and matches the user's wording. May be softened later if calibration shows it
+    /// picks too far inboard.</para>
+    /// <para>Trusts the user's box: no Y-slabbing inside the algorithm. If the box covers
+    /// multiple Y heights with different bone transitions (e.g. armpit + shoulder), the
+    /// outward X-walk may pick whichever transition has the smaller |X| — the user controls
+    /// this by drawing a vertically tight box around the anatomical region they're after.</para></summary>
+    private static int? FindBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, NamedKeyVertex kv, bool leftSide)
+    {
+        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
+        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
+        float cx = (minX + maxX) * 0.5f;
+        float cy = (minY + maxY) * 0.5f;
+        float cz = (minZ + maxZ) * 0.5f;
+
+        // Sanity-check the weight buffer matches the position count — a host that
+        // accidentally hands in mismatched arrays would otherwise index out of bounds.
+        if (boneIndices.Length < positions.Length * 4 || boneWeights.Length < positions.Length * 4)
+        {
+            return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+        }
+
+        // Single pass to find both (a) the anchor vertex (closest to box center, any side)
+        // and (b) the per-side candidate list (vertices on the requested side of cx, sorted by
+        // distance-from-center along X). Collecting indices into a List + sorting at the end
+        // is O(N log K) where K = box vertex count — typically a few hundred at most, so the
+        // overhead is negligible relative to the per-vertex inside-box test.
+        int anchorIdx = -1;
+        float anchorDistSq = float.MaxValue;
+        var sideCandidates = new List<int>();
+
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < minX || p.X > maxX) continue;
+            if (p.Y < minY || p.Y > maxY) continue;
+            if (p.Z < minZ || p.Z > maxZ) continue;
+
+            float dx = p.X - cx, dy = p.Y - cy, dz = p.Z - cz;
+            float distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq < anchorDistSq)
+            {
+                anchorDistSq = distSq;
+                anchorIdx = i;
+            }
+
+            // Strict inequality so the anchor isn't included as a "side" candidate
+            // when it happens to sit exactly on cx (rare but happens for symmetric boxes).
+            if (leftSide ? p.X < cx : p.X > cx) sideCandidates.Add(i);
+        }
+
+        if (anchorIdx < 0) return null;
+        int rootBone = GetDominantBone(anchorIdx, boneIndices, boneWeights);
+        if (rootBone < 0)
+        {
+            // Anchor has no weight at all — degenerate skinning data. Fall back to axis
+            // extremum rather than returning null, so the row at least picks SOMETHING.
+            return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+        }
+
+        // Sort by distance from the center going outward: for the left side that's
+        // descending X (start at largest X < cx, walk toward minX); for the right side
+        // that's ascending X (start at smallest X > cx, walk toward maxX).
+        if (leftSide)
+            sideCandidates.Sort((a, b) => positions[b].X.CompareTo(positions[a].X));
+        else
+            sideCandidates.Sort((a, b) => positions[a].X.CompareTo(positions[b].X));
+
+        // Walk outward. Track the last index whose dominant bone still matches the root —
+        // that's the vertex just inboard of the transition, which is anatomically the seam
+        // point. If we never hit a transition (the whole side is one bone), return the most
+        // extreme same-bone vertex we saw, i.e. the axis-extremum of the root region.
+        int lastRootVertex = anchorIdx;
+        foreach (var i in sideCandidates)
+        {
+            int bone = GetDominantBone(i, boneIndices, boneWeights);
+            if (bone < 0) continue; // unweighted vertex — treat as ambiguous, skip
+            if (bone != rootBone) return lastRootVertex;
+            lastRootVertex = i;
+        }
+        return lastRootVertex;
+    }
+
+    /// <summary>Paired variant of <see cref="FindBoneTransitionX"/>. Joint-Y synchronization for
+    /// Mirror-authored underarm-style measurements: each side independently locates its
+    /// bone-transition pick, then both sides are snapped onto the average of the two picks' Y
+    /// coordinates, so a PointDistance between them measures honest seam-to-seam X-distance
+    /// instead of a diagonal across slightly different heights.
+    /// <para>Algorithm: (1) run the single-side <see cref="FindBoneTransitionX"/> twice to get
+    /// independent left/right picks; (2) compute <c>avgY = (L.Y + R.Y) / 2</c>; (3) on the
+    /// requested side, return the most-lateral root-bone vertex within a tight Y-band around
+    /// <c>avgY</c>. Y-tolerance is 5% of the box's Y range with a floor of 0.2 NIF units so
+    /// even narrow boxes have a real Y window. Falls back to the single-side pick when no
+    /// root-bone vertex sits within the Y-band on the requested side (degenerate, but better
+    /// than returning null and breaking the dependent measurement).</para></summary>
+    private static int? FindPairedBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, NamedKeyVertex kv, bool leftSide)
+    {
+        // Step 1: get each side's unpaired pick.
+        int? leftPick = FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide: true);
+        int? rightPick = FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide: false);
+        if (leftPick == null && rightPick == null) return null;
+        if (leftPick == null) return leftSide ? null : rightPick;
+        if (rightPick == null) return leftSide ? leftPick : null;
+
+        // Step 2: average Y of the two picks. This is the joint Y both sides will be snapped to.
+        float avgY = (positions[leftPick.Value].Y + positions[rightPick.Value].Y) * 0.5f;
+
+        // Step 3: identify the root bone (same anchor logic as FindBoneTransitionX). Could be
+        // cached out of the sub-calls, but keeping the two passes independent keeps the
+        // single-side algorithm self-contained.
+        float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
+        float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
+        float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
+        int anchorIdx = -1;
+        float anchorDistSq = float.MaxValue;
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
+            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
+            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+            float dx = p.X - cx, dy = p.Y - cy, dz = p.Z - cz;
+            float d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 < anchorDistSq) { anchorDistSq = d2; anchorIdx = i; }
+        }
+        if (anchorIdx < 0) return leftSide ? leftPick : rightPick;
+        int rootBone = GetDominantBone(anchorIdx, boneIndices, boneWeights);
+        if (rootBone < 0) return leftSide ? leftPick : rightPick;
+
+        // Step 4: snap to most-lateral root-bone vertex within the joint Y-band on the
+        // requested side. Floor on the tolerance protects narrow boxes — without it, a box
+        // with a Y range of e.g. 8 NIF units would have a 0.4-unit window which can be tighter
+        // than typical vertex spacing on the back surface and pick nothing.
+        float yTolerance = MathF.Max(0.2f, (kv.BoxMaxY - kv.BoxMinY) * 0.05f);
+        int bestIdx = -1;
+        float bestX = leftSide ? float.MaxValue : float.MinValue;
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var p = positions[i];
+            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
+            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
+            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+            if (leftSide ? p.X >= cx : p.X <= cx) continue;
+            if (MathF.Abs(p.Y - avgY) > yTolerance) continue;
+            if (GetDominantBone(i, boneIndices, boneWeights) != rootBone) continue;
+
+            bool isBest = leftSide ? p.X < bestX : p.X > bestX;
+            if (isBest) { bestX = p.X; bestIdx = i; }
+        }
+
+        return bestIdx >= 0 ? bestIdx : (leftSide ? leftPick : rightPick);
+    }
+
+    /// <summary>Return the bone index with the highest weight among the (up to) four entries
+    /// stored for <paramref name="vertexIndex"/>. Returns -1 when every weight is zero.
+    /// The 4-per-vertex flat layout matches what NifMeshBuilder writes into SkinningInfo
+    /// (and what GlMesh.CpuBoneIndices/CpuBoneWeights surface).</summary>
+    private static int GetDominantBone(int vertexIndex, int[] boneIndices, float[] boneWeights)
+    {
+        int baseIdx = vertexIndex * 4;
+        int bestBone = -1;
+        float bestWeight = 0f;
+        for (int k = 0; k < 4; k++)
+        {
+            float w = boneWeights[baseIdx + k];
+            if (w > bestWeight)
+            {
+                bestWeight = w;
+                bestBone = boneIndices[baseIdx + k];
+            }
+        }
+        return bestBone;
     }
 
     /// <summary>Find the pair partner for <paramref name="kv"/> within <paramref name="candidates"/>.

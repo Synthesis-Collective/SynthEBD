@@ -111,6 +111,16 @@ public static class BoxCriterionSelectionTree
                 Leaf(BoxCriterionSelection.MinZAtCenter),
             }),
         new BoxCriterionSelectionCategory(
+            "Bone Transition (rig-aware)",
+            "Walks the X axis outward from the box-center vertex and returns the last vertex still belonging to the root vertex's dominant bone — i.e. the seam between two rigged body parts. Robust across body types because the algorithm reads the skin weights, not the silhouette. The Paired variants additionally snap both sides to the average Y of the two single-side picks, so a PointDistance between them measures seam-to-seam X width at one consistent height.",
+            new[]
+            {
+                Leaf(BoxCriterionSelection.BoneTransitionMaxX),
+                Leaf(BoxCriterionSelection.BoneTransitionMinX),
+                Leaf(BoxCriterionSelection.BoneTransitionPairMaxX),
+                Leaf(BoxCriterionSelection.BoneTransitionPairMinX),
+            }),
+        new BoxCriterionSelectionCategory(
             "Mirror Shortcuts (one drag → two rows)",
             "Authoring conveniences. Picking one of these tells the editor to materialize TWO key-vertex rows that share this box but use opposite (or paired) single-axis criteria — one click captures both sides of a symmetric landmark instead of two.",
             new[]
@@ -124,6 +134,7 @@ public static class BoxCriterionSelectionTree
                 Leaf(BoxCriterionSelection.MaxYMirroredAcrossX),
                 Leaf(BoxCriterionSelection.MinZMirroredAcrossX),
                 Leaf(BoxCriterionSelection.MaxZMirroredAcrossX),
+                Leaf(BoxCriterionSelection.MirrorBoneTransitionX),
             }),
     };
 

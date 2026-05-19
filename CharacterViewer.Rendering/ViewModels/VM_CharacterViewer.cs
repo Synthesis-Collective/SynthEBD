@@ -2367,6 +2367,21 @@ public class VM_CharacterViewer : ViewerVm
         return dst;
     }
 
+    /// <summary>Companion to <see cref="GetShapePositions"/> that surfaces the per-vertex
+    /// bone indices + weights (4 entries each per vertex, flat-packed) for the bone-transition
+    /// criterion in <c>MeasurementMath.FindBestInBox</c>. Returns <c>(null, null)</c> when the
+    /// shape isn't loaded, has no CPU-side geometry, or wasn't skinned (e.g. static accessories).
+    /// The arrays are not cloned — callers must treat them as read-only.</summary>
+    public (int[]? BoneIndices, float[]? BoneWeights) GetShapeBoneInfo(string shapeName)
+    {
+        if (string.IsNullOrEmpty(shapeName)) return (null, null);
+        var mesh = Renderer.Meshes.FirstOrDefault(m =>
+            string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+        if (mesh?.CpuBoneIndices == null || mesh.CpuBoneWeights == null) return (null, null);
+        if (mesh.CpuBoneIndices.Length == 0 || mesh.CpuBoneWeights.Length == 0) return (null, null);
+        return (mesh.CpuBoneIndices, mesh.CpuBoneWeights);
+    }
+
     /// <summary>
     /// Returns the current per-shape vertex counts for every renderable mesh that has CPU-side
     /// positions. Used by the BodyTypeProfile editor to capture/refresh the
@@ -4203,6 +4218,17 @@ public class VM_CharacterViewer : ViewerVm
         // Store CPU-side geometry for ray-based hit testing
         glMesh.CpuPositions = (Vector3[])built.Positions.Clone();
         glMesh.CpuIndices = (int[])built.Indices.Clone();
+
+        // Persist per-vertex bone indices + weights from the SkinningInfo so the
+        // classifier's bone-transition criterion can find anatomical seams (e.g.
+        // armpit = the boundary between torso-bone-weighted and arm-bone-weighted
+        // vertices). Cloned because the BuiltMesh is shared via the NIF parse
+        // cache and BodySlide deformations re-read it. Null for unskinned shapes.
+        if (built.Skinning != null && built.Skinning.VertBoneIndices.Length > 0)
+        {
+            glMesh.CpuBoneIndices = (int[])built.Skinning.VertBoneIndices.Clone();
+            glMesh.CpuBoneWeights = (float[])built.Skinning.VertBoneWeights.Clone();
+        }
 
         return glMesh;
     }

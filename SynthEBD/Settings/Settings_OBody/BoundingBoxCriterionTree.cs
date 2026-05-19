@@ -106,6 +106,16 @@ public static class BoundingBoxCriterionTree
                 Leaf(BoundingBoxCriterion.MaxZAtCenter),
                 Leaf(BoundingBoxCriterion.MinZAtCenter),
             }),
+        new BoundingBoxCriterionCategory(
+            "Bone Transition (rig-aware)",
+            "Walks the X axis outward from the box-center vertex and returns the last vertex still belonging to the root vertex's dominant bone — i.e. the seam between two rigged body parts. Robust across body types because the algorithm reads the skin weights, not the silhouette. Position the box so its center sits inside the 'inboard' region and the boundary you want is the first bone change going outward. The Paired variants additionally snap both sides to the average Y of the two single-side picks, so a PointDistance between them measures seam-to-seam X width at one consistent height.",
+            new[]
+            {
+                Leaf(BoundingBoxCriterion.BoneTransitionMaxX),
+                Leaf(BoundingBoxCriterion.BoneTransitionMinX),
+                Leaf(BoundingBoxCriterion.BoneTransitionPairMaxX),
+                Leaf(BoundingBoxCriterion.BoneTransitionPairMinX),
+            }),
     };
 
     private static BoundingBoxCriterionLeaf Leaf(BoundingBoxCriterion c)

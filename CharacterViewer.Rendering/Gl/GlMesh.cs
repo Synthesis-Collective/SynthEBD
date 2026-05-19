@@ -138,6 +138,15 @@ public class GlMesh : IDisposable
     public System.Numerics.Vector3[]? CpuPositions { get; set; }
     public int[]? CpuIndices { get; set; }
 
+    // CPU-side per-vertex skin weights. Both arrays are flat with 4 entries per
+    // vertex (CpuBoneIndices[vi*4 + k] is the k-th bone for vertex vi, with
+    // CpuBoneWeights[vi*4 + k] the corresponding weight). Populated from the
+    // SkinningInfo when the BuiltMesh has one; null for unskinned shapes.
+    // Consumed by the bone-transition Criterion on the SynthEBD side to find
+    // anatomical seams (e.g. armpit = torso/arm bone boundary).
+    public int[]? CpuBoneIndices { get; set; }
+    public float[]? CpuBoneWeights { get; set; }
+
     // Metadata
     public string ShapeName { get; set; } = "";
     public string BodyPart { get; set; } = "";

@@ -126,6 +126,18 @@ public enum BoxCriterionSelection
     [ShortLabel("Frontmost on Centerline")]
     [Description("Restricts the search to the central X/Y tube and picks the smallest Z. (Model faces -Z, so smaller Z = in front.) Use for: navel, nipple, peak-of-belly — front protrusion landmarks that should sit on the body's centerline rather than at a corner of the box. Selects 1 vertex.")]
     MinZAtCenter = 27,
+    [ShortLabel("Bone Transition Left (Min X)")]
+    [Description("Finds the anatomical seam between two rigged body parts by following the skinning data. Identifies the dominant bone of the vertex closest to the box center (the 'root' bone), then walks vertices on the X<center side outward and returns the last vertex that still belongs to the root bone — i.e. the last vertex on the inboard side before the boundary into a neighboring bone region. Use for: left underarm (root=spine, neighbor=arm), wrist, ankle, neck-base, hip socket — any anatomical landmark on a bone-weight boundary. Robust across body types because the algorithm reads the rig, not the silhouette. Each side is picked independently — use the Paired variant when both picks need to be at the same Y. Selects 1 vertex. Falls back to plain Leftmost (Min X) on unskinned shapes.")]
+    BoneTransitionMinX = 28,
+    [ShortLabel("Bone Transition Right (Max X)")]
+    [Description("Mirror of 'Bone Transition Left': walks vertices on the X>center side outward from the box-center vertex and returns the last vertex still belonging to the root bone. Each side is picked independently. Selects 1 vertex. Falls back to plain Rightmost (Max X) on unskinned shapes.")]
+    BoneTransitionMaxX = 29,
+    [ShortLabel("Paired Bone Transition Left (joint-Y)")]
+    [Description("Co-operates with a sibling row using 'Paired Bone Transition Right' that shares the same Shape and box. Each side independently locates its bone-transition pick, then both rows are snapped onto the average of the two picks' Y coordinates — so a PointDistance between them measures the seam-to-seam X-distance at one consistent height. Use for: underarm-to-underarm width, wrist-to-wrist, ankle-to-ankle. Selects 1 vertex per row; the pair selects 2 at the same Y. Without a sibling, falls back to plain Bone Transition Left.")]
+    BoneTransitionPairMinX = 30,
+    [ShortLabel("Paired Bone Transition Right (joint-Y)")]
+    [Description("Sibling of Paired Bone Transition Left — see that entry for the joint-Y mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    BoneTransitionPairMaxX = 31,
     [ShortLabel("Mirror Left/Right (X)")]
     [Description("Authoring shortcut: one drag, two rows. Creates 'Rightmost (Max X)' + 'Leftmost (Min X)' rows sharing this box — captures both sides of a symmetric left/right feature at once. Picks 2 vertices total.")]
     MirrorX = 100,
@@ -153,4 +165,7 @@ public enum BoxCriterionSelection
     [ShortLabel("Mirror Backmost L/R Half (Max Z)")]
     [Description("Authoring shortcut: one drag, two rows. Creates 'Backmost on Left Half' + 'Backmost on Right Half' rows sharing this box — each row picks the back-most vertex on its half. (Model faces -Z, so larger Z = behind.) Use for: back-of-each-buttock, back-of-each-tricep. Picks 2 vertices total.")]
     MaxZMirroredAcrossX = 108,
+    [ShortLabel("Mirror Bone Transition (X)")]
+    [Description("Authoring shortcut: one drag, two rows. Creates 'Bone Transition Left' + 'Bone Transition Right' rows sharing this box — each row walks outward from the box-center vertex on its side and stops at the first bone change. Use for: underarm-to-underarm (box centered on spine at armpit Y), wrist-to-wrist, ankle-to-ankle. Robust across body types because the algorithm reads the rig rather than the silhouette. Picks 2 vertices total.")]
+    MirrorBoneTransitionX = 109,
 }

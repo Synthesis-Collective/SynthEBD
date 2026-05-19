@@ -260,11 +260,13 @@ public class NifMeshBuilder
         /// <summary>Pre-computed skinning matrices (boneWorld * inverseBindPose) per bone, in NIF Z-up space.</summary>
         internal CachedSkinTransform[] BoneTransforms { get; init; } = Array.Empty<CachedSkinTransform>();
 
-        /// <summary>Per-vertex bone indices, 4 per vertex, stored flat [v0_b0, v0_b1, v0_b2, v0_b3, v1_b0, ...].</summary>
-        internal int[] VertBoneIndices { get; init; } = Array.Empty<int>();
+        /// <summary>Per-vertex bone indices, 4 per vertex, stored flat [v0_b0, v0_b1, v0_b2, v0_b3, v1_b0, ...].
+        /// Public so cross-assembly consumers (the bone-transition criterion in SynthEBD) can read them.</summary>
+        public int[] VertBoneIndices { get; init; } = Array.Empty<int>();
 
-        /// <summary>Per-vertex bone weights, 4 per vertex, stored flat (same layout as VertBoneIndices).</summary>
-        internal float[] VertBoneWeights { get; init; } = Array.Empty<float>();
+        /// <summary>Per-vertex bone weights, 4 per vertex, stored flat (same layout as VertBoneIndices).
+        /// Public for the same reason as <see cref="VertBoneIndices"/>.</summary>
+        public float[] VertBoneWeights { get; init; } = Array.Empty<float>();
 
         /// <summary>Number of vertices this skinning data applies to.</summary>
         public int VertexCount { get; init; }
