@@ -202,7 +202,16 @@
         <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
                 BorderBrush="Gray" BorderThickness="0,0,0,1"
                 Padding="0,0,0,5" Margin="0,0,0,5">
-            <StackPanel Orientation="Horizontal">
+            <!-- DockPanel (not StackPanel) so the Keyboard Shortcuts button can sit
+                 right-justified at the far end of the row while the existing
+                 ComboBox + Add/Delete/Duplicate/Export/Import buttons keep their
+                 left-aligned horizontal flow. LastChildFill=False because we want
+                 the right-docked button to keep its natural width rather than
+                 expanding to fill the gap between it and the import button. -->
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Right" Content="Keyboard Shortcuts"
+                        Click="KeyboardShortcuts_Click" Padding="8,1"
+                        ToolTip="Lists every keyboard shortcut available in this menu, broken down per tab plus the global preset-iteration shortcuts."/>
                 <TextBlock Text="Body Type Profiles:" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <ComboBox ItemsSource="{Binding Profiles}"
@@ -218,7 +227,7 @@
                         ToolTip="Save the selected profile to a JSON file for sharing or backup."/>
                 <Button Content="Import" Command="{Binding ImportProfile}" Padding="6,1"
                         ToolTip="Load a profile from a JSON file and append it to this list."/>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- Resizable splitter between the profile panel and the embedded viewer. -->
@@ -724,6 +733,13 @@
 
                             <TabItem Header="Preview">
                                 <DockPanel>
+                                    <!-- Ctrl+Shift+S mirrors the Measurements-tab shortcut: writes the
+                                         currently-evaluated measurement table for the loaded preset+weight
+                                         to a CSV named {PresetLabel}_w{Weight}_Measurements.csv. Same
+                                         underlying SaveMeasurementsToCsvFile on the profile VM. -->
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                    </DockPanel.InputBindings>
                                     <TextBlock DockPanel.Dock="Top" Margin="0,5,0,3" TextWrapping="Wrap"
                                                Text="Rules that match the currently-loaded preset, including drafts. Draft matches are shown in orange -- they're safely skipped by the real classifier pipeline, so calibrating thresholds here won't leak descriptors. Refreshes automatically whenever the viewer's preset or weight changes."/>
                                     <TextBlock DockPanel.Dock="Top" Text="{Binding PreviewStatus}" Margin="0,0,0,5"
@@ -748,6 +764,15 @@
 
                             <TabItem Header="Match Presets">
                                 <Grid>
+                                    <!-- Ctrl+Shift+S mirrors the Measurements-tab shortcut: writes the
+                                         currently-evaluated measurement table for the loaded preset+weight
+                                         to a CSV named {PresetLabel}_w{Weight}_Measurements.csv. Operates
+                                         on whichever (preset, weight) the viewer is currently showing — for
+                                         this tab that's whatever scan row is selected, since arrow-key
+                                         navigation auto-applies the row through SelectedPreset/PreviewWeight. -->
+                                    <Grid.InputBindings>
+                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                    </Grid.InputBindings>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>

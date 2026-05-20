@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace SynthEBD;
@@ -12,14 +14,232 @@ public partial class UC_BodyTypeProfileEditor : UserControl
 {
     private bool _presetsPrimed;
 
+    /// <summary>Active iteration timer when Ctrl+I has put the editor in
+    /// auto-cycle-presets mode; null otherwise. Tested as the on/off flag.</summary>
+    private DispatcherTimer? _iterationTimer;
+
+    /// <summary>Current per-step delay while iterating. Bounded by
+    /// <see cref="MinIterationDelayMs"/> and <see cref="MaxIterationDelayMs"/>;
+    /// + / - apply <see cref="IterationSpeedFactor"/> multiplicatively.</summary>
+    private int _iterationDelayMs = 1000;
+
+    private const int MinIterationDelayMs = 500;
+    private const int MaxIterationDelayMs = 10_000;
+    private const double IterationSpeedFactor = 0.75;
+
     public UC_BodyTypeProfileEditor()
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += (_, _) => StopIteration();
         DataContextChanged += OnDataContextChanged;
+        // PreviewKeyDown is the tunneling phase, fired top-down from the root before
+        // any child gets the event in the bubbling phase. Necessary here because the
+        // viewer's HwndHost surface and DataGrid cells routinely consume keystrokes
+        // before bubbling reaches the outer UserControl, and we want the iteration
+        // shortcuts to work no matter where focus sits inside the editor.
+        PreviewKeyDown += OnEditorPreviewKeyDown;
+    }
+
+    /// <summary>Handles the editor's global keyboard shortcuts.
+    /// <list type="bullet">
+    ///   <item>Ctrl+I — toggle auto-iteration through the current
+    ///         <c>VM_BodyTypeProfileEditor.FilteredPresets</c> at
+    ///         <see cref="_iterationDelayMs"/>, cycling indefinitely until
+    ///         Escape or another Ctrl+I.</item>
+    ///   <item>+ / - (top-row or numpad) — halve / double the per-step delay
+    ///         while iteration is active, clamped to
+    ///         [<see cref="MinIterationDelayMs"/>,
+    ///         <see cref="MaxIterationDelayMs"/>].</item>
+    ///   <item>Escape — stop iteration.</item>
+    /// </list>
+    /// Sets <c>e.Handled</c> only on keys we actually consume so normal text
+    /// input, DataGrid navigation, and the existing per-tab shortcuts continue
+    /// to work undisturbed.</summary>
+    private void OnEditorPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // Ctrl+I toggles iteration. Reject Shift/Alt modifiers so Ctrl+Shift+I
+        // (browser dev tools muscle memory) doesn't accidentally fire.
+        if (e.Key == Key.I
+            && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control
+            && (Keyboard.Modifiers & ModifierKeys.Shift) == 0
+            && (Keyboard.Modifiers & ModifierKeys.Alt) == 0)
+        {
+            ToggleIteration();
+            e.Handled = true;
+            return;
+        }
+
+        // The remaining shortcuts only fire while iteration is active — they'd be
+        // surprising to consume otherwise (e.g. + and - are common in numeric grids).
+        if (_iterationTimer == null) return;
+
+        switch (e.Key)
+        {
+            case Key.Escape:
+                StopIteration();
+                e.Handled = true;
+                break;
+            case Key.OemPlus:  // top-row '=' / '+'
+            case Key.Add:      // numpad '+'
+                ChangeIterationSpeed(faster: true);
+                e.Handled = true;
+                break;
+            case Key.OemMinus: // top-row '-' / '_'
+            case Key.Subtract: // numpad '-'
+                ChangeIterationSpeed(faster: false);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>Starts iteration if currently off, stops if on. Iteration walks
+    /// <c>VM_BodyTypeProfileEditor.FilteredPresets</c> (respects any active filter
+    /// text) at <see cref="_iterationDelayMs"/> intervals, wrapping at the end.
+    /// The first tick advances PAST the currently-selected preset so the user
+    /// sees a change immediately even though their current preset is already
+    /// rendered. PreviewWeight is left alone so the user's choice of weight
+    /// holds across the entire run.</summary>
+    private void ToggleIteration()
+    {
+        if (_iterationTimer != null)
+        {
+            StopIteration();
+            return;
+        }
+        if (DataContext is not VM_BodyTypeProfileEditor vm) return;
+        if (vm.FilteredPresets == null || vm.FilteredPresets.Count == 0)
+        {
+            vm.Logger?.LogMessage("BodyTypeProfile iteration: no presets to cycle.");
+            return;
+        }
+
+        _iterationTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(_iterationDelayMs),
+        };
+        _iterationTimer.Tick += OnIterationTick;
+        _iterationTimer.Start();
+        vm.Logger?.LogMessage($"BodyTypeProfile iteration: started at {_iterationDelayMs}ms/step "
+            + $"({vm.FilteredPresets.Count} preset(s), weight {vm.PreviewWeight}). "
+            + "+/- adjusts speed, Escape stops.");
+    }
+
+    private void StopIteration()
+    {
+        if (_iterationTimer == null) return;
+        _iterationTimer.Stop();
+        _iterationTimer.Tick -= OnIterationTick;
+        _iterationTimer = null;
+        if (DataContext is VM_BodyTypeProfileEditor vm)
+        {
+            vm.Logger?.LogMessage("BodyTypeProfile iteration: stopped.");
+        }
+    }
+
+    /// <summary>One step of the iteration. Re-resolves the current preset's
+    /// position in <c>FilteredPresets</c> each tick rather than carrying an
+    /// index across ticks, so a mid-iteration filter change or list rebuild
+    /// doesn't desynchronize. Falls off to <c>StopIteration</c> when the list
+    /// becomes empty (filter text typed to a no-match string, gender changed
+    /// to one with no presets, etc.).</summary>
+    private void OnIterationTick(object? sender, EventArgs e)
+    {
+        if (DataContext is not VM_BodyTypeProfileEditor vm)
+        {
+            StopIteration();
+            return;
+        }
+        var presets = vm.FilteredPresets;
+        if (presets == null || presets.Count == 0)
+        {
+            StopIteration();
+            return;
+        }
+
+        // Find the current preset's index in today's list; if it's not there
+        // (filter changed under us, etc.), restart at 0. Otherwise advance one
+        // with wrap-around.
+        int currentIdx = vm.SelectedPreset != null
+            ? presets.IndexOf(vm.SelectedPreset)
+            : -1;
+        int nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % presets.Count;
+        vm.SelectedPreset = presets[nextIdx];
+    }
+
+    private void ChangeIterationSpeed(bool faster)
+    {
+        if (_iterationTimer == null) return;
+        int newDelay = faster
+            ? Math.Max(MinIterationDelayMs, (int)Math.Round(_iterationDelayMs * IterationSpeedFactor))
+            : Math.Min(MaxIterationDelayMs, (int)Math.Round(_iterationDelayMs / IterationSpeedFactor));
+        if (newDelay == _iterationDelayMs) return; // already clamped at the bound
+        _iterationDelayMs = newDelay;
+        _iterationTimer.Interval = TimeSpan.FromMilliseconds(_iterationDelayMs);
+        if (DataContext is VM_BodyTypeProfileEditor vm)
+        {
+            vm.Logger?.LogMessage($"BodyTypeProfile iteration: {_iterationDelayMs}ms/step");
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e) => TryPrime();
+
+    /// <summary>Opens a SynthEBD-style OK dialog listing every keyboard shortcut
+    /// available in this editor, broken down per tab plus the global
+    /// preset-iteration shortcuts. Text is hard-coded here rather than fetched
+    /// from XAML because (a) WPF's per-tab DockPanel.InputBindings don't expose
+    /// a single enumerable view, (b) keeping the prose tight enough to read at
+    /// a glance is more important than auto-derivation, and (c) any future
+    /// shortcut author touches both this list and the XAML in the same edit
+    /// anyway. If a shortcut here ever falls out of sync with the actual
+    /// bindings, the fix is to update both.</summary>
+    private void KeyboardShortcuts_Click(object sender, RoutedEventArgs e)
+    {
+        // Each entry is a single paragraph; the window's TextWrapping=Wrap handles
+        // long lines at render time. Avoid mid-description newlines — they create
+        // misaligned "hanging" lines under WPF's TextBox wrap, because wrapped
+        // continuation doesn't track the original column indent.
+        const string text =
+@"GLOBAL (anywhere in the Body Type Profiles menu)
+
+Ctrl+I: Toggle iteration through the filtered preset list at the currently-selected weight. Default cadence is 1 sec / step.
+
++ / -: While iterating, speed up / slow down. Multiplicative step of 0.75, clamped to 500-10000 ms/step.
+
+Esc: While iterating, stop.
+
+KEY VERTICES TAB
+
+Ctrl+S: Save Key Vertices to JSON.
+
+Ctrl+L: Load Key Vertices from JSON. Replaces the current list after a confirm dialog.
+
+MEASUREMENTS TAB
+
+Ctrl+S: Save Measurements to JSON. Definitions only — no live values.
+
+Ctrl+L: Load Measurements from JSON. Replaces the current list after a confirm dialog.
+
+Ctrl+Shift+S: Save Measurements to CSV including the LiveValue column evaluated against the currently-loaded preset and weight. Default filename: {PresetLabel}_w{Weight}_Measurements.csv
+
+Ctrl+C: Copy the Measurements table to the clipboard as TSV. Pastes directly into Excel / Sheets without an import wizard.
+
+RULES TAB
+
+Ctrl+S: Save Rules to JSON.
+
+Ctrl+L: Load Rules from JSON. Replaces the current list after a confirm dialog.
+
+PREVIEW TAB
+
+Ctrl+Shift+S: Save Measurements + LiveValues to CSV for the currently-previewed preset and weight. Same format and filename convention as the Measurements tab.
+
+MATCH PRESETS TAB
+
+Ctrl+Shift+S: Save Measurements + LiveValues to CSV for whichever scan row is currently selected. Arrow-key navigation auto-loads each row.
+";
+        MessageWindow.DisplayNotificationOK("Body Type Profiles — Keyboard Shortcuts", text);
+    }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {

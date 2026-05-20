@@ -2917,12 +2917,38 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Dumps the Measurements grid to a CSV file via the standard save dialog.
     /// Includes the LiveValue column so the snapshot captures what's currently evaluated
     /// against the loaded mesh; developer-only convenience, not exposed in the UI beyond
-    /// the Ctrl+S keybinding. Default filename derives from the profile name.</summary>
+    /// the Ctrl+Shift+S keybinding (bound on the Measurements, Preview, and Match Presets
+    /// tabs — all three operate on whichever preset+weight is currently loaded in the
+    /// viewer, so they all share this single command).
+    /// <para>Default filename is <c>{PresetLabel}_w{Weight}_Measurements.csv</c>,
+    /// matching the convention used in the calibration reference set. Falls back to
+    /// <c>measurements.csv</c> when no preset is selected (e.g. user invokes the shortcut
+    /// before loading anything).</para></summary>
     private void SaveMeasurementsToCsvFile()
     {
         if (Measurements.Count == 0) return;
-        string baseName = string.IsNullOrWhiteSpace(Name) ? "measurements" : Name.Trim().Replace(' ', '_');
-        string defaultName = baseName + "_measurements.csv";
+
+        string defaultName;
+        var preset = _parent?.SelectedPreset;
+        if (preset != null && !string.IsNullOrWhiteSpace(preset.Label))
+        {
+            // Spaces are kept as-is in reference filenames (see Round 2's "Fighter3BA"
+            // vs "Different Bodies - Petite to BBW"); only sanitize characters Windows
+            // outright bans in filenames. Falling back to '_' for those keeps the result
+            // copy-pasteable into a directory listing.
+            string label = preset.Label.Trim();
+            foreach (char ch in System.IO.Path.GetInvalidFileNameChars())
+            {
+                label = label.Replace(ch, '_');
+            }
+            int weight = _parent!.PreviewWeight;
+            defaultName = $"{label}_w{weight}_Measurements.csv";
+        }
+        else
+        {
+            defaultName = "measurements.csv";
+        }
+
         if (!IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
                 ".csv", "Save Measurements as CSV", out string path, defaultName))
         {
