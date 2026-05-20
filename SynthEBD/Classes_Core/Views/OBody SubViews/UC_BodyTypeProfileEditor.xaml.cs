@@ -230,6 +230,10 @@ Ctrl+S: Save Rules to JSON.
 
 Ctrl+L: Load Rules from JSON. Replaces the current list after a confirm dialog.
 
+LABEL-THEN-SUGGEST TAB
+
+Ctrl+Shift+S: Save Measurements + LiveValues to CSV for the currently-loaded preset and weight. Same format and filename convention as the Measurements tab.
+
 PREVIEW TAB
 
 Ctrl+Shift+S: Save Measurements + LiveValues to CSV for the currently-previewed preset and weight. Same format and filename convention as the Measurements tab.

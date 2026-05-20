@@ -716,6 +716,14 @@
                                      VM_BodyTypeProfileEditor (one level up). Walk RelativeSource
                                      to the root UserControl and pull from its DataContext. -->
                                 <DockPanel>
+                                    <!-- Ctrl+Shift+S mirrors the Measurements / Preview / Match Presets
+                                         tabs: writes the currently-evaluated measurement table for the
+                                         loaded preset+weight to a CSV named
+                                         {PresetLabel}_w{Weight}_Measurements.csv. Same underlying
+                                         SaveMeasurementsToCsvFile on the profile VM. -->
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                    </DockPanel.InputBindings>
                                     <local:UC_PresetAnnotationEditor DockPanel.Dock="Top"
                                                                       DataContext="{Binding DataContext.AnnotationEditor, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                                       MaxHeight="260"/>
