@@ -231,6 +231,31 @@ public static class BodySlideMeasurementEvaluator
         if (profile.Fingerprint.ShapeVertexCounts == null || profile.Fingerprint.ShapeVertexCounts.Count == 0)
             return true;
 
+        // Vertex-count fingerprint only matters for Explicit-strategy KVs, whose
+        // VertexIndex is a literal pointer into the authored mesh — if the live
+        // mesh has a different vertex count it's almost certainly a different
+        // body variant and the indices land on wrong anatomy. BoundingBox-strategy
+        // KVs re-resolve from scratch on every evaluation by scanning the live
+        // mesh's vertices inside an AABB, so they survive vertex-count changes
+        // unscathed (CBBE 18436 vs 12740 etc.). Profiles that mix strategies must
+        // still match on count because the Explicit KVs would silently corrupt.
+        // Note: this only suppresses the spurious TopologyMismatch flag — the
+        // engine still emits measurements either way, since the per-KV resolver
+        // either finds a candidate or fails on its own merits.
+        bool hasExplicitKeyVertices = false;
+        if (profile.KeyVertices != null)
+        {
+            foreach (var kv in profile.KeyVertices)
+            {
+                if (kv != null && kv.Strategy == KeyVertexStrategy.Explicit)
+                {
+                    hasExplicitKeyVertices = true;
+                    break;
+                }
+            }
+        }
+        if (!hasExplicitKeyVertices) return true;
+
         var counts = viewer.GetCurrentShapeVertexCounts();
         return ShapeCountsMatch(profile.Fingerprint.ShapeVertexCounts, counts);
     }
