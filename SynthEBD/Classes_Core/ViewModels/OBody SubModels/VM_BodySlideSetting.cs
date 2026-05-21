@@ -254,6 +254,30 @@ public class VM_BodySlideSetting : VM
             slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(result.Descriptors);
             UpdateAggregateAnnotationState();
 
+            // Parallel diagnostic to the Match Presets scan: when the viewer's
+            // VerboseLog toggle is on, dump the same key-measurement summary the
+            // scan emits, so live-preview vs cached-scan output can be compared
+            // for the same (preset, weight). Same set of measurement keys.
+            if (CharacterViewer != null && CharacterViewer.VerboseLog)
+            {
+                string FmtMeas(string key)
+                {
+                    if (result.Measurements.TryGetValue(key, out var v))
+                        return v.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                    if (result.FailedMeasurements.TryGetValue(key, out var why))
+                        return "FAIL(" + why + ")";
+                    return "—";
+                }
+                _logger?.LogMessage($"BodySlide Classifier live [{(model.Label ?? "?")}]@W{slot.Weight}: "
+                    + $"npcW={CharacterViewer.NpcWeight} sceneReady={CharacterViewer.IsSceneReady} "
+                    + $"cp={FmtMeas("chest_projection")} wh={FmtMeas("waist_to_hip")} "
+                    + $"csr={FmtMeas("chest_sag_ratio")} att={FmtMeas("arm_thickness_to_torso")} "
+                    + $"bp={FmtMeas("belly_projection")} hpt={FmtMeas("hip_to_torso")} "
+                    + $"ww={FmtMeas("waist_width")} hipW={FmtMeas("hip_width")} "
+                    + $"meas={result.Measurements.Count} failed={result.FailedMeasurements.Count} "
+                    + $"topoMismatch={result.TopologyMismatch} ruleMatches={result.Descriptors.Count}");
+            }
+
             if (result.TopologyMismatch)
             {
                 _logger?.LogMessage("BodySlide Classifier: topology fingerprint mismatch on profile '"

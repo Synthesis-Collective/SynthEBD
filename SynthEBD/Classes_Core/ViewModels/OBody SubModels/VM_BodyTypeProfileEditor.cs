@@ -841,6 +841,19 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanStatus = $"Scanning {done + 1}/{missing.Count}: {model.Label} @ {weight}" +
                              (reused > 0 ? $" ({reused} cached)" : "");
 
+                // Per-iteration diagnostic: snapshot viewer state right before the
+                // ApplyBodySlide so we can see whether the call entered the "queued
+                // for later commit" branch or actually deformed.
+                bool preIsSceneReady = false;
+                int preNpcWeight = -1;
+                int preCachedMeshCount = -1;
+                if (VerboseScan)
+                {
+                    try { preIsSceneReady = viewer.IsSceneReady; } catch { }
+                    try { preNpcWeight = viewer.NpcWeight; } catch { }
+                    try { preCachedMeshCount = viewer.GetCurrentShapeVertexCounts().Count; } catch { }
+                }
+
                 viewer.ApplyBodySlide(model, weight);
                 // Yield BELOW DispatcherPriority.Render so WPF actually paints the
                 // progress-bar update before the next iteration. Task.Yield posts at
@@ -853,6 +866,36 @@ public class VM_BodyTypeProfileEditor : VM
                 await Dispatcher.Yield(DispatcherPriority.Background);
 
                 var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+
+                if (VerboseScan)
+                {
+                    // Dump key measurements + viewer state so we can correlate scan
+                    // output with CSV exports and detect deformation issues at extreme
+                    // weights. Keys chosen to cover the most commonly-misbehaving rules:
+                    // Cup/Chest (cp), UnrealisticWaist (wh), ChestSag (csr), Arms (att),
+                    // Belly/Shape Apple gate (bp), Hips (hpt), waist_width raw, hip_width.
+                    string FmtMeas(string key)
+                    {
+                        if (result.Measurements.TryGetValue(key, out var v))
+                            return v.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+                        if (result.FailedMeasurements.TryGetValue(key, out var why))
+                            return "FAIL(" + why + ")";
+                        return "—";
+                    }
+                    int postNpcWeight = -1;
+                    bool postIsSceneReady = false;
+                    try { postNpcWeight = viewer.NpcWeight; } catch { }
+                    try { postIsSceneReady = viewer.IsSceneReady; } catch { }
+                    _logger?.LogMessage($"BodyTypeProfile scan iter [{done + 1}/{missing.Count}] '{model.Label}'@W{weight}: "
+                        + $"pre(sceneReady={preIsSceneReady},npcW={preNpcWeight},cachedMeshes={preCachedMeshCount}) "
+                        + $"post(sceneReady={postIsSceneReady},npcW={postNpcWeight}) "
+                        + $"cp={FmtMeas("chest_projection")} wh={FmtMeas("waist_to_hip")} "
+                        + $"csr={FmtMeas("chest_sag_ratio")} att={FmtMeas("arm_thickness_to_torso")} "
+                        + $"bp={FmtMeas("belly_projection")} hpt={FmtMeas("hip_to_torso")} "
+                        + $"ww={FmtMeas("waist_width")} hipW={FmtMeas("hip_width")} "
+                        + $"meas={result.Measurements.Count} failed={result.FailedMeasurements.Count} "
+                        + $"topoMismatch={result.TopologyMismatch} ruleMatches={result.Descriptors.Count}");
+                }
 
                 // Persist measurements (not descriptors) into the shared cache. Descriptors
                 // are derived later via DeriveDescriptorsFor + the profile's current rules.
