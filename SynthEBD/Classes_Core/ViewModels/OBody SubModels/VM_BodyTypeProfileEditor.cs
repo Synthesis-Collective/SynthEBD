@@ -324,6 +324,67 @@ public class VM_BodyTypeProfileEditor : VM
         base.Dispose();
     }
 
+    /// <summary>Re-syncs <see cref="AvailableDescriptors"/> from the live
+    /// <c>DescriptorUI</c> state on the parent <see cref="VM_SettingsOBody"/>. Called when
+    /// the Rules tab becomes visible so descriptors added in OBody Misc Settings →
+    /// Descriptors (which only writes back to <c>Settings_OBody.TemplateDescriptors</c> on
+    /// save) are picked up here without forcing a save round-trip.
+    /// <para>
+    /// Performs an additive/subtractive diff so downstream subscribers (each profile's
+    /// <see cref="VM_BodyTypeProfile.RebuildRuleTree"/>) fire at most once per actually-
+    /// changed (Category, Value) — wholesale Clear+AddAll would emit one rebuild per item.
+    /// </para></summary>
+    public void RefreshAvailableDescriptorsFromLiveSettings()
+    {
+        var oBody = _oBodyVM?.Invoke();
+        if (oBody?.DescriptorUI == null) return;
+
+        // DumpToViewModels round-trips through the model type so we get the same shape
+        // CopyInViewModelFromModel originally read at startup — no risk of de-syncing with
+        // whatever the model-side considers the canonical form.
+        var live = oBody.DescriptorUI.DumpToViewModels();
+        if (live == null) return;
+
+        var liveKeys = new HashSet<(string Cat, string Val)>();
+        foreach (var d in live)
+        {
+            if (d?.ID == null) continue;
+            var cat = d.ID.Category ?? "";
+            var val = d.ID.Value ?? "";
+            if (string.IsNullOrEmpty(cat) || string.IsNullOrEmpty(val)) continue;
+            liveKeys.Add((cat, val));
+        }
+
+        // Remove first so additions only see the post-removal state — gives the smallest
+        // possible set of CollectionChanged events to the tree-rebuild subscribers.
+        for (int i = AvailableDescriptors.Count - 1; i >= 0; i--)
+        {
+            var d = AvailableDescriptors[i];
+            (string Cat, string Val) key = (d?.Category ?? "", d?.Value ?? "");
+            if (!liveKeys.Contains(key))
+            {
+                AvailableDescriptors.RemoveAt(i);
+            }
+        }
+
+        var existing = new HashSet<(string Cat, string Val)>();
+        foreach (var d in AvailableDescriptors)
+        {
+            existing.Add((d?.Category ?? "", d?.Value ?? ""));
+        }
+        foreach (var key in liveKeys)
+        {
+            if (!existing.Contains(key))
+            {
+                AvailableDescriptors.Add(new BodyShapeDescriptor.LabelSignature
+                {
+                    Category = key.Cat,
+                    Value = key.Val,
+                });
+            }
+        }
+    }
+
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
         Profiles.Clear();
@@ -1327,9 +1388,35 @@ public class VM_BodyTypeProfile : VM
             execute: _ =>
             {
                 var rule = new MeasurementRule { Descriptor = new BodyShapeDescriptor.LabelSignature() };
+                // Pre-fill Descriptor (Category, Value) from the current tree selection so adding
+                // a rule from a focused value node lands the new rule under that branch instead
+                // of forcing the user to pick the Category + Value again. Category-level
+                // selection only pre-fills the Category; Value stays blank until the user picks
+                // one in the new rule's editor. No selection → fully blank rule (old behavior).
+                if (SelectedRuleTreeNode is VM_RuleTreeValueNode valNode)
+                {
+                    rule.Descriptor.Category = valNode.Category;
+                    rule.Descriptor.Value = valNode.Value;
+                }
+                else if (SelectedRuleTreeNode is VM_RuleTreeCategoryNode catNode)
+                {
+                    rule.Descriptor.Category = catNode.Category;
+                }
                 rule.GroupsORlogic.Add(new AndGatedMeasurementGroup());
-                Rules.Add(new VM_MeasurementRule(rule, this));
+                var vmRule = new VM_MeasurementRule(rule, this);
+                Rules.Add(vmRule);
+                // RebuildRuleTree + RefreshFilteredRules already fire from the Rules
+                // CollectionChanged hook wired in the ctor, so vmRule appears in FilteredRules
+                // automatically when its descriptor matches the current selection.
             });
+
+        AddDescriptorCommand = new RelayCommand(
+            canExecute: _ => CanAddDescriptor(),
+            execute: _ => AddDescriptorFromInputs());
+
+        DeleteSelectedTreeNodeCommand = new RelayCommand(
+            canExecute: _ => CanDeleteSelectedTreeNode(),
+            execute: _ => DeleteSelectedTreeNode());
 
         CaptureFingerprintFromActiveViewer = new RelayCommand(
             canExecute: _ => ActiveViewer != null,
@@ -1476,14 +1563,43 @@ public class VM_BodyTypeProfile : VM
             MarkMeasurementCacheStale();
         };
         foreach (var r in Rules) HookRuleForScanInvalidation(r);
+        foreach (var r in Rules) HookRuleForTreeRebuild(r);
         Rules.CollectionChanged += (_, args) =>
         {
             if (args.OldItems != null)
-                foreach (VM_MeasurementRule r in args.OldItems) UnhookRuleForScanInvalidation(r);
+            {
+                foreach (VM_MeasurementRule r in args.OldItems)
+                {
+                    UnhookRuleForScanInvalidation(r);
+                    UnhookRuleForTreeRebuild(r);
+                }
+            }
             if (args.NewItems != null)
-                foreach (VM_MeasurementRule r in args.NewItems) HookRuleForScanInvalidation(r);
+            {
+                foreach (VM_MeasurementRule r in args.NewItems)
+                {
+                    HookRuleForScanInvalidation(r);
+                    HookRuleForTreeRebuild(r);
+                }
+            }
             MarkScanResultsStale();
+            RebuildRuleTree();
+            RefreshFilteredRules();
         };
+
+        // The Rules tab tree is driven by AvailableDescriptors (TemplateDescriptors). Rebuild
+        // when descriptors are added/removed (e.g. the user uses the Add-from-tree command
+        // or edits TemplateDescriptors in OBody Misc Settings).
+        _parent.AvailableDescriptors.CollectionChanged += (_, __) =>
+        {
+            RebuildRuleTree();
+            RefreshFilteredRules();
+        };
+
+        // Initial tree build: ctor's Rules-add loop preceded the CollectionChanged hook, so
+        // populate the tree now from whatever's in place. The tree is empty until this fires.
+        RebuildRuleTree();
+        RefreshFilteredRules();
 
         RefreshMeasurementValues();
 
@@ -1832,6 +1948,37 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<VM_MeasurementDefinition> Measurements { get; } = new();
     public ObservableCollection<VM_MeasurementRule> Rules { get; } = new();
 
+    /// <summary>Tree representation of the Rules tab. One <see cref="VM_RuleTreeCategoryNode"/>
+    /// per distinct <c>Category</c> in <see cref="VM_BodyTypeProfileEditor.AvailableDescriptors"/>,
+    /// each with one <see cref="VM_RuleTreeValueNode"/> per <c>Value</c>. Rebuilt by
+    /// <see cref="RebuildRuleTree"/> whenever the descriptor catalog or the rule collection
+    /// changes. The Rules tab XAML binds its TreeView to this collection; <see cref="SelectedRuleTreeNode"/>
+    /// drives <see cref="FilteredRules"/> on the right pane.</summary>
+    public ObservableCollection<VM_RuleTreeCategoryNode> RuleTreeCategories { get; } = new();
+
+    /// <summary>Currently-selected node in the Rules tab tree (either
+    /// <see cref="VM_RuleTreeCategoryNode"/> or <see cref="VM_RuleTreeValueNode"/>, or null
+    /// when nothing is selected). Setting this triggers <see cref="RefreshFilteredRules"/>
+    /// via Fody's auto-PropertyChanged.</summary>
+    public object? SelectedRuleTreeNode { get; set; }
+
+    /// <summary>Subset of <see cref="Rules"/> filtered by the current tree selection: only
+    /// rules whose Descriptor (Category, Value) matches the selected node. A Category-level
+    /// selection includes every value in that category; a Value-level selection narrows to
+    /// just that pair; null selection shows no rules. The Rules tab right-pane ItemsControl
+    /// binds here instead of the full Rules list, so the editor only renders relevant rules.</summary>
+    public ObservableCollection<VM_MeasurementRule> FilteredRules { get; } = new();
+
+    /// <summary>Inline-form input for "Add new Category" — bound to the Category TextBox below
+    /// the tree. AddDescriptorCommand reads this together with <see cref="NewValueInput"/> and
+    /// appends a TemplateDescriptor through the parent editor's AvailableDescriptors. The
+    /// existing tree row "+" buttons also bind to AddDescriptorCommand with a category
+    /// parameter so the user doesn't have to retype.</summary>
+    public string NewCategoryInput { get; set; } = "";
+
+    /// <summary>Inline-form input for "Add new Value". See <see cref="NewCategoryInput"/>.</summary>
+    public string NewValueInput { get; set; } = "";
+
     /// <summary>Persisted draft annotations from the new Label-then-Suggest workflow. One entry
     /// per (preset, gender, weight) slice the user has touched. Edited directly (no VM wrapper)
     /// since the data is small and only mutated programmatically by the annotation editor.</summary>
@@ -2115,6 +2262,8 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand LoadMeasurementsFromJson { get; }
     public RelayCommand SaveRulesToJson { get; }
     public RelayCommand LoadRulesFromJson { get; }
+    public RelayCommand AddDescriptorCommand { get; }
+    public RelayCommand DeleteSelectedTreeNodeCommand { get; }
 
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
@@ -3730,6 +3879,258 @@ public class VM_BodyTypeProfile : VM
         MarkScanResultsStale();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  Rules-tab tree state. RuleTreeCategories mirrors AvailableDescriptors
+    //  (TemplateDescriptors) grouped by Category; SelectedRuleTreeNode drives
+    //  FilteredRules on the right pane. Tree rebuilds on Rules CollectionChanged
+    //  or on a per-rule Descriptor PropertyChanged (Category or Value), and on
+    //  AvailableDescriptors CollectionChanged.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Drives <see cref="RefreshFilteredRules"/> when the selection changes.
+    /// Fody emits PropertyChanged for SelectedRuleTreeNode automatically; this is the
+    /// hand-written reaction.</summary>
+    private void OnSelectedRuleTreeNodeChanged() => RefreshFilteredRules();
+
+    private void HookRuleForTreeRebuild(VM_MeasurementRule rule)
+    {
+        if (rule == null) return;
+        rule.PropertyChanged += OnRuleDescriptorChanged;
+    }
+
+    private void UnhookRuleForTreeRebuild(VM_MeasurementRule rule)
+    {
+        if (rule == null) return;
+        rule.PropertyChanged -= OnRuleDescriptorChanged;
+    }
+
+    private void OnRuleDescriptorChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Only DescriptorCategory / DescriptorValue changes reshape the tree (the rule moves
+        // to a different branch). Everything else (IsDraft, predicate edits, etc.) leaves
+        // the tree structure alone, so skip the rebuild for noise reduction.
+        if (e.PropertyName != nameof(VM_MeasurementRule.DescriptorCategory)
+            && e.PropertyName != nameof(VM_MeasurementRule.DescriptorValue)) return;
+        RebuildRuleTree();
+        RefreshFilteredRules();
+    }
+
+    /// <summary>Rebuilds <see cref="RuleTreeCategories"/> from
+    /// <c>_parent.AvailableDescriptors</c> (TemplateDescriptors) and recomputes per-node
+    /// rule counts. Preserves the currently-selected node by (Category, Value) match where
+    /// possible so the right pane doesn't jump when an unrelated rule is added/removed.</summary>
+    public void RebuildRuleTree()
+    {
+        // Remember selection so we can restore by (Cat, Val) after rebuild.
+        string selCat = "", selVal = "";
+        bool selWasValueLevel = false;
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                selCat = v.Category; selVal = v.Value; selWasValueLevel = true; break;
+            case VM_RuleTreeCategoryNode c:
+                selCat = c.Category; break;
+        }
+
+        // Count rules per (Cat, Val). Includes Descriptors that aren't in TemplateDescriptors
+        // (orphan rules) so we can surface them via TotalRuleCount; the tree itself still only
+        // shows TemplateDescriptor-backed nodes.
+        var perPairCount = new Dictionary<(string Cat, string Val), int>();
+        foreach (var r in Rules)
+        {
+            if (r == null) continue;
+            var key = (r.DescriptorCategory ?? "", r.DescriptorValue ?? "");
+            perPairCount.TryGetValue(key, out int cur);
+            perPairCount[key] = cur + 1;
+        }
+
+        // Group AvailableDescriptors by category, preserving alphabetical order.
+        var byCategory = new SortedDictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var d in _parent.AvailableDescriptors)
+        {
+            if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
+            if (!byCategory.TryGetValue(d.Category, out var values))
+            {
+                values = new List<string>();
+                byCategory[d.Category] = values;
+            }
+            if (!values.Contains(d.Value, StringComparer.Ordinal)) values.Add(d.Value);
+        }
+
+        RuleTreeCategories.Clear();
+        VM_RuleTreeCategoryNode? restoredCategoryNode = null;
+        VM_RuleTreeValueNode? restoredValueNode = null;
+
+        foreach (var kv in byCategory)
+        {
+            var catNode = new VM_RuleTreeCategoryNode(this, kv.Key);
+            int catTotal = 0;
+            foreach (var val in kv.Value.OrderBy(v => v, StringComparer.Ordinal))
+            {
+                int count = perPairCount.TryGetValue((kv.Key, val), out var c) ? c : 0;
+                catTotal += count;
+                var valNode = new VM_RuleTreeValueNode(this, kv.Key, val) { RuleCount = count };
+                catNode.Values.Add(valNode);
+                if (selWasValueLevel
+                    && string.Equals(selCat, kv.Key, StringComparison.Ordinal)
+                    && string.Equals(selVal, val, StringComparison.Ordinal))
+                {
+                    restoredValueNode = valNode;
+                }
+            }
+            catNode.RuleCount = catTotal;
+            RuleTreeCategories.Add(catNode);
+            if (!selWasValueLevel && string.Equals(selCat, kv.Key, StringComparison.Ordinal))
+            {
+                restoredCategoryNode = catNode;
+            }
+        }
+
+        // Restore selection. Setting SelectedRuleTreeNode fires OnSelectedRuleTreeNodeChanged,
+        // which refreshes FilteredRules — caller doesn't need to invoke it again.
+        if (restoredValueNode != null) SelectedRuleTreeNode = restoredValueNode;
+        else if (restoredCategoryNode != null) SelectedRuleTreeNode = restoredCategoryNode;
+        // If the selected (Cat, Val) was removed (e.g. TemplateDescriptor deleted), drop the
+        // selection rather than pointing at a stale instance.
+        else if (SelectedRuleTreeNode != null) SelectedRuleTreeNode = null;
+    }
+
+    /// <summary>Refreshes <see cref="FilteredRules"/> based on the current
+    /// <see cref="SelectedRuleTreeNode"/>. Category-level selection includes every rule
+    /// whose Descriptor.Category matches; Value-level selection narrows to that
+    /// (Category, Value). Null selection clears the list.</summary>
+    public void RefreshFilteredRules()
+    {
+        FilteredRules.Clear();
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, v.Category, StringComparison.Ordinal)
+                        && string.Equals(r.DescriptorValue, v.Value, StringComparison.Ordinal))
+                    {
+                        FilteredRules.Add(r);
+                    }
+                }
+                break;
+            case VM_RuleTreeCategoryNode c:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, c.Category, StringComparison.Ordinal))
+                    {
+                        FilteredRules.Add(r);
+                    }
+                }
+                break;
+        }
+    }
+
+    private bool CanAddDescriptor()
+    {
+        var cat = NewCategoryInput?.Trim();
+        var val = NewValueInput?.Trim();
+        return !string.IsNullOrEmpty(cat) && !string.IsNullOrEmpty(val);
+    }
+
+    private void AddDescriptorFromInputs()
+    {
+        var cat = NewCategoryInput?.Trim() ?? "";
+        var val = NewValueInput?.Trim() ?? "";
+        if (string.IsNullOrEmpty(cat) || string.IsNullOrEmpty(val)) return;
+
+        // Bail if (cat, val) already exists; otherwise we'd add a duplicate that confuses the
+        // tree's per-pair count tracking.
+        foreach (var d in _parent.AvailableDescriptors)
+        {
+            if (d == null) continue;
+            if (string.Equals(d.Category, cat, StringComparison.Ordinal)
+                && string.Equals(d.Value, val, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        _parent.AvailableDescriptors.Add(new BodyShapeDescriptor.LabelSignature { Category = cat, Value = val });
+        // CollectionChanged on AvailableDescriptors triggers RebuildRuleTree automatically.
+        NewCategoryInput = "";
+        NewValueInput = "";
+    }
+
+    private bool CanDeleteSelectedTreeNode()
+    {
+        // Block delete if any existing rule still produces a descriptor under the node — the
+        // user would silently orphan those rules. They can move the rule's Descriptor to a
+        // different (Cat, Val) first, then retry the delete.
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, v.Category, StringComparison.Ordinal)
+                        && string.Equals(r.DescriptorValue, v.Value, StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            case VM_RuleTreeCategoryNode c:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, c.Category, StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void DeleteSelectedTreeNode()
+    {
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                RemoveDescriptor(v.Category, v.Value);
+                break;
+            case VM_RuleTreeCategoryNode c:
+                // Remove every Value under this Category. Iterate via snapshot so the
+                // CollectionChanged callback doesn't trip the foreach.
+                var pairs = new List<(string Cat, string Val)>();
+                foreach (var d in _parent.AvailableDescriptors)
+                {
+                    if (d != null
+                        && string.Equals(d.Category, c.Category, StringComparison.Ordinal)
+                        && !string.IsNullOrEmpty(d.Value))
+                    {
+                        pairs.Add((d.Category, d.Value));
+                    }
+                }
+                foreach (var (cat, val) in pairs) RemoveDescriptor(cat, val);
+                break;
+        }
+    }
+
+    private void RemoveDescriptor(string category, string value)
+    {
+        for (int i = _parent.AvailableDescriptors.Count - 1; i >= 0; i--)
+        {
+            var d = _parent.AvailableDescriptors[i];
+            if (d == null) continue;
+            if (string.Equals(d.Category, category, StringComparison.Ordinal)
+                && string.Equals(d.Value, value, StringComparison.Ordinal))
+            {
+                _parent.AvailableDescriptors.RemoveAt(i);
+            }
+        }
+    }
+
     /// <summary>Re-derives one cache entry's descriptor list by running the profile's
     /// current rules against its cached measurements. Cheap: rule evaluation only, no
     /// mesh work. Mirrors the rule-loop in <see cref="BodySlideMeasurementEvaluator.Evaluate"/>
@@ -4340,5 +4741,59 @@ public class VM_WeightFilterOption : VM
     public int Weight { get; set; }
     public bool IsSelected { get; set; } = true;
     public string Display => $"W{Weight}";
+}
+
+/// <summary>Top-level node in the Rules-tab tree. One per distinct Descriptor.Category
+/// in <see cref="VM_BodyTypeProfile"/>'s <c>_parent.AvailableDescriptors</c>. Holds
+/// child <see cref="VM_RuleTreeValueNode"/> instances and a rule-count rollup used in
+/// the tree label.</summary>
+public class VM_RuleTreeCategoryNode : VM
+{
+    private readonly VM_BodyTypeProfile _parent;
+
+    public VM_RuleTreeCategoryNode(VM_BodyTypeProfile parent, string category)
+    {
+        _parent = parent;
+        Category = category;
+    }
+
+    public string Category { get; }
+    public ObservableCollection<VM_RuleTreeValueNode> Values { get; } = new();
+
+    /// <summary>Sum of <see cref="VM_RuleTreeValueNode.RuleCount"/> across this Category's
+    /// values. Set by <see cref="VM_BodyTypeProfile.RebuildRuleTree"/>.</summary>
+    public int RuleCount { get; set; }
+
+    public string DisplayLabel => RuleCount > 0 ? $"{Category} ({RuleCount})" : Category;
+
+    /// <summary>True when the TreeView expanded this node. Bound TwoWay so the editor can
+    /// snap expansion state programmatically when needed (e.g. after add-descriptor it auto-
+    /// expands the affected branch).</summary>
+    public bool IsExpanded { get; set; } = true;
+}
+
+/// <summary>Leaf node in the Rules-tab tree. Represents one TemplateDescriptor (Category,
+/// Value) pair. Selecting this node filters <see cref="VM_BodyTypeProfile.FilteredRules"/>
+/// to rules whose Descriptor matches exactly.</summary>
+public class VM_RuleTreeValueNode : VM
+{
+    private readonly VM_BodyTypeProfile _parent;
+
+    public VM_RuleTreeValueNode(VM_BodyTypeProfile parent, string category, string value)
+    {
+        _parent = parent;
+        Category = category;
+        Value = value;
+    }
+
+    public string Category { get; }
+    public string Value { get; }
+
+    /// <summary>Number of rules in the parent profile whose Descriptor matches this
+    /// (Category, Value) exactly. Recomputed by <see cref="VM_BodyTypeProfile.RebuildRuleTree"/>
+    /// — never edited directly here.</summary>
+    public int RuleCount { get; set; }
+
+    public string DisplayLabel => RuleCount > 0 ? $"{Value} ({RuleCount})" : Value;
 }
 

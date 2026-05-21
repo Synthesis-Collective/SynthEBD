@@ -339,7 +339,7 @@
                         </Border>
 
                         <!-- Three panels: KeyVertices / Measurements / Rules / Suggest -->
-                        <TabControl Grid.Row="1">
+                        <TabControl Grid.Row="1" SelectionChanged="ProfileTabControl_SelectionChanged">
 
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
@@ -627,21 +627,98 @@
                             </TabItem>
 
                             <TabItem Header="Rules">
-                                <DockPanel>
+                                <Grid>
                                     <!-- Developer convenience: Ctrl+S writes the current rules to a JSON
                                          file (top-level { "Rules": [...] }, drop-in compatible with the
                                          Revised_BodyTypeProfile_Rules.json reference). Ctrl+L parses the
                                          same shape and replaces the current rules wholesale, prompting
                                          for confirmation if any exist. Documentation __comment_* fields
                                          in the source file are tolerated. -->
-                                    <DockPanel.InputBindings>
+                                    <Grid.InputBindings>
                                         <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveRulesToJson}"/>
                                         <KeyBinding Modifiers="Control" Key="L" Command="{Binding LoadRulesFromJson}"/>
-                                    </DockPanel.InputBindings>
-                                    <Button DockPanel.Dock="Top" Content="Add Rule" Command="{Binding AddRule}"
-                                            HorizontalAlignment="Left" Padding="6,2" Margin="0,5"/>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding Rules}">
+                                    </Grid.InputBindings>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="280" MinWidth="200"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left pane: tree of TemplateDescriptors (Category -> Value),
+                                         inline Add-Descriptor form, Delete-selected-node button. -->
+                                    <DockPanel Grid.Column="0">
+                                        <TextBlock DockPanel.Dock="Top" Text="Descriptor catalog"
+                                                   FontWeight="Bold" Margin="0,5,0,3"/>
+                                        <Grid DockPanel.Dock="Bottom" Margin="0,5,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Add descriptor:"
+                                                       FontStyle="Italic" Margin="0,0,0,2"/>
+                                            <TextBox Grid.Row="1" Grid.Column="0"
+                                                     Text="{Binding NewCategoryInput, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Category name. New categories get created on Add; pick an existing name to add a new Value under it."
+                                                     Margin="0,0,4,2">
+                                                <TextBox.Style>
+                                                    <Style TargetType="TextBox">
+                                                        <Setter Property="ToolTip" Value="Category"/>
+                                                    </Style>
+                                                </TextBox.Style>
+                                            </TextBox>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Cat" Margin="2,0,0,2"
+                                                       VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                                            <TextBox Grid.Row="2" Grid.Column="0"
+                                                     Text="{Binding NewValueInput, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Value name within the Category above."
+                                                     Margin="0,0,4,0"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="Val" Margin="2,0,0,0"
+                                                       VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                                        </Grid>
+                                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
+                                            <Button Content="+ Add" Command="{Binding AddDescriptorCommand}"
+                                                    Padding="6,2" Margin="0,0,5,0"
+                                                    ToolTip="Add the (Category, Value) pair to TemplateDescriptors and select it in the tree."/>
+                                            <Button Content="Delete selected" Command="{Binding DeleteSelectedTreeNodeCommand}"
+                                                    Padding="6,2"
+                                                    ToolTip="Remove the selected Category or Value from TemplateDescriptors. Blocked when any rule still produces a descriptor under the node — move those rules first."/>
+                                        </StackPanel>
+                                        <TreeView ItemsSource="{Binding RuleTreeCategories}"
+                                                  SelectedItemChanged="RuleTree_SelectedItemChanged"
+                                                  Margin="0,0,0,0">
+                                            <TreeView.ItemContainerStyle>
+                                                <Style TargetType="TreeViewItem">
+                                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                                </Style>
+                                            </TreeView.ItemContainerStyle>
+                                            <TreeView.Resources>
+                                                <HierarchicalDataTemplate DataType="{x:Type local:VM_RuleTreeCategoryNode}"
+                                                                          ItemsSource="{Binding Values}">
+                                                    <TextBlock Text="{Binding DisplayLabel}" FontWeight="Bold"/>
+                                                </HierarchicalDataTemplate>
+                                                <DataTemplate DataType="{x:Type local:VM_RuleTreeValueNode}">
+                                                    <TextBlock Text="{Binding DisplayLabel}"/>
+                                                </DataTemplate>
+                                            </TreeView.Resources>
+                                        </TreeView>
+                                    </DockPanel>
+
+                                    <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center"
+                                                  VerticalAlignment="Stretch" Background="#FF333333"/>
+
+                                    <!-- Right pane: rules filtered to the current selection plus an Add Rule
+                                         button (pre-fills Descriptor from the selected node). -->
+                                    <DockPanel Grid.Column="2" Margin="6,0,0,0">
+                                        <Button DockPanel.Dock="Top" Content="+ Add Rule" Command="{Binding AddRule}"
+                                                HorizontalAlignment="Left" Padding="6,2" Margin="0,5"
+                                                ToolTip="Adds a new rule pre-filled with the selected tree node's (Category, Value). Without a selection the rule starts blank."/>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding FilteredRules}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_MeasurementRule}">
                                                     <Border BorderBrush="DarkGray" BorderThickness="1" Margin="0,0,0,8" Padding="6">
@@ -742,8 +819,9 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                    </ScrollViewer>
-                                </DockPanel>
+                                        </ScrollViewer>
+                                    </DockPanel>
+                                </Grid>
                             </TabItem>
 
                             <TabItem Header="Label-then-Suggest">

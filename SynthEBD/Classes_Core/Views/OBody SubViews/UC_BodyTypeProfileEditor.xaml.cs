@@ -280,6 +280,45 @@ Ctrl+Shift+S: Save Measurements + LiveValues to CSV for whichever scan row is cu
         if (parent is Popup popup) popup.IsOpen = false;
     }
 
+    /// <summary>Handles a selection in the Rules-tab tree. TreeView.SelectedItem is read-only
+    /// so we can't bind it directly — push the new value into the profile VM here, where it
+    /// drives FilteredRules via the VM's OnSelectedRuleTreeNodeChanged hook. The TreeView's
+    /// DataContext is VM_BodyTypeProfile (the per-profile DataTemplate wrapping the editor).</summary>
+    private void RuleTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (sender is not TreeView tree) return;
+        if (tree.DataContext is not VM_BodyTypeProfile profile) return;
+        profile.SelectedRuleTreeNode = e.NewValue; // null when nothing's selected
+    }
+
+    /// <summary>Re-pulls the live TemplateDescriptors from VM_SettingsOBody.DescriptorUI
+    /// every time the Rules tab becomes visible, so descriptors the user added in OBody
+    /// Misc Settings → Descriptors (which only writes back to Settings_OBody on save) are
+    /// picked up by the Rules-tab tree the moment the user comes back. WPF TabControl
+    /// toggles each TabItem's IsVisible on selection switch, so this fires once per
+    /// activation. No-op when the tab is being hidden (e.IsVisible=false) and when the
+    /// outer DataContext isn't the editor VM (e.g. during early load).</summary>
+    private void ProfileTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // SelectionChanged bubbles up from any nested TabControl (Match Presets has its own,
+        // Label-then-Suggest's Expanders host their own). Gate to the outer TabControl so we
+        // only react when the user switches between Key Vertices / Measurements / Rules /
+        // etc. — not when a nested control's selection moves.
+        if (!ReferenceEquals(e.OriginalSource, sender)) return;
+        if (sender is not TabControl tc) return;
+
+        // The TabControl + TabItems live inside the per-profile DataTemplate, so x:Name
+        // doesn't generate a code-behind field for the Rules TabItem. Match by Header text
+        // instead — the literal "Rules" header is the same constant the user sees.
+        if (tc.SelectedItem is not TabItem ti) return;
+        if (ti.Header as string != "Rules") return;
+
+        if (this.DataContext is VM_BodyTypeProfileEditor editor)
+        {
+            editor.RefreshAvailableDescriptorsFromLiveSettings();
+        }
+    }
+
     /// <summary>Forwards the KeyVertices DataGrid's full multi-selection to the current
     /// profile VM, which routes the (shape, vertex index) tuples to the viewer so every
     /// matching pick marker turns green. SelectedItem binding still fires SelectedKeyVertex
