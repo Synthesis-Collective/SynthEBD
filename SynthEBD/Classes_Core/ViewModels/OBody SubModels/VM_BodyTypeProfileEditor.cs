@@ -27,6 +27,16 @@ public class VM_BodyTypeProfileEditor : VM
     public delegate VM_BodyTypeProfileEditor Factory();
 
     private readonly Logger _logger;
+
+    /// <summary>Monotonic call counter for <see cref="RefreshPreviewAsync"/>. Each invocation
+    /// captures its own generation on entry; after the async LoadNpcAsync await, the call
+    /// re-checks this field — if a newer call has incremented it in the meantime, the older
+    /// call bails before applying the BodySlide deformation. Without this, navigating the
+    /// Match Presets list (or anywhere else that sets PreviewWeight + SelectedPreset in
+    /// sequence) fires two concurrent RefreshPreviewAsync invocations whose ApplyBodySlide
+    /// calls race, producing non-deterministic body shapes on repeat clicks. Field, not
+    /// VM property, because it's pure plumbing — never read or set from XAML.</summary>
+    private int _refreshPreviewGeneration = 0;
     /// <summary>Logger accessor for child VMs (per-profile) that need to emit messages
     /// through the editor's shared log sink. Internal because VM_BodyTypeProfile is the
     /// only legitimate consumer; making it public would invite misuse from unrelated VMs.</summary>
@@ -637,40 +647,63 @@ public class VM_BodyTypeProfileEditor : VM
     /// </summary>
     private async System.Threading.Tasks.Task RefreshPreviewAsync()
     {
+        // Claim a generation slot. The PropertyChanged handler kicks off this method
+        // every time SelectedPreset, PreviewWeight, PreviewGender, or PreviewNpcOverride
+        // changes — and LoadScanResultInViewer flips two or three of those in sequence per
+        // click, firing this method 2-3× back-to-back. Snapshot all the read-from-VM inputs
+        // now (so an in-flight call doesn't observe a newer setter's value mid-flight) and
+        // re-check our generation after the LoadNpcAsync await so older calls bail before
+        // their ApplyBodySlide races against the newer call's deformation.
+        int myGen = ++_refreshPreviewGeneration;
+        var snapshotPreset = SelectedPreset?.AssociatedModel;
+        int snapshotWeight = PreviewWeight;
+        Gender snapshotGender = PreviewGender;
+        FormKey snapshotNpcOverride = PreviewNpcOverride;
+        var snapshotProfile = SelectedProfile;
+
         try
         {
-            var preset = SelectedPreset?.AssociatedModel;
-            if (preset == null || lk == null) return;
+            if (snapshotPreset == null || lk == null) return;
 
             FormKey npc = FormKey.Null;
-            if (!PreviewNpcOverride.IsNull)
+            if (!snapshotNpcOverride.IsNull)
             {
-                npc = PreviewNpcOverride;
+                npc = snapshotNpcOverride;
             }
             else
             {
                 var preview = _patcherState?.OBodySettings?.PreviewNpcs;
-                if (preview != null && preview.WeightPreviewNpcs.TryGetValue(PreviewWeight, out var pair) && pair != null)
+                if (preview != null && preview.WeightPreviewNpcs.TryGetValue(snapshotWeight, out var pair) && pair != null)
                 {
-                    npc = PreviewGender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+                    npc = snapshotGender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
                 }
             }
 
             if (npc.IsNull)
             {
-                _logger?.LogMessage("BodyTypeProfileEditor: no preview NPC configured for weight " + PreviewWeight + " (" + PreviewGender + ")");
+                _logger?.LogMessage("BodyTypeProfileEditor: no preview NPC configured for weight " + snapshotWeight + " (" + snapshotGender + ")");
                 return;
             }
 
             await CharacterViewer.LoadNpcAsync(npc, lk);
-            CharacterViewer.ApplyBodySlide(preset, PreviewWeight);
+
+            // A newer RefreshPreviewAsync call has superseded us — its captured (preset,
+            // weight) is the canonical "what the user wants to see" now, so bail before
+            // ApplyBodySlide. Without this we'd ApplyBodySlide with our stale snapshot
+            // after a later call already applied the fresh one (or worse, our call wins
+            // and the user sees old-preset-at-new-weight).
+            if (myGen != _refreshPreviewGeneration) return;
+
+            CharacterViewer.ApplyBodySlide(snapshotPreset, snapshotWeight);
 
             // Point the active profile at this viewer so live measurement readouts have
-            // a source and pick-capture routes into the right profile by default.
-            if (SelectedProfile != null)
+            // a source and pick-capture routes into the right profile by default. Use the
+            // snapshot too — SelectedProfile might have changed under us, and the older
+            // value's measurements are what our just-applied deformation belongs to.
+            if (snapshotProfile != null)
             {
-                SelectedProfile.AttachViewer(CharacterViewer);
-                SelectedProfile.RefreshMeasurementValues();
+                snapshotProfile.AttachViewer(CharacterViewer);
+                snapshotProfile.RefreshMeasurementValues();
             }
         }
         catch (Exception ex)
