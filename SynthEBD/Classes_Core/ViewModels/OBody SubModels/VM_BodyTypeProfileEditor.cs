@@ -2122,6 +2122,32 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<string> AvailableBodyTypeNames => _parent.AvailableBodyTypeNames;
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors => _parent.AvailableDescriptors;
 
+    /// <summary>Distinct, alphabetized Category names from <see cref="AvailableDescriptors"/>,
+    /// for the Rules tab Descriptor Category dropdown. The dropdown is strict (non-editable),
+    /// so this list must include every Category referenced by any current rule — see
+    /// Settings_OBody.TemplateDescriptors as the source of truth.</summary>
+    public IEnumerable<string> AvailableDescriptorCategories =>
+        AvailableDescriptors
+            .Select(d => d.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(c => c, StringComparer.Ordinal);
+
+    /// <summary>Values defined for a given Category in <see cref="AvailableDescriptors"/>.
+    /// Empty when <paramref name="category"/> is null/blank or unknown. The Rules tab
+    /// Descriptor Value dropdown filters via this so the user can't pair a Category with
+    /// a Value that doesn't exist as a TemplateDescriptor.</summary>
+    public IEnumerable<string> AvailableDescriptorValuesFor(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category)) return Array.Empty<string>();
+        return AvailableDescriptors
+            .Where(d => string.Equals(d.Category, category, StringComparison.Ordinal))
+            .Select(d => d.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(v => v, StringComparer.Ordinal);
+    }
+
     public void OnVertexPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
     {
         ActiveViewer = viewer;
@@ -3955,6 +3981,15 @@ public class VM_MeasurementRule : VM
     public RelayCommand PromoteFromDraft { get; }
 
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors => _parent.AvailableDescriptors;
+
+    /// <summary>Bound to the Descriptor Category ComboBox.ItemsSource on the Rules tab.</summary>
+    public IEnumerable<string> AvailableDescriptorCategories => _parent.AvailableDescriptorCategories;
+
+    /// <summary>Bound to the Descriptor Value ComboBox.ItemsSource on the Rules tab. Filters
+    /// by the rule's currently-selected <see cref="DescriptorCategory"/>; Fody re-evaluates
+    /// this property when DescriptorCategory raises PropertyChanged, so the Value dropdown
+    /// updates automatically on Category change.</summary>
+    public IEnumerable<string> AvailableDescriptorValues => _parent.AvailableDescriptorValuesFor(DescriptorCategory);
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
