@@ -71,7 +71,7 @@ public class VM_OBodyPreviewNpcSettings : VM
         OBodyPreviewNpcSettings model,
         IEnumerable<BodySlideSetting> maleBodySlides,
         IEnumerable<BodySlideSetting> femaleBodySlides,
-        int tolerance = 5)
+        int tolerance = 0)
     {
         Rows.Clear();
         PendingMismatches.Clear();
@@ -165,7 +165,7 @@ public class VM_OBodyPreviewNpcSettings : VM
     /// Re-runs FindFirstNpcAtWeight for the supplied entries (called after the user
     /// answers Yes to the mismatch popup). Updates the matching rows in place.
     /// </summary>
-    public void AutoReassign(IEnumerable<MismatchedPreviewEntry> entries, int tolerance = 5)
+    public void AutoReassign(IEnumerable<MismatchedPreviewEntry> entries, int tolerance = 0)
     {
         foreach (var entry in entries)
         {
@@ -178,12 +178,12 @@ public class VM_OBodyPreviewNpcSettings : VM
     }
 
     /// <summary>Used by the per-row Auto buttons.</summary>
-    public FormKey AutoResolve(Gender gender, int weight, int tolerance = 5)
+    public FormKey AutoResolve(Gender gender, int weight, int tolerance = 0)
     {
         return _previewNpcResolver.FindFirstNpcAtWeight(gender, weight, tolerance);
     }
 
-    private void ResetAllRows(int tolerance = 5)
+    private void ResetAllRows(int tolerance = 0)
     {
         foreach (var row in Rows)
         {
