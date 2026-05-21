@@ -61,7 +61,14 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Tracks BuiltMesh per body part for BodySlide and normal override resampling.</summary>
     private readonly Dictionary<string, NifMeshBuilder.BuiltMesh> _builtMeshesByBodyPart = new();
 
-    /// <summary>Cached built meshes for reapplying BodySlide without reloading.</summary>
+    /// <summary>Cached built meshes for reapplying BodySlide without reloading.
+    /// <see cref="NifMeshBuilder.BuiltMesh.BindPosePositions"/> here holds the
+    /// load-time blend (so head/body neck alignment is preserved when nothing else
+    /// has been applied), and the per-mesh
+    /// <see cref="NifMeshBuilder.BuiltMesh.Weight0BindPosePositions"/> /
+    /// <see cref="NifMeshBuilder.BuiltMesh.Weight1BindPosePositions"/> snapshots
+    /// taken before <c>BlendWeightMorph</c> let <see cref="ApplyMorphSet"/> redo the
+    /// engine-equivalent _0/_1 lerp at any NpcWeight on demand.</summary>
     private readonly Dictionary<string, NifMeshBuilder.BuiltMesh> _cachedBodyMeshes = new();
 
     private List<OsdFile>? _cachedOsdFiles;
@@ -3765,12 +3772,19 @@ public class VM_CharacterViewer : ViewerVm
         if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)
         {
             _pendingMorphSet = (morphs ?? new MorphSet(), weight);
+            LogVerbose("CharacterViewer: ApplyMorphSet QUEUED (label='"
+                + (morphs?.Label ?? "?") + "', weight=" + weight
+                + ", cachedBodyMeshes=" + _cachedBodyMeshes.Count
+                + ", sceneRebuildPending=" + _sceneRebuildPending + ")");
             return;
         }
 
         if (morphs == null) return;
 
         NpcWeight = Math.Clamp(weight, 0, 100);
+        LogVerbose("CharacterViewer: ApplyMorphSet APPLIED (label='"
+            + (morphs.Label ?? "?") + "', weight=" + NpcWeight
+            + ", cachedBodyMeshes=" + _cachedBodyMeshes.Count + ")");
 
         try
         {
@@ -3790,10 +3804,34 @@ public class VM_CharacterViewer : ViewerVm
                 var glMesh = Renderer.Meshes.FirstOrDefault(m => m.ShapeName == shapeName);
                 if (glMesh == null) continue;
 
-                // Start from bind-pose positions
-                var sourcePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
-                var positions = new Vector3[sourcePositions.Length];
-                Array.Copy(sourcePositions, positions, sourcePositions.Length);
+                // Start from bind-pose positions. When the shape was loaded with a
+                // _0.nif companion, lerp the snapshotted _0/_1 endpoints to the
+                // current NpcWeight here — that's the game's "armor weight morph"
+                // reproduced per-call, so changing BodySlide weight via ApplyMorphSet
+                // (rather than reloading the NPC) still picks up the correct base
+                // body. Shapes without cached _0/_1 (FaceGen head, hairs, etc., or
+                // any shape whose _0 didn't pair by name + vert count) fall through
+                // to the prior behavior of sourcing directly from BindPosePositions,
+                // which carries the load-time blend that matches whatever weight the
+                // NPC was loaded at — so the head/body neck stays aligned.
+                var basePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
+                var positions = new Vector3[basePositions.Length];
+                var w0 = originalMesh.Weight0BindPosePositions;
+                var w1 = originalMesh.Weight1BindPosePositions;
+                if (w0 != null && w1 != null
+                    && w0.Length == basePositions.Length
+                    && w1.Length == basePositions.Length)
+                {
+                    float t = NpcWeight / 100f;
+                    for (int i = 0; i < basePositions.Length; i++)
+                    {
+                        positions[i] = Vector3.Lerp(w0[i], w1[i], t);
+                    }
+                }
+                else
+                {
+                    Array.Copy(basePositions, positions, basePositions.Length);
+                }
 
                 // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
                 // fall back to OSD for meshes without "Build Morphs" output.
@@ -4151,7 +4189,19 @@ public class VM_CharacterViewer : ViewerVm
                 // vertex position, so blending the already-skinned world-space positions
                 // is equivalent to blending bind-pose and re-skinning (both _0 and _1
                 // share the same skeleton and skinToBone transforms).
-                if (bodyPart != "Head" && NpcWeight < 100)
+                //
+                // Unlike the prior implementation we ALWAYS load _0 (even when the NPC's
+                // record weight is 100) and snapshot BOTH _0 and _1 bind-pose verts onto
+                // each BuiltMesh BEFORE BlendWeightMorph runs (which would mutate _1's
+                // BindPosePositions in place). ApplyMorphSet then redoes the _0/_1 lerp
+                // from those snapshots at the current NpcWeight on every call, so
+                // changing weight via ApplyBodySlide produces the engine-equivalent base
+                // mesh — not the load-time-frozen blend that strands the scan's high-weight
+                // iterations on a low-weight base. The snapshots travel with the BuiltMesh
+                // through the install pipeline (so ClearScene mid-install can't lose them),
+                // and BindPosePositions itself keeps the original load-time blend behavior
+                // so the head/body neck still aligns when nothing else has been applied.
+                if (bodyPart != "Head")
                 {
                     string? weight0Path = TryGetWeightZeroPath(gamePath);
                     if (weight0Path != null)
@@ -4160,6 +4210,60 @@ public class VM_CharacterViewer : ViewerVm
                         if (weight0Source.ResolvedDiskPath != null)
                         {
                             var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart);
+
+                            // Snapshot endpoints onto each m1 BEFORE the in-place blend.
+                            // After this loop completes, m1.Weight0BindPosePositions ==
+                            // _0.nif bind pose, m1.Weight1BindPosePositions == _1.nif bind
+                            // pose. BlendWeightMorph then proceeds as before, mutating
+                            // m1.BindPosePositions into the load-time blend (unchanged
+                            // behavior — preserves head/body neck alignment for any code
+                            // path that uses BindPosePositions directly).
+                            foreach (var m1 in meshes)
+                            {
+                                var m0 = meshes0.FirstOrDefault(m => m.ShapeName == m1.ShapeName);
+                                if (m0?.BindPosePositions == null || m1.BindPosePositions == null)
+                                {
+                                    LogVerbose("CharacterViewer: [WeightSnapshot] '" + bodyPart + "' shape '"
+                                        + m1.ShapeName + "' skipped (m0.BindPose null="
+                                        + (m0?.BindPosePositions == null) + ", m1.BindPose null="
+                                        + (m1.BindPosePositions == null) + ")");
+                                    continue;
+                                }
+                                if (m0.BindPosePositions.Length != m1.BindPosePositions.Length)
+                                {
+                                    LogVerbose("CharacterViewer: [WeightSnapshot] '" + bodyPart + "' shape '"
+                                        + m1.ShapeName + "' skipped (vert count mismatch: m0="
+                                        + m0.BindPosePositions.Length + ", m1=" + m1.BindPosePositions.Length + ")");
+                                    continue;
+                                }
+                                m1.Weight0BindPosePositions = (System.Numerics.Vector3[])m0.BindPosePositions.Clone();
+                                m1.Weight1BindPosePositions = (System.Numerics.Vector3[])m1.BindPosePositions.Clone();
+                                // Cheap divergence sniff so we can confirm the snapshots
+                                // contain different data when the NIF actually has a _0/_1
+                                // pair (a body that ships _0 == _1 would explain the scan
+                                // matching old behavior even with snapshots wired in).
+                                var w0p = m0.BindPosePositions;
+                                var w1p = m1.BindPosePositions;
+                                int n = w0p.Length;
+                                float maxDelta = 0f;
+                                if (n > 0)
+                                {
+                                    int step = System.Math.Max(1, n / 64);
+                                    for (int i = 0; i < n; i += step)
+                                    {
+                                        float dx = w1p[i].X - w0p[i].X;
+                                        float dy = w1p[i].Y - w0p[i].Y;
+                                        float dz = w1p[i].Z - w0p[i].Z;
+                                        float d2 = dx * dx + dy * dy + dz * dz;
+                                        if (d2 > maxDelta) maxDelta = d2;
+                                    }
+                                    maxDelta = (float)System.Math.Sqrt(maxDelta);
+                                }
+                                LogVerbose("CharacterViewer: [WeightSnapshot] '" + bodyPart + "' shape '"
+                                    + m1.ShapeName + "' snapshotted "
+                                    + n + " verts, sampled max |_1 - _0| = " + maxDelta.ToString("F4"));
+                            }
+
                             float t = NpcWeight / 100f;
                             BlendWeightMorph(meshes0, meshes, t, bodyPart);
                         }

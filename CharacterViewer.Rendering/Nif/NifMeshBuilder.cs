@@ -102,6 +102,30 @@ public class NifMeshBuilder
         public Vector3[]? BindPoseNormals { get; init; }
 
         /// <summary>
+        /// Bind-pose vertex positions from the weight-0 companion NIF (<c>_0.nif</c>),
+        /// stashed verbatim before any blend. Used by <see cref="VM_CharacterViewer.ApplyMorphSet"/>
+        /// to lerp against <see cref="Weight1BindPosePositions"/> at the current NpcWeight,
+        /// so changing weight via ApplyBodySlide produces the same engine-equivalent base
+        /// mesh that loading a weight-specific NPC would. Null when no <c>_0.nif</c>
+        /// companion exists for this shape, or for non-body parts.
+        /// Mutable (vs. init-only) because it's attached after construction in the
+        /// load path — the BuiltMesh comes out of BuildFromFile without _0 awareness,
+        /// then LoadAllMeshParts pairs it with the freshly-built _0 mesh and stashes
+        /// the latter's bind pose here. Travels through scene install via the BuiltMesh
+        /// reference so it survives ClearScene mid-load.
+        /// </summary>
+        public Vector3[]? Weight0BindPosePositions { get; set; }
+
+        /// <summary>
+        /// Bind-pose vertex positions from the weight-1 companion NIF (<c>_1.nif</c>),
+        /// snapshotted verbatim before <c>BlendWeightMorph</c> blends them into
+        /// <see cref="BindPosePositions"/>. Same purpose as <see cref="Weight0BindPosePositions"/>:
+        /// gives <see cref="VM_CharacterViewer.ApplyMorphSet"/> the un-blended _1
+        /// endpoint to lerp against. Null when no _0/_1 pair was loaded.
+        /// </summary>
+        public Vector3[]? Weight1BindPosePositions { get; set; }
+
+        /// <summary>
         /// Pre-computed skinning data for CPU-side bone-weight skinning.
         /// Null for unskinned shapes. Used to re-skin after BodySlide deformation.
         /// </summary>
@@ -667,6 +691,8 @@ public class NifMeshBuilder
         HairTintColor = b.HairTintColor,
         BindPosePositions = b.BindPosePositions != null ? (Vector3[])b.BindPosePositions.Clone() : null,
         BindPoseNormals = b.BindPoseNormals != null ? (Vector3[])b.BindPoseNormals.Clone() : null,
+        Weight0BindPosePositions = b.Weight0BindPosePositions != null ? (Vector3[])b.Weight0BindPosePositions.Clone() : null,
+        Weight1BindPosePositions = b.Weight1BindPosePositions != null ? (Vector3[])b.Weight1BindPosePositions.Clone() : null,
         Skinning = b.Skinning,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
         HasAlphaTest = b.HasAlphaTest,
