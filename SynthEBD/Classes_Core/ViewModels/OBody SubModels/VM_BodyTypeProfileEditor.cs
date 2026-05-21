@@ -2148,6 +2148,58 @@ public class VM_BodyTypeProfile : VM
             .OrderBy(v => v, StringComparer.Ordinal);
     }
 
+    /// <summary>Returns the subset of <see cref="AvailableDescriptors"/> that the
+    /// <c>DescriptorRef</c> condition at <c>(ruleIdx, groupIdx, condIdx)</c> can safely
+    /// reference without creating a cycle in the rule-dependency graph. The editing
+    /// condition's existing ref is temporarily cleared before the check, so changing the
+    /// ref from one valid target to another is always allowed (only the new candidate's
+    /// cycle-ness is evaluated). Hand-edited cycles already present in the JSON are
+    /// detected during the same scan — those rules drop out of the "safe" set too, so
+    /// the user can't add new edges that perpetuate them.</summary>
+    public IEnumerable<(string Category, string Value)> GetSafeDescriptorRefsForCondition(
+        int ruleIdx, int groupIdx, int condIdx)
+    {
+        var dumped = Rules.Select(r => r.DumpToModel()).ToList();
+
+        // Clear the editing condition's existing ref so cycle detection treats this slot as
+        // "currently empty". Bounds-check at every level — out-of-range indices just skip
+        // the clear, which is still correct (the dropdown then sees the existing edge as
+        // part of the graph; not ideal but not unsafe).
+        if (ruleIdx >= 0 && ruleIdx < dumped.Count)
+        {
+            var rule = dumped[ruleIdx];
+            if (rule?.GroupsORlogic != null
+                && groupIdx >= 0 && groupIdx < rule.GroupsORlogic.Count)
+            {
+                var group = rule.GroupsORlogic[groupIdx];
+                if (group?.ConditionsANDlogic != null
+                    && condIdx >= 0 && condIdx < group.ConditionsANDlogic.Count)
+                {
+                    var cond = group.ConditionsANDlogic[condIdx];
+                    if (cond != null && cond.Kind == MeasurementConditionKind.DescriptorRef)
+                    {
+                        cond.RefCategory = "";
+                        cond.RefValue = "";
+                    }
+                }
+            }
+        }
+
+        var safe = new List<(string Category, string Value)>();
+        foreach (var d in AvailableDescriptors)
+        {
+            if (string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
+            if (RuleDependencyOrder.WouldCreateCycle(dumped, ruleIdx, d.Category, d.Value)) continue;
+            safe.Add((d.Category, d.Value));
+        }
+        return safe;
+    }
+
+    /// <summary>Index of <paramref name="rule"/> in the editor-side rule collection, or
+    /// <c>-1</c> if not found. Used by cycle-safe descriptor-ref enumeration to identify
+    /// which rule is being edited.</summary>
+    public int IndexOfRule(VM_MeasurementRule rule) => Rules.IndexOf(rule);
+
     public void OnVertexPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
     {
         ActiveViewer = viewer;
@@ -2595,23 +2647,40 @@ public class VM_BodyTypeProfile : VM
 
         PreviewMatches.Clear();
         int drafts = 0, promoted = 0;
+
+        // Same topo-sort the production evaluator uses, so DescriptorRef-kind conditions
+        // see the upstream matches that should already have fired by the time their parent
+        // rule's predicate is checked. The preview pane is intentionally not gated on IsDraft
+        // (the user wants to see what draft rules would emit), so aggregators referencing
+        // draft descriptors light up here.
+        var eligibleModels = new List<MeasurementRule>();
+        var ruleVMByModel = new Dictionary<MeasurementRule, VM_MeasurementRule>(ReferenceEqualityComparer.Instance);
         foreach (var r in Rules)
         {
             if (r == null) continue;
             if (string.IsNullOrEmpty(r.DescriptorCategory)) continue;
             if (string.IsNullOrEmpty(r.DescriptorValue)) continue;
+            var m = r.DumpToModel();
+            eligibleModels.Add(m);
+            ruleVMByModel[m] = r;
+        }
+        var orderedModels = RuleDependencyOrder.SortByDescriptorDependencies(eligibleModels, out _);
 
-            var model = r.DumpToModel();
-            if (!MeasurementMath.RuleMatches(model, meas)) continue;
+        var matched = new HashSet<(string Category, string Value)>();
+        foreach (var model in orderedModels)
+        {
+            if (!MeasurementMath.RuleMatches(model, meas, matched)) continue;
 
+            var sourceVm = ruleVMByModel[model];
+            matched.Add((model.Descriptor.Category, model.Descriptor.Value));
             PreviewMatches.Add(new VM_PreviewMatch
             {
-                Category = r.DescriptorCategory,
-                Value = r.DescriptorValue,
-                IsDraft = r.IsDraft,
-                ConditionTrace = BuildMatchTrace(model, meas),
+                Category = sourceVm.DescriptorCategory,
+                Value = sourceVm.DescriptorValue,
+                IsDraft = sourceVm.IsDraft,
+                ConditionTrace = BuildMatchTrace(model, meas, matched),
             });
-            if (r.IsDraft) drafts++; else promoted++;
+            if (sourceVm.IsDraft) drafts++; else promoted++;
         }
 
         if (meas.Count == 0)
@@ -2633,7 +2702,10 @@ public class VM_BodyTypeProfile : VM
         }
     }
 
-    private static string BuildMatchTrace(MeasurementRule rule, IReadOnlyDictionary<string, float> meas)
+    private static string BuildMatchTrace(
+        MeasurementRule rule,
+        IReadOnlyDictionary<string, float> meas,
+        IReadOnlySet<(string Category, string Value)>? matched = null)
     {
         if (rule.GroupsORlogic == null) return "";
         foreach (var g in rule.GroupsORlogic)
@@ -2643,10 +2715,27 @@ public class VM_BodyTypeProfile : VM
             var parts = new List<string>(g.ConditionsANDlogic.Count);
             foreach (var c in g.ConditionsANDlogic)
             {
-                if (c == null || string.IsNullOrEmpty(c.MeasurementName)) { allMatch = false; break; }
-                if (!meas.TryGetValue(c.MeasurementName, out var v)) { allMatch = false; break; }
-                if (!MeasurementMath.Compare(v, c.Comparator, c.Value)) { allMatch = false; break; }
-                parts.Add($"{c.MeasurementName}={v:F3} {ComparatorSymbol(c.Comparator)} {c.Value:F3}");
+                if (c == null) { allMatch = false; break; }
+                if (c.Kind == MeasurementConditionKind.DescriptorRef)
+                {
+                    if (string.IsNullOrEmpty(c.RefCategory) || string.IsNullOrEmpty(c.RefValue))
+                    {
+                        allMatch = false;
+                        break;
+                    }
+                    bool present = matched != null && matched.Contains((c.RefCategory, c.RefValue));
+                    bool fires = c.Negate ? !present : present;
+                    if (!fires) { allMatch = false; break; }
+                    string negPrefix = c.Negate ? "NOT " : "";
+                    parts.Add($"{negPrefix}{c.RefCategory}:{c.RefValue}");
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(c.MeasurementName)) { allMatch = false; break; }
+                    if (!meas.TryGetValue(c.MeasurementName, out var v)) { allMatch = false; break; }
+                    if (!MeasurementMath.Compare(v, c.Comparator, c.Value)) { allMatch = false; break; }
+                    parts.Add($"{c.MeasurementName}={v:F3} {ComparatorSymbol(c.Comparator)} {c.Value:F3}");
+                }
             }
             if (allMatch) return string.Join("  AND  ", parts);
         }
@@ -3661,7 +3750,9 @@ public class VM_BodyTypeProfile : VM
         foreach (var kv in entry.Measurements)
             if (kv.Value.HasValue) floats[kv.Key] = kv.Value.Value;
 
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // Mirror BodySlideMeasurementEvaluator.Evaluate: filter eligible rules, topo-sort
+        // by descriptor dependencies so aggregator rules see the matched set, then iterate.
+        var eligible = new List<MeasurementRule>();
         foreach (var rule in profileModel.Rules)
         {
             if (rule == null) continue;
@@ -3669,11 +3760,20 @@ public class VM_BodyTypeProfile : VM
             if (rule.Descriptor == null
                 || string.IsNullOrEmpty(rule.Descriptor.Category)
                 || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
-            if (!MeasurementMath.RuleMatches(rule, floats)) continue;
+            eligible.Add(rule);
+        }
+        var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out _);
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var matched = new HashSet<(string Category, string Value)>();
+        foreach (var rule in ordered)
+        {
+            if (!MeasurementMath.RuleMatches(rule, floats, matched)) continue;
 
             string k = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
             if (!seen.Add(k)) continue;
 
+            matched.Add((rule.Descriptor.Category, rule.Descriptor.Value));
             result.Add(new BodyShapeDescriptor.LabelSignature
             {
                 Category = rule.Descriptor.Category,
@@ -3982,6 +4082,10 @@ public class VM_MeasurementRule : VM
 
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors => _parent.AvailableDescriptors;
 
+    /// <summary>Owning profile — exposed so child conditions can navigate up for cycle
+    /// detection and safe-ref enumeration without re-walking the VM tree.</summary>
+    public VM_BodyTypeProfile ParentProfile => _parent;
+
     /// <summary>Bound to the Descriptor Category ComboBox.ItemsSource on the Rules tab.</summary>
     public IEnumerable<string> AvailableDescriptorCategories => _parent.AvailableDescriptorCategories;
 
@@ -4044,6 +4148,10 @@ public class VM_AndGatedMeasurementGroup : VM
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
+    /// <summary>Owning rule. Exposed so child conditions can navigate up to the profile
+    /// (e.g. to compute cycle-safe descriptor-ref candidates).</summary>
+    public VM_MeasurementRule ParentRule => _parent;
+
     public void RemoveCondition(VM_MeasurementCondition condition) => Conditions.Remove(condition);
 
     public AndGatedMeasurementGroup DumpToModel() => new()
@@ -4060,18 +4168,37 @@ public class VM_MeasurementCondition : VM
     public VM_MeasurementCondition(MeasurementCondition source, VM_AndGatedMeasurementGroup parent)
     {
         _parent = parent;
+        Kind = source.Kind;
         MeasurementName = source.MeasurementName ?? "";
         Comparator = source.Comparator;
         Value = source.Value;
+        RefCategory = source.RefCategory ?? "";
+        RefValue = source.RefValue ?? "";
+        Negate = source.Negate;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => _parent.RemoveCondition(this));
     }
 
+    /// <summary>Selects the row's display + persistence shape. Toggling this between
+    /// <see cref="MeasurementConditionKind.Measurement"/> and
+    /// <see cref="MeasurementConditionKind.DescriptorRef"/> swaps the visible XAML controls
+    /// (via the <see cref="IsMeasurementKind"/> / <see cref="IsDescriptorRefKind"/>
+    /// triggers); the underlying fields for the inactive kind stay in memory so toggling
+    /// back doesn't lose the user's prior values.</summary>
+    public MeasurementConditionKind Kind { get; set; }
+
+    // --- Measurement-kind fields ---
     public string MeasurementName { get; set; }
     public MeasurementComparator Comparator { get; set; }
     public float Value { get; set; }
+
+    // --- DescriptorRef-kind fields ---
+    public string RefCategory { get; set; }
+    public string RefValue { get; set; }
+    public bool Negate { get; set; }
+
     public RelayCommand DeleteCommand { get; }
 
     /// <summary>True when <see cref="MeasurementName"/> is empty or matches an existing
@@ -4084,11 +4211,72 @@ public class VM_MeasurementCondition : VM
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
+    /// <summary>Drives XAML visibility for the Measurement-kind controls.</summary>
+    public bool IsMeasurementKind => Kind == MeasurementConditionKind.Measurement;
+
+    /// <summary>Drives XAML visibility for the DescriptorRef-kind controls.</summary>
+    public bool IsDescriptorRefKind => Kind == MeasurementConditionKind.DescriptorRef;
+
+    /// <summary>Available enum values for the Kind ComboBox in the Rules tab.</summary>
+    public static IReadOnlyList<MeasurementConditionKind> KindOptions { get; } = new[]
+    {
+        MeasurementConditionKind.Measurement,
+        MeasurementConditionKind.DescriptorRef,
+    };
+
+    /// <summary>Cycle-filtered list of descriptor Categories the user can reference from
+    /// this DescriptorRef condition. Computed by enumerating
+    /// <see cref="VM_BodyTypeProfile.GetSafeDescriptorRefsForCondition"/> with this row's
+    /// (rule, group, condition) coordinates so the editing condition's existing ref is
+    /// excluded from the cycle check. Snapshotted at access time; the dropdown picks up
+    /// changes the next time the user opens it.</summary>
+    public IEnumerable<string> AvailableRefCategories
+    {
+        get
+        {
+            var safe = ResolveSafeRefs();
+            return safe
+                .Select(t => t.Category)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(c => c, StringComparer.Ordinal);
+        }
+    }
+
+    /// <summary>Cycle-filtered Values for the currently-selected <see cref="RefCategory"/>.
+    /// Fody re-evaluates this when <see cref="RefCategory"/> changes, so the Value dropdown
+    /// refilters automatically on Category change.</summary>
+    public IEnumerable<string> AvailableRefValues
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(RefCategory)) return Array.Empty<string>();
+            var safe = ResolveSafeRefs();
+            return safe
+                .Where(t => string.Equals(t.Category, RefCategory, StringComparison.Ordinal))
+                .Select(t => t.Value)
+                .OrderBy(v => v, StringComparer.Ordinal);
+        }
+    }
+
+    private IEnumerable<(string Category, string Value)> ResolveSafeRefs()
+    {
+        var rule = _parent.ParentRule;
+        var profile = rule.ParentProfile;
+        int ruleIdx = profile.IndexOfRule(rule);
+        int groupIdx = rule.Groups.IndexOf(_parent);
+        int condIdx = _parent.Conditions.IndexOf(this);
+        return profile.GetSafeDescriptorRefsForCondition(ruleIdx, groupIdx, condIdx);
+    }
+
     public MeasurementCondition DumpToModel() => new()
     {
+        Kind = Kind,
         MeasurementName = MeasurementName?.Trim() ?? "",
         Comparator = Comparator,
         Value = Value,
+        RefCategory = RefCategory?.Trim() ?? "",
+        RefValue = RefValue?.Trim() ?? "",
+        Negate = Negate,
     };
 }
 

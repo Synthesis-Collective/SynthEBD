@@ -689,14 +689,43 @@
                                                                                     <ItemsControl.ItemTemplate>
                                                                                         <DataTemplate DataType="{x:Type local:VM_MeasurementCondition}">
                                                                                             <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                                                                <!-- Kind picker: Measurement | DescriptorRef. Toggling swaps which controls are visible
+                                                                                                     via the IsMeasurementKind / IsDescriptorRefKind visibility bindings. The inactive
+                                                                                                     kind's fields stay in memory so flipping back doesn't lose the prior values. -->
+                                                                                                <ComboBox ItemsSource="{Binding KindOptions}"
+                                                                                                          SelectedItem="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          MinWidth="105" Margin="0,0,5,0"
+                                                                                                          ToolTip="Measurement: classic threshold test on a measurement value. DescriptorRef: aggregator — match when another rule's (Category, Value) descriptor has already fired (or hasn't, when Negate is checked)."/>
+
+                                                                                                <!-- Measurement-kind row -->
                                                                                                 <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
                                                                                                           Text="{Binding MeasurementName, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           Style="{StaticResource InvalidConditionRefComboBoxStyle}"
-                                                                                                          MinWidth="160" Margin="0,0,5,0"/>
+                                                                                                          MinWidth="160" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
                                                                                                 <ComboBox SelectedValue="{Binding Comparator, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementComparator}}}"
-                                                                                                          MinWidth="140" Margin="0,0,5,0"/>
-                                                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"/>
+                                                                                                          MinWidth="140" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
+                                                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"
+                                                                                                         Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
+
+                                                                                                <!-- DescriptorRef-kind row -->
+                                                                                                <CheckBox Content="NOT" IsChecked="{Binding Negate, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          VerticalAlignment="Center" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
+                                                                                                          ToolTip="When checked, the condition matches only if the referenced descriptor did NOT fire (exclude flavor)."/>
+                                                                                                <ComboBox ItemsSource="{Binding AvailableRefCategories}"
+                                                                                                          SelectedItem="{Binding RefCategory, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          MinWidth="120" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
+                                                                                                          ToolTip="Category of the descriptor this condition checks. Cycle-inducing choices are pre-filtered out."/>
+                                                                                                <ComboBox ItemsSource="{Binding AvailableRefValues}"
+                                                                                                          SelectedItem="{Binding RefValue, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          MinWidth="140" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
+                                                                                                          ToolTip="Value of the descriptor this condition checks. Filtered by Category and by cycle-safety."/>
+
                                                                                                 <Button Content="X" Command="{Binding DeleteCommand}" Padding="4,0"/>
                                                                                             </StackPanel>
                                                                                         </DataTemplate>

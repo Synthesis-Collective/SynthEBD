@@ -338,15 +338,61 @@ public enum MeasurementComparator
     NotEqualTo = 5,
 }
 
+/// <summary>Which side of the predicate vocabulary a <see cref="MeasurementCondition"/> uses.
+/// <see cref="Measurement"/> (default) is the classical <c>measurement [comparator] value</c>
+/// test; <see cref="DescriptorRef"/> is an aggregator-style "did another rule's descriptor
+/// already fire on this evaluation?" test, allowing one rule to derive its output from the
+/// match-set of other rules (e.g. a Realism:Unrealistic aggregator built from UnrealisticChest
+/// OR UnrealisticButt OR UnrealisticWaist). Mixing both kinds inside a single AND group is
+/// permitted — the engine just AND-s the booleans either way.</summary>
+public enum MeasurementConditionKind
+{
+    /// <summary>Default: the condition compares a measurement value against a threshold.</summary>
+    Measurement = 0,
+    /// <summary>The condition tests whether a specific (Category, Value) descriptor was
+    /// produced by some other rule earlier in the topological evaluation order. Reads
+    /// <see cref="MeasurementCondition.RefCategory"/>, <see cref="MeasurementCondition.RefValue"/>,
+    /// and <see cref="MeasurementCondition.Negate"/>; ignores
+    /// <see cref="MeasurementCondition.MeasurementName"/>,
+    /// <see cref="MeasurementCondition.Comparator"/>, and
+    /// <see cref="MeasurementCondition.Value"/>.</summary>
+    DescriptorRef = 1,
+}
+
 /// <summary>
-/// A single threshold test: <c>measurement [comparator] value</c>.
+/// A single predicate condition. Defaults to a <see cref="MeasurementConditionKind.Measurement"/>
+/// threshold test (<c>measurement [comparator] value</c>); when <see cref="Kind"/> is
+/// <see cref="MeasurementConditionKind.DescriptorRef"/> the condition instead tests whether
+/// another rule has already produced descriptor (<see cref="RefCategory"/>, <see cref="RefValue"/>),
+/// optionally negated via <see cref="Negate"/>.
 /// </summary>
-[DebuggerDisplay("{MeasurementName} {Comparator} {Value}")]
+[DebuggerDisplay("{Kind}: {MeasurementName} {Comparator} {Value} | ref={RefCategory}:{RefValue} neg={Negate}")]
 public class MeasurementCondition
 {
+    /// <summary>Selects which fields are read at evaluation time. Defaults to
+    /// <see cref="MeasurementConditionKind.Measurement"/> so existing JSON deserializes
+    /// without migration — the old measurement-only schema becomes the default kind.</summary>
+    public MeasurementConditionKind Kind { get; set; } = MeasurementConditionKind.Measurement;
+
+    // --- Measurement-kind fields ---
     public string MeasurementName { get; set; } = "";
     public MeasurementComparator Comparator { get; set; } = MeasurementComparator.GreaterThan;
     public float Value { get; set; } = 0f;
+
+    // --- DescriptorRef-kind fields ---
+    /// <summary>When <see cref="Kind"/> = <see cref="MeasurementConditionKind.DescriptorRef"/>,
+    /// the descriptor Category this condition references. Ignored otherwise.</summary>
+    public string RefCategory { get; set; } = "";
+
+    /// <summary>When <see cref="Kind"/> = <see cref="MeasurementConditionKind.DescriptorRef"/>,
+    /// the descriptor Value this condition references. Ignored otherwise.</summary>
+    public string RefValue { get; set; } = "";
+
+    /// <summary>When <see cref="Kind"/> = <see cref="MeasurementConditionKind.DescriptorRef"/>
+    /// and <see cref="Negate"/> is true, the condition matches when the referenced descriptor
+    /// is <em>absent</em> from the current match set (the "exclude" flavor). Defaults to false:
+    /// match when the descriptor is present. Ignored for <see cref="MeasurementConditionKind.Measurement"/>.</summary>
+    public bool Negate { get; set; } = false;
 }
 
 /// <summary>
@@ -1414,9 +1460,21 @@ public static class MeasurementMath
 
     /// <summary>
     /// True when the rule's predicate (DNF: OR of AND-gated condition groups) matches the given
-    /// measurement values. An empty <see cref="MeasurementRule.GroupsORlogic"/> never matches.
+    /// measurement values and (optionally) the running set of already-matched descriptors.
+    /// An empty <see cref="MeasurementRule.GroupsORlogic"/> never matches.
+    /// <para>
+    /// <paramref name="matchedDescriptors"/> is the set of <c>(Category, Value)</c> pairs that
+    /// earlier rules in the evaluation order have produced. It feeds
+    /// <see cref="MeasurementConditionKind.DescriptorRef"/> conditions; pass null (or an empty
+    /// set) for evaluation contexts that don't support aggregator rules (legacy callers, unit
+    /// tests). Aggregator rules will simply fail to match in that case, which is the right
+    /// behavior — we don't know what fired upstream.
+    /// </para>
     /// </summary>
-    public static bool RuleMatches(MeasurementRule rule, IReadOnlyDictionary<string, float> measurements)
+    public static bool RuleMatches(
+        MeasurementRule rule,
+        IReadOnlyDictionary<string, float> measurements,
+        IReadOnlySet<(string Category, string Value)>? matchedDescriptors = null)
     {
         if (rule?.GroupsORlogic == null || rule.GroupsORlogic.Count == 0) return false;
         foreach (var group in rule.GroupsORlogic)
@@ -1425,12 +1483,42 @@ public static class MeasurementMath
             bool allMatch = true;
             foreach (var cond in group.ConditionsANDlogic)
             {
-                if (cond == null || string.IsNullOrEmpty(cond.MeasurementName)) { allMatch = false; break; }
-                if (!measurements.TryGetValue(cond.MeasurementName, out float val)) { allMatch = false; break; }
-                if (!Compare(val, cond.Comparator, cond.Value)) { allMatch = false; break; }
+                if (cond == null) { allMatch = false; break; }
+                if (!ConditionMatches(cond, measurements, matchedDescriptors)) { allMatch = false; break; }
             }
             if (allMatch) return true;
         }
         return false;
+    }
+
+    /// <summary>Evaluates a single <see cref="MeasurementCondition"/> against the supplied
+    /// measurement values and matched-descriptor set. Branches on
+    /// <see cref="MeasurementCondition.Kind"/>: <see cref="MeasurementConditionKind.Measurement"/>
+    /// does the threshold compare; <see cref="MeasurementConditionKind.DescriptorRef"/> tests
+    /// the matched-descriptor set membership, honoring <see cref="MeasurementCondition.Negate"/>.</summary>
+    private static bool ConditionMatches(
+        MeasurementCondition cond,
+        IReadOnlyDictionary<string, float> measurements,
+        IReadOnlySet<(string Category, string Value)>? matchedDescriptors)
+    {
+        switch (cond.Kind)
+        {
+            case MeasurementConditionKind.DescriptorRef:
+                // An aggregator condition with a blank Category or Value is malformed — fail
+                // closed (treat as not-matching) so a half-edited rule can't accidentally match
+                // everything. The UI prevents this from being saved but keep the runtime
+                // strict for hand-edited JSON.
+                if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue))
+                    return false;
+                bool present = matchedDescriptors != null
+                    && matchedDescriptors.Contains((cond.RefCategory, cond.RefValue));
+                return cond.Negate ? !present : present;
+
+            case MeasurementConditionKind.Measurement:
+            default:
+                if (string.IsNullOrEmpty(cond.MeasurementName)) return false;
+                if (!measurements.TryGetValue(cond.MeasurementName, out float val)) return false;
+                return Compare(val, cond.Comparator, cond.Value);
+        }
     }
 }

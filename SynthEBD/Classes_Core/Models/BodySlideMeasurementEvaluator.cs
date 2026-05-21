@@ -104,9 +104,12 @@ public static class BodySlideMeasurementEvaluator
 
         if (profile.Rules != null)
         {
-            // De-dup descriptors emitted by multiple matching rules so a single (Category, Value)
-            // doesn't appear twice in the output.
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+            // Aggregator rules (any condition with Kind=DescriptorRef) need to fire AFTER the
+            // rules they reference, so the matched-descriptor set is populated when their
+            // predicate is evaluated. RuleDependencyOrder topo-sorts the eligible rules; rules
+            // caught in a cycle are dropped from the sort and logged (the UI prevents cycles
+            // at edit time, but hand-edited JSON could still produce one).
+            var eligible = new List<MeasurementRule>();
             foreach (var rule in profile.Rules)
             {
                 if (rule == null) continue;
@@ -114,11 +117,26 @@ public static class BodySlideMeasurementEvaluator
                 if (rule.Descriptor == null
                     || string.IsNullOrEmpty(rule.Descriptor.Category)
                     || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
-                if (!MeasurementMath.RuleMatches(rule, result.Measurements)) continue;
+                eligible.Add(rule);
+            }
+
+            var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out var skipped);
+
+            // De-dup descriptors emitted by multiple matching rules so a single (Category, Value)
+            // doesn't appear twice in the output.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            // Match set fed to DescriptorRef conditions. Stays empty on the first pass for any
+            // non-aggregator rule (which is fine — they ignore it).
+            var matched = new HashSet<(string Category, string Value)>();
+
+            foreach (var rule in ordered)
+            {
+                if (!MeasurementMath.RuleMatches(rule, result.Measurements, matched)) continue;
 
                 string key = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
                 if (!seen.Add(key)) continue;
 
+                matched.Add((rule.Descriptor.Category, rule.Descriptor.Value));
                 result.Descriptors.Add(new AnnotatedDescriptorSignature(rule.Descriptor, BodyShapeAnnotationSource.Classifier));
             }
         }
