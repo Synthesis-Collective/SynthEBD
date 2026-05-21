@@ -3579,8 +3579,32 @@ public class VM_BodyTypeProfile : VM
     /// <summary>PropertyChanged forwarder for leaf VM edits on KeyVertices /
     /// MeasurementDefinitions — fields whose values change the numbers. Distinct from
     /// <see cref="OnScanInvalidatingChange"/>, which covers rule-only edits that don't
-    /// invalidate the measurements cache.</summary>
-    private void OnMeasurementCacheInvalidatingChange(object? sender, PropertyChangedEventArgs e) => MarkMeasurementCacheStale();
+    /// invalidate the measurements cache.
+    /// <para>
+    /// Skips PropertyChanged events that <see cref="RefreshMeasurementValues"/> and the
+    /// duplicate / ref-validity recomputes write back into the row themselves:
+    /// <see cref="VM_MeasurementDefinition.LiveValue"/> updates on every preview refresh
+    /// (clicking a row in Match Presets, navigating between weight slots, applying a new
+    /// BodySlide preset), and <see cref="VM_MeasurementDefinition.HasDuplicateName"/> /
+    /// <see cref="VM_MeasurementDefinition.IsRefAValid"/> through <c>IsRefDValid</c> get
+    /// rewritten by the editor's own recompute methods. Reacting to those would set the
+    /// scan-cache-stale flag immediately after a fresh scan, surfacing the spurious
+    /// "results stale — re-scan recommended" badge on every row click.
+    /// </para>
+    /// <para>
+    /// Mirrors the exclusion list in <see cref="OnMeasurementRowPropertyChanged"/>; keep
+    /// the two in sync if new derived-from-recompute properties are added.
+    /// </para></summary>
+    private void OnMeasurementCacheInvalidatingChange(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.HasDuplicateName)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefAValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
+        MarkMeasurementCacheStale();
+    }
 
     /// <summary>Marks both the measurements cache and the derived descriptor list stale.
     /// Used for KeyVertices and MeasurementDefinition changes — the underlying numbers
