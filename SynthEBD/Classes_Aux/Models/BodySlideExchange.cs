@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,10 @@ namespace SynthEBD
     {
         public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
         public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
-        public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new();
+
+        [JsonConverter(typeof(BodyShapeDescriptorShellListConverter))]
+        public List<BodyShapeDescriptorShell> TemplateDescriptors { get; set; } = new();
+
         public List<RaceGrouping> RaceGroupings { get; set; } = new();
         public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     }

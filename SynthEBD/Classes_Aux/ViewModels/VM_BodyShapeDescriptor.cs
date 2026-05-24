@@ -76,10 +76,13 @@ public class VM_BodyShapeDescriptor : VM, IHasValueString
 
     public BodyShapeDescriptor DumpViewModeltoModel()
     {
-        BodyShapeDescriptor model = new BodyShapeDescriptor(); 
+        // CategoryDescription is no longer written here — it lives on the owning
+        // BodyShapeDescriptorShell now. The shell-aware dump in
+        // VM_BodyShapeDescriptorCreationMenu.DumpToViewModels emits one CategoryDescription
+        // per category instead of duplicating it across every value.
+        BodyShapeDescriptor model = new BodyShapeDescriptor();
         model.ID = new() { Category = ParentShell.Category, Value = Value };
         model.ValueDescription = ValueDescription;
-        model.CategoryDescription = ParentShell.CategoryDescription;
         model.AssociatedRules = AssociatedRules.DumpViewModelToModel();
         return model;
     }

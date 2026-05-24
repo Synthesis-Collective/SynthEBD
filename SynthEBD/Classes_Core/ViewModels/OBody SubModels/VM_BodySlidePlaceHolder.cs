@@ -79,7 +79,7 @@ namespace SynthEBD
                 _libraryAnnotator.Annotate(AssociatedModel);
 
                 // Tier 2: rule-based annotator
-                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, _patcherState.OBodySettings.TemplateDescriptors.Select(x => x.ID).ToHashSet(), false, null);
+                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, _patcherState.OBodySettings.TemplateDescriptors.Flatten().Select(x => x.ID).ToHashSet(), false, null);
             }
         }
 

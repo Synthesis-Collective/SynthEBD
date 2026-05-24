@@ -29,19 +29,52 @@ namespace SynthEBD
             patcherState.OBodySettings.AttributeGroups = CheckGroupDuplicates(patcherState.OBodySettings.AttributeGroups, "O/AutoBody Settings", "Attribute Groups").Cast<AttributeGroup>().ToHashSet();
 
 
-            foreach (var descriptor in patcherState.OBodySettings.TemplateDescriptors)
-            {
-                descriptor.Label = descriptor.ID.ToString();
-            }
-            patcherState.OBodySettings.TemplateDescriptors = CheckGroupDuplicates(patcherState.OBodySettings.TemplateDescriptors, "O/AutoBody Settings", "Body Shape Descriptors").Cast<BodyShapeDescriptor>().ToHashSet();
+            // Shells dedupe by Category; their internal Descriptors dedupe by (Category:Value)
+            // via the descriptor's Label field. Stamp Label on each descriptor first so the
+            // duplicate-detection plumbing can compare strings, then dedupe shells, then dedupe
+            // each surviving shell's values.
+            DedupeDescriptorShellList(patcherState.OBodySettings.TemplateDescriptors, "O/AutoBody Settings");
             foreach (var bg in patcherState.BodyGenConfigs.Male.And(patcherState.BodyGenConfigs.Female))
             {
-                foreach (var descriptor in bg.TemplateDescriptors)
-                {
-                    descriptor.Label = descriptor.ID.ToString();
-                }
-                bg.TemplateDescriptors = CheckGroupDuplicates(bg.TemplateDescriptors, bg.Label, "Body Shape Descriptors").Cast<BodyShapeDescriptor>().ToHashSet();
+                DedupeDescriptorShellList(bg.TemplateDescriptors, bg.Label);
             }
+        }
+
+        /// <summary>Two-level dedupe pass over a <see cref="BodyShapeDescriptorShell"/> list:
+        /// first dedupe shells by Category (each shell's <see cref="IHasLabel.Label"/> proxies
+        /// Category), then dedupe each surviving shell's Descriptors by their full signature
+        /// (Category:Value). Mutates <paramref name="shells"/> in place by reassigning surviving
+        /// items; safe to call on the field's own list. <paramref name="parentDispName"/> is
+        /// surfaced in the duplicate-detection prompt so users know which config the duplicate
+        /// came from.</summary>
+        private static void DedupeDescriptorShellList(List<BodyShapeDescriptorShell> shells, string parentDispName)
+        {
+            if (shells == null) return;
+
+            // Stamp descriptor Labels for the per-value dedupe below.
+            foreach (var shell in shells)
+            {
+                if (shell?.Descriptors == null) continue;
+                foreach (var descriptor in shell.Descriptors)
+                {
+                    if (descriptor?.ID != null) descriptor.Label = descriptor.ID.ToString();
+                }
+            }
+
+            // Dedupe shells by Category (shell.Label proxies Category via IHasLabel).
+            var deduped = CheckGroupDuplicates(shells, parentDispName, "Body Shape Descriptor Categories").Cast<BodyShapeDescriptorShell>().ToList();
+
+            // Per-shell value dedupe.
+            foreach (var shell in deduped)
+            {
+                if (shell?.Descriptors == null) continue;
+                var dedupedValues = CheckGroupDuplicates(shell.Descriptors, parentDispName + " → " + shell.Category, "Body Shape Descriptor Values").Cast<BodyShapeDescriptor>().ToList();
+                shell.Descriptors = dedupedValues;
+            }
+
+            // Replace original list contents with the deduped order.
+            shells.Clear();
+            shells.AddRange(deduped);
         }
 
         public static IEnumerable<IHasLabel> CheckGroupDuplicates(IEnumerable<IHasLabel> groupings, string parentDispName, string type)

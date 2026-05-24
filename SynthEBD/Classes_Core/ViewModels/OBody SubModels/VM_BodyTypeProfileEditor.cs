@@ -391,7 +391,7 @@ public class VM_BodyTypeProfileEditor : VM
         if (live == null) return;
 
         var liveKeys = new HashSet<(string Cat, string Val)>();
-        foreach (var d in live)
+        foreach (var d in live.Flatten())
         {
             if (d?.ID == null) continue;
             var cat = d.ID.Category ?? "";
@@ -449,7 +449,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         if (model.TemplateDescriptors != null)
         {
-            foreach (var d in model.TemplateDescriptors)
+            foreach (var d in model.TemplateDescriptors.Flatten())
             {
                 if (d?.ID == null) continue;
                 AvailableDescriptors.Add(new BodyShapeDescriptor.LabelSignature { Category = d.ID.Category, Value = d.ID.Value });

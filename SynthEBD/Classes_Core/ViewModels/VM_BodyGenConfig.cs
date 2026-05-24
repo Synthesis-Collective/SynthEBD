@@ -231,12 +231,15 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
 
-        foreach (var descriptor in model.TemplateDescriptors)
+        // Flatten the shell-grouped collection back into individual descriptors so the
+        // existing per-descriptor VM scaffolding (TemplateDescriptorList for VM_Subgroup /
+        // VM_BodyGenTemplate consumers) stays unchanged.
+        foreach (var descriptor in model.TemplateDescriptors.Flatten())
         {
             _logger.LogStartupEventStart("Generating UI for BodyShape Descriptor " + descriptor.ID);
             var subVm = _descriptorCreator.CreateNew(
                 _descriptorCreator.CreateNewShell(new ObservableCollection<VM_BodyShapeDescriptorShell>(), RaceGroupingEditor.RaceGroupings, this, DescriptorUI.ResponseToChange, DescriptorUI.ResponseToValueDeletion),  // May want to update this later to perform its own check
-                RaceGroupingEditor.RaceGroupings, 
+                RaceGroupingEditor.RaceGroupings,
                 this,
                 DescriptorUI.ResponseToChange,
                 DescriptorUI.ResponseToValueDeletion);

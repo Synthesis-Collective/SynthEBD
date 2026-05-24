@@ -25,17 +25,36 @@ public class Settings_OBody
     public List<int> DefaultWeightSlots { get; set; } = new() { 0, 25, 50, 75, 100 };
     public List<BodySlideSetting> BodySlidesMale { get; set; } = new();
     public List<BodySlideSetting> BodySlidesFemale { get; set; } = new();
-    public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new()
+    // Persistence shape changed in 2026: previously a flat HashSet<BodyShapeDescriptor> where
+    // CategoryDescription was duplicated across every value of the same category. Now grouped
+    // into shells with one CategoryDescription per category. The JsonConverter handles the
+    // legacy flat shape on load, so old OBodySettings.json files keep loading.
+    [JsonConverter(typeof(BodyShapeDescriptorShellListConverter))]
+    public List<BodyShapeDescriptorShell> TemplateDescriptors { get; set; } = new()
     {
-        new BodyShapeDescriptor(){ ID = new(){ Category = "Build", Value = "Slight" } },
-        new BodyShapeDescriptor(){ ID = new(){Category = "Build", Value = "Medium" } },
-        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Curvy"} },
-        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Chubby"}},
-        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Exaggerated" }},
-        new BodyShapeDescriptor() { ID = new(){Category = "Build", Value = "Powerful" }},
-        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Busty" }},
-        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Medium" }},
-        new BodyShapeDescriptor() { ID = new(){Category = "Chest", Value = "Petite" }},
+        new BodyShapeDescriptorShell
+        {
+            Category = "Build",
+            Descriptors = new()
+            {
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Slight" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Medium" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Curvy" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Chubby" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Exaggerated" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Build", Value = "Powerful" } },
+            },
+        },
+        new BodyShapeDescriptorShell
+        {
+            Category = "Chest",
+            Descriptors = new()
+            {
+                new BodyShapeDescriptor { ID = new() { Category = "Chest", Value = "Busty" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Chest", Value = "Medium" } },
+                new BodyShapeDescriptor { ID = new() { Category = "Chest", Value = "Petite" } },
+            },
+        },
     };
 
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
@@ -91,7 +110,7 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
-    public void ImportBodySlides(HashSet<BodyShapeDescriptor> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
+    public void ImportBodySlides(List<BodyShapeDescriptorShell> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
 
@@ -189,7 +208,11 @@ public class Settings_OBody
                             {
                                 foreach (var annotation in defaultAnnotationDict[presetName])
                                 {
-                                    var descriptor = templateDescriptors.Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                                    // Flatten() yields one BodyShapeDescriptor per (Category, Value)
+                                    // across the new shell-grouped collection. The .ID.ToString()
+                                    // comparison stays unchanged — the descriptor still carries the
+                                    // full Category+Value pair in its ID.
+                                    var descriptor = templateDescriptors.Flatten().Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                                     if (descriptor != null)
                                     {
                                         // Default CSV-shipped annotations are treated as Library-sourced (Tier 1).

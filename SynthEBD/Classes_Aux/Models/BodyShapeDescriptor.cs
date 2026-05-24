@@ -29,8 +29,11 @@ public class BodyShapeDescriptor : IHasLabel
     public LabelSignature ID { get; set; } = new();
     public BodyShapeDescriptorRules AssociatedRules { get; set; } = new();
     public string Label { get; set; } // for duplicate removal - populated by removal code
-    public string CategoryDescription { get; set; } // this will be redundant for Descriptors with the same Category. Not worth breaking backwards compatibility to make BodyShapeDescriptor class nested like VM_BodyShapeDescriptor is.
-    public string ValueDescription { get; set; } 
+    // CategoryDescription was historically stored on every value entry, even though it logically
+    // belongs to the Category. As of 2026 it lives on BodyShapeDescriptorShell.CategoryDescription
+    // alongside the Category itself; the legacy field is handled at load time by
+    // BodyShapeDescriptorShellListConverter so pre-refactor JSON files still load cleanly.
+    public string ValueDescription { get; set; }
 
     public bool MapsTo(Object obj)
     {

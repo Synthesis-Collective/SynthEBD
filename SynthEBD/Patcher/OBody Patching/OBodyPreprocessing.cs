@@ -25,7 +25,7 @@ public class OBodyPreprocessing
 
     public void CompileRulesRaces(Settings_OBody oBodySettings)
     {
-        foreach (var descriptor in oBodySettings.TemplateDescriptors)
+        foreach (var descriptor in oBodySettings.TemplateDescriptors.Flatten())
         {
             descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, descriptor.AssociatedRules.AllowedRaces);
             descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, _patcherState.GeneralSettings.RaceGroupings, descriptor.AssociatedRules.DisallowedRaces);

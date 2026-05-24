@@ -185,7 +185,7 @@ public class AssetPackValidator
         {
             foreach (var descriptor in subgroup.AllowedBodyGenDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors.Flatten()))
                 {
                     subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within the associated BodyGen config's descriptors");
                     isValid=false;
@@ -193,7 +193,7 @@ public class AssetPackValidator
             }
             foreach (var descriptor in subgroup.DisallowedBodyGenDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors.Flatten()))
                 {
                     subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within the associated BodyGen config's descriptors");
                     isValid = false;
@@ -205,7 +205,7 @@ public class AssetPackValidator
         {
             foreach (var descriptor in subgroup.AllowedBodySlideDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors.Flatten()))
                 {
                     subErrors.Add("Allowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors.");
                     isValid = false;
@@ -214,7 +214,7 @@ public class AssetPackValidator
             }
             foreach (var descriptor in subgroup.DisallowedBodySlideDescriptors)
             {
-                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+                if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors.Flatten()))
                 {
                     subErrors.Add("Disallowed descriptor " + descriptor.ToString() + " is invalid because it is not contained within your O/AutoBody descriptors");
                     isValid = false;

@@ -337,7 +337,7 @@ public class MiscValidation
                         itemsWithBlankAttributes.Add("BodyGen Template: " + template.Label);
                     }
                 }
-                foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
+                foreach (var descriptor in bodyGenConfig.TemplateDescriptors.Flatten())
                 {
                     if (HasBlankAttribute(descriptor.AssociatedRules.AllowedAttributes) || HasBlankAttribute(descriptor.AssociatedRules.DisallowedAttributes))
                     {
@@ -355,7 +355,7 @@ public class MiscValidation
                     itemsWithBlankAttributes.Add("BodySlide: " + template.Label);
                 }
             }
-            foreach (var descriptor in _patcherState.OBodySettings.TemplateDescriptors)
+            foreach (var descriptor in _patcherState.OBodySettings.TemplateDescriptors.Flatten())
             {
                 if (HasBlankAttribute(descriptor.AssociatedRules.AllowedAttributes) || HasBlankAttribute(descriptor.AssociatedRules.DisallowedAttributes))
                 {

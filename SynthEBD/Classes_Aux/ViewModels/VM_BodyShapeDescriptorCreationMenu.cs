@@ -43,81 +43,109 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         );
     }
 
-    public void CopyInViewModelsFromModels(HashSet<BodyShapeDescriptor> models)
+    public void CopyInViewModelsFromModels(List<BodyShapeDescriptorShell> models)
     {
         MergeInMissingModels(models, DescriptorRulesMergeMode.Overwrite, new List<string>());
     }
 
-    public HashSet<BodyShapeDescriptor> DumpToViewModels()
+    public List<BodyShapeDescriptorShell> DumpToViewModels()
     {
-        HashSet<BodyShapeDescriptor> models = new();
-
+        // Emit one shell per category VM with one CategoryDescription, then each value VM's
+        // descriptor model under it. The per-descriptor model no longer carries
+        // CategoryDescription (lives on the shell), so the JSON only stores it once per category.
+        var models = new List<BodyShapeDescriptorShell>();
         foreach (var categoryVM in TemplateDescriptors)
         {
+            var shell = new BodyShapeDescriptorShell
+            {
+                Category = categoryVM.Category,
+                CategoryDescription = categoryVM.CategoryDescription,
+            };
             foreach (var descriptor in categoryVM.Descriptors)
             {
-                models.Add(descriptor.DumpViewModeltoModel());
+                shell.Descriptors.Add(descriptor.DumpViewModeltoModel());
             }
+            models.Add(shell);
         }
-
         return models;
     }
 
-    public HashSet<BodyShapeDescriptor> DumpSelectedToViewModels(IEnumerable<BodyShapeDescriptor.LabelSignature> selectedDescriptors)
+    public List<BodyShapeDescriptorShell> DumpSelectedToViewModels(IEnumerable<BodyShapeDescriptor.LabelSignature> selectedDescriptors)
     {
-        HashSet<BodyShapeDescriptor> models = new();
-        var selectedSignatures = selectedDescriptors.Select(x => x.ToString()).ToArray();
-
+        // Same shape as DumpToViewModels, but filtered to (Category, Value) pairs the caller
+        // explicitly named. Empty shells (no selected descriptors in the category) are omitted
+        // so the exported file is minimal.
+        var selectedSignatures = selectedDescriptors.Select(x => x.ToString()).ToHashSet(StringComparer.Ordinal);
+        var models = new List<BodyShapeDescriptorShell>();
         foreach (var categoryVM in TemplateDescriptors)
         {
+            BodyShapeDescriptorShell shell = null;
             foreach (var descriptor in categoryVM.Descriptors)
             {
-                if (selectedSignatures.Contains(descriptor.Signature))
+                if (!selectedSignatures.Contains(descriptor.Signature)) continue;
+                if (shell == null)
                 {
-                    models.Add(descriptor.DumpViewModeltoModel());
+                    shell = new BodyShapeDescriptorShell
+                    {
+                        Category = categoryVM.Category,
+                        CategoryDescription = categoryVM.CategoryDescription,
+                    };
                 }
+                shell.Descriptors.Add(descriptor.DumpViewModeltoModel());
             }
+            if (shell != null) models.Add(shell);
         }
-
         return models;
     }
 
-    public void MergeInMissingModels(HashSet<BodyShapeDescriptor> models, DescriptorRulesMergeMode mode, List<string> mergedDescriptors)
+    public void MergeInMissingModels(List<BodyShapeDescriptorShell> shells, DescriptorRulesMergeMode mode, List<string> mergedDescriptors)
     {
         mergedDescriptors.Clear();
+        if (shells == null) return;
 
-        foreach (var model in models)
+        foreach (var shellModel in shells)
         {
-            var shell = TemplateDescriptors.Where(x => x.Category == model.ID.Category).FirstOrDefault();
+            if (shellModel == null) continue;
+            var shell = TemplateDescriptors.Where(x => x.Category == shellModel.Category).FirstOrDefault();
             if (shell == null)
             {
                 shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
-                shell.Category = model.ID.Category;
-                shell.CategoryDescription = model.CategoryDescription;
+                shell.Category = shellModel.Category;
+                shell.CategoryDescription = shellModel.CategoryDescription;
                 TemplateDescriptors.Add(shell);
             }
-
-            var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
-            if (descriptor == null)
+            else if (string.IsNullOrEmpty(shell.CategoryDescription) && !string.IsNullOrEmpty(shellModel.CategoryDescription))
             {
-                descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
-                descriptor.Value = model.ID.Value;
-                descriptor.ValueDescription = model.ValueDescription;
-                descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
-                shell.Descriptors.Add(descriptor);
-                TemplateDescriptorList.Add(descriptor);
+                // Existing shell without a description picks up the imported one.
+                // We don't overwrite an existing non-empty description — that would surprise
+                // the user, and the merge-mode parameter is about rules, not descriptions.
+                shell.CategoryDescription = shellModel.CategoryDescription;
             }
-            else
-            {
-                switch (mode)
-                {
-                    case DescriptorRulesMergeMode.Skip: break;
-                    case DescriptorRulesMergeMode.Overwrite: descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings); break;
-                    case DescriptorRulesMergeMode.Merge: 
-                        descriptor.AssociatedRules.MergeInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
-                        mergedDescriptors.Add(descriptor.Signature);
-                        break;
 
+            foreach (var model in shellModel.Descriptors ?? new List<BodyShapeDescriptor>())
+            {
+                if (model?.ID == null) continue;
+                var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
+                if (descriptor == null)
+                {
+                    descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
+                    descriptor.Value = model.ID.Value;
+                    descriptor.ValueDescription = model.ValueDescription;
+                    descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
+                    shell.Descriptors.Add(descriptor);
+                    TemplateDescriptorList.Add(descriptor);
+                }
+                else
+                {
+                    switch (mode)
+                    {
+                        case DescriptorRulesMergeMode.Skip: break;
+                        case DescriptorRulesMergeMode.Overwrite: descriptor.AssociatedRules.CopyInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings); break;
+                        case DescriptorRulesMergeMode.Merge:
+                            descriptor.AssociatedRules.MergeInViewModelFromModel(model.AssociatedRules, _generalSettings.RaceGroupingEditor.RaceGroupings);
+                            mergedDescriptors.Add(descriptor.Signature);
+                            break;
+                    }
                 }
             }
         }

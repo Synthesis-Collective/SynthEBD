@@ -18,7 +18,8 @@ public class BodyGenConfig
     public HashSet<RacialMapping> RacialTemplateGroupMap { get; set; } = new();
     public HashSet<BodyGenTemplate> Templates { get; set; } = new();
     public HashSet<string> TemplateGroups { get; set; } = new();
-    public HashSet<BodyShapeDescriptor> TemplateDescriptors { get; set; } = new();
+    [JsonConverter(typeof(BodyShapeDescriptorShellListConverter))]
+    public List<BodyShapeDescriptorShell> TemplateDescriptors { get; set; } = new();
     public HashSet<AttributeGroup> AttributeGroups { get; set; } = new();
     public List<RaceGrouping> RaceGroupings { get; set; } = new();
     public DescriptorMatchMode AllowedDescriptorMatchMode { get; set; } = DescriptorMatchMode.All;
@@ -154,7 +155,9 @@ public class zEBDBodyGenConfig
             }
 
             converted.Female.TemplateGroups = usedFemaleGroups;
-            converted.Female.TemplateDescriptors = usedFemaleDescriptors.Select(x => new BodyShapeDescriptor() { ID = x }).ToHashSet();
+            converted.Female.TemplateDescriptors = usedFemaleDescriptors
+                .Select(x => new BodyShapeDescriptor() { ID = x })
+                .ToShells();
             converted.bFemaleInitialized = true;
         }
 
@@ -175,7 +178,9 @@ public class zEBDBodyGenConfig
             }
 
             converted.Male.TemplateGroups = usedMaleGroups;
-            converted.Male.TemplateDescriptors = usedMaleDescriptors.Select(x => new BodyShapeDescriptor() { ID = x }).ToHashSet();
+            converted.Male.TemplateDescriptors = usedMaleDescriptors
+                .Select(x => new BodyShapeDescriptor() { ID = x })
+                .ToShells();
             converted.bMaleInitialized = true;
         }
 

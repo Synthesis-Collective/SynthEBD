@@ -45,7 +45,7 @@ public class BodyGenPreprocessing
     private void CompileBodyGenDescriptorRaces(BodyGenConfig bodyGenConfig)
     {
         var raceGroupings = GetRaceGroupings(bodyGenConfig);
-        foreach (var descriptor in bodyGenConfig.TemplateDescriptors)
+        foreach (var descriptor in bodyGenConfig.TemplateDescriptors.Flatten())
         {
             descriptor.AssociatedRules.AllowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.AllowedRaceGroupings, raceGroupings, descriptor.AssociatedRules.AllowedRaces);
             descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, raceGroupings, descriptor.AssociatedRules.DisallowedRaces);

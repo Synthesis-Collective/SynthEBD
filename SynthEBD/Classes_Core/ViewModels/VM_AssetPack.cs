@@ -1527,7 +1527,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < allowedDescriptorsBG.Count; i++)
         {
             var descriptor = allowedDescriptorsBG[i];
-            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors.Flatten()))
             {
                 subgroup.AllowedBodyGenDescriptors.Remove(descriptor);
                 allowedDescriptorsBG.RemoveAt(i);
@@ -1539,7 +1539,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < disallowedDescriptorsBG.Count; i++)
         {
             var descriptor = disallowedDescriptorsBG[i];
-            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors))
+            if (!descriptor.CollectionContainsThisDescriptor(bodyGenConfig.TemplateDescriptors.Flatten()))
             {
                 subgroup.DisallowedBodyGenDescriptors.Remove(descriptor);
                 disallowedDescriptorsBG.RemoveAt(i);
@@ -1551,7 +1551,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < allowedDescriptorsBS.Count; i++)
         {
             var descriptor = allowedDescriptorsBS[i];
-            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors.Flatten()))
             {
                 subgroup.AllowedBodySlideDescriptors.Remove(descriptor);
                 allowedDescriptorsBS.RemoveAt(i);
@@ -1563,7 +1563,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         for (int i = 0; i < disallowedDescriptorsBS.Count; i++)
         {
             var descriptor = disallowedDescriptorsBS[i];
-            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors))
+            if (!descriptor.CollectionContainsThisDescriptor(oBodySettings.TemplateDescriptors.Flatten()))
             {
                 subgroup.DisallowedBodySlideDescriptors.Remove(descriptor);
                 disallowedDescriptorsBS.RemoveAt(i);

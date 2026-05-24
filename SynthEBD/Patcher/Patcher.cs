@@ -431,7 +431,7 @@ public class Patcher
                 _libraryAnnotator.AnnotateAll(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale));
 
                 // Tier 2: rule-based annotator
-                _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, copiedOBodySettings.TemplateDescriptors.Select(x => x.ID).ToHashSet(), false, null);
+                _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, copiedOBodySettings.TemplateDescriptors.Flatten().Select(x => x.ID).ToHashSet(), false, null);
             }
 
             BodySlideTracker = new();

@@ -311,7 +311,7 @@ public class OBodySelector
         var descriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(candidatePreset, npcInfo.NPC.Weight);
         foreach (var descriptorLabel in descriptorsAtWeight)
         {
-            var associatedDescriptor = oBodySettings.TemplateDescriptors.Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
+            var associatedDescriptor = oBodySettings.TemplateDescriptors.Flatten().Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
             if (associatedDescriptor is not null)
             {
                 if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr))
