@@ -14,9 +14,13 @@ public partial class UC_BodyTypeProfileEditor : UserControl
 {
     private bool _presetsPrimed;
 
-    /// <summary>Active iteration timer when Ctrl+I has put the editor in
-    /// auto-cycle-presets mode; null otherwise. Tested as the on/off flag.</summary>
+    /// <summary>Active iteration timer when one of the Ctrl+I shortcuts has put the editor
+    /// in an auto-cycle mode; null otherwise. Tested as the on/off flag.</summary>
     private DispatcherTimer? _iterationTimer;
+
+    /// <summary>Which collection the active iteration is walking. Ignored when
+    /// <see cref="_iterationTimer"/> is null.</summary>
+    private IterationMode _iterationMode = IterationMode.Presets;
 
     /// <summary>Current per-step delay while iterating. Bounded by
     /// <see cref="MinIterationDelayMs"/> and <see cref="MaxIterationDelayMs"/>;
@@ -26,6 +30,13 @@ public partial class UC_BodyTypeProfileEditor : UserControl
     private const int MinIterationDelayMs = 500;
     private const int MaxIterationDelayMs = 10_000;
     private const double IterationSpeedFactor = 0.75;
+
+    /// <summary>Distinguishes the two Ctrl+I iteration variants. <see cref="Presets"/>
+    /// walks <c>FilteredPresets</c> at the user's chosen <c>PreviewWeight</c>, leaving
+    /// the weight pinned across the run. <see cref="Filtered"/> walks
+    /// <c>MatchingPresets</c> (one row per (preset, weight) that survived the descriptor +
+    /// weight filters), so each tick steps through both axes per the scan-results order.</summary>
+    private enum IterationMode { Presets, Filtered }
 
     public UC_BodyTypeProfileEditor()
     {
@@ -47,6 +58,10 @@ public partial class UC_BodyTypeProfileEditor : UserControl
     ///         <c>VM_BodyTypeProfileEditor.FilteredPresets</c> at
     ///         <see cref="_iterationDelayMs"/>, cycling indefinitely until
     ///         Escape or another Ctrl+I.</item>
+    ///   <item>Ctrl+Shift+I — same cadence, but walks
+    ///         <c>VM_BodyTypeProfileEditor.MatchingPresets</c> instead — i.e.
+    ///         only the (preset, weight) rows that survived the Match Presets
+    ///         tab's descriptor + weight filters, in their list order.</item>
     ///   <item>+ / - (top-row or numpad) — halve / double the per-step delay
     ///         while iteration is active, clamped to
     ///         [<see cref="MinIterationDelayMs"/>,
@@ -58,6 +73,20 @@ public partial class UC_BodyTypeProfileEditor : UserControl
     /// to work undisturbed.</summary>
     private void OnEditorPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // Ctrl+Shift+I → filtered iteration. Checked BEFORE the Ctrl+I branch so the
+        // (Shift==0) gate below doesn't accidentally claim the chord. Alt is rejected
+        // for the same reason the plain Ctrl+I branch rejects it: keep the chord
+        // shape strict so neighbor shortcuts don't bleed into iteration toggles.
+        if (e.Key == Key.I
+            && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control
+            && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift
+            && (Keyboard.Modifiers & ModifierKeys.Alt) == 0)
+        {
+            ToggleIteration(IterationMode.Filtered);
+            e.Handled = true;
+            return;
+        }
+
         // Ctrl+I toggles iteration. Reject Shift/Alt modifiers so Ctrl+Shift+I
         // (browser dev tools muscle memory) doesn't accidentally fire.
         if (e.Key == Key.I
@@ -65,7 +94,7 @@ public partial class UC_BodyTypeProfileEditor : UserControl
             && (Keyboard.Modifiers & ModifierKeys.Shift) == 0
             && (Keyboard.Modifiers & ModifierKeys.Alt) == 0)
         {
-            ToggleIteration();
+            ToggleIteration(IterationMode.Presets);
             e.Handled = true;
             return;
         }
@@ -93,56 +122,87 @@ public partial class UC_BodyTypeProfileEditor : UserControl
         }
     }
 
-    /// <summary>Starts iteration if currently off, stops if on. Iteration walks
-    /// <c>VM_BodyTypeProfileEditor.FilteredPresets</c> (respects any active filter
-    /// text) at <see cref="_iterationDelayMs"/> intervals, wrapping at the end.
-    /// The first tick advances PAST the currently-selected preset so the user
-    /// sees a change immediately even though their current preset is already
-    /// rendered. PreviewWeight is left alone so the user's choice of weight
-    /// holds across the entire run.</summary>
-    private void ToggleIteration()
+    /// <summary>Starts iteration in <paramref name="mode"/> if currently off; stops if
+    /// already running in the same mode; switches modes (stop + restart) if running in
+    /// a different mode. Iteration walks the per-mode collection at
+    /// <see cref="_iterationDelayMs"/> intervals, wrapping at the end. The first tick
+    /// advances PAST the currently-selected item so the user sees a change immediately
+    /// even though the current item is already rendered.
+    /// <list type="bullet">
+    ///   <item><see cref="IterationMode.Presets"/>: walks <c>FilteredPresets</c> with
+    ///         <c>PreviewWeight</c> pinned to the user's current choice.</item>
+    ///   <item><see cref="IterationMode.Filtered"/>: walks <c>MatchingPresets</c>, which
+    ///         already encodes one row per (preset, weight) — stepping it advances both
+    ///         axes per the scan-results order.</item>
+    /// </list></summary>
+    private void ToggleIteration(IterationMode mode)
     {
         if (_iterationTimer != null)
         {
+            // Same mode → toggle off. Different mode → switch (stop then start fresh
+            // below, so the new mode's count + setup logs fire).
+            bool wasSameMode = _iterationMode == mode;
             StopIteration();
-            return;
+            if (wasSameMode) return;
         }
         if (DataContext is not VM_BodyTypeProfileEditor vm) return;
-        if (vm.FilteredPresets == null || vm.FilteredPresets.Count == 0)
+
+        int count;
+        switch (mode)
         {
-            vm.Logger?.LogMessage("BodyTypeProfile iteration: no presets to cycle.");
-            return;
+            case IterationMode.Presets:
+                count = vm.FilteredPresets?.Count ?? 0;
+                if (count == 0)
+                {
+                    vm.Logger?.LogMessage("BodyTypeProfile iteration: no presets to cycle.");
+                    return;
+                }
+                break;
+            case IterationMode.Filtered:
+                count = vm.MatchingPresets?.Count ?? 0;
+                if (count == 0)
+                {
+                    vm.Logger?.LogMessage("BodyTypeProfile iteration: no filter-matching presets to cycle. Run a scan and/or adjust the filter.");
+                    return;
+                }
+                break;
+            default:
+                return;
         }
 
+        _iterationMode = mode;
         _iterationTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(_iterationDelayMs),
         };
         _iterationTimer.Tick += OnIterationTick;
         _iterationTimer.Start();
-        vm.Logger?.LogMessage($"BodyTypeProfile iteration: started at {_iterationDelayMs}ms/step "
-            + $"({vm.FilteredPresets.Count} preset(s), weight {vm.PreviewWeight}). "
-            + "+/- adjusts speed, Escape stops.");
+        string scope = mode == IterationMode.Filtered
+            ? $"{count} filter-matching row(s)"
+            : $"{count} preset(s), weight {vm.PreviewWeight}";
+        vm.Logger?.LogMessage($"BodyTypeProfile iteration ({mode}): started at {_iterationDelayMs}ms/step "
+            + $"({scope}). +/- adjusts speed, Escape stops.");
     }
 
     private void StopIteration()
     {
         if (_iterationTimer == null) return;
+        var mode = _iterationMode;
         _iterationTimer.Stop();
         _iterationTimer.Tick -= OnIterationTick;
         _iterationTimer = null;
         if (DataContext is VM_BodyTypeProfileEditor vm)
         {
-            vm.Logger?.LogMessage("BodyTypeProfile iteration: stopped.");
+            vm.Logger?.LogMessage($"BodyTypeProfile iteration ({mode}): stopped.");
         }
     }
 
-    /// <summary>One step of the iteration. Re-resolves the current preset's
-    /// position in <c>FilteredPresets</c> each tick rather than carrying an
-    /// index across ticks, so a mid-iteration filter change or list rebuild
-    /// doesn't desynchronize. Falls off to <c>StopIteration</c> when the list
-    /// becomes empty (filter text typed to a no-match string, gender changed
-    /// to one with no presets, etc.).</summary>
+    /// <summary>One step of the iteration. Re-resolves the current row's position in
+    /// the active mode's collection each tick rather than carrying an index across ticks,
+    /// so a mid-iteration filter / scan / list rebuild doesn't desynchronize. Falls off
+    /// to <c>StopIteration</c> when the active list becomes empty (filter text typed to
+    /// a no-match string, gender changed to one with no presets, descriptor filter
+    /// excluded everything, etc.).</summary>
     private void OnIterationTick(object? sender, EventArgs e)
     {
         if (DataContext is not VM_BodyTypeProfileEditor vm)
@@ -150,21 +210,43 @@ public partial class UC_BodyTypeProfileEditor : UserControl
             StopIteration();
             return;
         }
-        var presets = vm.FilteredPresets;
-        if (presets == null || presets.Count == 0)
-        {
-            StopIteration();
-            return;
-        }
 
-        // Find the current preset's index in today's list; if it's not there
-        // (filter changed under us, etc.), restart at 0. Otherwise advance one
-        // with wrap-around.
-        int currentIdx = vm.SelectedPreset != null
-            ? presets.IndexOf(vm.SelectedPreset)
-            : -1;
-        int nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % presets.Count;
-        vm.SelectedPreset = presets[nextIdx];
+        switch (_iterationMode)
+        {
+            case IterationMode.Presets:
+            {
+                var presets = vm.FilteredPresets;
+                if (presets == null || presets.Count == 0)
+                {
+                    StopIteration();
+                    return;
+                }
+                int currentIdx = vm.SelectedPreset != null
+                    ? presets.IndexOf(vm.SelectedPreset)
+                    : -1;
+                int nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % presets.Count;
+                vm.SelectedPreset = presets[nextIdx];
+                break;
+            }
+            case IterationMode.Filtered:
+            {
+                var rows = vm.MatchingPresets;
+                if (rows == null || rows.Count == 0)
+                {
+                    StopIteration();
+                    return;
+                }
+                int currentIdx = vm.SelectedMatchRow != null
+                    ? rows.IndexOf(vm.SelectedMatchRow)
+                    : -1;
+                int nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % rows.Count;
+                // Setting SelectedMatchRow fires the editor's PropertyChanged handler
+                // which calls LoadScanResultInViewer — so PreviewWeight + SelectedPreset
+                // update for free, with the same preview path arrow-key navigation uses.
+                vm.SelectedMatchRow = rows[nextIdx];
+                break;
+            }
+        }
     }
 
     private void ChangeIterationSpeed(bool faster)
@@ -204,6 +286,8 @@ public partial class UC_BodyTypeProfileEditor : UserControl
 
 Ctrl+I: Toggle iteration through the filtered preset list at the currently-selected weight. Default cadence is 1 sec / step.
 
+Ctrl+Shift+I: Toggle iteration through only the Match Presets rows that survived the descriptor + weight filters. Each step advances both the preset and the weight per the scan-results order. Press Ctrl+Shift+I again to stop; pressing Ctrl+I while filter-mode iteration is active switches modes.
+
 + / -: While iterating, speed up / slow down. Multiplicative step of 0.75, clamped to 500-10000 ms/step.
 
 Esc: While iterating, stop.
@@ -224,6 +308,8 @@ Ctrl+Shift+S: Save Measurements to CSV including the LiveValue column evaluated 
 
 Ctrl+C: Copy the Measurements table to the clipboard as TSV. Pastes directly into Excel / Sheets without an import wizard.
 
+Ctrl+Alt+Shift+S: Cumulative CSV across every (preset, weight) target for this profile — one row per slice, one column per measurement. Drives a full scan first when the cache isn't already complete. Default filename: {ProfileName}_AllMeasurements.csv
+
 RULES TAB
 
 Ctrl+S: Save Rules to JSON.
@@ -241,6 +327,10 @@ Ctrl+Shift+S: Save Measurements + LiveValues to CSV for the currently-previewed 
 MATCH PRESETS TAB
 
 Ctrl+Shift+S: Save Measurements + LiveValues to CSV for whichever scan row is currently selected. Arrow-key navigation auto-loads each row.
+
+Ctrl+Alt+Shift+S: Long-format descriptor-matches CSV across every scanned (preset, weight) — one row per (descriptor, preset, weight) match, sorted by Category then Value. Drives a scan first when the cache is stale. Default filename: {ProfileName}_DescriptorMatches.csv
+
+Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the clipboard.
 ";
         MessageWindow.DisplayNotificationOK("Body Type Profiles — Keyboard Shortcuts", text);
     }

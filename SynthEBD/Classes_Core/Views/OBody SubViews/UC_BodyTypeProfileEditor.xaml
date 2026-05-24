@@ -494,20 +494,25 @@
                                 <DockPanel>
                                     <!-- Developer convenience shortcuts, scoped to this tab's DockPanel
                                          so they only fire while focus is inside the Measurements tab.
-                                           Ctrl+S         → save JSON ({ "Measurements": [...] }) — uniform
-                                                            with the KeyVertices and Rules tabs.
-                                           Ctrl+L         → load JSON, wholesale-replacing the current
-                                                            Measurements after a confirm dialog.
-                                           Ctrl+Shift+S   → secondary export: CSV file including the
-                                                            live-evaluated LiveValue column for
-                                                            spreadsheet analysis.
-                                           Ctrl+C         → copy the same table as TSV onto the clipboard
-                                                            for direct paste into Excel / Sheets. -->
+                                           Ctrl+S            → save JSON ({ "Measurements": [...] }) — uniform
+                                                               with the KeyVertices and Rules tabs.
+                                           Ctrl+L            → load JSON, wholesale-replacing the current
+                                                               Measurements after a confirm dialog.
+                                           Ctrl+Shift+S      → secondary export: CSV file including the
+                                                               live-evaluated LiveValue column for
+                                                               spreadsheet analysis.
+                                           Ctrl+C            → copy the same table as TSV onto the clipboard
+                                                               for direct paste into Excel / Sheets.
+                                           Ctrl+Alt+Shift+S  → cumulative CSV across every (preset, weight)
+                                                               target — one row per slice, one column per
+                                                               measurement. Drives a scan first if the cache
+                                                               isn't already complete. -->
                                     <DockPanel.InputBindings>
-                                        <KeyBinding Modifiers="Control"       Key="S" Command="{Binding SaveMeasurementsToJson}"/>
-                                        <KeyBinding Modifiers="Control"       Key="L" Command="{Binding LoadMeasurementsFromJson}"/>
-                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
-                                        <KeyBinding Modifiers="Control"       Key="C" Command="{Binding CopyMeasurementsToClipboard}"/>
+                                        <KeyBinding Modifiers="Control"           Key="S" Command="{Binding SaveMeasurementsToJson}"/>
+                                        <KeyBinding Modifiers="Control"           Key="L" Command="{Binding LoadMeasurementsFromJson}"/>
+                                        <KeyBinding Modifiers="Control+Shift"     Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                        <KeyBinding Modifiers="Control"           Key="C" Command="{Binding CopyMeasurementsToClipboard}"/>
+                                        <KeyBinding Modifiers="Control+Alt+Shift" Key="S" Command="{Binding SaveAllMeasurementsToCsv}"/>
                                     </DockPanel.InputBindings>
                                     <Border DockPanel.Dock="Top"
                                             Style="{StaticResource DuplicateNameBannerStyle}"
@@ -887,14 +892,24 @@
 
                             <TabItem Header="Match Presets">
                                 <Grid>
-                                    <!-- Ctrl+Shift+S mirrors the Measurements-tab shortcut: writes the
-                                         currently-evaluated measurement table for the loaded preset+weight
-                                         to a CSV named {PresetLabel}_w{Weight}_Measurements.csv. Operates
-                                         on whichever (preset, weight) the viewer is currently showing — for
-                                         this tab that's whatever scan row is selected, since arrow-key
-                                         navigation auto-applies the row through SelectedPreset/PreviewWeight. -->
+                                    <!-- Match Presets tab shortcuts (scoped to this Grid so they only
+                                         fire while focus is inside the tab):
+                                           Ctrl+Shift+S      → per-slice CSV for the currently-selected
+                                                               scan row (same format as the Measurements
+                                                               tab's Ctrl+Shift+S).
+                                           Ctrl+Alt+Shift+S  → long-format descriptor-matches CSV across
+                                                               every scanned (preset, weight). Drives a
+                                                               scan first when the cache is stale.
+                                           Ctrl+C            → copy the selected row's "{Label} ({Weight})"
+                                                               identifier to the clipboard.
+                                         Ctrl+Shift+I (filter-mode iteration) is intercepted by the editor's
+                                         global PreviewKeyDown handler so it works from any tab — see
+                                         UC_BodyTypeProfileEditor.xaml.cs. -->
                                     <Grid.InputBindings>
-                                        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                        <KeyBinding Modifiers="Control+Shift"     Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
+                                        <KeyBinding Modifiers="Control+Alt+Shift" Key="S" Command="{Binding SaveDescriptorMatchesToCsv}"/>
+                                        <KeyBinding Modifiers="Control"           Key="C"
+                                                    Command="{Binding DataContext.CopySelectedMatchToClipboardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                                     </Grid.InputBindings>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>

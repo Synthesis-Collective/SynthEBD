@@ -156,6 +156,14 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: x => x is VM_PresetScanRow && !IsScanning,
             execute: x => { if (x is VM_PresetScanRow row) LoadScanResultInViewer(row); });
 
+        // Ctrl+C on the Match Presets tab: copies the currently-selected row's preset+weight
+        // identifier ("{Label} ({Weight})") to the clipboard so the user can paste it into
+        // notes, rule descriptions, etc. Operates on SelectedMatchRow rather than the
+        // viewer's loaded preset so the clipboard reflects exactly the highlighted list row.
+        CopySelectedMatchToClipboardCommand = new RelayCommand(
+            canExecute: _ => SelectedMatchRow != null,
+            execute: _ => CopySelectedMatchToClipboard());
+
         AnnotationTable = new VM_PresetAnnotationTable(this);
         AnnotationEditor = new VM_PresetAnnotationEditor(this, _filterFactory);
         SuggestMeasurements = new VM_SuggestMeasurementsPanel(this);
@@ -252,6 +260,7 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand ScanAllPresetsCommand { get; }
     public RelayCommand CancelScanCommand { get; }
     public RelayCommand LoadScanResultCommand { get; }
+    public RelayCommand CopySelectedMatchToClipboardCommand { get; }
 
     /// <summary>Dedicated 3D viewer embedded in the editor. Drives both preset preview
     /// and vertex picking so the user does not have to flip over to the BodySlides menu.</summary>
@@ -1237,6 +1246,26 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>Cancels an in-flight scan. Safe to call when no scan is running.</summary>
     public void CancelScan() => _scanCts?.Cancel();
 
+    /// <summary>Bound to Ctrl+C on the Match Presets tab. Writes "{PresetLabel} ({Weight})"
+    /// for the currently-selected scan row to the system clipboard. Format mirrors the row's
+    /// display text minus the (Gender) qualifier so the result is a clean preset reference.
+    /// No-op when no row is selected — the caller's canExecute already gates this.</summary>
+    private void CopySelectedMatchToClipboard()
+    {
+        var row = SelectedMatchRow;
+        if (row == null) return;
+        try
+        {
+            string text = (row.PresetLabel ?? "") + " (" + row.Weight + ")";
+            System.Windows.Clipboard.SetText(text);
+            _logger?.LogMessage("BodyTypeProfileEditor: copied '" + text + "' to clipboard.");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("CopySelectedMatchToClipboard failed: " + ex.Message);
+        }
+    }
+
     /// <summary>Bottom-section VM for the new Label-then-Suggest tab. Owns the preset
     /// annotation table, scan state, and column visibility prefs.</summary>
     public VM_PresetAnnotationTable AnnotationTable { get; }
@@ -1415,6 +1444,21 @@ public class VM_BodyTypeProfile : VM
         CopyMeasurementsToClipboard = new RelayCommand(
             canExecute: _ => Measurements.Count > 0,
             execute: _ => CopyMeasurementsToClipboardTsv());
+
+        // Ctrl+Alt+Shift+S on the Measurements tab: drives a scan across every (preset,
+        // weight) target for this profile and dumps the resulting measurement table as a
+        // single cumulative CSV. Skips the scan when the cache is already fresh + complete.
+        // Fire-and-forget — the async helper awaits the scan internally.
+        SaveAllMeasurementsToCsv = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0 && !_parent.IsScanning,
+            execute: _ => _ = SaveAllMeasurementsToCsvAsync());
+
+        // Ctrl+Alt+Shift+S on the Match Presets tab: dumps the current ScanResults as a
+        // long-format CSV (one row per matched descriptor per preset/weight). Drives a
+        // scan first if the cache is stale or empty so the export reflects today's rules.
+        SaveDescriptorMatchesToCsv = new RelayCommand(
+            canExecute: _ => Rules.Count > 0 && !_parent.IsScanning,
+            execute: _ => _ = SaveDescriptorMatchesToCsvAsync());
 
         AddRule = new RelayCommand(
             canExecute: _ => true,
@@ -2289,6 +2333,8 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand CaptureSelectedPicks { get; }
     public RelayCommand SaveMeasurementsToCsv { get; }
     public RelayCommand CopyMeasurementsToClipboard { get; }
+    public RelayCommand SaveAllMeasurementsToCsv { get; }
+    public RelayCommand SaveDescriptorMatchesToCsv { get; }
     public RelayCommand SaveKeyVerticesToJson { get; }
     public RelayCommand LoadKeyVerticesFromJson { get; }
     public RelayCommand SaveMeasurementsToJson { get; }
@@ -3306,6 +3352,230 @@ public class VM_BodyTypeProfile : VM
         {
             _parent?.Logger?.LogError("SaveMeasurementsToCsvFile failed: " + ex.Message);
         }
+    }
+
+    /// <summary>Cumulative variant of <see cref="SaveMeasurementsToCsvFile"/>: drives a
+    /// scan across every (preset, gender, weight) target for this profile and writes one
+    /// row per slice. Reuses the shared <see cref="MeasurementCache"/>, so when the cache
+    /// is already complete + fresh the "scan" is the all-hit fast path (no mesh work).
+    /// Columns: PresetLabel, Gender, Weight, TopologyMismatch, one column per measurement
+    /// in this profile's definition list (empty when the evaluator failed for that slice).
+    /// Bound to Ctrl+Alt+Shift+S on the Measurements tab.</summary>
+    private async System.Threading.Tasks.Task SaveAllMeasurementsToCsvAsync()
+    {
+        if (Measurements.Count == 0) return;
+        if (_parent == null || _parent.IsScanning) return;
+        if (!ReferenceEquals(_parent.SelectedProfile, this)) return;
+
+        // Sanitize the profile name the same way the per-slice CSV does, then suffix
+        // _AllMeasurements so the cumulative export is distinct from the per-slice one.
+        string label = (Name ?? "Profile").Trim();
+        if (label.Length == 0) label = "Profile";
+        foreach (char ch in System.IO.Path.GetInvalidFileNameChars())
+        {
+            label = label.Replace(ch, '_');
+        }
+        string defaultName = $"{label}_AllMeasurements.csv";
+
+        if (!IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                ".csv", "Save Cumulative Measurements as CSV", out string path, defaultName))
+        {
+            return;
+        }
+
+        // Ensure the cache is populated for every (preset, weight) target. RunScanAsync
+        // already handles the empty/partial/stale cases and short-circuits when nothing
+        // needs to be scanned, so calling it unconditionally is the simplest contract.
+        try
+        {
+            await _parent.RunScanAsync();
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveAllMeasurementsToCsvAsync: scan failed: " + ExceptionLogger.GetExceptionStack(ex));
+            return;
+        }
+
+        if (MeasurementCache.Count == 0)
+        {
+            _parent?.Logger?.LogMessage("BodyTypeProfile: cumulative measurements export aborted — no presets matched this profile's body type.");
+            return;
+        }
+
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            AppendCumulativeMeasurementsTable(sb, ',', quoteCsv: true);
+            System.IO.File.WriteAllText(path, sb.ToString(), new System.Text.UTF8Encoding(false));
+            _parent?.Logger?.LogMessage("BodyTypeProfile: exported cumulative measurements ("
+                + MeasurementCache.Count + " slice(s), " + Measurements.Count
+                + " measurement(s)) of profile '" + Name + "' to " + path);
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveAllMeasurementsToCsvAsync: write failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>Drives a scan to refresh <see cref="ScanResults"/> against the current
+    /// rules, then writes one CSV row per (descriptor, preset, gender, weight) match.
+    /// Long format keeps the file easy to pivot in Excel: filter by Category/Value to see
+    /// which slices fired a given descriptor; group by Preset/Weight to see what each slice
+    /// was labeled. Bound to Ctrl+Alt+Shift+S on the Match Presets tab.</summary>
+    private async System.Threading.Tasks.Task SaveDescriptorMatchesToCsvAsync()
+    {
+        if (Rules.Count == 0) return;
+        if (_parent == null || _parent.IsScanning) return;
+        if (!ReferenceEquals(_parent.SelectedProfile, this)) return;
+
+        string label = (Name ?? "Profile").Trim();
+        if (label.Length == 0) label = "Profile";
+        foreach (char ch in System.IO.Path.GetInvalidFileNameChars())
+        {
+            label = label.Replace(ch, '_');
+        }
+        string defaultName = $"{label}_DescriptorMatches.csv";
+
+        if (!IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                ".csv", "Save Descriptor Matches as CSV", out string path, defaultName))
+        {
+            return;
+        }
+
+        try
+        {
+            await _parent.RunScanAsync();
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveDescriptorMatchesToCsvAsync: scan failed: " + ExceptionLogger.GetExceptionStack(ex));
+            return;
+        }
+
+        if (ScanResults.Count == 0)
+        {
+            _parent?.Logger?.LogMessage("BodyTypeProfile: descriptor-matches export aborted — no scan results to dump.");
+            return;
+        }
+
+        try
+        {
+            var sb = new System.Text.StringBuilder();
+            int rowCount = AppendDescriptorMatchesTable(sb, ',', quoteCsv: true);
+            System.IO.File.WriteAllText(path, sb.ToString(), new System.Text.UTF8Encoding(false));
+            _parent?.Logger?.LogMessage("BodyTypeProfile: exported " + rowCount
+                + " descriptor match row(s) for profile '" + Name + "' to " + path);
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveDescriptorMatchesToCsvAsync: write failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>Builds the cumulative-measurements table into <paramref name="sb"/>.
+    /// One header row plus one data row per cache entry. Measurement columns follow
+    /// the order in <see cref="Measurements"/> (first occurrence wins on duplicate
+    /// names — matches the evaluator's first-wins policy). Missing/failed values
+    /// render as empty cells so the CSV remains tabular.</summary>
+    private void AppendCumulativeMeasurementsTable(System.Text.StringBuilder sb, char separator, bool quoteCsv)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+
+        var measurementColumns = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var m in Measurements)
+        {
+            var n = m?.Name?.Trim() ?? "";
+            if (string.IsNullOrEmpty(n)) continue;
+            if (!seen.Add(n)) continue;
+            measurementColumns.Add(n);
+        }
+
+        var headers = new List<string> { "PresetLabel", "Gender", "Weight", "TopologyMismatch" };
+        headers.AddRange(measurementColumns);
+        AppendRow(sb, separator, quoteCsv, headers.ToArray());
+
+        var ordered = MeasurementCache
+            .OrderBy(kv => kv.Key.Gender)
+            .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(kv => kv.Key.Weight);
+
+        foreach (var kv in ordered)
+        {
+            var row = new List<string>(headers.Count)
+            {
+                kv.Key.PresetLabel ?? "",
+                kv.Key.Gender.ToString(),
+                kv.Key.Weight.ToString(inv),
+                kv.Value.TopologyMismatch ? "true" : "false",
+            };
+            foreach (var name in measurementColumns)
+            {
+                if (kv.Value.Measurements.TryGetValue(name, out var v) && v.HasValue)
+                    row.Add(v.Value.ToString("F4", inv));
+                else
+                    row.Add("");
+            }
+            AppendRow(sb, separator, quoteCsv, row.ToArray());
+        }
+    }
+
+    /// <summary>Builds the descriptor-matches long-format table into <paramref name="sb"/>.
+    /// Returns the number of data rows written (excluding the header) so the caller can
+    /// log a meaningful count. Sort order keeps related rows together: Category, Value,
+    /// then by Gender / Preset / Weight. Slices with zero matches contribute zero rows;
+    /// they aren't represented in the file.</summary>
+    private int AppendDescriptorMatchesTable(System.Text.StringBuilder sb, char separator, bool quoteCsv)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        string[] headers = { "Category", "Value", "PresetLabel", "Gender", "Weight" };
+        AppendRow(sb, separator, quoteCsv, headers);
+
+        // Flatten ScanResults → (descriptor, slice) tuples, then sort. Sorting after the
+        // flatten (rather than per-slice) puts every preset that matched a given descriptor
+        // adjacent in the output, which is the whole point of grouping by descriptor.
+        var rows = new List<(string Category, string Value, string PresetLabel, Gender Gender, int Weight)>();
+        foreach (var kv in ScanResults)
+        {
+            if (kv.Value == null) continue;
+            foreach (var d in kv.Value)
+            {
+                if (d == null) continue;
+                rows.Add((
+                    d.Category ?? "",
+                    d.Value ?? "",
+                    kv.Key.PresetLabel ?? "",
+                    kv.Key.Gender,
+                    kv.Key.Weight));
+            }
+        }
+
+        rows.Sort((a, b) =>
+        {
+            int c = string.Compare(a.Category, b.Category, StringComparison.Ordinal);
+            if (c != 0) return c;
+            c = string.Compare(a.Value, b.Value, StringComparison.Ordinal);
+            if (c != 0) return c;
+            c = a.Gender.CompareTo(b.Gender);
+            if (c != 0) return c;
+            c = string.Compare(a.PresetLabel, b.PresetLabel, StringComparison.OrdinalIgnoreCase);
+            if (c != 0) return c;
+            return a.Weight.CompareTo(b.Weight);
+        });
+
+        foreach (var r in rows)
+        {
+            string[] row =
+            {
+                r.Category,
+                r.Value,
+                r.PresetLabel,
+                r.Gender.ToString(),
+                r.Weight.ToString(inv),
+            };
+            AppendRow(sb, separator, quoteCsv, row);
+        }
+        return rows.Count;
     }
 
     /// <summary>Copies the Measurements grid as TSV onto the clipboard so it pastes
