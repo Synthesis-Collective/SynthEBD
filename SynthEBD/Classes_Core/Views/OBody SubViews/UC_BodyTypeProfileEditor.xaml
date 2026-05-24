@@ -976,6 +976,20 @@
                                         <TextBlock Text="(results stale — re-scan recommended)" Foreground="OrangeRed"
                                                    FontWeight="Bold" VerticalAlignment="Center"
                                                    Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+
+                                        <!-- Match-strength sort selector. Only meaningful when exactly one
+                                             descriptor value is selected in the filter above; otherwise the
+                                             list falls back to the default (Gender, Preset, Weight) order
+                                             regardless of which mode is picked. The two non-Off modes differ
+                                             in how they normalize the raw (value − threshold) margin —
+                                             see MarginScoreMode for the formulas. -->
+                                        <TextBlock Text="Sort:" FontWeight="Bold" VerticalAlignment="Center" Margin="20,0,6,0"/>
+                                        <ComboBox Width="240" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding DataContext.ScoreSortModeOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedValuePath="Value"
+                                                  DisplayMemberPath="Label"
+                                                  SelectedValue="{Binding DataContext.ScoreSortMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  ToolTip="Active only when exactly one descriptor value is selected in the filter. Sorts matching presets by how far past the rule's thresholds each one sits — σ-normalized reads as 'N standard deviations past the line' across the cached population; % of threshold reads as 'N% past the threshold.' Both pick the OR-group with the most slack per row and use its tightest condition (min margin) as the row's score."/>
                                     </StackPanel>
 
                                     <ListBox Grid.Row="5"
@@ -987,7 +1001,25 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:VM_PresetScanRow}">
                                                 <StackPanel Margin="2">
-                                                    <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                        <!-- Score badge: empty string when no sort is active so the
+                                                             TextBlock collapses; visible (and colored a calm blue
+                                                             so it doesn't compete with the "stale results" red)
+                                                             when ScoreSortMode is non-Off and a single descriptor
+                                                             is selected. ToolTip hosts the sibling-scores list
+                                                             (every value in the selected Category and how strongly
+                                                             this preset matches each — closest-to-matching first).
+                                                             SiblingScoresTooltip is null when there's nothing to
+                                                             show; WPF auto-suppresses string-typed tooltips on null,
+                                                             so no extra converter is needed. -->
+                                                        <TextBlock Text="{Binding ScoreDisplay}"
+                                                                   Margin="8,0,0,0"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#FF1E88E5"
+                                                                   VerticalAlignment="Center"
+                                                                   ToolTip="{Binding SiblingScoresTooltip}"/>
+                                                    </StackPanel>
                                                     <TextBlock Text="{Binding MatchSummary}" FontFamily="Consolas" FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </DataTemplate>

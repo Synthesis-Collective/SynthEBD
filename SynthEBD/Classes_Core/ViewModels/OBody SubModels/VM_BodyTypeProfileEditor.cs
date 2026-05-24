@@ -234,6 +234,12 @@ public class VM_BodyTypeProfileEditor : VM
                     if (SelectedMatchRow != null && !IsScanning)
                         LoadScanResultInViewer(SelectedMatchRow);
                     break;
+                case nameof(ScoreSortMode):
+                    // Mode change re-sorts the existing rows; no descriptor / scan state
+                    // change so we skip the full descriptor-filter and weight-filter rebuild
+                    // by going through RefreshMatchingPresets, which is cheap enough.
+                    RefreshMatchingPresets();
+                    break;
             }
         };
 
@@ -319,6 +325,26 @@ public class VM_BodyTypeProfileEditor : VM
     /// summary) to help diagnose "scan returns zero matches" issues. Off by default so the
     /// Status Log isn't noisy during normal use.</summary>
     public bool VerboseScan { get; set; }
+
+    /// <summary>When exactly one descriptor value is selected in <see cref="DescriptorFilter"/>,
+    /// re-sorts <see cref="MatchingPresets"/> by how well each preset clears the matching
+    /// rule's thresholds. <see cref="MarginScoreMode.Off"/> keeps the default
+    /// (Gender, PresetLabel, Weight) order. The two enabled modes differ only in how the raw
+    /// (value − threshold) margin is normalized; both pick the OR-group with the most slack
+    /// and use that group's tightest condition (min margin) as the row's score. Ignored when
+    /// zero or 2+ descriptors are selected — the default order applies because there's no
+    /// single rule to score against.</summary>
+    public MarginScoreMode ScoreSortMode { get; set; } = MarginScoreMode.Off;
+
+    /// <summary>Pretty labels for the score-mode ComboBox so the enum names don't leak to
+    /// the UI. Order matches <see cref="MarginScoreMode"/>'s declaration so SelectedIndex
+    /// round-trips against the enum value cleanly.</summary>
+    public IReadOnlyList<MarginScoreOption> ScoreSortModeOptions { get; } = new[]
+    {
+        new MarginScoreOption(MarginScoreMode.Off, "Default order"),
+        new MarginScoreOption(MarginScoreMode.StdDevNormalized, "Match strength: σ-normalized margin"),
+        new MarginScoreOption(MarginScoreMode.PercentOfThreshold, "Match strength: % of threshold"),
+    };
 
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
@@ -1102,7 +1128,11 @@ public class VM_BodyTypeProfileEditor : VM
     /// Empty descriptor selection = include every scanned (preset, weight). Empty weight
     /// selection = no rows (user filtered everything out).
     /// Emits one row per (preset, weight) so keyboard navigation iterates each conforming
-    /// weight for each preset in a predictable order.</summary>
+    /// weight for each preset in a predictable order.
+    /// <para>When <see cref="ScoreSortMode"/> is enabled AND exactly one descriptor value is
+    /// selected, each row is also scored against the rule(s) for that descriptor and the
+    /// list is re-sorted by score (descending). See <see cref="ScoreRuleAgainstMeasurements"/>
+    /// for the per-rule margin computation.</para></summary>
     public void RefreshMatchingPresets()
     {
         var previouslySelected = SelectedMatchRow;
@@ -1129,12 +1159,82 @@ public class VM_BodyTypeProfileEditor : VM
             .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
             .ThenBy(kv => kv.Key.Weight);
 
+        // Stage rows in a list first so a score-based re-sort can replace the default order
+        // before we publish to the ObservableCollection. Adding incrementally and then
+        // re-ordering in-place would fire one CollectionChanged per row, which the ListBox
+        // would render through visibly.
+        var staged = new List<VM_PresetScanRow>();
         foreach (var kv in ordered)
         {
             if (weightFilterActive && !allowedWeights.Contains(kv.Key.Weight)) continue;
             if (!DescriptorFilterAccepts(kv.Value, selectionKeys, filterMode)) continue;
-            MatchingPresets.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
+            staged.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
         }
+
+        // Score-based sort only applies when exactly one descriptor value is selected — with
+        // 0 or 2+ there's no single rule to project onto, so we leave the default sort alone
+        // rather than picking an arbitrary descriptor.
+        bool scoringActive = ScoreSortMode != MarginScoreMode.Off && selectionKeys.Count == 1;
+        if (scoringActive)
+        {
+            var (cat, val) = selectionKeys.First();
+            var matchingRules = profile.Rules
+                .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal)
+                         && string.Equals(r.DescriptorValue, val, StringComparison.Ordinal))
+                .ToList();
+            // Sibling rules = same Category, any Value. Used for the per-row near-miss
+            // tooltip ("you matched Pear but you're close to Rectangle"). Includes the
+            // selected value's own rules so the tooltip line for the selected value lines
+            // up with the badge score — caller doesn't have to special-case the selected
+            // value to know it's the row's primary score.
+            var siblingRules = profile.Rules
+                .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal))
+                .ToList();
+            if (matchingRules.Count > 0)
+            {
+                // Std-dev normalization needs population statistics across the full cache.
+                // Compute once per refresh (not per row) so the cost is O(presets × names)
+                // rather than O(rows × presets × names). Pass siblingRules (a superset of
+                // matchingRules) so sibling-score normalization uses the same sigmas as the
+                // primary score — otherwise σ values per measurement would shift between
+                // badge and tooltip whenever a sibling rule references a measurement the
+                // primary rule doesn't.
+                Dictionary<string, double> stdDevs = null;
+                if (ScoreSortMode == MarginScoreMode.StdDevNormalized)
+                    stdDevs = ComputePopulationStdDevs(profile, siblingRules);
+
+                foreach (var row in staged)
+                {
+                    if (!profile.MeasurementCache.TryGetValue(
+                            (row.PresetLabel, row.Gender, row.Weight), out var entry))
+                        continue;
+                    double? best = null;
+                    foreach (var rule in matchingRules)
+                    {
+                        double? rs = ScoreRuleAgainstMeasurements(rule, entry.Measurements, ScoreSortMode, stdDevs);
+                        if (rs.HasValue && (!best.HasValue || rs.Value > best.Value))
+                            best = rs;
+                    }
+                    row.Score = best;
+                    row.ScoreDisplay = FormatScore(best, ScoreSortMode);
+                    row.SiblingScoresTooltip = BuildSiblingScoresTooltip(
+                        cat, siblingRules, entry.Measurements, ScoreSortMode, stdDevs);
+                }
+
+                // Sort: highest score first, scored rows ahead of unscored ones, ties broken
+                // by the default (Gender, PresetLabel, Weight) order so identical-score rows
+                // group predictably across re-runs.
+                staged = staged
+                    .OrderByDescending(r => r.Score.HasValue)
+                    .ThenByDescending(r => r.Score ?? 0.0)
+                    .ThenBy(r => r.Gender)
+                    .ThenBy(r => r.PresetLabel, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(r => r.Weight)
+                    .ToList();
+            }
+        }
+
+        foreach (var row in staged) MatchingPresets.Add(row);
 
         // Try to re-select the same (preset, gender, weight) row if it still exists so the
         // ListBox selection doesn't jump to row 0 on every filter edit.
@@ -1150,6 +1250,247 @@ public class VM_BodyTypeProfileEditor : VM
                     return;
                 }
             }
+        }
+    }
+
+    /// <summary>Welford-style single-pass std-dev across the profile's full
+    /// <see cref="VM_BodyTypeProfile.MeasurementCache"/> for every measurement name that
+    /// appears in any continuous (≤, &lt;, ≥, &gt;) condition inside <paramref name="rules"/>.
+    /// Names referenced only by Equal/NotEqual/DescriptorRef conditions are omitted because
+    /// the scorer skips those — including them would still be safe, just wasted work.
+    /// <para>Std-dev is computed as sample std-dev (n−1 denominator); 0 or fewer than two
+    /// samples returns 0.0 which the scorer treats as the fallback signal.</para></summary>
+    private static Dictionary<string, double> ComputePopulationStdDevs(
+        VM_BodyTypeProfile profile, List<VM_MeasurementRule> rules)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in rules)
+        {
+            foreach (var group in rule.Groups)
+            {
+                foreach (var cond in group.Conditions)
+                {
+                    if (cond == null) continue;
+                    if (cond.Kind != MeasurementConditionKind.Measurement) continue;
+                    if (!IsContinuousComparator(cond.Comparator)) continue;
+                    if (string.IsNullOrEmpty(cond.MeasurementName)) continue;
+                    names.Add(cond.MeasurementName);
+                }
+            }
+        }
+
+        var result = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            int n = 0;
+            double mean = 0, m2 = 0;
+            foreach (var entry in profile.MeasurementCache.Values)
+            {
+                if (entry == null) continue;
+                if (!entry.Measurements.TryGetValue(name, out var v) || !v.HasValue) continue;
+                n++;
+                double delta = v.Value - mean;
+                mean += delta / n;
+                double delta2 = v.Value - mean;
+                m2 += delta * delta2;
+            }
+            result[name] = n >= 2 ? Math.Sqrt(m2 / (n - 1)) : 0.0;
+        }
+        return result;
+    }
+
+    /// <summary>True for comparators that produce a continuous "value − threshold" margin
+    /// (the four directional comparators). Equal/NotEqual are excluded because their margin
+    /// is essentially binary (within ε or not) and would dominate the min-across-conditions
+    /// reduction with values incomparable to the directional margins.</summary>
+    private static bool IsContinuousComparator(MeasurementComparator cmp)
+        => cmp == MeasurementComparator.LessThan
+        || cmp == MeasurementComparator.LessThanOrEqual
+        || cmp == MeasurementComparator.GreaterThan
+        || cmp == MeasurementComparator.GreaterThanOrEqual;
+
+    /// <summary>Computes a single rule's match-strength score against a row's cached
+    /// measurements. Score = max over OR-groups of (min over continuous conditions in that
+    /// group of normalized margin). Groups containing only DescriptorRef / Equal / NotEqual
+    /// conditions score 0.0 (passed but un-rankable). Returns null when no group is fully
+    /// satisfied — typically only happens when rules were edited after the last scan and the
+    /// cache is now stale.</summary>
+    /// <param name="rule">Rule to evaluate. Must already have a matching descriptor; caller
+    /// filters by descriptor before calling.</param>
+    /// <param name="measurements">Row's cached values, keyed by measurement name. Float?
+    /// because failed evaluations land in the cache as null.</param>
+    /// <param name="mode">Normalization choice. <see cref="MarginScoreMode.Off"/> returns
+    /// null — caller is expected to gate on Off itself, this is just defensive.</param>
+    /// <param name="stdDevs">Population std-dev per measurement name. Required when mode is
+    /// StdDevNormalized; ignored when PercentOfThreshold.</param>
+    private static double? ScoreRuleAgainstMeasurements(
+        VM_MeasurementRule rule,
+        IReadOnlyDictionary<string, float?> measurements,
+        MarginScoreMode mode,
+        Dictionary<string, double> stdDevs)
+    {
+        if (mode == MarginScoreMode.Off) return null;
+        if (rule == null || rule.Groups.Count == 0) return null;
+
+        double? best = null;
+        foreach (var group in rule.Groups)
+        {
+            if (group?.Conditions == null || group.Conditions.Count == 0) continue;
+
+            double? groupMin = null;
+            bool hasScoredCondition = false;
+            bool groupValid = true;
+
+            foreach (var cond in group.Conditions)
+            {
+                if (cond == null) { groupValid = false; break; }
+                // Binary conditions (DescriptorRef + Equal/NotEqual) don't contribute a
+                // numeric margin. We still trust the upstream scan's verdict on whether
+                // the group as a whole matched — only continuous conditions feed the min.
+                if (cond.Kind != MeasurementConditionKind.Measurement) continue;
+                if (!IsContinuousComparator(cond.Comparator)) continue;
+                if (string.IsNullOrEmpty(cond.MeasurementName)) continue;
+                if (!measurements.TryGetValue(cond.MeasurementName, out var vBox) || !vBox.HasValue)
+                {
+                    // A continuous condition can't be evaluated → treat the group as
+                    // un-scorable. Move on to the next group rather than feeding a
+                    // sentinel into the min.
+                    groupValid = false;
+                    break;
+                }
+
+                double v = vBox.Value;
+                double t = cond.Value;
+                var cmp = cond.Comparator;
+                double raw = (cmp == MeasurementComparator.LessThan || cmp == MeasurementComparator.LessThanOrEqual)
+                    ? t - v
+                    : v - t;
+
+                double normalized;
+                switch (mode)
+                {
+                    case MarginScoreMode.StdDevNormalized:
+                    {
+                        double sigma = 0.0;
+                        stdDevs?.TryGetValue(cond.MeasurementName, out sigma);
+                        // sigma ≤ 0 means every preset has the same value for this measurement
+                        // (or n<2). Fall back to percent-of-threshold so the row still gets a
+                        // meaningful score instead of dividing by zero.
+                        if (sigma > 1e-9)
+                            normalized = raw / sigma;
+                        else if (Math.Abs(t) > 1e-6)
+                            normalized = raw / Math.Abs(t);
+                        else
+                            normalized = raw;
+                        break;
+                    }
+                    case MarginScoreMode.PercentOfThreshold:
+                        normalized = Math.Abs(t) > 1e-6 ? raw / Math.Abs(t) : raw;
+                        break;
+                    default:
+                        normalized = raw;
+                        break;
+                }
+
+                if (!groupMin.HasValue || normalized < groupMin.Value) groupMin = normalized;
+                hasScoredCondition = true;
+            }
+
+            if (!groupValid) continue;
+            double groupScore = hasScoredCondition ? groupMin!.Value : 0.0;
+            if (!best.HasValue || groupScore > best.Value) best = groupScore;
+        }
+        return best;
+    }
+
+    /// <summary>Builds the per-row tooltip text listing this row's margin score against
+    /// every descriptor value in the selected Category, sorted closest-to-matching first.
+    /// Lets the user see at a glance whether a barely-matched row is "almost Rectangle" or
+    /// "almost Hourglass" without re-selecting each descriptor in turn.
+    /// <para>Returns null when there are no sibling rules to report (the selected category
+    /// has only one descriptor with a rule, so the tooltip would just repeat the badge). WPF
+    /// suppresses null tooltips rather than rendering an empty box.</para></summary>
+    /// <param name="category">Descriptor Category of the currently-selected value. Used in
+    /// the tooltip header so the user remembers which axis they're looking at.</param>
+    /// <param name="siblingRules">Every rule with Descriptor.Category == <paramref name="category"/>.
+    /// Multiple rules per value are collapsed via max-score, mirroring the primary score's
+    /// max-across-matching-rules logic.</param>
+    /// <param name="measurements">Row's cached measurement values.</param>
+    /// <param name="mode">Same mode that drives the primary score so the units agree.</param>
+    /// <param name="stdDevs">Population sigmas (StdDevNormalized only). Caller must compute
+    /// these against <paramref name="siblingRules"/> so every value's score uses the same
+    /// per-measurement sigma.</param>
+    private static string BuildSiblingScoresTooltip(
+        string category,
+        List<VM_MeasurementRule> siblingRules,
+        IReadOnlyDictionary<string, float?> measurements,
+        MarginScoreMode mode,
+        Dictionary<string, double> stdDevs)
+    {
+        if (siblingRules == null || siblingRules.Count == 0) return null;
+
+        // Collapse multiple rules per value to one entry via max-score, matching the primary
+        // score's behavior so the tooltip line for the selected value lines up with the badge.
+        var byValue = new Dictionary<string, double?>(StringComparer.Ordinal);
+        foreach (var rule in siblingRules)
+        {
+            var v = rule.DescriptorValue ?? "";
+            if (string.IsNullOrEmpty(v)) continue;
+            double? s = ScoreRuleAgainstMeasurements(rule, measurements, mode, stdDevs);
+            if (!s.HasValue) continue;
+            if (!byValue.TryGetValue(v, out var existing) || !existing.HasValue || s.Value > existing.Value)
+                byValue[v] = s;
+        }
+        if (byValue.Count == 0) return null;
+
+        // Sort closest-to-matching first. Within the tooltip a near-miss (-0.1σ) is just as
+        // interesting as the actual match (+0.3σ); the descending sort puts both at the top
+        // and pushes the truly-far-from-matching siblings to the bottom.
+        var ordered = byValue
+            .Where(kv => kv.Value.HasValue)
+            .OrderByDescending(kv => kv.Value.Value)
+            .ToList();
+
+        // No column padding — WPF's default ToolTip renders in a proportional font, so
+        // PadRight'd spaces wouldn't line up anyway. One descriptor per line is enough
+        // structure for the reader to map value → score.
+        var sb = new System.Text.StringBuilder();
+        sb.Append(category).Append(" — sibling scores (closest first):");
+        foreach (var kv in ordered)
+        {
+            sb.Append('\n').Append("  ").Append(kv.Key).Append(": ");
+            sb.Append(FormatScoreNumber(kv.Value, mode));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Pre-formats <paramref name="score"/> for the row's <c>ScoreDisplay</c>
+    /// property — i.e., the badge next to the preset name. Wraps <see cref="FormatScoreNumber"/>
+    /// with the <c>"score "</c> prefix that anchors the badge. Returns empty string when
+    /// score is null so the binding renders no extra line.</summary>
+    private static string FormatScore(double? score, MarginScoreMode mode)
+    {
+        var bare = FormatScoreNumber(score, mode);
+        return bare.Length == 0 ? "" : "score " + bare;
+    }
+
+    /// <summary>Pre-formats just the signed numeric portion of a score (e.g. <c>"+0.03σ"</c>,
+    /// <c>"-45%"</c>) for contexts that already supply their own label — most importantly the
+    /// sibling-scores tooltip, where each line has the descriptor name as the label and only
+    /// needs the value. Empty string for null scores; unit suffix differs by mode.</summary>
+    private static string FormatScoreNumber(double? score, MarginScoreMode mode)
+    {
+        if (!score.HasValue) return "";
+        string sign = score.Value >= 0 ? "+" : "";
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        switch (mode)
+        {
+            case MarginScoreMode.StdDevNormalized:
+                return sign + score.Value.ToString("F2", inv) + "σ";
+            case MarginScoreMode.PercentOfThreshold:
+                return sign + (score.Value * 100.0).ToString("F0", inv) + "%";
+            default:
+                return "";
         }
     }
 
@@ -5034,6 +5375,30 @@ public class VM_PresetScanRow : VM
 
     /// <summary>Comma-separated <c>Category:Value</c> list for this row's single weight.</summary>
     public string MatchSummary => string.Join(", ", Matches.Select(d => d.Category + ":" + d.Value));
+
+    /// <summary>Margin-based "how strongly does this preset match the selected descriptor's
+    /// rule" score, populated by <see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/>
+    /// when sorting is active. Null when no descriptor is selected, when multiple are selected,
+    /// when sorting is off, or when no rule for the selected descriptor exists yet. Higher =
+    /// matches more deeply past the threshold. Display in the row template via
+    /// <see cref="ScoreDisplay"/> rather than reading this directly — null vs zero is a
+    /// meaningful distinction the formatter handles.</summary>
+    public double? Score { get; set; }
+
+    /// <summary>Pre-formatted score string for the row template. Empty when <see cref="Score"/>
+    /// is null. Unit suffix differs by mode so the user can tell at a glance which metric
+    /// produced the number (σ vs %). Always written together with <see cref="Score"/>.</summary>
+    public string ScoreDisplay { get; set; } = "";
+
+    /// <summary>Multi-line tooltip showing this row's margin score against every rule whose
+    /// Descriptor.Category matches the currently-selected descriptor's Category — i.e., the
+    /// selected value plus its siblings. Lets the user see at a glance whether a row that
+    /// barely matched the selected value is "almost Rectangle" or "almost Hourglass" without
+    /// re-selecting each descriptor in turn. Null when scoring isn't active (so WPF suppresses
+    /// the tooltip rather than rendering an empty box). Populated by
+    /// <see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/> alongside
+    /// <see cref="Score"/>.</summary>
+    public string SiblingScoresTooltip { get; set; }
 }
 
 /// <summary>Weight-filter toggle for the Match Presets tab. One per weight slot observed
@@ -5044,6 +5409,44 @@ public class VM_WeightFilterOption : VM
     public int Weight { get; set; }
     public bool IsSelected { get; set; } = true;
     public string Display => $"W{Weight}";
+}
+
+/// <summary>Match Presets list sorting mode. Active only when exactly one descriptor value
+/// is selected in the filter — that's the rule we score against. With zero or 2+ selected,
+/// any value other than <see cref="Off"/> is treated as Off for that refresh (no single rule
+/// to project against, so falling back to the default sort is more useful than picking an
+/// arbitrary one).</summary>
+public enum MarginScoreMode
+{
+    /// <summary>Default (Gender, PresetLabel, Weight) sort — pre-feature behavior.</summary>
+    Off = 0,
+
+    /// <summary>Margin (value − threshold, sign-flipped for &lt; comparators) divided by the
+    /// std-dev of that measurement across the cached preset population. Reads as "this row
+    /// clears the rule by N standard deviations." Most diagnostic for spotting outliers
+    /// when measurements have very different units; falls back to PercentOfThreshold's
+    /// formula when std-dev is undefined (≤1 sample) or zero (every preset has the same
+    /// value for that measurement).</summary>
+    StdDevNormalized = 1,
+
+    /// <summary>Margin divided by |threshold|, so the score reads as a fractional excess
+    /// past the line: 0.30 means 30 % past the threshold. Doesn't need population statistics,
+    /// so it's stable across partial scans. Falls back to raw margin when |threshold| &lt; 1e-6
+    /// (a threshold of exactly zero) since the percentage would otherwise blow up.</summary>
+    PercentOfThreshold = 2,
+}
+
+/// <summary>(value, label) pair for the score-mode ComboBox so SelectedValuePath/DisplayMemberPath
+/// can keep the enum out of XAML. Owned by <see cref="VM_BodyTypeProfileEditor.ScoreSortModeOptions"/>.</summary>
+public sealed class MarginScoreOption
+{
+    public MarginScoreOption(MarginScoreMode value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+    public MarginScoreMode Value { get; }
+    public string Label { get; }
 }
 
 /// <summary>Top-level node in the Rules-tab tree. One per distinct Descriptor.Category
