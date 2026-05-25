@@ -2465,8 +2465,28 @@ public class VM_BodyTypeProfile : VM
         ActiveViewer.RequestSelectPicksByShapeAndIndices(keys);
     }
 
-    /// <summary>Currently highlighted measurement. Drives the colored-line overlay in the active viewer.</summary>
+    /// <summary>Currently highlighted measurement (the DataGrid's primary / last-focused row).
+    /// Drives the colored-line overlay in the active viewer when no broader multi-selection is
+    /// active. When the user multi-selects, <see cref="_selectedMeasurements"/> drives the overlay
+    /// instead and this property tracks the focus row for live-value display / live-evaluator hookups.</summary>
     public VM_MeasurementDefinition? SelectedMeasurement { get; set; }
+
+    /// <summary>Full set of measurements selected in the DataGrid (one or more). Populated by the
+    /// code-behind's SelectionChanged handler via <see cref="UpdateSelectedMeasurements"/>. When
+    /// non-empty, every entry contributes lines to the viewer overlay; when empty,
+    /// <see cref="SelectedMeasurement"/> is used as a fallback.</summary>
+    private List<VM_MeasurementDefinition> _selectedMeasurements = new();
+
+    /// <summary>Multi-selection routing: replaces the tracked Measurements selection with the
+    /// caller's list (typically the DataGrid's SelectedItems) and repaints the viewer's
+    /// line overlay so every selected measurement is drawn at once. Suppressed while the
+    /// bulge debug overlay owns the line channel; the toggle's off-handler restores the
+    /// multi-selection highlight via <see cref="RefreshMeasurementHighlight"/>.</summary>
+    public void UpdateSelectedMeasurements(IEnumerable<VM_MeasurementDefinition> selected)
+    {
+        _selectedMeasurements = selected?.Where(m => m != null).ToList() ?? new();
+        if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
+    }
 
     /// <summary>When true, key-vertex picks from any viewer add a new entry to this profile.</summary>
     public bool CapturePicks { get; set; } = false;
@@ -3521,8 +3541,16 @@ public class VM_BodyTypeProfile : VM
         var viewer = ActiveViewer;
         if (viewer == null) return;
 
-        var sel = SelectedMeasurement;
-        if (sel == null)
+        // Effective selection: prefer the multi-selection list when populated (driven by the
+        // DataGrid's SelectionChanged path); fall back to the single SelectedMeasurement when
+        // no SelectionChanged has fired yet (e.g., callers that arrive via the
+        // SelectedMeasurement PropertyChanged hook or a viewer-reload path).
+        IReadOnlyList<VM_MeasurementDefinition> sels =
+            _selectedMeasurements.Count > 0
+                ? _selectedMeasurements
+                : (SelectedMeasurement != null ? new[] { SelectedMeasurement } : System.Array.Empty<VM_MeasurementDefinition>());
+
+        if (sels.Count == 0)
         {
             viewer.SetMeasurementLines(null);
             return;
@@ -3549,6 +3577,9 @@ public class VM_BodyTypeProfile : VM
         // the three axis-aligned legs use: yellow (the measurement axis), white (the two
         // secondary axes), and grey (the A-B hypotenuse) — white/grey stand in for the
         // originally-planned dashed styling so the renderer can stay on flat-color lines.
+        // The same color scheme is reused for every selected measurement; with multi-selection
+        // the legend stays "yellow = numerator, cyan = denominator" regardless of which
+        // measurement a given leg belongs to.
         var primary = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f);
         var secondary = new OpenTK.Mathematics.Vector3(0.1f, 0.85f, 1.0f);
         var axisSecondary = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
@@ -3567,69 +3598,74 @@ public class VM_BodyTypeProfile : VM
             _ => bv,
         };
 
-        var a = Resolve(sel.VertexRefA);
-        var b = Resolve(sel.VertexRefB);
-        if (a.HasValue && b.HasValue)
+        foreach (var sel in sels)
         {
-            if (sel.Kind == MeasurementKind.AxisDistance)
-            {
-                // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
-                // X, then Y, then Z. The leg matching the measurement axis takes the primary
-                // (yellow) color; the other two take secondary (white). The direct A-B line
-                // is drawn first in grey as the hypotenuse so the colored legs always paint
-                // on top — matters when the vertices differ on a single axis, where the
-                // hypotenuse is collinear with one leg and must not obscure it (depth test
-                // is disabled for this overlay, so painter ordering decides who wins).
-                // Zero-length legs are skipped.
-                var av = a.Value;
-                var bv = b.Value;
-                var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
-                var p2 = new OpenTK.Mathematics.Vector3(bv.X, bv.Y, av.Z); // after Y leg
+            if (sel == null) continue;
 
-                var xColor = sel.Axis == MeasurementAxis.X ? primary : axisSecondary;
-                var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
-                var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
-
-                segments.Add((av, bv, axisHypotenuse));
-                if (av.X != bv.X) segments.Add((av, p1, xColor));
-                if (av.Y != bv.Y) segments.Add((p1, p2, yColor));
-                if (av.Z != bv.Z) segments.Add((p2, bv, zColor));
-            }
-            else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
+            var a = Resolve(sel.VertexRefA);
+            var b = Resolve(sel.VertexRefB);
+            if (a.HasValue && b.HasValue)
             {
-                // RatioDistance numerator pair (A,B) is being reduced along a single axis
-                // via NumeratorAxis. Draw the full A→B vector in grey as the hypotenuse
-                // (preserves the visual cue for where A and B sit) and overlay the
-                // axis-projected leg in the primary color — that leg's length equals the
-                // actual scalar being fed into the ratio. Without this branch the line
-                // implied the full 3D distance was the measurement, which it isn't.
-                var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
-                segments.Add((a.Value, b.Value, axisHypotenuse));
-                segments.Add((a.Value, legEnd, primary));
-            }
-            else
-            {
-                segments.Add((a.Value, b.Value, primary));
-            }
-        }
-
-        if (sel.Kind == MeasurementKind.RatioDistance)
-        {
-            var c = Resolve(sel.VertexRefC);
-            var d = Resolve(sel.VertexRefD);
-            if (c.HasValue && d.HasValue)
-            {
-                if (sel.DenominatorAxis.HasValue)
+                if (sel.Kind == MeasurementKind.AxisDistance)
                 {
-                    // Symmetric treatment for the denominator pair — grey hypotenuse plus
-                    // a cyan axis-projected leg whose length is the denominator scalar.
-                    var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
-                    segments.Add((c.Value, d.Value, axisHypotenuse));
-                    segments.Add((c.Value, legEnd, secondary));
+                    // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
+                    // X, then Y, then Z. The leg matching the measurement axis takes the primary
+                    // (yellow) color; the other two take secondary (white). The direct A-B line
+                    // is drawn first in grey as the hypotenuse so the colored legs always paint
+                    // on top — matters when the vertices differ on a single axis, where the
+                    // hypotenuse is collinear with one leg and must not obscure it (depth test
+                    // is disabled for this overlay, so painter ordering decides who wins).
+                    // Zero-length legs are skipped.
+                    var av = a.Value;
+                    var bv = b.Value;
+                    var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
+                    var p2 = new OpenTK.Mathematics.Vector3(bv.X, bv.Y, av.Z); // after Y leg
+
+                    var xColor = sel.Axis == MeasurementAxis.X ? primary : axisSecondary;
+                    var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
+                    var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
+
+                    segments.Add((av, bv, axisHypotenuse));
+                    if (av.X != bv.X) segments.Add((av, p1, xColor));
+                    if (av.Y != bv.Y) segments.Add((p1, p2, yColor));
+                    if (av.Z != bv.Z) segments.Add((p2, bv, zColor));
+                }
+                else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
+                {
+                    // RatioDistance numerator pair (A,B) is being reduced along a single axis
+                    // via NumeratorAxis. Draw the full A→B vector in grey as the hypotenuse
+                    // (preserves the visual cue for where A and B sit) and overlay the
+                    // axis-projected leg in the primary color — that leg's length equals the
+                    // actual scalar being fed into the ratio. Without this branch the line
+                    // implied the full 3D distance was the measurement, which it isn't.
+                    var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
+                    segments.Add((a.Value, b.Value, axisHypotenuse));
+                    segments.Add((a.Value, legEnd, primary));
                 }
                 else
                 {
-                    segments.Add((c.Value, d.Value, secondary));
+                    segments.Add((a.Value, b.Value, primary));
+                }
+            }
+
+            if (sel.Kind == MeasurementKind.RatioDistance)
+            {
+                var c = Resolve(sel.VertexRefC);
+                var d = Resolve(sel.VertexRefD);
+                if (c.HasValue && d.HasValue)
+                {
+                    if (sel.DenominatorAxis.HasValue)
+                    {
+                        // Symmetric treatment for the denominator pair — grey hypotenuse plus
+                        // a cyan axis-projected leg whose length is the denominator scalar.
+                        var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
+                        segments.Add((c.Value, d.Value, axisHypotenuse));
+                        segments.Add((c.Value, legEnd, secondary));
+                    }
+                    else
+                    {
+                        segments.Add((c.Value, d.Value, secondary));
+                    }
                 }
             }
         }

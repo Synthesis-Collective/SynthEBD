@@ -425,6 +425,19 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
         profile.SelectKeyVerticesInViewer(sel);
     }
 
+    /// <summary>Routes Measurements DataGrid multi-selection to the profile so the viewer
+    /// can draw all selected measurements' lines at once (rather than just the single
+    /// SelectedItem). Mirrors <see cref="KeyVerticesGrid_SelectionChanged"/>.</summary>
+    private void MeasurementsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not DataGrid grid) return;
+        if (grid.DataContext is not VM_BodyTypeProfile profile) return;
+        var sel = new List<VM_MeasurementDefinition>(grid.SelectedItems.Count);
+        foreach (var item in grid.SelectedItems)
+            if (item is VM_MeasurementDefinition m) sel.Add(m);
+        profile.UpdateSelectedMeasurements(sel);
+    }
+
     /// <summary>Intercepts a Name-column commit on either the KeyVertices or Measurements
     /// grid. When the typed value collides with another row's name, pops a modal asking the
     /// user to choose Overwrite (remove the other row(s)), Rename (auto-suffix this row to

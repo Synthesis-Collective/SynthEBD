@@ -525,6 +525,8 @@
                                     <DataGrid x:Name="MeasurementsGrid"
                                               ItemsSource="{Binding Measurements}"
                                               SelectedItem="{Binding SelectedMeasurement}"
+                                              SelectionMode="Extended"
+                                              SelectionChanged="MeasurementsGrid_SelectionChanged"
                                               CellEditEnding="NameCell_EditEnding"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False" CanUserDeleteRows="False"
