@@ -735,6 +735,8 @@
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="160"/>
                                                                     <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="100"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
@@ -750,10 +752,16 @@
                                                                           SelectedItem="{Binding DescriptorValue, UpdateSourceTrigger=PropertyChanged}"
                                                                           Margin="0,0,10,0"
                                                                           ToolTip="Values listed here are filtered by the selected Category. Changing Category clears Value if the prior choice isn't defined under the new Category."/>
-                                                                <CheckBox Grid.Column="4" Content="Draft" IsChecked="{Binding IsDraft}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                                                <TextBlock Grid.Column="4" Text="Gender:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                <ComboBox Grid.Column="5"
+                                                                          ItemsSource="{Binding AvailableGenders}"
+                                                                          SelectedItem="{Binding Gender, UpdateSourceTrigger=PropertyChanged}"
+                                                                          Margin="0,0,10,0"
+                                                                          ToolTip="Either (default) fires the rule for both genders. Male / Female scope the rule so it only contributes a descriptor when the preset's gender matches — useful when the same descriptor has different physical signal per gender (e.g. Powerful needs to accept Chubby for males but not females, since the measurements can't distinguish fat from muscle without texture cues)."/>
+                                                                <CheckBox Grid.Column="6" Content="Draft" IsChecked="{Binding IsDraft}" Margin="0,0,10,0" VerticalAlignment="Center"
                                                                           ToolTip="When checked, the evaluator skips this rule. Use the Promote button after reviewing."/>
-                                                                <Button Grid.Column="5" Content="Promote" Command="{Binding PromoteFromDraft}" HorizontalAlignment="Left" Padding="6,1"/>
-                                                                <Button Grid.Column="6" Content="Delete Rule" Command="{Binding DeleteCommand}" Padding="6,1"/>
+                                                                <Button Grid.Column="7" Content="Promote" Command="{Binding PromoteFromDraft}" HorizontalAlignment="Left" Padding="6,1"/>
+                                                                <Button Grid.Column="8" Content="Delete Rule" Command="{Binding DeleteCommand}" Padding="6,1"/>
                                                             </Grid>
                                                             <TextBlock Text="Predicate (OR of AND-gated condition groups):" Margin="0,5,0,3" FontStyle="Italic"/>
                                                             <ItemsControl ItemsSource="{Binding Groups}">

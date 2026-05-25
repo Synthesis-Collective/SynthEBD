@@ -338,6 +338,21 @@ public enum MeasurementComparator
     NotEqualTo = 5,
 }
 
+/// <summary>Gender filter for a <see cref="MeasurementRule"/>. Distinct from Mutagen's
+/// <c>Gender</c> enum because that one has no "either" value — every Mutagen.Gender is
+/// Male or Female. <see cref="Either"/> is the safe default that preserves pre-feature
+/// behavior: an Either-tagged rule fires regardless of the preset's gender.
+/// <para>Male-only and Female-only rules fire only when the evaluator is told the preset's
+/// gender. Call sites that don't know the gender (e.g. the live BodySlide preview when
+/// the placeholder hasn't been routed through a gendered list yet) pass <c>null</c>, which
+/// is treated as Either-only — neither Male nor Female rules will fire in that case.</para></summary>
+public enum RuleGender
+{
+    Either = 0,
+    Male = 1,
+    Female = 2,
+}
+
 /// <summary>Which side of the predicate vocabulary a <see cref="MeasurementCondition"/> uses.
 /// <see cref="Measurement"/> (default) is the classical <c>measurement [comparator] value</c>
 /// test; <see cref="DescriptorRef"/> is an aggregator-style "did another rule's descriptor
@@ -427,6 +442,13 @@ public class MeasurementRule
     /// skips rules with <see cref="IsDraft"/> = true until the user promotes them.
     /// </summary>
     public bool IsDraft { get; set; } = false;
+
+    /// <summary>Gender filter — defaults to <see cref="RuleGender.Either"/> so existing rules
+    /// keep firing for both genders on deserialize. Set to Male or Female to scope a rule to
+    /// one side of the BodySlide split (e.g. a "Powerful" variant that accepts chubby builds
+    /// for males but not females, since body-shape measurements don't carry texture-driven
+    /// muscle/fat signal).</summary>
+    public RuleGender Gender { get; set; } = RuleGender.Either;
 }
 
 /// <summary>

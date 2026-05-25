@@ -994,7 +994,9 @@ public class VM_BodyTypeProfileEditor : VM
                 // sometimes needs when the scene is mid-rebuild.
                 await Dispatcher.Yield(DispatcherPriority.Background);
 
-                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+                // Pass the iteration's gender so RuleGender-filtered rules behave correctly
+                // (Male-only rules only fire on male presets, etc.).
+                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true, evaluationGender: gender);
 
                 if (VerboseScan)
                 {
@@ -4795,8 +4797,10 @@ public class VM_BodyTypeProfile : VM
         foreach (var kv in entry.Measurements)
             if (kv.Value.HasValue) floats[kv.Key] = kv.Value.Value;
 
-        // Mirror BodySlideMeasurementEvaluator.Evaluate: filter eligible rules, topo-sort
-        // by descriptor dependencies so aggregator rules see the matched set, then iterate.
+        // Mirror BodySlideMeasurementEvaluator.Evaluate: filter eligible rules (by gender +
+        // draft status + valid descriptor), topo-sort by descriptor dependencies so aggregator
+        // rules see the matched set, then iterate. Gender is taken from the cache key — every
+        // cached entry was scanned with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = new List<MeasurementRule>();
         foreach (var rule in profileModel.Rules)
         {
@@ -4805,6 +4809,7 @@ public class VM_BodyTypeProfile : VM
             if (rule.Descriptor == null
                 || string.IsNullOrEmpty(rule.Descriptor.Category)
                 || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, key.Gender)) continue;
             eligible.Add(rule);
         }
         var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out _);
@@ -5092,6 +5097,7 @@ public class VM_MeasurementRule : VM
         DescriptorCategory = source.Descriptor?.Category ?? "";
         DescriptorValue = source.Descriptor?.Value ?? "";
         IsDraft = source.IsDraft;
+        Gender = source.Gender;
 
         if (source.GroupsORlogic != null)
         {
@@ -5118,6 +5124,18 @@ public class VM_MeasurementRule : VM
     public string DescriptorCategory { get; set; }
     public string DescriptorValue { get; set; }
     public bool IsDraft { get; set; }
+
+    /// <summary>Per-rule gender filter (Either / Male / Female). Bound to the Gender ComboBox
+    /// in the Rules tab. Round-trips through <see cref="DumpToModel"/> + ctor so it persists
+    /// across saves and JSON load/save. Default Either preserves legacy behavior.</summary>
+    public RuleGender Gender { get; set; } = RuleGender.Either;
+
+    /// <summary>Bound to the Gender ComboBox.ItemsSource on the Rules tab. Static — the enum
+    /// values are fixed at compile time.</summary>
+    public static IReadOnlyList<RuleGender> AvailableGenders { get; } = new[]
+    {
+        RuleGender.Either, RuleGender.Male, RuleGender.Female,
+    };
 
     public ObservableCollection<VM_AndGatedMeasurementGroup> Groups { get; } = new();
 
@@ -5155,6 +5173,7 @@ public class VM_MeasurementRule : VM
                 Value = DescriptorValue?.Trim() ?? "",
             },
             IsDraft = IsDraft,
+            Gender = Gender,
             GroupsORlogic = Groups.Select(g => g.DumpToModel()).ToList(),
         };
     }

@@ -249,7 +249,11 @@ public class VM_BodySlideSetting : VM
             if (model?.BodyShapeDescriptorsByWeight == null) return;
             if (!model.BodyShapeDescriptorsByWeight.TryGetValue(slot.Weight, out var modelSlot) || modelSlot == null) return;
 
-            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile);
+            // Pass the preset's gender so RuleGender-filtered rules fire correctly in the
+            // live preview (e.g. a male-only Powerful rule on a male preset). ResolveGender
+            // is a reference-comparison against the parent BodySlidesMale/Female list, so
+            // it's authoritative even when descriptors are sparse.
+            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender());
             BodySlideMeasurementEvaluator.MergeIntoSlot(modelSlot, result.Descriptors);
             slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(result.Descriptors);
             UpdateAggregateAnnotationState();

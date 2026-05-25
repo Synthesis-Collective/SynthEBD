@@ -44,6 +44,19 @@ public static class BodySlideMeasurementEvaluator
         public bool TopologyMismatch { get; set; }
     }
 
+    /// <summary>True when a rule's <see cref="MeasurementRule.Gender"/> filter matches the
+    /// caller's evaluation context. <see cref="RuleGender.Either"/> rules always pass. Male /
+    /// Female rules require <paramref name="evaluationGender"/> to be the matching Mutagen
+    /// <c>Gender</c>; passing null filters them out (the safe default for call sites that
+    /// don't know the preset's gender).</summary>
+    public static bool RuleGenderMatches(RuleGender ruleGender, Gender? evaluationGender)
+    {
+        if (ruleGender == RuleGender.Either) return true;
+        if (evaluationGender == null) return false;
+        return (ruleGender == RuleGender.Male   && evaluationGender == Gender.Male)
+            || (ruleGender == RuleGender.Female && evaluationGender == Gender.Female);
+    }
+
     /// <summary>
     /// Evaluates <paramref name="profile"/> against the current deformed mesh state of
     /// <paramref name="viewer"/>. Caller is responsible for ensuring the viewer has finished
@@ -53,8 +66,13 @@ public static class BodySlideMeasurementEvaluator
     /// suggestions never produce live descriptors in the production preview path. Set
     /// <paramref name="includeDrafts"/> = true for authoring-time previews (the profile editor's
     /// Match Presets scan), where the whole point is to see what draft thresholds would produce.
+    ///
+    /// <paramref name="evaluationGender"/> filters rules by their
+    /// <see cref="MeasurementRule.Gender"/>. Either rules always fire; Male/Female rules require
+    /// a matching gender. Null = unknown context (only Either rules fire — safe default for the
+    /// live preview path where the placeholder's gender isn't routed through the call).
     /// </summary>
-    public static EvaluationResult Evaluate(VM_CharacterViewer viewer, BodyTypeProfile profile, bool includeDrafts = false)
+    public static EvaluationResult Evaluate(VM_CharacterViewer viewer, BodyTypeProfile profile, bool includeDrafts = false, Gender? evaluationGender = null)
     {
         var result = new EvaluationResult();
         if (viewer == null || profile == null) return result;
@@ -117,6 +135,9 @@ public static class BodySlideMeasurementEvaluator
                 if (rule.Descriptor == null
                     || string.IsNullOrEmpty(rule.Descriptor.Category)
                     || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
+                // Gender filter: rules tagged Male only fire when evaluating a male preset,
+                // Female only for female. Either rules always pass. See RuleGenderMatches.
+                if (!RuleGenderMatches(rule.Gender, evaluationGender)) continue;
                 eligible.Add(rule);
             }
 

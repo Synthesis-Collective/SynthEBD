@@ -238,7 +238,9 @@ public class VM_PresetAnnotationTable : VM
                 // Render. Same fix as RunScanAsync's per-iteration yield.
                 await Dispatcher.Yield(DispatcherPriority.Background);
 
-                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true);
+                // Same gender-aware evaluation as RunScanAsync — keeps Male/Female rules
+                // scoped correctly when the annotation table populates the shared cache.
+                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true, evaluationGender: gender);
 
                 // Persist measurements into the shared cache. The Match Presets display
                 // re-derives its descriptor list from these whenever rules change.
