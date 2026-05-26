@@ -624,6 +624,14 @@
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
+                                                        <Button Content="H" Command="{Binding OpenHistogramCommand}"
+                                                                ToolTip="Open a histogram of this measurement's values across every (preset, weight) entry in the profile's cache. Triggers a scan first if the measurement cache is stale."/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
                                                         <Button Content="X" Command="{Binding DeleteCommand}"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>

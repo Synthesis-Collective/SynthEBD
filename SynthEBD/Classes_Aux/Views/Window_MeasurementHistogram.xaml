@@ -1,0 +1,109 @@
+<Window x:Class="SynthEBD.Window_MeasurementHistogram"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:VM_MeasurementHistogram}"
+        Title="{Binding WindowTitle}"
+        Height="500" Width="780"
+        Background="#FF202020">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- filter row -->
+            <RowDefinition Height="Auto"/> <!-- stats row -->
+            <RowDefinition Height="*"/>    <!-- chart -->
+            <RowDefinition Height="Auto"/> <!-- x-axis labels -->
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: gender filter + bin count slider. Gender dropdown is hidden when the
+             snapshot has only one gender represented (GenderFilterOptions.Count <= 2 means
+             only "All" + one entry, so toggling doesn't change the view). Slider lets the
+             user retune binning live since the right answer depends on sample count + how
+             tight the distribution is. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+            <TextBlock Text="Gender:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="Bold"/>
+            <ComboBox Width="120" VerticalAlignment="Center"
+                      ItemsSource="{Binding GenderFilterOptions}"
+                      SelectedValuePath="Value"
+                      DisplayMemberPath="Label"
+                      SelectedValue="{Binding GenderFilter}"
+                      ToolTip="Restrict the histogram to a single gender's samples. Only genders actually present in the scan cache appear here."/>
+
+            <TextBlock Text="Bins:" Foreground="White" VerticalAlignment="Center" Margin="20,0,6,0" FontWeight="Bold"/>
+            <Slider Width="200" VerticalAlignment="Center"
+                    Minimum="1" Maximum="200"
+                    Value="{Binding BinCount}"
+                    TickFrequency="10" IsSnapToTickEnabled="False"
+                    ToolTip="Number of histogram bins. Drag to re-bin live; finer is better for dense distributions, coarser for small samples."/>
+            <TextBlock Text="{Binding BinCount}" Foreground="White" VerticalAlignment="Center" Margin="6,0,0,0" Width="30"/>
+        </StackPanel>
+
+        <!-- Row 1: pre-formatted stats line. Monospace so the columns visually align. -->
+        <TextBlock Grid.Row="1" Text="{Binding StatsLine}"
+                   Foreground="#FFDDDDDD" FontFamily="Consolas, Courier New, monospace"
+                   FontSize="11" Margin="0,0,0,8"/>
+
+        <!-- Row 2: chart. The Border carries the visible background + a thin border so the
+             bars sit on a discrete surface rather than blending into the window. ItemsControl
+             uses UniformGrid (Rows=1) so the bars distribute evenly across the available
+             width; each bar's Height comes from the VM. SizeChanged on the ItemsControl
+             pushes its actual height into VM_MeasurementHistogram.RescaleBars so the bars
+             grow / shrink when the user resizes the window (otherwise they'd stay locked
+             at the initial 280px and leave dead vertical space when maximized). -->
+        <Border Grid.Row="2" Background="#FF1A1A1A" BorderBrush="#FF444444" BorderThickness="1" Margin="0,0,0,4">
+            <ItemsControl ItemsSource="{Binding Bins}" Margin="2"
+                          SizeChanged="ChartArea_SizeChanged">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:HistogramBin}">
+                        <!-- Bar inside a same-width container so the gaps between bars stay
+                             visually consistent. Bottom-aligned so taller bars grow up from
+                             the baseline. ToolTip surfaces the bin range + count. -->
+                        <Grid VerticalAlignment="Stretch" Margin="1,0">
+                            <Rectangle Fill="#FF1E88E5"
+                                       VerticalAlignment="Bottom"
+                                       Height="{Binding BarHeight}"
+                                       ToolTip="{Binding Tooltip}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+
+        <!-- Row 3: per-bin x-axis labels. UniformGrid Rows=1 mirrors the chart's bar
+             layout exactly so labels line up under their bars regardless of bin count.
+             Each label is rotated 270° via LayoutTransform so the text reads bottom-up
+             and fits in narrow bin slots when the user dials BinCount up. The row height
+             accommodates the rotated text's vertical extent (~75 px for a F3-formatted
+             "x.xxx–y.yyy" range at FontSize=10 Consolas). -->
+        <ItemsControl Grid.Row="3" ItemsSource="{Binding Bins}" Height="80" Margin="2,2,2,0">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Rows="1"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:HistogramBin}">
+                    <TextBlock Text="{Binding AxisLabel}"
+                               Foreground="#FFAAAAAA"
+                               FontFamily="Consolas, Courier New, monospace"
+                               FontSize="10"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Top"
+                               Margin="0,2,0,0">
+                        <TextBlock.LayoutTransform>
+                            <RotateTransform Angle="270"/>
+                        </TextBlock.LayoutTransform>
+                    </TextBlock>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</Window>

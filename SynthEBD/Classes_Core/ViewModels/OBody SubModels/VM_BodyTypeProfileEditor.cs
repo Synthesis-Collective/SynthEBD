@@ -840,6 +840,69 @@ public class VM_BodyTypeProfileEditor : VM
 
     private System.Threading.CancellationTokenSource _scanCts;
 
+    /// <summary>Opens a <see cref="Window_MeasurementHistogram"/> for the named measurement
+    /// on <paramref name="profile"/>, driving a scan first if the cache is stale so the
+    /// histogram always reflects current geometry. The window is non-modal
+    /// (<see cref="System.Windows.Window.Show"/>, not ShowDialog) so the user can keep it
+    /// open while continuing to edit measurements / rules in the main editor. The histogram
+    /// VM takes a snapshot of the cache at open time — re-clicking H after a re-scan opens
+    /// a fresh window with the updated numbers.
+    /// <para>Guards against re-entry while a scan is already in progress (returns silently);
+    /// the row's command's canExecute keeps the H button enabled by name presence, so
+    /// during a scan a click is a no-op rather than a queued action — matches the behavior
+    /// of <see cref="ScanAllPresetsCommand"/>'s !IsScanning gate.</para></summary>
+    public async System.Threading.Tasks.Task OpenMeasurementHistogramAsync(
+        VM_BodyTypeProfile profile, VM_MeasurementDefinition definition)
+    {
+        if (profile == null || definition == null) return;
+        string name = definition.Name?.Trim() ?? "";
+        if (string.IsNullOrEmpty(name)) return;
+
+        if (IsScanning) return;
+
+        // Drive a scan when the cache may not reflect current geometry. Same gate the
+        // Match Presets tab uses: MeasurementCacheStale flips on any edit that affects
+        // the underlying numbers (KeyVertex / MeasurementDefinition edits, profile
+        // switch). An empty cache (never scanned) also triggers a scan because the
+        // histogram would otherwise be empty for a workflow where the user opened the
+        // profile and immediately clicked H without ever hitting "Scan All Presets".
+        if (profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0)
+        {
+            // RunScanAsync uses SelectedProfile to know which profile to scan, so
+            // temporarily ensure it points at the right profile. In practice the row VM
+            // can only be clicked when its owning profile IS the selected one (the
+            // Measurements grid is only visible for SelectedProfile), so this is a
+            // belt-and-braces guard rather than the normal path.
+            if (!ReferenceEquals(SelectedProfile, profile)) SelectedProfile = profile;
+            await RunScanAsync();
+            if (profile.MeasurementCache.Count == 0)
+            {
+                // Scan completed but produced no entries — probably no presets matched the
+                // profile's body type. Surface a notification instead of opening an empty
+                // window.
+                MessageWindow.DisplayNotificationOK(
+                    "No data for histogram",
+                    $"No cached measurements available for '{name}'. The scan returned no (preset, weight) entries — check that this profile's Body Type matches at least one preset's SliderGroup.");
+                return;
+            }
+        }
+
+        var histogramVm = new VM_MeasurementHistogram(profile, definition);
+        if (histogramVm.TotalSamples == 0)
+        {
+            MessageWindow.DisplayNotificationOK(
+                "No data for histogram",
+                $"The cache has entries but '{name}' couldn't be evaluated on any of them (every value is null). Re-scan with Verbose Scan enabled to diagnose, or fix any invalid vertex refs on this row.");
+            return;
+        }
+
+        var window = new Window_MeasurementHistogram
+        {
+            DataContext = histogramVm,
+        };
+        window.Show();
+    }
+
     /// <summary>Runs the classifier (including drafts) across every BodySlide preset whose
     /// <c>SliderGroup</c> matches <see cref="VM_BodyTypeProfile.BodyTypeName"/>, at every
     /// weight in <c>DefaultWeightSlots</c>, caching matched descriptors on the profile. Drives
@@ -2780,6 +2843,13 @@ public class VM_BodyTypeProfile : VM
         _selectedMeasurements = selected?.Where(m => m != null).ToList() ?? new();
         if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
     }
+
+    /// <summary>Routes a per-row "open histogram" request from a <see cref="VM_MeasurementDefinition"/>
+    /// up to the editor, which handles the cache-stale gate and the window construction.
+    /// Kept as a one-line forwarder so the row VM doesn't need to know about the editor
+    /// (the profile already does; the editor never appears in the row's binding context).</summary>
+    public System.Threading.Tasks.Task OpenMeasurementHistogramAsync(VM_MeasurementDefinition definition)
+        => _parent.OpenMeasurementHistogramAsync(this, definition);
 
     /// <summary>When true, key-vertex picks from any viewer add a new entry to this profile.</summary>
     public bool CapturePicks { get; set; } = false;
@@ -5390,6 +5460,15 @@ public class VM_MeasurementDefinition : VM
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => _parent.Measurements.Remove(this));
+
+        // Opens a separate window plotting this measurement's distribution across every
+        // (preset, weight) entry in the profile's MeasurementCache. The execute path is
+        // fire-and-forget so the WPF dispatcher returns immediately; the actual await on
+        // a possibly-running scan happens inside the profile method. canExecute requires
+        // a non-empty Name (the cache is keyed by name, so an empty name has no data).
+        OpenHistogramCommand = new RelayCommand(
+            canExecute: _ => !string.IsNullOrEmpty(Name),
+            execute: _ => _ = _parent.OpenMeasurementHistogramAsync(this));
     }
 
     public string Name { get; set; }
@@ -5433,6 +5512,12 @@ public class VM_MeasurementDefinition : VM
     public bool IsRefDValid { get; set; } = true;
 
     public RelayCommand DeleteCommand { get; }
+
+    /// <summary>Per-row command that opens a <see cref="Window_MeasurementHistogram"/>
+    /// showing the distribution of this measurement's cached values across the profile's
+    /// (preset, weight) entries. Drives a scan via the parent profile/editor first when
+    /// the cache is stale, mirroring the gating used elsewhere for cache-dependent reads.</summary>
+    public RelayCommand OpenHistogramCommand { get; }
 
     public IEnumerable<string> AvailableKeyVertexNames => _parent.AvailableKeyVertexNames;
 
