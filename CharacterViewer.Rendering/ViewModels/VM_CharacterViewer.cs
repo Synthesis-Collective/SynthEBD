@@ -2688,7 +2688,18 @@ public class VM_CharacterViewer : ViewerVm
     /// to clear the overlay. Used by the BodyTypeProfile editor to visualize the
     /// currently-selected measurement.
     /// </summary>
-    public void SetMeasurementLines(IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> segments)
+    /// <summary>
+    /// Single canonical entry point. Each tuple's <c>Label</c> populates
+    /// <see cref="GlRenderer.MeasurementLineSegment.Label"/> for the hover-tooltip path;
+    /// pass null/empty when a segment shouldn't surface a tooltip (e.g. the bulge-bin
+    /// debug overlay where individual lines don't map to a named measurement). The
+    /// renderer ignores Label; it's purely transit data for
+    /// <see cref="HitTestMeasurementLine"/>.
+    /// <para>Callers that don't need labels pass null in the fourth tuple slot — the
+    /// previous unlabeled overload was removed because <c>null</c> arguments couldn't
+    /// disambiguate between the two signatures (CS0121).</para>
+    /// </summary>
+    public void SetMeasurementLines(IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
     {
         Renderer.MeasurementLines.Clear();
         if (segments == null) return;
@@ -2699,8 +2710,110 @@ public class VM_CharacterViewer : ViewerVm
                 A = s.A,
                 B = s.B,
                 Color = s.Color,
+                Label = s.Label,
             });
         }
+    }
+
+    /// <summary>
+    /// Returns the label of the closest labeled measurement-line segment within
+    /// <paramref name="thresholdPixels"/> screen-space distance of the cursor, or null when
+    /// no labeled segment is close enough. Unlabeled segments are skipped — they still
+    /// render through <see cref="GlRenderer.MeasurementLines"/> but don't surface a
+    /// tooltip. Used by <c>UC_CharacterViewer.HoverTimer_Tick</c> as a labeled-overlay
+    /// hit-test that takes priority over the mesh hover-tooltip because the lines render
+    /// on top of the body with depth test disabled (so they're visually in front
+    /// regardless of true depth).
+    /// <para>Math: both segment endpoints are scaled by <see cref="GlRenderer.ModelScale"/>
+    /// (matching <c>DrawMeasurementLines</c>) and projected through <c>view * projection</c>
+    /// to NDC, then to WPF logical pixels. The 2D point-to-segment distance from the cursor
+    /// to the projected line picks the closest within the threshold; ties (two segments at
+    /// the same pixel distance) are broken by camera-space depth, preferring the segment
+    /// closer to the camera so the visually-front line wins.</para>
+    /// </summary>
+    public string? HitTestMeasurementLine(
+        float mouseX, float mouseY,
+        float viewportWidth, float viewportHeight,
+        float thresholdPixels)
+    {
+        if (Renderer.MeasurementLines.Count == 0) return null;
+        if (viewportWidth <= 0f || viewportHeight <= 0f) return null;
+
+        float aspect = viewportWidth / viewportHeight;
+        var vp = Camera.GetViewMatrix() * Camera.GetProjectionMatrix(aspect);
+        float modelScale = Renderer.ModelScale;
+        float thresholdSq = thresholdPixels * thresholdPixels;
+
+        string? best = null;
+        float bestDistSq = float.MaxValue;
+        float bestDepth = float.MaxValue;
+        var mouse = new OpenTK.Mathematics.Vector2(mouseX, mouseY);
+
+        for (int i = 0; i < Renderer.MeasurementLines.Count; i++)
+        {
+            var seg = Renderer.MeasurementLines[i];
+            if (string.IsNullOrEmpty(seg.Label)) continue;
+
+            if (!TryProjectToPixel(seg.A * modelScale, vp, viewportWidth, viewportHeight, out var pa, out float depthA))
+                continue;
+            if (!TryProjectToPixel(seg.B * modelScale, vp, viewportWidth, viewportHeight, out var pb, out float depthB))
+                continue;
+
+            float distSq = PixelDistanceToSegmentSquared(mouse, pa, pb);
+            if (distSq > thresholdSq) continue;
+
+            // Prefer the closer segment when two land within the threshold at the same
+            // pixel distance — matches the "topmost visible line" intuition since the
+            // overlay disables depth test and stacks in draw order.
+            float depth = Math.Min(depthA, depthB);
+            if (distSq < bestDistSq || (Math.Abs(distSq - bestDistSq) < 1e-3f && depth < bestDepth))
+            {
+                best = seg.Label;
+                bestDistSq = distSq;
+                bestDepth = depth;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>Projects a world-space point to WPF-logical pixel coordinates via
+    /// <paramref name="vp"/> (view * projection). Returns false when the point is behind
+    /// the camera (w &lt;= 0) or clipped on Z (outside the [-1, 1] NDC depth range),
+    /// matching the GL clip behavior so out-of-frustum endpoints don't generate false
+    /// hover hits at wrapped screen positions.</summary>
+    private static bool TryProjectToPixel(
+        OpenTK.Mathematics.Vector3 world,
+        OpenTK.Mathematics.Matrix4 vp,
+        float viewportWidth, float viewportHeight,
+        out OpenTK.Mathematics.Vector2 pixel,
+        out float ndcZ)
+    {
+        var clip = new OpenTK.Mathematics.Vector4(world, 1f) * vp;
+        if (clip.W <= 1e-6f) { pixel = default; ndcZ = 0f; return false; }
+        var ndc = clip.Xyz / clip.W;
+        if (ndc.Z < -1f || ndc.Z > 1f) { pixel = default; ndcZ = ndc.Z; return false; }
+        float px = (ndc.X * 0.5f + 0.5f) * viewportWidth;
+        float py = (1f - (ndc.Y * 0.5f + 0.5f)) * viewportHeight;
+        pixel = new OpenTK.Mathematics.Vector2(px, py);
+        ndcZ = ndc.Z;
+        return true;
+    }
+
+    /// <summary>2D squared distance from <paramref name="p"/> to the segment
+    /// (<paramref name="a"/>, <paramref name="b"/>). Caller compares against
+    /// thresholdPixels² to avoid a sqrt per segment in the hover hit-test.</summary>
+    private static float PixelDistanceToSegmentSquared(
+        OpenTK.Mathematics.Vector2 p,
+        OpenTK.Mathematics.Vector2 a,
+        OpenTK.Mathematics.Vector2 b)
+    {
+        var ab = b - a;
+        float len2 = ab.LengthSquared;
+        if (len2 < 1e-6f) return (p - a).LengthSquared;
+        float t = OpenTK.Mathematics.Vector2.Dot(p - a, ab) / len2;
+        t = Math.Clamp(t, 0f, 1f);
+        var closest = a + ab * t;
+        return (p - closest).LengthSquared;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

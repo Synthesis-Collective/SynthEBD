@@ -95,11 +95,24 @@ public partial class UC_CharacterViewer : UserControl
     private VM_CharacterViewer? _vm;
     private bool _glStarted;
 
-    // Hover tooltip state
+    // Hover tooltip state. _currentHoverMesh tracks the mesh-tooltip identity so we only
+    // rebuild the content TextBlock when the hover target changes (the textures + asset-
+    // source rebuild allocates a non-trivial amount). _currentHoverMeasurementLabel does
+    // the same for the measurement-line tooltip path; the two are mutually exclusive —
+    // when one is showing, the other's identity is cleared so flipping between them
+    // forces a content rebuild on the next tick.
     private readonly DispatcherTimer _hoverTimer;
     private readonly ToolTip _hoverTooltip;
     private Point _lastMousePos;
     private GlMesh? _currentHoverMesh;
+    private string? _currentHoverMeasurementLabel;
+
+    /// <summary>Pixel-distance threshold for the measurement-line hover hit-test. Lines
+    /// render at GL line-width 4.5 (see <c>GlRenderer.DrawMeasurementLines</c>), so an 8px
+    /// threshold gives a comfortable click target without bleeding into nearby segments
+    /// when multiple measurements are on screen at once. Tweak in tandem with the GL line
+    /// width if either changes.</summary>
+    private const float MeasurementLineHoverThresholdPx = 8.0f;
 
     // BB-pick drag state. Populated on MouseDown when IsBoundingBoxPickMode is on; MouseMove
     // updates BoxSelectionRect's Canvas.Left/Top/Width/Height; MouseUp hands the final screen
@@ -872,6 +885,29 @@ public partial class UC_CharacterViewer : UserControl
             return;
         }
 
+        // Measurement-line tooltip takes priority over the mesh tooltip — the lines render
+        // on top of the body with depth test disabled (see GlRenderer.DrawMeasurementLines),
+        // so visually they ARE the topmost thing under the cursor when one is close enough.
+        // Falling through to the mesh hover only when no labeled segment is within the
+        // threshold keeps the rest of the existing hover behavior unchanged.
+        string? measurementLabel = _vm.HitTestMeasurementLine(
+            (float)_lastMousePos.X, (float)_lastMousePos.Y,
+            (float)GlControl.ActualWidth, (float)GlControl.ActualHeight,
+            MeasurementLineHoverThresholdPx);
+
+        if (measurementLabel != null)
+        {
+            if (!string.Equals(measurementLabel, _currentHoverMeasurementLabel, StringComparison.Ordinal))
+            {
+                _currentHoverMeasurementLabel = measurementLabel;
+                _currentHoverMesh = null; // forces mesh-content rebuild on next mesh hit
+                _hoverTooltip.Content = BuildMeasurementHoverTooltipContent(measurementLabel);
+            }
+            if (!_hoverTooltip.IsOpen)
+                _hoverTooltip.IsOpen = true;
+            return;
+        }
+
         var hit = _vm.HitTest(
             (float)_lastMousePos.X, (float)_lastMousePos.Y,
             (float)GlControl.ActualWidth, (float)GlControl.ActualHeight);
@@ -885,6 +921,7 @@ public partial class UC_CharacterViewer : UserControl
         if (!ReferenceEquals(hit, _currentHoverMesh))
         {
             _currentHoverMesh = hit;
+            _currentHoverMeasurementLabel = null; // forces measurement-content rebuild next time
             _hoverTooltip.Content = BuildHoverTooltipContent(hit);
         }
 
@@ -896,9 +933,22 @@ public partial class UC_CharacterViewer : UserControl
     {
         _hoverTimer.Stop();
         _currentHoverMesh = null;
+        _currentHoverMeasurementLabel = null;
         if (_hoverTooltip.IsOpen)
             _hoverTooltip.IsOpen = false;
     }
+
+    /// <summary>Minimal tooltip content for a measurement-line hover — just the label,
+    /// bold, in the same monospace font the mesh tooltip uses for visual consistency.
+    /// Single-line; multi-row layout isn't needed for a short identifier and would just
+    /// add visual weight when several labels flash by during a sweep.</summary>
+    private static TextBlock BuildMeasurementHoverTooltipContent(string label) => new()
+    {
+        Text = label,
+        FontFamily = new FontFamily("Consolas, Courier New, monospace"),
+        FontSize = 11,
+        FontWeight = FontWeights.Bold,
+    };
 
     private static TextBlock BuildHoverTooltipContent(GlMesh mesh)
     {

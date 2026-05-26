@@ -307,6 +307,15 @@ public class GlRenderer : IDisposable
         public Vector3 A;
         public Vector3 B;
         public Vector3 Color;
+
+        /// <summary>Optional tooltip label shown when the user hovers near this segment in
+        /// the WPF viewer (see <c>VM_CharacterViewer.HitTestMeasurementLine</c> +
+        /// <c>UC_CharacterViewer.HoverTimer_Tick</c>). Null/empty when the segment is
+        /// untagged — those segments still render but are ignored by the hover hit-test.
+        /// Renderer side never reads this field; it's purely transit metadata between the
+        /// caller that builds the overlay (e.g. <c>VM_BodyTypeProfileEditor.RefreshMeasurementHighlight</c>)
+        /// and the hover handler.</summary>
+        public string? Label;
     }
 
     /// <summary>When true, renders arrow gizmos showing each directional light's shining

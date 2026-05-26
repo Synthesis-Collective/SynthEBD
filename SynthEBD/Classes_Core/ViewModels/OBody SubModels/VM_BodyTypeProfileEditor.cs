@@ -3815,7 +3815,9 @@ public class VM_BodyTypeProfile : VM
         var white = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
         var cyan = new OpenTK.Mathematics.Vector3(0.0f, 1.0f, 1.0f);
 
-        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>();
+        // Bulge-bin debug lines aren't named measurements (one per Y-bin of the paired
+        // criterion algorithm), so they get null labels — the hover hit-test skips them.
+        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
         foreach (var bin in snapshot)
         {
             if (!bin.HasMin || !bin.HasMax) continue;
@@ -3823,7 +3825,7 @@ public class VM_BodyTypeProfile : VM
             if (bin.MaxVertexIndex < 0 || bin.MaxVertexIndex >= positions.Length) continue;
             var a = positions[bin.MinVertexIndex];
             var b = positions[bin.MaxVertexIndex];
-            segments.Add((a, b, bin.IsWinner ? cyan : white));
+            segments.Add((a, b, bin.IsWinner ? cyan : white, null));
         }
 
         viewer.SetMeasurementLines(segments);
@@ -3864,7 +3866,14 @@ public class VM_BodyTypeProfile : VM
                 : null;
         }
 
-        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>();
+        // Labeled tuple: each segment carries its parent measurement's name so the hover
+        // tooltip in UC_CharacterViewer can identify which line corresponds to which
+        // measurement. Especially important when "Show Measurements" or a multi-row
+        // Measurements-grid selection puts several lines on screen at once (where the
+        // color scheme alone doesn't disambiguate). Per-leg suffixes (e.g. " (numerator)")
+        // are appended for ratio / axis decompositions so users can tell which leg of the
+        // same measurement they're hovering.
+        var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
 
         // Yellow for the primary pair, cyan for the ratio denominator pair. For AxisDistance
         // the three axis-aligned legs use: yellow (the measurement axis), white (the two
@@ -3891,9 +3900,70 @@ public class VM_BodyTypeProfile : VM
             _ => bv,
         };
 
+        // Pair equality is unordered: a PointDistance/AxisDistance between (X, Y) measures
+        // the same scalar as one between (Y, X). The hover-label cross-reference treats
+        // pairs as sets so a ratio's numerator (L_HipSide, R_HipSide) finds a sibling
+        // hip_width PointDistance regardless of which way that sibling was authored.
+        static bool PairsMatch(string a1, string b1, string a2, string b2)
+        {
+            if (string.IsNullOrEmpty(a1) || string.IsNullOrEmpty(b1)) return false;
+            if (string.IsNullOrEmpty(a2) || string.IsNullOrEmpty(b2)) return false;
+            if (string.Equals(a1, a2, StringComparison.Ordinal) && string.Equals(b1, b2, StringComparison.Ordinal)) return true;
+            if (string.Equals(a1, b2, StringComparison.Ordinal) && string.Equals(b1, a2, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        // Cross-reference helper for RatioDistance hover labels. Given one of the ratio's
+        // pair-and-axis combinations, find a separately-defined single-distance measurement
+        // (PointDistance for axis==null, AxisDistance with matching Axis otherwise) whose
+        // (V1, V2) matches the same physical scalar.
+        // <para>RatioDistance entries are not indexed here. A ratio is a composite of two
+        // pairs, not a single pair, so cross-referencing one to another would be misleading
+        // ("numerator: some_other_ratio" tells the user nothing about what the line is).
+        // Returns null when no sibling matches — caller falls back to the explicit-pair form.</para>
+        string? FindMatchingSinglePairMeasurement(string vertexRef1, string vertexRef2, MeasurementAxis? axis)
+        {
+            if (string.IsNullOrEmpty(vertexRef1) || string.IsNullOrEmpty(vertexRef2)) return null;
+            foreach (var m in Measurements)
+            {
+                if (m == null || string.IsNullOrEmpty(m.Name)) continue;
+                if (axis == null)
+                {
+                    if (m.Kind != MeasurementKind.PointDistance) continue;
+                }
+                else
+                {
+                    if (m.Kind != MeasurementKind.AxisDistance) continue;
+                    if (m.Axis != axis.Value) continue;
+                }
+                if (PairsMatch(m.VertexRefA, m.VertexRefB, vertexRef1, vertexRef2))
+                    return m.Name;
+            }
+            return null;
+        }
+
+        // Resolves the text that fills the colon slot in "{ratio_name} (role: <slot>)".
+        // - Match found:    returns the matched sibling measurement's name (e.g. "hip_width").
+        // - No match found: returns an explicit "V1 to V2" pair, with a trailing ": AXIS"
+        //                   suffix when axis is set — so an unmatched X-axis numerator reads
+        //                   "(numerator: L_HipSide to R_HipSide: X)" instead of the
+        //                   content-free "(numerator)". The pair-only form for axis==null
+        //                   stays "(numerator: L_HipSide to R_HipSide)".
+        string PairSlot(string vertexRef1, string vertexRef2, MeasurementAxis? axis)
+        {
+            string? match = FindMatchingSinglePairMeasurement(vertexRef1, vertexRef2, axis);
+            if (!string.IsNullOrEmpty(match)) return match;
+            string v1 = string.IsNullOrEmpty(vertexRef1) ? "?" : vertexRef1;
+            string v2 = string.IsNullOrEmpty(vertexRef2) ? "?" : vertexRef2;
+            string pair = $"{v1} to {v2}";
+            return axis.HasValue ? $"{pair}: {axis.Value}" : pair;
+        }
+
         foreach (var sel in sels)
         {
             if (sel == null) continue;
+
+            string name = string.IsNullOrEmpty(sel.Name) ? "(unnamed)" : sel.Name;
 
             var a = Resolve(sel.VertexRefA);
             var b = Resolve(sel.VertexRefB);
@@ -3903,12 +3973,15 @@ public class VM_BodyTypeProfile : VM
                 {
                     // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
                     // X, then Y, then Z. The leg matching the measurement axis takes the primary
-                    // (yellow) color; the other two take secondary (white). The direct A-B line
-                    // is drawn first in grey as the hypotenuse so the colored legs always paint
-                    // on top — matters when the vertices differ on a single axis, where the
-                    // hypotenuse is collinear with one leg and must not obscure it (depth test
-                    // is disabled for this overlay, so painter ordering decides who wins).
-                    // Zero-length legs are skipped.
+                    // (yellow) color; the other two take secondary (white). Zero-length legs are
+                    // skipped.
+                    // <para>The full A-B hypotenuse line is intentionally NOT drawn for
+                    // AxisDistance: it represents a 3D length that the measurement doesn't
+                    // actually evaluate (only the axis-projected leg matters), so showing it
+                    // visually invites confusion about what the threshold tests against. The
+                    // colored legs are sufficient to convey both the pair and the axis;
+                    // unlike the RatioDistance branches we don't need the grey reference
+                    // line as visual context for a non-evaluated denominator pair.</para>
                     var av = a.Value;
                     var bv = b.Value;
                     var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
@@ -3918,26 +3991,47 @@ public class VM_BodyTypeProfile : VM
                     var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
                     var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
 
-                    segments.Add((av, bv, axisHypotenuse));
-                    if (av.X != bv.X) segments.Add((av, p1, xColor));
-                    if (av.Y != bv.Y) segments.Add((p1, p2, yColor));
-                    if (av.Z != bv.Z) segments.Add((p2, bv, zColor));
+                    // Label format: "{name} (role qualifier)". Name leads so the parent
+                    // measurement is identifiable at a glance; role describes which leg of
+                    // the decomposition the cursor is on. The axis matching sel.Axis is
+                    // annotated as "measurement axis" so the user can tell which leg
+                    // actually contributes to the threshold. AxisDistance doesn't get a
+                    // cross-reference colon because it's a single measurement, not a
+                    // composite — the parent name alone identifies it.
+                    if (av.X != bv.X) segments.Add((av, p1, xColor, $"{name} (X leg{(sel.Axis == MeasurementAxis.X ? " — measurement axis" : "")})"));
+                    if (av.Y != bv.Y) segments.Add((p1, p2, yColor, $"{name} (Y leg{(sel.Axis == MeasurementAxis.Y ? " — measurement axis" : "")})"));
+                    if (av.Z != bv.Z) segments.Add((p2, bv, zColor, $"{name} (Z leg{(sel.Axis == MeasurementAxis.Z ? " — measurement axis" : "")})"));
                 }
                 else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
                 {
                     // RatioDistance numerator pair (A,B) is being reduced along a single axis
-                    // via NumeratorAxis. Draw the full A→B vector in grey as the hypotenuse
-                    // (preserves the visual cue for where A and B sit) and overlay the
-                    // axis-projected leg in the primary color — that leg's length equals the
-                    // actual scalar being fed into the ratio. Without this branch the line
-                    // implied the full 3D distance was the measurement, which it isn't.
+                    // via NumeratorAxis. Draw only the axis-projected leg in the primary
+                    // color — its length equals the actual scalar being fed into the ratio.
+                    // The grey A→B hypotenuse was previously also drawn as a visual reference
+                    // for where A and B sit, but per user feedback it's omitted for axis-
+                    // locked pairs: the hypotenuse represents a 3D length the ratio doesn't
+                    // evaluate, and seeing it invites the same "wait, which one IS the
+                    // measurement?" confusion that motivated the original axis-projected
+                    // branch in the first place.
                     var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
-                    segments.Add((a.Value, b.Value, axisHypotenuse));
-                    segments.Add((a.Value, legEnd, primary));
+                    segments.Add((a.Value, legEnd, primary,
+                        $"{name} (numerator: {PairSlot(sel.VertexRefA, sel.VertexRefB, sel.NumeratorAxis)})"));
                 }
                 else
                 {
-                    segments.Add((a.Value, b.Value, primary));
+                    if (sel.Kind == MeasurementKind.RatioDistance)
+                    {
+                        // No NumeratorAxis: the ratio uses the full 3D length, so the single
+                        // line drawn IS the numerator's contribution. Cross-references a
+                        // sibling PointDistance with the same pair (axis=null).
+                        segments.Add((a.Value, b.Value, primary,
+                            $"{name} (numerator: {PairSlot(sel.VertexRefA, sel.VertexRefB, null)})"));
+                    }
+                    else
+                    {
+                        // PointDistance: only one segment per measurement, name alone suffices.
+                        segments.Add((a.Value, b.Value, primary, name));
+                    }
                 }
             }
 
@@ -3949,15 +4043,18 @@ public class VM_BodyTypeProfile : VM
                 {
                     if (sel.DenominatorAxis.HasValue)
                     {
-                        // Symmetric treatment for the denominator pair — grey hypotenuse plus
-                        // a cyan axis-projected leg whose length is the denominator scalar.
+                        // Symmetric treatment to the axis-locked numerator branch above:
+                        // only the cyan axis-projected leg is drawn (its length is the actual
+                        // denominator scalar). The C→D hypotenuse is suppressed for the same
+                        // reason — it represents a 3D length the ratio doesn't evaluate.
                         var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
-                        segments.Add((c.Value, d.Value, axisHypotenuse));
-                        segments.Add((c.Value, legEnd, secondary));
+                        segments.Add((c.Value, legEnd, secondary,
+                            $"{name} (denominator: {PairSlot(sel.VertexRefC, sel.VertexRefD, sel.DenominatorAxis)})"));
                     }
                     else
                     {
-                        segments.Add((c.Value, d.Value, secondary));
+                        segments.Add((c.Value, d.Value, secondary,
+                            $"{name} (denominator: {PairSlot(sel.VertexRefC, sel.VertexRefD, null)})"));
                     }
                 }
             }
