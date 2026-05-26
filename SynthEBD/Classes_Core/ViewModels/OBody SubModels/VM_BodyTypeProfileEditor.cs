@@ -238,7 +238,18 @@ public class VM_BodyTypeProfileEditor : VM
                     // Mode change re-sorts the existing rows; no descriptor / scan state
                     // change so we skip the full descriptor-filter and weight-filter rebuild
                     // by going through RefreshMatchingPresets, which is cheap enough.
+                    // Set IsSimilarityScoreMode here so Fody fires PropertyChanged on it (XAML
+                    // visibility for the target dropdown binds to that flag); also refresh
+                    // the target list since its valid values track the filter+rule state.
+                    IsSimilarityScoreMode = ScoreSortMode.IsSimilarity();
+                    RefreshSimilarityTargetOptions();
                     RefreshMatchingPresets();
+                    break;
+                case nameof(SimilarityTarget):
+                    // Target change re-sorts when a Similarity sort is active; ignored
+                    // otherwise. RefreshMatchingPresets short-circuits when scoringActive
+                    // is false, so the no-op path is cheap.
+                    if (ScoreSortMode.IsSimilarity()) RefreshMatchingPresets();
                     break;
             }
         };
@@ -344,7 +355,30 @@ public class VM_BodyTypeProfileEditor : VM
         new MarginScoreOption(MarginScoreMode.Off, "Default order"),
         new MarginScoreOption(MarginScoreMode.StdDevNormalized, "Match strength: σ-normalized margin"),
         new MarginScoreOption(MarginScoreMode.PercentOfThreshold, "Match strength: % of threshold"),
+        new MarginScoreOption(MarginScoreMode.SimilarityToStdDevNormalized, "Similarity to: σ-normalized margin"),
+        new MarginScoreOption(MarginScoreMode.SimilarityToPercentOfThreshold, "Similarity to: % of threshold"),
     };
+
+    /// <summary>Whether the current <see cref="ScoreSortMode"/> is one of the Similarity
+    /// variants. XAML bindings consult this to show/hide the target-value picker.
+    /// Kept as an auto-property (rather than a computed getter) so Fody's PropertyChanged
+    /// weaver fires the notification when the ScoreSortMode handler reassigns it — an
+    /// extension-method-based computed getter wouldn't be detected as dependent.</summary>
+    public bool IsSimilarityScoreMode { get; private set; }
+
+    /// <summary>Sibling values available as the comparison target for the Similarity sort
+    /// modes. Populated from the filter's currently-selected category: every value with at
+    /// least one rule in that category, *excluding* the filter's own selected value
+    /// (comparing a descriptor to itself collapses to the existing Match-strength sort).
+    /// Empty when no filter is selected or 2+ values are selected — same activation guard
+    /// as the existing scoring path.</summary>
+    public ObservableCollection<string> SimilarityTargetOptions { get; } = new();
+
+    /// <summary>Currently-selected comparison target (a descriptor value in the same category
+    /// as the filter selection). Null when nothing's picked yet or when the previous pick
+    /// became invalid after a filter change. Drives which rule the Similarity score modes
+    /// project each row onto.</summary>
+    public string? SimilarityTarget { get; set; }
 
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
@@ -609,9 +643,15 @@ public class VM_BodyTypeProfileEditor : VM
         // Header string off every selection/match-mode change, so subscribing to it is a
         // cheap catch-all for "anything in the filter changed". Skip the initial emission
         // so we don't fire before the scan has any data.
+        // Also refresh the Similarity target list off the same signal — the available
+        // targets depend entirely on which descriptor category the user has selected.
         this.WhenAnyValue(x => x.DescriptorFilter.Header)
             .Skip(1)
-            .Subscribe(_ => RefreshMatchingPresets())
+            .Subscribe(_ =>
+            {
+                RefreshSimilarityTargetOptions();
+                RefreshMatchingPresets();
+            })
             .DisposeWith(this);
 
         // Same DI prerequisites (DescriptorUI + race groupings) as the filter, so piggyback
@@ -1175,14 +1215,27 @@ public class VM_BodyTypeProfileEditor : VM
 
         // Score-based sort only applies when exactly one descriptor value is selected — with
         // 0 or 2+ there's no single rule to project onto, so we leave the default sort alone
-        // rather than picking an arbitrary descriptor.
-        bool scoringActive = ScoreSortMode != MarginScoreMode.Off && selectionKeys.Count == 1;
+        // rather than picking an arbitrary descriptor. Similarity modes additionally require
+        // a non-empty SimilarityTarget; without one there's no second rule to score against,
+        // so we treat the mode as Off for this refresh.
+        bool isSimilarity = ScoreSortMode.IsSimilarity();
+        bool scoringActive = ScoreSortMode != MarginScoreMode.Off
+                             && selectionKeys.Count == 1
+                             && (!isSimilarity || !string.IsNullOrEmpty(SimilarityTarget));
         if (scoringActive)
         {
             var (cat, val) = selectionKeys.First();
+            // Similarity modes score against the user-picked target value in the same
+            // category rather than the filter's own value; the rest of the scoring pipeline
+            // is identical, so we just swap the row-target name before picking matchingRules.
+            // The metric (σ vs %) is recovered via SimilarityBaseMode for the Similarity
+            // variants so ScoreRuleAgainstMeasurements / FormatScore receive the underlying
+            // enum value they already understand.
+            string scoredValue = isSimilarity ? SimilarityTarget! : val;
+            MarginScoreMode scoringMetric = isSimilarity ? ScoreSortMode.SimilarityBaseMode() : ScoreSortMode;
             var matchingRules = profile.Rules
                 .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal)
-                         && string.Equals(r.DescriptorValue, val, StringComparison.Ordinal))
+                         && string.Equals(r.DescriptorValue, scoredValue, StringComparison.Ordinal))
                 .ToList();
             // Sibling rules = same Category, any Value. Used for the per-row near-miss
             // tooltip ("you matched Pear but you're close to Rectangle"). Includes the
@@ -1202,7 +1255,7 @@ public class VM_BodyTypeProfileEditor : VM
                 // badge and tooltip whenever a sibling rule references a measurement the
                 // primary rule doesn't.
                 Dictionary<string, double> stdDevs = null;
-                if (ScoreSortMode == MarginScoreMode.StdDevNormalized)
+                if (scoringMetric == MarginScoreMode.StdDevNormalized)
                     stdDevs = ComputePopulationStdDevs(profile, siblingRules);
 
                 foreach (var row in staged)
@@ -1213,14 +1266,14 @@ public class VM_BodyTypeProfileEditor : VM
                     double? best = null;
                     foreach (var rule in matchingRules)
                     {
-                        double? rs = ScoreRuleAgainstMeasurements(rule, entry.Measurements, ScoreSortMode, stdDevs);
+                        double? rs = ScoreRuleAgainstMeasurements(rule, entry.Measurements, scoringMetric, stdDevs);
                         if (rs.HasValue && (!best.HasValue || rs.Value > best.Value))
                             best = rs;
                     }
                     row.Score = best;
-                    row.ScoreDisplay = FormatScore(best, ScoreSortMode);
+                    row.ScoreDisplay = FormatScore(best, scoringMetric);
                     row.SiblingScoresTooltip = BuildSiblingScoresTooltip(
-                        cat, siblingRules, entry.Measurements, ScoreSortMode, stdDevs);
+                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs);
                 }
 
                 // Sort: highest score first, scored rows ahead of unscored ones, ties broken
@@ -1252,6 +1305,48 @@ public class VM_BodyTypeProfileEditor : VM
                     return;
                 }
             }
+        }
+    }
+
+    /// <summary>Rebuilds <see cref="SimilarityTargetOptions"/> from the current filter state.
+    /// The available targets are every descriptor value in the filter's category that has at
+    /// least one rule on the active profile, minus the filter's own selected value (a
+    /// "Similarity to self" comparison is a no-op compared to the existing Match-strength
+    /// sort, so we exclude it to keep the dropdown short).
+    /// <para>The previously-selected target survives the refresh when it's still valid;
+    /// otherwise it falls back to the first available option. Called from the filter-change
+    /// subscription and the ScoreSortMode property-changed branch so the list tracks both
+    /// signals.</para></summary>
+    private void RefreshSimilarityTargetOptions()
+    {
+        var profile = SelectedProfile;
+        var filterSelection = DescriptorFilter?.DumpToHashSet() ?? new HashSet<BodyShapeDescriptor.LabelSignature>();
+        var selectionKeys = filterSelection.Select(s => (s.Category, s.Value)).ToHashSet();
+
+        SimilarityTargetOptions.Clear();
+        if (profile == null || selectionKeys.Count != 1) { SimilarityTarget = null; return; }
+
+        var (cat, selectedVal) = selectionKeys.First();
+        // Distinct sibling values, ordinal-sorted for stable display. Excludes the filter's
+        // own value because comparing it to itself yields the same scores as the existing
+        // Match-strength sort modes.
+        var siblings = profile.Rules
+            .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal))
+            .Select(r => r.DescriptorValue)
+            .Where(v => !string.IsNullOrEmpty(v) && !string.Equals(v, selectedVal, StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var v in siblings) SimilarityTargetOptions.Add(v);
+
+        // Preserve the user's existing pick across a category-preserving refresh (e.g., the
+        // user clicks a different *weight* slot but keeps Shape:Hourglass selected). Drop
+        // it only when the previous target is no longer in the new list — typical when the
+        // filter category itself changes.
+        if (string.IsNullOrEmpty(SimilarityTarget) || !siblings.Contains(SimilarityTarget))
+        {
+            SimilarityTarget = siblings.FirstOrDefault();
         }
     }
 
@@ -5489,6 +5584,40 @@ public enum MarginScoreMode
     /// so it's stable across partial scans. Falls back to raw margin when |threshold| &lt; 1e-6
     /// (a threshold of exactly zero) since the percentage would otherwise blow up.</summary>
     PercentOfThreshold = 2,
+
+    /// <summary>Same σ-normalized scoring as <see cref="StdDevNormalized"/>, but the row is
+    /// scored against the rule for <see cref="VM_BodyTypeProfileEditor.SimilarityTarget"/>
+    /// (a sibling descriptor value picked from a second dropdown) rather than the
+    /// filter-selected rule. Surfaces how close each filter-matched preset is to *also*
+    /// matching a different value in the same category — useful for tuning Pear/Hourglass
+    /// or Rectangle/Inverted-Triangle boundaries. Degrades to the default sort when no
+    /// target is picked or the target has no rules.</summary>
+    SimilarityToStdDevNormalized = 3,
+
+    /// <summary>Same %-of-threshold scoring as <see cref="PercentOfThreshold"/>, scored
+    /// against the <see cref="VM_BodyTypeProfileEditor.SimilarityTarget"/> rule instead of
+    /// the filter's. Companion to <see cref="SimilarityToStdDevNormalized"/>.</summary>
+    SimilarityToPercentOfThreshold = 4,
+}
+
+/// <summary>Convenience predicate kept next to the enum so call sites don't have to
+/// enumerate every Similarity* member when they want "is the user comparing against
+/// a different descriptor?" semantics. Added separately to avoid leaking implementation
+/// details (like the integer values) into other files.</summary>
+internal static class MarginScoreModeExtensions
+{
+    public static bool IsSimilarity(this MarginScoreMode mode)
+        => mode == MarginScoreMode.SimilarityToStdDevNormalized
+        || mode == MarginScoreMode.SimilarityToPercentOfThreshold;
+
+    /// <summary>Underlying normalization the Similarity variant reuses. Returns
+    /// <see cref="MarginScoreMode.Off"/> when called on a non-Similarity mode.</summary>
+    public static MarginScoreMode SimilarityBaseMode(this MarginScoreMode mode) => mode switch
+    {
+        MarginScoreMode.SimilarityToStdDevNormalized => MarginScoreMode.StdDevNormalized,
+        MarginScoreMode.SimilarityToPercentOfThreshold => MarginScoreMode.PercentOfThreshold,
+        _ => MarginScoreMode.Off,
+    };
 }
 
 /// <summary>(value, label) pair for the score-mode ComboBox so SelectedValuePath/DisplayMemberPath

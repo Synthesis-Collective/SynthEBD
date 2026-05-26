@@ -994,12 +994,23 @@
                                              in how they normalize the raw (value − threshold) margin —
                                              see MarginScoreMode for the formulas. -->
                                         <TextBlock Text="Sort:" FontWeight="Bold" VerticalAlignment="Center" Margin="20,0,6,0"/>
-                                        <ComboBox Width="240" VerticalAlignment="Center"
+                                        <ComboBox Width="280" VerticalAlignment="Center"
                                                   ItemsSource="{Binding DataContext.ScoreSortModeOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedValuePath="Value"
                                                   DisplayMemberPath="Label"
                                                   SelectedValue="{Binding DataContext.ScoreSortMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  ToolTip="Active only when exactly one descriptor value is selected in the filter. Sorts matching presets by how far past the rule's thresholds each one sits — σ-normalized reads as 'N standard deviations past the line' across the cached population; % of threshold reads as 'N% past the threshold.' Both pick the OR-group with the most slack per row and use its tightest condition (min margin) as the row's score."/>
+                                                  ToolTip="Active only when exactly one descriptor value is selected in the filter. Match-strength sorts score each row against the filter's own rule; Similarity-to sorts score against a sibling value picked from the second dropdown (e.g., filter Shape:Hourglass + similarity to Rectangle to see Hourglass-tagged presets ranked by how close they are to also matching Rectangle). σ-normalized reads as 'N standard deviations past the line'; % of threshold reads as 'N% past the threshold.' Both pick the OR-group with the most slack per row and use its tightest condition (min margin) as the row's score."/>
+                                        <!-- Target picker for the Similarity sort modes. Visibility binds to the
+                                             editor's IsSimilarityScoreMode flag (recomputed on ScoreSortMode change).
+                                             When hidden, the bound SimilarityTarget stays put so re-entering a
+                                             Similarity mode restores the prior pick instead of forcing reselection. -->
+                                        <TextBlock Text="vs:" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,6,0"
+                                                   Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+                                        <ComboBox Width="160" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding DataContext.SimilarityTargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedItem="{Binding DataContext.SimilarityTarget, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
+                                                  ToolTip="Sibling descriptor value to measure similarity against. Populated with every value in the filter's category that has at least one rule, minus the filter's own selected value (comparing to self would just reproduce the Match-strength sort)."/>
                                     </StackPanel>
 
                                     <ListBox Grid.Row="5"
