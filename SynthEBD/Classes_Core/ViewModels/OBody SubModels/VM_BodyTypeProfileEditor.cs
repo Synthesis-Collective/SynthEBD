@@ -227,6 +227,8 @@ public class VM_BodyTypeProfileEditor : VM
                         ? "No profile selected."
                         : (SelectedProfile.ScanResults.Count == 0 ? "No scan yet." : $"Cached scan: {SelectedProfile.ScanResults.Count} preset-weight combinations.");
                     RebuildWeightFilterOptions();
+                    RefreshMeasurementValueOptions();
+                    RefreshMatchPresetMeasurementOverlay();
                     RefreshMatchingPresets();
                     break;
                 case nameof(SelectedMatchRow):
@@ -238,11 +240,14 @@ public class VM_BodyTypeProfileEditor : VM
                     // Mode change re-sorts the existing rows; no descriptor / scan state
                     // change so we skip the full descriptor-filter and weight-filter rebuild
                     // by going through RefreshMatchingPresets, which is cheap enough.
-                    // Set IsSimilarityScoreMode here so Fody fires PropertyChanged on it (XAML
-                    // visibility for the target dropdown binds to that flag); also refresh
-                    // the target list since its valid values track the filter+rule state.
+                    // Set IsSimilarityScoreMode / IsMeasurementValueScoreMode here so Fody
+                    // fires PropertyChanged on them (XAML visibility for the per-mode
+                    // secondary dropdowns binds to those flags); also refresh the per-mode
+                    // option lists since their valid values track filter / profile state.
                     IsSimilarityScoreMode = ScoreSortMode.IsSimilarity();
+                    IsMeasurementValueScoreMode = ScoreSortMode == MarginScoreMode.MeasurementValue;
                     RefreshSimilarityTargetOptions();
+                    RefreshMeasurementValueOptions();
                     RefreshMatchingPresets();
                     break;
                 case nameof(SimilarityTarget):
@@ -250,6 +255,14 @@ public class VM_BodyTypeProfileEditor : VM
                     // otherwise. RefreshMatchingPresets short-circuits when scoringActive
                     // is false, so the no-op path is cheap.
                     if (ScoreSortMode.IsSimilarity()) RefreshMatchingPresets();
+                    break;
+                case nameof(SelectedMeasurementForSort):
+                    // Mirrors the SimilarityTarget branch: re-sort only when the matching
+                    // mode is active; otherwise leave MatchingPresets alone.
+                    if (ScoreSortMode == MarginScoreMode.MeasurementValue) RefreshMatchingPresets();
+                    break;
+                case nameof(ShowMatchPresetMeasurements):
+                    RefreshMatchPresetMeasurementOverlay();
                     break;
             }
         };
@@ -357,6 +370,7 @@ public class VM_BodyTypeProfileEditor : VM
         new MarginScoreOption(MarginScoreMode.PercentOfThreshold, "Match strength: % of threshold"),
         new MarginScoreOption(MarginScoreMode.SimilarityToStdDevNormalized, "Similarity to: σ-normalized margin"),
         new MarginScoreOption(MarginScoreMode.SimilarityToPercentOfThreshold, "Similarity to: % of threshold"),
+        new MarginScoreOption(MarginScoreMode.MeasurementValue, "Measurement: value (largest first)"),
     };
 
     /// <summary>Whether the current <see cref="ScoreSortMode"/> is one of the Similarity
@@ -379,6 +393,33 @@ public class VM_BodyTypeProfileEditor : VM
     /// became invalid after a filter change. Drives which rule the Similarity score modes
     /// project each row onto.</summary>
     public string? SimilarityTarget { get; set; }
+
+    /// <summary>Whether the current <see cref="ScoreSortMode"/> is
+    /// <see cref="MarginScoreMode.MeasurementValue"/>. XAML bindings consult this to show/hide
+    /// the per-measurement picker. Same Fody-friendly auto-property pattern as
+    /// <see cref="IsSimilarityScoreMode"/>.</summary>
+    public bool IsMeasurementValueScoreMode { get; private set; }
+
+    /// <summary>Measurement names available for the MeasurementValue sort mode. Populated from
+    /// the active profile's <see cref="VM_BodyTypeProfile.Measurements"/> collection
+    /// (distinct, ordinal-sorted). Empty when no profile is selected. Drives the secondary
+    /// dropdown that appears when ScoreSortMode is MeasurementValue.</summary>
+    public ObservableCollection<string> MeasurementValueOptions { get; } = new();
+
+    /// <summary>Name of the measurement chosen as the value-sort target. Null when nothing's
+    /// picked yet or when the previous pick became invalid after a profile / measurements
+    /// edit. Each row's <see cref="VM_PresetScanRow.Score"/> is set to the cached value of
+    /// this measurement for that row's (preset, weight), with the rows sorted descending.</summary>
+    public string? SelectedMeasurementForSort { get; set; }
+
+    /// <summary>"Show Measurements" toggle on the Match Presets tab. When on, every measurement
+    /// referenced by any rule whose descriptor is currently checked in
+    /// <see cref="DescriptorFilter"/> is pushed into the viewer's measurement-line overlay
+    /// (via the same channel the Measurements grid's multi-selection uses). Replaces the
+    /// user's manual Measurements-grid selection while active; unchecking restores the
+    /// fallback to <see cref="VM_BodyTypeProfile.SelectedMeasurement"/>. Refreshed when the
+    /// filter selection or active profile changes.</summary>
+    public bool ShowMatchPresetMeasurements { get; set; }
 
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
@@ -643,13 +684,15 @@ public class VM_BodyTypeProfileEditor : VM
         // Header string off every selection/match-mode change, so subscribing to it is a
         // cheap catch-all for "anything in the filter changed". Skip the initial emission
         // so we don't fire before the scan has any data.
-        // Also refresh the Similarity target list off the same signal — the available
-        // targets depend entirely on which descriptor category the user has selected.
+        // Also refresh the Similarity target list and (when the "Show Measurements" toggle
+        // is on) the measurement-line overlay off the same signal — both depend entirely
+        // on which descriptor(s) the user has selected.
         this.WhenAnyValue(x => x.DescriptorFilter.Header)
             .Skip(1)
             .Subscribe(_ =>
             {
                 RefreshSimilarityTargetOptions();
+                RefreshMatchPresetMeasurementOverlay();
                 RefreshMatchingPresets();
             })
             .DisposeWith(this);
@@ -1213,6 +1256,54 @@ public class VM_BodyTypeProfileEditor : VM
             staged.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
         }
 
+        // MeasurementValue sort is independent of the descriptor filter — the row is scored
+        // by reading the selected measurement's cached value directly, regardless of which
+        // descriptors (if any) are checked. Handled before the rule-margin path so the two
+        // don't interact.
+        if (ScoreSortMode == MarginScoreMode.MeasurementValue
+            && !string.IsNullOrEmpty(SelectedMeasurementForSort))
+        {
+            string measurementName = SelectedMeasurementForSort!;
+            foreach (var row in staged)
+            {
+                if (!profile.MeasurementCache.TryGetValue(
+                        (row.PresetLabel, row.Gender, row.Weight), out var entry))
+                    continue;
+                if (!entry.Measurements.TryGetValue(measurementName, out var vBox) || !vBox.HasValue)
+                    continue;
+                row.Score = vBox.Value;
+                row.ScoreDisplay = FormatScore(vBox.Value, MarginScoreMode.MeasurementValue);
+                // Tooltip helps the user remember which measurement they're looking at when
+                // skimming a long list; mirrors the sibling-scores tooltip slot on the badge.
+                row.SiblingScoresTooltip = $"{measurementName} = {vBox.Value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
+            }
+
+            staged = staged
+                .OrderByDescending(r => r.Score.HasValue)
+                .ThenByDescending(r => r.Score ?? 0.0)
+                .ThenBy(r => r.Gender)
+                .ThenBy(r => r.PresetLabel, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.Weight)
+                .ToList();
+
+            foreach (var row in staged) MatchingPresets.Add(row);
+
+            if (previouslySelected != null)
+            {
+                foreach (var row in MatchingPresets)
+                {
+                    if (row.Weight == previouslySelected.Weight
+                        && row.Gender == previouslySelected.Gender
+                        && string.Equals(row.PresetLabel, previouslySelected.PresetLabel, StringComparison.Ordinal))
+                    {
+                        SelectedMatchRow = row;
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
         // Score-based sort only applies when exactly one descriptor value is selected — with
         // 0 or 2+ there's no single rule to project onto, so we leave the default sort alone
         // rather than picking an arbitrary descriptor. Similarity modes additionally require
@@ -1348,6 +1439,101 @@ public class VM_BodyTypeProfileEditor : VM
         {
             SimilarityTarget = siblings.FirstOrDefault();
         }
+    }
+
+    /// <summary>Rebuilds <see cref="MeasurementValueOptions"/> from the active profile's
+    /// measurement definitions. Distinct ordinal-sorted names, empty when no profile is
+    /// selected. <see cref="SelectedMeasurementForSort"/> survives the refresh when it's
+    /// still valid; otherwise falls back to the first option.</summary>
+    private void RefreshMeasurementValueOptions()
+    {
+        MeasurementValueOptions.Clear();
+        var profile = SelectedProfile;
+        if (profile == null) { SelectedMeasurementForSort = null; return; }
+
+        var names = profile.Measurements
+            .Select(m => m?.Name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var n in names) MeasurementValueOptions.Add(n);
+
+        if (string.IsNullOrEmpty(SelectedMeasurementForSort) || !names.Contains(SelectedMeasurementForSort))
+        {
+            SelectedMeasurementForSort = names.FirstOrDefault();
+        }
+    }
+
+    /// <summary>Pushes the descriptor-derived measurement set into the active profile's
+    /// viewer overlay channel when <see cref="ShowMatchPresetMeasurements"/> is on; clears
+    /// the channel otherwise. The derivation walks every rule on the profile whose descriptor
+    /// is currently checked in <see cref="DescriptorFilter"/>, collects each Measurement-kind
+    /// condition's <see cref="VM_MeasurementCondition.MeasurementName"/>, and maps those names
+    /// to the matching <see cref="VM_MeasurementDefinition"/> rows (deduplicated by reference).
+    /// <para>"Replace" semantics: while the toggle is on the descriptor-derived list owns the
+    /// overlay; toggling off restores the Measurements-grid fallback via the empty-list path
+    /// in <see cref="VM_BodyTypeProfile.UpdateSelectedMeasurements"/>.</para></summary>
+    private void RefreshMatchPresetMeasurementOverlay()
+    {
+        var profile = SelectedProfile;
+        if (profile == null) return;
+
+        if (!ShowMatchPresetMeasurements)
+        {
+            profile.UpdateSelectedMeasurements(Array.Empty<VM_MeasurementDefinition>());
+            return;
+        }
+
+        var selectionKeys = DescriptorFilter?.DumpToHashSet()
+            ?.Select(s => (s.Category ?? "", s.Value ?? ""))
+            .ToHashSet() ?? new HashSet<(string, string)>();
+        if (selectionKeys.Count == 0)
+        {
+            profile.UpdateSelectedMeasurements(Array.Empty<VM_MeasurementDefinition>());
+            return;
+        }
+
+        // Collect every Measurement-kind condition name referenced by any rule whose
+        // descriptor matches one of the checked filter entries. Ordinal dedupe keeps the
+        // viewer from drawing the same line twice when multiple rules share a measurement.
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in profile.Rules)
+        {
+            if (rule == null) continue;
+            var key = (rule.DescriptorCategory ?? "", rule.DescriptorValue ?? "");
+            if (!selectionKeys.Contains(key)) continue;
+            foreach (var group in rule.Groups)
+            {
+                if (group?.Conditions == null) continue;
+                foreach (var cond in group.Conditions)
+                {
+                    if (cond == null) continue;
+                    if (cond.Kind != MeasurementConditionKind.Measurement) continue;
+                    if (string.IsNullOrEmpty(cond.MeasurementName)) continue;
+                    names.Add(cond.MeasurementName);
+                }
+            }
+        }
+
+        // Map names → MeasurementDefinitions. First match per name (matching the runtime
+        // evaluator's first-row-wins policy when the user has duplicate names). Definitions
+        // whose name is referenced but no longer exists are silently skipped.
+        var byName = new Dictionary<string, VM_MeasurementDefinition>(StringComparer.Ordinal);
+        foreach (var def in profile.Measurements)
+        {
+            if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+            if (!byName.ContainsKey(def.Name)) byName[def.Name] = def;
+        }
+
+        var picked = new List<VM_MeasurementDefinition>();
+        foreach (var n in names)
+        {
+            if (byName.TryGetValue(n, out var d)) picked.Add(d);
+        }
+
+        profile.UpdateSelectedMeasurements(picked);
     }
 
     /// <summary>Welford-style single-pass std-dev across the profile's full
@@ -1563,29 +1749,41 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Pre-formats <paramref name="score"/> for the row's <c>ScoreDisplay</c>
     /// property — i.e., the badge next to the preset name. Wraps <see cref="FormatScoreNumber"/>
-    /// with the <c>"score "</c> prefix that anchors the badge. Returns empty string when
-    /// score is null so the binding renders no extra line.</summary>
+    /// with a per-mode label prefix ("score" for the rule-margin modes, "value" for the
+    /// MeasurementValue mode) so the badge reads as a complete sentence. Returns empty string
+    /// when score is null so the binding renders no extra line.</summary>
     private static string FormatScore(double? score, MarginScoreMode mode)
     {
         var bare = FormatScoreNumber(score, mode);
-        return bare.Length == 0 ? "" : "score " + bare;
+        if (bare.Length == 0) return "";
+        return mode == MarginScoreMode.MeasurementValue ? "value " + bare : "score " + bare;
     }
 
-    /// <summary>Pre-formats just the signed numeric portion of a score (e.g. <c>"+0.03σ"</c>,
-    /// <c>"-45%"</c>) for contexts that already supply their own label — most importantly the
-    /// sibling-scores tooltip, where each line has the descriptor name as the label and only
-    /// needs the value. Empty string for null scores; unit suffix differs by mode.</summary>
+    /// <summary>Pre-formats just the numeric portion of a score (e.g. <c>"+0.03σ"</c>,
+    /// <c>"-45%"</c>, <c>"1.234"</c>) for contexts that already supply their own label — most
+    /// importantly the sibling-scores tooltip, where each line has the descriptor name as the
+    /// label and only needs the value. Empty string for null scores; unit suffix differs by
+    /// mode. The rule-margin modes get a signed prefix (clearance past the threshold is the
+    /// meaningful signal); MeasurementValue is reported as a plain F3 value (sign is part of
+    /// the number itself, not a margin-direction indicator).</summary>
     private static string FormatScoreNumber(double? score, MarginScoreMode mode)
     {
         if (!score.HasValue) return "";
-        string sign = score.Value >= 0 ? "+" : "";
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         switch (mode)
         {
             case MarginScoreMode.StdDevNormalized:
+            {
+                string sign = score.Value >= 0 ? "+" : "";
                 return sign + score.Value.ToString("F2", inv) + "σ";
+            }
             case MarginScoreMode.PercentOfThreshold:
+            {
+                string sign = score.Value >= 0 ? "+" : "";
                 return sign + (score.Value * 100.0).ToString("F0", inv) + "%";
+            }
+            case MarginScoreMode.MeasurementValue:
+                return score.Value.ToString("F3", inv);
             default:
                 return "";
         }
@@ -5598,6 +5796,15 @@ public enum MarginScoreMode
     /// against the <see cref="VM_BodyTypeProfileEditor.SimilarityTarget"/> rule instead of
     /// the filter's. Companion to <see cref="SimilarityToStdDevNormalized"/>.</summary>
     SimilarityToPercentOfThreshold = 4,
+
+    /// <summary>Sorts each row by the cached value of the measurement picked in
+    /// <see cref="VM_BodyTypeProfileEditor.SelectedMeasurementForSort"/> (largest first).
+    /// Independent of the descriptor filter — every (preset, weight) that survives the
+    /// filter is scored as long as its cache entry contains a value for the picked
+    /// measurement. Rows whose cache entry is missing the measurement fall to the bottom
+    /// (unscored). No rule projection is involved, so this works even when the picked
+    /// measurement isn't referenced by any rule.</summary>
+    MeasurementValue = 5,
 }
 
 /// <summary>Convenience predicate kept next to the enum so call sites don't have to

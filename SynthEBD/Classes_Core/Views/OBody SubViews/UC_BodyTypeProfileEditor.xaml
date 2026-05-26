@@ -978,6 +978,16 @@
                                         <ProgressBar Width="220" Height="16" Minimum="0" Maximum="100"
                                                      Value="{Binding DataContext.ScanProgressPercent, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                      VerticalAlignment="Center"/>
+                                        <!-- "Show Measurements" pushes every measurement referenced by any rule whose
+                                             descriptor is currently checked in the filter above into the viewer's
+                                             measurement-line overlay (same channel the Measurements grid's
+                                             multi-selection uses). Replaces the Measurements-grid selection while
+                                             on; unchecking restores the fallback. Driven by both this toggle and
+                                             filter-selection changes. -->
+                                        <CheckBox Content="Show Measurements"
+                                                  IsChecked="{Binding DataContext.ShowMatchPresetMeasurements, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  VerticalAlignment="Center" Margin="10,0,0,0"
+                                                  ToolTip="When on, every measurement referenced by any rule whose descriptor is currently checked above is drawn in the viewer (yellow/cyan, same overlay the Measurements tab uses). Updates as the filter selection changes. While on, this overrides any selection in the Measurements tab; unchecking restores the Measurements-tab selection."/>
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,5">
@@ -1011,6 +1021,19 @@
                                                   SelectedItem="{Binding DataContext.SimilarityTarget, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
                                                   ToolTip="Sibling descriptor value to measure similarity against. Populated with every value in the filter's category that has at least one rule, minus the filter's own selected value (comparing to self would just reproduce the Match-strength sort)."/>
+                                        <!-- Measurement picker for the MeasurementValue sort mode. Shares the row
+                                             with the Similarity "vs:" picker but bound to its own visibility flag,
+                                             so the two never appear at once (their sort modes are mutually
+                                             exclusive). The bound SelectedMeasurementForSort stays put when the
+                                             user switches modes so re-entering MeasurementValue restores the prior
+                                             pick. -->
+                                        <TextBlock Text="Measurement:" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,6,0"
+                                                   Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+                                        <ComboBox Width="220" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding DataContext.MeasurementValueOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  SelectedItem="{Binding DataContext.SelectedMeasurementForSort, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
+                                                  ToolTip="Measurement (or RatioDistance) whose cached value each row is sorted by, descending. Independent of the descriptor filter — every (preset, weight) that survives the filter is ranked as long as its cache entry contains a value for this measurement. The row's badge shows the per-row value."/>
                                     </StackPanel>
 
                                     <ListBox Grid.Row="5"
