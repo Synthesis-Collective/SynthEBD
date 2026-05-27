@@ -1,0 +1,92 @@
+<Window x:Class="SynthEBD.Window_RuleDeleteExportPicker"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:VM_RuleDeleteExportPicker}"
+        Title="Export Rules Patch — Mark for Deletion"
+        Height="700" Width="600"
+        Background="#FF1E1E1E" Foreground="White"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#DDDDDD">
+            <Run Text="The add/edit set was pre-seeded from the Rules-tab tree node that was selected when you triggered Ctrl+Shift+Alt+P."/>
+            <LineBreak/>
+            <Run Text="Tick 'Mark for deletion' to add a rule's Id to the patch's RulesToDelete list. On rules already in the add/edit set, tick 'Exclude' to drop them from the patch."/>
+        </TextBlock>
+
+        <TreeView Grid.Row="1" ItemsSource="{Binding Categories}"
+                  Background="#FF2A2A2A" Foreground="White"
+                  BorderBrush="#FF555555">
+            <TreeView.Resources>
+                <!-- Category-level node: shows category name. -->
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_RuleDeletePickerCategoryNode}"
+                                          ItemsSource="{Binding Children}">
+                    <TextBlock Text="{Binding DisplayLabel}" FontWeight="Bold"/>
+                </HierarchicalDataTemplate>
+
+                <!-- Value-level node: shows value name. -->
+                <HierarchicalDataTemplate DataType="{x:Type local:VM_RuleDeletePickerValueNode}"
+                                          ItemsSource="{Binding Children}">
+                    <TextBlock Text="{Binding DisplayLabel}" FontStyle="Italic"/>
+                </HierarchicalDataTemplate>
+
+                <!-- Leaf: per-rule row with the two user toggles + read-only "in add/edit set" badge. -->
+                <DataTemplate DataType="{x:Type local:VM_RuleDeletePickerRuleNode}">
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="Delete"
+                                  IsChecked="{Binding IsMarkedForDeletion}"
+                                  Foreground="#FFC62828"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,8,0"
+                                  ToolTip="Add this rule's Id to RulesToDelete in the exported patch."/>
+                        <CheckBox Content="Exclude from add/edit"
+                                  IsChecked="{Binding IsExcludedFromAddEdit}"
+                                  Visibility="{Binding IsInAddEditSet, Converter={StaticResource BoolToVis}}"
+                                  Foreground="#FFFFA000"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,8,0"
+                                  ToolTip="Drop this rule from the patch's add/edit list. Only visible for rules pre-seeded from the main tab's tree node."/>
+                        <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+                        <TextBlock Text=" (in add/edit set)"
+                                   Foreground="#FF80C080"
+                                   FontStyle="Italic"
+                                   VerticalAlignment="Center"
+                                   Visibility="{Binding IsInAddEditSet, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.Resources>
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="{x:Type TreeViewItem}">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                </Style>
+            </TreeView.ItemContainerStyle>
+        </TreeView>
+
+        <TextBlock Grid.Row="2" Margin="0,8,0,0" FontWeight="SemiBold" Foreground="#EEEEEE"
+                   Text="{Binding SummaryText}"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="OK" Width="80" Margin="0,0,8,0"
+                    Command="{Binding OkCommand}" IsDefault="True"
+                    Foreground="Green" FontWeight="Bold"/>
+            <Button Content="Cancel" Width="80"
+                    Command="{Binding CancelCommand}" IsCancel="True"
+                    Foreground="Firebrick" FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>

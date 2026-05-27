@@ -343,11 +343,18 @@
 
                             <TabItem Header="Key Vertices">
                                 <DockPanel>
-                                    <!-- Developer convenience: Ctrl+S writes the current KeyVertices to a
-                                         JSON file ({ "KeyVertices": [...] }, drop-in compatible with the
-                                         per-tab JSON format used by Measurements and Rules). Ctrl+L parses
-                                         the same shape and replaces the current KeyVertices wholesale,
-                                         prompting for confirmation if any exist. -->
+                                    <!-- Developer convenience:
+                                         Ctrl+S  → writes the current KeyVertices to a JSON file
+                                                   ({ "IsPatch": ..., "KeyVertices": [...] }). Smart-mode:
+                                                   no rows selected (or all rows selected) writes a full
+                                                   snapshot (IsPatch=false). A strict subset selection
+                                                   writes a patch (IsPatch=true) containing only those
+                                                   rows; the default filename gets a "_patch" suffix.
+                                         Ctrl+L  → parses the same shape and either wholesale-replaces
+                                                   the current KeyVertices (legacy / IsPatch=false, with
+                                                   a confirmation if any exist) or applies the patch by
+                                                   Name (IsPatch=true, add-or-replace; original row index
+                                                   preserved on hit). -->
                                     <DockPanel.InputBindings>
                                         <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveKeyVerticesToJson}"/>
                                         <KeyBinding Modifiers="Control" Key="L" Command="{Binding LoadKeyVerticesFromJson}"/>
@@ -382,6 +389,7 @@
                                     <DataGrid x:Name="KeyVerticesGrid"
                                               ItemsSource="{Binding KeyVertices}"
                                               SelectedItem="{Binding SelectedKeyVertex}"
+                                              SelectionMode="Extended"
                                               SelectionChanged="KeyVerticesGrid_SelectionChanged"
                                               CellEditEnding="NameCell_EditEnding"
                                               AutoGenerateColumns="False"
@@ -494,10 +502,16 @@
                                 <DockPanel>
                                     <!-- Developer convenience shortcuts, scoped to this tab's DockPanel
                                          so they only fire while focus is inside the Measurements tab.
-                                           Ctrl+S            → save JSON ({ "Measurements": [...] }) — uniform
-                                                               with the KeyVertices and Rules tabs.
-                                           Ctrl+L            → load JSON, wholesale-replacing the current
-                                                               Measurements after a confirm dialog.
+                                           Ctrl+S            → save full JSON snapshot ({ "IsPatch": false,
+                                                               "Measurements": [...] }) — uniform with the
+                                                               KeyVertices and Rules tabs.
+                                           Ctrl+L            → load JSON. Auto-detects IsPatch: legacy /
+                                                               IsPatch=false replaces the current
+                                                               Measurements (confirm dialog if non-empty);
+                                                               IsPatch=true adds-or-replaces by Name in place.
+                                           Ctrl+Shift+P      → patch export: write only the rows currently
+                                                               selected in the grid, flagged IsPatch=true.
+                                                               Requires at least one row selected.
                                            Ctrl+Shift+S      → secondary export: CSV file including the
                                                                live-evaluated LiveValue column for
                                                                spreadsheet analysis.
@@ -510,9 +524,11 @@
                                     <DockPanel.InputBindings>
                                         <KeyBinding Modifiers="Control"           Key="S" Command="{Binding SaveMeasurementsToJson}"/>
                                         <KeyBinding Modifiers="Control"           Key="L" Command="{Binding LoadMeasurementsFromJson}"/>
+                                        <KeyBinding Modifiers="Control+Shift"     Key="P" Command="{Binding SaveMeasurementsPatchToJson}"/>
                                         <KeyBinding Modifiers="Control+Shift"     Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
                                         <KeyBinding Modifiers="Control"           Key="C" Command="{Binding CopyMeasurementsToClipboard}"/>
                                         <KeyBinding Modifiers="Control+Alt+Shift" Key="S" Command="{Binding SaveAllMeasurementsToCsv}"/>
+                                        <KeyBinding Modifiers="Control+Shift"     Key="H" Command="{Binding SaveAllMeasurementHistogramsToCsv}"/>
                                     </DockPanel.InputBindings>
                                     <Border DockPanel.Dock="Top"
                                             Style="{StaticResource DuplicateNameBannerStyle}"
@@ -643,15 +659,32 @@
 
                             <TabItem Header="Rules">
                                 <Grid>
-                                    <!-- Developer convenience: Ctrl+S writes the current rules to a JSON
-                                         file (top-level { "Rules": [...] }, drop-in compatible with the
-                                         Revised_BodyTypeProfile_Rules.json reference). Ctrl+L parses the
-                                         same shape and replaces the current rules wholesale, prompting
-                                         for confirmation if any exist. Documentation __comment_* fields
-                                         in the source file are tolerated. -->
+                                    <!-- Developer convenience:
+                                         Ctrl+S            → write the current rules to a full JSON snapshot
+                                                             ({ "IsPatch": false, "Rules": [...], "RulesToDelete": [] }).
+                                                             Compatible with the Revised_BodyTypeProfile_Rules.json
+                                                             reference. Documentation __comment_* fields are
+                                                             tolerated on load.
+                                         Ctrl+L            → load JSON. Auto-detects IsPatch: legacy /
+                                                             IsPatch=false wholesale-replaces (confirm dialog
+                                                             if rules exist); IsPatch=true applies the patch by
+                                                             Id — deletes RulesToDelete entries first, then
+                                                             adds-or-replaces by Id (original row index preserved
+                                                             on hit). Distinct "Apply patch?" confirmation.
+                                         Ctrl+Shift+P      → patch export: writes every rule under the currently-
+                                                             selected TreeView node (Category node = all rules in
+                                                             that category; Value node = exact descriptor match)
+                                                             with IsPatch=true, empty RulesToDelete.
+                                         Ctrl+Shift+Alt+P  → patch export with deletes: opens a picker window
+                                                             pre-seeded with the same tree-node set as the
+                                                             add/edit list, plus a delete-mark checkbox per
+                                                             rule. On OK, writes IsPatch=true with both the
+                                                             refined add/edit list and the deletion Ids. -->
                                     <Grid.InputBindings>
-                                        <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveRulesToJson}"/>
-                                        <KeyBinding Modifiers="Control" Key="L" Command="{Binding LoadRulesFromJson}"/>
+                                        <KeyBinding Modifiers="Control"           Key="S" Command="{Binding SaveRulesToJson}"/>
+                                        <KeyBinding Modifiers="Control"           Key="L" Command="{Binding LoadRulesFromJson}"/>
+                                        <KeyBinding Modifiers="Control+Shift"     Key="P" Command="{Binding SaveRulesPatchToJson}"/>
+                                        <KeyBinding Modifiers="Control+Shift+Alt" Key="P" Command="{Binding SaveRulesPatchWithDeletesToJson}"/>
                                     </Grid.InputBindings>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="280" MinWidth="200"/>

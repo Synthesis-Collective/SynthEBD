@@ -294,15 +294,17 @@ Esc: While iterating, stop.
 
 KEY VERTICES TAB
 
-Ctrl+S: Save Key Vertices to JSON.
+Ctrl+S: Save Key Vertices to JSON. Smart-mode: when no rows (or every row) are selected, writes a full snapshot (IsPatch=false). When a strict subset is selected, writes a partial patch (IsPatch=true) containing only those rows; the default filename gets a ""_patch"" suffix.
 
-Ctrl+L: Load Key Vertices from JSON. Replaces the current list after a confirm dialog.
+Ctrl+L: Load Key Vertices from JSON. Auto-detects IsPatch: false / absent → wholesale-replace (confirm dialog); true → add-or-replace by Name (existing rows updated in place; new names appended).
 
 MEASUREMENTS TAB
 
-Ctrl+S: Save Measurements to JSON. Definitions only — no live values.
+Ctrl+S: Save Measurements to a full JSON snapshot (IsPatch=false). Definitions only — no live values.
 
-Ctrl+L: Load Measurements from JSON. Replaces the current list after a confirm dialog.
+Ctrl+L: Load Measurements from JSON. Auto-detects IsPatch: false / absent → wholesale-replace (confirm dialog); true → add-or-replace by Name.
+
+Ctrl+Shift+P: Patch export — write only the rows currently selected in the grid, flagged IsPatch=true. Requires at least one row selected. Default filename: {ProfileName}_measurements_patch.json
 
 Ctrl+Shift+S: Save Measurements to CSV including the LiveValue column evaluated against the currently-loaded preset and weight. Default filename: {PresetLabel}_w{Weight}_Measurements.csv
 
@@ -310,11 +312,17 @@ Ctrl+C: Copy the Measurements table to the clipboard as TSV. Pastes directly int
 
 Ctrl+Alt+Shift+S: Cumulative CSV across every (preset, weight) target for this profile — one row per slice, one column per measurement. Drives a full scan first when the cache isn't already complete. Default filename: {ProfileName}_AllMeasurements.csv
 
+Ctrl+Shift+H: Bulk histogram export. Prompts for a folder, drives a scan if needed, then writes one CSV per measurement (BinIndex, BinStart, BinEnd, Count) named {ProfileName}_{MeasurementName}_histogram.csv. Bin count matches the histogram window's persisted value when the ""Persist"" toggle is on, else the histogram default.
+
 RULES TAB
 
-Ctrl+S: Save Rules to JSON.
+Ctrl+S: Save Rules to a full JSON snapshot (IsPatch=false, RulesToDelete=[]).
 
-Ctrl+L: Load Rules from JSON. Replaces the current list after a confirm dialog.
+Ctrl+L: Load Rules from JSON. Auto-detects IsPatch: false / absent → wholesale-replace (confirm dialog); true → delete-then-add/replace by Id. Unknown delete Ids are silently skipped; an Id appearing in both Rules and RulesToDelete keeps the add/edit and skips the delete.
+
+Ctrl+Shift+P: Patch export — writes every rule under the currently-selected TreeView node (Category = all rules in that category, Value = exact descriptor match), flagged IsPatch=true with empty RulesToDelete. Default filename: {ProfileName}_rules_patch.json
+
+Ctrl+Shift+Alt+P: Patch export with deletes — opens a picker window pre-seeded with the same tree-node set as the add/edit list. Each leaf has an ""Exclude from add/edit"" toggle and a ""Mark for deletion"" checkbox; OK writes IsPatch=true with the refined add/edit list and the deletion Ids.
 
 LABEL-THEN-SUGGEST TAB
 
@@ -410,11 +418,14 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
     }
 
     /// <summary>Forwards the KeyVertices DataGrid's full multi-selection to the current
-    /// profile VM, which routes the (shape, vertex index) tuples to the viewer so every
-    /// matching pick marker turns green. SelectedItem binding still fires SelectedKeyVertex
-    /// PropertyChanged for single-item focus, but this handler is the authoritative path
-    /// for multi-select green highlighting. The DataGrid lives inside a DataTemplate whose
-    /// DataContext is VM_BodyTypeProfile (SelectedProfile), not the editor itself.</summary>
+    /// profile VM. Routes the (shape, vertex index) tuples to the viewer (green-highlight
+    /// every matching pick marker) AND caches the selection on the profile for the smart
+    /// Ctrl+S export branch — a strict subset selection triggers a patch-mode JSON, anything
+    /// else writes a full snapshot. SelectedItem binding still fires SelectedKeyVertex
+    /// PropertyChanged for single-item focus; this handler is the authoritative path for
+    /// multi-select green highlighting and subset-aware export. The DataGrid lives inside a
+    /// DataTemplate whose DataContext is VM_BodyTypeProfile (SelectedProfile), not the
+    /// editor itself.</summary>
     private void KeyVerticesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (sender is not DataGrid grid) return;
@@ -423,6 +434,7 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
         foreach (var item in grid.SelectedItems)
             if (item is VM_NamedKeyVertex kv) sel.Add(kv);
         profile.SelectKeyVerticesInViewer(sel);
+        profile.UpdateSelectedKeyVertices(sel);
     }
 
     /// <summary>Routes Measurements DataGrid multi-selection to the profile so the viewer

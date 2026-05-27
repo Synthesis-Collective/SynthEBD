@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
@@ -172,6 +174,10 @@ public class VM_MeasurementHistogram : VM
 
         Rebuild();
 
+        SaveCsvCommand = new RelayCommand(
+            canExecute: _ => Bins.Count > 0,
+            execute: _ => SaveCsv());
+
         // Property-changed wiring: any change to BinCount or GenderFilter recomputes bins
         // + stats. Direct subscription (no ReactiveUI / DisposeWith) because this VM's
         // lifetime is tied to a Window that's manually shown/closed — no DI-managed
@@ -322,6 +328,72 @@ public class VM_MeasurementHistogram : VM
         {
             _staticBinCount = BinCount;
         }
+    }
+
+    /// <summary>Command bound to the "Save CSV" button next to the Persist checkbox.
+    /// Writes the currently-visible histogram (post-filter, post-binning) to a CSV
+    /// chosen via the standard save dialog. canExecute requires at least one bin so
+    /// the button greys out for degenerate empty distributions.</summary>
+    public RelayCommand SaveCsvCommand { get; }
+
+    /// <summary>Default filename suggested to the save dialog. Mirrors the convention used
+    /// by SaveMeasurementsToCsvFile (sanitize against Path.GetInvalidFileNameChars; fall
+    /// back to a generic label when the source string is empty). Exposed so the bulk
+    /// export path can reuse the exact same naming.</summary>
+    public string DefaultCsvFileName => $"{SanitizeForFileName(ProfileName, "Profile")}_{SanitizeForFileName(MeasurementName, "Measurement")}_histogram.csv";
+
+    private void SaveCsv()
+    {
+        if (Bins.Count == 0) return;
+        if (!IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                ".csv", "Save Histogram as CSV", out string path, DefaultCsvFileName))
+        {
+            return;
+        }
+        try
+        {
+            File.WriteAllText(path, BuildHistogramCsv(Bins), new UTF8Encoding(false));
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.DisplayNotificationOK("Save failed",
+                $"Could not write histogram CSV to '{path}':\n\n{ex.Message}");
+        }
+    }
+
+    /// <summary>Single source of truth for the histogram CSV format. Columns:
+    /// BinIndex, BinStart, BinEnd, Count. Stats / filter context are not embedded —
+    /// the window title carries them, and external tools can reproduce stats from the
+    /// raw bins. Shared between the per-window Save CSV button and the bulk
+    /// Ctrl+Shift+H export so both produce byte-identical files for the same bins.</summary>
+    public static string BuildHistogramCsv(IReadOnlyList<HistogramBin> bins)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("BinIndex,BinStart,BinEnd,Count");
+        var inv = CultureInfo.InvariantCulture;
+        for (int i = 0; i < bins.Count; i++)
+        {
+            var b = bins[i];
+            // F6 on the edges preserves the precision the user sees in the per-bar
+            // tooltip (F3) plus three more digits for downstream rebinning math. Count
+            // is integer.
+            sb.AppendLine(string.Format(inv, "{0},{1:F6},{2:F6},{3}", i, b.BinStart, b.BinEnd, b.Count));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Filename sanitizer used by both the per-window save and the bulk export.
+    /// Trims, replaces every Path.GetInvalidFileNameChars char with '_', and falls back
+    /// to <paramref name="fallback"/> when the input is empty or whitespace.</summary>
+    public static string SanitizeForFileName(string source, string fallback)
+    {
+        string s = (source ?? "").Trim();
+        if (s.Length == 0) return fallback;
+        foreach (char ch in Path.GetInvalidFileNameChars())
+        {
+            s = s.Replace(ch, '_');
+        }
+        return s;
     }
 
     /// <summary>Linear-interpolation percentile of a sorted (ascending) list. Matches

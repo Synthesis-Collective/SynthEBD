@@ -49,6 +49,9 @@
                       VerticalAlignment="Center" Margin="10,0,0,0"
                       Foreground="White"
                       ToolTip="Remember this bin count for the next histogram window. If multiple histograms are open with Persist enabled, the last one closed wins. The checkbox state itself is also sticky — closing with this on keeps it pre-checked for the next window."/>
+            <Button Content="Save CSV" Command="{Binding SaveCsvCommand}"
+                    VerticalAlignment="Center" Margin="10,0,0,0" Padding="8,2"
+                    ToolTip="Save the currently-displayed histogram bins (BinIndex, BinStart, BinEnd, Count) to a CSV file. Reflects the active gender filter + bin count; tweak either before saving to capture the view you want."/>
         </StackPanel>
 
         <!-- Row 1: pre-formatted stats line. Spans both columns. -->

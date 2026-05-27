@@ -2109,10 +2109,22 @@ public class VM_BodyTypeProfile : VM
         // Developer convenience: uniform Ctrl+S/Ctrl+L on every Body Type Profile sub-tab
         // (KeyVertices, Measurements, Rules) saves and loads that tab's collection as a
         // standalone JSON envelope. Format matches the Revised_BodyTypeProfile_Rules.json
-        // reference style — top-level { "<CollectionName>": [...] } with documentation
-        // __comment_* siblings tolerated on load (Newtonsoft ignores unknown properties).
-        // Load is wholesale-replace with a YesNo confirmation when the target collection
-        // is non-empty, so the load is hard to do accidentally.
+        // reference style — top-level { "IsPatch": ..., "<CollectionName>": [...] } with
+        // documentation __comment_* siblings tolerated on load (Newtonsoft ignores unknown
+        // properties).
+        //
+        // Load auto-detects the mode from the IsPatch flag: false / absent → wholesale-replace
+        // with a YesNo confirmation when the target collection is non-empty (legacy behavior;
+        // identical for files written before the flag existed); true → add-or-replace by Name
+        // (KeyVertices / Measurements) or by Id (Rules) via the Apply*Patch helpers, with a
+        // distinct "Apply patch?" confirmation. Rules patches additionally honor RulesToDelete
+        // (delete-then-add ordering avoids visual flicker).
+        //
+        // Save is multi-shortcut: Ctrl+S writes a full snapshot (IsPatch=false); patch saves
+        // use Ctrl+Shift+P (Measurements: selected rows; Rules: rules under the selected tree
+        // node); Rules also has Ctrl+Shift+Alt+P which opens a picker window for marking
+        // additional deletions. KeyVertices Ctrl+S is smart: 0 / all rows selected → full
+        // snapshot, strict subset selected → patch.
         SaveKeyVerticesToJson = new RelayCommand(
             canExecute: _ => KeyVertices.Count > 0,
             execute: _ => SaveKeyVerticesToJsonFile());
@@ -2122,12 +2134,21 @@ public class VM_BodyTypeProfile : VM
         SaveMeasurementsToJson = new RelayCommand(
             canExecute: _ => Measurements.Count > 0,
             execute: _ => SaveMeasurementsToJsonFile());
+        SaveMeasurementsPatchToJson = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0,
+            execute: _ => SaveMeasurementsPatchToJsonFile());
         LoadMeasurementsFromJson = new RelayCommand(
             canExecute: _ => true,
             execute: _ => LoadMeasurementsFromJsonFile());
         SaveRulesToJson = new RelayCommand(
             canExecute: _ => Rules.Count > 0,
             execute: _ => SaveRulesToJsonFile());
+        SaveRulesPatchToJson = new RelayCommand(
+            canExecute: _ => Rules.Count > 0,
+            execute: _ => SaveRulesPatchToJsonFile());
+        SaveRulesPatchWithDeletesToJson = new RelayCommand(
+            canExecute: _ => Rules.Count > 0,
+            execute: _ => SaveRulesPatchWithDeletesToJsonFile());
         LoadRulesFromJson = new RelayCommand(
             canExecute: _ => true,
             execute: _ => LoadRulesFromJsonFile());
@@ -2151,6 +2172,15 @@ public class VM_BodyTypeProfile : VM
         SaveAllMeasurementsToCsv = new RelayCommand(
             canExecute: _ => Measurements.Count > 0 && !_parent.IsScanning,
             execute: _ => _ = SaveAllMeasurementsToCsvAsync());
+
+        // Ctrl+Shift+H on the Measurements tab: bulk-export one histogram CSV per
+        // measurement into a user-chosen folder. Drives a scan first if the cache is
+        // stale or empty (matches the per-row H button's behavior). Uses the persisted
+        // bin count when "Persist" is on, else the histogram default — so a Ctrl+Shift+H
+        // produces the same binning the user would see when opening individual H windows.
+        SaveAllMeasurementHistogramsToCsv = new RelayCommand(
+            canExecute: _ => Measurements.Count > 0 && !_parent.IsScanning,
+            execute: _ => _ = SaveAllMeasurementHistogramsToCsvAsync());
 
         // Ctrl+Alt+Shift+S on the Match Presets tab: dumps the current ScanResults as a
         // long-format CSV (one row per matched descriptor per preset/weight). Drives a
@@ -2844,6 +2874,23 @@ public class VM_BodyTypeProfile : VM
         if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
     }
 
+    /// <summary>Full set of key vertices currently highlighted in the KeyVertices DataGrid.
+    /// Mirrors <see cref="_selectedMeasurements"/> for the Measurements tab — populated by the
+    /// code-behind's SelectionChanged handler via <see cref="UpdateSelectedKeyVertices"/>.
+    /// Used by the patch-export branch of <see cref="SaveKeyVerticesToJsonFile"/>: when a
+    /// strict subset is selected, the export is written as a partial patch
+    /// (<c>IsPatch: true</c>) containing only those rows.</summary>
+    private List<VM_NamedKeyVertex> _selectedKeyVertices = new();
+
+    /// <summary>Replaces the tracked KeyVertices selection with the caller's list (typically
+    /// the DataGrid's SelectedItems). Called from the same code-behind handler that drives
+    /// <see cref="SelectKeyVerticesInViewer"/> so the patch-export branch and the viewer
+    /// highlight stay in sync.</summary>
+    public void UpdateSelectedKeyVertices(IEnumerable<VM_NamedKeyVertex> selected)
+    {
+        _selectedKeyVertices = selected?.Where(k => k != null).ToList() ?? new();
+    }
+
     /// <summary>Routes a per-row "open histogram" request from a <see cref="VM_MeasurementDefinition"/>
     /// up to the editor, which handles the cache-stale gate and the window construction.
     /// Kept as a one-line forwarder so the row VM doesn't need to know about the editor
@@ -3060,12 +3107,16 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand SaveMeasurementsToCsv { get; }
     public RelayCommand CopyMeasurementsToClipboard { get; }
     public RelayCommand SaveAllMeasurementsToCsv { get; }
+    public RelayCommand SaveAllMeasurementHistogramsToCsv { get; }
     public RelayCommand SaveDescriptorMatchesToCsv { get; }
     public RelayCommand SaveKeyVerticesToJson { get; }
     public RelayCommand LoadKeyVerticesFromJson { get; }
     public RelayCommand SaveMeasurementsToJson { get; }
+    public RelayCommand SaveMeasurementsPatchToJson { get; }
     public RelayCommand LoadMeasurementsFromJson { get; }
     public RelayCommand SaveRulesToJson { get; }
+    public RelayCommand SaveRulesPatchToJson { get; }
+    public RelayCommand SaveRulesPatchWithDeletesToJson { get; }
     public RelayCommand LoadRulesFromJson { get; }
     public RelayCommand AddDescriptorCommand { get; }
     public RelayCommand DeleteSelectedTreeNodeCommand { get; }
@@ -4256,6 +4307,96 @@ public class VM_BodyTypeProfile : VM
         }
     }
 
+    /// <summary>Bulk variant of the per-row "H" histogram export: prompts for a folder,
+    /// drives a scan if the cache is stale or empty (mirroring the per-row gate), then
+    /// writes one CSV per measurement using the same column layout as the in-window
+    /// Save CSV button. Bound to Ctrl+Shift+H on the Measurements tab.
+    /// <para>Each per-measurement histogram is computed via <see cref="VM_MeasurementHistogram"/>
+    /// so the binning is byte-identical to what the user would see opening the window
+    /// individually (including using the persisted bin count when the "Persist" toggle
+    /// is on). Measurements that evaluate to null on every cache entry are skipped with
+    /// a logged count rather than producing empty CSVs.</para>
+    /// <para>Filename convention: <c>{ProfileName}_{MeasurementName}_histogram.csv</c>,
+    /// sanitized via <see cref="VM_MeasurementHistogram.SanitizeForFileName"/>. The CSV
+    /// format itself (BinIndex, BinStart, BinEnd, Count) is the same single source of
+    /// truth used by the per-window save (<see cref="VM_MeasurementHistogram.BuildHistogramCsv"/>).
+    /// </para></summary>
+    private async System.Threading.Tasks.Task SaveAllMeasurementHistogramsToCsvAsync()
+    {
+        if (Measurements.Count == 0) return;
+        if (_parent == null || _parent.IsScanning) return;
+        if (!ReferenceEquals(_parent.SelectedProfile, this)) return;
+
+        // Prompt up front rather than after the scan, so the user can cancel without
+        // paying the scan cost when they realize they don't have a target folder ready.
+        if (!IO_Aux.SelectFolder("", out string folder))
+        {
+            return;
+        }
+
+        try
+        {
+            await _parent.RunScanAsync();
+        }
+        catch (Exception ex)
+        {
+            _parent?.Logger?.LogError("SaveAllMeasurementHistogramsToCsvAsync: scan failed: " + ExceptionLogger.GetExceptionStack(ex));
+            return;
+        }
+
+        if (MeasurementCache.Count == 0)
+        {
+            _parent?.Logger?.LogMessage("BodyTypeProfile: histogram bulk export aborted — no presets matched this profile's body type.");
+            return;
+        }
+
+        int saved = 0;
+        int skipped = 0;
+        int writeFailed = 0;
+        // Snapshot the Measurements list so a mid-iteration edit (the user clicking X
+        // on a row while a long bulk-export runs) doesn't throw a "collection modified"
+        // mid-loop. Unlikely with the IsScanning gate keeping the UI quiet, but cheap
+        // insurance.
+        foreach (var def in Measurements.ToList())
+        {
+            if (def == null || string.IsNullOrEmpty(def.Name?.Trim()))
+            {
+                skipped++;
+                continue;
+            }
+
+            try
+            {
+                var vm = new VM_MeasurementHistogram(this, def);
+                if (vm.TotalSamples == 0 || vm.Bins.Count == 0)
+                {
+                    // Measurement is defined but cached as null for every (preset, weight)
+                    // — probably broken vertex refs. Skip silently; the row's individual
+                    // H button surfaces the diagnosis dialog when the user investigates.
+                    skipped++;
+                    continue;
+                }
+
+                string filename = vm.DefaultCsvFileName;
+                string path = System.IO.Path.Combine(folder, filename);
+                System.IO.File.WriteAllText(path,
+                    VM_MeasurementHistogram.BuildHistogramCsv(vm.Bins),
+                    new System.Text.UTF8Encoding(false));
+                saved++;
+            }
+            catch (Exception ex)
+            {
+                _parent?.Logger?.LogError($"SaveAllMeasurementHistogramsToCsvAsync: '{def.Name}' failed: {ExceptionLogger.GetExceptionStack(ex)}");
+                writeFailed++;
+            }
+        }
+
+        _parent?.Logger?.LogMessage($"BodyTypeProfile: exported {saved} histogram CSV(s) to {folder}"
+            + (skipped > 0 ? $" (skipped {skipped} with no samples)" : "")
+            + (writeFailed > 0 ? $" — {writeFailed} write failure(s), see log" : "")
+            + ".");
+    }
+
     /// <summary>Drives a scan to refresh <see cref="ScanResults"/> against the current
     /// rules, then writes one CSV row per (descriptor, preset, gender, weight) match.
     /// Long format keeps the file easy to pivot in Excel: filter by Category/Value to see
@@ -4497,18 +4638,30 @@ public class VM_BodyTypeProfile : VM
     /// on the KeyVertices, Measurements, and Rules tabs). Field shape mirrors the
     /// Revised_BodyTypeProfile_Rules.json reference: a top-level array named after the
     /// collection, with documentation <c>__comment_*</c> siblings ignored by Newtonsoft
-    /// on load. One class per tab so the file's top-level key documents the payload.</summary>
+    /// on load. One class per tab so the file's top-level key documents the payload.
+    /// <para>The top-level <c>IsPatch</c> flag distinguishes a wholesale snapshot (false /
+    /// absent) from a partial patch (true). A patch identifies items by their natural key
+    /// (Name for KeyVertices / Measurements, Id for Rules) and adds-or-replaces them in
+    /// place rather than wiping the target collection. Legacy files without the flag
+    /// deserialize as <c>IsPatch == false</c> (C# default), preserving the original
+    /// wholesale-replace semantics. <see cref="RulesExportPayload.RulesToDelete"/> is the
+    /// patch-only delete list (rule Ids); always serialized (empty by default) since this
+    /// project's shared JSON settings don't ignore defaults.</para></summary>
     private class KeyVerticesExportPayload
     {
+        public bool IsPatch { get; set; } = false;
         public List<NamedKeyVertex> KeyVertices { get; set; } = new();
     }
     private class MeasurementsExportPayload
     {
+        public bool IsPatch { get; set; } = false;
         public List<MeasurementDefinition> Measurements { get; set; } = new();
     }
     private class RulesExportPayload
     {
+        public bool IsPatch { get; set; } = false;
         public List<MeasurementRule> Rules { get; set; } = new();
+        public List<string> RulesToDelete { get; set; } = new();
     }
 
     /// <summary>Replaces every item in <paramref name="target"/> with <paramref name="newItems"/>
@@ -4527,8 +4680,13 @@ public class VM_BodyTypeProfile : VM
         }
     }
 
-    /// <summary>Writes the current KeyVertices to a user-chosen path as
-    /// { "KeyVertices": [...] } JSON.</summary>
+    /// <summary>Writes KeyVertices to a user-chosen path as { "IsPatch": ..., "KeyVertices": [...] } JSON.
+    /// Smart-mode: when 0 rows are selected or every row is selected (DataGrid SelectionMode=Extended
+    /// fed by the code-behind into <see cref="_selectedKeyVertices"/>), the full collection is written
+    /// with <c>IsPatch: false</c> (a full snapshot, byte-equivalent to the legacy format apart from the
+    /// added flag). When a strict subset is selected, only those rows are written with <c>IsPatch: true</c>
+    /// and the filename suggestion gains a <c>_patch</c> suffix — the resulting file applies as an
+    /// add-or-replace-by-Name patch on load.</summary>
     private void SaveKeyVerticesToJsonFile()
     {
         if (KeyVertices.Count == 0)
@@ -4536,15 +4694,22 @@ public class VM_BodyTypeProfile : VM
             MessageWindow.DisplayNotificationOK("No Key Vertices", "There are no key vertices to save.");
             return;
         }
+        // Treat "0 selected" and "all selected" as wholesale export so the user doesn't
+        // have to remember to clear the selection. Anything in between → patch.
+        int selCount = _selectedKeyVertices.Count;
+        bool isPatch = selCount > 0 && selCount < KeyVertices.Count;
+        var sourceRows = isPatch ? (IEnumerable<VM_NamedKeyVertex>)_selectedKeyVertices : KeyVertices;
         string baseName = string.IsNullOrWhiteSpace(Name) ? "keyvertices" : Name.Trim().Replace(' ', '_');
+        string defaultName = baseName + "_keyvertices" + (isPatch ? "_patch" : "") + ".json";
         if (!IO_Aux.SelectFileSave("", "Key Vertices JSON (*.json)|*.json|All files (*.*)|*.*",
-                ".json", "Save Key Vertices", out string path, baseName + "_keyvertices.json"))
+                ".json", isPatch ? "Save Key Vertices Patch" : "Save Key Vertices", out string path, defaultName))
         {
             return;
         }
         var payload = new KeyVerticesExportPayload
         {
-            KeyVertices = KeyVertices.Select(k => k.DumpToModel()).ToList(),
+            IsPatch = isPatch,
+            KeyVertices = sourceRows.Where(k => k != null).Select(k => k.DumpToModel()).ToList(),
         };
         JSONhandler<KeyVerticesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
         if (!success)
@@ -4552,12 +4717,16 @@ public class VM_BodyTypeProfile : VM
             MessageWindow.DisplayNotificationOK("Save Failed", exception);
             return;
         }
-        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + KeyVertices.Count
-            + " key vertex/vertices of profile '" + Name + "' to " + path);
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + payload.KeyVertices.Count
+            + " key vertex/vertices of profile '" + Name + "' to " + path
+            + (isPatch ? " (patch)" : " (full)"));
     }
 
-    /// <summary>Parses a Key Vertices JSON file and wholesale-replaces the current
-    /// KeyVertices collection. Confirms before overwriting non-empty collections.</summary>
+    /// <summary>Parses a Key Vertices JSON file. Branches on the top-level <c>IsPatch</c> flag:
+    /// false / absent → legacy wholesale-replace with a confirmation dialog; true → add-or-replace
+    /// by Name (case-sensitive, Ordinal) via <see cref="ApplyKeyVerticesPatch"/>. Legacy files
+    /// without the flag deserialize as IsPatch=false (C# default) so existing JSONs still load
+    /// the same way.</summary>
     private void LoadKeyVerticesFromJsonFile()
     {
         if (!IO_Aux.SelectFile("", "Key Vertices JSON (*.json)|*.json|All files (*.*)|*.*",
@@ -4591,6 +4760,19 @@ public class VM_BodyTypeProfile : VM
                 "The selected file contains no 'KeyVertices' array (or it is empty).");
             return;
         }
+        if (loaded.IsPatch)
+        {
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Apply Key Vertices Patch?",
+                "This patch will add or replace " + newItems.Count + " key vertex/vertices by Name "
+                + "(existing rows with the same Name are updated in place; new names are appended).\n\nContinue?");
+            if (!confirm) return;
+            int beforeCount = KeyVertices.Count;
+            ApplyKeyVerticesPatch(newItems);
+            _parent?.Logger?.LogMessage("BodyTypeProfile: patched profile '" + Name + "' with "
+                + newItems.Count + " key-vertex add/edit entries from " + path
+                + " (" + beforeCount + " → " + KeyVertices.Count + ")");
+            return;
+        }
         if (KeyVertices.Count > 0)
         {
             bool confirm = MessageWindow.DisplayNotificationYesNo("Replace Key Vertices?",
@@ -4603,9 +4785,57 @@ public class VM_BodyTypeProfile : VM
             + " key vertex/vertices into profile '" + Name + "' from " + path);
     }
 
+    /// <summary>Applies a KeyVertices patch in place: each incoming model adds-or-replaces by
+    /// <see cref="NamedKeyVertex.Name"/> (Ordinal, trimmed). Replacement preserves the row's
+    /// original index (Remove + Insert at the same slot) so the user perceives an "edit in place".
+    /// Never calls <c>Clear()</c>; uses the same per-item Remove/Add discipline as
+    /// <see cref="ReplaceObservableCollection{T}"/> so per-row CollectionChanged subscriptions
+    /// stay correct. After the pass runs <see cref="RecomputeDuplicateKeyVertexNames"/> once for
+    /// a clean aggregate state.</summary>
+    private void ApplyKeyVerticesPatch(List<NamedKeyVertex> incoming)
+    {
+        if (incoming == null) return;
+        // First-row-wins on duplicate names within KeyVertices — matches RecomputeDuplicateKeyVertexNames.
+        var byName = new Dictionary<string, VM_NamedKeyVertex>(StringComparer.Ordinal);
+        foreach (var vm in KeyVertices)
+        {
+            if (vm == null) continue;
+            var n = vm.Name?.Trim() ?? "";
+            if (n.Length == 0) continue;
+            if (!byName.ContainsKey(n)) byName[n] = vm;
+        }
+        foreach (var model in incoming)
+        {
+            if (model == null) continue;
+            var n = model.Name?.Trim() ?? "";
+            if (n.Length == 0) continue;
+            if (byName.TryGetValue(n, out var existing))
+            {
+                int idx = KeyVertices.IndexOf(existing);
+                if (idx < 0)
+                {
+                    // Drifted dict (shouldn't happen, but be defensive).
+                    KeyVertices.Add(new VM_NamedKeyVertex(model, this));
+                    continue;
+                }
+                KeyVertices.RemoveAt(idx);
+                var replacement = new VM_NamedKeyVertex(model, this);
+                KeyVertices.Insert(idx, replacement);
+                byName[n] = replacement;
+            }
+            else
+            {
+                var added = new VM_NamedKeyVertex(model, this);
+                KeyVertices.Add(added);
+                byName[n] = added;
+            }
+        }
+        RecomputeDuplicateKeyVertexNames();
+    }
+
     /// <summary>Writes the current Measurements to a user-chosen path as
-    /// { "Measurements": [...] } JSON. The LiveValue column is not persisted — it's a
-    /// runtime readout, not a field of <see cref="MeasurementDefinition"/>.</summary>
+    /// { "IsPatch": false, "Measurements": [...] } JSON. The LiveValue column is not persisted —
+    /// it's a runtime readout, not a field of <see cref="MeasurementDefinition"/>.</summary>
     private void SaveMeasurementsToJsonFile()
     {
         if (Measurements.Count == 0)
@@ -4621,6 +4851,7 @@ public class VM_BodyTypeProfile : VM
         }
         var payload = new MeasurementsExportPayload
         {
+            IsPatch = false,
             Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
         };
         JSONhandler<MeasurementsExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
@@ -4633,8 +4864,43 @@ public class VM_BodyTypeProfile : VM
             + " measurement(s) of profile '" + Name + "' to " + path);
     }
 
-    /// <summary>Parses a Measurements JSON file and wholesale-replaces the current
-    /// Measurements collection. Confirms before overwriting non-empty collections.</summary>
+    /// <summary>Patch-export the rows currently selected in the Measurements DataGrid (fed by the
+    /// code-behind into <see cref="_selectedMeasurements"/>) as { "IsPatch": true,
+    /// "Measurements": [...] } JSON. No selection → user-facing OK and bail; we never silently
+    /// fall through to a full export because Ctrl+S is already the full-export shortcut and a
+    /// "patch with everything" file would be confusing.</summary>
+    private void SaveMeasurementsPatchToJsonFile()
+    {
+        if (_selectedMeasurements.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Selection",
+                "Select one or more measurement rows in the grid first, then re-trigger the patch export.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "measurements" : Name.Trim().Replace(' ', '_');
+        if (!IO_Aux.SelectFileSave("", "Measurements JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Measurements Patch", out string path, baseName + "_measurements_patch.json"))
+        {
+            return;
+        }
+        var payload = new MeasurementsExportPayload
+        {
+            IsPatch = true,
+            Measurements = _selectedMeasurements.Where(m => m != null).Select(m => m.DumpToModel()).ToList(),
+        };
+        JSONhandler<MeasurementsExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + payload.Measurements.Count
+            + " measurement(s) of profile '" + Name + "' to " + path + " (patch)");
+    }
+
+    /// <summary>Parses a Measurements JSON file. Branches on the top-level <c>IsPatch</c> flag:
+    /// false / absent → legacy wholesale-replace with a confirmation dialog; true → add-or-replace
+    /// by Name via <see cref="ApplyMeasurementsPatch"/>.</summary>
     private void LoadMeasurementsFromJsonFile()
     {
         if (!IO_Aux.SelectFile("", "Measurements JSON (*.json)|*.json|All files (*.*)|*.*",
@@ -4668,6 +4934,19 @@ public class VM_BodyTypeProfile : VM
                 "The selected file contains no 'Measurements' array (or it is empty).");
             return;
         }
+        if (loaded.IsPatch)
+        {
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Apply Measurements Patch?",
+                "This patch will add or replace " + newItems.Count + " measurement(s) by Name "
+                + "(existing rows with the same Name are updated in place; new names are appended).\n\nContinue?");
+            if (!confirm) return;
+            int beforeCount = Measurements.Count;
+            ApplyMeasurementsPatch(newItems);
+            _parent?.Logger?.LogMessage("BodyTypeProfile: patched profile '" + Name + "' with "
+                + newItems.Count + " measurement add/edit entries from " + path
+                + " (" + beforeCount + " → " + Measurements.Count + ")");
+            return;
+        }
         if (Measurements.Count > 0)
         {
             bool confirm = MessageWindow.DisplayNotificationYesNo("Replace Measurements?",
@@ -4680,8 +4959,54 @@ public class VM_BodyTypeProfile : VM
             + " measurement(s) into profile '" + Name + "' from " + path);
     }
 
+    /// <summary>Applies a Measurements patch in place: each incoming model adds-or-replaces by
+    /// <see cref="MeasurementDefinition.Name"/> (Ordinal, trimmed), preserving the original row
+    /// index on replacement. Runs <see cref="RecomputeDuplicateMeasurementNames"/> and
+    /// <see cref="RecomputeMeasurementRefValidity"/> once at the end so aggregate validation
+    /// reflects the final state rather than transient in-flight Remove+Insert pairs.</summary>
+    private void ApplyMeasurementsPatch(List<MeasurementDefinition> incoming)
+    {
+        if (incoming == null) return;
+        var byName = new Dictionary<string, VM_MeasurementDefinition>(StringComparer.Ordinal);
+        foreach (var vm in Measurements)
+        {
+            if (vm == null) continue;
+            var n = vm.Name?.Trim() ?? "";
+            if (n.Length == 0) continue;
+            if (!byName.ContainsKey(n)) byName[n] = vm;
+        }
+        foreach (var model in incoming)
+        {
+            if (model == null) continue;
+            var n = model.Name?.Trim() ?? "";
+            if (n.Length == 0) continue;
+            if (byName.TryGetValue(n, out var existing))
+            {
+                int idx = Measurements.IndexOf(existing);
+                if (idx < 0)
+                {
+                    Measurements.Add(new VM_MeasurementDefinition(model, this));
+                    continue;
+                }
+                Measurements.RemoveAt(idx);
+                var replacement = new VM_MeasurementDefinition(model, this);
+                Measurements.Insert(idx, replacement);
+                byName[n] = replacement;
+            }
+            else
+            {
+                var added = new VM_MeasurementDefinition(model, this);
+                Measurements.Add(added);
+                byName[n] = added;
+            }
+        }
+        RecomputeDuplicateMeasurementNames();
+        RecomputeMeasurementRefValidity();
+    }
+
     /// <summary>Writes the current Rules collection to a user-chosen path as
-    /// { "Rules": [...] } JSON. Default filename derives from the profile name.</summary>
+    /// { "IsPatch": false, "Rules": [...], "RulesToDelete": [] } JSON. Default filename derives
+    /// from the profile name.</summary>
     private void SaveRulesToJsonFile()
     {
         if (Rules.Count == 0)
@@ -4698,7 +5023,9 @@ public class VM_BodyTypeProfile : VM
         }
         var payload = new RulesExportPayload
         {
+            IsPatch = false,
             Rules = Rules.Select(r => r.DumpToModel()).ToList(),
+            RulesToDelete = new List<string>(),
         };
         JSONhandler<RulesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
         if (!success)
@@ -4710,10 +5037,130 @@ public class VM_BodyTypeProfile : VM
             + " rule(s) of profile '" + Name + "' to " + path);
     }
 
-    /// <summary>Parses a Rules JSON file at a user-chosen path and wholesale-replaces
-    /// the current Rules collection. Confirms before overwriting non-empty Rules so the
-    /// load is hard to do accidentally. Tolerates the documentation comment fields in
-    /// the reference format (they deserialize as unknown properties Newtonsoft ignores).</summary>
+    /// <summary>Returns the rules that fall under the current <see cref="SelectedRuleTreeNode"/>:
+    /// every rule for a Category node, the exact (Category, Value) match for a Value node, empty
+    /// for null. Predicate matches <see cref="RefreshFilteredRules"/> exactly so the patch export
+    /// and the right-pane filter stay in sync (FilteredRules itself is a view-side rebuild target
+    /// and could be stale by the time the command fires; recomputing avoids that hazard).</summary>
+    private List<VM_MeasurementRule> GetRulesUnderSelectedTreeNode()
+    {
+        var result = new List<VM_MeasurementRule>();
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, v.Category, StringComparison.Ordinal)
+                        && string.Equals(r.DescriptorValue, v.Value, StringComparison.Ordinal))
+                    {
+                        result.Add(r);
+                    }
+                }
+                break;
+            case VM_RuleTreeCategoryNode c:
+                foreach (var r in Rules)
+                {
+                    if (r == null) continue;
+                    if (string.Equals(r.DescriptorCategory, c.Category, StringComparison.Ordinal))
+                    {
+                        result.Add(r);
+                    }
+                }
+                break;
+        }
+        return result;
+    }
+
+    /// <summary>Ctrl+Shift+P on the Rules tab: writes the rules under the currently-selected
+    /// TreeView node as { "IsPatch": true, "Rules": [...], "RulesToDelete": [] }. No node
+    /// selected, or selected node has no rules → user-facing OK and bail.</summary>
+    private void SaveRulesPatchToJsonFile()
+    {
+        var picked = GetRulesUnderSelectedTreeNode();
+        if (picked.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("No Rules Selected",
+                "Select a Category or Value node in the Rules tree first. The patch will include "
+                + "every rule under that node.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "rules" : Name.Trim().Replace(' ', '_');
+        if (!IO_Aux.SelectFileSave("", "Rules JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Rules Patch", out string path, baseName + "_rules_patch.json"))
+        {
+            return;
+        }
+        var payload = new RulesExportPayload
+        {
+            IsPatch = true,
+            Rules = picked.Select(r => r.DumpToModel()).ToList(),
+            RulesToDelete = new List<string>(),
+        };
+        JSONhandler<RulesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + payload.Rules.Count
+            + " rule(s) of profile '" + Name + "' to " + path + " (patch)");
+    }
+
+    /// <summary>Ctrl+Shift+Alt+P on the Rules tab: opens the rule-delete picker window,
+    /// pre-seeded with the rules under the currently-selected tree node as the add/edit set.
+    /// On OK, writes { "IsPatch": true, "Rules": [...], "RulesToDelete": [...] } with both
+    /// the (possibly refined) add/edit list and the user-marked deletion Ids.</summary>
+    private void SaveRulesPatchWithDeletesToJsonFile()
+    {
+        var addEditSeed = GetRulesUnderSelectedTreeNode();
+        var picker = new VM_RuleDeleteExportPicker(Rules, addEditSeed);
+        var win = new Window_RuleDeleteExportPicker
+        {
+            DataContext = picker,
+            Owner = System.Windows.Application.Current?.MainWindow,
+        };
+        win.ShowDialog();
+        if (!picker.Confirmed)
+        {
+            return;
+        }
+        var addEditModels = picker.AddEditModels;
+        var deleteIds = picker.DeleteIds;
+        if (addEditModels.Count == 0 && deleteIds.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("Empty Patch",
+                "The picker produced no add/edit entries and no deletions — nothing to write.");
+            return;
+        }
+        string baseName = string.IsNullOrWhiteSpace(Name) ? "rules" : Name.Trim().Replace(' ', '_');
+        if (!IO_Aux.SelectFileSave("", "Rules JSON (*.json)|*.json|All files (*.*)|*.*",
+                ".json", "Save Rules Patch (with deletes)", out string path, baseName + "_rules_patch.json"))
+        {
+            return;
+        }
+        var payload = new RulesExportPayload
+        {
+            IsPatch = true,
+            Rules = addEditModels.ToList(),
+            RulesToDelete = deleteIds.ToList(),
+        };
+        JSONhandler<RulesExportPayload>.SaveJSONFile(payload, path, out bool success, out string exception);
+        if (!success)
+        {
+            MessageWindow.DisplayNotificationOK("Save Failed", exception);
+            return;
+        }
+        _parent?.Logger?.LogMessage("BodyTypeProfile: saved " + payload.Rules.Count
+            + " rule add/edit + " + payload.RulesToDelete.Count
+            + " rule delete(s) of profile '" + Name + "' to " + path + " (patch)");
+    }
+
+    /// <summary>Parses a Rules JSON file at a user-chosen path. Branches on the top-level
+    /// <c>IsPatch</c> flag: false / absent → legacy wholesale-replace with a confirmation
+    /// dialog; true → delete-then-add/replace by Id via <see cref="ApplyRulesPatch"/>.
+    /// Tolerates the documentation comment fields in the reference format (they deserialize
+    /// as unknown properties Newtonsoft ignores).</summary>
     private void LoadRulesFromJsonFile()
     {
         if (!IO_Aux.SelectFile("", "Rules JSON (*.json)|*.json|All files (*.*)|*.*",
@@ -4741,6 +5188,40 @@ public class VM_BodyTypeProfile : VM
             return;
         }
         var newRules = loaded.Rules ?? new List<MeasurementRule>();
+        var deleteIds = loaded.RulesToDelete ?? new List<string>();
+        if (loaded.IsPatch)
+        {
+            int addEditCount = newRules.Count(r => r != null);
+            int deleteCount = deleteIds.Count(s => !string.IsNullOrWhiteSpace(s));
+            if (addEditCount == 0 && deleteCount == 0)
+            {
+                MessageWindow.DisplayNotificationOK("Patch is Empty",
+                    "The selected patch contains no rules to add/edit and no rules to delete.");
+                return;
+            }
+            // Defensive: a hand-edited file may omit Id or leave nested collections null.
+            // Fix in place before the VM ctor sees them, rather than crashing it.
+            foreach (var r in newRules)
+            {
+                if (r == null) continue;
+                if (string.IsNullOrEmpty(r.Id)) r.Id = Guid.NewGuid().ToString("N");
+                if (r.Descriptor == null) r.Descriptor = new BodyShapeDescriptor.LabelSignature();
+                if (r.GroupsORlogic == null) r.GroupsORlogic = new List<AndGatedMeasurementGroup>();
+            }
+            bool confirm = MessageWindow.DisplayNotificationYesNo("Apply Rules Patch?",
+                "This patch will:\n\n"
+                + "  • Add or replace " + addEditCount + " rule(s) by Id\n"
+                + "  • Delete " + deleteCount + " rule(s) by Id\n\n"
+                + "(Existing rules with the same Id are updated in place. Unknown Ids in the delete "
+                + "list are skipped.)\n\nContinue?");
+            if (!confirm) return;
+            int beforeCount = Rules.Count;
+            ApplyRulesPatch(newRules, deleteIds);
+            _parent?.Logger?.LogMessage("BodyTypeProfile: patched profile '" + Name + "' with "
+                + addEditCount + " rule add/edit + " + deleteCount + " rule delete(s) from " + path
+                + " (" + beforeCount + " → " + Rules.Count + ")");
+            return;
+        }
         if (newRules.Count == 0)
         {
             MessageWindow.DisplayNotificationOK("No Rules Found",
@@ -4766,6 +5247,74 @@ public class VM_BodyTypeProfile : VM
         ReplaceObservableCollection(Rules, newRules.Where(r => r != null).Select(r => new VM_MeasurementRule(r, this)));
         _parent?.Logger?.LogMessage("BodyTypeProfile: loaded " + Rules.Count
             + " rule(s) into profile '" + Name + "' from " + path);
+    }
+
+    /// <summary>Applies a Rules patch in place: deletes first (skipping any Id that's also in
+    /// the add/edit set so the add wins), then adds-or-replaces by Id. Replacement preserves the
+    /// row's original index. Calls <see cref="RebuildRuleTree"/> + <see cref="RefreshFilteredRules"/>
+    /// once at the end (batch path) rather than per mutation so the tree doesn't churn N times.</summary>
+    private void ApplyRulesPatch(List<MeasurementRule> incoming, List<string> deleteIds)
+    {
+        if (incoming == null) incoming = new List<MeasurementRule>();
+        if (deleteIds == null) deleteIds = new List<string>();
+        var incomingIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var r in incoming)
+        {
+            if (r == null) continue;
+            if (!string.IsNullOrWhiteSpace(r.Id)) incomingIds.Add(r.Id);
+        }
+        var byId = new Dictionary<string, VM_MeasurementRule>(StringComparer.Ordinal);
+        foreach (var vm in Rules)
+        {
+            if (vm == null) continue;
+            if (string.IsNullOrEmpty(vm.Id)) continue;
+            if (!byId.ContainsKey(vm.Id)) byId[vm.Id] = vm;
+        }
+        // Delete first: drop rules whose Id appears in deleteIds AND not in incomingIds (a
+        // patch that both re-asserts and deletes the same Id resolves to "keep the add/edit").
+        int actuallyDeleted = 0, skippedUnknown = 0, skippedOverridden = 0;
+        foreach (var rawId in deleteIds)
+        {
+            if (string.IsNullOrWhiteSpace(rawId)) continue;
+            if (incomingIds.Contains(rawId)) { skippedOverridden++; continue; }
+            if (!byId.TryGetValue(rawId, out var target)) { skippedUnknown++; continue; }
+            Rules.Remove(target);
+            byId.Remove(rawId);
+            actuallyDeleted++;
+        }
+        if (skippedUnknown > 0 || skippedOverridden > 0)
+        {
+            _parent?.Logger?.LogMessage("BodyTypeProfile: rules-patch delete-list skips: "
+                + skippedUnknown + " unknown Id(s), " + skippedOverridden
+                + " Id(s) also present in the add/edit set");
+        }
+        // Then add-or-replace.
+        foreach (var model in incoming)
+        {
+            if (model == null) continue;
+            var id = model.Id;
+            if (!string.IsNullOrEmpty(id) && byId.TryGetValue(id, out var existing))
+            {
+                int idx = Rules.IndexOf(existing);
+                if (idx < 0)
+                {
+                    Rules.Add(new VM_MeasurementRule(model, this));
+                    continue;
+                }
+                Rules.RemoveAt(idx);
+                var replacement = new VM_MeasurementRule(model, this);
+                Rules.Insert(idx, replacement);
+                byId[id] = replacement;
+            }
+            else
+            {
+                var added = new VM_MeasurementRule(model, this);
+                Rules.Add(added);
+                if (!string.IsNullOrEmpty(id)) byId[id] = added;
+            }
+        }
+        RebuildRuleTree();
+        RefreshFilteredRules();
     }
 
     private static string NextDefaultName(string prefix, IEnumerable<string> existing)
@@ -5631,6 +6180,13 @@ public class VM_MeasurementRule : VM
             canExecute: _ => IsDraft,
             execute: _ => IsDraft = false);
     }
+
+    /// <summary>Stable identifier for this rule (Guid string). Set on construction from the
+    /// source model's Id (auto-generated if missing) and never mutated; round-trips through
+    /// <see cref="DumpToModel"/> so the same rule keeps the same Id across save/load. Used as
+    /// the patch-import match key — wholesale-replace doesn't need it, but partial patches
+    /// (<c>IsPatch: true</c>) identify rules by Id to add/replace/delete them in place.</summary>
+    public string Id => _id;
 
     public string DescriptorCategory { get; set; }
     public string DescriptorValue { get; set; }
