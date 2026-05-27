@@ -10,7 +10,15 @@
         Height="500" Width="780"
         Background="#FF202020">
 
+    <!-- Two-column outer grid: column 0 reserves space for the Y-axis tick labels, column 1
+         carries the chart's main width. The filter and stats rows span both columns; the
+         chart and x-axis labels live in column 1 so they stay aligned with each other while
+         the Y-axis labels sit inside column 0 at row 2. -->
     <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- filter row -->
             <RowDefinition Height="Auto"/> <!-- stats row -->
@@ -18,12 +26,10 @@
             <RowDefinition Height="Auto"/> <!-- x-axis labels -->
         </Grid.RowDefinitions>
 
-        <!-- Row 0: gender filter + bin count slider. Gender dropdown is hidden when the
-             snapshot has only one gender represented (GenderFilterOptions.Count <= 2 means
-             only "All" + one entry, so toggling doesn't change the view). Slider lets the
-             user retune binning live since the right answer depends on sample count + how
-             tight the distribution is. -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+        <!-- Row 0: gender filter + bin count slider. Spans both columns so it stretches
+             across the full width. Gender dropdown options collapse to "All" + the single
+             present gender for single-gender profiles. -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
             <TextBlock Text="Gender:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="Bold"/>
             <ComboBox Width="120" VerticalAlignment="Center"
                       ItemsSource="{Binding GenderFilterOptions}"
@@ -39,21 +45,55 @@
                     TickFrequency="10" IsSnapToTickEnabled="False"
                     ToolTip="Number of histogram bins. Drag to re-bin live; finer is better for dense distributions, coarser for small samples."/>
             <TextBlock Text="{Binding BinCount}" Foreground="White" VerticalAlignment="Center" Margin="6,0,0,0" Width="30"/>
+            <CheckBox Content="Persist" IsChecked="{Binding PersistBinCount}"
+                      VerticalAlignment="Center" Margin="10,0,0,0"
+                      Foreground="White"
+                      ToolTip="Remember this bin count for the next histogram window. If multiple histograms are open with Persist enabled, the last one closed wins. The checkbox state itself is also sticky — closing with this on keeps it pre-checked for the next window."/>
         </StackPanel>
 
-        <!-- Row 1: pre-formatted stats line. Monospace so the columns visually align. -->
-        <TextBlock Grid.Row="1" Text="{Binding StatsLine}"
+        <!-- Row 1: pre-formatted stats line. Spans both columns. -->
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding StatsLine}"
                    Foreground="#FFDDDDDD" FontFamily="Consolas, Courier New, monospace"
                    FontSize="11" Margin="0,0,0,8"/>
 
-        <!-- Row 2: chart. The Border carries the visible background + a thin border so the
-             bars sit on a discrete surface rather than blending into the window. ItemsControl
-             uses UniformGrid (Rows=1) so the bars distribute evenly across the available
-             width; each bar's Height comes from the VM. SizeChanged on the ItemsControl
-             pushes its actual height into VM_MeasurementHistogram.RescaleBars so the bars
-             grow / shrink when the user resizes the window (otherwise they'd stay locked
-             at the initial 280px and leave dead vertical space when maximized). -->
-        <Border Grid.Row="2" Background="#FF1A1A1A" BorderBrush="#FF444444" BorderThickness="1" Margin="0,0,0,4">
+        <!-- Row 2, Column 0: Y-axis tick labels. Five evenly-spaced ticks (max, 3/4, 1/2,
+             1/4, 0) so the user can read approximate bar counts at a glance. Implementation
+             trick: 4 rows of "*" within the column. Top-of-row-N sits at N*25% from the
+             top of the chart, which equals (100-N*25)% of MaxBinCount when value axis
+             grows upward. The 0 tick is anchored to the bottom of the last row to land
+             at the chart's baseline rather than 75%. All values come from the VM
+             (MaxBinCount + computed quarter properties) and Fody-propagate on rebuild. -->
+        <Grid Grid.Row="2" Grid.Column="0" Width="44" Margin="0,0,4,4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="{Binding MaxBinCount}"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+            <TextBlock Grid.Row="1" Text="{Binding ThreeQuarterMaxBinCount}"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+            <TextBlock Grid.Row="2" Text="{Binding HalfMaxBinCount}"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+            <TextBlock Grid.Row="3" Text="{Binding QuarterMaxBinCount}"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+            <TextBlock Grid.Row="3" Text="0"
+                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+        </Grid>
+
+        <!-- Row 2, Column 1: chart. The Border carries the visible background + a thin
+             border so the bars sit on a discrete surface rather than blending into the
+             window. ItemsControl uses UniformGrid (Rows=1) so the bars distribute evenly
+             across the available width; each bar's Height comes from the VM. SizeChanged
+             on the ItemsControl pushes its actual height into VM.RescaleBars so the bars
+             grow / shrink when the user resizes the window. -->
+        <Border Grid.Row="2" Grid.Column="1" Background="#FF1A1A1A" BorderBrush="#FF444444" BorderThickness="1" Margin="0,0,0,4">
             <ItemsControl ItemsSource="{Binding Bins}" Margin="2"
                           SizeChanged="ChartArea_SizeChanged">
                 <ItemsControl.ItemsPanel>
@@ -77,13 +117,13 @@
             </ItemsControl>
         </Border>
 
-        <!-- Row 3: per-bin x-axis labels. UniformGrid Rows=1 mirrors the chart's bar
-             layout exactly so labels line up under their bars regardless of bin count.
-             Each label is rotated 270° via LayoutTransform so the text reads bottom-up
-             and fits in narrow bin slots when the user dials BinCount up. The row height
-             accommodates the rotated text's vertical extent (~75 px for a F3-formatted
-             "x.xxx–y.yyy" range at FontSize=10 Consolas). -->
-        <ItemsControl Grid.Row="3" ItemsSource="{Binding Bins}" Height="80" Margin="2,2,2,0">
+        <!-- Row 3, Column 1: per-bin x-axis labels. UniformGrid Rows=1 mirrors the chart's
+             bar layout exactly so labels line up under their bars regardless of bin count.
+             Each label is rotated 315° (= negative 45°) via LayoutTransform so the text
+             reads bottom-left to top-right, the standard tilted-axis convention. The row
+             height accommodates the rotated text's diagonal extent (~50 px for a
+             F3-formatted bin-start value at FontSize=10 Consolas). -->
+        <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Bins}" Height="55" Margin="2,2,2,0">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <UniformGrid Rows="1"/>
@@ -95,11 +135,11 @@
                                Foreground="#FFAAAAAA"
                                FontFamily="Consolas, Courier New, monospace"
                                FontSize="10"
-                               HorizontalAlignment="Center"
+                               HorizontalAlignment="Left"
                                VerticalAlignment="Top"
                                Margin="0,2,0,0">
                         <TextBlock.LayoutTransform>
-                            <RotateTransform Angle="270"/>
+                            <RotateTransform Angle="315"/>
                         </TextBlock.LayoutTransform>
                     </TextBlock>
                 </DataTemplate>

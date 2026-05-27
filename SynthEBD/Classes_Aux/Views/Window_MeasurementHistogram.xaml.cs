@@ -15,6 +15,17 @@ public partial class Window_MeasurementHistogram : Window
     public Window_MeasurementHistogram()
     {
         InitializeComponent();
+
+        // Push the current PersistBinCount + BinCount into the process-static cache when
+        // the window closes, so the next histogram opens with the same settings. "Last to
+        // close wins" — if multiple histograms are open, whichever closes last overwrites
+        // whatever earlier closures left behind. Hooked via the Closed event (fires once
+        // per window after the user dismisses it) rather than Closing (cancellable, and
+        // we don't want to do the work twice).
+        Closed += (_, _) =>
+        {
+            if (DataContext is VM_MeasurementHistogram vm) vm.CommitPersistedSettings();
+        };
     }
 
     private void ChartArea_SizeChanged(object sender, SizeChangedEventArgs e)

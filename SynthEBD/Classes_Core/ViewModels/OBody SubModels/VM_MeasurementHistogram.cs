@@ -34,8 +34,35 @@ public class VM_MeasurementHistogram : VM
     public string WindowTitle => $"Histogram — {MeasurementName} ({ProfileName})";
 
     /// <summary>Bin count for the next recompute. Bound to a Slider in the window; clamped
-    /// to [1, 200] on the binding (the rebuild itself handles any value &gt;0 safely).</summary>
+    /// to [1, 200] on the binding (the rebuild itself handles any value &gt;0 safely).
+    /// Initial value is overwritten in the ctor when persistence is on
+    /// (see <see cref="_staticBinCount"/>).</summary>
     public int BinCount { get; set; } = 30;
+
+    /// <summary>Bound to the "Persist" checkbox next to the bin-count slider. When checked
+    /// and the window closes, <see cref="CommitPersistedSettings"/> writes the current
+    /// <see cref="BinCount"/> into the process-static cache so the next histogram opens
+    /// at the same bin count. "If multiple are open, last to close wins" — the most
+    /// recently closed window's setting overwrites whatever an earlier-closed window left.
+    /// The flag itself also persists (next window opens with the box pre-checked when
+    /// the last close had it checked), so the toggle is sticky across the session.</summary>
+    public bool PersistBinCount { get; set; }
+
+    // ─── Process-static persistence backing store ────────────────────────────────────
+    // Lives for the lifetime of the app process. Survives across multiple histogram
+    // windows but resets on restart — not written to user settings because the bin
+    // count is a per-investigation visualization preference, not a global app setting.
+    // Both fields are written together by CommitPersistedSettings on Window.Closed.
+
+    /// <summary>Last <see cref="BinCount"/> committed by a closing window. Null until at
+    /// least one window has closed. Consumed by the ctor only when
+    /// <see cref="_staticPersistBinCount"/> is true.</summary>
+    private static int? _staticBinCount;
+
+    /// <summary>Last <see cref="PersistBinCount"/> committed by a closing window. The new
+    /// window's checkbox starts in this state so the user doesn't have to re-check it
+    /// every time.</summary>
+    private static bool _staticPersistBinCount;
 
     /// <summary>Currently-selected gender filter. Null = no filter (all samples). Bound to
     /// the gender ComboBox via SelectedValue. Only the genders actually present in the
@@ -84,10 +111,20 @@ public class VM_MeasurementHistogram : VM
     public double ChartHeight { get; private set; } = 280.0;
 
     /// <summary>Tallest bin's sample count from the most recent <see cref="Rebuild"/>.
-    /// Used as the normalization denominator when rescaling bar heights on chart resize.
-    /// Stored separately from <see cref="Bins"/> so a chart-size change doesn't need to
-    /// re-walk every bin to re-derive the max.</summary>
-    private int _maxBinCount = 1;
+    /// Public + auto-property so Fody fires PropertyChanged on assignment, which lets the
+    /// Y-axis tick labels in the window (max, 3/4, 1/2, 1/4 of this value) refresh
+    /// automatically whenever the filter or bin count changes the underlying distribution.
+    /// Doubles as the normalization denominator for bar heights — kept here rather than
+    /// re-derived from <see cref="Bins"/> so a chart-area resize doesn't pay the walk.</summary>
+    public int MaxBinCount { get; private set; } = 1;
+
+    // Y-axis tick label values. Computed from MaxBinCount; Fody recognizes the
+    // dependency and re-fires PropertyChanged on these whenever MaxBinCount changes,
+    // so the XAML bindings to the tick TextBlocks pick up the new values without an
+    // explicit notify call. Rounded to int because the count axis is integer-valued.
+    public int ThreeQuarterMaxBinCount => (int)Math.Round(MaxBinCount * 0.75);
+    public int HalfMaxBinCount => (int)Math.Round(MaxBinCount * 0.50);
+    public int QuarterMaxBinCount => (int)Math.Round(MaxBinCount * 0.25);
 
     /// <summary>Reads the profile's MeasurementCache at construction time, builds the
     /// initial histogram with default <see cref="BinCount"/> / <see cref="GenderFilter"/>,
@@ -122,6 +159,16 @@ public class VM_MeasurementHistogram : VM
         if (hasFemale) options.Add(new("Female", Gender.Female));
         if (hasMale) options.Add(new("Male", Gender.Male));
         GenderFilterOptions = options;
+
+        // Apply persisted bin-count + checkbox state from the last closed histogram (if
+        // any). Done before Rebuild so the initial bar layout uses the persisted count.
+        // Set before the PropertyChanged subscription is wired so the assignment doesn't
+        // trigger a duplicate Rebuild.
+        PersistBinCount = _staticPersistBinCount;
+        if (_staticPersistBinCount && _staticBinCount.HasValue)
+        {
+            BinCount = _staticBinCount.Value;
+        }
 
         Rebuild();
 
@@ -225,10 +272,10 @@ public class VM_MeasurementHistogram : VM
             counts[idx]++;
         }
 
-        _maxBinCount = Math.Max(1, counts.Max());
+        MaxBinCount = Math.Max(1, counts.Max());
         for (int i = 0; i < binCount; i++)
         {
-            double height = (counts[i] / (double)_maxBinCount) * ChartHeight;
+            double height = (counts[i] / (double)MaxBinCount) * ChartHeight;
             Bins.Add(new HistogramBin
             {
                 BinStart = binEdges[i],
@@ -252,11 +299,28 @@ public class VM_MeasurementHistogram : VM
     {
         if (availableHeight <= 0 || double.IsNaN(availableHeight) || double.IsInfinity(availableHeight)) return;
         ChartHeight = availableHeight;
-        if (_maxBinCount <= 0 || Bins.Count == 0) return;
-        double max = _maxBinCount;
+        if (MaxBinCount <= 0 || Bins.Count == 0) return;
+        double max = MaxBinCount;
         foreach (var bin in Bins)
         {
             bin.BarHeight = (bin.Count / max) * availableHeight;
+        }
+    }
+
+    /// <summary>Copies the current <see cref="PersistBinCount"/> + <see cref="BinCount"/>
+    /// into the process-static cache so the next histogram window opens with them.
+    /// Always overwrites both fields — "last to close wins" per the original feature
+    /// request. Called from <see cref="Window_MeasurementHistogram"/>'s Closed handler.
+    /// <para>Both fields are always written, not just when PersistBinCount is true. That
+    /// way the checkbox state itself is sticky even when transitioning persist on→off:
+    /// closing a window with the box unchecked clears the on-state for the next open,
+    /// rather than letting a previously-checked state silently linger.</para></summary>
+    public void CommitPersistedSettings()
+    {
+        _staticPersistBinCount = PersistBinCount;
+        if (PersistBinCount)
+        {
+            _staticBinCount = BinCount;
         }
     }
 
@@ -290,13 +354,13 @@ public class HistogramBin : VM
     public int Count { get; set; }
     public double BarHeight { get; set; }
 
-    /// <summary>X-axis label shown under each bar. Format is "{start}–{end}" so the
-    /// label fully describes the bin's range without ambiguity (vs picking center, which
-    /// makes adjacent-bar gaps unclear; or picking start alone, which leaves the last
-    /// bin's right edge implicit). Consumer template rotates this 270° so the labels
-    /// fit in narrow bin slots at high bin counts.</summary>
-    public string AxisLabel => string.Format(CultureInfo.InvariantCulture,
-        "{0:F3}–{1:F3}", BinStart, BinEnd);
+    /// <summary>X-axis label shown under each bar — the bin's left edge value, F3-formatted.
+    /// Format is just the start (not the full "start–end" range) because the consumer
+    /// template rotates labels 45° rather than 90°, and the longer range form would
+    /// overlap horizontally at typical bin counts. Adjacent labels reveal the bin width
+    /// implicitly (label[i+1] - label[i]) and the last bin's right edge equals the
+    /// histogram's max, shown in the corner Min/Max Y-axis labels.</summary>
+    public string AxisLabel => BinStart.ToString("F3", CultureInfo.InvariantCulture);
 
     public string Tooltip => string.Format(CultureInfo.InvariantCulture,
         "[{0:F3}, {1:F3}{2}: {3} sample{4}",
