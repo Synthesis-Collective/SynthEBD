@@ -71,8 +71,27 @@ public static class BodySlideMeasurementEvaluator
     /// <see cref="MeasurementRule.Gender"/>. Either rules always fire; Male/Female rules require
     /// a matching gender. Null = unknown context (only Either rules fire — safe default for the
     /// live preview path where the placeholder's gender isn't routed through the call).
+    ///
+    /// <paramref name="measurementNamesAllowlist"/> restricts measurement evaluation to just
+    /// those names (others are skipped — they won't appear in
+    /// <see cref="EvaluationResult.Measurements"/> or <see cref="EvaluationResult.FailedMeasurements"/>).
+    /// Used by the partial-fill scan path that computes just the measurements a cached entry
+    /// is missing instead of re-evaluating the whole set. Null = evaluate every defined
+    /// measurement (the original behavior; what every other call site wants).
+    ///
+    /// <paramref name="skipRules"/> short-circuits rule evaluation entirely so
+    /// <see cref="EvaluationResult.Descriptors"/> stays empty. The partial-fill path uses this
+    /// because cached measurement values are persisted but descriptors are always re-derived
+    /// from the full cache by <see cref="VM_BodyTypeProfile.RebuildScanResultsFromCache"/>, so
+    /// evaluating rules with a partial measurement set would just throw away the result.
     /// </summary>
-    public static EvaluationResult Evaluate(VM_CharacterViewer viewer, BodyTypeProfile profile, bool includeDrafts = false, Gender? evaluationGender = null)
+    public static EvaluationResult Evaluate(
+        VM_CharacterViewer viewer,
+        BodyTypeProfile profile,
+        bool includeDrafts = false,
+        Gender? evaluationGender = null,
+        IReadOnlySet<string>? measurementNamesAllowlist = null,
+        bool skipRules = false)
     {
         var result = new EvaluationResult();
         if (viewer == null || profile == null) return result;
@@ -102,6 +121,10 @@ public static class BodySlideMeasurementEvaluator
             foreach (var def in profile.Measurements)
             {
                 if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                // Allowlist filter (partial-fill scan path): skip measurements not in the
+                // caller's requested set. Null allowlist = evaluate everything (the normal
+                // path).
+                if (measurementNamesAllowlist != null && !measurementNamesAllowlist.Contains(def.Name)) continue;
                 // First-wins on duplicate measurement names — matches the KeyVertex side's
                 // GroupBy.First() at VM_BodyTypeProfileEditor.cs and the equivalent dictionary
                 // build above. The editor surfaces duplicates visually, but pre-existing /
@@ -119,6 +142,13 @@ public static class BodySlideMeasurementEvaluator
                 }
             }
         }
+
+        // Rule evaluation is unconditionally skippable for the partial-fill path. Descriptors
+        // are always re-derived from the full cached measurement set by
+        // VM_BodyTypeProfile.RebuildScanResultsFromCache after the scan completes, so
+        // evaluating rules here with a partial measurement set would just throw away the
+        // work (and produce wrong descriptors that the post-scan rebuild would overwrite).
+        if (skipRules) return result;
 
         if (profile.Rules != null)
         {

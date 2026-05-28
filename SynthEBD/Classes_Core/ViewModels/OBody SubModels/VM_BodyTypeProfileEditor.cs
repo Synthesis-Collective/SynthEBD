@@ -1111,8 +1111,17 @@ public class VM_BodyTypeProfileEditor : VM
                     currentMeasNames.Add(def.Name);
                 }
             }
-            var missing = new List<(VM_BodySlidePlaceHolder ph, Gender gender, int weight)>();
+            // Each work-item is either a "full" scan (NamesAllowlist == null → evaluate
+            // every measurement, replace the cache entry) or a "partial" fill
+            // (NamesAllowlist != null → evaluate only those names, merge into the existing
+            // entry). The partial path mesh-deforms once per entry like a full scan but
+            // skips the per-vertex computation for measurements already cached, and skips
+            // rule evaluation entirely (descriptors are re-derived post-scan). On an
+            // add-one-measurement workflow this turns 25k × N measurement evals into
+            // 25k × 1, plus zero rule passes.
+            var missing = new List<(VM_BodySlidePlaceHolder ph, Gender gender, int weight, HashSet<string>? namesAllowlist)>();
             int partialEntries = 0;
+            int partialMeasurementsTotal = 0;
             foreach (var (ph, gender) in targets)
             {
                 var label = ph.AssociatedModel.Label ?? "";
@@ -1120,24 +1129,28 @@ public class VM_BodyTypeProfileEditor : VM
                 {
                     if (!profile.MeasurementCache.TryGetValue((label, gender, weight), out var entry))
                     {
-                        missing.Add((ph, gender, weight));
+                        missing.Add((ph, gender, weight, null));
                         continue;
                     }
-                    // Cached but possibly incomplete. Any current measurement name absent
-                    // from entry.Measurements means this entry predates a measurement
-                    // definition addition and needs to be rescanned to populate it. A null
-                    // VALUE inside Measurements is fine — that's the "evaluator couldn't
-                    // compute this here" sentinel; what we're checking is presence of the
-                    // KEY.
-                    bool isComplete = true;
+                    // Cached but possibly incomplete. Collect every current measurement
+                    // name absent from entry.Measurements — these are the names the
+                    // partial-fill pass needs to compute. A null VALUE inside Measurements
+                    // is fine (that's the "evaluator couldn't compute this here" sentinel);
+                    // what we're checking is presence of the KEY.
+                    HashSet<string>? missingNames = null;
                     foreach (var name in currentMeasNames)
                     {
-                        if (!entry.Measurements.ContainsKey(name)) { isComplete = false; break; }
+                        if (!entry.Measurements.ContainsKey(name))
+                        {
+                            missingNames ??= new HashSet<string>(StringComparer.Ordinal);
+                            missingNames.Add(name);
+                        }
                     }
-                    if (!isComplete)
+                    if (missingNames != null)
                     {
-                        missing.Add((ph, gender, weight));
+                        missing.Add((ph, gender, weight, missingNames));
                         partialEntries++;
+                        partialMeasurementsTotal += missingNames.Count;
                     }
                 }
             }
@@ -1146,7 +1159,8 @@ public class VM_BodyTypeProfileEditor : VM
                 _logger?.LogMessage(
                     $"MeasurementCache: {partialEntries} cached entries lack values for one or "
                     + "more currently-defined measurements (likely a measurement definition was "
-                    + "added since the last scan); they will be rescanned end-to-end.");
+                    + $"added since the last scan); partial-filling {partialMeasurementsTotal} "
+                    + "measurement value(s) without re-evaluating measurements already cached.");
             }
             int reused = total - missing.Count;
 
@@ -1250,12 +1264,15 @@ public class VM_BodyTypeProfileEditor : VM
             string firstLabel = null;
             string lastLabel = null;
 
-            foreach (var (ph, gender, weight) in missing)
+            foreach (var (ph, gender, weight, namesAllowlist) in missing)
             {
                 if (ct.IsCancellationRequested) break;
                 var model = ph.AssociatedModel;
-                ScanStatus = $"Scanning {done + 1}/{missing.Count}: {model.Label} @ {weight}" +
-                             (reused > 0 ? $" ({reused} cached)" : "");
+                bool isPartialFill = namesAllowlist != null;
+                ScanStatus = (isPartialFill
+                                ? $"Filling {done + 1}/{missing.Count}: {model.Label} @ {weight} ({namesAllowlist!.Count} measurement{(namesAllowlist.Count == 1 ? "" : "s")})"
+                                : $"Scanning {done + 1}/{missing.Count}: {model.Label} @ {weight}")
+                             + (reused > 0 ? $" ({reused} cached)" : "");
 
                 // Per-iteration diagnostic: snapshot viewer state right before the
                 // ApplyBodySlide so we can see whether the call entered the "queued
@@ -1282,8 +1299,17 @@ public class VM_BodyTypeProfileEditor : VM
                 await Dispatcher.Yield(DispatcherPriority.Background);
 
                 // Pass the iteration's gender so RuleGender-filtered rules behave correctly
-                // (Male-only rules only fire on male presets, etc.).
-                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true, evaluationGender: gender);
+                // (Male-only rules only fire on male presets, etc.). On the partial-fill
+                // path, restrict measurement evaluation to the names this entry is missing
+                // and skip rules entirely (the post-scan RebuildScanResultsFromCache pass
+                // re-derives descriptors from the full cache, so evaluating rules with a
+                // partial measurement set would just throw away the work).
+                var result = BodySlideMeasurementEvaluator.Evaluate(
+                    viewer, profileModel,
+                    includeDrafts: true,
+                    evaluationGender: gender,
+                    measurementNamesAllowlist: namesAllowlist,
+                    skipRules: isPartialFill);
 
                 if (VerboseScan)
                 {
@@ -1317,26 +1343,57 @@ public class VM_BodyTypeProfileEditor : VM
 
                 // Persist measurements (not descriptors) into the shared cache. Descriptors
                 // are derived later via DeriveDescriptorsFor + the profile's current rules.
-                // Storing every defined measurement (null for failures) preserves the
-                // "this measurement could not be computed" signal through the cache.
-                // PresetSliderHash captures the slider state right now so the next session's
-                // hydrate-and-validate path can detect preset updates between runs.
-                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                // Two paths:
+                // - Full scan: build a fresh MeasurementCacheEntry with every defined
+                //   measurement (null for failures, preserving the "could not compute"
+                //   signal), tagged with the current PresetSliderHash. Replaces any prior
+                //   entry under the same key.
+                // - Partial fill: locate the existing entry, write only the names in
+                //   namesAllowlist into it, leaving sibling measurements and the entry's
+                //   PresetSliderHash / TopologyMismatch flags untouched (the entry survived
+                //   the slider-hash and body-mesh validation passes that decided it was
+                //   reusable — those metadata fields are still correct).
+                var cacheKey = (model.Label ?? "", gender, weight);
+                if (isPartialFill)
                 {
-                    TopologyMismatch = result.TopologyMismatch,
-                    PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
-                };
-                if (profileModel.Measurements != null)
-                {
-                    foreach (var def in profileModel.Measurements)
+                    if (!profile.MeasurementCache.TryGetValue(cacheKey, out var existingEntry))
                     {
-                        if (def == null || string.IsNullOrEmpty(def.Name)) continue;
-                        entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
+                        // The entry vanished between detection and execution (shouldn't
+                        // happen on the UI thread, but be defensive). Fall back to a full
+                        // write so we don't silently drop the values we just computed.
+                        existingEntry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                        {
+                            TopologyMismatch = result.TopologyMismatch,
+                            PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                        };
+                        profile.MeasurementCache[cacheKey] = existingEntry;
+                    }
+                    foreach (var name in namesAllowlist!)
+                    {
+                        existingEntry.Measurements[name] = result.Measurements.TryGetValue(name, out var v)
                             ? (float?)v
                             : null;
                     }
                 }
-                profile.MeasurementCache[(model.Label ?? "", gender, weight)] = entry;
+                else
+                {
+                    var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                    {
+                        TopologyMismatch = result.TopologyMismatch,
+                        PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                    };
+                    if (profileModel.Measurements != null)
+                    {
+                        foreach (var def in profileModel.Measurements)
+                        {
+                            if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                            entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
+                                ? (float?)v
+                                : null;
+                        }
+                    }
+                    profile.MeasurementCache[cacheKey] = entry;
+                }
 
                 if (firstMeasSnapshot == null)
                 {
