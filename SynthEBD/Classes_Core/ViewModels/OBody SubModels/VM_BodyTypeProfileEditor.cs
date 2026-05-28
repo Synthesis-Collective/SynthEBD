@@ -44,6 +44,7 @@ public class VM_BodyTypeProfileEditor : VM
     private readonly Func<VM_SettingsOBody> _oBodyVM;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
+    private readonly SynthEBDPaths _paths;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
 
     // Profile currently subscribed for BodyTypeName-change notifications, so the preset
@@ -65,13 +66,15 @@ public class VM_BodyTypeProfileEditor : VM
         Func<VM_SettingsOBody> oBodyVM,
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
-        VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory)
+        VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory,
+        SynthEBDPaths paths)
     {
         _logger = logger;
         _oBodyVM = oBodyVM;
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _filterFactory = filterFactory;
+        _paths = paths;
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
@@ -152,6 +155,26 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => IsScanning,
             execute: _ => CancelScan());
 
+        // Purges the on-disk measurement cache snapshot for the active profile's current
+        // BodyTypeName. Other snapshots in the same cache file (e.g., a dormant BHUNP
+        // snapshot from a previous body-mod experiment) are preserved. Clears the in-memory
+        // cache too so a follow-up scan starts fresh.
+        PurgeCacheForActiveProfileCommand = new RelayCommand(
+            canExecute: _ => SelectedProfile != null && HasCacheForActiveProfile && !IsScanning,
+            execute: _ =>
+            {
+                if (SelectedProfile == null) return;
+                bool confirm = MessageWindow.DisplayNotificationYesNo(
+                    "Purge Measurement Cache?",
+                    "This drops the cached measurements for profile '" + SelectedProfile.Name
+                    + "' under body type '" + (SelectedProfile.BodyTypeName ?? "?") + "'.\n\n"
+                    + "Other body-type snapshots in this profile's cache file are preserved.\n\n"
+                    + "A subsequent scan will rescan from scratch. Continue?");
+                if (!confirm) return;
+                PurgeMeshSnapshot(SelectedProfile, SelectedProfile.BodyTypeName ?? "");
+                RefreshCacheStatusSummary();
+            });
+
         LoadScanResultCommand = new RelayCommand(
             canExecute: x => x is VM_PresetScanRow && !IsScanning,
             execute: x => { if (x is VM_PresetScanRow row) LoadScanResultInViewer(row); });
@@ -213,11 +236,20 @@ public class VM_BodyTypeProfileEditor : VM
                         SelectedProfile.RefreshMeasurementValues();
                     }
                     RebuildFilteredPresets();
+                    // Hydrate the in-memory measurement cache from disk on profile select,
+                    // so a restart doesn't force a 25k-entry rescan. The disk cache holds one
+                    // snapshot per ShapeName (BodyTypeName), so swapping between body-type
+                    // profiles loads each profile's own cache without conflict. Per-entry
+                    // PresetSliderHash validation still happens at scan-time (when slider
+                    // data is in scope), so this load is optimistic — preset updates between
+                    // sessions are caught and rescanned then.
+                    if (SelectedProfile != null) HydrateMeasurementCacheFromDisk(SelectedProfile);
+
                     // Match-Presets tab reflects the newly-selected profile's scan cache.
                     // If the profile already has cached measurements (from any earlier scan
-                    // — Match Presets or Label-Then-Suggest), derive the descriptor list
-                    // from cache + current rules so the table populates without forcing a
-                    // re-scan on profile switch.
+                    // — Match Presets or Label-Then-Suggest, or hydrated from disk just now),
+                    // derive the descriptor list from cache + current rules so the table
+                    // populates without forcing a re-scan on profile switch.
                     if (SelectedProfile != null && SelectedProfile.MeasurementCache.Count > 0)
                     {
                         SelectedProfile.RebuildScanResultsFromCache(SelectedProfile.DumpToModel(), includeDrafts: true);
@@ -226,6 +258,7 @@ public class VM_BodyTypeProfileEditor : VM
                     ScanStatus = SelectedProfile == null
                         ? "No profile selected."
                         : (SelectedProfile.ScanResults.Count == 0 ? "No scan yet." : $"Cached scan: {SelectedProfile.ScanResults.Count} preset-weight combinations.");
+                    RefreshCacheStatusSummary();
                     RebuildWeightFilterOptions();
                     RefreshMeasurementValueOptions();
                     RefreshMatchPresetMeasurementOverlay();
@@ -275,6 +308,17 @@ public class VM_BodyTypeProfileEditor : VM
     public ObservableCollection<VM_BodyTypeProfile> Profiles { get; } = new();
     public VM_BodyTypeProfile? SelectedProfile { get; set; }
 
+    /// <summary>Cache-status summary string for the Match Presets tab. Format:
+    /// <c>"Cache: &lt;ShapeName&gt; · N entries · last used &lt;date&gt;"</c>. Empty when
+    /// no profile is selected or the profile has no cache entries yet.
+    /// Refreshed by <see cref="RefreshCacheStatusSummary"/> after hydrate / scan / purge.</summary>
+    public string CacheStatusSummary { get; set; } = "";
+
+    /// <summary>True when the selected profile has at least one cached snapshot on disk
+    /// (i.e., the cache file exists and contains the active-shape snapshot). Drives the
+    /// IsEnabled state of the purge button.</summary>
+    public bool HasCacheForActiveProfile { get; set; } = false;
+
     /// <summary>Body-type names sourced from <see cref="Settings_OBody.BodyTypeRegistry"/> so the per-profile dropdown stays consistent with the registry editor.</summary>
     public ObservableCollection<string> AvailableBodyTypeNames { get; } = new();
 
@@ -289,6 +333,7 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand RefreshPresetList { get; }
     public RelayCommand ScanAllPresetsCommand { get; }
     public RelayCommand CancelScanCommand { get; }
+    public RelayCommand PurgeCacheForActiveProfileCommand { get; }
     public RelayCommand LoadScanResultCommand { get; }
     public RelayCommand CopySelectedMatchToClipboardCommand { get; }
 
@@ -996,7 +1041,56 @@ public class VM_BodyTypeProfileEditor : VM
             if (profile.MeasurementCacheStale)
                 profile.MeasurementCache.Clear();
 
+            // Disk-cache hash validation: if the in-memory cache was hydrated from disk
+            // under a different body mesh than what the viewer currently has loaded (e.g.,
+            // the user briefly swapped body mods between sessions), the entries are wrong
+            // for THIS session. Drop them — the on-disk snapshot still exists (keyed by
+            // ShapeName), so reverting the body mod restores the cache next session.
+            if (!string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
+            {
+                var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(
+                    viewer.GetCurrentShapeVertexCounts());
+                if (!string.IsNullOrEmpty(currentBodyMeshHash)
+                    && !string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                {
+                    _logger?.LogMessage(
+                        "MeasurementCache: in-memory cache was scanned under body mesh "
+                        + profile.LoadedBodyMeshHash.Substring(0, Math.Min(8, profile.LoadedBodyMeshHash.Length))
+                        + " but viewer currently has " + currentBodyMeshHash.Substring(0, Math.Min(8, currentBodyMeshHash.Length))
+                        + " — clearing in-memory cache for this session. The on-disk snapshot is preserved.");
+                    profile.MeasurementCache.Clear();
+                    profile.LoadedBodyMeshHash = "";
+                }
+            }
+
             var profileModel = profile.DumpToModel();
+
+            // Per-entry PresetSliderHash validation: drop cached entries whose preset's
+            // sliders have changed since the entry was scanned (preset author update,
+            // user edit of a custom preset, etc.). The next missing-set computation then
+            // picks them up for rescan.
+            int droppedStaleSliders = 0;
+            foreach (var (ph, gender) in targets)
+            {
+                var label = ph.AssociatedModel?.Label ?? "";
+                var currentSliderHash = MeasurementCacheStore.ComputePresetSliderHash(ph.AssociatedModel);
+                foreach (int weight in weightSlots)
+                {
+                    if (profile.MeasurementCache.TryGetValue((label, gender, weight), out var memEntry)
+                        && !string.IsNullOrEmpty(memEntry.PresetSliderHash)
+                        && !string.Equals(memEntry.PresetSliderHash, currentSliderHash, StringComparison.Ordinal))
+                    {
+                        profile.MeasurementCache.Remove((label, gender, weight));
+                        droppedStaleSliders++;
+                    }
+                }
+            }
+            if (droppedStaleSliders > 0)
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: dropped {droppedStaleSliders} cached entries whose preset "
+                    + "sliders have changed since the last scan (preset updates).");
+            }
 
             // Compute the work set: keys this scan needs that aren't in the cache yet. A
             // prior scan from the other tab (Label-Then-Suggest) at overlapping weights
@@ -1029,6 +1123,11 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanProgressPercent = 100;
                 RebuildWeightFilterOptions();
                 RefreshMatchingPresets();
+                // Persist on the all-hit path too so updated fingerprints (e.g. a
+                // measurement definition was edited but ended up producing the same fp set)
+                // and refreshed LastUsed timestamps round-trip to disk.
+                PersistMeasurementCacheToDisk(profile);
+                RefreshCacheStatusSummary();
                 return;
             }
 
@@ -1178,7 +1277,13 @@ public class VM_BodyTypeProfileEditor : VM
                 // are derived later via DeriveDescriptorsFor + the profile's current rules.
                 // Storing every defined measurement (null for failures) preserves the
                 // "this measurement could not be computed" signal through the cache.
-                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry { TopologyMismatch = result.TopologyMismatch };
+                // PresetSliderHash captures the slider state right now so the next session's
+                // hydrate-and-validate path can detect preset updates between runs.
+                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                {
+                    TopologyMismatch = result.TopologyMismatch,
+                    PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                };
                 if (profileModel.Measurements != null)
                 {
                     foreach (var def in profileModel.Measurements)
@@ -1255,6 +1360,14 @@ public class VM_BodyTypeProfileEditor : VM
             }
             RebuildWeightFilterOptions();
             RefreshMatchingPresets();
+            // Persist the freshly-populated cache to disk so the next session can hydrate
+            // it instead of rescanning. Skipped on the cancellation path (ct.IsCancellationRequested
+            // would have broken out of the loop earlier) — partial scans don't write back.
+            if (!ct.IsCancellationRequested)
+            {
+                PersistMeasurementCacheToDisk(profile);
+            }
+            RefreshCacheStatusSummary();
         }
         catch (Exception ex)
         {
@@ -1267,6 +1380,260 @@ public class VM_BodyTypeProfileEditor : VM
             _scanCts?.Dispose();
             _scanCts = null;
         }
+    }
+
+    /// <summary>Disk-cache hydration: loads the on-disk measurement cache for
+    /// <paramref name="profile"/> and populates its in-memory <c>MeasurementCache</c> with
+    /// entries from the snapshot matching the profile's current <c>BodyTypeName</c>. The
+    /// snapshot's BodyMeshHash is recorded for later viewer-state validation. Per-measurement
+    /// fingerprints validate each value at load time — only measurements whose definition +
+    /// dependent key vertices are unchanged since the entry was scanned are copied in;
+    /// others are dropped (and the next scan refills them). PresetSliderHash validation
+    /// happens later in <see cref="RunScanAsync"/> once preset slider data is in scope.
+    /// <para>Idempotent: skips entries that already exist in <c>MeasurementCache</c> so a
+    /// re-entry doesn't clobber in-flight scan state. Silent on failure (returns without
+    /// touching state) — losing the cache costs one rescan, never a hard error.</para></summary>
+    private void HydrateMeasurementCacheFromDisk(VM_BodyTypeProfile profile)
+    {
+        if (profile == null) return;
+        if (string.IsNullOrEmpty(profile.Id)) return;
+        if (_paths == null) return;
+
+        string path = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.FilenameFor(profile.Id));
+        var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
+
+        var shapeName = profile.BodyTypeName?.Trim() ?? "";
+        if (shapeName.Length == 0) return;
+        if (!data.MeshSnapshots.TryGetValue(shapeName, out var snapshot) || snapshot == null) return;
+
+        var profileModel = profile.DumpToModel();
+        var currentFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
+            profileModel.Measurements, profileModel.KeyVertices);
+
+        int hydrated = 0, skippedStaleFp = 0;
+        foreach (var entry in snapshot.Entries)
+        {
+            if (entry == null) continue;
+            var key = entry.MakeKey();
+            if (profile.MeasurementCache.ContainsKey(key)) continue;
+
+            var memEntry = new VM_BodyTypeProfile.MeasurementCacheEntry
+            {
+                TopologyMismatch = entry.TopologyMismatch,
+                PresetSliderHash = entry.PresetSliderHash ?? "",
+            };
+            if (entry.Measurements != null)
+            {
+                foreach (var kvp in entry.Measurements)
+                {
+                    var name = kvp.Key;
+                    var cm = kvp.Value;
+                    if (cm == null) continue;
+                    if (!currentFps.TryGetValue(name, out var currentFp))
+                    {
+                        // Measurement no longer defined on the profile — drop the cached
+                        // value silently; if the user re-adds the measurement we'll pick
+                        // it up again on the next save round-trip.
+                        continue;
+                    }
+                    if (!string.Equals(cm.Fp ?? "", currentFp, System.StringComparison.Ordinal))
+                    {
+                        // Fingerprint drift (measurement def or dependent KV edited since
+                        // the entry was scanned). Drop just this measurement; sibling
+                        // measurements in the same entry stay valid.
+                        skippedStaleFp++;
+                        continue;
+                    }
+                    memEntry.Measurements[name] = cm.Value;
+                }
+            }
+            profile.MeasurementCache[key] = memEntry;
+            hydrated++;
+        }
+        profile.LoadedBodyMeshHash = snapshot.BodyMeshHash ?? "";
+
+        if (hydrated > 0 || skippedStaleFp > 0)
+        {
+            _logger?.LogMessage(
+                $"MeasurementCache: hydrated {hydrated} entries for profile '{profile.Name}' "
+                + $"(shape '{shapeName}') from {path}"
+                + (skippedStaleFp > 0 ? $"; dropped {skippedStaleFp} measurement value(s) on fingerprint drift" : ""));
+        }
+    }
+
+    /// <summary>Disk-cache persist: serializes the profile's in-memory <c>MeasurementCache</c>
+    /// to its on-disk file, replacing the snapshot matching the profile's current
+    /// <c>BodyTypeName</c>. Other snapshots in the same file (e.g., a dormant BHUNP snapshot
+    /// from a previous experiment) are preserved untouched. Writes are atomic via temp-file
+    /// + rename, so a mid-write crash can't corrupt the cache.
+    /// <para>Captures the current viewer's BodyMeshHash and the current per-measurement
+    /// fingerprints into the saved snapshot, so the next session's
+    /// <see cref="HydrateMeasurementCacheFromDisk"/> validates against the state we knew was
+    /// good at save time.</para></summary>
+    private void PersistMeasurementCacheToDisk(VM_BodyTypeProfile profile)
+    {
+        if (profile == null) return;
+        if (string.IsNullOrEmpty(profile.Id)) return;
+        if (_paths == null) return;
+
+        var shapeName = profile.BodyTypeName?.Trim() ?? "";
+        if (shapeName.Length == 0)
+        {
+            _logger?.LogMessage($"MeasurementCache: not saving profile '{profile.Name}' — no BodyTypeName set.");
+            return;
+        }
+        if (profile.MeasurementCache.Count == 0)
+        {
+            // Nothing to save and no point littering disk with an empty snapshot. Don't
+            // touch any existing file — other snapshots in it stay intact.
+            return;
+        }
+
+        string path = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.FilenameFor(profile.Id));
+
+        // Read whatever's on disk so other ShapeName snapshots survive this save.
+        var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
+        data.ProfileId = profile.Id;
+
+        var profileModel = profile.DumpToModel();
+        var currentFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
+            profileModel.Measurements, profileModel.KeyVertices);
+
+        var bodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(
+            CharacterViewer?.GetCurrentShapeVertexCounts());
+
+        var snapshot = new MeshSnapshot
+        {
+            BodyMeshHash = bodyMeshHash,
+            LastUsedUtc = System.DateTime.UtcNow,
+            MeasurementFingerprints = currentFps,
+            Entries = new System.Collections.Generic.List<CachedEntry>(profile.MeasurementCache.Count),
+        };
+
+        foreach (var kvp in profile.MeasurementCache)
+        {
+            var (label, gender, weight) = kvp.Key;
+            var memEntry = kvp.Value;
+            if (memEntry == null) continue;
+            var cached = new CachedEntry
+            {
+                PresetLabel = label ?? "",
+                Gender = gender,
+                Weight = weight,
+                PresetSliderHash = memEntry.PresetSliderHash ?? "",
+                TopologyMismatch = memEntry.TopologyMismatch,
+            };
+            foreach (var mkv in memEntry.Measurements)
+            {
+                var name = mkv.Key;
+                if (string.IsNullOrEmpty(name)) continue;
+                // Tag the value with the fingerprint that's current right now. Since the
+                // in-memory cache only holds values produced under the current fingerprint
+                // set (validation on hydrate + fresh scans), this is correct by construction.
+                if (!currentFps.TryGetValue(name, out var fp)) fp = "";
+                cached.Measurements[name] = new CachedMeasurement { Value = mkv.Value, Fp = fp };
+            }
+            snapshot.Entries.Add(cached);
+        }
+
+        data.MeshSnapshots[shapeName] = snapshot;
+        profile.LoadedBodyMeshHash = bodyMeshHash;
+
+        if (MeasurementCacheStore.Save(data, path, _logger != null ? _logger.LogMessage : null))
+        {
+            _logger?.LogMessage(
+                $"MeasurementCache: saved {snapshot.Entries.Count} entries for profile '{profile.Name}' "
+                + $"(shape '{shapeName}') to {path}");
+        }
+    }
+
+    /// <summary>Refreshes <see cref="CacheStatusSummary"/> + <see cref="HasCacheForActiveProfile"/>
+    /// from the on-disk cache file for the active profile. Called after profile select,
+    /// scan completion, and purge so the Match Presets footer reflects current cache state.
+    /// Reads the cache file (cheap — just metadata, no entry payload deserialization tax
+    /// since the small per-snapshot fields are parsed alongside entries anyway), so users
+    /// see "N entries on disk" not "N entries in memory" — the on-disk count is the
+    /// "will-survive-restart" number, which is the user-meaningful one.</summary>
+    private void RefreshCacheStatusSummary()
+    {
+        var profile = SelectedProfile;
+        if (profile == null || string.IsNullOrEmpty(profile.Id) || _paths == null)
+        {
+            CacheStatusSummary = "";
+            HasCacheForActiveProfile = false;
+            return;
+        }
+        string path = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.FilenameFor(profile.Id));
+        if (!System.IO.File.Exists(path))
+        {
+            CacheStatusSummary = "Cache: none on disk for this profile.";
+            HasCacheForActiveProfile = false;
+            return;
+        }
+        var data = MeasurementCacheStore.Load(path, null);
+        var shape = profile.BodyTypeName?.Trim() ?? "";
+        if (string.IsNullOrEmpty(shape) || !data.MeshSnapshots.TryGetValue(shape, out var snap) || snap == null)
+        {
+            int otherCount = data.MeshSnapshots.Count;
+            CacheStatusSummary = otherCount > 0
+                ? $"Cache: no snapshot for shape '{shape}'. {otherCount} other snapshot(s) on disk for this profile."
+                : "Cache: empty file on disk.";
+            HasCacheForActiveProfile = false;
+            return;
+        }
+        int entryCount = snap.Entries?.Count ?? 0;
+        string lastUsed = snap.LastUsedUtc.ToLocalTime().ToString("yyyy-MM-dd");
+        int otherSnapshots = data.MeshSnapshots.Count - 1;
+        string suffix = otherSnapshots > 0 ? $"  (+{otherSnapshots} other snapshot(s) on disk)" : "";
+        CacheStatusSummary = $"Cache: {shape} · {entryCount:N0} entries · last used {lastUsed}{suffix}";
+        HasCacheForActiveProfile = entryCount > 0;
+    }
+
+    /// <summary>Drops the cached <see cref="MeshSnapshot"/> matching <paramref name="shapeName"/>
+    /// from <paramref name="profile"/>'s on-disk cache file. Other snapshots in the same
+    /// file are preserved. Used by the cache-management UI's "purge" button. If the snapshot
+    /// is the one currently in memory, the in-memory cache is also cleared so subsequent
+    /// scans start fresh.</summary>
+    public void PurgeMeshSnapshot(VM_BodyTypeProfile profile, string shapeName)
+    {
+        if (profile == null || string.IsNullOrEmpty(profile.Id) || string.IsNullOrEmpty(shapeName)) return;
+        if (_paths == null) return;
+
+        string path = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.FilenameFor(profile.Id));
+        var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
+        if (!data.MeshSnapshots.Remove(shapeName)) return;
+
+        if (data.MeshSnapshots.Count == 0)
+        {
+            // No snapshots left — delete the file rather than leaving an empty one.
+            try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); } catch { /* best effort */ }
+        }
+        else
+        {
+            MeasurementCacheStore.Save(data, path, _logger != null ? _logger.LogMessage : null);
+        }
+
+        // If we just purged the snapshot the in-memory cache was hydrated from, blow the
+        // in-memory cache away too so a subsequent scan doesn't write stale data back.
+        var currentShape = profile.BodyTypeName?.Trim() ?? "";
+        if (string.Equals(currentShape, shapeName, System.StringComparison.Ordinal))
+        {
+            profile.MeasurementCache.Clear();
+            profile.LoadedBodyMeshHash = "";
+            profile.MeasurementCacheStale = true;
+            profile.ScanResults.Clear();
+            profile.ScanResultsStale = true;
+            ScanCacheStale = true;
+        }
+        _logger?.LogMessage($"MeasurementCache: purged snapshot '{shapeName}' from profile '{profile.Name}'.");
     }
 
     /// <summary>Rebuilds <see cref="MatchingPresets"/> from the current profile's scan cache
@@ -5522,6 +5889,15 @@ public class VM_BodyTypeProfile : VM
     /// stale measurements means stale derived descriptors.</summary>
     public bool MeasurementCacheStale { get; set; } = true;
 
+    /// <summary>SHA256 of the body mesh's topology (per-shape vertex counts) at the moment
+    /// the in-memory cache was last hydrated from disk (or last scanned). Compared against
+    /// the viewer's current mesh hash at scan start: a mismatch means the loaded mesh is
+    /// different from the one the cache was scanned under (e.g., the user briefly swapped
+    /// body mods), so the in-memory cache is dropped for this session. The on-disk cache's
+    /// snapshot is untouched — it keys by ShapeName, so the original snapshot stays
+    /// available next time the user reverts. Empty when no cache has been hydrated yet.</summary>
+    public string LoadedBodyMeshHash { get; set; } = "";
+
     /// <summary>One cache entry. Measurements stored as float? so "the evaluator could not
     /// compute this name" survives the cache as null instead of being indistinguishable
     /// from a missing key.</summary>
@@ -5529,6 +5905,13 @@ public class VM_BodyTypeProfile : VM
     {
         public Dictionary<string, float?> Measurements { get; } = new(StringComparer.Ordinal);
         public bool TopologyMismatch { get; set; }
+        /// <summary>SHA256 of the preset's slider values at the time this entry was scanned.
+        /// Used by the disk cache (<see cref="MeasurementCacheStore"/>) to detect "the preset
+        /// author shipped an update" between sessions: when the current preset's slider hash
+        /// differs from this stored value, the entry is dropped and rescanned. Empty for
+        /// entries that predate the disk-cache feature (treated as "needs revalidation" — a
+        /// rescan will populate the hash on next scan).</summary>
+        public string PresetSliderHash { get; set; } = "";
     }
 
     /// <summary>PropertyChanged forwarder for leaf VM edits on KeyVertices /

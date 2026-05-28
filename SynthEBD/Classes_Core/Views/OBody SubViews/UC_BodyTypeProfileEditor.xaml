@@ -1038,6 +1038,21 @@
                                                    FontWeight="Bold" VerticalAlignment="Center"
                                                    Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
 
+                                        <!-- Disk-cache status. The cache stores measurements (not descriptors)
+                                             per (preset, gender, weight) under a snapshot keyed by the profile's
+                                             BodyTypeName. Updated automatically after every scan; "Purge" drops
+                                             the active body-type's snapshot from disk so the next scan starts
+                                             fresh. Other body-type snapshots in the same profile's cache file
+                                             (e.g., a dormant BHUNP snapshot from a previous experiment) are
+                                             preserved unless purged separately. -->
+                                        <TextBlock Text="{Binding DataContext.CacheStatusSummary, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                   Foreground="#80C080" FontStyle="Italic" VerticalAlignment="Center" Margin="20,0,8,0"
+                                                   ToolTip="Number of (preset, gender, weight) entries persisted to disk for the active body-type snapshot. The on-disk cache lets a session start without rescanning every preset; entries are invalidated automatically when a preset's sliders change or when a measurement definition / key vertex is edited."/>
+                                        <Button Content="Purge"
+                                                Command="{Binding DataContext.PurgeCacheForActiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,1" VerticalAlignment="Center"
+                                                ToolTip="Delete the cached measurements for this profile's active body type (current BodyTypeName). Other body-type snapshots in this profile's cache file are preserved. A subsequent scan rescans from scratch."/>
+
                                         <!-- Match-strength sort selector. Only meaningful when exactly one
                                              descriptor value is selected in the filter above; otherwise the
                                              list falls back to the default (Gender, Preset, Weight) order

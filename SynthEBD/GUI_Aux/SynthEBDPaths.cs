@@ -86,6 +86,12 @@ public class SynthEBDPaths : VM
     public string BodyGenSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "BodyGenSettings.json");
     public string BodyGenConfigDirPath => Path.Combine(_rootPath, bodyGenDirRelPath);
     public string OBodySettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "OBodySettings.json");
+
+    /// <summary>Directory holding per-profile measurement caches (one
+    /// <c>&lt;ProfileId&gt;.measurement_cache.json</c> per <see cref="BodyTypeProfile"/>).
+    /// Co-located under the standard Settings folder so they move with the user's settings
+    /// folder when portable mode is toggled. Created lazily by the cache store on first save.</summary>
+    public string MeasurementCacheDirPath => Path.Combine(_rootPath, settingsDirRelPath, "MeasurementCache");
     public string HeadPartsSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "HeadPartSettings.json");
     public string MaleTemplateGroupsPath => Path.Combine(_rootPath, settingsDirRelPath, "SliderGroupGenders", "Male.json");
     public string FemaleTemplateGroupsPath => Path.Combine(_rootPath, settingsDirRelPath, "SliderGroupGenders", "Female.json");
