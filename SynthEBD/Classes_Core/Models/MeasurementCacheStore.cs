@@ -376,8 +376,21 @@ public static class MeasurementCacheStore
     private static void AppendKeyVertex(StringBuilder sb, NamedKeyVertex kv)
     {
         sb.Append("S=").Append(kv.ShapeName ?? "").Append('|');
-        sb.Append("I=").Append(kv.VertexIndex).Append('|');
         sb.Append("St=").Append((int)kv.Strategy).Append('|');
+        // VertexIndex is part of the defining identity for Explicit strategy (the user
+        // typed a specific vertex index and the rule's value depends on it). For
+        // BoundingBox strategy, VertexIndex is a runtime-resolved cache — the box gets
+        // matched against the current mesh and the winning vertex's index is stored on
+        // the model. Different sessions can re-resolve the same box to a neighbor vertex
+        // (different mesh state at resolution time, float precision in the box scan)
+        // even when the user changed nothing. Including it in the fingerprint then
+        // produced spurious "drift" that invalidated every BB-dependent measurement on
+        // every restart. The defining identity for BB is (ShapeName, box coords,
+        // Criterion, Strategy) — the index is just the most recent resolution result.
+        if (kv.Strategy == KeyVertexStrategy.Explicit)
+        {
+            sb.Append("I=").Append(kv.VertexIndex).Append('|');
+        }
         sb.Append("Cr=").Append((int)kv.Criterion).Append('|');
         sb.Append("B=").Append(kv.BoxMinX).Append(',').Append(kv.BoxMinY).Append(',').Append(kv.BoxMinZ);
         sb.Append('-').Append(kv.BoxMaxX).Append(',').Append(kv.BoxMaxY).Append(',').Append(kv.BoxMaxZ);
