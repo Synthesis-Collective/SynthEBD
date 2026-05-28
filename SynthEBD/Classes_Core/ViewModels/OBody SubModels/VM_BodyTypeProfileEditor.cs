@@ -1559,9 +1559,27 @@ public class VM_BodyTypeProfileEditor : VM
         if (string.IsNullOrEmpty(profile.Id)) return;
         if (_paths == null) return;
 
+        // Prefer the human-readable filename. Fall back to the legacy Guid-based name so
+        // caches written before the rename get located + migrated on next save. We don't
+        // delete the legacy file here — the migration delete happens on the next successful
+        // persist, paired with the new-name write, so an aborted session doesn't leave us
+        // with neither file.
         string path = System.IO.Path.Combine(
             _paths.MeasurementCacheDirPath,
-            MeasurementCacheStore.FilenameFor(profile.Id));
+            MeasurementCacheStore.FilenameFor(profile.Name, profile.BodyTypeName, profile.Id));
+        if (!System.IO.File.Exists(path))
+        {
+            string legacyPath = System.IO.Path.Combine(
+                _paths.MeasurementCacheDirPath,
+                MeasurementCacheStore.LegacyFilenameFor(profile.Id));
+            if (System.IO.File.Exists(legacyPath))
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: loading from legacy filename '{System.IO.Path.GetFileName(legacyPath)}'; "
+                    + $"next save will write '{System.IO.Path.GetFileName(path)}' and remove the legacy file.");
+                path = legacyPath;
+            }
+        }
         var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
 
         var shapeName = profile.BodyTypeName?.Trim() ?? "";
@@ -1660,10 +1678,19 @@ public class VM_BodyTypeProfileEditor : VM
 
         string path = System.IO.Path.Combine(
             _paths.MeasurementCacheDirPath,
-            MeasurementCacheStore.FilenameFor(profile.Id));
+            MeasurementCacheStore.FilenameFor(profile.Name, profile.BodyTypeName, profile.Id));
+        string legacyPath = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.LegacyFilenameFor(profile.Id));
 
-        // Read whatever's on disk so other ShapeName snapshots survive this save.
-        var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
+        // Read whatever's on disk so other ShapeName snapshots survive this save. Prefer
+        // the new-name file; fall back to the legacy Guid-named file so a session that
+        // hydrated from the legacy path persists everything (including the dormant
+        // snapshots) into the new file rather than starting from scratch.
+        string readFrom = System.IO.File.Exists(path)
+            ? path
+            : (System.IO.File.Exists(legacyPath) ? legacyPath : path);
+        var data = MeasurementCacheStore.Load(readFrom, _logger != null ? _logger.LogMessage : null);
         data.ProfileId = profile.Id;
 
         var profileModel = profile.DumpToModel();
@@ -1715,6 +1742,24 @@ public class VM_BodyTypeProfileEditor : VM
             _logger?.LogMessage(
                 $"MeasurementCache: saved {snapshot.Entries.Count} entries for profile '{profile.Name}' "
                 + $"(shape '{shapeName}') to {path}");
+            // Migration step: if we just successfully wrote to the new-name path AND a
+            // legacy Guid-named file still exists at a different path, delete the legacy
+            // file. Paired with the new-name write rather than done eagerly so we only
+            // remove the legacy file once the new file is durably on disk — an aborted
+            // save can't leave us with neither.
+            if (!string.Equals(path, legacyPath, System.StringComparison.OrdinalIgnoreCase)
+                && System.IO.File.Exists(legacyPath))
+            {
+                try
+                {
+                    System.IO.File.Delete(legacyPath);
+                    _logger?.LogMessage($"MeasurementCache: removed legacy filename '{System.IO.Path.GetFileName(legacyPath)}' after migrating to '{System.IO.Path.GetFileName(path)}'.");
+                }
+                catch (System.Exception ex)
+                {
+                    _logger?.LogMessage($"MeasurementCache: could not delete legacy file '{legacyPath}': {ex.Message}. Safe to delete manually.");
+                }
+            }
         }
     }
 
@@ -1736,12 +1781,24 @@ public class VM_BodyTypeProfileEditor : VM
         }
         string path = System.IO.Path.Combine(
             _paths.MeasurementCacheDirPath,
-            MeasurementCacheStore.FilenameFor(profile.Id));
+            MeasurementCacheStore.FilenameFor(profile.Name, profile.BodyTypeName, profile.Id));
         if (!System.IO.File.Exists(path))
         {
-            CacheStatusSummary = "Cache: none on disk for this profile.";
-            HasCacheForActiveProfile = false;
-            return;
+            // Fall back to the legacy Guid-based filename for the pre-rename case so the
+            // status line shows real entry counts before the next save migrates the file.
+            string legacyPath = System.IO.Path.Combine(
+                _paths.MeasurementCacheDirPath,
+                MeasurementCacheStore.LegacyFilenameFor(profile.Id));
+            if (System.IO.File.Exists(legacyPath))
+            {
+                path = legacyPath;
+            }
+            else
+            {
+                CacheStatusSummary = "Cache: none on disk for this profile.";
+                HasCacheForActiveProfile = false;
+                return;
+            }
         }
         var data = MeasurementCacheStore.Load(path, null);
         var shape = profile.BodyTypeName?.Trim() ?? "";
@@ -1774,18 +1831,35 @@ public class VM_BodyTypeProfileEditor : VM
 
         string path = System.IO.Path.Combine(
             _paths.MeasurementCacheDirPath,
-            MeasurementCacheStore.FilenameFor(profile.Id));
-        var data = MeasurementCacheStore.Load(path, _logger != null ? _logger.LogMessage : null);
+            MeasurementCacheStore.FilenameFor(profile.Name, profile.BodyTypeName, profile.Id));
+        string legacyPath = System.IO.Path.Combine(
+            _paths.MeasurementCacheDirPath,
+            MeasurementCacheStore.LegacyFilenameFor(profile.Id));
+        // Read from whichever exists (prefer new-name; fall back to legacy).
+        string readFrom = System.IO.File.Exists(path)
+            ? path
+            : (System.IO.File.Exists(legacyPath) ? legacyPath : path);
+        var data = MeasurementCacheStore.Load(readFrom, _logger != null ? _logger.LogMessage : null);
         if (!data.MeshSnapshots.Remove(shapeName)) return;
 
         if (data.MeshSnapshots.Count == 0)
         {
-            // No snapshots left — delete the file rather than leaving an empty one.
+            // No snapshots left — delete BOTH possible files rather than leaving an empty
+            // one (covers the still-on-legacy-filename case too).
             try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); } catch { /* best effort */ }
+            try { if (System.IO.File.Exists(legacyPath)) System.IO.File.Delete(legacyPath); } catch { /* best effort */ }
         }
         else
         {
+            // Always write back to the new-name path; the migration delete on the legacy
+            // file fires inside PersistMeasurementCacheToDisk's success branch, but for the
+            // purge path we replicate it here since we're saving directly via the store.
             MeasurementCacheStore.Save(data, path, _logger != null ? _logger.LogMessage : null);
+            if (!string.Equals(path, legacyPath, System.StringComparison.OrdinalIgnoreCase)
+                && System.IO.File.Exists(legacyPath))
+            {
+                try { System.IO.File.Delete(legacyPath); } catch { /* best effort */ }
+            }
         }
 
         // If we just purged the snapshot the in-memory cache was hydrated from, blow the

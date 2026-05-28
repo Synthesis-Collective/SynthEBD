@@ -213,13 +213,36 @@ public static class MeasurementCacheStore
     }
 
     /// <summary>Standard file-name format. Settings folder convention: one JSON per
-    /// profile under <c>SettingsFolder/MeasurementCache/</c>. The profile Id is sanitized
-    /// to drop characters that Windows refuses in filenames (Id is a Guid string today,
-    /// but the sanitization is cheap insurance against future format changes).</summary>
-    public static string FilenameFor(string profileId)
+    /// profile under <c>SettingsFolder/MeasurementCache/</c>.
+    /// <para>Prefers <paramref name="profileName"/> (the user-facing label visible in the
+    /// profile dropdown) so the cache directory is human-parseable at a glance — Explorer
+    /// shows "CBBE 3BA - Default.measurement_cache.json" rather than a Guid soup. Falls back
+    /// to <paramref name="bodyTypeName"/>, then to <paramref name="profileId"/> when the
+    /// preferred sources are blank (newly-created profile, or a hand-edited JSON that
+    /// dropped the name field).</para>
+    /// <para>Inside the file, <see cref="MeasurementCacheData.ProfileId"/> still carries the
+    /// Guid for verification — the loader can detect a rename collision (two profiles
+    /// renamed to the same string) by mismatched Id, but in practice the user-facing names
+    /// are stable enough that collisions are vanishingly rare.</para></summary>
+    public static string FilenameFor(string? profileName, string? bodyTypeName, string profileId)
     {
-        var safe = SanitizeFilename(profileId);
-        return $"{safe}.measurement_cache.json";
+        var pn = (profileName ?? "").Trim();
+        var bt = (bodyTypeName ?? "").Trim();
+        string baseName;
+        if (pn.Length > 0) baseName = pn;
+        else if (bt.Length > 0) baseName = bt;
+        else baseName = profileId ?? "unnamed";
+        return $"{SanitizeFilename(baseName)}.measurement_cache.json";
+    }
+
+    /// <summary>Legacy filename format used by the initial cache commit (b033a6f2):
+    /// <c>&lt;ProfileId&gt;.measurement_cache.json</c>. Kept so existing caches written
+    /// before the human-readable filename change can be located and migrated. The hydrate
+    /// path checks the new name first, then this one; if it loads from here, the next save
+    /// writes to the new name and the legacy file is deleted in the same operation.</summary>
+    public static string LegacyFilenameFor(string profileId)
+    {
+        return $"{SanitizeFilename(profileId ?? "unnamed")}.measurement_cache.json";
     }
 
     private static string SanitizeFilename(string s)
