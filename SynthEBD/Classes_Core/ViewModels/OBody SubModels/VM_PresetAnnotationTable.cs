@@ -179,6 +179,11 @@ public class VM_PresetAnnotationTable : VM
                 profile.MeasurementCache.Clear();
 
             var profileModel = profile.DumpToModel();
+            // Per-measurement fingerprints used to tag every value this writer adds to the
+            // shared cache. Computed once outside the loop — the profile state can't change
+            // mid-scan (UI thread).
+            var currentMeasurementFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
+                profileModel.Measurements, profileModel.KeyVertices);
 
             // Compute the work set: keys this scan needs that aren't in the shared cache yet.
             // Any prior Match Presets scan at overlapping weights populated entries we can
@@ -244,11 +249,20 @@ public class VM_PresetAnnotationTable : VM
 
                 // Persist measurements into the shared cache. The Match Presets display
                 // re-derives its descriptor list from these whenever rules change.
-                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry { TopologyMismatch = result.TopologyMismatch };
+                // PresetSliderHash + per-measurement Fps are recorded so the disk cache and
+                // the in-session granular-invalidation pass both see this writer's entries
+                // as fully tagged (no conservative "drop on unknown Fp" pass).
+                var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                {
+                    TopologyMismatch = result.TopologyMismatch,
+                    PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                };
                 foreach (var def in profileModel.Measurements)
                 {
                     if (def == null || string.IsNullOrEmpty(def.Name)) continue;
                     entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v) ? (float?)v : null;
+                    if (currentMeasurementFps.TryGetValue(def.Name, out var fp))
+                        entry.MeasurementFingerprints[def.Name] = fp;
                 }
                 profile.MeasurementCache[(model.Label ?? "", gender, weight)] = entry;
 

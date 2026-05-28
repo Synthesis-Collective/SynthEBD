@@ -1033,13 +1033,14 @@ public class VM_BodyTypeProfileEditor : VM
                 return;
             }
 
-            // KeyVertices / MeasurementDefinition changes invalidate the numbers in the cache.
-            // Drop them now so the iteration below misses on every key and re-evaluates.
-            // Rule-only edits leave MeasurementCacheStale false, so the cache survives —
-            // re-scanning after a rule edit is then pure rule re-evaluation (cache hits
-            // everywhere).
-            if (profile.MeasurementCacheStale)
-                profile.MeasurementCache.Clear();
+            // Note: the pre-(C) wholesale MeasurementCache.Clear() on MeasurementCacheStale
+            // has been replaced by the per-measurement granular-drop pass further down (after
+            // currentMeasurementFps is computed). MeasurementCacheStale is preserved as an
+            // informational flag — it still flips on KV / Measurement edits — but it no
+            // longer triggers a full cache wipe. The granular drop achieves the same
+            // correctness (stale measurements get rescanned) without throwing away unrelated
+            // cached values, and pairs with the partial-fill scan path so only the
+            // invalidated names get recomputed.
 
             // Disk-cache hash validation: if the in-memory cache was hydrated from disk
             // under a different body mesh than what the viewer currently has loaded (e.g.,
@@ -1110,6 +1111,60 @@ public class VM_BodyTypeProfileEditor : VM
                     if (def == null || string.IsNullOrEmpty(def.Name)) continue;
                     currentMeasNames.Add(def.Name);
                 }
+            }
+            // Per-measurement fingerprints for the in-session granular invalidation pass.
+            // Computed once here; reused both to validate existing entries (dropping stale
+            // measurements) and to tag freshly-scanned / partially-filled values.
+            var currentMeasurementFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
+                profileModel.Measurements, profileModel.KeyVertices);
+
+            // Granular per-measurement invalidation. Replaces the pre-(C) wholesale
+            // MeasurementCache.Clear() that fired whenever a KeyVertex or MeasurementDefinition
+            // edit set MeasurementCacheStale=true. For every cached entry, drop just the
+            // measurements whose stored fingerprint no longer matches the current one (because
+            // the definition or one of its dependent KVs was edited this session); other
+            // measurements stay cached. Names with no stored fingerprint (pre-(C) entries,
+            // entries from third-party writers that don't track Fps) are dropped conservatively
+            // so the next scan reproduces them under a known fingerprint. The partial-fill
+            // pass below picks up the dropped names and recomputes only those.
+            int droppedStaleMeasurements = 0;
+            int affectedEntries = 0;
+            foreach (var memEntry in profile.MeasurementCache.Values)
+            {
+                if (memEntry == null) continue;
+                bool entryAffected = false;
+                // Snapshot the keys before iterating so we can mutate Measurements/Fps during the walk.
+                foreach (var name in memEntry.Measurements.Keys.ToList())
+                {
+                    bool drop = false;
+                    if (!memEntry.MeasurementFingerprints.TryGetValue(name, out var storedFp))
+                    {
+                        drop = true; // No tracked Fp — conservative drop.
+                    }
+                    else if (!currentMeasurementFps.TryGetValue(name, out var currentFp))
+                    {
+                        drop = true; // Measurement no longer defined — value is unreachable.
+                    }
+                    else if (!string.Equals(storedFp, currentFp, StringComparison.Ordinal))
+                    {
+                        drop = true; // Fingerprint drift — definition or dependent KV edited.
+                    }
+                    if (drop)
+                    {
+                        memEntry.Measurements.Remove(name);
+                        memEntry.MeasurementFingerprints.Remove(name);
+                        droppedStaleMeasurements++;
+                        entryAffected = true;
+                    }
+                }
+                if (entryAffected) affectedEntries++;
+            }
+            if (droppedStaleMeasurements > 0)
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: granular invalidation dropped {droppedStaleMeasurements} stale "
+                    + $"measurement value(s) across {affectedEntries} cached entries; the partial-fill "
+                    + "pass below will recompute them.");
             }
             // Each work-item is either a "full" scan (NamesAllowlist == null → evaluate
             // every measurement, replace the cache entry) or a "partial" fill
@@ -1373,6 +1428,10 @@ public class VM_BodyTypeProfileEditor : VM
                         existingEntry.Measurements[name] = result.Measurements.TryGetValue(name, out var v)
                             ? (float?)v
                             : null;
+                        // Tag each freshly-computed value with the fingerprint that produced
+                        // it (granular-drop pass uses this on the next scan to detect drift).
+                        if (currentMeasurementFps.TryGetValue(name, out var fp))
+                            existingEntry.MeasurementFingerprints[name] = fp;
                     }
                 }
                 else
@@ -1390,6 +1449,8 @@ public class VM_BodyTypeProfileEditor : VM
                             entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
                                 ? (float?)v
                                 : null;
+                            if (currentMeasurementFps.TryGetValue(def.Name, out var fp))
+                                entry.MeasurementFingerprints[def.Name] = fp;
                         }
                     }
                     profile.MeasurementCache[cacheKey] = entry;
@@ -1546,6 +1607,13 @@ public class VM_BodyTypeProfileEditor : VM
                         continue;
                     }
                     memEntry.Measurements[name] = cm.Value;
+                    // Record the fingerprint in memory so an in-session edit later in the
+                    // session that drifts this measurement's Fp can be detected by the
+                    // granular-drop pass at scan start. Without this the in-memory entry
+                    // would have measurements but no associated Fp, and the granular drop
+                    // would conservatively drop them all on first scan (correct, but it
+                    // discards the validation work hydrate just did).
+                    memEntry.MeasurementFingerprints[name] = currentFp;
                 }
             }
             profile.MeasurementCache[key] = memEntry;
@@ -6011,6 +6079,18 @@ public class VM_BodyTypeProfile : VM
         /// entries that predate the disk-cache feature (treated as "needs revalidation" — a
         /// rescan will populate the hash on next scan).</summary>
         public string PresetSliderHash { get; set; } = "";
+        /// <summary>Per-measurement fingerprints (SHA256 of the MeasurementDefinition + its
+        /// dependent NamedKeyVertex fields) at the time each value was scanned. Parallel to
+        /// <see cref="Measurements"/>: a name keying both dicts is "valid under fingerprint X";
+        /// a name in <see cref="Measurements"/> but not here is from a pre-(C) scan and is
+        /// treated as fingerprint-unknown (the granular-drop pass at scan start drops it
+        /// conservatively so the next scan reproduces it under a known fingerprint).
+        /// <para>This is what enables in-session edits to invalidate per-measurement
+        /// granularly instead of the old wholesale <c>Clear()</c>: at scan start we compute
+        /// current fingerprints, walk every entry, and drop only the measurement values whose
+        /// stored Fp differs. Surviving entries become partial and get filled via the
+        /// partial-fill scan path.</para></summary>
+        public Dictionary<string, string> MeasurementFingerprints { get; } = new(StringComparer.Ordinal);
     }
 
     /// <summary>PropertyChanged forwarder for leaf VM edits on KeyVertices /
