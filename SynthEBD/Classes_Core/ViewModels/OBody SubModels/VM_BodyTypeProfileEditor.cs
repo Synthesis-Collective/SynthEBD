@@ -1092,19 +1092,61 @@ public class VM_BodyTypeProfileEditor : VM
                     + "sliders have changed since the last scan (preset updates).");
             }
 
-            // Compute the work set: keys this scan needs that aren't in the cache yet. A
-            // prior scan from the other tab (Label-Then-Suggest) at overlapping weights
-            // populates cache entries that this scan can reuse — that's the whole point of
-            // the shared cache.
+            // Compute the work set: keys this scan needs that aren't in the cache yet OR
+            // are cached but missing values for one or more currently-defined measurements
+            // (i.e., a new MeasurementDefinition was added since the cache entry was last
+            // scanned — its name isn't in entry.Measurements). Without the completeness
+            // check, a hydrated cache entry would look "done" via ContainsKey alone, the
+            // all-hit fast path would fire, and the new measurement would silently never
+            // get computed (rules referencing it then fail to match with no diagnostic).
+            // <para>A prior scan from the other tab (Label-Then-Suggest) at overlapping
+            // weights populates cache entries that this scan can reuse — that's the whole
+            // point of the shared cache.</para>
+            var currentMeasNames = new HashSet<string>(StringComparer.Ordinal);
+            if (profileModel.Measurements != null)
+            {
+                foreach (var def in profileModel.Measurements)
+                {
+                    if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                    currentMeasNames.Add(def.Name);
+                }
+            }
             var missing = new List<(VM_BodySlidePlaceHolder ph, Gender gender, int weight)>();
+            int partialEntries = 0;
             foreach (var (ph, gender) in targets)
             {
                 var label = ph.AssociatedModel.Label ?? "";
                 foreach (int weight in weightSlots)
                 {
-                    if (!profile.MeasurementCache.ContainsKey((label, gender, weight)))
+                    if (!profile.MeasurementCache.TryGetValue((label, gender, weight), out var entry))
+                    {
                         missing.Add((ph, gender, weight));
+                        continue;
+                    }
+                    // Cached but possibly incomplete. Any current measurement name absent
+                    // from entry.Measurements means this entry predates a measurement
+                    // definition addition and needs to be rescanned to populate it. A null
+                    // VALUE inside Measurements is fine — that's the "evaluator couldn't
+                    // compute this here" sentinel; what we're checking is presence of the
+                    // KEY.
+                    bool isComplete = true;
+                    foreach (var name in currentMeasNames)
+                    {
+                        if (!entry.Measurements.ContainsKey(name)) { isComplete = false; break; }
+                    }
+                    if (!isComplete)
+                    {
+                        missing.Add((ph, gender, weight));
+                        partialEntries++;
+                    }
                 }
+            }
+            if (partialEntries > 0)
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: {partialEntries} cached entries lack values for one or "
+                    + "more currently-defined measurements (likely a measurement definition was "
+                    + "added since the last scan); they will be rescanned end-to-end.");
             }
             int reused = total - missing.Count;
 
