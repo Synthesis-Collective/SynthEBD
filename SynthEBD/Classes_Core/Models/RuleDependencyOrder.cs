@@ -164,19 +164,18 @@ public static class RuleDependencyOrder
         // Self-reference always creates a cycle.
         if (producers.Contains(ruleIdx)) return true;
 
-        // Forward adjacency: i → j means i depends on j (i references something j produces).
-        // We need to know: starting from a producer P, can we reach ruleIdx via forward edges?
-        // Equivalently: is ruleIdx in the set of rules that P transitively depends on... no wait,
-        // edges are "i depends on j" meaning when adding ruleIdx → P, the cycle goes
-        // ruleIdx → P → ... → ruleIdx, i.e. we need a path P → ... → ruleIdx where each step
-        // is "earlier rule depends on later rule"... actually the dependency direction is
-        // ruleIdx depends on P, so the edge is ruleIdx → P. For a cycle, we need a path
-        // P → ... → ruleIdx in the SAME direction. That means we need to find rules
-        // that depend on P (transitively) and check if ruleIdx is among them.
+        // Edge i → j means "i depends on j" (i has a DescriptorRef pointing to j's descriptor;
+        // at evaluation time j must run before i). Adding the proposed edge ruleIdx → producer
+        // creates a cycle iff the existing graph already has a path producer → ... → ruleIdx
+        // walked in the SAME (depends-on) direction. We DFS from each producer along
+        // depends-on edges (forward direction) and report a cycle if we reach ruleIdx.
         //
-        // Build reverse adjacency from producer index lookups: for each rule R, which other
-        // rules' DescriptorRef conditions does R satisfy (i.e. R is a producer they depend
-        // on)? That gives us forward reachability from any producer.
+        // Subtle: walking through "dependents" (rules that reference X) is the WRONG
+        // direction — that finds rules that are transitive PREDECESSORS of the producer
+        // (i.e., already depend on it), not rules the producer depends on. The earlier
+        // version of this function walked dependents and over-flagged "redundant parallel
+        // path" edges as cycles, blanking valid combobox choices in the rule editor when a
+        // body type profile contained two DescriptorRef chains pointing to the same target.
 
         // Pre-index: producer key → producer rule indices.
         var producerIndex = new Dictionary<(string Cat, string Val), List<int>>();
@@ -194,14 +193,10 @@ public static class RuleDependencyOrder
             list.Add(i);
         }
 
-        // For each rule R, the set of producer rule indices it depends on directly.
-        // i depends on j → edge i → j → ... if traversing in dependency direction we hit ruleIdx then cycle.
-        // We're checking: starting from each producer P of (refCategory, refValue), can the
-        // dependency graph (following edges 'i depends on j') eventually arrive at ruleIdx?
-        // Equivalent: build dependents-of-X map (X is depended on by Y1, Y2, ...). DFS from
-        // each producer P forward through dependents to see if ruleIdx is reachable.
-        var dependents = new List<List<int>>(rules.Count);
-        for (int i = 0; i < rules.Count; i++) dependents.Add(new List<int>());
+        // Forward adjacency: dependsOn[i] = producer rule indices that rule i directly
+        // depends on via its own DescriptorRef conditions.
+        var dependsOn = new List<HashSet<int>>(rules.Count);
+        for (int i = 0; i < rules.Count; i++) dependsOn.Add(new HashSet<int>());
         for (int i = 0; i < rules.Count; i++)
         {
             var r = rules[i];
@@ -216,17 +211,13 @@ public static class RuleDependencyOrder
                     var refKey = (cond.RefCategory ?? "", cond.RefValue ?? "");
                     if (string.IsNullOrEmpty(refKey.Item1) || string.IsNullOrEmpty(refKey.Item2)) continue;
                     if (!producerIndex.TryGetValue(refKey, out var producerIdxs)) continue;
-                    foreach (var producerIdx in producerIdxs)
-                    {
-                        // producerIdx is depended on by i → producerIdx's dependents include i.
-                        dependents[producerIdx].Add(i);
-                    }
+                    foreach (var producerIdx in producerIdxs) dependsOn[i].Add(producerIdx);
                 }
             }
         }
 
-        // DFS from each producer of the target descriptor; if we can walk dependents and
-        // reach ruleIdx, the proposed new edge creates a cycle.
+        // DFS from each producer of the target descriptor walking depends-on edges; reach
+        // ruleIdx → adding ruleIdx → producer closes the cycle producer → ... → ruleIdx → producer.
         var visited = new bool[rules.Count];
         var stack = new Stack<int>();
         foreach (var p in producers) stack.Push(p);
@@ -236,7 +227,7 @@ public static class RuleDependencyOrder
             if (visited[cur]) continue;
             visited[cur] = true;
             if (cur == ruleIdx) return true;
-            foreach (var d in dependents[cur])
+            foreach (var d in dependsOn[cur])
             {
                 if (!visited[d]) stack.Push(d);
             }
