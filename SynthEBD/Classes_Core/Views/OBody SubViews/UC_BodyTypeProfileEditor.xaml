@@ -1099,6 +1099,17 @@
                                                   SelectedItem="{Binding DataContext.SelectedMeasurementForSort, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
                                                   ToolTip="Measurement (or RatioDistance) whose cached value each row is sorted by, descending. Independent of the descriptor filter — every (preset, weight) that survives the filter is ranked as long as its cache entry contains a value for this measurement. The row's badge shows the per-row value."/>
+
+                                        <!-- Name-substring filter. Layered ON TOP of the descriptor + weight
+                                             filters + sort: shows only rows whose PresetLabel contains the
+                                             typed substring (case-insensitive). Empty box = show every row
+                                             that survives the other filters. UpdateSourceTrigger=PropertyChanged
+                                             so the list re-filters on every keystroke; RefreshMatchingPresets
+                                             is cheap (in-memory ScanResults walk, no mesh / GL work). -->
+                                        <TextBlock Text="Filter:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"/>
+                                        <TextBox Width="200" VerticalAlignment="Center" Margin="0,0,10,5"
+                                                 Text="{Binding DataContext.MatchPresetNameFilter, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Case-insensitive substring filter applied to preset names in the list below, on top of the descriptor + weight + sort filters. Empty = show all surviving rows. Updates the list as you type."/>
                                     </WrapPanel>
 
                                     <ListBox Grid.Row="5"

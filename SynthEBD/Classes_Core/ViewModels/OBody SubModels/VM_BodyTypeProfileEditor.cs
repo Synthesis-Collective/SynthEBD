@@ -297,6 +297,14 @@ public class VM_BodyTypeProfileEditor : VM
                 case nameof(ShowMatchPresetMeasurements):
                     RefreshMatchPresetMeasurementOverlay();
                     break;
+                case nameof(MatchPresetNameFilter):
+                    // Re-filter the visible Match Presets rows on every keystroke. Cheap
+                    // because RefreshMatchingPresets just re-walks the in-memory
+                    // ScanResults dictionary (no mesh work, no GL); the filter is applied
+                    // inside the row-staging loop so scoring/sorting only runs over
+                    // surviving rows.
+                    RefreshMatchingPresets();
+                    break;
             }
         };
 
@@ -372,6 +380,14 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>Currently-selected row in the Match Presets list. Assigning it auto-loads the
     /// preset at the row's weight, so arrow-key navigation immediately previews each match.</summary>
     public VM_PresetScanRow SelectedMatchRow { get; set; }
+
+    /// <summary>Case-insensitive substring filter applied to <see cref="VM_PresetScanRow.PresetLabel"/>
+    /// in the Match Presets list, layered ON TOP of the existing descriptor filter, weight
+    /// filter, and sort. Empty string disables the filter (shows every row that survived the
+    /// other filters). Changes route through <see cref="RefreshMatchingPresets"/> on every
+    /// keystroke via the editor's PropertyChanged switch — typing is cheap because the same
+    /// in-memory ScanResults dictionary is re-scanned each time.</summary>
+    public string MatchPresetNameFilter { get; set; } = "";
 
     /// <summary>Human-readable status string for the Match Presets tab — "Scanning 23/84: X"
     /// during a run, summary counts after, or a "results stale" nudge when a rule/measurement/
@@ -2024,11 +2040,20 @@ public class VM_BodyTypeProfileEditor : VM
         // before we publish to the ObservableCollection. Adding incrementally and then
         // re-ordering in-place would fire one CollectionChanged per row, which the ListBox
         // would render through visibly.
+        var nameFilter = MatchPresetNameFilter?.Trim() ?? "";
         var staged = new List<VM_PresetScanRow>();
         foreach (var kv in ordered)
         {
             if (weightFilterActive && !allowedWeights.Contains(kv.Key.Weight)) continue;
             if (!DescriptorFilterAccepts(kv.Value, selectionKeys, filterMode)) continue;
+            // Name-substring filter. Applied here (pre-scoring, pre-sort) so the score
+            // passes don't touch rows the user won't see anyway. Case-insensitive ordinal —
+            // matches what the user types regardless of preset-author capitalization, and
+            // avoids the culture-aware comparison cost for what's a per-keystroke filter.
+            if (nameFilter.Length > 0
+                && (kv.Key.PresetLabel == null
+                    || kv.Key.PresetLabel.IndexOf(nameFilter, StringComparison.OrdinalIgnoreCase) < 0))
+                continue;
             staged.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
         }
 
