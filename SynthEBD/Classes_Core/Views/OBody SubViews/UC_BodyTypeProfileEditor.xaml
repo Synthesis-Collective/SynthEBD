@@ -1005,20 +1005,53 @@
                                                 Padding="6,1"/>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,5">
+                                    <!-- Top toolbar row: scan controls + progress + post-scan status/cache info.
+                                         WrapPanel so the row degrades to multiple lines as the renderer's
+                                         splitter narrows the right-hand pane instead of clipping the trailing
+                                         items (which were previously cut off even at the default splitter
+                                         position once the cache status + Purge button were added). -->
+                                    <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,5">
                                         <Button Content="Scan All Presets"
                                                 Command="{Binding DataContext.ScanAllPresetsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                Padding="6,2" Margin="0,0,5,0"/>
+                                                Padding="6,2" Margin="0,0,5,5"/>
                                         <CheckBox Content="Verbose Scan"
                                                   IsChecked="{Binding DataContext.VerboseScan, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  VerticalAlignment="Center" Margin="0,0,10,0"
+                                                  VerticalAlignment="Center" Margin="0,0,10,5"
                                                   ToolTip="Emit diagnostic lines (target count, viewer/key-vertex/fingerprint shape comparison, first-iteration measurement snapshot, first-vs-last identity check, and summary) to the Status Log when scanning. Off by default; enable when investigating why a scan returns zero matches."/>
                                         <Button Content="Cancel"
                                                 Command="{Binding DataContext.CancelScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                Padding="6,2" Margin="0,0,10,0"/>
+                                                Padding="6,2" Margin="0,0,10,5"/>
                                         <ProgressBar Width="220" Height="16" Minimum="0" Maximum="100"
                                                      Value="{Binding DataContext.ScanProgressPercent, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                     VerticalAlignment="Center"/>
+                                                     VerticalAlignment="Center" Margin="0,0,10,5"/>
+                                        <!-- Scan status text + results-stale indicator. Lives on the same row as
+                                             the controls now so a quick glance at the toolbar shows both "what
+                                             can I do?" and "what just happened?" without scanning a second line. -->
+                                        <TextBlock Text="{Binding DataContext.ScanStatus, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                   FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,10,5"/>
+                                        <TextBlock Text="(results stale — re-scan recommended)" Foreground="OrangeRed"
+                                                   FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,5"
+                                                   Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+                                        <!-- Disk-cache status + Purge. The cache stores measurements (not descriptors)
+                                             per (preset, gender, weight) under a snapshot keyed by the profile's
+                                             BodyTypeName. Updated automatically after every scan; "Purge" drops
+                                             the active body-type's snapshot from disk so the next scan starts
+                                             fresh. Other body-type snapshots in the same profile's cache file
+                                             (e.g., a dormant BHUNP snapshot from a previous experiment) are
+                                             preserved unless purged separately. -->
+                                        <TextBlock Text="{Binding DataContext.CacheStatusSummary, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                   Foreground="#80C080" FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,8,5"
+                                                   ToolTip="Number of (preset, gender, weight) entries persisted to disk for the active body-type snapshot. The on-disk cache lets a session start without rescanning every preset; entries are invalidated automatically when a preset's sliders change or when a measurement definition / key vertex is edited."/>
+                                        <Button Content="Purge"
+                                                Command="{Binding DataContext.PurgeCacheForActiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,1" VerticalAlignment="Center" Margin="0,0,0,5"
+                                                ToolTip="Delete the cached measurements for this profile's active body type (current BodyTypeName). Other body-type snapshots in this profile's cache file are preserved. A subsequent scan rescans from scratch."/>
+                                    </WrapPanel>
+
+                                    <!-- Bottom toolbar row: view toggles + sort selector. Also WrapPanel so the
+                                         Similarity / Measurement-value sub-pickers wrap to their own line when
+                                         the splitter narrows the pane. -->
+                                    <WrapPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,5">
                                         <!-- "Show Measurements" pushes every measurement referenced by any rule whose
                                              descriptor is currently checked in the filter above into the viewer's
                                              measurement-line overlay (same channel the Measurements grid's
@@ -1027,40 +1060,16 @@
                                              filter-selection changes. -->
                                         <CheckBox Content="Show Measurements"
                                                   IsChecked="{Binding DataContext.ShowMatchPresetMeasurements, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  VerticalAlignment="Center" Margin="10,0,0,0"
+                                                  VerticalAlignment="Center" Margin="0,0,20,5"
                                                   ToolTip="When on, every measurement referenced by any rule whose descriptor is currently checked above is drawn in the viewer (yellow/cyan, same overlay the Measurements tab uses). Updates as the filter selection changes. While on, this overrides any selection in the Measurements tab; unchecking restores the Measurements-tab selection."/>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <TextBlock Text="{Binding DataContext.ScanStatus, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                   FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <TextBlock Text="(results stale — re-scan recommended)" Foreground="OrangeRed"
-                                                   FontWeight="Bold" VerticalAlignment="Center"
-                                                   Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
-
-                                        <!-- Disk-cache status. The cache stores measurements (not descriptors)
-                                             per (preset, gender, weight) under a snapshot keyed by the profile's
-                                             BodyTypeName. Updated automatically after every scan; "Purge" drops
-                                             the active body-type's snapshot from disk so the next scan starts
-                                             fresh. Other body-type snapshots in the same profile's cache file
-                                             (e.g., a dormant BHUNP snapshot from a previous experiment) are
-                                             preserved unless purged separately. -->
-                                        <TextBlock Text="{Binding DataContext.CacheStatusSummary, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                   Foreground="#80C080" FontStyle="Italic" VerticalAlignment="Center" Margin="20,0,8,0"
-                                                   ToolTip="Number of (preset, gender, weight) entries persisted to disk for the active body-type snapshot. The on-disk cache lets a session start without rescanning every preset; entries are invalidated automatically when a preset's sliders change or when a measurement definition / key vertex is edited."/>
-                                        <Button Content="Purge"
-                                                Command="{Binding DataContext.PurgeCacheForActiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                Padding="6,1" VerticalAlignment="Center"
-                                                ToolTip="Delete the cached measurements for this profile's active body type (current BodyTypeName). Other body-type snapshots in this profile's cache file are preserved. A subsequent scan rescans from scratch."/>
-
                                         <!-- Match-strength sort selector. Only meaningful when exactly one
                                              descriptor value is selected in the filter above; otherwise the
                                              list falls back to the default (Gender, Preset, Weight) order
                                              regardless of which mode is picked. The two non-Off modes differ
                                              in how they normalize the raw (value − threshold) margin —
                                              see MarginScoreMode for the formulas. -->
-                                        <TextBlock Text="Sort:" FontWeight="Bold" VerticalAlignment="Center" Margin="20,0,6,0"/>
-                                        <ComboBox Width="280" VerticalAlignment="Center"
+                                        <TextBlock Text="Sort:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"/>
+                                        <ComboBox Width="280" VerticalAlignment="Center" Margin="0,0,10,5"
                                                   ItemsSource="{Binding DataContext.ScoreSortModeOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedValuePath="Value"
                                                   DisplayMemberPath="Label"
@@ -1070,9 +1079,9 @@
                                              editor's IsSimilarityScoreMode flag (recomputed on ScoreSortMode change).
                                              When hidden, the bound SimilarityTarget stays put so re-entering a
                                              Similarity mode restores the prior pick instead of forcing reselection. -->
-                                        <TextBlock Text="vs:" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,6,0"
+                                        <TextBlock Text="vs:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"
                                                    Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
-                                        <ComboBox Width="160" VerticalAlignment="Center"
+                                        <ComboBox Width="160" VerticalAlignment="Center" Margin="0,0,10,5"
                                                   ItemsSource="{Binding DataContext.SimilarityTargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedItem="{Binding DataContext.SimilarityTarget, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
@@ -1083,14 +1092,14 @@
                                              exclusive). The bound SelectedMeasurementForSort stays put when the
                                              user switches modes so re-entering MeasurementValue restores the prior
                                              pick. -->
-                                        <TextBlock Text="Measurement:" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,6,0"
+                                        <TextBlock Text="Measurement:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"
                                                    Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
-                                        <ComboBox Width="220" VerticalAlignment="Center"
+                                        <ComboBox Width="220" VerticalAlignment="Center" Margin="0,0,10,5"
                                                   ItemsSource="{Binding DataContext.MeasurementValueOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedItem="{Binding DataContext.SelectedMeasurementForSort, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
                                                   ToolTip="Measurement (or RatioDistance) whose cached value each row is sorted by, descending. Independent of the descriptor filter — every (preset, weight) that survives the filter is ranked as long as its cache entry contains a value for this measurement. The row's badge shows the per-row value."/>
-                                    </StackPanel>
+                                    </WrapPanel>
 
                                     <ListBox Grid.Row="5"
                                              ItemsSource="{Binding DataContext.MatchingPresets, RelativeSource={RelativeSource AncestorType=UserControl}}"
