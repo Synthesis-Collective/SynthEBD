@@ -983,6 +983,13 @@ public class VM_BodyTypeProfileEditor : VM
             return;
         }
 
+        // Cancel any pending debounced auto-rebuild — the scan that's about to start does
+        // a strict superset of the rebuild's work, so letting the timer fire afterward
+        // would be redundant. (The tick handler's IsScanning guard would also catch it,
+        // but cancelling here is cleaner — avoids the deferred no-op work entirely.)
+        _scanResultsAutoRebuildTimer?.Stop();
+        _pendingAutoRebuildProfile = null;
+
         var weightSlots = _patcherState?.OBodySettings?.DefaultWeightSlots?.ToList();
         if (weightSlots == null || weightSlots.Count == 0) weightSlots = new List<int> { 0, 100 };
 
@@ -2648,12 +2655,102 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Called by <see cref="VM_BodyTypeProfile.MarkScanResultsStale"/>. If the stale
     /// profile is the one currently shown, flip the editor's stale flag so the XAML shows the
-    /// "Re-scan" nudge.</summary>
+    /// "Re-scan" nudge. Also schedules a debounced auto-rebuild for the cheap case (rule
+    /// edits only) — measurements stay valid, descriptors just need to be re-derived from
+    /// the existing cache.</summary>
     internal void OnProfileScanStale(VM_BodyTypeProfile profile)
     {
         if (ReferenceEquals(profile, SelectedProfile))
         {
             ScanCacheStale = true;
+        }
+        ScheduleAutoRebuildScanResults(profile);
+    }
+
+    /// <summary>Debounce timer driving the auto-rebuild on rule edits. A burst of edits
+    /// during, e.g., dragging a threshold slider, collapses to a single rebuild after the
+    /// user pauses for the timer's interval. Single-instance: only the most recently
+    /// invalidated profile is queued; an earlier pending profile is dropped if a new
+    /// invalidation arrives before the timer fires (the dropped profile's
+    /// <c>ScanResultsStale</c> stays <c>true</c>, so the "Re-scan" badge surfaces the
+    /// missed rebuild next time the user selects that profile, and the user can either
+    /// scan manually or edit a rule to re-queue the rebuild).</summary>
+    private System.Windows.Threading.DispatcherTimer? _scanResultsAutoRebuildTimer;
+
+    /// <summary>Profile whose scan results are currently pending an auto-rebuild. Read in
+    /// the tick handler to identify which profile to rebuild; cleared when the rebuild
+    /// runs (or is skipped by a guard).</summary>
+    private VM_BodyTypeProfile? _pendingAutoRebuildProfile;
+
+    /// <summary>Queues a debounced <see cref="VM_BodyTypeProfile.RebuildScanResultsFromCache"/>
+    /// call for <paramref name="profile"/>. The debounce window collapses bursts of
+    /// rule edits into a single rebuild. Guards skip the queue when:
+    /// <list type="bullet">
+    /// <item><description>A real scan is in progress — the scan handles the rebuild itself.</description></item>
+    /// <item><description><see cref="VM_BodyTypeProfile.MeasurementCacheStale"/> is set —
+    /// measurements need actual recomputation (KV or Measurement edit), not just
+    /// re-derivation. The "Re-scan" badge stays up and the user clicks Scan manually.</description></item>
+    /// <item><description>The measurement cache is empty — no entries to rebuild descriptors
+    /// from. Manual scan handles populating from scratch.</description></item>
+    /// </list></summary>
+    private void ScheduleAutoRebuildScanResults(VM_BodyTypeProfile profile)
+    {
+        if (profile == null) return;
+        if (IsScanning) return;
+        if (profile.MeasurementCacheStale) return;
+        if (profile.MeasurementCache.Count == 0) return;
+
+        _pendingAutoRebuildProfile = profile;
+
+        if (_scanResultsAutoRebuildTimer == null)
+        {
+            _scanResultsAutoRebuildTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(300),
+            };
+            _scanResultsAutoRebuildTimer.Tick += OnAutoRebuildScanResultsTick;
+        }
+        _scanResultsAutoRebuildTimer.Stop();
+        _scanResultsAutoRebuildTimer.Start();
+    }
+
+    /// <summary>Debounce-timer tick handler. Re-checks the guards (state may have changed
+    /// during the debounce window — e.g., the user opened a measurement edit before the
+    /// timer fired), rebuilds the profile's scan results from its measurement cache against
+    /// its current rule set, and refreshes the editor's UI state if the rebuilt profile is
+    /// the currently-selected one. Failures are logged but never propagate — a buggy rule
+    /// shouldn't take down the editor; the manual Scan button is always available as a
+    /// fallback.</summary>
+    private void OnAutoRebuildScanResultsTick(object? sender, EventArgs e)
+    {
+        _scanResultsAutoRebuildTimer?.Stop();
+        var profile = _pendingAutoRebuildProfile;
+        _pendingAutoRebuildProfile = null;
+        if (profile == null) return;
+
+        // Re-check guards: state may have shifted during the debounce window.
+        if (IsScanning) return;
+        if (profile.MeasurementCacheStale) return;
+        if (profile.MeasurementCache.Count == 0) return;
+
+        try
+        {
+            var profileModel = profile.DumpToModel();
+            profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
+            // RebuildScanResultsFromCache clears profile.ScanResultsStale (commit 0e988e33).
+            if (ReferenceEquals(profile, SelectedProfile))
+            {
+                ScanCacheStale = false;
+                int withMatches = profile.ScanResults.Count(kv => kv.Value.Count > 0);
+                int empty = profile.ScanResults.Count - withMatches;
+                ScanStatus = $"Auto-rebuilt: {profile.ScanResults.Count} slice(s) re-derived "
+                             + $"from cache. {withMatches} with matches, {empty} empty.";
+                RefreshMatchingPresets();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("BodyTypeProfile auto-rebuild failed: " + ExceptionLogger.GetExceptionStack(ex));
         }
     }
 
