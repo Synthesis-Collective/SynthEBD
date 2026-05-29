@@ -1377,6 +1377,41 @@ public class VM_BodyTypeProfileEditor : VM
             {
                 if (ct.IsCancellationRequested) break;
                 var model = ph.AssociatedModel;
+
+                // Mid-scan viewer-empty guard. The pre-flight at scan start ensured the
+                // viewer had a mesh, but the user can navigate off the editor tab during a
+                // long iteration loop. UC_CharacterViewer unloads or the GL context is
+                // recycled in that case; viewer.GetCurrentShapeVertexCounts() goes back to
+                // empty; ApplyBodySlide silently no-ops (its _cachedBodyMeshes.Count == 0
+                // early-return path); the evaluator returns failed measurements for every
+                // name; and the cache write below records all-null values for the rest of
+                // missing. The blitz-fast "scan completion" the user sees after tab-switch
+                // is the loop running at memory-write speed against a phantom viewer.
+                //
+                // Bail cleanly: don't write garbage to cache, don't persist (cancellation
+                // path skips PersistMeasurementCacheToDisk), preserve the real measurements
+                // we got from entries scanned before the unload. User returns to the editor
+                // tab, re-clicks Scan All Presets, and the remaining entries pick up where
+                // we left off (they're still in `missing` from this run's POV; on the next
+                // scan they're still missing-by-completeness-check, so they get scanned).
+                if (viewer.GetCurrentShapeVertexCounts().Count == 0)
+                {
+                    _logger?.LogMessage(
+                        $"BodyTypeProfile scan: viewer mesh is no longer loaded after {done} of "
+                        + $"{missing.Count} entry/entries processed. Typical cause: user navigated "
+                        + "off the editor tab during the scan, unloading the GL context. "
+                        + "Aborting to preserve cached values for entries already scanned. "
+                        + "Return to the editor tab and re-run Scan All Presets to complete the "
+                        + $"remaining {missing.Count - done} entry/entries.");
+                    ScanStatus = $"Aborted at {done}/{missing.Count} — viewer mesh unloaded "
+                                 + "(likely tab switch). Stay on the editor tab and re-run.";
+                    // Trigger cancellation so the finally block + the outer
+                    // !ct.IsCancellationRequested gate skip the persist call. The good
+                    // entries (real measurements from the slow phase) stay in the in-memory
+                    // cache and will be picked up on the next scan or session restart.
+                    _scanCts?.Cancel();
+                    break;
+                }
                 bool isPartialFill = namesAllowlist != null;
                 ScanStatus = (isPartialFill
                                 ? $"Filling {done + 1}/{missing.Count}: {model.Label} @ {weight} ({namesAllowlist!.Count} measurement{(namesAllowlist.Count == 1 ? "" : "s")})"
