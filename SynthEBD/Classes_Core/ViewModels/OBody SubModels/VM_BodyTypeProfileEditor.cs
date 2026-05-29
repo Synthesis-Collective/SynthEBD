@@ -4885,11 +4885,18 @@ public class VM_BodyTypeProfile : VM
                 if (m == null || string.IsNullOrEmpty(m.Name)) continue;
                 if (axis == null)
                 {
-                    if (m.Kind != MeasurementKind.PointDistance) continue;
+                    // PointDistance / SignedPointDistance both measure the same 3D magnitude
+                    // (signed differs only in sign); treat them as cross-reference siblings so
+                    // hover-labels surface either one when the user authored a sibling pair.
+                    if (m.Kind != MeasurementKind.PointDistance
+                        && m.Kind != MeasurementKind.SignedPointDistance) continue;
                 }
                 else
                 {
-                    if (m.Kind != MeasurementKind.AxisDistance) continue;
+                    // AxisDistance / SignedAxisDistance measure the same axis-projected scalar
+                    // (signed differs only in sign); same sibling treatment as the point case.
+                    if (m.Kind != MeasurementKind.AxisDistance
+                        && m.Kind != MeasurementKind.SignedAxisDistance) continue;
                     if (m.Axis != axis.Value) continue;
                 }
                 if (PairsMatch(m.VertexRefA, m.VertexRefB, vertexRef1, vertexRef2))
@@ -4925,12 +4932,13 @@ public class VM_BodyTypeProfile : VM
             var b = Resolve(sel.VertexRefB);
             if (a.HasValue && b.HasValue)
             {
-                if (sel.Kind == MeasurementKind.AxisDistance)
+                if (sel.Kind == MeasurementKind.AxisDistance || sel.Kind == MeasurementKind.SignedAxisDistance)
                 {
                     // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
                     // X, then Y, then Z. The leg matching the measurement axis takes the primary
                     // (yellow) color; the other two take secondary (white). Zero-length legs are
-                    // skipped.
+                    // skipped. SignedAxisDistance shares this visualization with AxisDistance —
+                    // the sign lives in the scalar value, not the geometry.
                     // <para>The full A-B hypotenuse line is intentionally NOT drawn for
                     // AxisDistance: it represents a 3D length that the measurement doesn't
                     // actually evaluate (only the axis-projected leg matters), so showing it
@@ -4985,7 +4993,9 @@ public class VM_BodyTypeProfile : VM
                     }
                     else
                     {
-                        // PointDistance: only one segment per measurement, name alone suffices.
+                        // PointDistance / SignedPointDistance: only one segment per measurement,
+                        // name alone suffices. SignedPointDistance shares this rendering with
+                        // PointDistance — the sign lives in the scalar value, not the geometry.
                         segments.Add((a.Value, b.Value, primary, name));
                     }
                 }
@@ -5437,7 +5447,9 @@ public class VM_BodyTypeProfile : VM
                 m.VertexRefB ?? "",
                 isRatio ? (m.VertexRefC ?? "") : "",
                 isRatio ? (m.VertexRefD ?? "") : "",
-                m.Kind == MeasurementKind.AxisDistance ? m.Axis.ToString() : "",
+                (m.Kind == MeasurementKind.AxisDistance
+                 || m.Kind == MeasurementKind.SignedAxisDistance
+                 || m.Kind == MeasurementKind.SignedPointDistance) ? m.Axis.ToString() : "",
                 isRatio && m.NumeratorAxis.HasValue   ? m.NumeratorAxis.Value.ToString()   : "",
                 isRatio && m.DenominatorAxis.HasValue ? m.DenominatorAxis.Value.ToString() : "",
                 m.LiveValue.HasValue ? m.LiveValue.Value.ToString("F4", inv) : "",
@@ -6943,7 +6955,9 @@ public class VM_MeasurementDefinition : VM
 
     public IEnumerable<string> AvailableKeyVertexNames => _parent.AvailableKeyVertexNames;
 
-    public bool ShowAxisField => Kind == MeasurementKind.AxisDistance;
+    public bool ShowAxisField => Kind == MeasurementKind.AxisDistance
+                              || Kind == MeasurementKind.SignedAxisDistance
+                              || Kind == MeasurementKind.SignedPointDistance;
     public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance;
 
     /// <summary>Display-friendly labels for <see cref="MeasurementAxis"/>. Viewer positions are in

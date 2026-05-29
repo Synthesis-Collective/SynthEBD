@@ -275,14 +275,28 @@ public class NamedKeyVertex
 /// </summary>
 public enum MeasurementKind
 {
-    /// <summary>Euclidean distance between two key vertices (raw units).</summary>
+    /// <summary>Euclidean distance between two key vertices (raw units). Always non-negative.</summary>
     PointDistance = 0,
 
     /// <summary>Scale-invariant ratio ||A-B|| / ||C-D||. Four vertex refs required.</summary>
     RatioDistance = 1,
 
-    /// <summary>Distance between two key vertices projected onto a single world axis (raw units).</summary>
+    /// <summary>Distance between two key vertices projected onto a single world axis (raw units).
+    /// Returns the absolute magnitude; use <see cref="SignedAxisDistance"/> when direction matters.</summary>
     AxisDistance = 2,
+
+    /// <summary>Like <see cref="PointDistance"/> (3D Euclidean magnitude) but signed by the
+    /// direction of <c>A.{Axis} - B.{Axis}</c> on the configured <see cref="MeasurementDefinition.Axis"/>.
+    /// Positive when A is on the positive-axis side of B, negative when A is on the negative-axis side.
+    /// Useful when the magnitude is what you care about but you need to disambiguate the direction
+    /// (e.g. "is the navel forward of the sternum or behind it?").</summary>
+    SignedPointDistance = 3,
+
+    /// <summary>Signed projection on a single world axis: <c>A.{Axis} - B.{Axis}</c> (no abs).
+    /// Use when discriminating "A is past B on this axis" from "B is past A on this axis" matters.
+    /// Skyrim NIF convention: character faces -Z, so for a "navel forward of sternum" check on Z
+    /// you want this kind, not <see cref="AxisDistance"/> (which collapses both directions).</summary>
+    SignedAxisDistance = 4,
 }
 
 /// <summary>World axis selector for <see cref="MeasurementKind.AxisDistance"/>.</summary>
@@ -310,7 +324,9 @@ public class MeasurementDefinition
     /// </summary>
     public List<string> VertexRefNames { get; set; } = new();
 
-    /// <summary>Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.AxisDistance"/>.</summary>
+    /// <summary>Consulted when <see cref="Kind"/> is <see cref="MeasurementKind.AxisDistance"/>,
+    /// <see cref="MeasurementKind.SignedAxisDistance"/>, or <see cref="MeasurementKind.SignedPointDistance"/>
+    /// (the signed kinds use this axis to determine the sign).</summary>
     public MeasurementAxis Axis { get; set; } = MeasurementAxis.X;
 
     /// <summary>
@@ -599,6 +615,33 @@ public static class MeasurementMath
                     MeasurementAxis.Z => Math.Abs(a.Z - b.Z),
                     _ => 0f,
                 };
+                return true;
+
+            case MeasurementKind.SignedAxisDistance:
+                value = def.Axis switch
+                {
+                    MeasurementAxis.X => a.X - b.X,
+                    MeasurementAxis.Y => a.Y - b.Y,
+                    MeasurementAxis.Z => a.Z - b.Z,
+                    _ => 0f,
+                };
+                return true;
+
+            case MeasurementKind.SignedPointDistance:
+                // 3D magnitude signed by direction along the configured axis. Zero-axis-diff
+                // resolves to +length (treating "no separation on this axis" as the positive
+                // side so the value stays determinate rather than collapsing to zero magnitude).
+                {
+                    float axisDelta = def.Axis switch
+                    {
+                        MeasurementAxis.X => a.X - b.X,
+                        MeasurementAxis.Y => a.Y - b.Y,
+                        MeasurementAxis.Z => a.Z - b.Z,
+                        _ => 0f,
+                    };
+                    float magnitude = (a - b).Length;
+                    value = axisDelta < 0f ? -magnitude : magnitude;
+                }
                 return true;
 
             case MeasurementKind.RatioDistance:
