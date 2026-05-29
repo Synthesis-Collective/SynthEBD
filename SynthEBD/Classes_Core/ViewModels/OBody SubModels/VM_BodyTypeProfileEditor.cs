@@ -1042,25 +1042,38 @@ public class VM_BodyTypeProfileEditor : VM
             // cached values, and pairs with the partial-fill scan path so only the
             // invalidated names get recomputed.
 
-            // Disk-cache hash validation: if the in-memory cache was hydrated from disk
-            // under a different body mesh than what the viewer currently has loaded (e.g.,
-            // the user briefly swapped body mods between sessions), the entries are wrong
-            // for THIS session. Drop them — the on-disk snapshot still exists (keyed by
-            // ShapeName), so reverting the body mod restores the cache next session.
-            if (!string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
+            // Disk-cache body-mesh hash validation: if the in-memory cache was hydrated from
+            // disk under a different body mesh than what the viewer currently has loaded
+            // (e.g., user briefly swapped body mods between sessions), the entries are
+            // wrong for THIS session — drop them. The on-disk snapshot is keyed by
+            // ShapeName so reverting the body mod restores the cache next session.
+            //
+            // Two-stage validation:
+            //   1. Here, guarded on "viewer already has shapes." Most opportunistic case
+            //      is the user has been previewing a preset and then clicks Scan; the
+            //      viewer is loaded already, we can validate immediately. If viewer is
+            //      empty (cold first-scan), skip — defer until the preview-NPC auto-load
+            //      below runs. (ComputeBodyMeshHash on an empty shape-counts dict returns
+            //      SHA256("") = e3b0c442..., which would false-positive every cold scan.)
+            //   2. After preview-NPC auto-load further down, if stage 1 was skipped.
+            bool bodyMeshValidated = false;
+            var viewerShapesAtStart = viewer.GetCurrentShapeVertexCounts();
+            if (viewerShapesAtStart != null && viewerShapesAtStart.Count > 0)
             {
-                var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(
-                    viewer.GetCurrentShapeVertexCounts());
-                if (!string.IsNullOrEmpty(currentBodyMeshHash)
-                    && !string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                bodyMeshValidated = true;
+                if (!string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
                 {
-                    _logger?.LogMessage(
-                        "MeasurementCache: in-memory cache was scanned under body mesh "
-                        + profile.LoadedBodyMeshHash.Substring(0, Math.Min(8, profile.LoadedBodyMeshHash.Length))
-                        + " but viewer currently has " + currentBodyMeshHash.Substring(0, Math.Min(8, currentBodyMeshHash.Length))
-                        + " — clearing in-memory cache for this session. The on-disk snapshot is preserved.");
-                    profile.MeasurementCache.Clear();
-                    profile.LoadedBodyMeshHash = "";
+                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAtStart);
+                    if (!string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                    {
+                        _logger?.LogMessage(
+                            "MeasurementCache: in-memory cache was scanned under body mesh "
+                            + profile.LoadedBodyMeshHash.Substring(0, Math.Min(8, profile.LoadedBodyMeshHash.Length))
+                            + " but viewer currently has " + currentBodyMeshHash.Substring(0, Math.Min(8, currentBodyMeshHash.Length))
+                            + " — clearing in-memory cache for this session. The on-disk snapshot is preserved.");
+                        profile.MeasurementCache.Clear();
+                        profile.LoadedBodyMeshHash = "";
+                    }
                 }
             }
 
@@ -1303,6 +1316,47 @@ public class VM_BodyTypeProfileEditor : VM
                 {
                     ScanStatus = "Preview NPC load did not commit a renderable scene — cannot scan.";
                     return;
+                }
+            }
+
+            // Stage-2 body-mesh validation: fires only if the initial validation was
+            // skipped (viewer was empty at scan entry). The preview-NPC auto-load above has
+            // now committed a renderable scene, so the viewer is loaded — we can compute a
+            // real hash and compare to the cache snapshot's saved hash. A mismatch means
+            // the in-memory cache values are wrong for THIS session; clear them and rebuild
+            // the missing-set to scan every entry from scratch.
+            if (!bodyMeshValidated)
+            {
+                var viewerShapesAfterLoad = viewer.GetCurrentShapeVertexCounts();
+                if (viewerShapesAfterLoad != null && viewerShapesAfterLoad.Count > 0
+                    && !string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
+                {
+                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAfterLoad);
+                    if (!string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                    {
+                        _logger?.LogMessage(
+                            "MeasurementCache: in-memory cache was scanned under body mesh "
+                            + profile.LoadedBodyMeshHash.Substring(0, Math.Min(8, profile.LoadedBodyMeshHash.Length))
+                            + " but viewer currently has " + currentBodyMeshHash.Substring(0, Math.Min(8, currentBodyMeshHash.Length))
+                            + " (detected after preview-NPC load) — clearing in-memory cache for this session. "
+                            + "The on-disk snapshot is preserved.");
+                        profile.MeasurementCache.Clear();
+                        profile.LoadedBodyMeshHash = "";
+                        // Rebuild the missing set against the empty cache: every (preset,
+                        // gender, weight) is now a full-scan target. Reset reused +
+                        // partial-fill counters so the status line is honest.
+                        missing.Clear();
+                        foreach (var (ph, gender) in targets)
+                        {
+                            foreach (int weight in weightSlots)
+                            {
+                                missing.Add((ph, gender, weight, null));
+                            }
+                        }
+                        reused = 0;
+                        partialEntries = 0;
+                        partialMeasurementsTotal = 0;
+                    }
                 }
             }
 
@@ -1638,6 +1692,22 @@ public class VM_BodyTypeProfileEditor : VM
             hydrated++;
         }
         profile.LoadedBodyMeshHash = snapshot.BodyMeshHash ?? "";
+
+        // Clear the stale flag: the in-memory cache now reflects the on-disk state, which
+        // was validated per-measurement against current KV/Measurement definitions during
+        // the loop above. Any subsequent KV / Measurement edit will flip the flag back to
+        // true via OnMeasurementCacheInvalidatingChange.
+        //
+        // The default value of the property is `true` (the legacy "be conservative until
+        // proven fresh" stance from before the disk cache existed). Without resetting it
+        // here, code paths that gate on the flag — notably OpenMeasurementHistogramAsync,
+        // which drives a scan when MeasurementCacheStale is true — would trigger a
+        // RunScanAsync on every first-of-session histogram open, defeating the whole
+        // point of the disk cache.
+        if (hydrated > 0)
+        {
+            profile.MeasurementCacheStale = false;
+        }
 
         if (hydrated > 0 || skippedStaleFp > 0)
         {
