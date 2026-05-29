@@ -6622,12 +6622,22 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Rebuilds <see cref="ScanResults"/> from the measurements cache + the
     /// profile's current rules. O(presets × rules) and pure CPU — no mesh work, no GL,
     /// no viewer needed. Called after a scan and on profile bind so the Match Presets
-    /// display reflects whatever's in the cache without forcing another scan.</summary>
+    /// display reflects whatever's in the cache without forcing another scan.
+    /// <para>Side effect: clears <see cref="ScanResultsStale"/>. The function's whole job
+    /// is "re-derive descriptors against the current rules"; once it runs to completion
+    /// the descriptor list is by definition not stale relative to the cache + rules state
+    /// observed at call time. This is what lets callers (profile-select hydrate, scan
+    /// completion, Label-Then-Suggest table populate, etc.) avoid each remembering to
+    /// reset the flag manually — and is the right place to recover from
+    /// <c>ScanResultsStale</c>'s default-<c>true</c> initializer after a fresh profile
+    /// deserialization. Subsequent rule / measurement / KV edits flip the flag back via
+    /// <see cref="MarkScanResultsStale"/>.</para></summary>
     public void RebuildScanResultsFromCache(BodyTypeProfile profileModel, bool includeDrafts = true)
     {
         ScanResults.Clear();
         foreach (var key in MeasurementCache.Keys)
             ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts);
+        ScanResultsStale = false;
     }
 }
 
