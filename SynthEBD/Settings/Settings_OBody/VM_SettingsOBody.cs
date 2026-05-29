@@ -1,7 +1,9 @@
 using DynamicData.Binding;
 using Noggog;
 using ReactiveUI;
+using System;
 using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 using System.Reflection.Emit;
 using static SynthEBD.VM_BodyShapeDescriptor;
 using static SynthEBD.VM_NPCAttribute;
@@ -91,6 +93,22 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             canExecute: _ => true,
             execute: _ => DisplayedUI = BodyTypeProfileEditorUI
         );
+
+        // Re-run installed-body detection when the user switches "Apply Body Shapes via" to
+        // BodySlide mid-session. The startup pass in CopyInViewModelFromModel only fires if the
+        // mode is already BodySlide at load; this covers the case where the user enables it later.
+        // Skip(1) drops the synchronous initial emission (profiles aren't loaded yet at ctor time
+        // and the startup pass handles the already-BodySlide case).
+        generalSettingsVM.WhenAnyValue(x => x.BodySelectionMode)
+            .Skip(1)
+            .Subscribe(mode =>
+            {
+                if (mode == BodyShapeSelectionMode.BodySlide)
+                {
+                    BodyTypeProfileEditorUI.BeginAutoSelectProfileFromInstalledBody();
+                }
+            })
+            .DisposeWith(this);
     }
 
     public object DisplayedUI { get; set; }
@@ -195,6 +213,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         BodyTypeRegistryUI.CopyInViewModelFromModel(model);
 
         BodyTypeProfileEditorUI.CopyInViewModelFromModel(model);
+
+        // Profiles + the FirstOrDefault selection are now populated. Kick off the non-blocking
+        // detection of the installed default body so the editor opens on the matching profile.
+        BodyTypeProfileEditorUI.BeginAutoSelectProfileFromInstalledBody();
 
         AnnotatorUI.CopyInFromModel();
 

@@ -206,8 +206,22 @@ public static class BodySlideMeasurementEvaluator
     public static BodyTypeProfile FindMatchingProfile(IEnumerable<BodyTypeProfile> profiles, VM_CharacterViewer viewer, string sliderGroupHint)
     {
         if (profiles == null || viewer == null) return null;
+        return FindMatchingProfile(profiles, viewer.GetCurrentShapeVertexCounts(), sliderGroupHint);
+    }
 
-        var counts = viewer.GetCurrentShapeVertexCounts();
+    /// <summary>
+    /// Counts-based overload of <see cref="FindMatchingProfile(IEnumerable{BodyTypeProfile}, VM_CharacterViewer, string)"/>.
+    /// Takes the per-shape vertex counts directly instead of pulling them from a live viewer, so a
+    /// headless caller (e.g. the startup body-type detector that surveys the installed default body
+    /// NIF) can match without rendering. Same priority order: per-shape fingerprint match, then
+    /// total + name match, then name-only. When <paramref name="sliderGroupHint"/> is null only the
+    /// per-shape fingerprint branch can fire.
+    /// </summary>
+    public static BodyTypeProfile FindMatchingProfile(IEnumerable<BodyTypeProfile> profiles, IReadOnlyDictionary<string, int> shapeVertexCounts, string sliderGroupHint)
+    {
+        if (profiles == null || shapeVertexCounts == null) return null;
+
+        var counts = shapeVertexCounts;
         int total = counts.Values.Sum();
 
         BodyTypeProfile shapeMatch = null;

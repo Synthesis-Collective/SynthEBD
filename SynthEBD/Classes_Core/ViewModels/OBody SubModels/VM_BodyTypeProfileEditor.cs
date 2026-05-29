@@ -46,6 +46,7 @@ public class VM_BodyTypeProfileEditor : VM
     private readonly PatcherState _patcherState;
     private readonly SynthEBDPaths _paths;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
+    private readonly InstalledBodyTypeDetector _bodyTypeDetector;
 
     // Profile currently subscribed for BodyTypeName-change notifications, so the preset
     // dropdown re-filters when the user edits the profile's body-type assignment. Swapped
@@ -67,7 +68,8 @@ public class VM_BodyTypeProfileEditor : VM
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
         VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory,
-        SynthEBDPaths paths)
+        SynthEBDPaths paths,
+        InstalledBodyTypeDetector bodyTypeDetector)
     {
         _logger = logger;
         _oBodyVM = oBodyVM;
@@ -75,6 +77,7 @@ public class VM_BodyTypeProfileEditor : VM
         _patcherState = patcherState;
         _filterFactory = filterFactory;
         _paths = paths;
+        _bodyTypeDetector = bodyTypeDetector;
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
@@ -620,6 +623,80 @@ public class VM_BodyTypeProfileEditor : VM
         {
             model.BodyTypeProfiles.Add(vm.DumpToModel());
         }
+    }
+
+    /// <summary>
+    /// Non-blocking startup helper: detects the player's installed default body by surveying the
+    /// vanilla body NIF topology (no rendering), then auto-selects the <see cref="BodyTypeProfile"/>
+    /// whose captured fingerprint matches. The female body wins the single selection; the male body
+    /// is a fallback. Only replaces the load-time <c>FirstOrDefault</c> default — if the user clicks
+    /// a different profile while the background survey runs, that choice is preserved. Runs only when
+    /// BodyShape assignment is set to BodySlide (OBody / AutoBody). Best-effort: never throws.
+    /// </summary>
+    public void BeginAutoSelectProfileFromInstalledBody()
+    {
+        var mode = _patcherState?.GeneralSettings?.BodySelectionMode;
+        _logger?.LogMessage($"InstalledBodyTypeDetector: auto-select entry — BodySelectionMode={mode}, detector={(_bodyTypeDetector != null ? "ok" : "null")}, profiles={Profiles.Count}.");
+
+        if (mode != BodyShapeSelectionMode.BodySlide)
+        {
+            _logger?.LogMessage($"InstalledBodyTypeDetector: skipped — 'Apply Body Shapes via' is {mode}, not BodySlide. Set it to BodySlide to enable auto-selection.");
+            return;
+        }
+        if (_bodyTypeDetector == null || Profiles.Count == 0)
+        {
+            _logger?.LogMessage("InstalledBodyTypeDetector: skipped — no detector or no profiles to choose from.");
+            return;
+        }
+
+        // Snapshot UI state on the calling (UI) thread; the background task touches no VM state.
+        var startupSelection = SelectedProfile;
+        var models = Profiles.Select(p => p.DumpToModel()).ToList();
+
+        // Log what each profile claims as its captured fingerprint — an empty per-shape
+        // fingerprint can never produce a topology match, which is the usual cause of a no-match.
+        foreach (var m in models)
+        {
+            int shapeCount = m.Fingerprint?.ShapeVertexCounts?.Count ?? 0;
+            _logger?.LogMessage($"InstalledBodyTypeDetector: profile '{m.Name}' (BodyType='{m.BodyTypeName}') fingerprint — {shapeCount} shape(s), total={m.Fingerprint?.VertexCount ?? 0}.");
+        }
+
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                var femaleCounts = _bodyTypeDetector.SurveyDefaultBodyShapeCounts(Gender.Female);
+                var maleCounts = _bodyTypeDetector.SurveyDefaultBodyShapeCounts(Gender.Male);
+
+                BodyTypeProfile? match = null;
+                if (femaleCounts != null)
+                    match = BodySlideMeasurementEvaluator.FindMatchingProfile(models, femaleCounts, null);
+                if (match == null && maleCounts != null)
+                    match = BodySlideMeasurementEvaluator.FindMatchingProfile(models, maleCounts, null);
+
+                if (match == null)
+                {
+                    _logger?.LogMessage("InstalledBodyTypeDetector: no Body Type Profile fingerprint matches the installed default body; leaving selection unchanged.");
+                    return;
+                }
+
+                string matchedId = match.Id;
+                string matchedName = match.Name;
+                System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+                {
+                    // Don't clobber a profile the user actively picked while the survey ran.
+                    if (!ReferenceEquals(SelectedProfile, startupSelection)) return;
+                    var vm = Profiles.FirstOrDefault(p => p.Id == matchedId);
+                    if (vm == null) return;
+                    SelectedProfile = vm;
+                    _logger?.LogMessage($"InstalledBodyTypeDetector: auto-selected Body Type Profile '{matchedName}' ({vm.BodyTypeName}) from the installed default body.");
+                });
+            }
+            catch (System.Exception ex)
+            {
+                _logger?.LogMessage("InstalledBodyTypeDetector: auto-select failed: " + ex.Message);
+            }
+        });
     }
 
     private void ExportProfile(VM_BodyTypeProfile? profile)
