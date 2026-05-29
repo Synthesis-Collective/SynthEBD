@@ -263,6 +263,14 @@ public class VM_BodyTypeProfileEditor : VM
                     RefreshMeasurementValueOptions();
                     RefreshMatchPresetMeasurementOverlay();
                     RefreshMatchingPresets();
+                    // Re-derive the Rules-tab matching-presets list for the new profile's
+                    // current selected tree node (carries over across profile switches when
+                    // the new profile has a same-named node, otherwise clears).
+                    SelectedProfile?.RefreshSelectedNodeMatchingPresets();
+                    // Wire the per-profile SelectedNodeMatchRow signal so clicking a row in
+                    // the Rules tab loads the slice in the viewer. Subscribe on the new
+                    // profile, unsubscribe on the prior one to avoid stale handlers.
+                    AttachRuleNodeMatchRowHandler(SelectedProfile);
                     break;
                 case nameof(SelectedMatchRow):
                     // Arrow-key navigation in the Match Presets list auto-previews each row.
@@ -1270,6 +1278,7 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanProgressPercent = 100;
                 RebuildWeightFilterOptions();
                 RefreshMatchingPresets();
+                profile.RefreshSelectedNodeMatchingPresets();
                 // Persist on the all-hit path too so updated fingerprints (e.g. a
                 // measurement definition was edited but ended up producing the same fp set)
                 // and refreshed LastUsed timestamps round-trip to disk.
@@ -1632,6 +1641,7 @@ public class VM_BodyTypeProfileEditor : VM
             }
             RebuildWeightFilterOptions();
             RefreshMatchingPresets();
+            profile.RefreshSelectedNodeMatchingPresets();
             // Persist the freshly-populated cache to disk so the next session can hydrate
             // it instead of rescanning. Skipped on the cancellation path (ct.IsCancellationRequested
             // would have broken out of the loop earlier) — partial scans don't write back.
@@ -2663,6 +2673,11 @@ public class VM_BodyTypeProfileEditor : VM
         if (ReferenceEquals(profile, SelectedProfile))
         {
             ScanCacheStale = true;
+            // Flip the Rules-tab list to its "stale" empty state immediately so the user
+            // doesn't keep clicking rows whose underlying data is no longer current. The
+            // debounced auto-rebuild below will repopulate it on the next tick if the
+            // cache itself is still valid (rule-only edit, no measurement invalidation).
+            profile.RefreshSelectedNodeMatchingPresets();
         }
         ScheduleAutoRebuildScanResults(profile);
     }
@@ -2746,6 +2761,10 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanStatus = $"Auto-rebuilt: {profile.ScanResults.Count} slice(s) re-derived "
                              + $"from cache. {withMatches} with matches, {empty} empty.";
                 RefreshMatchingPresets();
+                // Auto-rebuild after a rule edit also changes the membership of the
+                // Rules-tab matching-presets list (rule thresholds shifted, etc.). Refresh
+                // it here so the Rules tab stays in lock-step with the Match Presets tab.
+                profile.RefreshSelectedNodeMatchingPresets();
             }
         }
         catch (Exception ex)
@@ -2775,6 +2794,65 @@ public class VM_BodyTypeProfileEditor : VM
         PreviewGender = row.Gender;
         PreviewWeight = row.Weight;
         SelectedPreset = ph;
+    }
+
+    /// <summary>Loads a Rules-tab matching-preset row into the viewer. Mirrors
+    /// <see cref="LoadScanResultInViewer"/> but takes the simpler
+    /// <see cref="VM_RuleNodeMatchRow"/> type. Same routing (SelectedPreset + PreviewWeight +
+    /// PreviewGender) so the existing RefreshPreviewAsync path handles the NPC load + the
+    /// BodySlide deformation.</summary>
+    internal void LoadRuleNodeMatchInViewer(VM_RuleNodeMatchRow row)
+    {
+        if (row == null || IsScanning) return;
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (menu == null) return;
+        var source = row.Gender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
+        VM_BodySlidePlaceHolder ph = null;
+        foreach (var p in source)
+        {
+            if (p?.AssociatedModel?.Label == row.PresetLabel) { ph = p; break; }
+        }
+        if (ph == null) return;
+
+        PreviewGender = row.Gender;
+        PreviewWeight = row.Weight;
+        SelectedPreset = ph;
+    }
+
+    /// <summary>Currently-attached profile for the Rules-tab matching-preset row signal.
+    /// Tracks the prior subscription so it can be torn down before subscribing to the new
+    /// profile in <see cref="AttachRuleNodeMatchRowHandler"/>.</summary>
+    private VM_BodyTypeProfile? _ruleNodeRowProfile;
+
+    /// <summary>Wires (or rewires) a PropertyChanged subscription on the supplied profile so
+    /// that the editor reacts to <see cref="VM_BodyTypeProfile.SelectedNodeMatchRow"/>
+    /// assignments by loading the slice in the viewer. Called from the SelectedProfile
+    /// branch above on every profile swap. Safe to call with null.</summary>
+    private void AttachRuleNodeMatchRowHandler(VM_BodyTypeProfile? profile)
+    {
+        if (_ruleNodeRowProfile != null)
+        {
+            _ruleNodeRowProfile.PropertyChanged -= OnRuleNodeMatchProfilePropertyChanged;
+        }
+        _ruleNodeRowProfile = profile;
+        if (profile != null)
+        {
+            profile.PropertyChanged += OnRuleNodeMatchProfilePropertyChanged;
+        }
+    }
+
+    /// <summary>Reacts to <see cref="VM_BodyTypeProfile.SelectedNodeMatchRow"/> changes on
+    /// the currently-attached profile. Same auto-preview semantics as the Match Presets
+    /// tab's SelectedMatchRow handler — arrow-key navigation in the list loads each slice
+    /// in turn. Guarded against the IsScanning case so a click during a scan can't race.</summary>
+    private void OnRuleNodeMatchProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(VM_BodyTypeProfile.SelectedNodeMatchRow)) return;
+        if (sender is not VM_BodyTypeProfile profile) return;
+        if (!ReferenceEquals(profile, SelectedProfile)) return;
+        var row = profile.SelectedNodeMatchRow;
+        if (row == null || IsScanning) return;
+        LoadRuleNodeMatchInViewer(row);
     }
 
     /// <summary>Cancels an in-flight scan. Safe to call when no scan is running.</summary>
@@ -3609,6 +3687,30 @@ public class VM_BodyTypeProfile : VM
     /// just that pair; null selection shows no rules. The Rules tab right-pane ItemsControl
     /// binds here instead of the full Rules list, so the editor only renders relevant rules.</summary>
     public ObservableCollection<VM_MeasurementRule> FilteredRules { get; } = new();
+
+    /// <summary>Presets currently matching the rules under <see cref="SelectedRuleTreeNode"/>.
+    /// Populated from <see cref="ScanResults"/> + <see cref="MeasurementCache"/> by
+    /// <see cref="RefreshSelectedNodeMatchingPresets"/>. One row per (preset, gender, weight)
+    /// slice; each row also carries a formatted measurement-values string for every
+    /// measurement referenced by any filtered rule, so the user can see the numbers that
+    /// pushed the slice past the rule's thresholds inline.
+    /// <para>Stays empty when <see cref="ScanResultsStale"/> is set or no scan cache exists —
+    /// see <see cref="SelectedNodeMatchingStatus"/> for the user-facing reason.</para>
+    /// <para>Rebuilt when the selected tree node changes, when the scan cache is auto-rebuilt
+    /// after a rule edit, and when the scan stale flag flips.</para></summary>
+    public ObservableCollection<VM_RuleNodeMatchRow> SelectedNodeMatchingPresets { get; } = new();
+
+    /// <summary>Currently-selected row in <see cref="SelectedNodeMatchingPresets"/>. Setting
+    /// triggers the editor's <see cref="VM_BodyTypeProfileEditor.OnRuleNodeMatchRowSelected"/>
+    /// reaction (loads the slice in the viewer). Reset to null on every refresh so a stale
+    /// selection from a different tree node can't sneak through.</summary>
+    public VM_RuleNodeMatchRow? SelectedNodeMatchRow { get; set; }
+
+    /// <summary>One-line status string shown above <see cref="SelectedNodeMatchingPresets"/>:
+    /// row count when populated, an explanation when empty (no selection / stale cache / no
+    /// scan / zero matches). Fody re-fires on assignment so the XAML TextBlock updates in
+    /// place without an extra Converter.</summary>
+    public string SelectedNodeMatchingStatus { get; set; } = "";
 
     /// <summary>Inline-form input for "Add new Category" — bound to the Category TextBox below
     /// the tree. AddDescriptorCommand reads this together with <see cref="NewValueInput"/> and
@@ -6337,6 +6439,11 @@ public class VM_BodyTypeProfile : VM
     private void HookGroupForScanInvalidation(VM_AndGatedMeasurementGroup g)
     {
         if (g == null) return;
+        // Group-level PropertyChanged catches IsDisabled toggles (per-branch mute). Without
+        // this hook, ticking the Disable checkbox would mute the branch silently — the
+        // descriptor list wouldn't re-derive until the next manual scan because no
+        // cache-invalidating event would fire.
+        g.PropertyChanged += OnScanInvalidatingChange;
         foreach (var c in g.Conditions) c.PropertyChanged += OnScanInvalidatingChange;
         g.Conditions.CollectionChanged += (_, args) =>
         {
@@ -6351,6 +6458,7 @@ public class VM_BodyTypeProfile : VM
     private void UnhookGroupForScanInvalidation(VM_AndGatedMeasurementGroup g)
     {
         if (g == null) return;
+        g.PropertyChanged -= OnScanInvalidatingChange;
         foreach (var c in g.Conditions) c.PropertyChanged -= OnScanInvalidatingChange;
     }
 
@@ -6564,7 +6672,11 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Refreshes <see cref="FilteredRules"/> based on the current
     /// <see cref="SelectedRuleTreeNode"/>. Category-level selection includes every rule
     /// whose Descriptor.Category matches; Value-level selection narrows to that
-    /// (Category, Value). Null selection clears the list.</summary>
+    /// (Category, Value). Null selection clears the list.
+    /// <para>Also re-derives <see cref="SelectedNodeMatchingPresets"/> so the matching-preset
+    /// list at the bottom of the right pane tracks the selected node — both edges (tree
+    /// click, rule descriptor edit that re-groups under a different node) flow through
+    /// here, so chaining the call keeps the two views in lock-step.</para></summary>
     public void RefreshFilteredRules()
     {
         FilteredRules.Clear();
@@ -6591,6 +6703,145 @@ public class VM_BodyTypeProfile : VM
                     }
                 }
                 break;
+        }
+        RefreshSelectedNodeMatchingPresets();
+    }
+
+    /// <summary>Rebuilds <see cref="SelectedNodeMatchingPresets"/> from the current
+    /// <see cref="ScanResults"/> + <see cref="MeasurementCache"/> for the rules under
+    /// <see cref="SelectedRuleTreeNode"/>. Driven by:
+    /// <list type="bullet">
+    /// <item><description>Tree-node selection change (via <see cref="RefreshFilteredRules"/>).</description></item>
+    /// <item><description>Rule descriptor edit that re-groups a rule under a different node
+    /// (same path).</description></item>
+    /// <item><description>Editor-side auto-rebuild after a rule edit (the editor calls this
+    /// directly after <see cref="RebuildScanResultsFromCache"/>).</description></item>
+    /// </list>
+    /// <para>Predicate: a Value node passes any slice whose match list contains the exact
+    /// (Category, Value); a Category node passes any slice whose match list contains any
+    /// value in the Category. Empty when the cache is stale, no scan has run, or no rules
+    /// live under the node — see <see cref="SelectedNodeMatchingStatus"/>.</para>
+    /// <para>Measurement display is composed once per row from the union of measurement
+    /// names referenced by any Measurement-kind condition under <see cref="FilteredRules"/>,
+    /// looked up against the slice's cached values (missing values render as "name=—" so
+    /// the user notices the gap).</para></summary>
+    public void RefreshSelectedNodeMatchingPresets()
+    {
+        SelectedNodeMatchRow = null;
+        SelectedNodeMatchingPresets.Clear();
+
+        if (SelectedRuleTreeNode == null)
+        {
+            SelectedNodeMatchingStatus = "Select a node in the descriptor tree to see matching presets.";
+            return;
+        }
+        if (ScanResultsStale)
+        {
+            SelectedNodeMatchingStatus = "Scan cache is stale — open Match Presets and re-scan to refresh this list.";
+            return;
+        }
+        if (ScanResults.Count == 0)
+        {
+            SelectedNodeMatchingStatus = "No scan results cached yet. Run a scan from the Match Presets tab.";
+            return;
+        }
+
+        // Resolve the descriptor predicate (Value-level: exact (Cat, Val); Category-level: any
+        // (Cat, *)) and the measurement-name set we want to display per row (union across every
+        // Measurement-kind condition of every rule under the selected node).
+        string nodeCategory = "";
+        string nodeValue = "";
+        bool isValueLevel = false;
+        switch (SelectedRuleTreeNode)
+        {
+            case VM_RuleTreeValueNode v:
+                nodeCategory = v.Category ?? "";
+                nodeValue = v.Value ?? "";
+                isValueLevel = true;
+                break;
+            case VM_RuleTreeCategoryNode c:
+                nodeCategory = c.Category ?? "";
+                break;
+        }
+
+        var displayNames = new List<string>();
+        var displayNameSet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in FilteredRules)
+        {
+            if (rule?.Groups == null) continue;
+            foreach (var g in rule.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    if (c == null) continue;
+                    if (c.Kind != MeasurementConditionKind.Measurement) continue;
+                    var name = c.MeasurementName;
+                    if (string.IsNullOrEmpty(name)) continue;
+                    if (displayNameSet.Add(name)) displayNames.Add(name);
+                }
+            }
+        }
+
+        // Walk scan results in the same (Gender, Preset, Weight) order Match Presets uses so
+        // the two lists feel consistent to navigate.
+        int matches = 0;
+        foreach (var kv in ScanResults
+                     .OrderBy(p => p.Key.Gender)
+                     .ThenBy(p => p.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(p => p.Key.Weight))
+        {
+            var sigs = kv.Value;
+            if (sigs == null || sigs.Count == 0) continue;
+            bool descriptorPasses = false;
+            foreach (var d in sigs)
+            {
+                if (d == null) continue;
+                if (!string.Equals(d.Category, nodeCategory, StringComparison.Ordinal)) continue;
+                if (isValueLevel && !string.Equals(d.Value, nodeValue, StringComparison.Ordinal)) continue;
+                descriptorPasses = true;
+                break;
+            }
+            if (!descriptorPasses) continue;
+
+            string measurementsDisplay = "";
+            if (displayNames.Count > 0)
+            {
+                if (MeasurementCache.TryGetValue(kv.Key, out var entry) && entry?.Measurements != null)
+                {
+                    var parts = new List<string>(displayNames.Count);
+                    foreach (var n in displayNames)
+                    {
+                        // Missing-value sentinel rather than skipping so the row's number of
+                        // columns stays constant — easier to scan visually.
+                        if (entry.Measurements.TryGetValue(n, out var v) && v.HasValue)
+                            parts.Add(n + "=" + v.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                        else
+                            parts.Add(n + "=—");
+                    }
+                    measurementsDisplay = string.Join("  ", parts);
+                }
+                else
+                {
+                    measurementsDisplay = "(no cached measurements for this slice)";
+                }
+            }
+
+            SelectedNodeMatchingPresets.Add(new VM_RuleNodeMatchRow(
+                kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, measurementsDisplay));
+            matches++;
+        }
+
+        if (matches == 0)
+        {
+            string scope = isValueLevel
+                ? ("'" + nodeCategory + ":" + nodeValue + "'")
+                : ("'" + nodeCategory + "'");
+            SelectedNodeMatchingStatus = "No presets in the scan cache currently match " + scope + ".";
+        }
+        else
+        {
+            SelectedNodeMatchingStatus = matches + " matching (preset, weight) slice(s).";
         }
     }
 
@@ -7141,6 +7392,7 @@ public class VM_AndGatedMeasurementGroup : VM
     public VM_AndGatedMeasurementGroup(AndGatedMeasurementGroup source, VM_MeasurementRule parent)
     {
         _parent = parent;
+        IsDisabled = source.IsDisabled;
 
         if (source.ConditionsANDlogic != null)
         {
@@ -7164,6 +7416,21 @@ public class VM_AndGatedMeasurementGroup : VM
     public RelayCommand AddCondition { get; }
     public RelayCommand DeleteCommand { get; }
 
+    /// <summary>When true the evaluator skips this OR-branch (see
+    /// <see cref="MeasurementMath.RuleMatches"/>) — equivalent to deleting it without
+    /// losing the conditions. Bound to the "Disable" checkbox on each branch in the Rules
+    /// tab; round-trips via <see cref="AndGatedMeasurementGroup.IsDisabled"/> through
+    /// <see cref="DumpToModel"/>. Fody auto-raises PropertyChanged so the scan-invalidation
+    /// subscription on the editor flips the cache stale and the debounced auto-rebuild
+    /// re-derives MatchingPresets without the disabled branch's contribution.</summary>
+    public bool IsDisabled { get; set; } = false;
+
+    /// <summary>UI helper bound to the disabled-branch greyed-out style. Inverse of
+    /// <see cref="IsDisabled"/> so the existing controls (which were authored before the
+    /// disable feature) don't have to rewrite their bindings to use a Converter. Fody
+    /// re-fires PropertyChanged automatically because the expression references IsDisabled.</summary>
+    public bool IsEnabled => !IsDisabled;
+
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
     /// <summary>Owning rule. Exposed so child conditions can navigate up to the profile
@@ -7174,6 +7441,7 @@ public class VM_AndGatedMeasurementGroup : VM
 
     public AndGatedMeasurementGroup DumpToModel() => new()
     {
+        IsDisabled = IsDisabled,
         ConditionsANDlogic = Conditions.Select(c => c.DumpToModel()).ToList(),
     };
 }
@@ -7517,5 +7785,33 @@ public class VM_RuleTreeValueNode : VM
     public int RuleCount { get; set; }
 
     public string DisplayLabel => RuleCount > 0 ? $"{Value} ({RuleCount})" : Value;
+}
+
+/// <summary>Row VM for the Rules-tab "presets matching this rule node" list. One row per
+/// (preset, gender, weight) slice whose descriptor set includes the selected tree node's
+/// (Category, Value) — or any value in the Category for category-level selection.
+/// <para><see cref="MeasurementsDisplay"/> is pre-formatted "name=value" for every
+/// measurement referenced by any rule under the selected node, pulled from the profile's
+/// measurement cache at this slice. Lets the user see at a glance which measurements
+/// pushed the row past the rule's thresholds without flipping to the Match Presets tab.</para>
+/// Clicking the row routes through <see cref="VM_BodyTypeProfileEditor.LoadRuleNodeMatchInViewerCommand"/>
+/// which sets <see cref="VM_BodyTypeProfileEditor.SelectedPreset"/>/<see cref="VM_BodyTypeProfileEditor.PreviewWeight"/>/<see cref="VM_BodyTypeProfileEditor.PreviewGender"/>
+/// so the viewer reloads the slice — same code path as the Match Presets tab.</summary>
+public class VM_RuleNodeMatchRow : VM
+{
+    public VM_RuleNodeMatchRow(string presetLabel, Gender gender, int weight, string measurementsDisplay)
+    {
+        PresetLabel = presetLabel ?? "";
+        Gender = gender;
+        Weight = weight;
+        MeasurementsDisplay = measurementsDisplay ?? "";
+    }
+
+    public string PresetLabel { get; }
+    public Gender Gender { get; }
+    public int Weight { get; }
+    public string MeasurementsDisplay { get; }
+
+    public string Display => $"{PresetLabel}  (W{Weight}, {Gender})";
 }
 

@@ -433,6 +433,14 @@ public class MeasurementCondition
 public class AndGatedMeasurementGroup
 {
     public List<MeasurementCondition> ConditionsANDlogic { get; set; } = new();
+
+    /// <summary>When true the evaluator skips this OR-branch entirely (treated as if the
+    /// group weren't present). Lets the user mute a branch during iteration without losing
+    /// the conditions — re-enabling restores the original behavior on the next evaluation.
+    /// Defaults to false so existing rules + hand-edited JSON keep firing every branch.
+    /// Round-trips through JSON via System.Text.Json so saved profiles preserve the toggle
+    /// across sessions; the VM mirror lives on <see cref="VM_AndGatedMeasurementGroup.IsDisabled"/>.</summary>
+    public bool IsDisabled { get; set; } = false;
 }
 
 /// <summary>
@@ -1545,6 +1553,10 @@ public static class MeasurementMath
         foreach (var group in rule.GroupsORlogic)
         {
             if (group?.ConditionsANDlogic == null || group.ConditionsANDlogic.Count == 0) continue;
+            // Per-branch mute: an IsDisabled group is treated as not present, so its
+            // conditions don't contribute to the OR. Lets the user toggle branches off
+            // during iteration without deleting them (see VM_AndGatedMeasurementGroup.IsDisabled).
+            if (group.IsDisabled) continue;
             bool allMatch = true;
             foreach (var cond in group.ConditionsANDlogic)
             {

@@ -759,9 +759,21 @@
                                     <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center"
                                                   VerticalAlignment="Stretch" Background="#FF333333"/>
 
-                                    <!-- Right pane: rules filtered to the current selection plus an Add Rule
-                                         button (pre-fills Descriptor from the selected node). -->
-                                    <DockPanel Grid.Column="2" Margin="6,0,0,0">
+                                    <!-- Right pane: rules filtered to the current selection (top) plus a
+                                         matching-presets list for the selected node (bottom). The bottom
+                                         list mirrors Match Presets but scoped to the rules under the
+                                         selected tree node; each row shows every measurement value
+                                         referenced by those rules so the user can see at a glance which
+                                         numbers cleared the thresholds. Click loads the slice in the
+                                         viewer via the editor's OnRuleNodeMatchProfilePropertyChanged
+                                         handler (mirrors Match Presets' SelectedMatchRow behavior). -->
+                                    <Grid Grid.Column="2" Margin="6,0,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*" MinHeight="120"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="260" MinHeight="80"/>
+                                        </Grid.RowDefinitions>
+                                    <DockPanel Grid.Row="0">
                                         <Button DockPanel.Dock="Top" Content="+ Add Rule" Command="{Binding AddRule}"
                                                 HorizontalAlignment="Left" Padding="6,2" Margin="0,5"
                                                 ToolTip="Adds a new rule pre-filled with the selected tree node's (Category, Value). Without a selection the rule starts blank."/>
@@ -810,15 +822,40 @@
                                                             <ItemsControl ItemsSource="{Binding Groups}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate DataType="{x:Type local:VM_AndGatedMeasurementGroup}">
-                                                                        <Border BorderBrush="LightGray" BorderThickness="1" Margin="10,2" Padding="4">
+                                                                        <!-- Per-branch mute: IsDisabled=true greys the border + dims its
+                                                                             children + disables the inner controls so the user can see at
+                                                                             a glance which branches are muted without losing their content.
+                                                                             The evaluator (MeasurementMath.RuleMatches) skips disabled
+                                                                             groups, and the editor's existing scan-invalidation hook fires
+                                                                             on IsDisabled toggle so MatchingPresets re-derives. -->
+                                                                        <Border Margin="10,2" Padding="4">
+                                                                            <Border.Style>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                                    <Setter Property="BorderBrush" Value="LightGray"/>
+                                                                                    <Setter Property="Opacity" Value="1.0"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                                                            <Setter Property="BorderBrush" Value="Gray"/>
+                                                                                            <Setter Property="Background" Value="#15808080"/>
+                                                                                            <Setter Property="Opacity" Value="0.55"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Border.Style>
                                                                             <StackPanel>
                                                                                 <DockPanel Margin="0,0,0,3">
-                                                                                    <TextBlock Text="AND group" FontWeight="Bold" DockPanel.Dock="Left"/>
+                                                                                    <TextBlock Text="AND group" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                                                                    <CheckBox DockPanel.Dock="Left" Content="Disable" IsChecked="{Binding IsDisabled}"
+                                                                                              Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                                              ToolTip="Skip this OR-branch during evaluation. The branch and its conditions stay in the rule so toggling back restores the original behavior; useful for short iteration cycles without re-typing conditions."/>
                                                                                     <Button DockPanel.Dock="Right" Content="X" Command="{Binding DeleteCommand}" Padding="4,0" HorizontalAlignment="Right"/>
-                                                                                    <Button DockPanel.Dock="Right" Content="+ Condition" Command="{Binding AddCondition}" Padding="4,0" Margin="0,0,5,0" HorizontalAlignment="Right"/>
+                                                                                    <Button DockPanel.Dock="Right" Content="+ Condition" Command="{Binding AddCondition}" Padding="4,0" Margin="0,0,5,0" HorizontalAlignment="Right"
+                                                                                            IsEnabled="{Binding IsEnabled}"/>
                                                                                     <TextBlock/>
                                                                                 </DockPanel>
-                                                                                <ItemsControl ItemsSource="{Binding Conditions}">
+                                                                                <ItemsControl ItemsSource="{Binding Conditions}"
+                                                                                              IsEnabled="{Binding IsEnabled}">
                                                                                     <ItemsControl.ItemTemplate>
                                                                                         <DataTemplate DataType="{x:Type local:VM_MeasurementCondition}">
                                                                                             <StackPanel Orientation="Horizontal" Margin="0,1">
@@ -877,6 +914,40 @@
                                         </ItemsControl>
                                         </ScrollViewer>
                                     </DockPanel>
+
+                                    <!-- Horizontal splitter so the user can rebalance "edit rules" vs
+                                         "see what they match" without giving up either view. -->
+                                    <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Center" Background="#FF333333"
+                                                  ResizeBehavior="PreviousAndNext" ResizeDirection="Rows"/>
+
+                                    <!-- Bottom: matching-preset list for the selected tree node. Driven
+                                         entirely by the shared scan cache (see VM_BodyTypeProfile.ScanResults
+                                         + MeasurementCache); cache staleness flips this to an empty state
+                                         with an inline reason. Clicking a row loads the slice in the viewer
+                                         (handled editor-side via PropertyChanged on SelectedNodeMatchRow). -->
+                                    <DockPanel Grid.Row="2" Margin="0,4,0,0">
+                                        <TextBlock DockPanel.Dock="Top" Text="Presets matching this rule node"
+                                                   FontWeight="Bold" Margin="0,2,0,2"/>
+                                        <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedNodeMatchingStatus}"
+                                                   FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <ListBox ItemsSource="{Binding SelectedNodeMatchingPresets}"
+                                                 SelectedItem="{Binding SelectedNodeMatchRow}"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                 HorizontalContentAlignment="Stretch"
+                                                 ToolTip="Click a row to load that (preset, weight) slice in the viewer. Arrow keys auto-preview each row, same as the Match Presets tab.">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:VM_RuleNodeMatchRow}">
+                                                    <StackPanel Margin="2">
+                                                        <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding MeasurementsDisplay}" FontFamily="Consolas"
+                                                                   FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </DockPanel>
+                                    </Grid>
                                 </Grid>
                             </TabItem>
 
