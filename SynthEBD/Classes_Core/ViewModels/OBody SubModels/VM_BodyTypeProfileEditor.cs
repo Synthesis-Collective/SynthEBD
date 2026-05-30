@@ -6618,6 +6618,11 @@ public class VM_BodyTypeProfile : VM
     /// descriptor fields, condition threshold values) that should invalidate the scan cache.</summary>
     private void OnScanInvalidatingChange(object? sender, PropertyChangedEventArgs e)
     {
+        // ValueText is a UI-only string proxy for Value; the real Value change (fired when the text
+        // parses to a number) already invalidates, so skip the proxy. This keeps half-typed input
+        // like "1." from flagging results stale before the user has finished the number.
+        if (sender is VM_MeasurementCondition && e.PropertyName == nameof(VM_MeasurementCondition.ValueText)) return;
+
         MarkScanResultsStale();
         // Piggyback ref-validity recompute on the existing per-condition subscription. The
         // sender's MeasurementName change is the only condition-side edit that affects
@@ -8203,6 +8208,7 @@ public class VM_MeasurementCondition : VM
         MeasurementName = source.MeasurementName ?? "";
         Comparator = source.Comparator;
         Value = source.Value;
+        ValueText = Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         RefCategory = source.RefCategory ?? "";
         RefValue = source.RefValue ?? "";
         Negate = source.Negate;
@@ -8223,7 +8229,48 @@ public class VM_MeasurementCondition : VM
     // --- Measurement-kind fields ---
     public string MeasurementName { get; set; }
     public MeasurementComparator Comparator { get; set; }
+
+    /// <summary>The threshold compared against the measurement. Model-facing — read by
+    /// <see cref="DumpToModel"/> and the evaluator. The UI never binds this directly; it binds
+    /// <see cref="ValueText"/> (see that property for why).</summary>
     public float Value { get; set; }
+
+    /// <summary>String proxy the Rules-tab threshold box binds to. Binding a float directly with
+    /// <c>UpdateSourceTrigger=PropertyChanged</c> drops a trailing "." — each keystroke round-trips
+    /// the text through the float, and 1.0 formats back to "1", so the decimal point can never be
+    /// typed. Routing through a string keeps the raw text (incl. a half-typed "1." or leading ".")
+    /// while still pushing every parseable value to <see cref="Value"/> live, so the matching-preset
+    /// recompute and temp-edit diff stay per-keystroke. Parsing is invariant-culture so "." is
+    /// always the decimal separator regardless of OS locale.</summary>
+    public string ValueText { get; set; } = "0";
+
+    /// <summary>Fody hook: push a parseable <see cref="ValueText"/> into <see cref="Value"/>. Partial
+    /// or invalid input ("", "-", "1.", ".") leaves Value at its last good number, so the recompute
+    /// uses the last committed value until the user finishes typing.</summary>
+    private void OnValueTextChanged()
+    {
+        if (float.TryParse(ValueText,
+                System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            && Value != parsed)
+        {
+            Value = parsed;
+        }
+    }
+
+    /// <summary>Fody hook: keep <see cref="ValueText"/> in sync when <see cref="Value"/> is set from
+    /// the model or programmatically — but don't clobber an in-progress edit whose text already
+    /// parses to the same number (e.g. "1." mid-typing of "1.5"), which would re-eat the decimal.</summary>
+    private void OnValueChanged()
+    {
+        if (!float.TryParse(ValueText,
+                System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out var cur)
+            || cur != Value)
+        {
+            ValueText = Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
 
     // --- DescriptorRef-kind fields ---
     public string RefCategory { get; set; }

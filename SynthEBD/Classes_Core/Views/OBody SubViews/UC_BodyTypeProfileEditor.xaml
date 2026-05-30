@@ -924,7 +924,7 @@
                                                                                                           ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementComparator}}}"
                                                                                                           MinWidth="140" Margin="0,0,5,0"
                                                                                                           Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
-                                                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"
+                                                                                                <TextBox Text="{Binding ValueText, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"
                                                                                                          Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
 
                                                                                                 <!-- DescriptorRef-kind row -->
