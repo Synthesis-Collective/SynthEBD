@@ -6650,10 +6650,19 @@ public class VM_BodyTypeProfile : VM
     /// descriptor fields, condition threshold values) that should invalidate the scan cache.</summary>
     private void OnScanInvalidatingChange(object? sender, PropertyChangedEventArgs e)
     {
-        // ValueText is a UI-only string proxy for Value; the real Value change (fired when the text
-        // parses to a number) already invalidates, so skip the proxy. This keeps half-typed input
-        // like "1." from flagging results stale before the user has finished the number.
-        if (sender is VM_MeasurementCondition && e.PropertyName == nameof(VM_MeasurementCondition.ValueText)) return;
+        // Skip condition properties that are pure UI state and don't change what the rule tests:
+        //  - ValueText: a string proxy for Value; the real Value change already invalidates, and
+        //    skipping it keeps half-typed input like "1." from flagging results stale early.
+        //  - ConditionReadout / ConditionConforms: the live per-condition badge, rewritten on every
+        //    preview load. Letting these invalidate would mark the scan stale (and blank + rebuild
+        //    the Rules-tab list, losing scroll/selection) every time the user previews a preset.
+        if (sender is VM_MeasurementCondition
+            && (e.PropertyName == nameof(VM_MeasurementCondition.ValueText)
+                || e.PropertyName == nameof(VM_MeasurementCondition.ConditionReadout)
+                || e.PropertyName == nameof(VM_MeasurementCondition.ConditionConforms)))
+        {
+            return;
+        }
 
         MarkScanResultsStale();
         // Piggyback ref-validity recompute on the existing per-condition subscription. The
@@ -7114,22 +7123,30 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
-        SelectedNodeMatchRow = null;
-        SelectedNodeMatchingPresets.Clear();
         RefreshRuleNodeSortOptions(FilteredRules);
 
         if (SelectedRuleTreeNode == null)
         {
+            // Genuinely nothing to show — clear any rows left from a previously-selected node.
+            ClearMatchingPresets();
             SelectedNodeMatchingStatus = "Select a node in the descriptor tree to see matching presets.";
             return;
         }
         if (ScanResultsStale)
         {
-            SelectedNodeMatchingStatus = "Scan cache is stale — open Match Presets and re-scan to refresh this list.";
+            // Don't blank the list on a transient stale flip (e.g. previewing a preset re-resolves
+            // BoundingBox key vertices, or a mid-edit before the auto-rebuild): keep the last good
+            // rows so the ListBox's scroll position and selection survive. The pending auto-rebuild
+            // reconciles them once the cache is valid; if it can't run, the rows are still accurate
+            // for the unchanged rules.
+            SelectedNodeMatchingStatus = SelectedNodeMatchingPresets.Count > 0
+                ? $"{SelectedNodeMatchingPresets.Count} matching (preset, weight) slice(s) — refreshing…"
+                : "Scan cache is stale — open Match Presets and re-scan to refresh this list.";
             return;
         }
         if (ScanResults.Count == 0)
         {
+            ClearMatchingPresets();
             SelectedNodeMatchingStatus = "No scan results cached yet. Run a scan from the Match Presets tab.";
             return;
         }
@@ -7346,13 +7363,11 @@ public class VM_BodyTypeProfile : VM
     /// stale by the edits.</summary>
     private void RefreshTempEditDiff()
     {
-        SelectedNodeMatchRow = null;
-        SelectedNodeMatchingPresets.Clear();
-
         var branch = TempEditBranch;
         var rule = branch?.ParentRule;
         if (branch == null || rule == null)
         {
+            ClearMatchingPresets();
             SelectedNodeMatchingStatus = "Temp edit preview unavailable.";
             return;
         }
@@ -7360,6 +7375,7 @@ public class VM_BodyTypeProfile : VM
         RefreshRuleNodeSortOptions(new[] { rule });
         if (MeasurementCacheStale || MeasurementCache.Count == 0)
         {
+            ClearMatchingPresets();
             SelectedNodeMatchingStatus = "Temp edit preview unavailable — measurement cache is empty or stale. "
                 + "Run a scan from the Match Presets tab.";
             return;
@@ -7491,16 +7507,22 @@ public class VM_BodyTypeProfile : VM
         _suppressRuleNodeResort = false;
     }
 
-    /// <summary>Clears and repopulates <see cref="SelectedNodeMatchingPresets"/> from
-    /// <paramref name="rows"/> in the order dictated by <see cref="SelectedRuleNodeSortOption"/>,
-    /// restoring the current row selection by (preset, gender, weight) when that slice survives.</summary>
+    /// <summary>Reconciles <see cref="SelectedNodeMatchingPresets"/> to <paramref name="rows"/>
+    /// (sorted by <see cref="SelectedRuleNodeSortOption"/>) <em>non-destructively</em>: when the new
+    /// content matches what's already displayed it leaves the collection untouched, so a refresh
+    /// triggered by something that didn't change membership (e.g. loading a preset in the viewer)
+    /// doesn't reset the ListBox's scroll position or drop its selection. Only when the content
+    /// actually differs does it rebuild, restoring the selection by (preset, gender, weight).</summary>
     private void PopulateMatchingPresets(List<VM_RuleNodeMatchRow> rows)
     {
+        var sorted = SortRuleNodeRows(rows).ToList();
+        if (MatchingPresetsContentEquals(sorted)) return;
+
         (string PresetLabel, Gender Gender, int Weight)? prevKey =
             SelectedNodeMatchRow is { } s ? (s.PresetLabel, s.Gender, s.Weight) : null;
 
         SelectedNodeMatchingPresets.Clear();
-        foreach (var r in SortRuleNodeRows(rows)) SelectedNodeMatchingPresets.Add(r);
+        foreach (var r in sorted) SelectedNodeMatchingPresets.Add(r);
 
         if (prevKey.HasValue)
         {
@@ -7509,6 +7531,35 @@ public class VM_BodyTypeProfile : VM
                 && r.Gender == prevKey.Value.Gender
                 && r.Weight == prevKey.Value.Weight);
         }
+    }
+
+    /// <summary>True when <paramref name="candidate"/> (already sorted) has the same rows in the same
+    /// order as the currently-displayed <see cref="SelectedNodeMatchingPresets"/>, comparing the
+    /// fields that drive the row's display (slice identity, diff state, measurement readout). Lets
+    /// <see cref="PopulateMatchingPresets"/> skip a no-op rebuild.</summary>
+    private bool MatchingPresetsContentEquals(List<VM_RuleNodeMatchRow> candidate)
+    {
+        if (candidate.Count != SelectedNodeMatchingPresets.Count) return false;
+        for (int i = 0; i < candidate.Count; i++)
+        {
+            var cur = SelectedNodeMatchingPresets[i];
+            var nxt = candidate[i];
+            if (cur.Weight != nxt.Weight) return false;
+            if (cur.Gender != nxt.Gender) return false;
+            if (cur.DiffState != nxt.DiffState) return false;
+            if (!string.Equals(cur.PresetLabel, nxt.PresetLabel, StringComparison.Ordinal)) return false;
+            if (!string.Equals(cur.MeasurementsDisplay, nxt.MeasurementsDisplay, StringComparison.Ordinal)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Empties the matching-preset list and its selection — used only when there is
+    /// genuinely nothing to show (no node selected, no scan cache), never on a transient refresh.</summary>
+    private void ClearMatchingPresets()
+    {
+        if (SelectedNodeMatchingPresets.Count == 0 && SelectedNodeMatchRow == null) return;
+        SelectedNodeMatchRow = null;
+        SelectedNodeMatchingPresets.Clear();
     }
 
     /// <summary>Orders matching-preset rows for display. <see cref="RuleNodeSortByName"/> keeps the
