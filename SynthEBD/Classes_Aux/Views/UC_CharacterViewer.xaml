@@ -259,7 +259,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Vertical">
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel Orientation="Horizontal">
                         <TextBlock Text="Last pick:" Foreground="#FFAAAAAA" FontSize="11"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <TextBlock Text="{Binding LastPickSummary}"
@@ -269,7 +269,7 @@
                                    Foreground="#FF666666" FontSize="11" FontStyle="Italic"
                                    VerticalAlignment="Center"
                                    Visibility="{Binding Picks.Count, Converter={StaticResource IntEqVis}, ConverterParameter=0}"/>
-                    </StackPanel>
+                    </WrapPanel>
 
                     <ListBox x:Name="PicksList"
                              ItemsSource="{Binding Picks}"
@@ -338,7 +338,7 @@
                 Padding="8 5"
                 Visibility="{Binding HasPendingBox, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Vertical">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,5">
                     <TextBlock Text="Pending Box:" Foreground="#FFFFCC40" FontSize="11" FontWeight="Bold"
                                VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding PendingBoxShapeName}" Foreground="#FFDDDDDD" FontSize="11"
@@ -391,7 +391,7 @@
                               SelectedItem="{Binding PendingBoxSymmetry}"
                               FontSize="11" MinWidth="90" VerticalAlignment="Center"
                               ToolTip="Lock one or more axes so editing min/max on that axis auto-mirrors the opposite side about 0."/>
-                </StackPanel>
+                </WrapPanel>
 
                 <WrapPanel Orientation="Horizontal">
                     <TextBlock Text="X (L-R):" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"
@@ -428,25 +428,25 @@
                                        FormatString="F1" Increment="0.5" Width="62"/>
                 </WrapPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <WrapPanel Orientation="Horizontal" Margin="0,6,0,0">
                     <Button Content="Shrink to Camera Half"
                             Command="{Binding ShrinkAlongViewAxisCommand}"
-                            FontSize="11" Padding="8 2"
+                            FontSize="11" Padding="8 2" Margin="0,0,0,2"
                             ToolTip="Halve the pending box along whichever mesh-local axis most aligns with the camera view, keeping the half nearest the camera. Repeat-click to shrink further. Use to exclude an overhanging belly from a hip box, etc."/>
                     <Button Content="Confirm"
                             Command="{Binding ConfirmPendingBoxCommand}"
-                            FontSize="11" FontWeight="Bold" Padding="14 2" Margin="12,0,0,0"
+                            FontSize="11" FontWeight="Bold" Padding="14 2" Margin="12,0,0,2"
                             Background="#FF2E7D32" Foreground="White"/>
                     <Button Content="Confirm as Duplicate"
                             Command="{Binding ConfirmPendingBoxAsDuplicateCommand}"
-                            FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,0"
+                            FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF1565C0" Foreground="White"
                             ToolTip="Fire the pick now but keep this box on screen so you can change the Criterion and confirm again. Use to capture multiple measurements (e.g. MaxX and BulgePairMinX) from one drawn box."/>
                     <Button Content="Cancel"
                             Command="{Binding CancelPendingBoxCommand}"
-                            FontSize="11" Padding="10 2" Margin="6,0,0,0"
+                            FontSize="11" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF8B2525" Foreground="White"/>
-                </StackPanel>
+                </WrapPanel>
             </StackPanel>
         </Border>
 
