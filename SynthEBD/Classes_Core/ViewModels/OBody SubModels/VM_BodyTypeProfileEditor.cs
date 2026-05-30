@@ -79,6 +79,13 @@ public class VM_BodyTypeProfileEditor : VM
         _paths = paths;
         _bodyTypeDetector = bodyTypeDetector;
 
+        // Flush any cache that was renamed in-memory but never re-scanned, so a
+        // rename-then-close-without-scan survives. Fires on app exit alongside the settings
+        // auto-save (this VM is a DI singleton, so the handler is wired once). Guarded for hosts
+        // with no WPF Application (unit tests / headless Synthesis runs).
+        if (System.Windows.Application.Current != null)
+            System.Windows.Application.Current.Exit += OnApplicationExit;
+
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
         CharacterViewer.ShowClassifierControls = true;
@@ -1872,7 +1879,11 @@ public class VM_BodyTypeProfileEditor : VM
     /// fingerprints into the saved snapshot, so the next session's
     /// <see cref="HydrateMeasurementCacheFromDisk"/> validates against the state we knew was
     /// good at save time.</para></summary>
-    private void PersistMeasurementCacheToDisk(VM_BodyTypeProfile profile)
+    /// <param name="overrideBodyMeshHash">When non-empty, used as the snapshot's body-mesh hash
+    /// instead of recomputing it from the live viewer. The close-time flush passes the profile's
+    /// stored <see cref="VM_BodyTypeProfile.LoadedBodyMeshHash"/> so it can persist without a viewer
+    /// (and without stamping an empty hash that would make the next session drop the cache).</param>
+    private void PersistMeasurementCacheToDisk(VM_BodyTypeProfile profile, string? overrideBodyMeshHash = null)
     {
         if (profile == null) return;
         if (string.IsNullOrEmpty(profile.Id)) return;
@@ -1912,8 +1923,9 @@ public class VM_BodyTypeProfileEditor : VM
         var currentFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
             profileModel.Measurements, profileModel.KeyVertices);
 
-        var bodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(
-            CharacterViewer?.GetCurrentShapeVertexCounts());
+        var bodyMeshHash = !string.IsNullOrEmpty(overrideBodyMeshHash)
+            ? overrideBodyMeshHash!
+            : MeasurementCacheStore.ComputeBodyMeshHash(CharacterViewer?.GetCurrentShapeVertexCounts());
 
         var snapshot = new MeshSnapshot
         {
@@ -1954,6 +1966,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         if (MeasurementCacheStore.Save(data, path, _logger != null ? _logger.LogMessage : null))
         {
+            profile.MeasurementCacheDirty = false;
             _logger?.LogMessage(
                 $"MeasurementCache: saved {snapshot.Entries.Count} entries for profile '{profile.Name}' "
                 + $"(shape '{shapeName}') to {path}");
@@ -1974,6 +1987,38 @@ public class VM_BodyTypeProfileEditor : VM
                 {
                     _logger?.LogMessage($"MeasurementCache: could not delete legacy file '{legacyPath}': {ex.Message}. Safe to delete manually.");
                 }
+            }
+        }
+    }
+
+    private void OnApplicationExit(object sender, System.Windows.ExitEventArgs e) => FlushDirtyMeasurementCaches();
+
+    /// <summary>Writes every profile whose in-memory cache is dirty — i.e. mutated by a rename that
+    /// no scan re-persisted (see <see cref="VM_BodyTypeProfile.MeasurementCacheDirty"/>) — to disk.
+    /// Persists with the profile's stored body-mesh hash so it's safe with no live viewer; a profile
+    /// with no stored hash is skipped (persisting an empty hash would make the next session drop the
+    /// cache). Invoked on application exit so a rename-then-close-without-scan isn't lost.</summary>
+    internal void FlushDirtyMeasurementCaches()
+    {
+        foreach (var profile in Profiles)
+        {
+            if (profile == null) continue;
+            if (!profile.MeasurementCacheDirty) continue;
+            if (profile.MeasurementCache.Count == 0) { profile.MeasurementCacheDirty = false; continue; }
+            if (string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: skipped close-time flush for '{profile.Name}' — no stored "
+                    + "body-mesh hash to persist under (rename not saved; re-scan to persist it).");
+                continue;
+            }
+            try
+            {
+                PersistMeasurementCacheToDisk(profile, profile.LoadedBodyMeshHash);
+            }
+            catch (System.Exception ex)
+            {
+                _logger?.LogMessage($"MeasurementCache: close-time flush failed for '{profile.Name}': {ex.Message}");
             }
         }
     }
@@ -2757,6 +2802,24 @@ public class VM_BodyTypeProfileEditor : VM
             profile.RefreshSelectedNodeMatchingPresets();
         }
         ScheduleAutoRebuildScanResults(profile);
+    }
+
+    /// <summary>Log passthrough for <see cref="VM_BodyTypeProfile.RenameMeasurementInCache"/> so the
+    /// rename-without-recompute is visible in the activity log alongside the other cache events.</summary>
+    internal void LogMeasurementCacheRename(string oldName, string newName, int movedEntries)
+    {
+        _logger?.LogMessage(
+            $"MeasurementCache: renamed '{oldName}' → '{newName}' across {movedEntries} cached "
+            + $"entr{(movedEntries == 1 ? "y" : "ies")}; values reused, no recompute needed "
+            + "(persists to disk on the next scan/cache save).");
+    }
+
+    /// <summary>Log passthrough for <see cref="VM_BodyTypeProfile.RenameMeasurementInRules"/>.</summary>
+    internal void LogMeasurementRuleRename(string oldName, string newName, int conditions)
+    {
+        _logger?.LogMessage(
+            $"Rules: repointed {conditions} condition{(conditions == 1 ? "" : "s")} from measurement "
+            + $"'{oldName}' to '{newName}' after the rename.");
     }
 
     /// <summary>Debounce timer driving the auto-rebuild on rule edits. A burst of edits
@@ -3788,6 +3851,93 @@ public class VM_BodyTypeProfile : VM
     /// scan / zero matches). Fody re-fires on assignment so the XAML TextBlock updates in
     /// place without an extra Converter.</summary>
     public string SelectedNodeMatchingStatus { get; set; } = "";
+
+    /// <summary>Sentinel option for the matching-presets sort dropdown that selects the default
+    /// (Gender, Preset, Weight) ordering. Kept as a constant so the VM and the "is this the name
+    /// sort?" check can't drift.</summary>
+    public const string RuleNodeSortByName = "Name";
+
+    /// <summary>Options for the matching-presets list sort dropdown (Rules tab). Always starts
+    /// with <see cref="RuleNodeSortByName"/>, followed by every available measurement name —
+    /// the ones referenced by any rule under the displayed node listed first (so the metrics the
+    /// rule actually keys on are easiest to reach), then the remaining measurements. Rebuilt by
+    /// <see cref="RefreshRuleNodeSortOptions"/> on every list refresh.</summary>
+    public ObservableCollection<string> RuleNodeSortOptions { get; } = new() { RuleNodeSortByName };
+
+    /// <summary>Selected sort for <see cref="SelectedNodeMatchingPresets"/>. <see cref="RuleNodeSortByName"/>
+    /// (default) keeps the (Gender, Preset, Weight) order; any other value is a measurement name,
+    /// sorting rows by that measurement's cached value descending (slices missing the value sink to
+    /// the bottom). Fody calls <see cref="OnSelectedRuleNodeSortOptionChanged"/> on change.</summary>
+    public string SelectedRuleNodeSortOption { get; set; } = RuleNodeSortByName;
+
+    /// <summary>Set while <see cref="RefreshRuleNodeSortOptions"/> repairs an invalid selection,
+    /// so the resulting <see cref="SelectedRuleNodeSortOption"/> write doesn't trigger a resort of
+    /// the not-yet-populated list (the caller populates with the correct sort itself).</summary>
+    private bool _suppressRuleNodeResort;
+
+    /// <summary>Fody-invoked reaction to a sort-dropdown change: re-orders the already-built rows
+    /// in place (no match recomputation needed).</summary>
+    private void OnSelectedRuleNodeSortOptionChanged()
+    {
+        if (_suppressRuleNodeResort) return;
+        ResortMatchingPresets();
+    }
+
+    /// <summary>"Show Measurements" toggle for the Rules tab, mirroring the Match Presets one. When
+    /// on, every measurement referenced by the rule(s) currently in view (the rules under the
+    /// selected tree node, or the rule being temp-edited) is drawn in the viewer's measurement-line
+    /// overlay. Unchecking restores the Measurements-grid fallback. Refreshed by this toggle and by
+    /// every matching-presets refresh (node change / live edit) while it's on.</summary>
+    public bool ShowRuleNodeMeasurements { get; set; }
+
+    /// <summary>Fody-invoked reaction to the Show Measurements toggle.</summary>
+    private void OnShowRuleNodeMeasurementsChanged() => RefreshRuleNodeMeasurementOverlay();
+
+    /// <summary>Pushes the in-view rules' referenced measurements into the viewer overlay when
+    /// <see cref="ShowRuleNodeMeasurements"/> is on; clears it (Measurements-grid fallback)
+    /// otherwise. Scope is the temp-edited rule during a session, else <see cref="FilteredRules"/>.
+    /// Name→definition mapping is first-row-wins, matching the runtime evaluator and the Match
+    /// Presets overlay; referenced names with no surviving definition are silently skipped.</summary>
+    private void RefreshRuleNodeMeasurementOverlay()
+    {
+        if (!ShowRuleNodeMeasurements)
+        {
+            UpdateSelectedMeasurements(Array.Empty<VM_MeasurementDefinition>());
+            return;
+        }
+
+        IEnumerable<VM_MeasurementRule> relevant =
+            TempEditBranch?.ParentRule is { } tempRule ? new[] { tempRule } : FilteredRules;
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in relevant)
+        {
+            if (rule?.Groups == null) continue;
+            foreach (var g in rule.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
+                    if (string.IsNullOrEmpty(c.MeasurementName)) continue;
+                    names.Add(c.MeasurementName);
+                }
+            }
+        }
+
+        var byName = new Dictionary<string, VM_MeasurementDefinition>(StringComparer.Ordinal);
+        foreach (var def in Measurements)
+        {
+            if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+            if (!byName.ContainsKey(def.Name)) byName[def.Name] = def;
+        }
+
+        var picked = new List<VM_MeasurementDefinition>();
+        foreach (var n in names)
+            if (byName.TryGetValue(n, out var d)) picked.Add(d);
+
+        UpdateSelectedMeasurements(picked);
+    }
 
     /// <summary>Inline-form input for "Add new Category" — bound to the Category TextBox below
     /// the tree. AddDescriptorCommand reads this together with <see cref="NewValueInput"/> and
@@ -6554,6 +6704,15 @@ public class VM_BodyTypeProfile : VM
     /// stale measurements means stale derived descriptors.</summary>
     public bool MeasurementCacheStale { get; set; } = true;
 
+    /// <summary>True when the in-memory cache has been mutated since it was last written to disk in
+    /// a way a scan won't re-persist on its own — specifically a measurement rename
+    /// (<see cref="RenameMeasurementInCache"/>), which reuses cached values under a new key without
+    /// touching disk. Scans persist at completion and clear this; the close-time flush
+    /// (<see cref="VM_BodyTypeProfileEditor.FlushDirtyMeasurementCaches"/>) writes any profile still
+    /// flagged so a rename-then-close-without-scan isn't lost. Cleared by
+    /// <see cref="VM_BodyTypeProfileEditor.PersistMeasurementCacheToDisk"/> on a successful save.</summary>
+    public bool MeasurementCacheDirty { get; set; }
+
     /// <summary>SHA256 of the body mesh's topology (per-shape vertex counts) at the moment
     /// the in-memory cache was last hydrated from disk (or last scanned). Compared against
     /// the viewer's current mesh hash at scan start: a mismatch means the loaded mesh is
@@ -6618,6 +6777,13 @@ public class VM_BodyTypeProfile : VM
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
+        // A measurement's value depends on its geometry (Kind/Axis/VertexRefs/KVs), never its name,
+        // so renaming one doesn't make the numbers stale — the cache key is migrated in place by
+        // VM_BodyTypeProfile.RenameMeasurementInCache. Skipping the stale flag here also keeps the
+        // auto-rebuild unblocked (it bails on MeasurementCacheStale), so the "results stale" badge
+        // doesn't get stuck after a rename. Guarded to measurement rows: a *key vertex* rename does
+        // change which landmark a measurement resolves to, so that must still invalidate.
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.Name) && sender is VM_MeasurementDefinition) return;
         MarkMeasurementCacheStale();
     }
 
@@ -6628,6 +6794,100 @@ public class VM_BodyTypeProfile : VM
     {
         MeasurementCacheStale = true;
         MarkScanResultsStale();
+    }
+
+    /// <summary>Migrates cached measurement values when a measurement is renamed, so a pure rename
+    /// does not force the next scan to recompute the value. A measurement's number is a function of
+    /// its geometry (Kind, Axis, VertexRefs, and the referenced key vertices) — never its name — so
+    /// every cached entry's value under <paramref name="oldName"/> is exactly the value it would
+    /// have under <paramref name="newName"/>. For each cached entry we move the value to the new
+    /// key and restamp its per-measurement fingerprint to the renamed definition's fingerprint, so
+    /// the scan-start granular-validation pass (which keys by name + fingerprint) keeps it instead
+    /// of dropping it as "no tracked fingerprint" and recomputing.
+    /// <para>No-ops on the load-time name set (empty <paramref name="oldName"/>), a no-op rename,
+    /// or an empty cache. The renamed values persist to disk on the next scan/cache save (the
+    /// established persist point), which re-stamps them with the current fingerprint set.</para></summary>
+    public void RenameMeasurementInCache(string? oldName, string? newName, VM_MeasurementDefinition definition)
+    {
+        var oldKey = oldName?.Trim() ?? "";
+        var newKey = newName?.Trim() ?? "";
+        if (definition == null) return;
+        if (oldKey.Length == 0 || newKey.Length == 0) return;
+        if (string.Equals(oldKey, newKey, StringComparison.Ordinal)) return;
+        if (MeasurementCache.Count == 0) return;
+
+        // The reused value is valid under the renamed definition, so stamp it with that
+        // definition's fingerprint (same hash the next scan computes for the new name).
+        var kvMap = new Dictionary<string, NamedKeyVertex>(StringComparer.Ordinal);
+        foreach (var kvVm in KeyVertices)
+        {
+            if (kvVm == null) continue;
+            var model = kvVm.DumpToModel();
+            var n = model.Name?.Trim() ?? "";
+            if (n.Length == 0) continue;
+            if (!kvMap.ContainsKey(n)) kvMap[n] = model; // first-row-wins, matching the evaluator
+        }
+        string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap);
+
+        int moved = 0;
+        foreach (var entry in MeasurementCache.Values)
+        {
+            if (entry?.Measurements == null) continue;
+            if (!entry.Measurements.TryGetValue(oldKey, out var value)) continue;
+
+            // Don't clobber a genuinely different measurement that already owns the new name
+            // (duplicate names resolve first-row-wins) — keep the incumbent, just drop the orphan.
+            if (!entry.Measurements.ContainsKey(newKey))
+            {
+                entry.Measurements[newKey] = value;
+                entry.MeasurementFingerprints[newKey] = newFp;
+                moved++;
+            }
+            entry.Measurements.Remove(oldKey);
+            entry.MeasurementFingerprints.Remove(oldKey);
+        }
+
+        if (moved > 0)
+        {
+            // The in-memory cache now diverges from disk; flag it so the close-time flush writes
+            // it even if the user never runs another scan this session.
+            MeasurementCacheDirty = true;
+            _parent?.LogMeasurementCacheRename(oldKey, newKey, moved);
+        }
+    }
+
+    /// <summary>Cascades a measurement rename into the rules: every Measurement-kind condition that
+    /// referenced <paramref name="oldName"/> is repointed at <paramref name="newName"/> so the rule
+    /// keeps matching the (now renamed) measurement instead of silently referencing a name that no
+    /// longer exists. Comparison is trimmed-ordinal to match the evaluator's name resolution; the
+    /// condition is rewritten to the trimmed new name. Setting each condition's name flows through
+    /// the normal scan-invalidation + ref-validity hooks, so the matching-presets list and the
+    /// red "unknown measurement" highlight refresh on their own.</summary>
+    public void RenameMeasurementInRules(string? oldName, string? newName)
+    {
+        var oldKey = oldName?.Trim() ?? "";
+        var newKey = newName?.Trim() ?? "";
+        if (oldKey.Length == 0 || newKey.Length == 0) return;
+        if (string.Equals(oldKey, newKey, StringComparison.Ordinal)) return;
+
+        int updated = 0;
+        foreach (var rule in Rules)
+        {
+            if (rule?.Groups == null) continue;
+            foreach (var g in rule.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
+                    if (!string.Equals((c.MeasurementName ?? "").Trim(), oldKey, StringComparison.Ordinal)) continue;
+                    c.MeasurementName = newKey;
+                    updated++;
+                }
+            }
+        }
+
+        if (updated > 0) _parent?.LogMeasurementRuleRename(oldKey, newKey, updated);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -6804,8 +7064,22 @@ public class VM_BodyTypeProfile : VM
     /// the user notices the gap).</para></summary>
     public void RefreshSelectedNodeMatchingPresets()
     {
+        // Keep the measurement-line overlay in step with the in-view rules while the toggle is on
+        // (node changes, live condition edits). When off we leave the overlay alone — the toggle's
+        // own handler does the one-shot clear so we don't churn the highlight every keystroke.
+        if (ShowRuleNodeMeasurements) RefreshRuleNodeMeasurementOverlay();
+
+        // A temp-edit session takes over this list to show the green/red conform-diff for the
+        // branch's parent rule, independent of the selected tree node / scan-cache freshness.
+        if (TempEditBranch != null)
+        {
+            RefreshTempEditDiff();
+            return;
+        }
+
         SelectedNodeMatchRow = null;
         SelectedNodeMatchingPresets.Clear();
+        RefreshRuleNodeSortOptions(FilteredRules);
 
         if (SelectedRuleTreeNode == null)
         {
@@ -6861,7 +7135,9 @@ public class VM_BodyTypeProfile : VM
         }
 
         // Walk scan results in the same (Gender, Preset, Weight) order Match Presets uses so
-        // the two lists feel consistent to navigate.
+        // the two lists feel consistent to navigate. Rows are staged in a list and handed to
+        // PopulateMatchingPresets, which applies the user's chosen sort before display.
+        var rows = new List<VM_RuleNodeMatchRow>();
         int matches = 0;
         foreach (var kv in ScanResults
                      .OrderBy(p => p.Key.Gender)
@@ -6904,10 +7180,12 @@ public class VM_BodyTypeProfile : VM
                 }
             }
 
-            SelectedNodeMatchingPresets.Add(new VM_RuleNodeMatchRow(
+            rows.Add(new VM_RuleNodeMatchRow(
                 kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, measurementsDisplay));
             matches++;
         }
+
+        PopulateMatchingPresets(rows);
 
         if (matches == 0)
         {
@@ -6920,6 +7198,327 @@ public class VM_BodyTypeProfile : VM
         {
             SelectedNodeMatchingStatus = matches + " matching (preset, weight) slice(s).";
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  Per-branch "Temp Edits" session. While active, the matching-presets list shows
+    //  the conform-diff for TempEditBranch's parent rule: rows that newly conform are
+    //  prefixed "+ " (green), rows that no longer conform "- " (red), unchanged rows
+    //  plain. The baseline is captured when the session begins; the live set is
+    //  recomputed from the in-memory MeasurementCache on every condition edit (the same
+    //  scan-invalidation signal that drives the auto-rebuild also re-runs
+    //  RefreshSelectedNodeMatchingPresets, which dispatches here while a session is open).
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>The branch currently in temp-edit mode, or null when no session is open.
+    /// Set only by <see cref="BeginTempEdit"/> / <see cref="SaveTempEdit"/> / <see cref="DiscardTempEdit"/>.</summary>
+    public VM_AndGatedMeasurementGroup? TempEditBranch { get; private set; }
+
+    /// <summary>Branch model captured at session start so Discard can revert the live edits.</summary>
+    private AndGatedMeasurementGroup? _tempEditBranchSnapshot;
+
+    /// <summary>Set of slices the parent rule conformed to at session start — the diff baseline.</summary>
+    private HashSet<(string PresetLabel, Gender Gender, int Weight)>? _tempEditOriginalMatches;
+
+    /// <summary>Starts a temp-edit session on <paramref name="branch"/>: snapshots the branch's
+    /// conditions (for Discard) and the parent rule's current conforming-slice set (the diff
+    /// baseline), then flips the matching-presets list into diff mode. Any session already open on
+    /// a different branch is discarded first — only one branch is in temp-edit mode at a time.</summary>
+    public void BeginTempEdit(VM_AndGatedMeasurementGroup branch)
+    {
+        if (branch == null) return;
+        if (TempEditBranch != null && !ReferenceEquals(TempEditBranch, branch))
+            DiscardTempEdit(TempEditBranch);
+
+        var ruleModel = branch.ParentRule?.DumpToModel();
+        var profileModel = DumpToModel();
+        _tempEditOriginalMatches = ComputeRuleMatchSet(ruleModel, profileModel);
+        _tempEditBranchSnapshot = branch.DumpToModel();
+
+        TempEditBranch = branch;
+        branch.IsTempEditing = true;
+        RefreshSelectedNodeMatchingPresets();
+    }
+
+    /// <summary>Ends the session, keeping the live edits. The edits were already applied to the VM
+    /// as the user typed (and have flipped the scan cache stale via the normal hooks), so Save just
+    /// tears down the session and returns the list to its normal node-scoped view.</summary>
+    public void SaveTempEdit(VM_AndGatedMeasurementGroup branch)
+    {
+        if (branch == null || !ReferenceEquals(TempEditBranch, branch)) return;
+        EndTempEditSession(branch);
+    }
+
+    /// <summary>Ends the session, reverting the branch's conditions to the start-of-session
+    /// snapshot.</summary>
+    public void DiscardTempEdit(VM_AndGatedMeasurementGroup branch)
+    {
+        if (branch == null || !ReferenceEquals(TempEditBranch, branch)) return;
+        var snapshot = _tempEditBranchSnapshot;
+        // Tear the session down first so the intermediate RefreshSelectedNodeMatchingPresets calls
+        // fired by RestoreFrom's CollectionChanged hooks render the normal list, not a diff against
+        // a baseline we're about to discard.
+        EndTempEditSession(branch);
+        if (snapshot != null) branch.RestoreFrom(snapshot);
+    }
+
+    private void EndTempEditSession(VM_AndGatedMeasurementGroup branch)
+    {
+        branch.IsTempEditing = false;
+        TempEditBranch = null;
+        _tempEditBranchSnapshot = null;
+        _tempEditOriginalMatches = null;
+        RefreshSelectedNodeMatchingPresets();
+    }
+
+    /// <summary>Set of (preset, gender, weight) slices in the measurement cache for which
+    /// <paramref name="ruleModel"/> matches. Honors the rule's gender filter and supplies each
+    /// slice's full derived-descriptor set as the matched-descriptor context, so DescriptorRef
+    /// (aggregator) conditions resolve. <paramref name="profileModel"/> reflects the live edits,
+    /// so the result tracks whatever the user has typed.</summary>
+    private HashSet<(string PresetLabel, Gender Gender, int Weight)> ComputeRuleMatchSet(
+        MeasurementRule? ruleModel, BodyTypeProfile profileModel)
+    {
+        var set = new HashSet<(string, Gender, int)>();
+        if (ruleModel == null) return set;
+        foreach (var kv in MeasurementCache)
+        {
+            var entry = kv.Value;
+            if (entry?.Measurements == null) continue;
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(ruleModel.Gender, kv.Key.Gender)) continue;
+
+            var floats = new Dictionary<string, float>(entry.Measurements.Count, StringComparer.Ordinal);
+            foreach (var m in entry.Measurements)
+                if (m.Value.HasValue) floats[m.Key] = m.Value.Value;
+
+            var derived = DeriveDescriptorsFor(kv.Key, profileModel, includeDrafts: true);
+            var matched = new HashSet<(string Category, string Value)>();
+            foreach (var d in derived)
+                if (d != null) matched.Add((d.Category, d.Value));
+
+            if (MeasurementMath.RuleMatches(ruleModel, floats, matched)) set.Add(kv.Key);
+        }
+        return set;
+    }
+
+    /// <summary>Rebuilds the matching-presets list as a conform-diff for the active temp-edit
+    /// branch's parent rule. Computes the current conforming set from the live (edited) rule and
+    /// diffs it against <see cref="_tempEditOriginalMatches"/>: union of both, each row tagged
+    /// Added / Removed / Unchanged. Drives off the in-memory <see cref="MeasurementCache"/>
+    /// directly (not <see cref="ScanResults"/>), so it stays live while the scan cache is flagged
+    /// stale by the edits.</summary>
+    private void RefreshTempEditDiff()
+    {
+        SelectedNodeMatchRow = null;
+        SelectedNodeMatchingPresets.Clear();
+
+        var branch = TempEditBranch;
+        var rule = branch?.ParentRule;
+        if (branch == null || rule == null)
+        {
+            SelectedNodeMatchingStatus = "Temp edit preview unavailable.";
+            return;
+        }
+        // Sort dropdown scoped to the rule being temp-edited: its referenced metrics list first.
+        RefreshRuleNodeSortOptions(new[] { rule });
+        if (MeasurementCacheStale || MeasurementCache.Count == 0)
+        {
+            SelectedNodeMatchingStatus = "Temp edit preview unavailable — measurement cache is empty or stale. "
+                + "Run a scan from the Match Presets tab.";
+            return;
+        }
+
+        var ruleModel = rule.DumpToModel();
+        var profileModel = DumpToModel();
+        var current = ComputeRuleMatchSet(ruleModel, profileModel);
+        var original = _tempEditOriginalMatches ?? new HashSet<(string, Gender, int)>();
+
+        // Measurement columns to display per row: union of every Measurement-kind condition name
+        // across the rule's branches (same idea as the node-scoped list, scoped to this rule).
+        var displayNames = new List<string>();
+        var displayNameSet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var g in rule.Groups)
+        {
+            if (g?.Conditions == null) continue;
+            foreach (var c in g.Conditions)
+            {
+                if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
+                if (string.IsNullOrEmpty(c.MeasurementName)) continue;
+                if (displayNameSet.Add(c.MeasurementName)) displayNames.Add(c.MeasurementName);
+            }
+        }
+
+        var union = new HashSet<(string PresetLabel, Gender Gender, int Weight)>(current);
+        union.UnionWith(original);
+
+        var rows = new List<VM_RuleNodeMatchRow>();
+        int added = 0, removed = 0;
+        foreach (var key in union
+                     .OrderBy(k => k.Gender)
+                     .ThenBy(k => k.PresetLabel, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(k => k.Weight))
+        {
+            bool inCurrent = current.Contains(key);
+            bool inOriginal = original.Contains(key);
+            RuleMatchDiffState state;
+            if (inCurrent && !inOriginal) { state = RuleMatchDiffState.Added; added++; }
+            else if (!inCurrent && inOriginal) { state = RuleMatchDiffState.Removed; removed++; }
+            else state = RuleMatchDiffState.Unchanged;
+
+            string measurementsDisplay = "";
+            if (displayNames.Count > 0)
+            {
+                if (MeasurementCache.TryGetValue(key, out var entry) && entry?.Measurements != null)
+                {
+                    var parts = new List<string>(displayNames.Count);
+                    foreach (var n in displayNames)
+                    {
+                        if (entry.Measurements.TryGetValue(n, out var v) && v.HasValue)
+                            parts.Add(n + "=" + v.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                        else
+                            parts.Add(n + "=—");
+                    }
+                    measurementsDisplay = string.Join("  ", parts);
+                }
+                else
+                {
+                    measurementsDisplay = "(no cached measurements for this slice)";
+                }
+            }
+
+            rows.Add(new VM_RuleNodeMatchRow(
+                key.PresetLabel, key.Gender, key.Weight, measurementsDisplay, state));
+        }
+
+        PopulateMatchingPresets(rows);
+
+        string scope = "'" + (rule.DescriptorCategory ?? "") + ":" + (rule.DescriptorValue ?? "") + "'";
+        SelectedNodeMatchingStatus = $"Temp edit preview for rule {scope}: {current.Count} conforming "
+            + $"(+{added} new, -{removed} dropped).";
+    }
+
+    /// <summary>Rebuilds <see cref="RuleNodeSortOptions"/> for the sort dropdown: "Name" first,
+    /// then every available measurement, with the metrics referenced (Measurement-kind conditions)
+    /// by <paramref name="relevantRules"/> hoisted ahead of the rest so the rule's own metrics are
+    /// easiest to reach. Only rewrites the collection when the option set actually changed, so a
+    /// per-keystroke refresh doesn't keep collapsing an open dropdown. Repairs an invalid selection
+    /// back to "Name" silently (the caller re-populates with the correct sort).</summary>
+    private void RefreshRuleNodeSortOptions(IEnumerable<VM_MeasurementRule>? relevantRules)
+    {
+        var referenced = new List<string>();
+        var referencedSet = new HashSet<string>(StringComparer.Ordinal);
+        if (relevantRules != null)
+        {
+            foreach (var rule in relevantRules)
+            {
+                if (rule?.Groups == null) continue;
+                foreach (var g in rule.Groups)
+                {
+                    if (g?.Conditions == null) continue;
+                    foreach (var c in g.Conditions)
+                    {
+                        if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
+                        if (string.IsNullOrEmpty(c.MeasurementName)) continue;
+                        if (referencedSet.Add(c.MeasurementName)) referenced.Add(c.MeasurementName);
+                    }
+                }
+            }
+        }
+        referenced.Sort(StringComparer.OrdinalIgnoreCase);
+
+        var others = Measurements
+            .Select(m => m?.Name)
+            .Where(n => !string.IsNullOrEmpty(n) && !referencedSet.Contains(n!))
+            .Select(n => n!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var options = new List<string>(referenced.Count + others.Count + 1) { RuleNodeSortByName };
+        options.AddRange(referenced);
+        options.AddRange(others);
+
+        if (options.SequenceEqual(RuleNodeSortOptions, StringComparer.Ordinal)) return;
+
+        // Preserve the chosen sort across the rebuild: clearing the bound collection transiently
+        // nulls the ComboBox selection, which would otherwise silently drop a metric sort back to
+        // Name. Suppress the resort hook while we swap the list and re-apply the selection (the
+        // caller re-populates the rows with the correct sort itself).
+        var previousSelection = SelectedRuleNodeSortOption;
+        _suppressRuleNodeResort = true;
+        RuleNodeSortOptions.Clear();
+        foreach (var o in options) RuleNodeSortOptions.Add(o);
+        SelectedRuleNodeSortOption = options.Contains(previousSelection, StringComparer.Ordinal)
+            ? previousSelection
+            : RuleNodeSortByName;
+        _suppressRuleNodeResort = false;
+    }
+
+    /// <summary>Clears and repopulates <see cref="SelectedNodeMatchingPresets"/> from
+    /// <paramref name="rows"/> in the order dictated by <see cref="SelectedRuleNodeSortOption"/>,
+    /// restoring the current row selection by (preset, gender, weight) when that slice survives.</summary>
+    private void PopulateMatchingPresets(List<VM_RuleNodeMatchRow> rows)
+    {
+        (string PresetLabel, Gender Gender, int Weight)? prevKey =
+            SelectedNodeMatchRow is { } s ? (s.PresetLabel, s.Gender, s.Weight) : null;
+
+        SelectedNodeMatchingPresets.Clear();
+        foreach (var r in SortRuleNodeRows(rows)) SelectedNodeMatchingPresets.Add(r);
+
+        if (prevKey.HasValue)
+        {
+            SelectedNodeMatchRow = SelectedNodeMatchingPresets.FirstOrDefault(r =>
+                string.Equals(r.PresetLabel, prevKey.Value.PresetLabel, StringComparison.Ordinal)
+                && r.Gender == prevKey.Value.Gender
+                && r.Weight == prevKey.Value.Weight);
+        }
+    }
+
+    /// <summary>Orders matching-preset rows for display. <see cref="RuleNodeSortByName"/> keeps the
+    /// (Gender, Preset, Weight) order; a measurement name sorts by that metric's cached value
+    /// descending, with slices that have no value for it sinking below the scored ones (then
+    /// falling back to the name order for stability).</summary>
+    private IEnumerable<VM_RuleNodeMatchRow> SortRuleNodeRows(List<VM_RuleNodeMatchRow> rows)
+    {
+        var opt = SelectedRuleNodeSortOption;
+        if (string.IsNullOrEmpty(opt) || string.Equals(opt, RuleNodeSortByName, StringComparison.Ordinal))
+        {
+            return rows
+                .OrderBy(r => r.Gender)
+                .ThenBy(r => r.PresetLabel, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.Weight);
+        }
+
+        return rows
+            .Select(r => (row: r, val: GetRowMetricValue(r, opt)))
+            .OrderByDescending(t => t.val.HasValue)
+            .ThenByDescending(t => t.val ?? 0f)
+            .ThenBy(t => t.row.Gender)
+            .ThenBy(t => t.row.PresetLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.row.Weight)
+            .Select(t => t.row);
+    }
+
+    /// <summary>Cached value of <paramref name="metric"/> for the row's (preset, gender, weight)
+    /// slice, or null when the slice has no cache entry or no value for that measurement.</summary>
+    private float? GetRowMetricValue(VM_RuleNodeMatchRow row, string metric)
+    {
+        if (row == null || string.IsNullOrEmpty(metric)) return null;
+        if (MeasurementCache.TryGetValue((row.PresetLabel, row.Gender, row.Weight), out var entry)
+            && entry?.Measurements != null
+            && entry.Measurements.TryGetValue(metric, out var v))
+        {
+            return v;
+        }
+        return null;
+    }
+
+    /// <summary>Re-orders the already-built matching-preset rows after a sort-dropdown change,
+    /// without recomputing matches.</summary>
+    private void ResortMatchingPresets()
+    {
+        if (SelectedNodeMatchingPresets.Count == 0) return;
+        PopulateMatchingPresets(SelectedNodeMatchingPresets.ToList());
     }
 
     private bool CanAddDescriptor()
@@ -7204,6 +7803,11 @@ public class VM_MeasurementDefinition : VM
 {
     private readonly VM_BodyTypeProfile _parent;
 
+    /// <summary>Last committed <see cref="Name"/>, tracked so a rename can be detected (the Fody
+    /// <c>OnNameChanged()</c> hook is parameterless, so we keep the prior value ourselves). Seeded
+    /// to "" so the load-time Name set is treated as "no prior name" and skips cache migration.</summary>
+    private string _previousName = "";
+
     public VM_MeasurementDefinition(MeasurementDefinition source, VM_BodyTypeProfile parent)
     {
         _parent = parent;
@@ -7234,6 +7838,22 @@ public class VM_MeasurementDefinition : VM
     }
 
     public string Name { get; set; }
+
+    /// <summary>Fody-invoked on every <see cref="Name"/> change, including the load-time set. When
+    /// this is a genuine rename (a non-empty prior name → a non-empty new name) it migrates the
+    /// cached values to the new key rather than letting the next scan recompute them — see
+    /// <see cref="VM_BodyTypeProfile.RenameMeasurementInCache"/>. The numeric value depends only on
+    /// the measurement's geometry (Kind/Axis/VertexRefs/KVs), never its name, so reusing the value
+    /// under the new name is exact.</summary>
+    private void OnNameChanged()
+    {
+        var before = _previousName;
+        var after = Name;
+        _previousName = after;
+        _parent?.RenameMeasurementInCache(before, after, this);
+        _parent?.RenameMeasurementInRules(before, after);
+    }
+
     public MeasurementKind Kind { get; set; }
     public MeasurementAxis Axis { get; set; }
 
@@ -7487,11 +8107,59 @@ public class VM_AndGatedMeasurementGroup : VM
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => _parent.RemoveGroup(this));
+
+        // Temp-edit session controls. The session state itself (snapshot + baseline match set)
+        // lives on the owning profile because the diff is displayed in the profile-level
+        // "matching presets" list; these commands just route up to it. See
+        // VM_BodyTypeProfile.BeginTempEdit / SaveTempEdit / DiscardTempEdit.
+        StartTempEdit = new RelayCommand(
+            canExecute: _ => !IsTempEditing,
+            execute: _ => _parent.ParentProfile?.BeginTempEdit(this));
+
+        SaveTempEdit = new RelayCommand(
+            canExecute: _ => IsTempEditing,
+            execute: _ => _parent.ParentProfile?.SaveTempEdit(this));
+
+        DiscardTempEdit = new RelayCommand(
+            canExecute: _ => IsTempEditing,
+            execute: _ => _parent.ParentProfile?.DiscardTempEdit(this));
     }
 
     public ObservableCollection<VM_MeasurementCondition> Conditions { get; } = new();
     public RelayCommand AddCondition { get; }
     public RelayCommand DeleteCommand { get; }
+
+    /// <summary>Commands backing the per-branch "Temp Edits" / "Save" / "Discard" buttons in the
+    /// Rules tab. While <see cref="IsTempEditing"/> is true the "Temp Edits" button is hidden and
+    /// the other two are shown.</summary>
+    public RelayCommand StartTempEdit { get; }
+    public RelayCommand SaveTempEdit { get; }
+    public RelayCommand DiscardTempEdit { get; }
+
+    /// <summary>True while this branch is the active temp-edit target. Drives the button swap
+    /// (Temp Edits ⇄ Save/Discard) and tells the profile's matching-presets list to render the
+    /// green/red conform-diff against the baseline captured when the session began. Set only by
+    /// <see cref="VM_BodyTypeProfile.BeginTempEdit"/> / <see cref="VM_BodyTypeProfile.SaveTempEdit"/>
+    /// / <see cref="VM_BodyTypeProfile.DiscardTempEdit"/>.</summary>
+    public bool IsTempEditing { get; set; } = false;
+
+    /// <summary>Restores this branch's conditions (and disabled flag) from a model snapshot —
+    /// used by Discard to revert temp edits. Clearing/re-adding <see cref="Conditions"/> drives
+    /// the editor's CollectionChanged hooks, so scan invalidation re-wires automatically.</summary>
+    public void RestoreFrom(AndGatedMeasurementGroup model)
+    {
+        if (model == null) return;
+        IsDisabled = model.IsDisabled;
+        Conditions.Clear();
+        if (model.ConditionsANDlogic != null)
+        {
+            foreach (var c in model.ConditionsANDlogic)
+            {
+                if (c == null) continue;
+                Conditions.Add(new VM_MeasurementCondition(c, this));
+            }
+        }
+    }
 
     /// <summary>When true the evaluator skips this OR-branch (see
     /// <see cref="MeasurementMath.RuleMatches"/>) — equivalent to deleting it without
@@ -7876,12 +8544,14 @@ public class VM_RuleTreeValueNode : VM
 /// so the viewer reloads the slice — same code path as the Match Presets tab.</summary>
 public class VM_RuleNodeMatchRow : VM
 {
-    public VM_RuleNodeMatchRow(string presetLabel, Gender gender, int weight, string measurementsDisplay)
+    public VM_RuleNodeMatchRow(string presetLabel, Gender gender, int weight, string measurementsDisplay,
+        RuleMatchDiffState diffState = RuleMatchDiffState.Unchanged)
     {
         PresetLabel = presetLabel ?? "";
         Gender = gender;
         Weight = weight;
         MeasurementsDisplay = measurementsDisplay ?? "";
+        DiffState = diffState;
     }
 
     public string PresetLabel { get; }
@@ -7889,6 +8559,37 @@ public class VM_RuleNodeMatchRow : VM
     public int Weight { get; }
     public string MeasurementsDisplay { get; }
 
+    /// <summary>How this slice changed relative to the temp-edit baseline. <see cref="RuleMatchDiffState.Unchanged"/>
+    /// for the normal (non-temp-edit) list and for slices that conform both before and after the edit.
+    /// Drives the green "+"/red "-" prefix (<see cref="PrefixedDisplay"/>) and the row's text color
+    /// (via DataTriggers in the Rules-tab ListBox item template).</summary>
+    public RuleMatchDiffState DiffState { get; }
+
     public string Display => $"{PresetLabel}  (W{Weight}, {Gender})";
+
+    /// <summary>Diff prefix prepended to <see cref="PrefixedDisplay"/>: "+ " for a newly-conforming
+    /// slice, "- " for one that no longer conforms, empty otherwise. Empty in the normal list so its
+    /// rows render identically to before the temp-edit feature.</summary>
+    public string DiffPrefix => DiffState switch
+    {
+        RuleMatchDiffState.Added => "+ ",
+        RuleMatchDiffState.Removed => "- ",
+        _ => "",
+    };
+
+    public string PrefixedDisplay => DiffPrefix + Display;
+}
+
+/// <summary>Whether a temp-edit preview row newly conforms, no longer conforms, or is unchanged
+/// relative to the rule as it stood when "Temp Edits" was clicked. See
+/// <see cref="VM_BodyTypeProfile.RefreshTempEditDiff"/>.</summary>
+public enum RuleMatchDiffState
+{
+    /// <summary>Conforms both before and after the edit (or the list isn't in temp-edit mode).</summary>
+    Unchanged = 0,
+    /// <summary>Did not conform under the original rule, but conforms with the current edits (green "+").</summary>
+    Added = 1,
+    /// <summary>Conformed under the original rule, but no longer conforms with the current edits (red "-").</summary>
+    Removed = 2,
 }
 

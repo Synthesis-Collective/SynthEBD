@@ -849,6 +849,53 @@
                                                                                     <CheckBox DockPanel.Dock="Left" Content="Disable" IsChecked="{Binding IsDisabled}"
                                                                                               Margin="10,0,0,0" VerticalAlignment="Center"
                                                                                               ToolTip="Skip this OR-branch during evaluation. The branch and its conditions stay in the rule so toggling back restores the original behavior; useful for short iteration cycles without re-typing conditions."/>
+                                                                                    <!-- Temp Edits: enters a preview session for this branch. The matching-presets
+                                                                                         list below shows the parent rule's conform-diff (green "+ " = newly matching,
+                                                                                         red "- " = no longer matching) recomputed live on every edit. Save keeps the
+                                                                                         edits; Discard reverts this branch to its pre-session state. The button is
+                                                                                         swapped for Save/Discard via DataTriggers on IsTempEditing. -->
+                                                                                    <Button DockPanel.Dock="Left" Content="Temp Edits" Command="{Binding StartTempEdit}"
+                                                                                            Padding="4,0" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                                            ToolTip="Preview how editing this branch changes which presets conform to the rule. New matches show green with '+ ', dropped matches show red with '- '.">
+                                                                                        <Button.Style>
+                                                                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                                <Style.Triggers>
+                                                                                                    <DataTrigger Binding="{Binding IsTempEditing}" Value="True">
+                                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                    </DataTrigger>
+                                                                                                </Style.Triggers>
+                                                                                            </Style>
+                                                                                        </Button.Style>
+                                                                                    </Button>
+                                                                                    <Button DockPanel.Dock="Left" Content="Save" Command="{Binding SaveTempEdit}"
+                                                                                            Padding="4,0" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                                            ToolTip="Keep the temp edits and end the preview session.">
+                                                                                        <Button.Style>
+                                                                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                <Style.Triggers>
+                                                                                                    <DataTrigger Binding="{Binding IsTempEditing}" Value="True">
+                                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                                    </DataTrigger>
+                                                                                                </Style.Triggers>
+                                                                                            </Style>
+                                                                                        </Button.Style>
+                                                                                    </Button>
+                                                                                    <Button DockPanel.Dock="Left" Content="Discard" Command="{Binding DiscardTempEdit}"
+                                                                                            Padding="4,0" Margin="5,0,0,0" VerticalAlignment="Center"
+                                                                                            ToolTip="Revert this branch to its state when the preview session began.">
+                                                                                        <Button.Style>
+                                                                                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                                <Style.Triggers>
+                                                                                                    <DataTrigger Binding="{Binding IsTempEditing}" Value="True">
+                                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                                    </DataTrigger>
+                                                                                                </Style.Triggers>
+                                                                                            </Style>
+                                                                                        </Button.Style>
+                                                                                    </Button>
                                                                                     <Button DockPanel.Dock="Right" Content="X" Command="{Binding DeleteCommand}" Padding="4,0" HorizontalAlignment="Right"/>
                                                                                     <Button DockPanel.Dock="Right" Content="+ Condition" Command="{Binding AddCondition}" Padding="4,0" Margin="0,0,5,0" HorizontalAlignment="Right"
                                                                                             IsEnabled="{Binding IsEnabled}"/>
@@ -931,6 +978,22 @@
                                                    FontWeight="Bold" Margin="0,2,0,2"/>
                                         <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedNodeMatchingStatus}"
                                                    FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <!-- Sort selector, mirroring the Match Presets tab. "Name" (default) keeps the
+                                             Gender/Preset/Weight order; any measurement sorts rows by that metric's cached
+                                             value descending. Options list the metrics referenced by the displayed node's
+                                             rule(s) first, then the rest. -->
+                                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Sort:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <ComboBox Width="220" VerticalAlignment="Center"
+                                                      ItemsSource="{Binding RuleNodeSortOptions}"
+                                                      SelectedItem="{Binding SelectedRuleNodeSortOption}"
+                                                      ToolTip="Sort the list below. 'Name' uses the default Gender/Preset/Weight order; pick a measurement to rank slices by that metric's cached value (highest first). Metrics referenced by this node's rules are listed first."/>
+                                            <!-- Mirrors the Match Presets "Show Measurements" toggle: draws every
+                                                 measurement referenced by the in-view rule(s) in the viewer overlay. -->
+                                            <CheckBox Content="Show Measurements" IsChecked="{Binding ShowRuleNodeMeasurements}"
+                                                      VerticalAlignment="Center" Margin="20,0,0,0"
+                                                      ToolTip="When on, every measurement referenced by the rules for the selected node (or the rule being temp-edited) is drawn in the viewer, same overlay as the Measurements tab. Updates as you change node or edit conditions. While on, this overrides any selection in the Measurements tab; unchecking restores it."/>
+                                        </StackPanel>
                                         <ListBox ItemsSource="{Binding SelectedNodeMatchingPresets}"
                                                  SelectedItem="{Binding SelectedNodeMatchRow}"
                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -939,7 +1002,23 @@
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_RuleNodeMatchRow}">
                                                     <StackPanel Margin="2">
-                                                        <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                        <!-- PrefixedDisplay adds "+ "/"- " in temp-edit mode (empty otherwise).
+                                                             DiffState drives the row color: green = newly conforming, red = no
+                                                             longer conforming, default foreground = unchanged. -->
+                                                        <TextBlock Text="{Binding PrefixedDisplay}" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding DiffState}" Value="Added">
+                                                                            <Setter Property="Foreground" Value="#FF2E7D32"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding DiffState}" Value="Removed">
+                                                                            <Setter Property="Foreground" Value="#FFC62828"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <TextBlock Text="{Binding MeasurementsDisplay}" FontFamily="Consolas"
                                                                    FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
                                                     </StackPanel>
