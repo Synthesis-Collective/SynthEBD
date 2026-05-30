@@ -255,6 +255,13 @@ public class VM_BodyTypeProfileEditor : VM
                     // sessions are caught and rescanned then.
                     if (SelectedProfile != null) HydrateMeasurementCacheFromDisk(SelectedProfile);
 
+                    // Re-validate the (just-hydrated) cache against the current vertex + measurement
+                    // definitions so a definition edited and saved since the last scan — e.g. a key
+                    // vertex's bounding box — surfaces the stale warning on selection instead of
+                    // silently reusing outdated cached values. (Rules are re-derived just below, so
+                    // they're always current after a selection.)
+                    SelectedProfile?.RevalidateMeasurementCacheFromContents();
+
                     // Match-Presets tab reflects the newly-selected profile's scan cache.
                     // If the profile already has cached measurements (from any earlier scan
                     // — Match Presets or Label-Then-Suggest, or hydrated from disk just now),
@@ -264,7 +271,13 @@ public class VM_BodyTypeProfileEditor : VM
                     {
                         SelectedProfile.RebuildScanResultsFromCache(SelectedProfile.DumpToModel(), includeDrafts: true);
                     }
-                    ScanCacheStale = SelectedProfile?.ScanResultsStale ?? true;
+                    // Badge is on when either layer is stale: the measurement cache (needs a real
+                    // rescan) or the derived descriptors. RebuildScanResultsFromCache clears the
+                    // latter, so without the MeasurementCacheStale term a stale cache would show no
+                    // warning on load.
+                    ScanCacheStale = SelectedProfile == null
+                        || SelectedProfile.MeasurementCacheStale
+                        || SelectedProfile.ScanResultsStale;
                     ScanStatus = SelectedProfile == null
                         ? "No profile selected."
                         : (SelectedProfile.ScanResults.Count == 0 ? "No scan yet." : $"Cached scan: {SelectedProfile.ScanResults.Count} preset-weight combinations.");
@@ -1358,6 +1371,7 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanStatus = $"Rebuilt from cache: {total} slice(s) reused, no scan needed. {withMatchesAll} with matches, {emptyAll} empty.";
                 profile.ScanResultsStale = false;
                 profile.MeasurementCacheStale = false;
+                profile.CaptureMeasurementCacheBaseline();
                 ScanCacheStale = false;
                 ScanProgressPercent = 100;
                 RebuildWeightFilterOptions();
@@ -1721,6 +1735,7 @@ public class VM_BodyTypeProfileEditor : VM
                 }
                 profile.ScanResultsStale = false;
                 profile.MeasurementCacheStale = false;
+                profile.CaptureMeasurementCacheBaseline();
                 ScanCacheStale = false;
             }
             RebuildWeightFilterOptions();
@@ -1859,6 +1874,7 @@ public class VM_BodyTypeProfileEditor : VM
         if (hydrated > 0)
         {
             profile.MeasurementCacheStale = false;
+            profile.CaptureMeasurementCacheBaseline();
         }
 
         if (hydrated > 0 || skippedStaleFp > 0)
@@ -1952,10 +1968,14 @@ public class VM_BodyTypeProfileEditor : VM
             {
                 var name = mkv.Key;
                 if (string.IsNullOrEmpty(name)) continue;
-                // Tag the value with the fingerprint that's current right now. Since the
-                // in-memory cache only holds values produced under the current fingerprint
-                // set (validation on hydrate + fresh scans), this is correct by construction.
-                if (!currentFps.TryGetValue(name, out var fp)) fp = "";
+                // Tag the value with the fingerprint it was actually computed under (stored per
+                // measurement at scan time), NOT the current definition's. The cache can legitimately
+                // hold a value whose definition was edited but not yet rescanned (MeasurementCacheStale
+                // is set, but the persist still runs on close / for other shapes). Stamping such a
+                // value as "current" would make the next session's hydrate trust an outdated number;
+                // keeping its original fingerprint lets hydrate detect the drift and drop it. Empty
+                // when no fingerprint was tracked (legacy entry) → hydrate drops it conservatively.
+                if (!memEntry.MeasurementFingerprints.TryGetValue(name, out var fp)) fp = "";
                 cached.Measurements[name] = new CachedMeasurement { Value = mkv.Value, Fp = fp };
             }
             snapshot.Entries.Add(cached);
@@ -2130,6 +2150,7 @@ public class VM_BodyTypeProfileEditor : VM
             profile.MeasurementCache.Clear();
             profile.LoadedBodyMeshHash = "";
             profile.MeasurementCacheStale = true;
+            profile.ClearMeasurementCacheBaseline();
             profile.ScanResults.Clear();
             profile.ScanResultsStale = true;
             ScanCacheStale = true;
@@ -3411,7 +3432,7 @@ public class VM_BodyTypeProfile : VM
         //     still valid. A "re-scan" is just rule re-evaluation against the cache, so it's
         //     instantaneous and could even auto-rebuild; today it still requires a Scan click,
         //     but that scan does no mesh work (every iteration is a cache hit).
-        KeyVertices.CollectionChanged += (_, __) => MarkMeasurementCacheStale();
+        KeyVertices.CollectionChanged += (_, __) => RevalidateMeasurementCacheStale();
         foreach (var m in Measurements) m.PropertyChanged += OnMeasurementCacheInvalidatingChange;
         Measurements.CollectionChanged += (_, args) =>
         {
@@ -3419,7 +3440,7 @@ public class VM_BodyTypeProfile : VM
                 foreach (VM_MeasurementDefinition m in args.OldItems) m.PropertyChanged -= OnMeasurementCacheInvalidatingChange;
             if (args.NewItems != null)
                 foreach (VM_MeasurementDefinition m in args.NewItems) m.PropertyChanged += OnMeasurementCacheInvalidatingChange;
-            MarkMeasurementCacheStale();
+            RevalidateMeasurementCacheStale();
         };
         foreach (var r in Rules) HookRuleForScanInvalidation(r);
         foreach (var r in Rules) HookRuleForTreeRebuild(r);
@@ -3441,7 +3462,7 @@ public class VM_BodyTypeProfile : VM
                     HookRuleForTreeRebuild(r);
                 }
             }
-            MarkScanResultsStale();
+            RevalidateRulesStale();
             RebuildRuleTree();
             RefreshFilteredRules();
         };
@@ -3621,6 +3642,33 @@ public class VM_BodyTypeProfile : VM
         {
             repickRow.NeedsRepick = false;
             RecomputeKeyVertexResolutionStates();
+        }
+
+        // Invalidate the measurement cache when a field that defines which vertex this KV resolves
+        // to changes — i.e. the fields the fingerprint uses (MeasurementCacheStore.AppendKeyVertex):
+        // ShapeName, Strategy, Criterion, and the box coords. Without this, editing a bounding box
+        // left the cache looking valid and the Match Presets tab never prompted a re-scan.
+        // VertexIndex only counts for Explicit rows; for BoundingBox it is re-resolved on every
+        // preview by RefreshBoundingBoxMarkers, so invalidating on it would falsely flag the cache
+        // stale each time a preset loads. Name is excluded: the rename cascade above keeps the
+        // measurement references intact, so the computed values don't change.
+        switch (e.PropertyName)
+        {
+            case nameof(VM_NamedKeyVertex.ShapeName):
+            case nameof(VM_NamedKeyVertex.Strategy):
+            case nameof(VM_NamedKeyVertex.Criterion):
+            case nameof(VM_NamedKeyVertex.BoxMinX):
+            case nameof(VM_NamedKeyVertex.BoxMinY):
+            case nameof(VM_NamedKeyVertex.BoxMinZ):
+            case nameof(VM_NamedKeyVertex.BoxMaxX):
+            case nameof(VM_NamedKeyVertex.BoxMaxY):
+            case nameof(VM_NamedKeyVertex.BoxMaxZ):
+                RevalidateMeasurementCacheStale();
+                break;
+            case nameof(VM_NamedKeyVertex.VertexIndex):
+                if (sender is VM_NamedKeyVertex vkv && vkv.Strategy == KeyVertexStrategy.Explicit)
+                    RevalidateMeasurementCacheStale();
+                break;
         }
     }
 
@@ -6664,7 +6712,9 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
-        MarkScanResultsStale();
+        // Re-derive staleness (no-ops on an edit-then-revert) instead of latching it true. Only the
+        // rule layer is inspected — a rule edit never re-checks measurements or key vertices.
+        RevalidateRulesStale();
         // Piggyback ref-validity recompute on the existing per-condition subscription. The
         // sender's MeasurementName change is the only condition-side edit that affects
         // validity; gating on the property name keeps the per-keystroke threshold/value
@@ -6698,7 +6748,7 @@ public class VM_BodyTypeProfile : VM
                 foreach (VM_AndGatedMeasurementGroup g in args.OldItems) UnhookGroupForScanInvalidation(g);
             if (args.NewItems != null)
                 foreach (VM_AndGatedMeasurementGroup g in args.NewItems) HookGroupForScanInvalidation(g);
-            MarkScanResultsStale();
+            RevalidateRulesStale();
         };
     }
 
@@ -6724,7 +6774,7 @@ public class VM_BodyTypeProfile : VM
                 foreach (VM_MeasurementCondition c in args.OldItems) c.PropertyChanged -= OnScanInvalidatingChange;
             if (args.NewItems != null)
                 foreach (VM_MeasurementCondition c in args.NewItems) c.PropertyChanged += OnScanInvalidatingChange;
-            MarkScanResultsStale();
+            RevalidateRulesStale();
         };
     }
 
@@ -6830,7 +6880,9 @@ public class VM_BodyTypeProfile : VM
         // doesn't get stuck after a rename. Guarded to measurement rows: a *key vertex* rename does
         // change which landmark a measurement resolves to, so that must still invalidate.
         if (e.PropertyName == nameof(VM_MeasurementDefinition.Name) && sender is VM_MeasurementDefinition) return;
-        MarkMeasurementCacheStale();
+        // Re-derive staleness (clears on an edit-then-revert) instead of latching it true. Only the
+        // measurement layer is inspected — a measurement edit never re-checks rules.
+        RevalidateMeasurementCacheStale();
     }
 
     /// <summary>Marks both the measurements cache and the derived descriptor list stale.
@@ -6840,6 +6892,163 @@ public class VM_BodyTypeProfile : VM
     {
         MeasurementCacheStale = true;
         MarkScanResultsStale();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  Smart staleness. Rather than latching a flag true on every edit, re-derive it by
+    //  comparing the current definitions against the baseline the cache was last validated
+    //  under, so an edit-then-revert clears the flag. The two layers are independent and each
+    //  only inspects its own definitions:
+    //    * Measurement-value cache (key-vertex + measurement edits) → measurement fingerprints.
+    //    * Descriptor cache / ScanResults (rule edits)              → rule signature.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Measurement fingerprints the cache is currently valid under (name → SHA). Captured
+    /// by <see cref="CaptureMeasurementCacheBaseline"/> when the cache reaches a fully-scanned state;
+    /// null until then. A current fingerprint equal to this means "unchanged since the last scan".</summary>
+    private Dictionary<string, string>? _measurementCacheBaselineFps;
+
+    /// <summary>Rule signature ScanResults were last derived under. Captured by
+    /// <see cref="CaptureRuleBaseline"/> on every descriptor rebuild; null until then.</summary>
+    private string? _ruleBaselineSignature;
+
+    /// <summary>Snapshots the measurement fingerprints the cache is valid under so a later
+    /// key-vertex / measurement edit can tell a real change from an edit-then-revert. Call right
+    /// after the cache reaches a fully-valid state (scan completion or disk hydrate).</summary>
+    public void CaptureMeasurementCacheBaseline() => _measurementCacheBaselineFps = CurrentMeasurementFingerprints();
+
+    /// <summary>Drops the measurement baseline (e.g. after a cache purge) so staleness can't be
+    /// cleared against a cache that no longer exists.</summary>
+    public void ClearMeasurementCacheBaseline() => _measurementCacheBaselineFps = null;
+
+    private Dictionary<string, string> CurrentMeasurementFingerprints()
+    {
+        var measModels = new List<MeasurementDefinition>(Measurements.Count);
+        foreach (var m in Measurements) if (m != null) measModels.Add(m.DumpToModel());
+        var kvModels = new List<NamedKeyVertex>(KeyVertices.Count);
+        foreach (var k in KeyVertices) if (k != null) kvModels.Add(k.DumpToModel());
+        return MeasurementCacheStore.ComputeAllMeasurementFingerprints(measModels, kvModels);
+    }
+
+    /// <summary>Re-derives <see cref="MeasurementCacheStale"/> from a fingerprint comparison instead
+    /// of latching it true: the cache is stale only when a current measurement's fingerprint differs
+    /// from the baseline it was scanned under, so editing a key vertex or measurement and reverting
+    /// it leaves the cache valid. Used by the key-vertex and measurement edit paths — never inspects
+    /// rules.</summary>
+    public void RevalidateMeasurementCacheStale()
+    {
+        bool wasStale = MeasurementCacheStale;
+        bool nowStale = !IsMeasurementCacheConsistent();
+        MeasurementCacheStale = nowStale;
+
+        // Descriptors derive from the measurement values, so they must be re-derived when the values
+        // actually change — or restored after a revert that undid a still-pending edit. Skip the
+        // cascade only when nothing changed (e.g. editing a key vertex no measurement references), so
+        // an inert edit doesn't flash "results stale".
+        if (nowStale || wasStale) MarkScanResultsStale();
+    }
+
+    private bool IsMeasurementCacheConsistent()
+    {
+        var baseline = _measurementCacheBaselineFps;
+        if (baseline == null || baseline.Count == 0) return false;
+        if (MeasurementCache.Count == 0) return false;
+        // Every current measurement must match the fingerprint it was cached under. A removed
+        // measurement simply drops out of the current set (its now-unused cache value is harmless);
+        // an added or edited one won't be in the baseline (or won't match) → stale.
+        foreach (var kv in CurrentMeasurementFingerprints())
+        {
+            if (!baseline.TryGetValue(kv.Key, out var baseFp)
+                || !string.Equals(baseFp, kv.Value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>Re-derives <see cref="MeasurementCacheStale"/> from the cache's actual contents
+    /// (not the in-memory baseline) — used on profile selection / hydrate, where the on-disk cache
+    /// may have been scanned under definitions that have since changed (e.g. a key vertex's bounding
+    /// box edited and saved in a prior session). The hydrate drops the drifted values, leaving the
+    /// cache incomplete, which this reports as stale. Captures the baseline when consistent so later
+    /// edit-then-revert detection works; clears it otherwise.</summary>
+    public void RevalidateMeasurementCacheFromContents()
+    {
+        bool ok = IsMeasurementCacheCompleteAndCurrent();
+        MeasurementCacheStale = !ok;
+        if (ok) CaptureMeasurementCacheBaseline();
+        else ClearMeasurementCacheBaseline();
+    }
+
+    /// <summary>True when every cache entry already holds every currently-defined measurement with a
+    /// fingerprint matching the current definition (vertex + measurement defs). Walks the cache, so
+    /// it is meant for load-time validation, not per-edit checks. Only inspects existing entries —
+    /// a slice that was never scanned isn't "incomplete", but a slice missing a now-drifted
+    /// measurement value is.</summary>
+    private bool IsMeasurementCacheCompleteAndCurrent()
+    {
+        if (MeasurementCache.Count == 0) return false;
+        var current = CurrentMeasurementFingerprints();
+        foreach (var entry in MeasurementCache.Values)
+        {
+            if (entry?.Measurements == null) return false;
+            foreach (var kv in current)
+            {
+                if (!entry.Measurements.TryGetValue(kv.Key, out var v) || !v.HasValue) return false;
+                if (!entry.MeasurementFingerprints.TryGetValue(kv.Key, out var fp)
+                    || !string.Equals(fp, kv.Value, StringComparison.Ordinal)) return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>Snapshots the rule signature the current ScanResults were derived under. Called from
+    /// <see cref="RebuildScanResultsFromCache"/>.</summary>
+    public void CaptureRuleBaseline() => _ruleBaselineSignature = ComputeRuleSignature();
+
+    /// <summary>Marks ScanResults stale on a genuine rule change, but no-ops when the rules match
+    /// what the descriptors were last derived under (an edit-then-revert). Used by the rule edit
+    /// paths — never inspects measurements or key vertices.</summary>
+    public void RevalidateRulesStale()
+    {
+        if (_ruleBaselineSignature != null
+            && string.Equals(ComputeRuleSignature(), _ruleBaselineSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+        MarkScanResultsStale();
+    }
+
+    /// <summary>Compact structural signature of every rule (the fields <see cref="MeasurementMath.RuleMatches"/>
+    /// consumes), used to detect "rules reverted to the last-derived state". Order-sensitive; cheap
+    /// for the rule counts a profile holds.</summary>
+    private string ComputeRuleSignature()
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var r in Rules)
+        {
+            if (r == null) continue;
+            sb.Append("R").Append(r.DescriptorCategory).Append('\u001f').Append(r.DescriptorValue)
+              .Append('\u001f').Append((int)r.Gender).Append('\u001f').Append(r.IsDraft ? '1' : '0').Append('\n');
+            foreach (var g in r.Groups)
+            {
+                if (g == null) continue;
+                sb.Append("G").Append(g.IsDisabled ? '1' : '0').Append('\n');
+                foreach (var c in g.Conditions)
+                {
+                    if (c == null) continue;
+                    sb.Append("C").Append((int)c.Kind).Append('\u001f')
+                      .Append(c.MeasurementName ?? "").Append('\u001f')
+                      .Append((int)c.Comparator).Append('\u001f')
+                      .Append(c.Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('\u001f')
+                      .Append(c.RefCategory ?? "").Append('\u001f')
+                      .Append(c.RefValue ?? "").Append('\u001f')
+                      .Append(c.Negate ? '1' : '0').Append('\n');
+                }
+            }
+        }
+        return sb.ToString();
     }
 
     /// <summary>Migrates cached measurement values when a measurement is renamed, so a pure rename
@@ -6891,6 +7100,14 @@ public class VM_BodyTypeProfile : VM
             }
             entry.Measurements.Remove(oldKey);
             entry.MeasurementFingerprints.Remove(oldKey);
+        }
+
+        // Keep the staleness baseline aligned with the renamed cache: the fingerprint embeds the
+        // name, so without this a later edit-then-revert would compare a new-name fingerprint
+        // against a baseline that still keys the old name and never clear the stale flag.
+        if (_measurementCacheBaselineFps != null && _measurementCacheBaselineFps.Remove(oldKey))
+        {
+            _measurementCacheBaselineFps[newKey] = newFp;
         }
 
         if (moved > 0)
@@ -7787,6 +8004,9 @@ public class VM_BodyTypeProfile : VM
         foreach (var key in MeasurementCache.Keys)
             ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts);
         ScanResultsStale = false;
+        // The descriptors now reflect the current rules; snapshot that rule state so a later
+        // rule edit can tell a real change from an edit-then-revert (RevalidateRulesStale).
+        CaptureRuleBaseline();
     }
 }
 
