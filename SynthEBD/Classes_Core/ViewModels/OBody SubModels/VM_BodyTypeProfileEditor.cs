@@ -3992,6 +3992,32 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Human-readable summary shown above <see cref="PreviewMatches"/>.</summary>
     public string PreviewStatus { get; set; } = "";
 
+    /// <summary>Descriptors that fired for the currently-previewed preset, captured by
+    /// <see cref="RefreshPreviewDescriptors"/>. Read by each condition's live readout
+    /// (<see cref="VM_MeasurementCondition.RefreshLiveReadout"/>) to resolve DescriptorRef Match /
+    /// Not-Match against the same evaluation the preview pane uses.</summary>
+    public HashSet<(string Category, string Value)> PreviewMatchedDescriptors { get; private set; } = new();
+
+    /// <summary>True when the last <see cref="RefreshPreviewDescriptors"/> ran with live measurements
+    /// (a preset is loaded in the viewer). Lets a condition readout distinguish "no preset loaded"
+    /// (show "—") from "descriptor genuinely didn't fire" (show a real Match/Not-Match).</summary>
+    public bool HasLivePreview { get; private set; }
+
+    /// <summary>Re-derives the per-condition live readout for every rule condition. Called when the
+    /// previewed preset changes so the green/red value badges track the loaded body.</summary>
+    public void RefreshAllConditionReadouts()
+    {
+        foreach (var rule in Rules)
+        {
+            if (rule?.Groups == null) continue;
+            foreach (var g in rule.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions) c?.RefreshLiveReadout();
+            }
+        }
+    }
+
     public VM_NamedKeyVertex? SelectedKeyVertex { get; set; }
 
     /// <summary>Multi-selection routing: takes the full KeyVertices DataGrid selection and
@@ -4869,6 +4895,12 @@ public class VM_BodyTypeProfile : VM
                     : $"{drafts} draft";
             PreviewStatus = $"{PreviewMatches.Count} match{(PreviewMatches.Count == 1 ? "" : "es")} ({summary}) of {Rules.Count} rule{(Rules.Count == 1 ? "" : "s")}.";
         }
+
+        // Publish the firing-descriptor set + live state for the per-condition readouts, then
+        // refresh them so each condition's green/red badge reflects this preset.
+        PreviewMatchedDescriptors = matched;
+        HasLivePreview = meas.Count > 0;
+        RefreshAllConditionReadouts();
     }
 
     private static string BuildMatchTrace(
@@ -8216,6 +8248,28 @@ public class VM_MeasurementCondition : VM
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => _parent.RemoveCondition(this));
+
+        // Recompute the live readout when the user edits any field that changes what the condition
+        // tests. Subscribed after the initial field assignments above so the ctor doesn't churn it;
+        // the one explicit call below seeds it (covers "+ Condition" while a preset is previewed).
+        PropertyChanged += OnSelfPropertyChanged;
+        RefreshLiveReadout();
+    }
+
+    private void OnSelfPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(Kind):
+            case nameof(Comparator):
+            case nameof(Value):
+            case nameof(MeasurementName):
+            case nameof(RefCategory):
+            case nameof(RefValue):
+            case nameof(Negate):
+                RefreshLiveReadout();
+                break;
+        }
     }
 
     /// <summary>Selects the row's display + persistence shape. Toggling this between
@@ -8276,6 +8330,57 @@ public class VM_MeasurementCondition : VM
     public string RefCategory { get; set; }
     public string RefValue { get; set; }
     public bool Negate { get; set; }
+
+    /// <summary>Live readout shown to the right of the condition: for a Measurement condition the
+    /// previewed preset's value of the measurement (e.g. "32.45"); for a DescriptorRef condition
+    /// "Match" / "Not Match" (honoring <see cref="Negate"/>). "—" when no preset is loaded or the
+    /// value can't be resolved. Recomputed by <see cref="RefreshLiveReadout"/>.</summary>
+    public string ConditionReadout { get; private set; } = "";
+
+    /// <summary>Whether the previewed preset satisfies this condition: true → green badge, false →
+    /// red, null → neutral (no live data). Drives the readout's foreground via XAML triggers.</summary>
+    public bool? ConditionConforms { get; private set; }
+
+    /// <summary>Recomputes <see cref="ConditionReadout"/> / <see cref="ConditionConforms"/> against
+    /// the currently-previewed preset. Measurement conditions read the named measurement's
+    /// <see cref="VM_MeasurementDefinition.LiveValue"/> and test it with the condition's comparator;
+    /// DescriptorRef conditions test membership in <see cref="VM_BodyTypeProfile.PreviewMatchedDescriptors"/>,
+    /// applying <see cref="Negate"/>, so "NOT X" on a preset that isn't X reads "Match" (green).</summary>
+    public void RefreshLiveReadout()
+    {
+        var profile = _parent?.ParentRule?.ParentProfile;
+        if (profile == null) { ConditionReadout = ""; ConditionConforms = null; return; }
+
+        if (Kind == MeasurementConditionKind.Measurement)
+        {
+            var name = (MeasurementName ?? "").Trim();
+            if (name.Length == 0) { ConditionReadout = ""; ConditionConforms = null; return; }
+
+            VM_MeasurementDefinition? def = null;
+            foreach (var m in profile.Measurements)
+            {
+                if (m == null) continue;
+                if (string.Equals((m.Name ?? "").Trim(), name, StringComparison.Ordinal)) { def = m; break; }
+            }
+            if (def?.LiveValue is not float live) { ConditionReadout = "—"; ConditionConforms = null; return; }
+
+            ConditionReadout = live.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+            ConditionConforms = MeasurementMath.Compare(live, Comparator, Value);
+        }
+        else // DescriptorRef
+        {
+            if (string.IsNullOrEmpty(RefCategory) || string.IsNullOrEmpty(RefValue))
+            {
+                ConditionReadout = ""; ConditionConforms = null; return;
+            }
+            if (!profile.HasLivePreview) { ConditionReadout = "—"; ConditionConforms = null; return; }
+
+            bool present = profile.PreviewMatchedDescriptors.Contains((RefCategory, RefValue));
+            bool conforms = Negate ? !present : present;
+            ConditionReadout = conforms ? "Match" : "Not Match";
+            ConditionConforms = conforms;
+        }
+    }
 
     public RelayCommand DeleteCommand { get; }
 

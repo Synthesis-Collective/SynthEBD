@@ -943,6 +943,27 @@
                                                                                                           Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
                                                                                                           ToolTip="Value of the descriptor this condition checks. Filtered by Category and by cycle-safety."/>
 
+                                                                                                <!-- Live readout for the currently-previewed preset: measurement value (Measurement
+                                                                                                     kind) or Match/Not Match (DescriptorRef, honoring NOT). Green = the preset satisfies
+                                                                                                     this condition, red = it doesn't, gray = no preset loaded / value unresolved. -->
+                                                                                                <TextBlock Text="{Binding ConditionReadout}" VerticalAlignment="Center"
+                                                                                                           FontWeight="Bold" MinWidth="55" Margin="4,0,8,0"
+                                                                                                           ToolTip="Value of this condition for the preset currently loaded in the viewer. Green = the preset satisfies the condition; red = it doesn't.">
+                                                                                                    <TextBlock.Style>
+                                                                                                        <Style TargetType="TextBlock">
+                                                                                                            <Setter Property="Foreground" Value="Gray"/>
+                                                                                                            <Style.Triggers>
+                                                                                                                <DataTrigger Binding="{Binding ConditionConforms}" Value="True">
+                                                                                                                    <Setter Property="Foreground" Value="#FF2E7D32"/>
+                                                                                                                </DataTrigger>
+                                                                                                                <DataTrigger Binding="{Binding ConditionConforms}" Value="False">
+                                                                                                                    <Setter Property="Foreground" Value="#FFC62828"/>
+                                                                                                                </DataTrigger>
+                                                                                                            </Style.Triggers>
+                                                                                                        </Style>
+                                                                                                    </TextBlock.Style>
+                                                                                                </TextBlock>
+
                                                                                                 <Button Content="X" Command="{Binding DeleteCommand}" Padding="4,0"/>
                                                                                             </StackPanel>
                                                                                         </DataTemplate>
