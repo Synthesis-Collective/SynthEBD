@@ -68,6 +68,11 @@ public static class RegionVolumeEvaluator
     /// <summary>Baked, session-cached region topology. Recomputed from (box + zeroed mesh) each session.</summary>
     public sealed class ResolvedRegion
     {
+        /// <summary>Shape this region's geometry lives on (e.g. "CBBE 3BA"). Set by <see cref="ResolveRegions"/>
+        /// so consumers can fetch the matching deformed positions without a separate region lookup;
+        /// <see cref="ComputeVolume"/> itself does not read it.</summary>
+        public string ShapeName = "";
+
         /// <summary>Welded patch vertices, indexed by vertex id; each is a barycentric reference (see <see cref="PatchVertexRef"/>).</summary>
         public PatchVertexRef[] Vertices = Array.Empty<PatchVertexRef>();
 
@@ -373,6 +378,49 @@ public static class RegionVolumeEvaluator
         result.CapLoops = loops.ToArray();
         result.IsValid = true;
         result.ZeroedVolume = ComputeVolume(result, zeroedPositions);
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves a batch of <see cref="NamedRegion"/>s against the current (sliders-0) mesh state,
+    /// returning a {region name → <see cref="ResolvedRegion"/>} map for one body/weight. Each
+    /// region's box is resolved via <see cref="ResolveRegion"/> against the positions/indices
+    /// fetched through the supplied lookups (typically <c>viewer.GetShapePositions</c> /
+    /// <c>viewer.GetShapeIndices</c>); the resolved <see cref="ResolvedRegion.ShapeName"/> is set
+    /// so callers can fetch matching deformed positions later. First-wins on duplicate names.
+    /// A region whose shape has no loaded geometry yields an invalid <see cref="ResolvedRegion"/>
+    /// with a diagnostic rather than being omitted, so callers can surface the reason.
+    /// </summary>
+    public static Dictionary<string, ResolvedRegion> ResolveRegions(
+        IEnumerable<NamedRegion> regions,
+        Func<string, Vector3[]?> shapePositions,
+        Func<string, int[]?> shapeIndices)
+    {
+        var result = new Dictionary<string, ResolvedRegion>(StringComparer.Ordinal);
+        if (regions == null) return result;
+        foreach (var region in regions)
+        {
+            if (region == null) continue;
+            var name = region.Name?.Trim() ?? "";
+            if (name.Length == 0 || result.ContainsKey(name)) continue;
+
+            var positions = shapePositions?.Invoke(region.ShapeName);
+            var indices = shapeIndices?.Invoke(region.ShapeName);
+            ResolvedRegion resolved;
+            if (positions == null || positions.Length == 0 || indices == null || indices.Length < 3)
+            {
+                resolved = new ResolvedRegion { Diagnostic = $"shape '{region.ShapeName}' has no loaded geometry" };
+            }
+            else
+            {
+                var box = new RegionAabb(
+                    new Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
+                    new Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
+                resolved = ResolveRegion(positions, indices, box, new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount });
+            }
+            resolved.ShapeName = region.ShapeName ?? "";
+            result[name] = resolved;
+        }
         return result;
     }
 

@@ -2374,6 +2374,21 @@ public class VM_CharacterViewer : ViewerVm
         return dst;
     }
 
+    /// <summary>Companion to <see cref="GetShapePositions"/> that surfaces a shape's triangle
+    /// index buffer (flat triplets [i0,i1,i2, i3,i4,i5, ...], local to the shape's own
+    /// <see cref="GetShapePositions"/> array), or null when the shape isn't loaded or has no
+    /// CPU-side geometry. Used by <c>RegionVolumeEvaluator</c> to walk the shape's triangles for
+    /// region-volume measurements (clip to box, extract boundary loops, integrate). The array is
+    /// not cloned — callers must treat it as read-only, matching <see cref="GetShapeBoneInfo"/>.</summary>
+    public int[]? GetShapeIndices(string shapeName)
+    {
+        if (string.IsNullOrEmpty(shapeName)) return null;
+        var mesh = Renderer.Meshes.FirstOrDefault(m =>
+            string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+        if (mesh?.CpuIndices == null || mesh.CpuIndices.Length == 0) return null;
+        return mesh.CpuIndices;
+    }
+
     /// <summary>Companion to <see cref="GetShapePositions"/> that surfaces the per-vertex
     /// bone indices + weights (4 entries each per vertex, flat-packed) for the bone-transition
     /// criterion in <c>MeasurementMath.FindBestInBox</c>. Returns <c>(null, null)</c> when the

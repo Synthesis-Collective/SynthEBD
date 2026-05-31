@@ -183,7 +183,7 @@ public class VM_PresetAnnotationTable : VM
             // shared cache. Computed once outside the loop — the profile state can't change
             // mid-scan (UI thread).
             var currentMeasurementFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
-                profileModel.Measurements, profileModel.KeyVertices);
+                profileModel.Measurements, profileModel.KeyVertices, profileModel.Regions);
 
             // Compute the work set: keys this scan needs that aren't in the shared cache yet.
             // Any prior Match Presets scan at overlapping weights populated entries we can

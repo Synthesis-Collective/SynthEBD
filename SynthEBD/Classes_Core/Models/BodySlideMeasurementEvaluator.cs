@@ -26,6 +26,14 @@ public static class BodySlideMeasurementEvaluator
         VertexOutOfRange = 1,
         MalformedDefinition = 2,
         DegenerateRatio = 3,
+        /// <summary>A <see cref="MeasurementKind.RegionVolume"/> measurement's
+        /// <see cref="MeasurementDefinition.RegionRefName"/> was empty or had no resolved region
+        /// supplied (the caller didn't pass a <c>resolvedRegions</c> entry for it).</summary>
+        MissingRegion = 4,
+        /// <summary>A <see cref="MeasurementKind.RegionVolume"/> region was supplied but is invalid
+        /// (the box failed watertightness/validation at resolve time) or its shape's deformed
+        /// positions weren't available.</summary>
+        RegionNotResolved = 5,
     }
 
     /// <summary>Result of a single evaluation pass.</summary>
@@ -84,6 +92,14 @@ public static class BodySlideMeasurementEvaluator
     /// because cached measurement values are persisted but descriptors are always re-derived
     /// from the full cache by <see cref="VM_BodyTypeProfile.RebuildScanResultsFromCache"/>, so
     /// evaluating rules with a partial measurement set would just throw away the result.
+    ///
+    /// <paramref name="resolvedRegions"/> supplies the per-body/weight baked
+    /// <see cref="RegionVolumeEvaluator.ResolvedRegion"/> for every <see cref="MeasurementKind.RegionVolume"/>
+    /// measurement, keyed by region name. These are expensive to resolve (clip + boundary-loop +
+    /// validate against the sliders-0 mesh) so the caller bakes them once per body/weight (see
+    /// <c>RegionVolumeEvaluator.ResolveRegions</c>) and passes them in; this method just evaluates
+    /// them against the current deformed positions. Null (the default for non-scan call sites)
+    /// means region-volume measurements fail with <see cref="MeasurementFailureReason.MissingRegion"/>.
     /// </summary>
     public static EvaluationResult Evaluate(
         VM_CharacterViewer viewer,
@@ -91,7 +107,8 @@ public static class BodySlideMeasurementEvaluator
         bool includeDrafts = false,
         Gender? evaluationGender = null,
         IReadOnlySet<string>? measurementNamesAllowlist = null,
-        bool skipRules = false)
+        bool skipRules = false,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null)
     {
         var result = new EvaluationResult();
         if (viewer == null || profile == null) return result;
@@ -132,6 +149,16 @@ public static class BodySlideMeasurementEvaluator
                 // keeps evaluation deterministic and consistent across both grids.
                 if (result.Measurements.ContainsKey(def.Name)
                     || result.FailedMeasurements.ContainsKey(def.Name)) continue;
+                // RegionVolume reads a baked region + the shape's deformed positions, not key
+                // vertices, so it takes a separate path from MeasurementMath.TryEvaluate.
+                if (def.Kind == MeasurementKind.RegionVolume)
+                {
+                    if (TryEvaluateRegionVolume(def, resolvedRegions, shapeLookup, out float rv, out var rreason))
+                        result.Measurements[def.Name] = rv;
+                    else
+                        result.FailedMeasurements[def.Name] = rreason;
+                    continue;
+                }
                 if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, out float v))
                 {
                     result.Measurements[def.Name] = v;
@@ -354,6 +381,50 @@ public static class BodySlideMeasurementEvaluator
             if (!b.TryGetValue(pair.Key, out int bCount)) return false;
             if (bCount != pair.Value) return false;
         }
+        return true;
+    }
+
+    /// <summary>
+    /// Evaluates a <see cref="MeasurementKind.RegionVolume"/> measurement: looks up the baked
+    /// <see cref="RegionVolumeEvaluator.ResolvedRegion"/> for <see cref="MeasurementDefinition.RegionRefName"/>,
+    /// fetches the deformed positions for the region's shape, and integrates the volume. Returns
+    /// false (with a reason) when the region ref is empty, no resolved region was supplied, the
+    /// region is invalid (box failed validation), or the shape's positions aren't available.
+    /// Pure aside from the <paramref name="shapeLookup"/> delegate, so it is unit-testable without
+    /// a live viewer (see <c>RegionVolumeWiringTests</c>).
+    /// </summary>
+    public static bool TryEvaluateRegionVolume(
+        MeasurementDefinition def,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions,
+        MeasurementMath.ShapePositionsLookup shapeLookup,
+        out float value,
+        out MeasurementFailureReason reason)
+    {
+        value = 0f;
+        var rname = def?.RegionRefName?.Trim() ?? "";
+        if (rname.Length == 0)
+        {
+            reason = MeasurementFailureReason.MalformedDefinition;
+            return false;
+        }
+        if (resolvedRegions == null || !resolvedRegions.TryGetValue(rname, out var resolved) || resolved == null)
+        {
+            reason = MeasurementFailureReason.MissingRegion;
+            return false;
+        }
+        if (!resolved.IsValid)
+        {
+            reason = MeasurementFailureReason.RegionNotResolved;
+            return false;
+        }
+        var positions = shapeLookup?.Invoke(resolved.ShapeName);
+        if (positions == null || positions.Length == 0)
+        {
+            reason = MeasurementFailureReason.RegionNotResolved;
+            return false;
+        }
+        value = (float)RegionVolumeEvaluator.ComputeVolume(resolved, positions);
+        reason = MeasurementFailureReason.MalformedDefinition; // unused on success
         return true;
     }
 

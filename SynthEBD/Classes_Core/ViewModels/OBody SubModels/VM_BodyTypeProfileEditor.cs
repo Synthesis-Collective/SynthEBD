@@ -1257,7 +1257,7 @@ public class VM_BodyTypeProfileEditor : VM
             // Computed once here; reused both to validate existing entries (dropping stale
             // measurements) and to tag freshly-scanned / partially-filled values.
             var currentMeasurementFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
-                profileModel.Measurements, profileModel.KeyVertices);
+                profileModel.Measurements, profileModel.KeyVertices, profileModel.Regions);
 
             // Granular per-measurement invalidation. Replaces the pre-(C) wholesale
             // MeasurementCache.Clear() that fired whenever a KeyVertex or MeasurementDefinition
@@ -1490,6 +1490,62 @@ public class VM_BodyTypeProfileEditor : VM
                 }
             }
 
+            // Region-volume prep. MeasurementKind.RegionVolume integrates a body region's volume
+            // against a per-weight sliders-0 reference mesh: the region's box selects a surface
+            // patch on the zeroed body, which RegionVolumeEvaluator bakes once (per weight) into a
+            // topology-stable ResolvedRegion. Per preset we only re-evaluate that baked region
+            // against the deformed positions, so the expensive clip / boundary-loop / validate work
+            // runs once per body per weight here, not once per (preset, weight). Resolving per
+            // weight (rather than once) keeps the patch selection consistent with the weight being
+            // measured — the zeroed body at weight 100 differs from weight 0. Skipped entirely when
+            // the profile defines no RegionVolume measurements (the common case), so no zero-morph
+            // reference pass runs.
+            //
+            // Applying an empty MorphSet yields the sliders-0 base mesh at a weight: ApplyMorphSet
+            // rebuilds CpuPositions from the weight-blended bind pose, then applies (no) slider
+            // deltas. But it early-returns WITHOUT rebuilding when it has no morph context AND no
+            // sibling .tri (haveDeltas == false) — which would leave stale (previewed-preset)
+            // geometry and bake the region against the wrong mesh. So prime the morph context first
+            // via ApplyBodySlide on any target preset: that loads the SliderGroup's OSD context as
+            // a side effect (and .tri-equipped bodies like CBBE 3BA auto-load their sibling .tri
+            // inside ApplyMorphSet regardless). The context is weight-independent, so one prime
+            // covers every weight slot; the main loop re-primes per preset anyway.
+            Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>> resolvedRegionsByWeight = null;
+            bool hasRegionVolumes = profileModel.Measurements != null
+                && profileModel.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume);
+            if (hasRegionVolumes && profileModel.Regions != null && profileModel.Regions.Count > 0)
+            {
+                resolvedRegionsByWeight = new Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>>();
+                var primeModel = missing.Count > 0 ? missing[0].ph?.AssociatedModel : null;
+                if (primeModel != null)
+                {
+                    viewer.ApplyBodySlide(primeModel, missing[0].weight);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                }
+                foreach (int wSlot in missing.Select(x => x.weight).Distinct())
+                {
+                    if (ct.IsCancellationRequested) break;
+                    viewer.ApplyMorphSet(new MorphSet { Label = "(sliders-0 reference)" }, wSlot);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                    if (viewer.GetCurrentShapeVertexCounts().Count == 0) continue; // viewer unloaded mid-prep
+                    var resolved = RegionVolumeEvaluator.ResolveRegions(
+                        profileModel.Regions,
+                        shape => viewer.GetShapePositions(shape),
+                        shape => viewer.GetShapeIndices(shape));
+                    resolvedRegionsByWeight[wSlot] = resolved;
+                    if (VerboseScan)
+                    {
+                        foreach (var rkv in resolved)
+                        {
+                            var rr = rkv.Value;
+                            _logger?.LogMessage(rr.IsValid
+                                ? $"RegionVolume: resolved '{rkv.Key}' @ weight {wSlot} — {rr.LoopCount} cap loop(s), zeroed volume {rr.ZeroedVolume:F1}"
+                                : $"RegionVolume: region '{rkv.Key}' @ weight {wSlot} REJECTED — {rr.Diagnostic}");
+                        }
+                    }
+                }
+            }
+
             int done = 0;
             ScanProgressPercent = 0;
 
@@ -1583,7 +1639,9 @@ public class VM_BodyTypeProfileEditor : VM
                     includeDrafts: true,
                     evaluationGender: gender,
                     measurementNamesAllowlist: namesAllowlist,
-                    skipRules: isPartialFill);
+                    skipRules: isPartialFill,
+                    resolvedRegions: resolvedRegionsByWeight != null
+                        && resolvedRegionsByWeight.TryGetValue(weight, out var rrForWeight) ? rrForWeight : null);
 
                 if (VerboseScan)
                 {
@@ -1809,7 +1867,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         var profileModel = profile.DumpToModel();
         var currentFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
-            profileModel.Measurements, profileModel.KeyVertices);
+            profileModel.Measurements, profileModel.KeyVertices, profileModel.Regions);
 
         int hydrated = 0, skippedStaleFp = 0;
         foreach (var entry in snapshot.Entries)
@@ -1937,7 +1995,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         var profileModel = profile.DumpToModel();
         var currentFps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(
-            profileModel.Measurements, profileModel.KeyVertices);
+            profileModel.Measurements, profileModel.KeyVertices, profileModel.Regions);
 
         var bodyMeshHash = !string.IsNullOrEmpty(overrideBodyMeshHash)
             ? overrideBodyMeshHash!
@@ -6625,12 +6683,31 @@ public class VM_BodyTypeProfile : VM
                 SampleIndices = _source.Fingerprint?.SampleIndices ?? new List<int>(),
             },
             KeyVertices = KeyVertices.Select(k => k.DumpToModel()).ToList(),
+            // Regions have no VM collection yet (the authoring UI lands in a later phase), so they
+            // round-trip straight from the source model. Once the editor surfaces them this should
+            // dump from the VM collection like KeyVertices.
+            Regions = _source.Regions != null
+                ? _source.Regions.Where(r => r != null).Select(CloneRegion).ToList()
+                : new List<NamedRegion>(),
             Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
             Rules = Rules.Select(r => r.DumpToModel()).ToList(),
             PresetAnnotations = PresetAnnotations.Select(CloneAnnotation).ToList(),
             AnnotatorPrefs = CloneAnnotatorPrefs(AnnotatorPrefs),
         };
         return model;
+    }
+
+    private static NamedRegion CloneRegion(NamedRegion src)
+    {
+        if (src == null) return null;
+        return new NamedRegion
+        {
+            Name = src.Name ?? "",
+            ShapeName = src.ShapeName ?? "",
+            BoxMinX = src.BoxMinX, BoxMinY = src.BoxMinY, BoxMinZ = src.BoxMinZ,
+            BoxMaxX = src.BoxMaxX, BoxMaxY = src.BoxMaxY, BoxMaxZ = src.BoxMaxZ,
+            ExpectedCapCount = src.ExpectedCapCount,
+        };
     }
 
     private static PresetAnnotation CloneAnnotation(PresetAnnotation src)
@@ -6927,7 +7004,12 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements) if (m != null) measModels.Add(m.DumpToModel());
         var kvModels = new List<NamedKeyVertex>(KeyVertices.Count);
         foreach (var k in KeyVertices) if (k != null) kvModels.Add(k.DumpToModel());
-        return MeasurementCacheStore.ComputeAllMeasurementFingerprints(measModels, kvModels);
+        // Regions have no VM collection yet (authoring UI lands later); pull from the source model
+        // so RegionVolume measurements fingerprint against their box like KeyVertex-backed ones do.
+        var rgModels = _source.Regions != null
+            ? _source.Regions.Where(r => r != null).Select(CloneRegion).ToList()
+            : new List<NamedRegion>();
+        return MeasurementCacheStore.ComputeAllMeasurementFingerprints(measModels, kvModels, rgModels);
     }
 
     /// <summary>Re-derives <see cref="MeasurementCacheStale"/> from a fingerprint comparison instead
@@ -7082,7 +7164,18 @@ public class VM_BodyTypeProfile : VM
             if (n.Length == 0) continue;
             if (!kvMap.ContainsKey(n)) kvMap[n] = model; // first-row-wins, matching the evaluator
         }
-        string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap);
+        var rgMap = new Dictionary<string, NamedRegion>(StringComparer.Ordinal);
+        if (_source.Regions != null)
+        {
+            foreach (var rg in _source.Regions)
+            {
+                if (rg == null) continue;
+                var rn = rg.Name?.Trim() ?? "";
+                if (rn.Length == 0) continue;
+                if (!rgMap.ContainsKey(rn)) rgMap[rn] = rg; // first-row-wins, matching the evaluator
+            }
+        }
+        string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap, rgMap);
 
         int moved = 0;
         foreach (var entry in MeasurementCache.Values)
