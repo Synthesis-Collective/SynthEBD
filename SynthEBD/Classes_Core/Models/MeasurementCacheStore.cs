@@ -311,6 +311,12 @@ public static class MeasurementCacheStore
     public static string ComputeMeasurementFingerprint(
         MeasurementDefinition? def,
         IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName)
+        => ComputeMeasurementFingerprint(def, keyVerticesByName, null);
+
+    public static string ComputeMeasurementFingerprint(
+        MeasurementDefinition? def,
+        IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName,
+        IReadOnlyDictionary<string, NamedRegion>? regionsByName)
     {
         if (def == null) return "";
         var sb = new StringBuilder();
@@ -319,25 +325,44 @@ public static class MeasurementCacheStore
         sb.Append("A=").Append((int)def.Axis).Append('|');
         sb.Append("NA=").Append(def.NumeratorAxis.HasValue ? ((int)def.NumeratorAxis.Value).ToString() : "-").Append('|');
         sb.Append("DA=").Append(def.DenominatorAxis.HasValue ? ((int)def.DenominatorAxis.Value).ToString() : "-").Append('|');
-        sb.Append("R=[");
-        if (def.VertexRefNames != null)
+        if (def.Kind == MeasurementKind.RegionVolume)
         {
-            for (int i = 0; i < def.VertexRefNames.Count; i++)
+            // RegionVolume reads a single named region's box, not key vertices. Like a BoundingBox
+            // key vertex, the defining identity is (ShapeName, box coords, expected cap count) —
+            // the resolved patch/loops/caps are session-derived and never enter the fingerprint.
+            var regName = def.RegionRefName ?? "";
+            sb.Append("RGN=").Append(regName).Append(':');
+            if (regionsByName != null && regionsByName.TryGetValue(regName, out var rg) && rg != null)
             {
-                if (i > 0) sb.Append(',');
-                var refName = def.VertexRefNames[i] ?? "";
-                sb.Append(refName).Append(':');
-                if (keyVerticesByName != null && keyVerticesByName.TryGetValue(refName, out var kv) && kv != null)
-                {
-                    AppendKeyVertex(sb, kv);
-                }
-                else
-                {
-                    sb.Append("MISSING");
-                }
+                AppendRegion(sb, rg);
+            }
+            else
+            {
+                sb.Append("MISSING");
             }
         }
-        sb.Append(']');
+        else
+        {
+            sb.Append("R=[");
+            if (def.VertexRefNames != null)
+            {
+                for (int i = 0; i < def.VertexRefNames.Count; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    var refName = def.VertexRefNames[i] ?? "";
+                    sb.Append(refName).Append(':');
+                    if (keyVerticesByName != null && keyVerticesByName.TryGetValue(refName, out var kv) && kv != null)
+                    {
+                        AppendKeyVertex(sb, kv);
+                    }
+                    else
+                    {
+                        sb.Append("MISSING");
+                    }
+                }
+            }
+            sb.Append(']');
+        }
         return Sha256Hex(sb.ToString());
     }
 
@@ -347,6 +372,12 @@ public static class MeasurementCacheStore
     public static Dictionary<string, string> ComputeAllMeasurementFingerprints(
         IReadOnlyList<MeasurementDefinition>? measurements,
         IReadOnlyList<NamedKeyVertex>? keyVertices)
+        => ComputeAllMeasurementFingerprints(measurements, keyVertices, null);
+
+    public static Dictionary<string, string> ComputeAllMeasurementFingerprints(
+        IReadOnlyList<MeasurementDefinition>? measurements,
+        IReadOnlyList<NamedKeyVertex>? keyVertices,
+        IReadOnlyList<NamedRegion>? regions)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         if (measurements == null) return result;
@@ -364,11 +395,22 @@ public static class MeasurementCacheStore
                 if (!kvMap.ContainsKey(name)) kvMap[name] = kv;
             }
         }
+        var rgMap = new Dictionary<string, NamedRegion>(StringComparer.Ordinal);
+        if (regions != null)
+        {
+            foreach (var rg in regions)
+            {
+                if (rg == null) continue;
+                var name = rg.Name?.Trim() ?? "";
+                if (name.Length == 0) continue;
+                if (!rgMap.ContainsKey(name)) rgMap[name] = rg; // same first-row-wins discipline
+            }
+        }
         foreach (var def in measurements)
         {
             if (def == null || string.IsNullOrEmpty(def.Name)) continue;
             if (result.ContainsKey(def.Name)) continue; // same first-row-wins discipline
-            result[def.Name] = ComputeMeasurementFingerprint(def, kvMap);
+            result[def.Name] = ComputeMeasurementFingerprint(def, kvMap, rgMap);
         }
         return result;
     }
@@ -394,6 +436,20 @@ public static class MeasurementCacheStore
         sb.Append("Cr=").Append((int)kv.Criterion).Append('|');
         sb.Append("B=").Append(kv.BoxMinX).Append(',').Append(kv.BoxMinY).Append(',').Append(kv.BoxMinZ);
         sb.Append('-').Append(kv.BoxMaxX).Append(',').Append(kv.BoxMaxY).Append(',').Append(kv.BoxMaxZ);
+    }
+
+    private static void AppendRegion(StringBuilder sb, NamedRegion rg)
+    {
+        // Defining identity for a RegionVolume measurement: shape, box coords, and expected cap
+        // count. The resolved surface patch / boundary loops / cap topology are recomputed each
+        // session from (box + sliders-0 mesh) and are deliberately excluded — same rationale as
+        // excluding a BoundingBox key vertex's resolved VertexIndex (commit 5e9610a7): they can
+        // re-resolve to equivalent-but-different topology across sessions without any authoring
+        // change, and hashing them would spuriously invalidate every region volume on restart.
+        sb.Append("S=").Append(rg.ShapeName ?? "").Append('|');
+        sb.Append("CC=").Append(rg.ExpectedCapCount.HasValue ? rg.ExpectedCapCount.Value.ToString() : "-").Append('|');
+        sb.Append("B=").Append(rg.BoxMinX).Append(',').Append(rg.BoxMinY).Append(',').Append(rg.BoxMinZ);
+        sb.Append('-').Append(rg.BoxMaxX).Append(',').Append(rg.BoxMaxY).Append(',').Append(rg.BoxMaxZ);
     }
 
     private static string Sha256Hex(string input)

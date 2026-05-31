@@ -47,6 +47,15 @@ public class BodyTypeProfile
     public List<NamedKeyVertex> KeyVertices { get; set; } = new();
 
     /// <summary>
+    /// Named box regions referenced by <see cref="MeasurementKind.RegionVolume"/> measurements.
+    /// Like a <see cref="KeyVertexStrategy.BoundingBox"/> key vertex, only the mesh-local AABB is
+    /// persisted; the surface patch, boundary loops, and cap topology are recomputed each session
+    /// from (box + sliders-0 mesh) by <c>RegionVolumeEvaluator.ResolveRegion</c>, so the region
+    /// survives body-mod updates that shift vertex indices.
+    /// </summary>
+    public List<NamedRegion> Regions { get; set; } = new();
+
+    /// <summary>
     /// Measurement definitions. Each produces a single float per (preset, weight) evaluation.
     /// </summary>
     public List<MeasurementDefinition> Measurements { get; set; } = new();
@@ -271,6 +280,44 @@ public class NamedKeyVertex
 }
 
 /// <summary>
+/// A user-named axis-aligned box region inside a specific body shape mesh, used as the input to a
+/// <see cref="MeasurementKind.RegionVolume"/> measurement. The box is authored on the sliders-0
+/// reference mesh; it selects a surface patch which is clipped to the box, capped along its open
+/// boundary loop(s), and integrated to a volume per preset.
+///
+/// Mirrors the <see cref="KeyVertexStrategy.BoundingBox"/> design: <b>only the box is persisted.</b>
+/// The resolved patch/loops/caps are session-derived (recomputed from box + mesh by
+/// <c>RegionVolumeEvaluator.ResolveRegion</c>) and never stored, so the region tracks the same
+/// anatomy across BodySlide presets and survives body-mod updates that renumber vertices.
+/// </summary>
+[DebuggerDisplay("{Name} @ {ShapeName} [{BoxMinX},{BoxMinY},{BoxMinZ}]-[{BoxMaxX},{BoxMaxY},{BoxMaxZ}] caps={ExpectedCapCount}")]
+public class NamedRegion
+{
+    /// <summary>User-provided name (e.g. "chest_bump", "left_thigh"). Unique within a profile; referenced by <see cref="MeasurementDefinition.RegionRefName"/>.</summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>Name of the shape mesh (e.g. "CBBE 3BA") this region belongs to. Matches <see cref="GlMesh"/> shape naming.</summary>
+    public string ShapeName { get; set; } = "";
+
+    /// <summary>Mesh-local AABB min corner (sliders-0 space).</summary>
+    public float BoxMinX { get; set; }
+    public float BoxMinY { get; set; }
+    public float BoxMinZ { get; set; }
+
+    /// <summary>Mesh-local AABB max corner (sliders-0 space).</summary>
+    public float BoxMaxX { get; set; }
+    public float BoxMaxY { get; set; }
+    public float BoxMaxZ { get; set; }
+
+    /// <summary>
+    /// Expected number of cap boundary loops the resolved patch must have (1 for a chest bump,
+    /// 2 for a limb segment such as a thigh). Null = accept any valid count (1 or 2). Authoring
+    /// rejects a box whose resolved loop count disagrees with a non-null value.
+    /// </summary>
+    public int? ExpectedCapCount { get; set; } = null;
+}
+
+/// <summary>
 /// Kinds of geometric measurement the evaluator supports.
 /// </summary>
 public enum MeasurementKind
@@ -297,6 +344,14 @@ public enum MeasurementKind
     /// Skyrim NIF convention: character faces -Z, so for a "navel forward of sternum" check on Z
     /// you want this kind, not <see cref="AxisDistance"/> (which collapses both directions).</summary>
     SignedAxisDistance = 4,
+
+    /// <summary>Absolute enclosed volume (raw units³) of a body region. Reads a single
+    /// <see cref="MeasurementDefinition.RegionRefName"/> (not <see cref="MeasurementDefinition.VertexRefNames"/>):
+    /// the named <see cref="NamedRegion"/>'s box selects a surface patch on the sliders-0 mesh, which is
+    /// clipped to the box, capped along its open boundary loop(s), and integrated per preset by
+    /// <c>RegionVolumeEvaluator</c>. Designed for "fullness" discriminators (cup size) where a 2-point
+    /// distance misclassifies long/narrow vs broad/flat geometry.</summary>
+    RegionVolume = 5,
 }
 
 /// <summary>World axis selector for <see cref="MeasurementKind.AxisDistance"/>.</summary>
@@ -321,8 +376,15 @@ public class MeasurementDefinition
     /// <summary>
     /// Names of the key vertices this measurement reads, in definition order.
     /// Point/Axis: two entries [A, B]. Ratio: four entries [A, B, C, D] for ||A-B||/||C-D||.
+    /// Not used by <see cref="MeasurementKind.RegionVolume"/> (which reads <see cref="RegionRefName"/> instead).
     /// </summary>
     public List<string> VertexRefNames { get; set; } = new();
+
+    /// <summary>
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.RegionVolume"/>: the name of the
+    /// <see cref="NamedRegion"/> whose box defines the volume to integrate. Empty for all other kinds.
+    /// </summary>
+    public string RegionRefName { get; set; } = "";
 
     /// <summary>Consulted when <see cref="Kind"/> is <see cref="MeasurementKind.AxisDistance"/>,
     /// <see cref="MeasurementKind.SignedAxisDistance"/>, or <see cref="MeasurementKind.SignedPointDistance"/>
