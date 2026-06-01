@@ -5234,11 +5234,39 @@ public class VM_BodyTypeProfile : VM
             .GroupBy(k => k.Name)
             .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
 
+        // Live readout for RegionVolume measurements: resolve every region against the currently
+        // loaded mesh once, then evaluate each region-volume measurement against that map — mirrors
+        // the scan path (RunScanAsync resolves per weight against the sliders-0 mesh; here we use the
+        // live deformed mesh so the Live column tracks the previewed preset/weight). Built only when
+        // the profile actually has region-volume measurements, so distance-only profiles pay nothing.
+        Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
+        if (viewer != null
+            && Regions.Count > 0
+            && Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume))
+        {
+            resolvedRegions = RegionVolumeEvaluator.ResolveRegions(
+                Regions.Select(r => r.DumpToModel()),
+                shape => viewer.GetShapePositions(shape),
+                shape => viewer.GetShapeIndices(shape));
+        }
+
         foreach (var m in Measurements)
         {
             if (viewer == null)
             {
                 m.LiveValue = null;
+                continue;
+            }
+            if (m.Kind == MeasurementKind.RegionVolume)
+            {
+                // RegionVolume reads a baked region + the shape's deformed positions, not key
+                // vertices, so it takes the dedicated evaluator path (same as Evaluate's branch).
+                m.LiveValue = BodySlideMeasurementEvaluator.TryEvaluateRegionVolume(
+                    m.DumpToModel(), resolvedRegions,
+                    shape => viewer.GetShapePositions(shape),
+                    out float rv, out _)
+                    ? rv
+                    : (float?)null;
                 continue;
             }
             if (MeasurementMath.TryEvaluate(m.DumpToModel(), keyVertsByName,
