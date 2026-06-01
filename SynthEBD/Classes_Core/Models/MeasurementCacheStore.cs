@@ -453,6 +453,11 @@ public static class MeasurementCacheStore
         sb.Append("CM=").Append((int)rg.CapMode).Append('|');
         sb.Append("B=").Append(rg.BoxMinX).Append(',').Append(rg.BoxMinY).Append(',').Append(rg.BoxMinZ);
         sb.Append('-').Append(rg.BoxMaxX).Append(',').Append(rg.BoxMaxY).Append(',').Append(rg.BoxMaxZ);
+        // Rotation changes which vertices the box selects (and the cut-plane orientation), so it's
+        // part of the identity. Omitted-as-zero stays identical to pre-rotation fingerprints only when
+        // all three are 0 — which is the default, so existing axis-aligned regions don't re-fingerprint.
+        if (rg.RotX != 0f || rg.RotY != 0f || rg.RotZ != 0f)
+            sb.Append("|R=").Append(rg.RotX).Append(',').Append(rg.RotY).Append(',').Append(rg.RotZ);
     }
 
     private static string Sha256Hex(string input)

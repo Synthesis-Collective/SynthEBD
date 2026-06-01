@@ -46,6 +46,41 @@ public static class RegionVolumeEvaluator
     }
 
     /// <summary>
+    /// Optional rotation of a region box about its own center, as intrinsic Euler angles in degrees
+    /// (applied X then Y then Z). All-zero = an axis-aligned box (the default; behaves byte-identically
+    /// to the no-rotation path). A rotated box lets the cut plane align with a tilted feature — e.g. a
+    /// chest wall that isn't square to the body axes — so the FlatPlane cap stays perpendicular to the
+    /// real protrusion direction.
+    ///
+    /// <para>The whole feature is implemented by transforming the mesh into the box's local frame at
+    /// resolve time and running the same axis-aligned clip there; the baked patch is stored as
+    /// barycentric refs into the original triangles, which are frame-independent, so volume / overlay /
+    /// cap modes / cross-preset tracking need no changes.</para>
+    /// </summary>
+    public readonly struct BoxRotation
+    {
+        public readonly float DegX, DegY, DegZ;
+        public BoxRotation(float degX, float degY, float degZ) { DegX = degX; DegY = degY; DegZ = degZ; }
+
+        public bool IsIdentity => DegX == 0f && DegY == 0f && DegZ == 0f;
+
+        /// <summary>Columns of the box→world rotation matrix (the box's local axes in world space).
+        /// World = center + Rx·Ry·Rz · local. Transpose maps world→local (used at clip time).</summary>
+        public (Vector3 ax, Vector3 ay, Vector3 az) Basis()
+        {
+            float rx = DegX * (MathF.PI / 180f), ry = DegY * (MathF.PI / 180f), rz = DegZ * (MathF.PI / 180f);
+            float cx = MathF.Cos(rx), sx = MathF.Sin(rx);
+            float cy = MathF.Cos(ry), sy = MathF.Sin(ry);
+            float cz = MathF.Cos(rz), sz = MathF.Sin(rz);
+            // R = Rx * Ry * Rz (row-style multiply; columns are the rotated basis vectors).
+            var ax = new Vector3(cy * cz, cy * sz, -sy);
+            var ay = new Vector3(sx * sy * cz - cx * sz, sx * sy * sz + cx * cz, sx * cy);
+            var az = new Vector3(cx * sy * cz + sx * sz, cx * sy * sz - sx * cz, cx * cy);
+            return (ax, ay, az);
+        }
+    }
+
+    /// <summary>
     /// A patch vertex expressed as a barycentric blend of one original triangle's three vertices.
     /// Original mesh vertices use a corner weight (1,0,0); split vertices created by clipping carry
     /// interpolated weights. Evaluating against a deformed position array tracks the point to wherever
@@ -97,11 +132,11 @@ public static class RegionVolumeEvaluator
         /// <summary>Each boundary loop as an ordered list of vertex ids (following the patch's boundary direction). One cap is fanned per loop.</summary>
         public int[][] CapLoops = Array.Empty<int[]>();
 
-        /// <summary>The axis the cut face(s) are perpendicular to (0=X, 1=Y, 2=Z), auto-detected at
-        /// resolve time as the axis whose loop coordinates vary least on the zeroed mesh (the cut
-        /// plane's normal). Used by <see cref="RegionCapMode.FlatPlane"/> to position the flat lid.
-        /// For a chest authored facing -Z this is 2 (Z).</summary>
-        public int CutAxis = 2;
+        /// <summary>Unit normal of the cut plane in WORLD space, auto-detected at resolve time as the
+        /// box-local axis whose loop coordinates vary least (the face the loop lies on), mapped back to
+        /// world. For an unrotated chest box this is ±Z. Used by <see cref="RegionCapMode.FlatPlane"/>
+        /// to orient the flat lid perpendicular to the (possibly rotated) cut face.</summary>
+        public Vector3 CutNormal = new Vector3(0, 0, 1);
 
         /// <summary>The cap mode this region should be measured + drawn with. Carried here (set from
         /// the owning <c>NamedRegion.CapMode</c> by <see cref="ResolveRegions"/>) so volume/overlay
@@ -254,32 +289,28 @@ public static class RegionVolumeEvaluator
         for (int i = 0; i + 2 < tris.Length; i += 3)
             v += SignedTetraVolume(pos[tris[i]], pos[tris[i + 1]], pos[tris[i + 2]]);
 
-        int axis = region.CutAxis;
+        Vector3 nrm = region.CutNormal.LengthSquared > 1e-12f ? region.CutNormal.Normalized() : new Vector3(0, 0, 1);
         foreach (var loop in region.CapLoops)
         {
             int m = loop.Length;
             if (m < 3) continue;
 
             // Cap centroid. AnatomicalFan: the loop's true centroid (lid follows the deformed ring).
-            // FlatPlane: the centroid projected onto the flat cut plane — i.e. the centroid with its
-            // cut-axis coordinate replaced by the loop's mean cut-axis value, AND every loop vertex
-            // likewise projected onto that plane, so the lid is flat.
+            // FlatPlane: project every loop vertex (and the apex) onto a flat plane whose normal is the
+            // cut normal, at the loop's mean signed distance along that normal — so the lid is flat and
+            // perpendicular to the (possibly rotated) cut face.
             Vector3 c = Vector3.Zero;
             for (int k = 0; k < m; k++) c += pos[loop[k]];
             c /= m;
 
             if (capMode == RegionCapMode.FlatPlane)
             {
-                float plane = AxisComp(c, axis); // mean cut-axis coordinate of the loop = the flat plane
-                // For each boundary edge, build the cap triangle against the FLAT-projected ring: the
-                // two ring verts get their cut-axis coord set to `plane`, and the fan apex is the
-                // in-plane centroid. The surface patch (the real bump) is unchanged, so the enclosed
-                // solid is "bump in front of the flat plane".
-                Vector3 cFlat = WithAxis(c, axis, plane);
+                float planeD = Vector3.Dot(c, nrm); // mean signed distance of the loop along the normal
+                Vector3 cFlat = ProjectToPlane(c, nrm, planeD);
                 for (int k = 0; k < m; k++)
                 {
-                    Vector3 a = WithAxis(pos[loop[k]], axis, plane);
-                    Vector3 b = WithAxis(pos[loop[(k + 1) % m]], axis, plane);
+                    Vector3 a = ProjectToPlane(pos[loop[k]], nrm, planeD);
+                    Vector3 b = ProjectToPlane(pos[loop[(k + 1) % m]], nrm, planeD);
                     v += SignedTetraVolume(a, cFlat, b);
                 }
             }
@@ -306,6 +337,14 @@ public static class RegionVolumeEvaluator
         _ => new Vector3(p.X, p.Y, value),
     };
 
+    /// <summary>Projects <paramref name="p"/> onto the plane {x : dot(x, <paramref name="unitNormal"/>) =
+    /// <paramref name="planeD"/>} along the normal (slides it parallel to the normal until it lands on
+    /// the plane). Used by <see cref="RegionCapMode.FlatPlane"/> to flatten the cap ring onto the cut
+    /// plane, generalizing the axis-aligned "set one coordinate" projection to an arbitrary (rotated)
+    /// plane normal.</summary>
+    public static Vector3 ProjectToPlane(Vector3 p, Vector3 unitNormal, float planeD)
+        => p - unitNormal * (Vector3.Dot(p, unitNormal) - planeD);
+
     /// <summary>
     /// Returns the ordered overlay points for one cap loop, evaluated against
     /// <paramref name="deformedPositions"/>, for drawing the region's contour. In
@@ -330,11 +369,11 @@ public static class RegionVolumeEvaluator
 
         if (capMode == RegionCapMode.FlatPlane)
         {
-            int axis = region.CutAxis;
+            Vector3 nrm = region.CutNormal.LengthSquared > 1e-12f ? region.CutNormal.Normalized() : new Vector3(0, 0, 1);
             float mean = 0f;
-            for (int k = 0; k < m; k++) mean += AxisComp(ring[k], axis);
+            for (int k = 0; k < m; k++) mean += Vector3.Dot(ring[k], nrm);
             mean /= m;
-            for (int k = 0; k < m; k++) ring[k] = WithAxis(ring[k], axis, mean);
+            for (int k = 0; k < m; k++) ring[k] = ProjectToPlane(ring[k], nrm, mean);
         }
         outPts.AddRange(ring);
         return outPts;
@@ -349,6 +388,16 @@ public static class RegionVolumeEvaluator
     /// false and a populated <see cref="ResolvedRegion.Diagnostic"/>.
     /// </summary>
     public static ResolvedRegion ResolveRegion(Vector3[] zeroedPositions, int[] indices, RegionAabb box, RegionResolveOptions? options = null)
+        => ResolveRegion(zeroedPositions, indices, box, default, options);
+
+    /// <summary>
+    /// As <see cref="ResolveRegion(Vector3[], int[], RegionAabb, RegionResolveOptions)"/>, but the box
+    /// may be rotated about its center by <paramref name="rotation"/>. The mesh is transformed into the
+    /// box's local frame for clipping (so the same axis-aligned clip handles the rotated box), while the
+    /// baked vertex refs stay barycentric against the original triangles — frame-independent, so volume
+    /// / overlay / tracking are unaffected. An identity rotation takes the exact same path as before.
+    /// </summary>
+    public static ResolvedRegion ResolveRegion(Vector3[] zeroedPositions, int[] indices, RegionAabb box, BoxRotation rotation, RegionResolveOptions? options = null)
     {
         options ??= new RegionResolveOptions();
         var result = new ResolvedRegion();
@@ -360,6 +409,21 @@ public static class RegionVolumeEvaluator
         }
 
         const float planeEps = 1e-5f;
+
+        // Box-local transform. With an identity rotation this is the identity, so the clip runs on the
+        // raw world positions exactly as before. With a rotation, every mesh vertex is mapped into the
+        // box's local frame (translate to box center, then apply the inverse rotation = the basis as a
+        // world→local map) so the same axis-aligned clip cuts the rotated box.
+        bool rotated = !rotation.IsIdentity;
+        Vector3 center = box.Center;
+        var (ax, ay, az) = rotation.Basis(); // box-local axes in world space
+        Vector3 ToLocal(Vector3 wp)
+        {
+            if (!rotated) return wp;
+            Vector3 d = wp - center;
+            // world→local: components along each box axis, then re-center so the box AABB still applies.
+            return new Vector3(Vector3.Dot(d, ax), Vector3.Dot(d, ay), Vector3.Dot(d, az)) + center;
+        }
 
         // 1. Clip each triangle to the box, fan-triangulate the inside polygon, record per-vertex
         //    barycentric coords within the parent triangle.
@@ -375,9 +439,11 @@ public static class RegionVolumeEvaluator
         {
             int i0 = indices[t * 3], i1 = indices[t * 3 + 1], i2 = indices[t * 3 + 2];
             poly.Clear();
-            poly.Add(new WVert(zeroedPositions[i0], 1f, 0f, 0f));
-            poly.Add(new WVert(zeroedPositions[i1], 0f, 1f, 0f));
-            poly.Add(new WVert(zeroedPositions[i2], 0f, 0f, 1f));
+            // Clip in box-local space; the barycentric weights (1,0,0)/(0,1,0)/(0,0,1) are unchanged by
+            // the transform, so the baked refs still interpolate correctly against WORLD positions.
+            poly.Add(new WVert(ToLocal(zeroedPositions[i0]), 1f, 0f, 0f));
+            poly.Add(new WVert(ToLocal(zeroedPositions[i1]), 0f, 1f, 0f));
+            poly.Add(new WVert(ToLocal(zeroedPositions[i2]), 0f, 0f, 1f));
 
             poly = ClipPolygonHalfSpace(poly, 0, box.Min.X, true, planeEps);
             poly = ClipPolygonHalfSpace(poly, 0, box.Max.X, false, planeEps);
@@ -547,22 +613,25 @@ public static class RegionVolumeEvaluator
 
         result.CapLoops = loops.ToArray();
 
-        // Auto-detect the cut axis: the axis whose loop-vertex coordinates vary the LEAST on the
-        // zeroed mesh is the one the cut plane is perpendicular to (all boundary verts lie on that
-        // cut face). Measured as the per-axis spread (max-min) across every loop vertex; smallest
-        // spread wins. For a chest box cutting the chest-wall (a Z face) this resolves to Z.
+        // Auto-detect the cut plane's normal: the BOX-LOCAL axis whose loop-vertex coordinates vary the
+        // LEAST is the one the cut plane is perpendicular to (all boundary verts lie on that cut face).
+        // Measured in box-local space (where the box is axis-aligned) so it works for a rotated box;
+        // the winning local axis is then mapped back to WORLD via the box basis for the stored normal.
+        // For an unrotated chest box cutting the chest-wall (a Z face) this resolves to world ±Z.
         {
             var amin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var amax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
             foreach (var loop in loops)
                 foreach (var vid in loop)
                 {
-                    var p = pos0[vid];
+                    var p = ToLocal(pos0[vid]); // box-local coords of the welded loop vertex
                     if (p.X < amin.X) amin.X = p.X; if (p.Y < amin.Y) amin.Y = p.Y; if (p.Z < amin.Z) amin.Z = p.Z;
                     if (p.X > amax.X) amax.X = p.X; if (p.Y > amax.Y) amax.Y = p.Y; if (p.Z > amax.Z) amax.Z = p.Z;
                 }
             var spread = amax - amin;
-            result.CutAxis = (spread.X <= spread.Y && spread.X <= spread.Z) ? 0 : (spread.Y <= spread.Z ? 1 : 2);
+            int localAxis = (spread.X <= spread.Y && spread.X <= spread.Z) ? 0 : (spread.Y <= spread.Z ? 1 : 2);
+            // Map the box-local axis to its world direction (the basis column). Unrotated → world axis.
+            result.CutNormal = localAxis == 0 ? ax : localAxis == 1 ? ay : az;
         }
 
         result.CapMode = options.CapMode;
@@ -606,7 +675,8 @@ public static class RegionVolumeEvaluator
                 var box = new RegionAabb(
                     new Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
                     new Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
-                resolved = ResolveRegion(positions, indices, box,
+                var rotation = new BoxRotation(region.RotX, region.RotY, region.RotZ);
+                resolved = ResolveRegion(positions, indices, box, rotation,
                     new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount, CapMode = region.CapMode });
             }
             resolved.ShapeName = region.ShapeName ?? "";

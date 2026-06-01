@@ -176,8 +176,8 @@ public class RegionVolumeTrackingTests
         r.IsValid.Should().BeTrue(r.Diagnostic);
         r.LoopCount.Should().Be(1);
 
-        // Cut axis is Y (the base ring is constant-Y), so FlatPlane caps at the y=0 plane.
-        r.CutAxis.Should().Be(1);
+        // Cut normal is world Y (the base ring is constant-Y), so FlatPlane caps at the y=0 plane.
+        MathF.Abs(r.CutNormal.Y).Should().BeApproximately(1f, 1e-3f);
 
         // The base ring is planar (y=0) at its centroid, so a flat lid and a centroid fan coincide →
         // identical volume = pyramid (2x2 base, height 2) = 8/3. (When the ring is planar the two

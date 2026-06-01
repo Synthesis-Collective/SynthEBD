@@ -309,6 +309,15 @@ public class NamedRegion
     public float BoxMaxY { get; set; }
     public float BoxMaxZ { get; set; }
 
+    /// <summary>Rotation of the box about its own center, intrinsic Euler degrees (X then Y then Z).
+    /// All-zero (the default) = an axis-aligned box that behaves identically to the no-rotation path.
+    /// A rotation lets the cut plane align with a tilted feature (e.g. a chest wall not square to the
+    /// body axes), so the FlatPlane cap stays perpendicular to the real protrusion direction. The box
+    /// min/max are still the local half-extents; rotation is applied around <c>(min+max)/2</c>.</summary>
+    public float RotX { get; set; }
+    public float RotY { get; set; }
+    public float RotZ { get; set; }
+
     /// <summary>
     /// Expected number of cap boundary loops the resolved patch must have (1 for a chest bump,
     /// 2 for a limb segment such as a thigh). Null = accept any valid count (1 or 2). Authoring

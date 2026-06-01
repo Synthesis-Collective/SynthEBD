@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              d:DataContext="{d:DesignInstance Type=local:VM_BodyTypeProfileEditor}"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1400">
@@ -628,6 +629,18 @@
                                                                 </MultiBinding>
                                                             </TextBlock.Text>
                                                         </TextBlock>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Rotation (X / Y / Z °)" Width="180">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    ToolTip="Box rotation about its center, degrees. 0/0/0 = axis-aligned. Use to tilt the cut plane onto a feature that isn't square to the body axes.">
+                                                            <xctk:SingleUpDown Value="{Binding RotX, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
+                                                            <xctk:SingleUpDown Value="{Binding RotY, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
+                                                            <xctk:SingleUpDown Value="{Binding RotZ, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
+                                                        </StackPanel>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>

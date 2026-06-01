@@ -3827,11 +3827,14 @@ public class VM_BodyTypeProfile : VM
             case nameof(VM_NamedRegion.BoxMaxX):
             case nameof(VM_NamedRegion.BoxMaxY):
             case nameof(VM_NamedRegion.BoxMaxZ):
+            case nameof(VM_NamedRegion.RotX):
+            case nameof(VM_NamedRegion.RotY):
+            case nameof(VM_NamedRegion.RotZ):
             case nameof(VM_NamedRegion.ExpectedCapCount):
             case nameof(VM_NamedRegion.CapMode):
-                // The box/shape/cap/mode changed, so the baked resolution is stale — drop it so the
-                // next GetOrResolveRegion re-bakes against the zeroed mesh. (GetOrResolveRegion also
-                // re-resolves on a fingerprint mismatch, but invalidating here keeps it explicit.)
+                // The box/shape/rotation/cap/mode changed, so the baked resolution is stale — drop it
+                // so the next GetOrResolveRegion re-bakes against the zeroed mesh. (GetOrResolveRegion
+                // also re-resolves on a fingerprint mismatch, but invalidating here keeps it explicit.)
                 if (sender is VM_NamedRegion edited) InvalidateResolvedRegion((edited.Name ?? "").Trim());
                 RevalidateMeasurementCacheStale();
                 // Re-resolve + repaint so the Status badge and overlay track the edited box live.
@@ -4917,7 +4920,7 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Compact fingerprint of a region's resolve inputs (shape + box + expected caps). When
     /// this changes (box edited), the cached ResolvedRegion is stale and gets re-resolved.</summary>
     private static string RegionResolveFingerprint(NamedRegion r) =>
-        $"{r.ShapeName}|{r.BoxMinX},{r.BoxMinY},{r.BoxMinZ}-{r.BoxMaxX},{r.BoxMaxY},{r.BoxMaxZ}|cc={(r.ExpectedCapCount?.ToString() ?? "-")}|cm={(int)r.CapMode}";
+        $"{r.ShapeName}|{r.BoxMinX},{r.BoxMinY},{r.BoxMinZ}-{r.BoxMaxX},{r.BoxMaxY},{r.BoxMaxZ}|cc={(r.ExpectedCapCount?.ToString() ?? "-")}|cm={(int)r.CapMode}|rot={r.RotX},{r.RotY},{r.RotZ}";
 
     /// <summary>Returns the baked <see cref="RegionVolumeEvaluator.ResolvedRegion"/> for
     /// <paramref name="model"/>, resolving it once against the viewer's <b>sliders-0</b> mesh (at the
@@ -8632,6 +8635,9 @@ public class VM_NamedRegion : VM
         BoxMaxX = source.BoxMaxX;
         BoxMaxY = source.BoxMaxY;
         BoxMaxZ = source.BoxMaxZ;
+        RotX = source.RotX;
+        RotY = source.RotY;
+        RotZ = source.RotZ;
         ExpectedCapCount = source.ExpectedCapCount;
         CapMode = source.CapMode;
         DefiningPresetLabel = source.DefiningPresetLabel ?? "";
@@ -8650,6 +8656,12 @@ public class VM_NamedRegion : VM
     public float BoxMaxX { get; set; }
     public float BoxMaxY { get; set; }
     public float BoxMaxZ { get; set; }
+
+    /// <summary>Box rotation about its center, Euler degrees (X then Y then Z). 0/0/0 = axis-aligned.
+    /// Editable in the grid; lets the cut plane align with a tilted feature.</summary>
+    public float RotX { get; set; }
+    public float RotY { get; set; }
+    public float RotZ { get; set; }
 
     /// <summary>Expected cap-loop count (1 = chest bump, 2 = limb segment). Null = accept any valid
     /// count. Persisted; surfaced as an editable numeric in the grid.</summary>
@@ -8701,6 +8713,9 @@ public class VM_NamedRegion : VM
         BoxMaxX = BoxMaxX,
         BoxMaxY = BoxMaxY,
         BoxMaxZ = BoxMaxZ,
+        RotX = RotX,
+        RotY = RotY,
+        RotZ = RotZ,
         ExpectedCapCount = ExpectedCapCount,
         CapMode = CapMode,
         DefiningPresetLabel = DefiningPresetLabel ?? "",
