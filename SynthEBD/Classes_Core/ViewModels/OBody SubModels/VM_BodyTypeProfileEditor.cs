@@ -204,6 +204,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
+        VM_CharacterViewer.AnyRegionBoxPicked += OnAnyRegionBoxPicked;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -533,6 +534,7 @@ public class VM_BodyTypeProfileEditor : VM
     {
         VM_CharacterViewer.AnyKeyVertexPicked -= OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked -= OnAnyKeyVertexBoxPicked;
+        VM_CharacterViewer.AnyRegionBoxPicked -= OnAnyRegionBoxPicked;
         base.Dispose();
     }
 
@@ -834,6 +836,17 @@ public class VM_BodyTypeProfileEditor : VM
         // editor, often after the user opened an edit session by clicking a row), so the
         // gate is overly conservative here and would silently swallow the confirm.
         profile.OnBoxPickedFromViewer(viewer, pick);
+    }
+
+    private void OnAnyRegionBoxPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    {
+        if (!ReferenceEquals(viewer, CharacterViewer)) return;
+
+        var profile = SelectedProfile;
+        if (profile == null) return;
+        // Like box picks, region confirms are an explicit button press ("Confirm as Region" on
+        // the pending-box panel), so they bypass the CapturePicks toggle too.
+        profile.OnRegionBoxPickedFromViewer(viewer, pick);
     }
 
     /// <summary>Wires up <see cref="DescriptorFilter"/> using the same factory + dependencies
@@ -3213,7 +3226,9 @@ public class VM_BodyTypeProfile : VM
             foreach (var r in _source.Regions)
             {
                 if (r == null) continue;
-                Regions.Add(new VM_NamedRegion(r, this));
+                var rvm = new VM_NamedRegion(r, this);
+                Regions.Add(rvm);
+                _regionLastNames[rvm] = rvm.Name ?? "";
             }
         }
         RecomputeDuplicateRegionNames();
@@ -3491,6 +3506,30 @@ public class VM_BodyTypeProfile : VM
             RecomputeDuplicateKeyVertexNames();
         };
 
+        // Regions roster: re-fingerprint + recompute duplicate names when rows are added/removed or
+        // a row's box/name is edited. A region edit changes a RegionVolume measurement's fingerprint
+        // the same way a key-vertex edit changes a distance measurement's, so the cache-staleness
+        // revalidation must see region changes too.
+        foreach (var r in Regions) r.PropertyChanged += OnRegionRowPropertyChanged;
+        Regions.CollectionChanged += (_, args) =>
+        {
+            if (args.OldItems != null)
+                foreach (VM_NamedRegion r in args.OldItems)
+                {
+                    r.PropertyChanged -= OnRegionRowPropertyChanged;
+                    _regionLastNames.Remove(r);
+                }
+            if (args.NewItems != null)
+                foreach (VM_NamedRegion r in args.NewItems)
+                {
+                    r.PropertyChanged += OnRegionRowPropertyChanged;
+                    _regionLastNames[r] = r.Name ?? "";
+                }
+            RecomputeDuplicateRegionNames();
+            RevalidateMeasurementCacheStale();
+            RefreshMeasurementValues();
+        };
+
         // Scan cache invalidation. Two distinct staleness signals:
         //   * MeasurementCache stale — KeyVertices or MeasurementDefinitions changed, so the
         //     cached numbers themselves are wrong. Requires a real re-scan (mesh deformation
@@ -3612,6 +3651,12 @@ public class VM_BodyTypeProfile : VM
                 }
 
                 SyncPendingBoxEditSessionWithSelection(kv);
+            }
+            else if (args.PropertyName == nameof(SelectedRegion))
+            {
+                // Region row selected/deselected: repaint the cap-loop overlay for that region
+                // (or clear it). Mirrors the SelectedKeyVertex preview-marker behavior.
+                RefreshRegionOverlay();
 
                 // The selected row defines which box the bulge debug overlay targets when
                 // no pending-box edit is active, so refresh when switching rows.
@@ -3736,6 +3781,68 @@ public class VM_BodyTypeProfile : VM
                 if (sender is VM_NamedKeyVertex vkv && vkv.Strategy == KeyVertexStrategy.Explicit)
                     RevalidateMeasurementCacheStale();
                 break;
+        }
+    }
+
+    /// <summary>Last-seen Name per region row, for rename-cascade detection (mirrors
+    /// <see cref="_kvLastNames"/>). Seeded on add; updated on every Name change.</summary>
+    private readonly Dictionary<VM_NamedRegion, string> _regionLastNames = new();
+
+    /// <summary>Region analog of <see cref="OnKeyVertexRowPropertyChanged"/>: drives duplicate-name
+    /// highlighting, cascades a region rename into <see cref="MeasurementDefinition.RegionRefName"/>
+    /// on any RegionVolume measurement that referenced the old name, invalidates the measurement
+    /// cache when a box/shape field changes (the fields <see cref="MeasurementCacheStore.AppendRegion"/>
+    /// hashes), and repaints the overlay when the selected region's box is edited. Skips the
+    /// diagnostic/transient properties the row never persists.</summary>
+    private void OnRegionRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_NamedRegion.HasDuplicateName)) return;
+        if (e.PropertyName == nameof(VM_NamedRegion.ResolutionState)) return;
+        if (e.PropertyName == nameof(VM_NamedRegion.ResolveDiagnostic)) return;
+
+        if (e.PropertyName == nameof(VM_NamedRegion.Name) && sender is VM_NamedRegion rRow)
+        {
+            if (_regionLastNames.TryGetValue(rRow, out var oldName))
+            {
+                CascadeRegionRename(oldName, rRow.Name ?? "");
+            }
+            _regionLastNames[rRow] = rRow.Name ?? "";
+            RecomputeDuplicateRegionNames();
+        }
+
+        switch (e.PropertyName)
+        {
+            case nameof(VM_NamedRegion.ShapeName):
+            case nameof(VM_NamedRegion.BoxMinX):
+            case nameof(VM_NamedRegion.BoxMinY):
+            case nameof(VM_NamedRegion.BoxMinZ):
+            case nameof(VM_NamedRegion.BoxMaxX):
+            case nameof(VM_NamedRegion.BoxMaxY):
+            case nameof(VM_NamedRegion.BoxMaxZ):
+            case nameof(VM_NamedRegion.ExpectedCapCount):
+                RevalidateMeasurementCacheStale();
+                // Re-resolve + repaint so the Status badge and overlay track the edited box live.
+                RecomputeRegionResolutionStates();
+                if (ReferenceEquals(sender, SelectedRegion)) RefreshRegionOverlay();
+                break;
+        }
+    }
+
+    /// <summary>Rewrites <see cref="MeasurementDefinition.RegionRefName"/> on every RegionVolume
+    /// measurement that pointed at <paramref name="oldName"/> so a region rename doesn't orphan its
+    /// referencing measurements. Mirrors <see cref="CascadeKeyVertexRename"/>.</summary>
+    private void CascadeRegionRename(string oldName, string newName)
+    {
+        var from = (oldName ?? "").Trim();
+        var to = (newName ?? "").Trim();
+        if (from.Length == 0 || to.Length == 0 || string.Equals(from, to, StringComparison.Ordinal)) return;
+        foreach (var m in Measurements)
+        {
+            if (m != null && m.Kind == MeasurementKind.RegionVolume
+                && string.Equals((m.RegionRefName ?? "").Trim(), from, StringComparison.Ordinal))
+            {
+                m.RegionRefName = to;
+            }
         }
     }
 
@@ -4430,6 +4537,11 @@ public class VM_BodyTypeProfile : VM
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
 
+    /// <summary>Region names available to a RegionVolume measurement's Region dropdown (the region
+    /// analog of <see cref="AvailableKeyVertexNames"/>). Empty names are filtered so the dropdown
+    /// only offers nameable references.</summary>
+    public IEnumerable<string> AvailableRegionNames => Regions.Select(r => r.Name).Where(n => !string.IsNullOrEmpty(n));
+
     public ObservableCollection<string> AvailableBodyTypeNames => _parent.AvailableBodyTypeNames;
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors => _parent.AvailableDescriptors;
 
@@ -4695,6 +4807,106 @@ public class VM_BodyTypeProfile : VM
         row.Criterion = criterion;
     }
 
+    /// <summary>Region analog of <see cref="OnBoxPickedFromViewer"/>: a "Confirm as Region" press
+    /// becomes a new <see cref="VM_NamedRegion"/> row. Regions have no criterion and no mirror/pair
+    /// expansion, so this is just "add one row from the box" — the user names it and sets the
+    /// expected cap count in the grid. Defaults <see cref="NamedRegion.ExpectedCapCount"/> to null
+    /// (accept any valid count) so the resolve verdict is informative rather than pre-judged.</summary>
+    public void OnRegionBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    {
+        ActiveViewer = viewer;
+        var added = AddRegionRow(pick.ShapeName ?? "", pick.BoxMin, pick.BoxMax);
+        SelectedRegion = added;
+        // Resolve the new row's box against the current mesh so its Status badge + overlay populate
+        // immediately (RefreshMeasurementValues runs RecomputeRegionResolutionStates at its tail).
+        RefreshMeasurementValues();
+        RefreshRegionOverlay();
+    }
+
+    private VM_NamedRegion AddRegionRow(
+        string shapeName,
+        OpenTK.Mathematics.Vector3 boxMin,
+        OpenTK.Mathematics.Vector3 boxMax)
+    {
+        var model = new NamedRegion
+        {
+            Name = NextDefaultName("Region", Regions.Select(r => r.Name)),
+            ShapeName = shapeName,
+            BoxMinX = boxMin.X, BoxMinY = boxMin.Y, BoxMinZ = boxMin.Z,
+            BoxMaxX = boxMax.X, BoxMaxY = boxMax.Y, BoxMaxZ = boxMax.Z,
+            ExpectedCapCount = null,
+        };
+        var vm = new VM_NamedRegion(model, this);
+        Regions.Add(vm);
+        return vm;
+    }
+
+    /// <summary>Currently-selected region row (Regions grid SelectedItem). Setting it refreshes the
+    /// viewer's cap-loop overlay to that region's resolved boundary loops (or clears it on deselect),
+    /// via the PropertyChanged handler wired in the ctor.</summary>
+    public VM_NamedRegion? SelectedRegion { get; set; }
+
+    /// <summary>Pushes the <see cref="SelectedRegion"/>'s resolved cap-loop geometry to the viewer
+    /// overlay: marker spheres at the loop vertices + edges along each loop. Clears the overlay when
+    /// no region is selected, no viewer is attached, or the region's box doesn't resolve to a valid
+    /// patch on the current mesh. Evaluated against whatever mesh is currently loaded (the live-readout
+    /// analog), so the loop count + placement track preset/weight changes.</summary>
+    public void RefreshRegionOverlay()
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null) return;
+
+        var region = SelectedRegion;
+        if (region == null)
+        {
+            viewer.ClearRegionOverlay();
+            return;
+        }
+
+        var model = region.DumpToModel();
+        if (string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.ShapeName))
+        {
+            viewer.ClearRegionOverlay();
+            return;
+        }
+
+        var positions = viewer.GetShapePositions(model.ShapeName);
+        var indices = viewer.GetShapeIndices(model.ShapeName);
+        if (positions == null || positions.Length == 0 || indices == null || indices.Length < 3)
+        {
+            viewer.ClearRegionOverlay();
+            return;
+        }
+
+        var resolved = RegionVolumeEvaluator.ResolveRegions(
+            new[] { model },
+            shape => viewer.GetShapePositions(shape),
+            shape => viewer.GetShapeIndices(shape));
+        if (!resolved.TryGetValue(model.Name, out var rr) || rr == null || !rr.IsValid)
+        {
+            viewer.ClearRegionOverlay();
+            return;
+        }
+
+        // Evaluate the baked loop vertices against the live (deformed) positions and build
+        // marker points + per-loop edges for the overlay.
+        var markerPts = new List<OpenTK.Mathematics.Vector3>();
+        var edges = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>();
+        foreach (var loop in rr.CapLoops)
+        {
+            int m = loop.Length;
+            if (m < 2) continue;
+            for (int k = 0; k < m; k++)
+            {
+                var p = rr.Vertices[loop[k]].Evaluate(positions);
+                markerPts.Add(p);
+                var pNext = rr.Vertices[loop[(k + 1) % m]].Evaluate(positions);
+                edges.Add((p, pNext));
+            }
+        }
+        viewer.SetRegionOverlay(markerPts, edges, new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f));
+    }
+
     private VM_NamedKeyVertex AddBoxRow(
         string shapeName,
         OpenTK.Mathematics.Vector3 boxMin,
@@ -4899,12 +5111,22 @@ public class VM_BodyTypeProfile : VM
             if (name.Length == 0) continue;
             counts[name] = counts.TryGetValue(name, out var c) ? c + 1 : 1;
         }
+        int dupNames = 0;
         foreach (var r in Regions)
         {
             var name = (r.Name ?? "").Trim();
             r.HasDuplicateName = name.Length > 0 && counts.TryGetValue(name, out var c) && c > 1;
         }
+        foreach (var kvp in counts) if (kvp.Value > 1) dupNames++;
+        DuplicateRegionCount = dupNames;
+        HasDuplicateRegionNames = dupNames > 0;
     }
+
+    /// <summary>Region analogs of <see cref="DuplicateKeyVertexCount"/> /
+    /// <see cref="HasDuplicateKeyVertexNames"/>: count of distinct duplicate region names (each
+    /// shared name counted once) plus the bool variant for the duplicate-region banner.</summary>
+    public int DuplicateRegionCount { get; set; }
+    public bool HasDuplicateRegionNames { get; set; }
 
     /// <summary>Region analog of <see cref="RecomputeKeyVertexResolutionStates"/>: resolves every
     /// <see cref="VM_NamedRegion"/>'s box against the active mesh and records the per-row
@@ -8394,6 +8616,7 @@ public class VM_MeasurementDefinition : VM
         VertexRefB = refs.Count > 1 ? refs[1] : "";
         VertexRefC = refs.Count > 2 ? refs[2] : "";
         VertexRefD = refs.Count > 3 ? refs[3] : "";
+        RegionRefName = source.RegionRefName ?? "";
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -8442,6 +8665,11 @@ public class VM_MeasurementDefinition : VM
     public string VertexRefC { get; set; }
     public string VertexRefD { get; set; }
 
+    /// <summary>For a <see cref="MeasurementKind.RegionVolume"/> measurement, the name of the
+    /// <see cref="VM_NamedRegion"/> whose box volume this measures. Empty/ignored for all other
+    /// kinds (which read <see cref="VertexRefA"/>..D instead).</summary>
+    public string RegionRefName { get; set; } = "";
+
     /// <summary>Latest evaluated value against the active viewer; null when no viewer or evaluation failed.</summary>
     public float? LiveValue { get; set; }
 
@@ -8475,10 +8703,21 @@ public class VM_MeasurementDefinition : VM
 
     public IEnumerable<string> AvailableKeyVertexNames => _parent.AvailableKeyVertexNames;
 
+    /// <summary>Region names available to a RegionVolume measurement's region dropdown.</summary>
+    public IEnumerable<string> AvailableRegionNames => _parent.AvailableRegionNames;
+
     public bool ShowAxisField => Kind == MeasurementKind.AxisDistance
                               || Kind == MeasurementKind.SignedAxisDistance
                               || Kind == MeasurementKind.SignedPointDistance;
     public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance;
+
+    /// <summary>True for RegionVolume measurements: the grid shows a Region dropdown and hides the
+    /// vertex-ref columns (A..D), which this kind doesn't use.</summary>
+    public bool ShowRegionField => Kind == MeasurementKind.RegionVolume;
+
+    /// <summary>Inverse of <see cref="ShowRegionField"/>: the vertex-ref columns are enabled for the
+    /// distance/ratio kinds and disabled for RegionVolume.</summary>
+    public bool ShowVertexRefFields => Kind != MeasurementKind.RegionVolume;
 
     /// <summary>Display-friendly labels for <see cref="MeasurementAxis"/>. Viewer positions are in
     /// HelixToolkit Y-up space (see BodySlideDeformer remarks), so X=left/right, Y=up/down, Z=front/back.</summary>
@@ -8521,6 +8760,7 @@ public class VM_MeasurementDefinition : VM
             NumeratorAxis = Kind == MeasurementKind.RatioDistance ? NumeratorAxis : null,
             DenominatorAxis = Kind == MeasurementKind.RatioDistance ? DenominatorAxis : null,
             VertexRefNames = refs,
+            RegionRefName = Kind == MeasurementKind.RegionVolume ? (RegionRefName?.Trim() ?? "") : "",
         };
     }
 }

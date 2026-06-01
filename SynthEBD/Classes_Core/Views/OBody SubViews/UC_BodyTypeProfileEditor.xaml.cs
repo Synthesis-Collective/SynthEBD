@@ -450,6 +450,15 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
         profile.UpdateSelectedMeasurements(sel);
     }
 
+    /// <summary>Region grid selection: SelectedRegion is already bound two-way (single-select),
+    /// which drives the cap-loop overlay via the profile's PropertyChanged handler. This handler
+    /// exists so a future multi-select or extra side-effects have a hook; for now it's a no-op
+    /// beyond what the SelectedItem binding already does.</summary>
+    private void RegionsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Intentionally minimal: the SelectedRegion two-way binding handles the overlay refresh.
+    }
+
     /// <summary>Intercepts a Name-column commit on either the KeyVertices or Measurements
     /// grid. When the typed value collides with another row's name, pops a modal asking the
     /// user to choose Overwrite (remove the other row(s)), Rename (auto-suffix this row to
@@ -481,6 +490,14 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
                     getName: r => r.Name,
                     removeRow: r => p2.Measurements.Remove(r),
                     rowKindLabel: "measurement");
+                break;
+
+            case VM_NamedRegion rg when grid.DataContext is VM_BodyTypeProfile p3:
+                HandleNameCollision(grid, e, tb, rg.Name, tb.Text,
+                    siblings: p3.Regions.Where(r => !ReferenceEquals(r, rg)),
+                    getName: r => r.Name,
+                    removeRow: r => p3.Regions.Remove(r),
+                    rowKindLabel: "region");
                 break;
         }
     }

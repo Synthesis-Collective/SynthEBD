@@ -442,6 +442,11 @@
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF1565C0" Foreground="White"
                             ToolTip="Fire the pick now but keep this box on screen so you can change the Criterion and confirm again. Use to capture multiple measurements (e.g. MaxX and BulgePairMinX) from one drawn box."/>
+                    <Button Content="Confirm as Region"
+                            Command="{Binding ConfirmPendingBoxAsRegionCommand}"
+                            FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
+                            Background="#FF00838F" Foreground="White"
+                            ToolTip="Commit this box as a RegionVolume region instead of a key vertex. The box selects a body patch whose enclosed volume a RegionVolume measurement integrates (chest fullness, thigh volume). Appears as a new row on the profile's Regions tab; the criterion is ignored for regions."/>
                     <Button Content="Cancel"
                             Command="{Binding CancelPendingBoxCommand}"
                             FontSize="11" Padding="10 2" Margin="6,0,0,2"

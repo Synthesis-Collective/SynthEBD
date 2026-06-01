@@ -182,6 +182,58 @@
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
+
+        <!-- Region badge: per-row status for each VM_NamedRegion's RegionResolutionState. Mirrors
+             ResolutionStateBadgeStyle but keyed on the region states (Resolved / ShapeNotLoaded /
+             Invalid / Unknown). The ResolveDiagnostic string is the tooltip so the user reads the
+             exact reason ("3 boundary loops found, expected 1") on hover. -->
+        <Style x:Key="RegionResolutionStateBadgeStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#22000000"/>
+            <Setter Property="ToolTip" Value="{Binding ResolveDiagnostic}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Resolved">
+                    <Setter Property="Background" Value="#338BC34A"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="ShapeNotLoaded">
+                    <Setter Property="Background" Value="#FFFB8C00"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Invalid">
+                    <Setter Property="Background" Value="#FFE53935"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Unknown">
+                    <Setter Property="Background" Value="#22000000"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RegionResolutionStateLabelStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Text" Value="?"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Resolved">
+                    <Setter Property="Text" Value="OK"/>
+                    <Setter Property="Foreground" Value="#2E7D32"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="ShapeNotLoaded">
+                    <Setter Property="Text" Value="Shape?"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Invalid">
+                    <Setter Property="Text" Value="Bad box"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ResolutionState}" Value="Unknown">
+                    <Setter Property="Text" Value="—"/>
+                    <Setter Property="Foreground" Value="#666"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="5">
         <Grid.RowDefinitions>
@@ -498,6 +550,81 @@
                                 </DockPanel>
                             </TabItem>
 
+                            <TabItem Header="Regions">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top"
+                                            Style="{StaticResource DuplicateNameBannerStyle}"
+                                            Visibility="{Binding HasDuplicateRegionNames, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Foreground="#FFC62828" FontWeight="SemiBold"
+                                                   Text="{Binding DuplicateRegionCount, StringFormat='{}{0} duplicate region name(s) detected — only the first row with each name is used at evaluation time. Rename or delete the highlighted rows.'}"/>
+                                    </Border>
+                                    <Border DockPanel.Dock="Top"
+                                            Style="{StaticResource UnresolvedKeyVertexBannerStyle}"
+                                            Visibility="{Binding HasUnresolvedRegions, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Foreground="#E65100" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                   Text="{Binding UnresolvedRegionCount, StringFormat='{}{0} region(s) don''t resolve to a valid volume on the active mesh — any RegionVolume measurement that references them is skipped. See the Status column (hover for the reason).'}"/>
+                                    </Border>
+                                    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,4" Foreground="#FFBBBBBB" FontSize="11"
+                                               Text="Author a region by drawing a box in the viewer (Pick Box), then clicking 'Confirm as Region' on the pending-box panel. A region selects a body patch whose enclosed volume a RegionVolume measurement integrates. Expected Caps: 1 for a chest bump, 2 for a limb segment, blank to accept any valid count."/>
+                                    <DataGrid x:Name="RegionsGrid"
+                                              ItemsSource="{Binding Regions}"
+                                              SelectedItem="{Binding SelectedRegion}"
+                                              SelectionMode="Single"
+                                              SelectionChanged="RegionsGrid_SelectionChanged"
+                                              CellEditEnding="NameCell_EditEnding"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False" CanUserDeleteRows="False"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Name"
+                                                                Binding="{Binding Name}"
+                                                                Width="160"
+                                                                CellStyle="{StaticResource DuplicateNameCellStyle}"/>
+                                            <DataGridTemplateColumn Header="Status" Width="80" IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource RegionResolutionStateBadgeStyle}">
+                                                            <TextBlock Style="{StaticResource RegionResolutionStateLabelStyle}"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Shape" Binding="{Binding ShapeName, UpdateSourceTrigger=PropertyChanged}" Width="140"/>
+                                            <DataGridTextColumn Header="Expected Caps"
+                                                                Binding="{Binding ExpectedCapCount, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
+                                                                Width="100"
+                                                                ElementStyle="{StaticResource {x:Type TextBlock}}"/>
+                                            <DataGridTemplateColumn Header="Box (min / max)" Width="240" IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center">
+                                                            <TextBlock.Text>
+                                                                <MultiBinding StringFormat="({0:F1},{1:F1},{2:F1}) / ({3:F1},{4:F1},{5:F1})">
+                                                                    <Binding Path="BoxMinX"/>
+                                                                    <Binding Path="BoxMinY"/>
+                                                                    <Binding Path="BoxMinZ"/>
+                                                                    <Binding Path="BoxMaxX"/>
+                                                                    <Binding Path="BoxMaxY"/>
+                                                                    <Binding Path="BoxMaxZ"/>
+                                                                </MultiBinding>
+                                                            </TextBlock.Text>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Width="40">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="X" Command="{Binding DeleteCommand}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </TabItem>
+
                             <TabItem Header="Measurements">
                                 <DockPanel>
                                     <!-- Developer convenience shortcuts, scoped to this tab's DockPanel
@@ -577,6 +704,16 @@
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
                                                                   Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"
                                                                   Style="{StaticResource InvalidRefBComboBoxStyle}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Region" Width="140">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox ItemsSource="{Binding AvailableRegionNames}" IsEditable="True"
+                                                                  IsEnabled="{Binding ShowRegionField}"
+                                                                  Text="{Binding RegionRefName, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ToolTip="RegionVolume only: the region whose enclosed volume this measurement integrates. Author regions on the Regions tab."/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
