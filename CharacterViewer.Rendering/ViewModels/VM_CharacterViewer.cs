@@ -2427,6 +2427,59 @@ public class VM_CharacterViewer : ViewerVm
         return mesh.CpuIndices;
     }
 
+    /// <summary>
+    /// Returns a shape's vertex positions for the <b>sliders-0 (undeformed)</b> body at NPC weight
+    /// <paramref name="weight"/>, in the same pre-ModelScale local space as <see cref="GetShapePositions"/>,
+    /// or null when the shape isn't a cached deformable body mesh. Runs the same base-pose lerp +
+    /// skinning pipeline as <see cref="ApplyMorphSet"/> but applies <b>no slider deltas</b> and is
+    /// <b>non-destructive</b>: it does not touch <see cref="GlMesh.CpuPositions"/>, re-upload to the
+    /// GPU, or fire <see cref="BodySlideApplied"/>, so it can be called mid-authoring without
+    /// flicker or re-entrancy.
+    ///
+    /// <para>This is the topology-stable reference a RegionVolume region's box is authored against:
+    /// a box drawn on a deformed preset is converted to the zeroed-space AABB that bounds the same
+    /// vertex set, so the baked region tracks every preset (vertex indices are weight- and
+    /// preset-independent). The vertex SET is itself weight-independent; only the one-time
+    /// box→patch clip uses this snapshot, evaluated at the authoring weight.</para>
+    /// </summary>
+    public OpenTK.Mathematics.Vector3[]? GetZeroedShapePositions(string shapeName, int weight)
+    {
+        if (string.IsNullOrEmpty(shapeName)) return null;
+        if (!_cachedBodyMeshes.TryGetValue(shapeName, out var originalMesh) || originalMesh == null) return null;
+
+        var basePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
+        if (basePositions == null || basePositions.Length == 0) return null;
+
+        int w = Math.Clamp(weight, 0, 100);
+        var positions = new Vector3[basePositions.Length];
+        var w0 = originalMesh.Weight0BindPosePositions;
+        var w1 = originalMesh.Weight1BindPosePositions;
+        if (w0 != null && w1 != null && w0.Length == basePositions.Length && w1.Length == basePositions.Length)
+        {
+            float t = w / 100f;
+            for (int i = 0; i < basePositions.Length; i++) positions[i] = Vector3.Lerp(w0[i], w1[i], t);
+        }
+        else
+        {
+            Array.Copy(basePositions, positions, basePositions.Length);
+        }
+
+        // No slider deltas — this IS the sliders-0 state. Apply skinning so the result is in the
+        // same skinned local space as the deformed CpuPositions the box-pick lasso reads.
+        if (originalMesh.Skinning != null)
+        {
+            var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
+            var normals = new Vector3[sourceNormals.Length];
+            Array.Copy(sourceNormals, normals, sourceNormals.Length);
+            NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
+        }
+
+        var dst = new OpenTK.Mathematics.Vector3[positions.Length];
+        for (int i = 0; i < positions.Length; i++)
+            dst[i] = new OpenTK.Mathematics.Vector3(positions[i].X, positions[i].Y, positions[i].Z);
+        return dst;
+    }
+
     /// <summary>Companion to <see cref="GetShapePositions"/> that surfaces the per-vertex
     /// bone indices + weights (4 entries each per vertex, flat-packed) for the bone-transition
     /// criterion in <c>MeasurementMath.FindBestInBox</c>. Returns <c>(null, null)</c> when the

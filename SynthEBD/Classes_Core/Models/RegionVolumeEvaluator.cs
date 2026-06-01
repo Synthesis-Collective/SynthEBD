@@ -65,6 +65,21 @@ public static class RegionVolumeEvaluator
             Wa * positions[A] + Wb * positions[B] + Wc * positions[C];
     }
 
+    /// <summary>How a region's open boundary loop(s) are capped to close the volume — and thus what
+    /// "volume" means. See <see cref="ComputeVolume"/>.</summary>
+    public enum RegionCapMode
+    {
+        /// <summary>Cap each loop with a fan from the loop's own (deformed) centroid. The lid follows
+        /// the exact anatomical ring, so on a non-rigidly-inflated bust the ring isn't planar and the
+        /// lid looks "scooped" (saddle). Volume = enclosed by the bump surface + that ring fan.</summary>
+        AnatomicalFan = 0,
+
+        /// <summary>Cap each loop against a FLAT plane perpendicular to the cut axis, positioned at the
+        /// loop's mean cut-axis coordinate. The lid is flat in every view (a clean "salami cut"), and
+        /// the volume is the tissue protruding past that plane. Tracks the bump but doesn't scoop.</summary>
+        FlatPlane = 1,
+    }
+
     /// <summary>Baked, session-cached region topology. Recomputed from (box + zeroed mesh) each session.</summary>
     public sealed class ResolvedRegion
     {
@@ -81,6 +96,18 @@ public static class RegionVolumeEvaluator
 
         /// <summary>Each boundary loop as an ordered list of vertex ids (following the patch's boundary direction). One cap is fanned per loop.</summary>
         public int[][] CapLoops = Array.Empty<int[]>();
+
+        /// <summary>The axis the cut face(s) are perpendicular to (0=X, 1=Y, 2=Z), auto-detected at
+        /// resolve time as the axis whose loop coordinates vary least on the zeroed mesh (the cut
+        /// plane's normal). Used by <see cref="RegionCapMode.FlatPlane"/> to position the flat lid.
+        /// For a chest authored facing -Z this is 2 (Z).</summary>
+        public int CutAxis = 2;
+
+        /// <summary>The cap mode this region should be measured + drawn with. Carried here (set from
+        /// the owning <c>NamedRegion.CapMode</c> by <see cref="ResolveRegions"/>) so volume/overlay
+        /// callers don't need a separate lookup. Doesn't affect the baked topology — only how the
+        /// open loops are closed — so a mode change doesn't require re-resolving the box.</summary>
+        public RegionCapMode CapMode = RegionCapMode.FlatPlane;
 
         public bool IsValid;
 
@@ -107,6 +134,10 @@ public static class RegionVolumeEvaluator
 
         /// <summary>Reject boxes whose patch is more than one connected component (usually means two body parts were captured).</summary>
         public bool RequireSingleComponent = true;
+
+        /// <summary>Cap mode stamped onto the resolved region (and used for its baseline ZeroedVolume).
+        /// Doesn't affect the baked topology — only how volume/overlay close the loops.</summary>
+        public RegionCapMode CapMode = RegionCapMode.FlatPlane;
     }
 
     // ------------------------------------------------------------------ public math
@@ -131,11 +162,80 @@ public static class RegionVolumeEvaluator
     }
 
     /// <summary>
+    /// Converts a box drawn against one position set (e.g. a deformed preset's mesh) into the box
+    /// that selects the <b>same surface patch</b> in a reference position set (the sliders-0 mesh).
+    /// A region's box must be stored in zeroed space so the baked patch tracks every preset, but it's
+    /// convenient to author against a deformed body.
+    ///
+    /// <para><b>Why not just the tight AABB of the captured set?</b> A region box is supposed to be
+    /// <i>loose</i> on its "air" faces (clearing the bump) and <i>cut</i> on the face(s) that slice
+    /// the body (the chest wall), so the in-box patch ends in one clean cap loop. A tight AABB hugs
+    /// the captured vertices on all six faces, so the mesh pokes through several faces → many cut
+    /// loops → a fragmented patch. So this preserves the drawn box's per-face air margin: it finds
+    /// the captured set's tight bound in BOTH spaces, measures the gap between the drawn box face and
+    /// the tight bound on each of the six faces (≈0 for a cut face, >0 for an air face), and carries
+    /// those gaps onto the reference-space tight bound. Cut faces stay cutting at the same anatomy;
+    /// air faces stay loose.</para>
+    ///
+    /// <para>Both arrays must share topology (same length / index space — guaranteed for a
+    /// fixed-topology body across presets). Returns null when the box contains no vertices or the
+    /// arrays mismatch.</para>
+    /// </summary>
+    public static RegionAabb? ConvertBoxByVertexSet(
+        Vector3[] authoringPositions, Vector3[] referencePositions, RegionAabb authoringBox)
+    {
+        if (authoringPositions == null || referencePositions == null) return null;
+        if (authoringPositions.Length == 0 || authoringPositions.Length != referencePositions.Length) return null;
+
+        // Tight bound of the captured set in BOTH spaces.
+        var aMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        var aMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+        var rMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+        var rMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+        int hits = 0;
+        for (int i = 0; i < authoringPositions.Length; i++)
+        {
+            var a = authoringPositions[i];
+            if (!authoringBox.Contains(a)) continue;
+            hits++;
+            if (a.X < aMin.X) aMin.X = a.X; if (a.Y < aMin.Y) aMin.Y = a.Y; if (a.Z < aMin.Z) aMin.Z = a.Z;
+            if (a.X > aMax.X) aMax.X = a.X; if (a.Y > aMax.Y) aMax.Y = a.Y; if (a.Z > aMax.Z) aMax.Z = a.Z;
+            var r = referencePositions[i];
+            if (r.X < rMin.X) rMin.X = r.X; if (r.Y < rMin.Y) rMin.Y = r.Y; if (r.Z < rMin.Z) rMin.Z = r.Z;
+            if (r.X > rMax.X) rMax.X = r.X; if (r.Y > rMax.Y) rMax.Y = r.Y; if (r.Z > rMax.Z) rMax.Z = r.Z;
+        }
+        if (hits == 0) return null;
+
+        // Per-face air gap from the drawn box to the captured set's tight bound (clamped ≥ 0 — the
+        // drawn box should enclose the set, but guard float slop), then carry onto the reference
+        // tight bound. Over-loose air faces are harmless (still one cut); a cut face has gap ≈ 0 so
+        // it lands at the same anatomy on the reference mesh.
+        var marginMin = new Vector3(
+            MathF.Max(0f, aMin.X - authoringBox.Min.X),
+            MathF.Max(0f, aMin.Y - authoringBox.Min.Y),
+            MathF.Max(0f, aMin.Z - authoringBox.Min.Z));
+        var marginMax = new Vector3(
+            MathF.Max(0f, authoringBox.Max.X - aMax.X),
+            MathF.Max(0f, authoringBox.Max.Y - aMax.Y),
+            MathF.Max(0f, authoringBox.Max.Z - aMax.Z));
+
+        return new RegionAabb(rMin - marginMin, rMax + marginMax);
+    }
+
+    /// <summary>
     /// Volume of a resolved region evaluated against a preset's deformed position array (indexed by original
     /// vertex). Patch triangles plus a per-loop centroid fan form a closed surface; positions are
     /// centroid-shifted before the signed-tetra sum to keep float magnitudes small.
     /// </summary>
     public static double ComputeVolume(ResolvedRegion region, Vector3[] deformedPositions)
+        => ComputeVolume(region, deformedPositions, RegionCapMode.AnatomicalFan);
+
+    /// <summary>As <see cref="ComputeVolume(ResolvedRegion, Vector3[])"/>, with the cap mode chosen
+    /// per <paramref name="capMode"/>. <see cref="RegionCapMode.AnatomicalFan"/> fans each loop from
+    /// its own centroid (cap follows the deformed ring — can look scooped). <see cref="RegionCapMode.FlatPlane"/>
+    /// caps each loop against a flat plane perpendicular to <see cref="ResolvedRegion.CutAxis"/> at the
+    /// loop's mean cut-axis coordinate (flat lid; volume = tissue protruding past that plane).</summary>
+    public static double ComputeVolume(ResolvedRegion region, Vector3[] deformedPositions, RegionCapMode capMode)
     {
         if (region == null || !region.IsValid || deformedPositions == null) return 0.0;
 
@@ -154,20 +254,90 @@ public static class RegionVolumeEvaluator
         for (int i = 0; i + 2 < tris.Length; i += 3)
             v += SignedTetraVolume(pos[tris[i]], pos[tris[i + 1]], pos[tris[i + 2]]);
 
+        int axis = region.CutAxis;
         foreach (var loop in region.CapLoops)
         {
             int m = loop.Length;
             if (m < 3) continue;
+
+            // Cap centroid. AnatomicalFan: the loop's true centroid (lid follows the deformed ring).
+            // FlatPlane: the centroid projected onto the flat cut plane — i.e. the centroid with its
+            // cut-axis coordinate replaced by the loop's mean cut-axis value, AND every loop vertex
+            // likewise projected onto that plane, so the lid is flat.
             Vector3 c = Vector3.Zero;
             for (int k = 0; k < m; k++) c += pos[loop[k]];
             c /= m;
-            // For each patch boundary edge a_k -> a_{k+1}, the cap triangle (a_k, C, a_{k+1}) supplies the
-            // reverse edge a_{k+1} -> a_k, mating with the patch so the closed surface is consistently wound.
-            for (int k = 0; k < m; k++)
-                v += SignedTetraVolume(pos[loop[k]], c, pos[loop[(k + 1) % m]]);
+
+            if (capMode == RegionCapMode.FlatPlane)
+            {
+                float plane = AxisComp(c, axis); // mean cut-axis coordinate of the loop = the flat plane
+                // For each boundary edge, build the cap triangle against the FLAT-projected ring: the
+                // two ring verts get their cut-axis coord set to `plane`, and the fan apex is the
+                // in-plane centroid. The surface patch (the real bump) is unchanged, so the enclosed
+                // solid is "bump in front of the flat plane".
+                Vector3 cFlat = WithAxis(c, axis, plane);
+                for (int k = 0; k < m; k++)
+                {
+                    Vector3 a = WithAxis(pos[loop[k]], axis, plane);
+                    Vector3 b = WithAxis(pos[loop[(k + 1) % m]], axis, plane);
+                    v += SignedTetraVolume(a, cFlat, b);
+                }
+            }
+            else
+            {
+                // For each patch boundary edge a_k -> a_{k+1}, the cap triangle (a_k, C, a_{k+1}) supplies the
+                // reverse edge a_{k+1} -> a_k, mating with the patch so the closed surface is consistently wound.
+                for (int k = 0; k < m; k++)
+                    v += SignedTetraVolume(pos[loop[k]], c, pos[loop[(k + 1) % m]]);
+            }
         }
 
         return Math.Abs(v) / 6.0;
+    }
+
+    /// <summary>Reads the <paramref name="axis"/> component (0=X,1=Y,2=Z) of <paramref name="p"/>.</summary>
+    public static float AxisComp(Vector3 p, int axis) => axis == 0 ? p.X : axis == 1 ? p.Y : p.Z;
+
+    /// <summary>Returns <paramref name="p"/> with its <paramref name="axis"/> component set to <paramref name="value"/>.</summary>
+    public static Vector3 WithAxis(Vector3 p, int axis, float value) => axis switch
+    {
+        0 => new Vector3(value, p.Y, p.Z),
+        1 => new Vector3(p.X, value, p.Z),
+        _ => new Vector3(p.X, p.Y, value),
+    };
+
+    /// <summary>
+    /// Returns the ordered overlay points for one cap loop, evaluated against
+    /// <paramref name="deformedPositions"/>, for drawing the region's contour. In
+    /// <see cref="RegionCapMode.FlatPlane"/> mode the loop is projected onto the flat cut plane (every
+    /// point's cut-axis coordinate set to the loop's mean), so the drawn contour is flat ("salami
+    /// cut") instead of the scooped deformed ring. In <see cref="RegionCapMode.AnatomicalFan"/> mode
+    /// the true deformed ring positions are returned. Empty when the loop index is out of range.
+    /// </summary>
+    public static List<Vector3> GetCapLoopOverlayPoints(
+        ResolvedRegion region, int loopIndex, Vector3[] deformedPositions, RegionCapMode capMode)
+    {
+        var outPts = new List<Vector3>();
+        if (region == null || !region.IsValid || deformedPositions == null) return outPts;
+        if (loopIndex < 0 || loopIndex >= region.CapLoops.Length) return outPts;
+
+        var loop = region.CapLoops[loopIndex];
+        int m = loop.Length;
+        if (m < 2) return outPts;
+
+        var ring = new Vector3[m];
+        for (int k = 0; k < m; k++) ring[k] = region.Vertices[loop[k]].Evaluate(deformedPositions);
+
+        if (capMode == RegionCapMode.FlatPlane)
+        {
+            int axis = region.CutAxis;
+            float mean = 0f;
+            for (int k = 0; k < m; k++) mean += AxisComp(ring[k], axis);
+            mean /= m;
+            for (int k = 0; k < m; k++) ring[k] = WithAxis(ring[k], axis, mean);
+        }
+        outPts.AddRange(ring);
+        return outPts;
     }
 
     // ------------------------------------------------------------------ resolution
@@ -376,8 +546,28 @@ public static class RegionVolumeEvaluator
         }
 
         result.CapLoops = loops.ToArray();
+
+        // Auto-detect the cut axis: the axis whose loop-vertex coordinates vary the LEAST on the
+        // zeroed mesh is the one the cut plane is perpendicular to (all boundary verts lie on that
+        // cut face). Measured as the per-axis spread (max-min) across every loop vertex; smallest
+        // spread wins. For a chest box cutting the chest-wall (a Z face) this resolves to Z.
+        {
+            var amin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var amax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            foreach (var loop in loops)
+                foreach (var vid in loop)
+                {
+                    var p = pos0[vid];
+                    if (p.X < amin.X) amin.X = p.X; if (p.Y < amin.Y) amin.Y = p.Y; if (p.Z < amin.Z) amin.Z = p.Z;
+                    if (p.X > amax.X) amax.X = p.X; if (p.Y > amax.Y) amax.Y = p.Y; if (p.Z > amax.Z) amax.Z = p.Z;
+                }
+            var spread = amax - amin;
+            result.CutAxis = (spread.X <= spread.Y && spread.X <= spread.Z) ? 0 : (spread.Y <= spread.Z ? 1 : 2);
+        }
+
+        result.CapMode = options.CapMode;
         result.IsValid = true;
-        result.ZeroedVolume = ComputeVolume(result, zeroedPositions);
+        result.ZeroedVolume = ComputeVolume(result, zeroedPositions, options.CapMode);
         return result;
     }
 
@@ -416,7 +606,8 @@ public static class RegionVolumeEvaluator
                 var box = new RegionAabb(
                     new Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
                     new Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
-                resolved = ResolveRegion(positions, indices, box, new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount });
+                resolved = ResolveRegion(positions, indices, box,
+                    new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount, CapMode = region.CapMode });
             }
             resolved.ShapeName = region.ShapeName ?? "";
             result[name] = resolved;

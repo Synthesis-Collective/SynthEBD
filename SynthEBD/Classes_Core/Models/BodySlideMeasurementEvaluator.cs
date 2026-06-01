@@ -423,7 +423,7 @@ public static class BodySlideMeasurementEvaluator
             reason = MeasurementFailureReason.RegionNotResolved;
             return false;
         }
-        value = (float)RegionVolumeEvaluator.ComputeVolume(resolved, positions);
+        value = (float)RegionVolumeEvaluator.ComputeVolume(resolved, positions, resolved.CapMode);
         reason = MeasurementFailureReason.MalformedDefinition; // unused on success
         return true;
     }

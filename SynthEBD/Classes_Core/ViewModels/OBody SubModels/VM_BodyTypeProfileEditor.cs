@@ -3518,6 +3518,7 @@ public class VM_BodyTypeProfile : VM
                 {
                     r.PropertyChanged -= OnRegionRowPropertyChanged;
                     _regionLastNames.Remove(r);
+                    InvalidateResolvedRegion((r.Name ?? "").Trim()); // drop a deleted region's baked cache
                 }
             if (args.NewItems != null)
                 foreach (VM_NamedRegion r in args.NewItems)
@@ -3805,6 +3806,13 @@ public class VM_BodyTypeProfile : VM
             if (_regionLastNames.TryGetValue(rRow, out var oldName))
             {
                 CascadeRegionRename(oldName, rRow.Name ?? "");
+                // Move the baked-region cache entry to the new key so a rename doesn't force a
+                // re-resolve (the box/shape are unchanged, only the name).
+                if (!string.IsNullOrEmpty(oldName) && _resolvedRegionCache.Remove(oldName, out var cached))
+                {
+                    var newName = (rRow.Name ?? "").Trim();
+                    if (newName.Length > 0) _resolvedRegionCache[newName] = cached;
+                }
             }
             _regionLastNames[rRow] = rRow.Name ?? "";
             RecomputeDuplicateRegionNames();
@@ -3820,6 +3828,11 @@ public class VM_BodyTypeProfile : VM
             case nameof(VM_NamedRegion.BoxMaxY):
             case nameof(VM_NamedRegion.BoxMaxZ):
             case nameof(VM_NamedRegion.ExpectedCapCount):
+            case nameof(VM_NamedRegion.CapMode):
+                // The box/shape/cap/mode changed, so the baked resolution is stale — drop it so the
+                // next GetOrResolveRegion re-bakes against the zeroed mesh. (GetOrResolveRegion also
+                // re-resolves on a fingerprint mismatch, but invalidating here keeps it explicit.)
+                if (sender is VM_NamedRegion edited) InvalidateResolvedRegion((edited.Name ?? "").Trim());
                 RevalidateMeasurementCacheStale();
                 // Re-resolve + repaint so the Status badge and overlay track the edited box live.
                 RecomputeRegionResolutionStates();
@@ -4354,6 +4367,12 @@ public class VM_BodyTypeProfile : VM
     {
         ActiveViewer = viewer;
 
+        // A new viewer binding means a (possibly) different loaded mesh, so any baked region
+        // resolutions are stale — drop them all so they re-resolve against the new mesh's sliders-0
+        // geometry on the next refresh. (Per-entry mesh-hash guard in GetOrResolveRegion would catch
+        // a topology change anyway, but clearing here keeps the cache from growing across rebinds.)
+        InvalidateResolvedRegion(null);
+
         // Follow the new viewer's pending-box lifecycle. When HasPendingBox flips to false
         // (cancel, or post-confirm cleanup) drop any edit-session target so a subsequent
         // drag-picked box doesn't accidentally overwrite a stale row.
@@ -4809,15 +4828,50 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>Region analog of <see cref="OnBoxPickedFromViewer"/>: a "Confirm as Region" press
     /// becomes a new <see cref="VM_NamedRegion"/> row. Regions have no criterion and no mirror/pair
-    /// expansion, so this is just "add one row from the box" — the user names it and sets the
-    /// expected cap count in the grid. Defaults <see cref="NamedRegion.ExpectedCapCount"/> to null
-    /// (accept any valid count) so the resolve verdict is informative rather than pre-judged.</summary>
+    /// expansion. The box was drawn against the currently-loaded (deformed) preset, but a region's
+    /// box must be stored in sliders-0 space so its baked patch tracks every preset — so we convert:
+    /// capture which vertices fall in the drawn box on the deformed mesh, then store the AABB that
+    /// bounds those same vertices on the zeroed mesh (at the authoring weight). Falls back to the
+    /// raw box if the zeroed snapshot isn't available (unskinned / non-body shape). Also records the
+    /// defining preset + weight for re-editing.</summary>
     public void OnRegionBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
     {
         ActiveViewer = viewer;
-        var added = AddRegionRow(pick.ShapeName ?? "", pick.BoxMin, pick.BoxMax);
+
+        var shapeName = pick.ShapeName ?? "";
+        var boxMin = pick.BoxMin;
+        var boxMax = pick.BoxMax;
+        int weight = _parent?.PreviewWeight ?? 0;
+        var presetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
+
+        // Convert the deformed-space box to the zeroed-space box bounding the same vertex set.
+        var deformed = viewer.GetShapePositions(shapeName);
+        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        if (deformed != null && zeroed != null)
+        {
+            var converted = RegionVolumeEvaluator.ConvertBoxByVertexSet(
+                deformed, zeroed,
+                new RegionVolumeEvaluator.RegionAabb(boxMin, boxMax));
+            if (converted.HasValue)
+            {
+                boxMin = converted.Value.Min;
+                boxMax = converted.Value.Max;
+            }
+            else
+            {
+                _parent?.Logger?.LogMessage("RegionVolume: drawn box contained no vertices on the zeroed mesh; "
+                    + "storing the raw box (it may not track across presets). Re-draw around the feature.");
+            }
+        }
+        else
+        {
+            _parent?.Logger?.LogMessage($"RegionVolume: no sliders-0 snapshot available for shape '{shapeName}' "
+                + "(unskinned or non-body); storing the box as-drawn. It will track only the authoring preset.");
+        }
+
+        var added = AddRegionRow(shapeName, boxMin, boxMax, presetLabel, weight);
         SelectedRegion = added;
-        // Resolve the new row's box against the current mesh so its Status badge + overlay populate
+        // Resolve the new row's box against the zeroed mesh so its Status badge + overlay populate
         // immediately (RefreshMeasurementValues runs RecomputeRegionResolutionStates at its tail).
         RefreshMeasurementValues();
         RefreshRegionOverlay();
@@ -4826,7 +4880,9 @@ public class VM_BodyTypeProfile : VM
     private VM_NamedRegion AddRegionRow(
         string shapeName,
         OpenTK.Mathematics.Vector3 boxMin,
-        OpenTK.Mathematics.Vector3 boxMax)
+        OpenTK.Mathematics.Vector3 boxMax,
+        string definingPresetLabel = "",
+        int definingWeight = -1)
     {
         var model = new NamedRegion
         {
@@ -4835,10 +4891,72 @@ public class VM_BodyTypeProfile : VM
             BoxMinX = boxMin.X, BoxMinY = boxMin.Y, BoxMinZ = boxMin.Z,
             BoxMaxX = boxMax.X, BoxMaxY = boxMax.Y, BoxMaxZ = boxMax.Z,
             ExpectedCapCount = null,
+            DefiningPresetLabel = definingPresetLabel ?? "",
+            DefiningWeight = definingWeight,
         };
         var vm = new VM_NamedRegion(model, this);
         Regions.Add(vm);
         return vm;
+    }
+
+    // ─────────────── Session ResolvedRegion cache ───────────────
+    // The expensive box→patch clip + boundary-loop extraction runs ONCE per region per body
+    // topology, against the topology-stable sliders-0 mesh. The baked ResolvedRegion holds a vertex
+    // SET (barycentric refs); the overlay, live readout, and resolution badges all EVALUATE that set
+    // against the current deformed positions (ComputeVolume / Vertices[i].Evaluate) rather than
+    // re-clipping the box every refresh. This is what makes a region track across presets — the box
+    // is fixed in zeroed space, so re-clipping it against a different deformed preset (the old bug)
+    // produced a different, often non-watertight patch and the dreaded "Bad box" on preset switch.
+
+    /// <summary>Cached baked regions for this session, keyed by region name. Each entry is tagged
+    /// with the body-mesh hash + region fingerprint it was resolved under so a body-mod swap or a
+    /// box edit invalidates only the affected entries.</summary>
+    private readonly Dictionary<string, (string MeshHash, string Fp, RegionVolumeEvaluator.ResolvedRegion Region)> _resolvedRegionCache
+        = new(StringComparer.Ordinal);
+
+    /// <summary>Compact fingerprint of a region's resolve inputs (shape + box + expected caps). When
+    /// this changes (box edited), the cached ResolvedRegion is stale and gets re-resolved.</summary>
+    private static string RegionResolveFingerprint(NamedRegion r) =>
+        $"{r.ShapeName}|{r.BoxMinX},{r.BoxMinY},{r.BoxMinZ}-{r.BoxMaxX},{r.BoxMaxY},{r.BoxMaxZ}|cc={(r.ExpectedCapCount?.ToString() ?? "-")}|cm={(int)r.CapMode}";
+
+    /// <summary>Returns the baked <see cref="RegionVolumeEvaluator.ResolvedRegion"/> for
+    /// <paramref name="model"/>, resolving it once against the viewer's <b>sliders-0</b> mesh (at the
+    /// region's defining weight, or the current preview weight) and caching it for the session.
+    /// Re-resolves when the body topology or the region's box changed since the cache entry was made.
+    /// Returns null when the viewer has no zeroed geometry for the shape. This is the single funnel
+    /// every region consumer (overlay, live readout, resolution badge) goes through.</summary>
+    private RegionVolumeEvaluator.ResolvedRegion? GetOrResolveRegion(VM_CharacterViewer viewer, NamedRegion model)
+    {
+        if (viewer == null || model == null || string.IsNullOrEmpty(model.Name)) return null;
+
+        var meshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewer.GetCurrentShapeVertexCounts());
+        var fp = RegionResolveFingerprint(model);
+
+        if (_resolvedRegionCache.TryGetValue(model.Name, out var entry)
+            && entry.MeshHash == meshHash && entry.Fp == fp)
+        {
+            return entry.Region;
+        }
+
+        // Resolve against the sliders-0 reference (topology-stable), at the region's defining weight
+        // when known so the one-time clip matches what the author saw, else the current preview weight.
+        int weight = model.DefiningWeight >= 0 ? model.DefiningWeight : (_parent?.PreviewWeight ?? 0);
+        var resolved = RegionVolumeEvaluator.ResolveRegions(
+            new[] { model },
+            shape => viewer.GetZeroedShapePositions(shape, weight),
+            shape => viewer.GetShapeIndices(shape));
+        if (!resolved.TryGetValue(model.Name, out var rr) || rr == null) return null;
+
+        _resolvedRegionCache[model.Name] = (meshHash, fp, rr);
+        return rr;
+    }
+
+    /// <summary>Drops a region's cached baked resolution (call after a box edit or a delete). Pass
+    /// null to clear the whole cache (profile switch / mesh reload).</summary>
+    private void InvalidateResolvedRegion(string? regionName)
+    {
+        if (regionName == null) _resolvedRegionCache.Clear();
+        else _resolvedRegionCache.Remove(regionName);
     }
 
     /// <summary>Currently-selected region row (Regions grid SelectedItem). Setting it refreshes the
@@ -4846,11 +4964,12 @@ public class VM_BodyTypeProfile : VM
     /// via the PropertyChanged handler wired in the ctor.</summary>
     public VM_NamedRegion? SelectedRegion { get; set; }
 
-    /// <summary>Pushes the <see cref="SelectedRegion"/>'s resolved cap-loop geometry to the viewer
-    /// overlay: marker spheres at the loop vertices + edges along each loop. Clears the overlay when
-    /// no region is selected, no viewer is attached, or the region's box doesn't resolve to a valid
-    /// patch on the current mesh. Evaluated against whatever mesh is currently loaded (the live-readout
-    /// analog), so the loop count + placement track preset/weight changes.</summary>
+    /// <summary>Pushes the <see cref="SelectedRegion"/>'s baked cap-loop geometry to the viewer
+    /// overlay: marker spheres at the loop vertices + edges along each loop. The region is resolved
+    /// once against the sliders-0 mesh (cached via <see cref="GetOrResolveRegion"/>); the baked loop
+    /// vertices are then <b>evaluated against the current deformed positions</b>, so the overlay
+    /// tracks every preset/weight without re-clipping the box. Clears the overlay when no region is
+    /// selected, no viewer, no live geometry, or the box doesn't resolve to a valid patch.</summary>
     public void RefreshRegionOverlay()
     {
         var viewer = ActiveViewer;
@@ -4870,41 +4989,37 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
-        var positions = viewer.GetShapePositions(model.ShapeName);
-        var indices = viewer.GetShapeIndices(model.ShapeName);
-        if (positions == null || positions.Length == 0 || indices == null || indices.Length < 3)
+        // Live deformed positions of the region's shape — what the baked vertex set is evaluated
+        // against so the loops follow the current preset.
+        var deformed = viewer.GetShapePositions(model.ShapeName);
+        if (deformed == null || deformed.Length == 0)
         {
             viewer.ClearRegionOverlay();
             return;
         }
 
-        var resolved = RegionVolumeEvaluator.ResolveRegions(
-            new[] { model },
-            shape => viewer.GetShapePositions(shape),
-            shape => viewer.GetShapeIndices(shape));
-        if (!resolved.TryGetValue(model.Name, out var rr) || rr == null || !rr.IsValid)
+        var rr = GetOrResolveRegion(viewer, model);
+        if (rr == null || !rr.IsValid)
         {
             viewer.ClearRegionOverlay();
             return;
         }
 
-        // Evaluate the baked loop vertices against the live (deformed) positions and build
-        // marker points + per-loop edges for the overlay.
-        var markerPts = new List<OpenTK.Mathematics.Vector3>();
+        // Build the per-loop EDGES for the overlay, drawn in the region's cap mode so the contour
+        // matches the measured volume: FlatPlane projects the ring onto the flat cut plane (a clean
+        // "salami cut"), AnatomicalFan shows the true deformed ring. Push NO per-vertex markers: a
+        // cut loop on a fine mesh has vertices spaced under the marker radius, so dotting each one
+        // renders a lumpy "beaded cord" that hides the contour — the continuous edge lines read clean.
         var edges = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>();
-        foreach (var loop in rr.CapLoops)
+        for (int li = 0; li < rr.CapLoops.Length; li++)
         {
-            int m = loop.Length;
+            var ring = RegionVolumeEvaluator.GetCapLoopOverlayPoints(rr, li, deformed, rr.CapMode);
+            int m = ring.Count;
             if (m < 2) continue;
             for (int k = 0; k < m; k++)
-            {
-                var p = rr.Vertices[loop[k]].Evaluate(positions);
-                markerPts.Add(p);
-                var pNext = rr.Vertices[loop[(k + 1) % m]].Evaluate(positions);
-                edges.Add((p, pNext));
-            }
+                edges.Add((ring[k], ring[(k + 1) % m]));
         }
-        viewer.SetRegionOverlay(markerPts, edges, new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f));
+        viewer.SetRegionOverlay(null, edges, new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f));
     }
 
     private VM_NamedKeyVertex AddBoxRow(
@@ -5163,23 +5278,30 @@ public class VM_BodyTypeProfile : VM
                 continue;
             }
 
-            // Resolve this row's box on its own so duplicate names (which collapse first-wins in a
-            // batch resolve) each get an independent verdict for the badge.
-            var resolved = RegionVolumeEvaluator.ResolveRegions(
-                new[] { model },
-                shape => viewer.GetShapePositions(shape),
-                shape => viewer.GetShapeIndices(shape));
-            if (!resolved.TryGetValue(model.Name, out var rr) || rr == null)
+            // Resolve once against the sliders-0 mesh (cached). The verdict (loop count /
+            // watertightness) is a property of the box vs the topology-stable zeroed mesh, so it's
+            // stable across presets — the old per-preset re-clip is exactly what caused "Bad box"
+            // when switching presets.
+            var rr = GetOrResolveRegion(viewer, model);
+            if (rr == null)
             {
-                r.ResolutionState = RegionResolutionState.Unknown;
-                r.ResolveDiagnostic = "";
+                r.ResolutionState = RegionResolutionState.ShapeNotLoaded;
+                r.ResolveDiagnostic = "No sliders-0 geometry for this shape on the active mesh.";
+                unresolved++;
                 continue;
             }
 
             if (rr.IsValid)
             {
                 r.ResolutionState = RegionResolutionState.Resolved;
-                r.ResolveDiagnostic = $"{rr.LoopCount} cap loop(s), volume {rr.ZeroedVolume:F1}";
+                // Report the LIVE volume (baked set evaluated against the current deformed mesh), so
+                // the tooltip tracks the previewed preset — matching the Measurements Live column.
+                // Falls back to the zeroed reference volume when no deformed geometry is loaded.
+                var deformed = viewer.GetShapePositions(model.ShapeName);
+                double vol = (deformed != null && deformed.Length > 0)
+                    ? RegionVolumeEvaluator.ComputeVolume(rr, deformed, rr.CapMode)
+                    : rr.ZeroedVolume;
+                r.ResolveDiagnostic = $"{rr.LoopCount} cap loop(s), volume {vol:F1}";
             }
             else
             {
@@ -5226,6 +5348,10 @@ public class VM_BodyTypeProfile : VM
             RefreshMeasurementHighlight();
             RecomputeKeyVertexResolutionStates();
             RecomputeRegionResolutionStates();
+            // Repaint the selected region's cap-loop overlay against the now-current deformed mesh.
+            // RefreshMeasurementValues fires on every BodySlideApplied (preset/weight change), so
+            // this is what makes the overlay follow the body across presets.
+            RefreshRegionOverlay();
             return;
         }
 
@@ -5234,20 +5360,26 @@ public class VM_BodyTypeProfile : VM
             .GroupBy(k => k.Name)
             .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
 
-        // Live readout for RegionVolume measurements: resolve every region against the currently
-        // loaded mesh once, then evaluate each region-volume measurement against that map — mirrors
-        // the scan path (RunScanAsync resolves per weight against the sliders-0 mesh; here we use the
-        // live deformed mesh so the Live column tracks the previewed preset/weight). Built only when
-        // the profile actually has region-volume measurements, so distance-only profiles pay nothing.
+        // Live readout for RegionVolume measurements: each region is resolved ONCE against the
+        // sliders-0 mesh (cached via GetOrResolveRegion) so the baked vertex set is preset-stable;
+        // TryEvaluateRegionVolume then evaluates that set against the live deformed positions, so the
+        // Live column tracks the previewed preset/weight. Built only when the profile actually has
+        // region-volume measurements, so distance-only profiles pay nothing. Resolving against the
+        // zeroed mesh (not the deformed one) is the fix for the region going "Bad box" / blank after
+        // a preset switch.
         Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
         if (viewer != null
             && Regions.Count > 0
             && Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume))
         {
-            resolvedRegions = RegionVolumeEvaluator.ResolveRegions(
-                Regions.Select(r => r.DumpToModel()),
-                shape => viewer.GetShapePositions(shape),
-                shape => viewer.GetShapeIndices(shape));
+            resolvedRegions = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
+            foreach (var r in Regions)
+            {
+                var rm = r.DumpToModel();
+                if (string.IsNullOrEmpty(rm.Name) || resolvedRegions.ContainsKey(rm.Name)) continue;
+                var rr = GetOrResolveRegion(viewer, rm);
+                if (rr != null) resolvedRegions[rm.Name] = rr;
+            }
         }
 
         foreach (var m in Measurements)
@@ -5287,6 +5419,9 @@ public class VM_BodyTypeProfile : VM
         RefreshPreviewDescriptors();
         RecomputeKeyVertexResolutionStates();
         RecomputeRegionResolutionStates();
+        // Repaint the selected region's cap-loop overlay against the now-current deformed mesh so it
+        // follows the body across preset/weight changes (this method runs on every BodySlideApplied).
+        RefreshRegionOverlay();
     }
 
     /// <summary>Rebuilds <see cref="PreviewMatches"/> from the current <see cref="VM_MeasurementDefinition.LiveValue"/>s
@@ -8498,6 +8633,9 @@ public class VM_NamedRegion : VM
         BoxMaxY = source.BoxMaxY;
         BoxMaxZ = source.BoxMaxZ;
         ExpectedCapCount = source.ExpectedCapCount;
+        CapMode = source.CapMode;
+        DefiningPresetLabel = source.DefiningPresetLabel ?? "";
+        DefiningWeight = source.DefiningWeight;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -8516,6 +8654,26 @@ public class VM_NamedRegion : VM
     /// <summary>Expected cap-loop count (1 = chest bump, 2 = limb segment). Null = accept any valid
     /// count. Persisted; surfaced as an editable numeric in the grid.</summary>
     public int? ExpectedCapCount { get; set; }
+
+    /// <summary>How the loop(s) are capped — FlatPlane (salami cut: tissue past a flat plane) or
+    /// AnatomicalFan (enclosed by the deformed ring). Changes what the volume means; surfaced as a
+    /// grid combo. Defaults to FlatPlane.</summary>
+    public RegionVolumeEvaluator.RegionCapMode CapMode { get; set; } = RegionVolumeEvaluator.RegionCapMode.FlatPlane;
+
+    /// <summary>Combo options for the CapMode column.</summary>
+    public static System.Array CapModeOptions { get; } = System.Enum.GetValues(typeof(RegionVolumeEvaluator.RegionCapMode));
+
+    /// <summary>Recordkeeping (read-only in the grid): the preset + weight the box was authored
+    /// against. The box is stored in sliders-0 space; these just let the user reload that context.</summary>
+    public string DefiningPresetLabel { get; set; } = "";
+    public int DefiningWeight { get; set; } = -1;
+
+    /// <summary>Display string for the defining-preset grid column: "<i>label</i> @ W<i>weight</i>",
+    /// or "—" when unset.</summary>
+    public string DefiningPresetDisplay =>
+        string.IsNullOrEmpty(DefiningPresetLabel)
+            ? "—"
+            : (DefiningWeight >= 0 ? $"{DefiningPresetLabel} @ W{DefiningWeight}" : DefiningPresetLabel);
 
     /// <summary>True when at least one other row in <see cref="VM_BodyTypeProfile.Regions"/> shares
     /// this <see cref="Name"/> (Ordinal, trimmed). Driven by
@@ -8544,6 +8702,9 @@ public class VM_NamedRegion : VM
         BoxMaxY = BoxMaxY,
         BoxMaxZ = BoxMaxZ,
         ExpectedCapCount = ExpectedCapCount,
+        CapMode = CapMode,
+        DefiningPresetLabel = DefiningPresetLabel ?? "",
+        DefiningWeight = DefiningWeight,
     };
 }
 

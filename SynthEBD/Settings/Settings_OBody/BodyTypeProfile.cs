@@ -315,6 +315,30 @@ public class NamedRegion
     /// rejects a box whose resolved loop count disagrees with a non-null value.
     /// </summary>
     public int? ExpectedCapCount { get; set; } = null;
+
+    /// <summary>
+    /// How the open boundary loop(s) are capped to close the volume, which determines what the
+    /// measured volume <i>means</i>. <c>FlatPlane</c> = tissue protruding past a flat plane
+    /// perpendicular to the auto-detected cut axis (a "salami cut" — flat lid, no scoop).
+    /// <c>AnatomicalFan</c> = enclosed by the bump surface + a fan from the deformed ring's centroid
+    /// (the lid follows the exact ring, so it can look scooped on a non-rigidly inflated bust).
+    /// Stored as the enum's string name; defaults to FlatPlane (the "straight cut" most authors
+    /// expect). <b>In</b> the measurement fingerprint — unlike the box-vs-defining-preset fields —
+    /// because changing it changes the computed volume.
+    /// </summary>
+    public RegionVolumeEvaluator.RegionCapMode CapMode { get; set; } = RegionVolumeEvaluator.RegionCapMode.FlatPlane;
+
+    /// <summary>
+    /// Recordkeeping: the BodySlide preset that was loaded in the viewer when this region's box was
+    /// authored, and the weight it was previewed at. The box itself is stored in sliders-0 space (so
+    /// the baked patch tracks every preset), but knowing which preset the author framed it against
+    /// lets them reload that exact context to re-edit. Purely informational — <b>excluded</b> from
+    /// the measurement fingerprint (see <see cref="Classes_Core.Models.MeasurementCacheStore"/>'s
+    /// AppendRegion) because it doesn't affect the resolved geometry or the computed volume. Empty /
+    /// -1 when authored without a named preset (e.g. on a bare preview NPC).
+    /// </summary>
+    public string DefiningPresetLabel { get; set; } = "";
+    public int DefiningWeight { get; set; } = -1;
 }
 
 /// <summary>

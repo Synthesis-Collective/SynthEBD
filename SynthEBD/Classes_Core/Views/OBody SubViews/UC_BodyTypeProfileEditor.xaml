@@ -595,6 +595,24 @@
                                                                 Binding="{Binding ExpectedCapCount, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
                                                                 Width="100"
                                                                 ElementStyle="{StaticResource {x:Type TextBlock}}"/>
+                                            <DataGridTemplateColumn Header="Cap" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <ComboBox SelectedItem="{Binding CapMode, UpdateSourceTrigger=PropertyChanged}"
+                                                                  ItemsSource="{Binding CapModeOptions}"
+                                                                  ToolTip="How the loop is closed (and what the volume means): FlatPlane = tissue protruding past a flat plane (a 'salami cut', no scoop). AnatomicalFan = enclosed by the deformed ring (lid follows the ring, can look scooped on a curvy bust)."/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Defined On"
+                                                                Binding="{Binding DefiningPresetDisplay, Mode=OneWay}"
+                                                                Width="170" IsReadOnly="True">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="ToolTip" Value="The preset + weight the box was drawn against. The box is stored in undeformed (sliders-0) space; this records the authoring context so you can reload it to re-edit."/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
                                             <DataGridTemplateColumn Header="Box (min / max)" Width="240" IsReadOnly="True">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

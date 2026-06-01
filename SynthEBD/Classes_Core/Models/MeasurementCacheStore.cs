@@ -448,6 +448,9 @@ public static class MeasurementCacheStore
         // change, and hashing them would spuriously invalidate every region volume on restart.
         sb.Append("S=").Append(rg.ShapeName ?? "").Append('|');
         sb.Append("CC=").Append(rg.ExpectedCapCount.HasValue ? rg.ExpectedCapCount.Value.ToString() : "-").Append('|');
+        // CapMode IS part of the identity: unlike the box, it changes the computed volume (flat-plane
+        // cut vs anatomical-fan cap), so a mode change must invalidate the cached value.
+        sb.Append("CM=").Append((int)rg.CapMode).Append('|');
         sb.Append("B=").Append(rg.BoxMinX).Append(',').Append(rg.BoxMinY).Append(',').Append(rg.BoxMinZ);
         sb.Append('-').Append(rg.BoxMaxX).Append(',').Append(rg.BoxMaxY).Append(',').Append(rg.BoxMaxZ);
     }
