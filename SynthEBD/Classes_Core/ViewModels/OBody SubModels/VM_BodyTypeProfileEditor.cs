@@ -3208,6 +3208,15 @@ public class VM_BodyTypeProfile : VM
                 KeyVertices.Add(new VM_NamedKeyVertex(k, this));
             }
         }
+        if (_source.Regions != null)
+        {
+            foreach (var r in _source.Regions)
+            {
+                if (r == null) continue;
+                Regions.Add(new VM_NamedRegion(r, this));
+            }
+        }
+        RecomputeDuplicateRegionNames();
         if (_source.Measurements != null)
         {
             foreach (var m in _source.Measurements)
@@ -3910,6 +3919,7 @@ public class VM_BodyTypeProfile : VM
     public string FingerprintShapeCounts { get; set; }
 
     public ObservableCollection<VM_NamedKeyVertex> KeyVertices { get; } = new();
+    public ObservableCollection<VM_NamedRegion> Regions { get; } = new();
     public ObservableCollection<VM_MeasurementDefinition> Measurements { get; } = new();
     public ObservableCollection<VM_MeasurementRule> Rules { get; } = new();
 
@@ -4717,6 +4727,14 @@ public class VM_BodyTypeProfile : VM
     public int UnresolvedKeyVertexCount { get; set; }
     public bool HasUnresolvedKeyVertices { get; set; }
 
+    /// <summary>Region analogs of <see cref="UnresolvedKeyVertexCount"/> /
+    /// <see cref="HasUnresolvedKeyVertices"/>: count of <see cref="VM_NamedRegion"/> rows whose
+    /// <see cref="VM_NamedRegion.ResolutionState"/> is not <see cref="RegionResolutionState.Resolved"/>,
+    /// plus the bool variant for the unresolved-region banner. Updated by
+    /// <see cref="RecomputeRegionResolutionStates"/>.</summary>
+    public int UnresolvedRegionCount { get; set; }
+    public bool HasUnresolvedRegions { get; set; }
+
     /// <summary>Called from <see cref="CaptureFingerprintFromActiveViewer"/> after the fingerprint
     /// is refreshed. Rewrites <see cref="VM_NamedKeyVertex.ShapeName"/> on any row whose shape no
     /// longer exists in the loaded mesh, using the largest-shape-by-vertex-count heuristic to pick
@@ -4870,6 +4888,93 @@ public class VM_BodyTypeProfile : VM
         HasUnresolvedKeyVertices = unresolved > 0;
     }
 
+    /// <summary>Flags every <see cref="VM_NamedRegion"/> whose trimmed Name collides with another
+    /// row's. Region analog of <see cref="RecomputeDuplicateKeyVertexNames"/>.</summary>
+    private void RecomputeDuplicateRegionNames()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var r in Regions)
+        {
+            var name = (r.Name ?? "").Trim();
+            if (name.Length == 0) continue;
+            counts[name] = counts.TryGetValue(name, out var c) ? c + 1 : 1;
+        }
+        foreach (var r in Regions)
+        {
+            var name = (r.Name ?? "").Trim();
+            r.HasDuplicateName = name.Length > 0 && counts.TryGetValue(name, out var c) && c > 1;
+        }
+    }
+
+    /// <summary>Region analog of <see cref="RecomputeKeyVertexResolutionStates"/>: resolves every
+    /// <see cref="VM_NamedRegion"/>'s box against the active mesh and records the per-row
+    /// <see cref="VM_NamedRegion.ResolutionState"/> + <see cref="VM_NamedRegion.ResolveDiagnostic"/>,
+    /// plus the aggregate <see cref="UnresolvedRegionCount"/> / <see cref="HasUnresolvedRegions"/> that
+    /// drive the editor's banner. Resolves against whatever mesh is currently loaded — the live-readout
+    /// analog; the loop-count / watertightness verdict is stable enough across presets for authoring
+    /// feedback, while the scan path re-resolves per weight against the sliders-0 mesh for the actual
+    /// values. Empty-name rows stay <see cref="RegionResolutionState.Unknown"/> and are not counted
+    /// (an unnamed region can't be referenced by a measurement; the name is the user's to fill in).</summary>
+    private void RecomputeRegionResolutionStates()
+    {
+        var viewer = ActiveViewer;
+        if (viewer == null)
+        {
+            foreach (var r in Regions)
+            {
+                r.ResolutionState = RegionResolutionState.Unknown;
+                r.ResolveDiagnostic = "";
+            }
+            UnresolvedRegionCount = 0;
+            HasUnresolvedRegions = false;
+            return;
+        }
+
+        int unresolved = 0;
+        foreach (var r in Regions)
+        {
+            var model = r.DumpToModel();
+            if (string.IsNullOrEmpty(model.Name))
+            {
+                r.ResolutionState = RegionResolutionState.Unknown;
+                r.ResolveDiagnostic = "Region has no name.";
+                continue;
+            }
+
+            // Resolve this row's box on its own so duplicate names (which collapse first-wins in a
+            // batch resolve) each get an independent verdict for the badge.
+            var resolved = RegionVolumeEvaluator.ResolveRegions(
+                new[] { model },
+                shape => viewer.GetShapePositions(shape),
+                shape => viewer.GetShapeIndices(shape));
+            if (!resolved.TryGetValue(model.Name, out var rr) || rr == null)
+            {
+                r.ResolutionState = RegionResolutionState.Unknown;
+                r.ResolveDiagnostic = "";
+                continue;
+            }
+
+            if (rr.IsValid)
+            {
+                r.ResolutionState = RegionResolutionState.Resolved;
+                r.ResolveDiagnostic = $"{rr.LoopCount} cap loop(s), volume {rr.ZeroedVolume:F1}";
+            }
+            else
+            {
+                // Separate "shape not loaded" (amber/transient — load a preview NPC) from a genuine
+                // box-geometry rejection (red — the box needs re-authoring) for the badge color.
+                r.ResolutionState = rr.Diagnostic.Contains("no loaded geometry", StringComparison.OrdinalIgnoreCase)
+                    ? RegionResolutionState.ShapeNotLoaded
+                    : RegionResolutionState.Invalid;
+                r.ResolveDiagnostic = rr.Diagnostic;
+                unresolved++;
+            }
+        }
+
+        UnresolvedRegionCount = unresolved;
+        HasUnresolvedRegions = unresolved > 0;
+    }
+
     /// <summary>
     /// Re-evaluates every measurement against <see cref="ActiveViewer"/> and writes the
     /// result back into each <see cref="VM_MeasurementDefinition.LiveValue"/>. Called after
@@ -4898,6 +5003,7 @@ public class VM_BodyTypeProfile : VM
         {
             RefreshMeasurementHighlight();
             RecomputeKeyVertexResolutionStates();
+            RecomputeRegionResolutionStates();
             return;
         }
 
@@ -4930,6 +5036,7 @@ public class VM_BodyTypeProfile : VM
         RefreshMeasurementHighlight();
         RefreshPreviewDescriptors();
         RecomputeKeyVertexResolutionStates();
+        RecomputeRegionResolutionStates();
     }
 
     /// <summary>Rebuilds <see cref="PreviewMatches"/> from the current <see cref="VM_MeasurementDefinition.LiveValue"/>s
@@ -6683,31 +6790,13 @@ public class VM_BodyTypeProfile : VM
                 SampleIndices = _source.Fingerprint?.SampleIndices ?? new List<int>(),
             },
             KeyVertices = KeyVertices.Select(k => k.DumpToModel()).ToList(),
-            // Regions have no VM collection yet (the authoring UI lands in a later phase), so they
-            // round-trip straight from the source model. Once the editor surfaces them this should
-            // dump from the VM collection like KeyVertices.
-            Regions = _source.Regions != null
-                ? _source.Regions.Where(r => r != null).Select(CloneRegion).ToList()
-                : new List<NamedRegion>(),
+            Regions = Regions.Select(r => r.DumpToModel()).ToList(),
             Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
             Rules = Rules.Select(r => r.DumpToModel()).ToList(),
             PresetAnnotations = PresetAnnotations.Select(CloneAnnotation).ToList(),
             AnnotatorPrefs = CloneAnnotatorPrefs(AnnotatorPrefs),
         };
         return model;
-    }
-
-    private static NamedRegion CloneRegion(NamedRegion src)
-    {
-        if (src == null) return null;
-        return new NamedRegion
-        {
-            Name = src.Name ?? "",
-            ShapeName = src.ShapeName ?? "",
-            BoxMinX = src.BoxMinX, BoxMinY = src.BoxMinY, BoxMinZ = src.BoxMinZ,
-            BoxMaxX = src.BoxMaxX, BoxMaxY = src.BoxMaxY, BoxMaxZ = src.BoxMaxZ,
-            ExpectedCapCount = src.ExpectedCapCount,
-        };
     }
 
     private static PresetAnnotation CloneAnnotation(PresetAnnotation src)
@@ -7004,11 +7093,8 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements) if (m != null) measModels.Add(m.DumpToModel());
         var kvModels = new List<NamedKeyVertex>(KeyVertices.Count);
         foreach (var k in KeyVertices) if (k != null) kvModels.Add(k.DumpToModel());
-        // Regions have no VM collection yet (authoring UI lands later); pull from the source model
-        // so RegionVolume measurements fingerprint against their box like KeyVertex-backed ones do.
-        var rgModels = _source.Regions != null
-            ? _source.Regions.Where(r => r != null).Select(CloneRegion).ToList()
-            : new List<NamedRegion>();
+        var rgModels = new List<NamedRegion>(Regions.Count);
+        foreach (var r in Regions) if (r != null) rgModels.Add(r.DumpToModel());
         return MeasurementCacheStore.ComputeAllMeasurementFingerprints(measModels, kvModels, rgModels);
     }
 
@@ -7165,15 +7251,13 @@ public class VM_BodyTypeProfile : VM
             if (!kvMap.ContainsKey(n)) kvMap[n] = model; // first-row-wins, matching the evaluator
         }
         var rgMap = new Dictionary<string, NamedRegion>(StringComparer.Ordinal);
-        if (_source.Regions != null)
+        foreach (var rgVm in Regions)
         {
-            foreach (var rg in _source.Regions)
-            {
-                if (rg == null) continue;
-                var rn = rg.Name?.Trim() ?? "";
-                if (rn.Length == 0) continue;
-                if (!rgMap.ContainsKey(rn)) rgMap[rn] = rg; // first-row-wins, matching the evaluator
-            }
+            if (rgVm == null) continue;
+            var model = rgVm.DumpToModel();
+            var rn = model.Name?.Trim() ?? "";
+            if (rn.Length == 0) continue;
+            if (!rgMap.ContainsKey(rn)) rgMap[rn] = model; // first-row-wins, matching the evaluator
         }
         string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap, rgMap);
 
@@ -8124,6 +8208,93 @@ public enum KeyVertexResolutionState
     /// new mesh before evaluation can use it. BoundingBox-strategy KVs self-heal and never
     /// receive this state.</summary>
     NeedsRepick = 4,
+}
+
+/// <summary>Per-row diagnostic for whether a <see cref="VM_NamedRegion"/>'s box resolves to a
+/// valid (watertight, expected-cap-count) region against the currently-loaded mesh. Driven by
+/// <see cref="VM_BodyTypeProfile.RecomputeRegionResolutionStates"/>; never persisted. Surfaces in
+/// the regions grid as a badge + diagnostic tooltip and feeds the top-level unresolved banner.</summary>
+public enum RegionResolutionState
+{
+    /// <summary>No active viewer yet, or no resolve has run. Treated as "not yet a problem" by the UI.</summary>
+    Unknown = 0,
+    /// <summary>The box resolved to a valid watertight region with the expected cap-loop count.</summary>
+    Resolved = 1,
+    /// <summary>No loaded mesh has a shape with this <see cref="VM_NamedRegion.ShapeName"/> (or it has no geometry).</summary>
+    ShapeNotLoaded = 2,
+    /// <summary>The box intersects the mesh but failed validation (not watertight, wrong cap-loop
+    /// count, multiple disconnected pieces, or degenerate). The specific reason is in
+    /// <see cref="VM_NamedRegion.ResolveDiagnostic"/>.</summary>
+    Invalid = 3,
+}
+
+/// <summary>Row VM for a single <see cref="NamedRegion"/> (the box input to a
+/// <see cref="MeasurementKind.RegionVolume"/> measurement). Mirrors <see cref="VM_NamedKeyVertex"/>:
+/// observable box fields, a <see cref="DeleteCommand"/>, and a <see cref="DumpToModel"/>; a region
+/// has no criterion (unlike a key vertex) but carries an optional <see cref="ExpectedCapCount"/>.</summary>
+public class VM_NamedRegion : VM
+{
+    private readonly VM_BodyTypeProfile _parent;
+
+    public VM_NamedRegion(NamedRegion source, VM_BodyTypeProfile parent)
+    {
+        _parent = parent;
+        Name = source.Name ?? "";
+        ShapeName = source.ShapeName ?? "";
+        BoxMinX = source.BoxMinX;
+        BoxMinY = source.BoxMinY;
+        BoxMinZ = source.BoxMinZ;
+        BoxMaxX = source.BoxMaxX;
+        BoxMaxY = source.BoxMaxY;
+        BoxMaxZ = source.BoxMaxZ;
+        ExpectedCapCount = source.ExpectedCapCount;
+
+        DeleteCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => _parent.Regions.Remove(this));
+    }
+
+    public string Name { get; set; }
+    public string ShapeName { get; set; }
+    public float BoxMinX { get; set; }
+    public float BoxMinY { get; set; }
+    public float BoxMinZ { get; set; }
+    public float BoxMaxX { get; set; }
+    public float BoxMaxY { get; set; }
+    public float BoxMaxZ { get; set; }
+
+    /// <summary>Expected cap-loop count (1 = chest bump, 2 = limb segment). Null = accept any valid
+    /// count. Persisted; surfaced as an editable numeric in the grid.</summary>
+    public int? ExpectedCapCount { get; set; }
+
+    /// <summary>True when at least one other row in <see cref="VM_BodyTypeProfile.Regions"/> shares
+    /// this <see cref="Name"/> (Ordinal, trimmed). Driven by
+    /// <see cref="VM_BodyTypeProfile.RecomputeDuplicateRegionNames"/>; the row never computes it itself.</summary>
+    public bool HasDuplicateName { get; set; }
+
+    /// <summary>Resolution diagnostic against the active mesh. Recomputed by
+    /// <see cref="VM_BodyTypeProfile.RecomputeRegionResolutionStates"/>; never written by the row.</summary>
+    public RegionResolutionState ResolutionState { get; set; } = RegionResolutionState.Unknown;
+
+    /// <summary>Human-readable detail for the current <see cref="ResolutionState"/>: the rejection
+    /// reason when Invalid, or a "N cap loop(s), volume V" summary when Resolved. Empty when Unknown.
+    /// Shown as the status-badge tooltip.</summary>
+    public string ResolveDiagnostic { get; set; } = "";
+
+    public RelayCommand DeleteCommand { get; }
+
+    public NamedRegion DumpToModel() => new()
+    {
+        Name = Name?.Trim() ?? "",
+        ShapeName = ShapeName?.Trim() ?? "",
+        BoxMinX = BoxMinX,
+        BoxMinY = BoxMinY,
+        BoxMinZ = BoxMinZ,
+        BoxMaxX = BoxMaxX,
+        BoxMaxY = BoxMaxY,
+        BoxMaxZ = BoxMaxZ,
+        ExpectedCapCount = ExpectedCapCount,
+    };
 }
 
 /// <summary>Row VM for a single <see cref="NamedKeyVertex"/>.</summary>
