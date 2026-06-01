@@ -728,6 +728,7 @@ public class VM_CharacterViewer : ViewerVm
     public RelayCommand CopyPicksToClipboardCommand        { get; private set; } = null!;
     public RelayCommand ConfirmPendingBoxCommand           { get; private set; } = null!;
     public RelayCommand ConfirmPendingBoxAsDuplicateCommand{ get; private set; } = null!;
+    public RelayCommand ConfirmPendingBoxAsRegionCommand   { get; private set; } = null!;
     public RelayCommand CancelPendingBoxCommand            { get; private set; } = null!;
     public RelayCommand ShrinkAlongViewAxisCommand         { get; private set; } = null!;
 
@@ -975,6 +976,9 @@ public class VM_CharacterViewer : ViewerVm
         ConfirmPendingBoxAsDuplicateCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => ConfirmPendingBoxAsDuplicate());
+        ConfirmPendingBoxAsRegionCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => ConfirmPendingBoxAsRegion());
         CancelPendingBoxCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => CancelPendingBox());
@@ -1645,6 +1649,15 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Process-wide fan-out for BB picks (parallel to <see cref="AnyKeyVertexPicked"/>).</summary>
     public static event Action<VM_CharacterViewer, KeyVertexBoxPick>? AnyKeyVertexBoxPicked;
 
+    /// <summary>Per-viewer fan-out for region picks — a pending box confirmed as a RegionVolume
+    /// region rather than a key vertex. Reuses the <see cref="KeyVertexBoxPick"/> payload for its
+    /// ShapeName + AABB; the <see cref="KeyVertexBoxPick.Criterion"/> field is unused (a region has
+    /// no criterion). Parallel to <see cref="KeyVertexBoxPicked"/>.</summary>
+    public event Action<KeyVertexBoxPick>? RegionBoxPicked;
+
+    /// <summary>Process-wide fan-out for region picks (parallel to <see cref="AnyKeyVertexBoxPicked"/>).</summary>
+    public static event Action<VM_CharacterViewer, KeyVertexBoxPick>? AnyRegionBoxPicked;
+
     /// <summary>
     /// Fires at the end of ApplyBodySlide, after CpuPositions have been refreshed. The
     /// BodyTypeProfile editor subscribes so live measurement readouts recompute after the
@@ -1960,6 +1973,15 @@ public class VM_CharacterViewer : ViewerVm
         AnyKeyVertexBoxPicked?.Invoke(this, pick);
     }
 
+    /// <summary>Fans a region pick out to per-viewer and process-wide subscribers (parallels
+    /// <see cref="NotifyKeyVertexBoxPicked"/>). The BodyTypeProfile editor subscribes to
+    /// <see cref="AnyRegionBoxPicked"/> so a confirmed region box becomes a NamedRegion row.</summary>
+    public void NotifyRegionBoxPicked(KeyVertexBoxPick pick)
+    {
+        RegionBoxPicked?.Invoke(pick);
+        AnyRegionBoxPicked?.Invoke(this, pick);
+    }
+
     /// <summary>Parks a freshly-captured rectangle pick in the pending-box editor state
     /// instead of firing it. The wireframe overlay + edit panel become visible, the user
     /// tweaks the six min/max values (and optionally the criterion), then
@@ -2059,6 +2081,22 @@ public class VM_CharacterViewer : ViewerVm
         // duplicate again. The IsDuplicate flag tells downstream consumers to force the
         // AddBoxRow path without consuming any active edit-session target, so a subsequent
         // regular Confirm can still update the originally-edited row.
+    }
+
+    /// <summary>Confirms the pending box as a RegionVolume region rather than a key vertex: fires
+    /// <see cref="AnyRegionBoxPicked"/> with the current AABB, then clears the pending state. The
+    /// criterion is irrelevant for regions, so the pending criterion is passed through unused.
+    /// Parallels <see cref="ConfirmPendingBox"/> but routes to the region channel.</summary>
+    public void ConfirmPendingBoxAsRegion()
+    {
+        if (!HasPendingBox) return;
+        var pick = new KeyVertexBoxPick(
+            PendingBoxShapeName,
+            new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
+            PendingBoxFinalCriterion);
+        NotifyRegionBoxPicked(pick);
+        HasPendingBox = false;
     }
 
     public void CancelPendingBox() => HasPendingBox = false;
@@ -2728,6 +2766,34 @@ public class VM_CharacterViewer : ViewerVm
                 Label = s.Label,
             });
         }
+    }
+
+    /// <summary>Replaces the renderer's region-overlay channel (cap-loop markers + edges) with the
+    /// supplied geometry. <paramref name="loopVertices"/> render as cap-loop marker spheres and
+    /// <paramref name="loopEdges"/> as the loops' edges, both in the same pre-ModelScale mesh-local
+    /// space as the markers. Driven by the BodyTypeProfile editor when a region row is selected, so
+    /// the user sees exactly which boundary loop(s) the region's box resolved to (1 = chest, 2 =
+    /// limb segment, 3+ = the box caught more than intended). Pass null/empty to clear.</summary>
+    public void SetRegionOverlay(
+        IEnumerable<OpenTK.Mathematics.Vector3>? loopVertices,
+        IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>? loopEdges,
+        OpenTK.Mathematics.Vector3 edgeColor)
+    {
+        Renderer.RegionCapMarkers.Clear();
+        Renderer.RegionOverlayLines.Clear();
+        if (loopVertices != null)
+            foreach (var v in loopVertices) Renderer.RegionCapMarkers.Add(v);
+        if (loopEdges != null)
+            foreach (var (a, b) in loopEdges)
+                Renderer.RegionOverlayLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = edgeColor });
+    }
+
+    /// <summary>Clears the region overlay (cap-loop markers + edges). Called when the editor
+    /// deselects its region row or switches profiles.</summary>
+    public void ClearRegionOverlay()
+    {
+        Renderer.RegionCapMarkers.Clear();
+        Renderer.RegionOverlayLines.Clear();
     }
 
     /// <summary>

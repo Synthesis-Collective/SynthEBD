@@ -290,6 +290,16 @@ public class GlRenderer : IDisposable
     /// apart from orange (picks), yellow (BB-resolved), and green (selected/preview-row).</summary>
     public Vector3 PreviewPickMarkerColor { get; set; } = new Vector3(0.78f, 0.30f, 1.0f);
 
+    /// <summary>Region-overlay cap-loop vertex markers — the resolved boundary-loop vertices of
+    /// the RegionVolume region currently selected in the BodyTypeProfile editor. Rendered by the
+    /// same <see cref="DrawMarkerList"/> path as the key-vertex markers; the matching loop edges
+    /// are drawn from <see cref="RegionOverlayLines"/>. Owned by the editor; cleared on deselect.</summary>
+    public List<Vector3> RegionCapMarkers { get; } = new();
+
+    /// <summary>RGB color for the region cap-loop markers. Cyan — distinct from orange (picks),
+    /// yellow (BB-resolved), green (preview-row), and purple (pending-box preview).</summary>
+    public Vector3 RegionCapMarkerColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
+
     /// <summary>World-space radius of each marker sphere before ModelScale is
     /// applied. Small enough not to obscure neighbouring vertices on a dense
     /// classifier mesh, while still readable at typical viewer zooms.</summary>
@@ -301,6 +311,13 @@ public class GlRenderer : IDisposable
     /// mesh-local space as <see cref="KeyVertexMarkers"/> so they track ModelScale.
     /// </summary>
     public List<MeasurementLineSegment> MeasurementLines { get; } = new();
+
+    /// <summary>Region-overlay cap-loop edges — the boundary-loop edges of the RegionVolume region
+    /// currently selected in the BodyTypeProfile editor. Same <see cref="MeasurementLineSegment"/>
+    /// shape and same draw path (<see cref="DrawMeasurementLines"/>) as <see cref="MeasurementLines"/>,
+    /// kept in a separate channel so the region overlay and the measurement overlay don't clobber
+    /// each other. Owned by the editor; cleared on deselect.</summary>
+    public List<MeasurementLineSegment> RegionOverlayLines { get; } = new();
 
     public struct MeasurementLineSegment
     {
@@ -813,7 +830,8 @@ public class GlRenderer : IDisposable
         if (KeyVertexMarkers.Count == 0
             && BoxResolvedMarkers.Count == 0
             && PreviewKeyVertexMarkers.Count == 0
-            && PreviewPickMarkers.Count == 0) return;
+            && PreviewPickMarkers.Count == 0
+            && RegionCapMarkers.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -834,6 +852,7 @@ public class GlRenderer : IDisposable
         DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
         DrawMarkerList(PreviewKeyVertexMarkers, PreviewKeyVertexMarkerColor);
         DrawMarkerList(PreviewPickMarkers, PreviewPickMarkerColor);
+        DrawMarkerList(RegionCapMarkers, RegionCapMarkerColor);
 
         _debugShader.SetFloat("u_shaded", 0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
@@ -892,7 +911,7 @@ public class GlRenderer : IDisposable
     private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
-        if (MeasurementLines.Count == 0) return;
+        if (MeasurementLines.Count == 0 && RegionOverlayLines.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -909,25 +928,35 @@ public class GlRenderer : IDisposable
         // 4.5 stays under the typical driver-clamped maximum (5–10 for aliased lines).
         GL.LineWidth(4.5f);
 
-        // Two verts per line, 6 floats per vert (pos + unused normal).
+        // Two verts per line, 6 floats per vert (pos + unused normal). Both channels
+        // (measurement overlay + region cap-loop overlay) use the same primitive.
         var buf = new float[12];
-        for (int i = 0; i < MeasurementLines.Count; i++)
+        DrawLineSegmentList(MeasurementLines, buf);
+        DrawLineSegmentList(RegionOverlayLines, buf);
+
+        GL.LineWidth(1.0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Uploads + draws each segment in <paramref name="lines"/> through the bound debug
+    /// VAO/VBO. Caller sets shader, line width, and depth state and passes a reusable 12-float
+    /// scratch buffer. Shared by the measurement-line and region cap-loop overlay channels.</summary>
+    private void DrawLineSegmentList(List<MeasurementLineSegment> lines, float[] buf)
+    {
+        for (int i = 0; i < lines.Count; i++)
         {
-            var seg = MeasurementLines[i];
+            var seg = lines[i];
             var a = seg.A * ModelScale;
             var b = seg.B * ModelScale;
 
             buf[0] = a.X; buf[1] = a.Y; buf[2] = a.Z; buf[3] = 0f; buf[4] = 0f; buf[5] = 0f;
             buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
 
-            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
             GL.BufferData(BufferTarget.ArrayBuffer, buf.Length * sizeof(float), buf, BufferUsageHint.DynamicDraw);
             GL.DrawArrays(PrimitiveType.Lines, 0, 2);
         }
-
-        GL.LineWidth(1.0f);
-        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
-        GL.BindVertexArray(0);
     }
 
     /// <summary>Cached unit-sphere vertex data (pos.xyz + normal.xyz per vert;
