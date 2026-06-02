@@ -2846,20 +2846,28 @@ public class VM_CharacterViewer : ViewerVm
     /// same pre-ModelScale local space as the markers. Drawn lit + depth-off so the region reads as a
     /// solid magenta object through the body from any angle. Pass null/empty to clear (End-Cap mode).
     /// The caller builds this from the baked region's patch + caps evaluated on the deformed mesh.</summary>
-    public void SetRegionSolid(IEnumerable<float>? interleavedTriangles)
+    public void SetRegionSolid(
+        IEnumerable<float>? interleavedTriangles,
+        IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>? wireEdges = null,
+        OpenTK.Mathematics.Vector3 wireColor = default)
     {
         Renderer.RegionSolidTriangles.Clear();
+        Renderer.RegionWireLines.Clear();
         if (interleavedTriangles != null)
             Renderer.RegionSolidTriangles.AddRange(interleavedTriangles);
+        if (wireEdges != null)
+            foreach (var (a, b) in wireEdges)
+                Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = wireColor });
     }
 
-    /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface). Called when
-    /// the editor deselects its region row or switches profiles.</summary>
+    /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface + wireframe).
+    /// Called when the editor deselects its region row or switches profiles.</summary>
     public void ClearRegionOverlay()
     {
         Renderer.RegionCapMarkers.Clear();
         Renderer.RegionOverlayLines.Clear();
         Renderer.RegionSolidTriangles.Clear();
+        Renderer.RegionWireLines.Clear();
     }
 
     /// <summary>

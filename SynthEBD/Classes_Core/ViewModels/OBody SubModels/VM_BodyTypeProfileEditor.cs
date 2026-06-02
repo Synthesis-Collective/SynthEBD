@@ -5025,14 +5025,15 @@ public class VM_BodyTypeProfile : VM
 
         if (RegionViewMode == RegionViewModeKind.Solid)
         {
-            // Solid mode: magenta filled surface (patch + caps) drawn through the body, with the cyan
-            // cap edges + every patch vertex dotted cyan on top so the region reads as a solid object
-            // from any angle. The solid surface comes from the same baked region the volume uses.
+            // Solid mode: magenta filled surface (patch + caps) drawn through the body, with a THIN
+            // cyan WIREFRAME of the patch triangle edges over it (vertices+edges as wireframe, faces as
+            // solid). No marker spheres (too big) and no thick contour — the wireframe carries the
+            // vertex/edge detail. The solid + wire come from the same baked region the volume uses.
             var solid = RegionVolumeEvaluator.BuildSolidSurface(rr, deformed, rr.CapMode);
-            viewer.SetRegionSolid(solid);
-            var verts = new List<OpenTK.Mathematics.Vector3>(rr.Vertices.Length);
-            foreach (var vref in rr.Vertices) verts.Add(vref.Evaluate(deformed));
-            viewer.SetRegionOverlay(verts, edges, cyan);
+            var wire = RegionVolumeEvaluator.BuildSolidWireframe(rr, deformed);
+            viewer.SetRegionSolid(solid, wire, cyan);
+            // Clear the cap-loop contour/markers channel — the wireframe replaces it in Solid mode.
+            viewer.SetRegionOverlay(null, null, cyan);
         }
         else
         {

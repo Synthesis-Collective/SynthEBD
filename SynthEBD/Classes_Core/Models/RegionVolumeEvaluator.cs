@@ -439,6 +439,40 @@ public static class RegionVolumeEvaluator
         return outFloats;
     }
 
+    /// <summary>
+    /// Returns the deduplicated triangle edges of the region's surface patch (the real bump mesh),
+    /// evaluated against <paramref name="deformedPositions"/>, as world-space line segments — the cyan
+    /// wireframe drawn over the magenta solid in "Solid" view mode. Uses the patch's own vertex ids to
+    /// dedup shared edges (each interior edge once), so the boundary contour (the cut loop) is included
+    /// without the synthetic cap-fan spokes. Empty for an invalid region.
+    /// </summary>
+    public static List<(Vector3 A, Vector3 B)> BuildSolidWireframe(ResolvedRegion region, Vector3[] deformedPositions)
+    {
+        var outEdges = new List<(Vector3, Vector3)>();
+        if (region == null || !region.IsValid || deformedPositions == null) return outEdges;
+
+        int n = region.Vertices.Length;
+        if (n == 0) return outEdges;
+        var pos = new Vector3[n];
+        for (int i = 0; i < n; i++) pos[i] = region.Vertices[i].Evaluate(deformedPositions);
+
+        var seen = new HashSet<long>();
+        var tris = region.PatchTriangles;
+        void AddEdge(int a, int b)
+        {
+            int lo = Math.Min(a, b), hi = Math.Max(a, b);
+            long key = ((long)lo << 32) | (uint)hi;
+            if (seen.Add(key)) outEdges.Add((pos[a], pos[b]));
+        }
+        for (int i = 0; i + 2 < tris.Length; i += 3)
+        {
+            AddEdge(tris[i], tris[i + 1]);
+            AddEdge(tris[i + 1], tris[i + 2]);
+            AddEdge(tris[i + 2], tris[i]);
+        }
+        return outEdges;
+    }
+
     // ------------------------------------------------------------------ resolution
 
     /// <summary>

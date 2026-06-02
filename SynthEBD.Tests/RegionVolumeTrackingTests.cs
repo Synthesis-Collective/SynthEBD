@@ -223,6 +223,31 @@ public class RegionVolumeTrackingTests
     }
 
     [Fact]
+    public void BuildSolidWireframe_ReturnsDedupedPatchEdges_ThatTrackDeformation()
+    {
+        var (pos, t) = OpenTopCube(2f);
+        var r = ResolveRegion(pos, t, new RegionAabb(new Vector3(-1, -1, -1), new Vector3(3, 3, 3)));
+        r.IsValid.Should().BeTrue(r.Diagnostic);
+
+        var wire = RegionVolumeEvaluator.BuildSolidWireframe(r, pos);
+        wire.Should().NotBeEmpty();
+
+        // Edges are deduped: count distinct undirected endpoint-position pairs == total returned.
+        string Key(Vector3 a, Vector3 b)
+        {
+            string sa = $"{a.X:F3},{a.Y:F3},{a.Z:F3}", sb = $"{b.X:F3},{b.Y:F3},{b.Z:F3}";
+            return string.CompareOrdinal(sa, sb) <= 0 ? sa + "|" + sb : sb + "|" + sa;
+        }
+        wire.Select(e => Key(e.A, e.B)).Distinct().Count().Should().Be(wire.Count);
+
+        // Tracks deformation: scaling the mesh scales the edge endpoints.
+        var scaled = pos.Select(p => p * 2f).ToArray();
+        var wire2 = RegionVolumeEvaluator.BuildSolidWireframe(r, scaled);
+        wire2.Count.Should().Be(wire.Count);
+        (wire2[0].A * 0.5f).Should().BeEquivalentTo(wire[0].A);
+    }
+
+    [Fact]
     public void BuildSolidSurface_TracksDeformedPositions()
     {
         var (pos, t) = OpenTopCube(2f);

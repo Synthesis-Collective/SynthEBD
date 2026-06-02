@@ -328,8 +328,17 @@ public class GlRenderer : IDisposable
     /// currently selected in the BodyTypeProfile editor. Same <see cref="MeasurementLineSegment"/>
     /// shape and same draw path (<see cref="DrawMeasurementLines"/>) as <see cref="MeasurementLines"/>,
     /// kept in a separate channel so the region overlay and the measurement overlay don't clobber
-    /// each other. Owned by the editor; cleared on deselect.</summary>
+    /// each other. Drawn at the thick contour width. Owned by the editor; cleared on deselect.</summary>
     public List<MeasurementLineSegment> RegionOverlayLines { get; } = new();
+
+    /// <summary>Region "Solid" view-mode wireframe — the patch's triangle edges, drawn THIN (so the
+    /// dense bump mesh reads as a wireframe rather than a fat tangle) over the magenta solid. Separate
+    /// channel from <see cref="RegionOverlayLines"/> precisely because of the different line width.
+    /// Owned by the editor; populated only in Solid mode, cleared otherwise.</summary>
+    public List<MeasurementLineSegment> RegionWireLines { get; } = new();
+
+    /// <summary>Line width (px) for <see cref="RegionWireLines"/>. Thin — a true wireframe.</summary>
+    public float RegionWireWidth { get; set; } = 1.25f;
 
     public struct MeasurementLineSegment
     {
@@ -954,7 +963,7 @@ public class GlRenderer : IDisposable
     private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection)
     {
         if (_debugShader == null) return;
-        if (MeasurementLines.Count == 0 && RegionOverlayLines.Count == 0) return;
+        if (MeasurementLines.Count == 0 && RegionOverlayLines.Count == 0 && RegionWireLines.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -966,16 +975,23 @@ public class GlRenderer : IDisposable
 
         bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
         GL.Disable(EnableCap.DepthTest);
-        // Thicker than the historical 2.5 so the overlay reads at typical zoom levels —
-        // user reported the prior width was too thin to see against busy body textures.
-        // 4.5 stays under the typical driver-clamped maximum (5–10 for aliased lines).
-        GL.LineWidth(4.5f);
 
-        // Two verts per line, 6 floats per vert (pos + unused normal). Both channels
-        // (measurement overlay + region cap-loop overlay) use the same primitive.
+        // Two verts per line, 6 floats per vert (pos + unused normal).
         var buf = new float[12];
+
+        // Thick channels (measurement overlay + region cap-loop contour). Thicker than the historical
+        // 2.5 so the overlay reads at typical zoom levels against busy body textures; 4.5 stays under
+        // the typical driver-clamped maximum (5–10 for aliased lines).
+        GL.LineWidth(4.5f);
         DrawLineSegmentList(MeasurementLines, buf);
         DrawLineSegmentList(RegionOverlayLines, buf);
+
+        // Thin channel: the Solid-mode region wireframe (dense triangle edges read as a wireframe).
+        if (RegionWireLines.Count > 0)
+        {
+            GL.LineWidth(RegionWireWidth);
+            DrawLineSegmentList(RegionWireLines, buf);
+        }
 
         GL.LineWidth(1.0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
