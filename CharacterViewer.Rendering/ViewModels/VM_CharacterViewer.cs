@@ -2841,12 +2841,25 @@ public class VM_CharacterViewer : ViewerVm
                 Renderer.RegionOverlayLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = edgeColor });
     }
 
-    /// <summary>Clears the region overlay (cap-loop markers + edges). Called when the editor
-    /// deselects its region row or switches profiles.</summary>
+    /// <summary>Replaces the renderer's "Solid" region-view geometry: the selected region's closed
+    /// surface as interleaved triangle vertices (6 floats each: position.xyz + normal.xyz), in the
+    /// same pre-ModelScale local space as the markers. Drawn lit + depth-off so the region reads as a
+    /// solid magenta object through the body from any angle. Pass null/empty to clear (End-Cap mode).
+    /// The caller builds this from the baked region's patch + caps evaluated on the deformed mesh.</summary>
+    public void SetRegionSolid(IEnumerable<float>? interleavedTriangles)
+    {
+        Renderer.RegionSolidTriangles.Clear();
+        if (interleavedTriangles != null)
+            Renderer.RegionSolidTriangles.AddRange(interleavedTriangles);
+    }
+
+    /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface). Called when
+    /// the editor deselects its region row or switches profiles.</summary>
     public void ClearRegionOverlay()
     {
         Renderer.RegionCapMarkers.Clear();
         Renderer.RegionOverlayLines.Clear();
+        Renderer.RegionSolidTriangles.Clear();
     }
 
     /// <summary>

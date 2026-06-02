@@ -379,6 +379,66 @@ public static class RegionVolumeEvaluator
         return outPts;
     }
 
+    /// <summary>
+    /// Builds the region's closed surface (the bump patch + the cap fan(s) that close it, in the given
+    /// <paramref name="capMode"/>) as a flat list of interleaved triangle vertices — 6 floats per vertex
+    /// (position.xyz then normal.xyz) — evaluated against <paramref name="deformedPositions"/>. This is
+    /// the geometry the "Solid" region-view mode draws: feed it to <c>VM_CharacterViewer.SetRegionSolid</c>.
+    /// Per-triangle (flat) normals are computed so the debug shader's lighting gives the magenta solid
+    /// readable shape from any angle. Returns an empty list for an invalid region. Winding matches the
+    /// volume integration (patch keeps mesh winding; cap fans mate with the patch boundary).
+    /// </summary>
+    public static List<float> BuildSolidSurface(ResolvedRegion region, Vector3[] deformedPositions, RegionCapMode capMode)
+    {
+        var outFloats = new List<float>();
+        if (region == null || !region.IsValid || deformedPositions == null) return outFloats;
+
+        int n = region.Vertices.Length;
+        if (n == 0) return outFloats;
+        var pos = new Vector3[n];
+        for (int i = 0; i < n; i++) pos[i] = region.Vertices[i].Evaluate(deformedPositions);
+
+        void EmitTri(Vector3 a, Vector3 b, Vector3 c)
+        {
+            var nrm = Vector3.Cross(b - a, c - a);
+            float len = nrm.Length;
+            nrm = len > 1e-12f ? nrm / len : new Vector3(0, 1, 0);
+            void V(Vector3 p) { outFloats.Add(p.X); outFloats.Add(p.Y); outFloats.Add(p.Z); outFloats.Add(nrm.X); outFloats.Add(nrm.Y); outFloats.Add(nrm.Z); }
+            V(a); V(b); V(c);
+        }
+
+        // Surface patch (the real bump), in mesh winding.
+        var tris = region.PatchTriangles;
+        for (int i = 0; i + 2 < tris.Length; i += 3)
+            EmitTri(pos[tris[i]], pos[tris[i + 1]], pos[tris[i + 2]]);
+
+        // Cap fan(s) — same construction the volume uses, so the solid is exactly the measured solid.
+        Vector3 nrmCut = region.CutNormal.LengthSquared > 1e-12f ? region.CutNormal.Normalized() : new Vector3(0, 0, 1);
+        foreach (var loop in region.CapLoops)
+        {
+            int m = loop.Length;
+            if (m < 3) continue;
+            Vector3 c = Vector3.Zero;
+            for (int k = 0; k < m; k++) c += pos[loop[k]];
+            c /= m;
+
+            if (capMode == RegionCapMode.FlatPlane)
+            {
+                float planeD = Vector3.Dot(c, nrmCut);
+                Vector3 cFlat = ProjectToPlane(c, nrmCut, planeD);
+                for (int k = 0; k < m; k++)
+                    EmitTri(ProjectToPlane(pos[loop[k]], nrmCut, planeD), cFlat, ProjectToPlane(pos[loop[(k + 1) % m]], nrmCut, planeD));
+            }
+            else
+            {
+                for (int k = 0; k < m; k++)
+                    EmitTri(pos[loop[k]], c, pos[loop[(k + 1) % m]]);
+            }
+        }
+
+        return outFloats;
+    }
+
     // ------------------------------------------------------------------ resolution
 
     /// <summary>

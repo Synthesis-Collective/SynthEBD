@@ -300,6 +300,18 @@ public class GlRenderer : IDisposable
     /// yellow (BB-resolved), green (preview-row), and purple (pending-box preview).</summary>
     public Vector3 RegionCapMarkerColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
 
+    /// <summary>Region "Solid" view-mode geometry: the selected region's closed surface (patch +
+    /// caps) as interleaved triangle vertices, 6 floats each (position.xyz + normal.xyz), in the same
+    /// pre-ModelScale local space as the markers. Drawn lit (<c>u_shaded=1</c>) with depth test off in
+    /// the marker pass, so the region reads as a solid magenta object visible through the body from any
+    /// angle — reusing the always-on-top overlay path instead of making the body transparent. Empty in
+    /// End-Cap mode. Owned by the editor; rebuilt per preset/weight like the cap-loop overlay.</summary>
+    public List<float> RegionSolidTriangles { get; } = new();
+
+    /// <summary>RGB color for the Solid-mode region surface. Magenta — distinct from the cyan cap
+    /// markers/edges drawn on top of it.</summary>
+    public Vector3 RegionSolidColor { get; set; } = new Vector3(1.0f, 0.10f, 0.85f);
+
     /// <summary>World-space radius of each marker sphere before ModelScale is
     /// applied. Small enough not to obscure neighbouring vertices on a dense
     /// classifier mesh, while still readable at typical viewer zooms.</summary>
@@ -831,7 +843,8 @@ public class GlRenderer : IDisposable
             && BoxResolvedMarkers.Count == 0
             && PreviewKeyVertexMarkers.Count == 0
             && PreviewPickMarkers.Count == 0
-            && RegionCapMarkers.Count == 0) return;
+            && RegionCapMarkers.Count == 0
+            && RegionSolidTriangles.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -847,6 +860,11 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
+        // Solid region surface first, so the cyan cap markers/edges layer on top of it. Lit
+        // (u_shaded=1) + depth-off makes it read as a solid object visible through the body — the
+        // same always-on-top trick the markers use, no transparency needed.
+        DrawRegionSolid();
+
         DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor,
             SelectedKeyVertexMarkerIndices, KeyVertexMarkerSelectedColor);
         DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
@@ -858,6 +876,31 @@ public class GlRenderer : IDisposable
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
         if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
         GL.BindVertexArray(0);
+    }
+
+    /// <summary>Uploads + draws <see cref="RegionSolidTriangles"/> as a lit magenta solid through the
+    /// debug VAO. Caller has already set u_shaded=1, bound the debug VAO/VBO, and configured depth-off
+    /// + back-face cull. Positions are scaled by ModelScale (matching the marker/line paths) via a
+    /// scratch copy so the stored mesh-local coords aren't mutated.</summary>
+    private float[]? _regionSolidScratch;
+    private void DrawRegionSolid()
+    {
+        int floats = RegionSolidTriangles.Count;
+        if (floats < 18) return; // need at least one triangle (3 verts * 6 floats)
+
+        var src = RegionSolidTriangles;
+        var buf = _regionSolidScratch;
+        if (buf == null || buf.Length < floats) buf = _regionSolidScratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 6)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+        }
+
+        _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
     }
 
     private void DrawMarkerList(

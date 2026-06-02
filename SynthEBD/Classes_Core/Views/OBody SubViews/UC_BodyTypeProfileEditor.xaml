@@ -567,6 +567,13 @@
                                     </Border>
                                     <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,4" Foreground="#FFBBBBBB" FontSize="11"
                                                Text="Author a region by drawing a box in the viewer (Pick Box), then clicking 'Confirm as Region' on the pending-box panel. A region selects a body patch whose enclosed volume a RegionVolume measurement integrates. Expected Caps: 1 for a chest bump, 2 for a limb segment, blank to accept any valid count."/>
+                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,2,0,4">
+                                        <TextBlock Text="Viewer display:" VerticalAlignment="Center" Foreground="#FFBBBBBB" FontSize="11" Margin="0,0,6,0"/>
+                                        <ComboBox SelectedItem="{Binding RegionViewMode, UpdateSourceTrigger=PropertyChanged}"
+                                                  ItemsSource="{Binding RegionViewModeOptions}"
+                                                  Width="120"
+                                                  ToolTip="How the selected region is drawn in the viewer. End-Cap: just the cyan cut contour. Solid: the whole region as a magenta filled object, visible through the body from any angle, with cyan vertices + edges on top."/>
+                                    </StackPanel>
                                     <DataGrid x:Name="RegionsGrid"
                                               ItemsSource="{Binding Regions}"
                                               SelectedItem="{Binding SelectedRegion}"

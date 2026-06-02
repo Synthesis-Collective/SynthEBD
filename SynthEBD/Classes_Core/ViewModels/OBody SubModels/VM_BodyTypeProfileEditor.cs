@@ -5008,11 +5008,11 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
+        var cyan = new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f);
+
         // Build the per-loop EDGES for the overlay, drawn in the region's cap mode so the contour
         // matches the measured volume: FlatPlane projects the ring onto the flat cut plane (a clean
-        // "salami cut"), AnatomicalFan shows the true deformed ring. Push NO per-vertex markers: a
-        // cut loop on a fine mesh has vertices spaced under the marker radius, so dotting each one
-        // renders a lumpy "beaded cord" that hides the contour — the continuous edge lines read clean.
+        // "salami cut"), AnatomicalFan shows the true deformed ring.
         var edges = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>();
         for (int li = 0; li < rr.CapLoops.Length; li++)
         {
@@ -5022,8 +5022,36 @@ public class VM_BodyTypeProfile : VM
             for (int k = 0; k < m; k++)
                 edges.Add((ring[k], ring[(k + 1) % m]));
         }
-        viewer.SetRegionOverlay(null, edges, new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f));
+
+        if (RegionViewMode == RegionViewModeKind.Solid)
+        {
+            // Solid mode: magenta filled surface (patch + caps) drawn through the body, with the cyan
+            // cap edges + every patch vertex dotted cyan on top so the region reads as a solid object
+            // from any angle. The solid surface comes from the same baked region the volume uses.
+            var solid = RegionVolumeEvaluator.BuildSolidSurface(rr, deformed, rr.CapMode);
+            viewer.SetRegionSolid(solid);
+            var verts = new List<OpenTK.Mathematics.Vector3>(rr.Vertices.Length);
+            foreach (var vref in rr.Vertices) verts.Add(vref.Evaluate(deformed));
+            viewer.SetRegionOverlay(verts, edges, cyan);
+        }
+        else
+        {
+            // End-Cap mode (default): just the clean cyan contour, no per-vertex markers (a fine cut
+            // loop's vertices sit under the marker radius and would render as a lumpy beaded cord).
+            viewer.SetRegionSolid(null);
+            viewer.SetRegionOverlay(null, edges, cyan);
+        }
     }
+
+    /// <summary>How the selected region is visualized in the viewer. End-Cap (default) shows just the
+    /// cyan cut contour; Solid draws the whole region as a magenta filled object (visible through the
+    /// body) with cyan vertices + edges on top. Not persisted — a viewing preference, reset per session.</summary>
+    public RegionViewModeKind RegionViewMode { get; set; } = RegionViewModeKind.EndCap;
+
+    /// <summary>Combo options for the region view-mode toggle.</summary>
+    public static System.Array RegionViewModeOptions { get; } = System.Enum.GetValues(typeof(RegionViewModeKind));
+
+    private void OnRegionViewModeChanged() => RefreshRegionOverlay();
 
     private VM_NamedKeyVertex AddBoxRow(
         string shapeName,
@@ -8614,6 +8642,16 @@ public enum RegionResolutionState
     /// count, multiple disconnected pieces, or degenerate). The specific reason is in
     /// <see cref="VM_NamedRegion.ResolveDiagnostic"/>.</summary>
     Invalid = 3,
+}
+
+/// <summary>How the selected region is drawn in the viewer (a viewing preference, not persisted).</summary>
+public enum RegionViewModeKind
+{
+    /// <summary>Show only the cyan cut contour (the cap loop[s]). The default.</summary>
+    EndCap = 0,
+    /// <summary>Draw the whole region as a magenta filled solid (visible through the body from any
+    /// angle), with cyan vertices + cut edges on top.</summary>
+    Solid = 1,
 }
 
 /// <summary>Row VM for a single <see cref="NamedRegion"/> (the box input to a

@@ -35,6 +35,15 @@ public class RegionVolumeTrackingTests
         return (p, t);
     }
 
+    /// <summary>Closed cube with the +Z face removed → one open boundary loop around the top.</summary>
+    private static (Vector3[] pos, int[] tris) OpenTopCube(float size)
+    {
+        var (p, full) = ClosedCube(size);
+        var t = new System.Collections.Generic.List<int>(full);
+        t.RemoveRange(24, 6); // drop the two +Z triangles (last face in the flat list)
+        return (p, t.ToArray());
+    }
+
     // ---- ConvertBoxByVertexSet ----
 
     [Fact]
@@ -189,6 +198,44 @@ public class RegionVolumeTrackingTests
         // by the overlay test.)
         ComputeVolume(r, pos, RegionCapMode.FlatPlane).Should().BeApproximately(8.0 / 3.0, 1e-4);
         ComputeVolume(r, pos, RegionCapMode.AnatomicalFan).Should().BeApproximately(8.0 / 3.0, 1e-4);
+    }
+
+    [Fact]
+    public void BuildSolidSurface_EmitsClosedSurface_PatchPlusCaps_InterleavedPosNormal()
+    {
+        // Open-top cube → patch = 5 cube faces (10 tris), cap = 1 loop of 4 boundary verts → fan of 4
+        // tris. Total 14 tris * 3 verts * 6 floats = 252 floats. Each vertex carries a unit normal.
+        var (pos, t) = OpenTopCube(2f);
+        var r = ResolveRegion(pos, t, new RegionAabb(new Vector3(-1, -1, -1), new Vector3(3, 3, 3)));
+        r.IsValid.Should().BeTrue(r.Diagnostic);
+        r.LoopCount.Should().Be(1);
+
+        var solid = RegionVolumeEvaluator.BuildSolidSurface(r, pos, RegionCapMode.AnatomicalFan);
+        solid.Count.Should().BeGreaterThan(0);
+        (solid.Count % 18).Should().Be(0); // whole triangles (18 floats each)
+
+        // Every vertex's normal (floats 3,4,5 of each 6) is unit length.
+        for (int i = 0; i < solid.Count; i += 6)
+        {
+            var nlen = MathF.Sqrt(solid[i + 3] * solid[i + 3] + solid[i + 4] * solid[i + 4] + solid[i + 5] * solid[i + 5]);
+            nlen.Should().BeApproximately(1f, 1e-3f);
+        }
+    }
+
+    [Fact]
+    public void BuildSolidSurface_TracksDeformedPositions()
+    {
+        var (pos, t) = OpenTopCube(2f);
+        var r = ResolveRegion(pos, t, new RegionAabb(new Vector3(-1, -1, -1), new Vector3(3, 3, 3)));
+        r.IsValid.Should().BeTrue(r.Diagnostic);
+
+        var baseSolid = RegionVolumeEvaluator.BuildSolidSurface(r, pos, RegionCapMode.AnatomicalFan);
+        var scaled = pos.Select(p => p * 2f).ToArray();
+        var scaledSolid = RegionVolumeEvaluator.BuildSolidSurface(r, scaled, RegionCapMode.AnatomicalFan);
+
+        baseSolid.Count.Should().Be(scaledSolid.Count); // same topology
+        // A position float in the scaled build should be ~2x the base (sample the first vertex's X).
+        scaledSolid[0].Should().BeApproximately(baseSolid[0] * 2f, 1e-3f);
     }
 
     [Fact]
