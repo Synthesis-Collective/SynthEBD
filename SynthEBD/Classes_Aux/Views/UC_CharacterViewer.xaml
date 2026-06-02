@@ -391,6 +391,10 @@
                               SelectedItem="{Binding PendingBoxSymmetry}"
                               FontSize="11" MinWidth="90" VerticalAlignment="Center"
                               ToolTip="Lock one or more axes so editing min/max on that axis auto-mirrors the opposite side about 0."/>
+                    <CheckBox Content="Show zeroed body"
+                              IsChecked="{Binding PendingBoxShowZeroed}"
+                              Foreground="#FFDDDDDD" FontSize="11" VerticalAlignment="Center" Margin="15,0,0,0"
+                              ToolTip="Temporarily render the body with no BodySlide sliders applied (sliders-0). A region box is stored in this undeformed space, so flip here to see the exact patch it will bake against before confirming. Unchecking restores the current preset. The box stays put — only the body changes."/>
                 </WrapPanel>
 
                 <WrapPanel Orientation="Horizontal">

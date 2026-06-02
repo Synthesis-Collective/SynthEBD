@@ -157,6 +157,15 @@ public class VM_CharacterViewer : ViewerVm
     /// will be auto-loaded by the apply path).</summary>
     private (MorphSet Morphs, int Weight)? _pendingMorphSet;
 
+    /// <summary>The last real (non-flip) morph applied via <see cref="ApplyMorphSet"/>, kept so the
+    /// pending-box "show zeroed" flip can restore the preset after temporarily rendering the
+    /// undeformed body. Null until a preset has been applied this session.</summary>
+    private (MorphSet Morphs, int Weight)? _lastAppliedMorphSet;
+
+    /// <summary>Label tag on the synthetic empty MorphSet the zeroed-flip applies, so
+    /// <see cref="ApplyMorphSet"/> knows not to record it as the "last applied" preset.</summary>
+    private const string ZeroedFlipLabel = "(region zeroed-flip)";
+
     /// <summary>NpcIdentity.CacheKey of the NPC whose scene is currently installed
     /// in the renderer. Captured at the end of ProcessPendingScene; cleared by
     /// ClearScene. Used by LoadAsync to short-circuit reloads of the same NPC
@@ -1590,6 +1599,34 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>True while a box is drawn but not yet confirmed. Shows the wireframe + edit panel.</summary>
     public bool HasPendingBox { get; set; }
 
+    /// <summary>While a box is pending, render the body in its sliders-0 (undeformed) state so the
+    /// author can verify the ground-truth patch the stored box will bake against — the box is stored
+    /// in zeroed space, so this shows exactly what gets resolved. Toggling re-renders the body (empty
+    /// MorphSet when true; re-applies the last preset when false) without moving the box. Auto-reset
+    /// to false whenever a pending box begins / confirms / cancels. Fody calls
+    /// <see cref="OnPendingBoxShowZeroedChanged"/> on change.</summary>
+    public bool PendingBoxShowZeroed { get; set; }
+
+    private void OnPendingBoxShowZeroedChanged()
+    {
+        if (_cachedBodyMeshes.Count == 0) return;
+        if (PendingBoxShowZeroed)
+        {
+            // Render the undeformed body at the current weight (empty morphs = no slider deltas).
+            ApplyMorphSet(new MorphSet { Label = ZeroedFlipLabel }, NpcWeight);
+        }
+        else if (_lastAppliedMorphSet is { } last)
+        {
+            // Restore the preset that was showing before the flip.
+            ApplyMorphSet(last.Morphs, last.Weight);
+        }
+        else
+        {
+            // No preset was ever applied — just clear to the undeformed base at the current weight.
+            ApplyMorphSet(new MorphSet { Label = ZeroedFlipLabel }, NpcWeight);
+        }
+    }
+
     public string PendingBoxShapeName { get; set; } = "";
     public float PendingBoxMinX { get; set; }
     public float PendingBoxMaxX { get; set; }
@@ -2013,11 +2050,42 @@ public class VM_CharacterViewer : ViewerVm
             _applyingSymmetry = false;
         }
 
+        // A fresh box starts on the deformed body (the user just drew it there); clear any leftover
+        // zeroed-flip from a previous pending box without re-rendering (the new preset apply, if any,
+        // already happened upstream).
+        PendingBoxShowZeroed = false;
         HasPendingBox = true;
         // Auto-disable pick mode so the user can rotate the view with left-drag without
         // accidentally drawing a second box over the one they just captured. They can
         // re-enable the toggle to draw a new box.
         IsBoundingBoxPickMode = false;
+    }
+
+    /// <summary>Replaces the pending box's six min/max coords in one shot (without disturbing the
+    /// shape name, criterion, or pending flag), suppressing the symmetry-mirror side effects during
+    /// the multi-setter write. Used by the region edit path to re-express the box into the other body
+    /// space when "Show zeroed body" is flipped. No-op when no box is pending.</summary>
+    public void SetPendingBoxCoords(OpenTK.Mathematics.Vector3 min, OpenTK.Mathematics.Vector3 max)
+    {
+        if (!HasPendingBox) return;
+        _applyingSymmetry = true;
+        try
+        {
+            PendingBoxMinX = min.X; PendingBoxMinY = min.Y; PendingBoxMinZ = min.Z;
+            PendingBoxMaxX = max.X; PendingBoxMaxY = max.Y; PendingBoxMaxZ = max.Z;
+        }
+        finally
+        {
+            _applyingSymmetry = false;
+        }
+    }
+
+    /// <summary>If the body is currently flipped to its zeroed state for box authoring, restore the
+    /// preset. Called when a pending box is confirmed or cancelled so the viewer never lingers in the
+    /// zeroed state after the box is gone.</summary>
+    private void ResetZeroedFlipIfActive()
+    {
+        if (PendingBoxShowZeroed) PendingBoxShowZeroed = false; // setter restores the preset via OnPendingBoxShowZeroedChanged
     }
 
     /// <summary>Tests whether the captured box straddles each world axis (min < 0 < max) with
@@ -2060,6 +2128,7 @@ public class VM_CharacterViewer : ViewerVm
         // pick event THEN flag flip — from a user-cancel, which flips the flag with no
         // accompanying event.
         NotifyKeyVertexBoxPicked(pick);
+        ResetZeroedFlipIfActive();
         HasPendingBox = false;
     }
 
@@ -2096,10 +2165,15 @@ public class VM_CharacterViewer : ViewerVm
             new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
             PendingBoxFinalCriterion);
         NotifyRegionBoxPicked(pick);
+        ResetZeroedFlipIfActive();
         HasPendingBox = false;
     }
 
-    public void CancelPendingBox() => HasPendingBox = false;
+    public void CancelPendingBox()
+    {
+        ResetZeroedFlipIfActive();
+        HasPendingBox = false;
+    }
 
     /// <summary>Shrinks the pending box in half along whichever mesh-local axis is most aligned
     /// with the camera's view direction, keeping the half on the camera side. Lets the user
@@ -4048,6 +4122,12 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         if (morphs == null) return;
+
+        // Remember the last real morph applied so the pending-box "show zeroed" flip can restore the
+        // preset after temporarily rendering the undeformed body. Skipped for the synthetic zeroed
+        // apply itself (tagged label) so flipping back doesn't restore "zeroed" as the preset.
+        if (morphs.Label != ZeroedFlipLabel)
+            _lastAppliedMorphSet = (morphs, weight);
 
         NpcWeight = Math.Clamp(weight, 0, 100);
         LogVerbose("CharacterViewer: ApplyMorphSet APPLIED (label='"
