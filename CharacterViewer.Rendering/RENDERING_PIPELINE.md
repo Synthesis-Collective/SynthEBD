@@ -26,10 +26,15 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Stage 5: emissive](#stage-5-emissive)
    - [Stage 6: tone-map, fresnel, vignette](#stage-6-tone-map-fresnel-vignette)
    - [Final: framebuffer alpha](#final-framebuffer-alpha)
-4. [Part 3 — Comparison with NifSkope and Outfit Studio](#part-3--comparison-with-nifskope-and-outfit-studio)
-5. [Appendix A — Shader flag inventory table](#appendix-a--shader-flag-inventory-table)
-6. [Appendix B — BSLightingShaderProperty field inventory](#appendix-b--bslightingshaderproperty-field-inventory)
-7. [Appendix C — Texture slot inventory](#appendix-c--texture-slot-inventory)
+4. [Part 3 — Editor overlay pass (markers, lines, regions)](#part-3--editor-overlay-pass-markers-lines-regions)
+   - [Geometry accessors](#geometry-accessors)
+   - [The debug shader + overlay GL state](#the-debug-shader--overlay-gl-state)
+   - [Overlay channels](#overlay-channels)
+   - [Region overlay (BodySlide classifier)](#region-overlay-bodyslide-classifier)
+5. [Part 4 — Comparison with NifSkope and Outfit Studio](#part-4--comparison-with-nifskope-and-outfit-studio)
+6. [Appendix A — Shader flag inventory table](#appendix-a--shader-flag-inventory-table)
+7. [Appendix B — BSLightingShaderProperty field inventory](#appendix-b--bslightingshaderproperty-field-inventory)
+8. [Appendix C — Texture slot inventory](#appendix-c--texture-slot-inventory)
 
 ---
 
@@ -62,7 +67,9 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    ├─ SSAO depth + normal prepass (Shaders/depth_only.*)
    ├─ SSAO pass (Shaders/ssao.frag, ssao_blur.frag)
    ├─ main pass (Shaders/basic.vert + basic.frag)
-   └─ wireframe pass (Shaders/wireframe.*)
+   ├─ wireframe pass (Shaders/wireframe.*)
+   └─ editor overlay pass (Shaders/debug.*) — markers, measurement lines,
+      region cap-loops / solid / wireframe; depth test OFF (always on top)
 ```
 
 The data path is intentionally one-way: niflysharp → POCO → GlMesh → uniforms → GL. There's no round-trip back to the NIF, no in-memory edit of NIF data; the renderer is read-only with respect to the file.
@@ -608,7 +615,59 @@ Suppressing the alpha-test discard on `ShaderType==4` face shapes (see [Part 1 N
 
 ---
 
-## Part 3 — Comparison with NifSkope and Outfit Studio
+## Part 3 — Editor overlay pass (markers, lines, regions)
+
+Everything in Parts 1–2 renders the *body*. The overlay pass renders the BodyTypeProfile editor's authoring gizmos **on top of** the body: key-vertex marker spheres, measurement lines, and the RegionVolume region visualizations (cap-loop contour, solid surface, wireframe). It runs last in `Render()` ([GlRenderer.cs](Gl/GlRenderer.cs)), after the wireframe overlay, with **depth test disabled** so the gizmos are always visible through the mesh from any angle — that "always on top" property is load-bearing for the region tools (you can see the cut contour even when it's behind the bust).
+
+This pass is consumed by SynthEBD's BodySlide classifier but lives entirely in the rendering tier with **neutral types** (`Vector3` lists, interleaved `float` triangle buffers) — the viewer never references a SynthEBD type. The editor pushes geometry into renderer collections via `VM_CharacterViewer` setter methods; the renderer just draws whatever's in the collections.
+
+### Geometry accessors
+
+The classifier reads deformed mesh geometry back out of the viewer through three accessors on `VM_CharacterViewer`, all returning data in the same **pre-ModelScale local space** as `GlMesh.CpuPositions`:
+
+| Method | Returns | Used for |
+|---|---|---|
+| `GetShapePositions(shape)` | `Vector3[]` of the current (deformed) vertex positions, freshly allocated | BoundingBox key-vertex resolution; evaluating a baked region against the live preset |
+| `GetShapeIndices(shape)` | `int[]` triangle index buffer (flat triplets, shape-local), **not** cloned | walking a shape's triangles to clip a region box |
+| `GetZeroedShapePositions(shape, weight)` | `Vector3[]` of the **sliders-0 (undeformed)** body at the given weight | resolving a region's box against the topology-stable reference (see [REGION_VOLUME.md](../SynthEBD/REGION_VOLUME.md)) |
+
+`GetZeroedShapePositions` re-runs the same base-pose lerp + skinning pipeline as `ApplyMorphSet` but applies **no slider deltas** and is **non-destructive** — it does not touch `CpuPositions`, re-upload to the GPU, or fire `BodySlideApplied`, so it's safe to call mid-authoring without flicker or re-entrancy.
+
+### The debug shader + overlay GL state
+
+All overlay geometry is drawn through one shared VAO/VBO (`_debugVao` / `_debugVbo`, vertex layout = `position(3) + normal(3)` = 6 floats) and one shader pair ([Shaders/debug.vert](Shaders/debug.vert) + [debug.frag](Shaders/debug.frag)). The fragment shader is trivial: a single `u_color` uniform with a `u_shaded` switch — `u_shaded=0` outputs the flat color (lines), `u_shaded=1` applies a two-sided fake-sun lambert so filled/3D geometry (marker spheres, the region solid) reads as shaded shape even at one color.
+
+Shared state for the whole pass: **depth test off**; markers + solid additionally enable **back-face cull** and `u_shaded=1`; lines use `u_shaded=0` and a per-channel `GL.LineWidth`. Buffers are uploaded per-draw with `BufferUsageHint.DynamicDraw` (the overlay changes every frame the user edits, so there's no value in static buffers).
+
+> **Same shader, two looks.** The "solid object visible through the body" effect needed for region Solid mode is *not* transparency — it's the lit debug geometry drawn with depth test off, exactly like the marker spheres. A flat single color reads as a 3D solid because `u_shaded=1` varies brightness with the face normal. This is why the region Solid view required no main-shader changes and no alpha/sort-order work.
+
+### Overlay channels
+
+Each channel is a public collection on `GlRenderer`, cleared+repopulated by a `VM_CharacterViewer` setter. Drawn in this order (later = on top):
+
+| Channel | Type | Color | Drawn by | Pushed by |
+|---|---|---|---|---|
+| `KeyVertexMarkers` (+ `BoxResolved`, `PreviewKeyVertex`, `PreviewPick`) | `List<Vector3>` spheres | orange / yellow / green / purple | `DrawKeyVertexMarkers` (marker pass) | `SetBoxResolvedMarkers`, `SetPreviewPickMarkers`, … |
+| `RegionSolidTriangles` | `List<float>` interleaved pos+normal | magenta (`RegionSolidColor`) | `DrawRegionSolid` (marker pass, lit) | `SetRegionSolid` |
+| `MeasurementLines` | `List<MeasurementLineSegment>` | per-segment | `DrawMeasurementLines` @ 4.5px | `SetMeasurementLines` |
+| `RegionOverlayLines` | same | cyan | `DrawMeasurementLines` @ 4.5px | `SetRegionOverlay` |
+| `RegionWireLines` | same | cyan | `DrawMeasurementLines` @ `RegionWireWidth` (1.25px) | `SetRegionSolid` (wire arg) |
+| `RegionCapMarkers` | `List<Vector3>` spheres | cyan | `DrawKeyVertexMarkers` | `SetRegionOverlay` (verts arg) |
+
+Marker spheres are a pre-built 2×-subdivided octahedron (128 tris) scaled by `KeyVertexMarkerRadius × ModelScale` and re-centered per marker. Because each sphere re-uploads ~3 KB, dotting a marker at *every* vertex of a dense cut loop produces an overlapping "beaded cord" and tanks the framerate — which is why the region overlay draws **edges as thin lines**, not a marker per vertex.
+
+### Region overlay (BodySlide classifier)
+
+A RegionVolume region's selected-state visualization has two modes (editor `RegionViewMode`), both built from the baked `ResolvedRegion` evaluated against the current deformed positions (so they track the previewed preset):
+
+- **End-Cap** (default): the cyan cut-loop contour only, pushed to `RegionOverlayLines` (thick) — a clean curve, no per-vertex markers.
+- **Solid**: the magenta region surface (patch + caps) as a lit solid in `RegionSolidTriangles`, plus a thin cyan triangle-edge **wireframe** in `RegionWireLines`. Faces = solid, vertices/edges = wireframe.
+
+The geometry is generated by `RegionVolumeEvaluator.BuildSolidSurface` (interleaved pos+normal triangles, flat per-tri normals) and `BuildSolidWireframe` (deduped patch edges). The pending-box wireframe (the AABB you draw/edit) is a separate WPF `Canvas` overlay in [UC_CharacterViewer.xaml.cs](../SynthEBD/Classes_Aux/Views/UC_CharacterViewer.xaml.cs) `UpdateBoxWireframe`, not part of this GL pass. The measurement algorithm behind all of this — zeroed-space authoring, cross-preset tracking, cap modes, rotation — is documented separately in [REGION_VOLUME.md](../SynthEBD/REGION_VOLUME.md).
+
+---
+
+## Part 4 — Comparison with NifSkope and Outfit Studio
 
 Both reference applications ship shader source under `res/shaders/`. NifSkope splits Skyrim shading across `sk_default.frag` (179 lines) and `sk_msn.frag` (194 lines); Outfit Studio uses a single `default.frag` (320 lines).
 
