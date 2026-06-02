@@ -637,9 +637,12 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal"
                                                                     ToolTip="Box rotation about its center, degrees. 0/0/0 = axis-aligned. Use to tilt the cut plane onto a feature that isn't square to the body axes.">
-                                                            <xctk:SingleUpDown Value="{Binding RotX, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
-                                                            <xctk:SingleUpDown Value="{Binding RotY, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
-                                                            <xctk:SingleUpDown Value="{Binding RotZ, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"/>
+                                                            <xctk:SingleUpDown Value="{Binding RotX, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
+                                                                               Foreground="Black" Background="White"/>
+                                                            <xctk:SingleUpDown Value="{Binding RotY, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
+                                                                               Foreground="Black" Background="White"/>
+                                                            <xctk:SingleUpDown Value="{Binding RotZ, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
+                                                                               Foreground="Black" Background="White"/>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
