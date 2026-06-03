@@ -121,17 +121,73 @@
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                           ToolTip="Left-drag a rectangle across the model to define a mesh-local bounding box. The classifier picks the vertex matching the selected Criterion inside that box at runtime, so the anatomical landmark tracks the mesh across presets."/>
 
-                <CheckBox Content="Edit Region Verts" FontSize="11" Foreground="#FFFF66CC"
-                          Margin="10,0,0,0" VerticalAlignment="Center"
-                          IsChecked="{Binding IsRegionVertexEditMode}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Add/remove individual vertices from the SELECTED RegionVolume region (select a region row in the BodyTypeProfile editor first). Left-click a vertex to toggle it; left-drag a rectangle to bulk-edit every enclosed vertex. The Add/Remove direction is the toggle to the right. Camera orbit is disabled while this is on. Any edit switches the region to a vertex-granular patch (the smooth box cut is kept only for unedited regions)."/>
+                <!-- Region vertex-edit mode: two mutually-exclusive toggle buttons. At most one is on;
+                     both can be off (default) so a left-drag orbits the camera. The VM properties enforce
+                     the exclusivity; a custom template shows the checked state in green (add) / red
+                     (remove) over the dark toolbar. -->
+                <ToggleButton x:Name="AddVertsToggle" Content="Add Verts" FontSize="11" Padding="8,1"
+                              Margin="10,0,0,0" VerticalAlignment="Center"
+                              IsChecked="{Binding IsRegionVertexAddMode}"
+                              Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                              ToolTip="Toggle 'add vertices' mode for the SELECTED RegionVolume region (select a region row first). While on, left-click a vertex to force it INTO the region, or left-drag a lasso to bulk-add; camera orbit is disabled. Click again to turn off. Mutually exclusive with Remove Verts; both off = orbit. Auto-turns off when the box is confirmed/cancelled.">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton">
+                            <Setter Property="Background" Value="#FF333333"/>
+                            <Setter Property="Foreground" Value="#FF66E08A"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="#FF555555"
+                                                BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#FF2E7D32"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="#FF888888"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ToggleButton.Style>
+                </ToggleButton>
 
-                <CheckBox Content="Add (off = Remove)" FontSize="11" Foreground="#FFFF66CC"
-                          Margin="6,0,0,0" VerticalAlignment="Center"
-                          IsChecked="{Binding RegionVertexEditAdditive}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Checked: picks force vertices INTO the region (grow the patch past the box at those vertices). Unchecked: picks force them OUT (carve the patch; removing an interior vertex opens a hole)."/>
+                <ToggleButton x:Name="RemoveVertsToggle" Content="Remove Verts" FontSize="11" Padding="8,1"
+                              Margin="6,0,0,0" VerticalAlignment="Center"
+                              IsChecked="{Binding IsRegionVertexRemoveMode}"
+                              Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                              ToolTip="Toggle 'remove vertices' mode for the SELECTED region. While on, left-click a vertex to force it OUT of the region (an interior removal opens a hole), or left-drag a lasso to bulk-remove; camera orbit is disabled. Click again to turn off. Mutually exclusive with Add Verts; both off = orbit. Auto-turns off when the box is confirmed/cancelled.">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton">
+                            <Setter Property="Background" Value="#FF333333"/>
+                            <Setter Property="Foreground" Value="#FFE06A6A"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="#FF555555"
+                                                BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#FF8B2525"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="#FF888888"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ToggleButton.Style>
+                </ToggleButton>
 
                 <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="8,0,3,0"

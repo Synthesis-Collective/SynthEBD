@@ -1596,6 +1596,42 @@ public class VM_CharacterViewer : ViewerVm
     /// <see cref="RegionVertexEditPick"/>.</summary>
     public bool RegionVertexEditAdditive { get; set; } = true;
 
+    /// <summary>"Add Verts" toggle state: vertex-edit mode on AND additive. Setting true enters add
+    /// mode (and clears remove); setting false exits vertex-edit mode entirely. Paired with
+    /// <see cref="IsRegionVertexRemoveMode"/> as two mutually-exclusive toolbar toggle buttons — at most
+    /// one is on, and both can be off (the default, so the user can orbit). Fody re-raises these when
+    /// <see cref="IsRegionVertexEditMode"/> / <see cref="RegionVertexEditAdditive"/> change, so toggling
+    /// one button visually releases the other.</summary>
+    public bool IsRegionVertexAddMode
+    {
+        get => IsRegionVertexEditMode && RegionVertexEditAdditive;
+        set
+        {
+            if (value) { RegionVertexEditAdditive = true; IsRegionVertexEditMode = true; }
+            else IsRegionVertexEditMode = false;
+        }
+    }
+
+    /// <summary>"Remove Verts" toggle state: vertex-edit mode on AND subtractive. See
+    /// <see cref="IsRegionVertexAddMode"/>.</summary>
+    public bool IsRegionVertexRemoveMode
+    {
+        get => IsRegionVertexEditMode && !RegionVertexEditAdditive;
+        set
+        {
+            if (value) { RegionVertexEditAdditive = false; IsRegionVertexEditMode = true; }
+            else IsRegionVertexEditMode = false;
+        }
+    }
+
+    /// <summary>When the pending box is dismissed (confirmed or cancelled, or torn down on click-away),
+    /// leave vertex-edit mode so a left-drag orbits the camera again instead of silently lassoing
+    /// vertices. Fody calls this on every <see cref="HasPendingBox"/> change.</summary>
+    private void OnHasPendingBoxChanged()
+    {
+        if (!HasPendingBox) IsRegionVertexEditMode = false;
+    }
+
     /// <summary>
     /// Current <see cref="BoxCriterionSelection"/> chosen in the viewer combo. Read at the
     /// moment the user releases the mouse so the emitted pick carries the criterion the
