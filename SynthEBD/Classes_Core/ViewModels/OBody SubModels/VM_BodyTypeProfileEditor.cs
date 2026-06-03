@@ -4805,6 +4805,36 @@ public class VM_BodyTypeProfile : VM
     {
         ActiveViewer = viewer;
 
+        // Guard: a region box-edit session is active but the user clicked a bounding-box / key-vertex
+        // Confirm (the green "Confirm" or "Confirm as Duplicate") instead of "Confirm as Region". That
+        // would silently create a key vertex and drop the region edit. Ask what they meant.
+        if (_pendingRegionEditTarget != null)
+        {
+            var regionName = _pendingRegionEditTarget.Name;
+            var choice = System.Windows.MessageBox.Show(
+                $"You're editing the region \"{regionName}\", but you clicked a Confirm that creates a " +
+                "Key Vertex bounding box, not a region.\n\n" +
+                "  Yes    →  Update the region \"" + regionName + "\" with this box instead\n" +
+                "  No     →  Create a Key Vertex anyway\n" +
+                "  Cancel →  Do nothing",
+                "Confirming a region edit as a bounding box",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Warning,
+                System.Windows.MessageBoxResult.Yes);
+
+            if (choice == System.Windows.MessageBoxResult.Cancel) return;
+            if (choice == System.Windows.MessageBoxResult.Yes)
+            {
+                // Re-route to the region update path. Strip IsDuplicate so it updates the edited row
+                // rather than forking, regardless of which key-vertex confirm was clicked.
+                var regionPick = new VM_CharacterViewer.KeyVertexBoxPick(
+                    pick.ShapeName, pick.BoxMin, pick.BoxMax, pick.Criterion, isDuplicate: false);
+                OnRegionBoxPickedFromViewer(viewer, regionPick);
+                return;
+            }
+            // No → fall through and create the key vertex as clicked.
+        }
+
         var shapeName = pick.ShapeName ?? "";
         bool isMirror =
             pick.Criterion == BoxCriterionSelection.MirrorX ||
