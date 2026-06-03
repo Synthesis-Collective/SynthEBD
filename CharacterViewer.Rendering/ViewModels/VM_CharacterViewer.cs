@@ -738,6 +738,7 @@ public class VM_CharacterViewer : ViewerVm
     public RelayCommand ConfirmPendingBoxCommand           { get; private set; } = null!;
     public RelayCommand ConfirmPendingBoxAsDuplicateCommand{ get; private set; } = null!;
     public RelayCommand ConfirmPendingBoxAsRegionCommand   { get; private set; } = null!;
+    public RelayCommand ConfirmPendingBoxAsRegionDuplicateCommand { get; private set; } = null!;
     public RelayCommand CancelPendingBoxCommand            { get; private set; } = null!;
     public RelayCommand ShrinkAlongViewAxisCommand         { get; private set; } = null!;
 
@@ -988,6 +989,9 @@ public class VM_CharacterViewer : ViewerVm
         ConfirmPendingBoxAsRegionCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => ConfirmPendingBoxAsRegion());
+        ConfirmPendingBoxAsRegionDuplicateCommand = new RelayCommand(
+            canExecute: _ => HasPendingBox,
+            execute: _ => ConfirmPendingBoxAsRegionDuplicate());
         CancelPendingBoxCommand = new RelayCommand(
             canExecute: _ => HasPendingBox,
             execute: _ => CancelPendingBox());
@@ -2309,6 +2313,25 @@ public class VM_CharacterViewer : ViewerVm
         NotifyRegionBoxPicked(pick);
         ResetZeroedFlipIfActive();
         HasPendingBox = false;
+    }
+
+    /// <summary>Region analog of <see cref="ConfirmPendingBoxAsDuplicate"/>: fires the region pick with
+    /// <see cref="KeyVertexBoxPick.IsDuplicate"/> set, so the editor forks a <b>new</b> region row from
+    /// this box instead of updating the row currently being edited (the new fork becomes selected, like
+    /// the key-vertex duplicate). Leaves the box on screen so the user can keep forking separate regions
+    /// off the same box.</summary>
+    public void ConfirmPendingBoxAsRegionDuplicate()
+    {
+        if (!HasPendingBox) return;
+        var pick = new KeyVertexBoxPick(
+            PendingBoxShapeName,
+            new OpenTK.Mathematics.Vector3(PendingBoxMinX, PendingBoxMinY, PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(PendingBoxMaxX, PendingBoxMaxY, PendingBoxMaxZ),
+            PendingBoxFinalCriterion,
+            isDuplicate: true);
+        NotifyRegionBoxPicked(pick);
+        // Leave HasPendingBox = true (like ConfirmPendingBoxAsDuplicate) so the user can keep forking
+        // regions or then Confirm as Region to update the originally-edited row.
     }
 
     public void CancelPendingBox()

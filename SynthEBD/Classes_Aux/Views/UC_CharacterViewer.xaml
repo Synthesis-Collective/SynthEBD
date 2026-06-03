@@ -458,6 +458,11 @@
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF1565C0" Foreground="White"
                             ToolTip="Fire the pick now but keep this box on screen so you can change the Criterion and confirm again. Use to capture multiple measurements (e.g. MaxX and BulgePairMinX) from one drawn box."/>
+                    <Button Content="Duplicate as Region"
+                            Command="{Binding ConfirmPendingBoxAsRegionDuplicateCommand}"
+                            FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
+                            Background="#FF00695C" Foreground="White"
+                            ToolTip="Commit this box as a NEW RegionVolume region even while a region row is selected/being edited — forks a separate region from the same box instead of updating the selected one (the new fork becomes selected). Leaves the box on screen so you can keep forking off the same box."/>
                     <Button Content="Confirm as Region"
                             Command="{Binding ConfirmPendingBoxAsRegionCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"

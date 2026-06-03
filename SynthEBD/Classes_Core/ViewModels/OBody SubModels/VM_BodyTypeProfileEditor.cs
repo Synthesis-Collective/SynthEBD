@@ -5079,8 +5079,14 @@ public class VM_BodyTypeProfile : VM
         var editTarget = _pendingRegionEditTarget;
         // Guard against the row being deleted mid-edit.
         if (editTarget != null && !Regions.Contains(editTarget)) editTarget = null;
-        // "Confirm as Duplicate" forks to a new row even mid-edit (matches the KV behavior).
-        if (pick.IsDuplicate) editTarget = null;
+        // "Duplicate as Region" forks to a new row even mid-edit (matches the KV behavior). Capture the
+        // region being forked first so the new row can carry its curated vertex edits.
+        VM_NamedRegion? duplicateSource = null;
+        if (pick.IsDuplicate)
+        {
+            duplicateSource = editTarget ?? SelectedRegion;
+            editTarget = null;
+        }
 
         VM_NamedRegion target;
         if (editTarget != null)
@@ -5096,6 +5102,15 @@ public class VM_BodyTypeProfile : VM
         {
             var presetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
             target = AddRegionRow(shapeName, boxMin, boxMax, presetLabel, weight);
+            // A region duplicate carries the source region's curated vertex edits. They're stored as
+            // zeroed-space positions (box-independent), so they apply to the fork's box the same way.
+            if (duplicateSource != null && duplicateSource.VertexEdits.Count > 0)
+            {
+                foreach (var e in duplicateSource.VertexEdits)
+                    if (e != null)
+                        target.VertexEdits.Add(new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint });
+                target.EditedVertexCount = target.VertexEdits.Count;
+            }
         }
 
         SelectedRegion = target;
