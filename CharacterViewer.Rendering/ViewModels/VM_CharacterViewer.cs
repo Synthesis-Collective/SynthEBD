@@ -2317,9 +2317,8 @@ public class VM_CharacterViewer : ViewerVm
 
     /// <summary>Region analog of <see cref="ConfirmPendingBoxAsDuplicate"/>: fires the region pick with
     /// <see cref="KeyVertexBoxPick.IsDuplicate"/> set, so the editor forks a <b>new</b> region row from
-    /// this box instead of updating the row currently being edited (the new fork becomes selected, like
-    /// the key-vertex duplicate). Leaves the box on screen so the user can keep forking separate regions
-    /// off the same box.</summary>
+    /// this box instead of updating the row currently being edited. The original stays selected and the
+    /// box stays on screen (and un-re-seeded), so repeated clicks spawn identical copies off the same box.</summary>
     public void ConfirmPendingBoxAsRegionDuplicate()
     {
         if (!HasPendingBox) return;

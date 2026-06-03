@@ -462,7 +462,7 @@
                             Command="{Binding ConfirmPendingBoxAsRegionDuplicateCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF00695C" Foreground="White"
-                            ToolTip="Commit this box as a NEW RegionVolume region even while a region row is selected/being edited — forks a separate region from the same box instead of updating the selected one (the new fork becomes selected). Leaves the box on screen so you can keep forking off the same box."/>
+                            ToolTip="Commit this box as a NEW RegionVolume region even while a region row is selected/being edited — forks a separate region from the same box instead of updating the selected one. The original stays selected and the box stays put, so repeated clicks spawn identical copies."/>
                     <Button Content="Confirm as Region"
                             Command="{Binding ConfirmPendingBoxAsRegionCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"

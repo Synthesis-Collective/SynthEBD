@@ -5143,7 +5143,13 @@ public class VM_BodyTypeProfile : VM
             }
         }
 
-        SelectedRegion = target;
+        // For a fresh draw / in-place box edit, select the (new/updated) row. For a DUPLICATE, leave the
+        // selection on the original: selecting the fork would fire SyncRegionBoxEditSessionWithSelection,
+        // which re-seeds the pending box by round-tripping the fork's stored box back into deformed space
+        // (ConvertBoxByVertexSet zeroed->deformed is not an exact inverse). Each duplicate would then
+        // drift the box and catch more periphery vertices. Keeping the original selected anchors the
+        // pending box so repeated duplicates are identical copies.
+        if (!pick.IsDuplicate) SelectedRegion = target;
         // Resolve the (new/updated) row's box against the zeroed mesh so its Status badge + overlay
         // populate immediately (RefreshMeasurementValues runs RecomputeRegionResolutionStates at its tail).
         RefreshMeasurementValues();
