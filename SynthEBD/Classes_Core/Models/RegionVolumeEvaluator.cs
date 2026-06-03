@@ -155,6 +155,47 @@ public static class RegionVolumeEvaluator
         public int LoopCount => CapLoops.Length;
     }
 
+    /// <summary>
+    /// A single hand-curated add/remove edit layered on top of a region's box (Option B —
+    /// "box + additive/subtractive edit layer"). Stored renumber-stably as a <b>zeroed-space
+    /// position</b>, never a raw index, so it survives body-mod reinstalls that renumber vertices
+    /// (the same invariant the box obeys). The original index is carried only as a non-authoritative
+    /// <see cref="IndexHint"/>, validated by position at resolve time and never trusted blindly.
+    ///
+    /// <para><see cref="Additive"/> = true forces the matched vertex <i>into</i> the region even when
+    /// it lies outside the box (grows the patch past the box at that vertex); = false forces it
+    /// <i>out</i> even when the box contains it (trims it — an interior removal opens a hole, i.e. an
+    /// extra boundary loop). An empty edit set resolves byte-identically to the plain box.</para>
+    /// </summary>
+    public readonly struct VertexEditRef
+    {
+        public readonly Vector3 ZeroedPosition;
+        public readonly bool Additive;
+        public readonly int IndexHint;
+
+        public VertexEditRef(Vector3 zeroedPosition, bool additive, int indexHint = -1)
+        {
+            ZeroedPosition = zeroedPosition; Additive = additive; IndexHint = indexHint;
+        }
+    }
+
+    /// <summary>Result of <see cref="MatchVertexEdits"/>: the curated edits resolved to current-mesh
+    /// vertex indices, split by sign, plus a count of edits that found no vertex within epsilon (these
+    /// are <b>not</b> silently dropped — the caller logs <see cref="MissCount"/>).</summary>
+    public sealed class MatchedEdits
+    {
+        /// <summary>Original vertex indices forced into the region.</summary>
+        public HashSet<int> AddIndices = new();
+
+        /// <summary>Original vertex indices forced out of the region (wins over Add on a conflict).</summary>
+        public HashSet<int> RemoveIndices = new();
+
+        /// <summary>Edits whose stored position matched no current vertex within <c>eps</c>.</summary>
+        public int MissCount;
+
+        public bool IsEmpty => AddIndices.Count == 0 && RemoveIndices.Count == 0;
+    }
+
     /// <summary>Tunables for <see cref="ResolveRegion"/>.</summary>
     public sealed class RegionResolveOptions
     {
@@ -173,6 +214,78 @@ public static class RegionVolumeEvaluator
         /// <summary>Cap mode stamped onto the resolved region (and used for its baseline ZeroedVolume).
         /// Doesn't affect the baked topology — only how volume/overlay close the loops.</summary>
         public RegionCapMode CapMode = RegionCapMode.FlatPlane;
+
+        /// <summary>Curated add/remove edits (Option B), already matched to current-mesh vertex indices
+        /// by <see cref="MatchVertexEdits"/>. Null/empty = plain box (today's behavior, byte-identical).
+        /// When present, the clip preserves the smooth analytic cut on box faces no edit touches, and
+        /// switches to a vertex-granular induced-patch rule on triangles an edit does touch.</summary>
+        public HashSet<int>? AddVertexIndices = null;
+        public HashSet<int>? RemoveVertexIndices = null;
+    }
+
+    /// <summary>True when <paramref name="worldPoint"/> lies inside <paramref name="box"/> after the
+    /// box's <paramref name="rotation"/> is undone (the same world→box-local transform <see cref="ResolveRegion"/>
+    /// uses internally). Lets callers test region membership of a vertex without re-running a resolve —
+    /// the editor uses it so a curated edit is only stored when it genuinely deviates from the box
+    /// (forcing in a vertex the box already contains, or out one it already excludes, is a no-op and is
+    /// dropped rather than spuriously switching the region into edited/induced mode).</summary>
+    public static bool BoxContainsRotated(RegionAabb box, BoxRotation rotation, Vector3 worldPoint, float eps = 0f)
+    {
+        if (rotation.IsIdentity) return box.Contains(worldPoint, eps);
+        var (ax, ay, az) = rotation.Basis();
+        var c = box.Center;
+        var d = worldPoint - c;
+        var local = new Vector3(Vector3.Dot(d, ax), Vector3.Dot(d, ay), Vector3.Dot(d, az)) + c;
+        return box.Contains(local, eps);
+    }
+
+    // ------------------------------------------------------------------ vertex-edit matching
+
+    /// <summary>
+    /// Matches each curated <see cref="VertexEditRef"/> (a zeroed-space position) to the nearest current
+    /// zeroed-mesh vertex within <paramref name="eps"/>, returning the add/remove index sets the resolve
+    /// honors. The stored <see cref="VertexEditRef.IndexHint"/> is tried first and accepted only if it
+    /// still lands within <paramref name="eps"/> of the stored position (renumbering invalidates it
+    /// silently → fall through to the brute-force nearest search). Unmatched edits are counted in
+    /// <see cref="MatchedEdits.MissCount"/>, never dropped without a trace — the caller logs them
+    /// (the "no silent caps" convention). Brute-force is O(verts) per edit, fine for a once-per-session
+    /// resolve; a uniform-grid hash is an easy optimization if the curated set ever grows large.
+    /// </summary>
+    public static MatchedEdits MatchVertexEdits(Vector3[] currentZeroedPositions, IReadOnlyList<VertexEditRef> edits, float eps)
+    {
+        var result = new MatchedEdits();
+        if (currentZeroedPositions == null || currentZeroedPositions.Length == 0 || edits == null || edits.Count == 0)
+            return result;
+
+        float epsSq = eps * eps;
+        for (int e = 0; e < edits.Count; e++)
+        {
+            var edit = edits[e];
+            int best = -1;
+
+            // 1. Trust the hint only if it still sits on the stored position (survives a no-renumber load).
+            int hint = edit.IndexHint;
+            if (hint >= 0 && hint < currentZeroedPositions.Length &&
+                (currentZeroedPositions[hint] - edit.ZeroedPosition).LengthSquared <= epsSq)
+            {
+                best = hint;
+            }
+            else
+            {
+                // 2. Brute-force nearest within eps (renumber-stable fallback).
+                float bestSq = epsSq;
+                for (int i = 0; i < currentZeroedPositions.Length; i++)
+                {
+                    float d = (currentZeroedPositions[i] - edit.ZeroedPosition).LengthSquared;
+                    if (d <= bestSq) { bestSq = d; best = i; }
+                }
+            }
+
+            if (best < 0) { result.MissCount++; continue; }
+            if (edit.Additive) result.AddIndices.Add(best);
+            else result.RemoveIndices.Add(best);
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------ public math
@@ -473,6 +586,74 @@ public static class RegionVolumeEvaluator
         return outEdges;
     }
 
+    /// <summary>Deduped patch wireframe (as <see cref="BuildSolidWireframe"/>) with each endpoint tagged
+    /// for whether its mesh vertex is in <paramref name="addedOriginalIndices"/> — i.e. a vertex the
+    /// curated edits forced into the region. Lets the editor recolor the half-edges around added
+    /// vertices (green) without re-deriving topology. Also reports which added indices actually appear
+    /// in the patch (<see cref="PresentAddedIndices"/>) so the caller can mark *isolated* added vertices
+    /// — ones whose neighbors aren't all members yet, so no triangle formed — separately, and the mean
+    /// edge length for sizing node glyphs.</summary>
+    public sealed class TaggedWireframe
+    {
+        public List<(Vector3 A, Vector3 B, bool AAdded, bool BAdded)> Edges = new();
+        public HashSet<int> PresentAddedIndices = new();
+        public float AverageEdgeLength;
+    }
+
+    /// <summary>The original-mesh vertex index of a patch ref when it is an un-split <b>corner</b>
+    /// (one barycentric weight is ~1), else -1. Curated additive vertices are always whole-triangle
+    /// corners, so this is how an added resolved vertex is identified.</summary>
+    public static int CornerOriginalIndex(in PatchVertexRef r)
+    {
+        if (r.Wa >= 0.999f) return r.A;
+        if (r.Wb >= 0.999f) return r.B;
+        if (r.Wc >= 0.999f) return r.C;
+        return -1;
+    }
+
+    public static TaggedWireframe BuildTaggedWireframe(
+        ResolvedRegion region, Vector3[] deformedPositions, IReadOnlyCollection<int>? addedOriginalIndices)
+    {
+        var result = new TaggedWireframe();
+        if (region == null || !region.IsValid || deformedPositions == null) return result;
+        int n = region.Vertices.Length;
+        if (n == 0) return result;
+
+        var addSet = addedOriginalIndices as ISet<int> ?? (addedOriginalIndices != null ? new HashSet<int>(addedOriginalIndices) : null);
+
+        var pos = new Vector3[n];
+        var added = new bool[n];
+        for (int i = 0; i < n; i++)
+        {
+            pos[i] = region.Vertices[i].Evaluate(deformedPositions);
+            if (addSet != null)
+            {
+                int ci = CornerOriginalIndex(region.Vertices[i]);
+                if (ci >= 0 && addSet.Contains(ci)) { added[i] = true; result.PresentAddedIndices.Add(ci); }
+            }
+        }
+
+        var seen = new HashSet<long>();
+        var tris = region.PatchTriangles;
+        double sum = 0; int cnt = 0;
+        void AddEdge(int a, int b)
+        {
+            int lo = Math.Min(a, b), hi = Math.Max(a, b);
+            long key = ((long)lo << 32) | (uint)hi;
+            if (!seen.Add(key)) return;
+            result.Edges.Add((pos[a], pos[b], added[a], added[b]));
+            sum += (pos[a] - pos[b]).Length; cnt++;
+        }
+        for (int i = 0; i + 2 < tris.Length; i += 3)
+        {
+            AddEdge(tris[i], tris[i + 1]);
+            AddEdge(tris[i + 1], tris[i + 2]);
+            AddEdge(tris[i + 2], tris[i]);
+        }
+        result.AverageEdgeLength = cnt > 0 ? (float)(sum / cnt) : 0f;
+        return result;
+    }
+
     // ------------------------------------------------------------------ resolution
 
     /// <summary>
@@ -519,8 +700,35 @@ public static class RegionVolumeEvaluator
             return new Vector3(Vector3.Dot(d, ax), Vector3.Dot(d, ay), Vector3.Dot(d, az)) + center;
         }
 
-        // 1. Clip each triangle to the box, fan-triangulate the inside polygon, record per-vertex
-        //    barycentric coords within the parent triangle.
+        // Curated add/remove edits (Option B). Empty/null = plain box → the loop below takes the exact
+        // same per-triangle path as before (clip every triangle), so unedited regions are byte-identical.
+        var addSet = options.AddVertexIndices;
+        var remSet = options.RemoveVertexIndices;
+        bool hasEdits = (addSet != null && addSet.Count > 0) || (remSet != null && remSet.Count > 0);
+
+        // Membership of an original vertex when edits are present: in the region if the box contains it
+        // (in box-local space, so rotation is honored) OR it is force-added, AND it is not force-removed
+        // (remove wins). The box-local point reuses ToLocal so the same axis-aligned containment that the
+        // clip uses also drives membership. planeEps matches the clip's boundary tolerance.
+        bool Member(int vid) =>
+            (box.Contains(ToLocal(zeroedPositions[vid]), planeEps) || (addSet != null && addSet.Contains(vid))) &&
+            !(remSet != null && remSet.Contains(vid));
+
+        // 1. Build the surface patch.
+        //
+        // No edits → clip every triangle to the box (Sutherland-Hodgman), keeping the smooth analytic
+        // cut on box faces. This is byte-identical to the original behavior.
+        //
+        // Any edits present → "bake-on-first-edit": the whole patch switches to the vertex-granular
+        // INDUCED rule (a triangle is in iff all three of its original vertices are members of the
+        // box∪adds\removes set). We do NOT mix the two: a clipped sliver edge truncated at a box face
+        // (e.g. x=3.5) meeting a grown whole triangle's full edge (x=4) puts the cut point mid-edge on
+        // the grown triangle — a T-junction that gives a vertex two outgoing boundary edges and trips
+        // the manifold check. Resolving the entire edited patch by whole-triangle membership keeps it
+        // watertight (no split vertices, so no T-junctions); the trade is a vertex-granular boundary,
+        // which is the accepted cost of curating individual vertices. Removing an interior vertex drops
+        // its incident triangles and opens a hole (an extra boundary loop); adding an out-of-box vertex
+        // pulls in the triangles all of whose verts have now become members.
         var outPos = new List<Vector3>();
         var outTri = new List<int>();        // parent original triangle index for each out vertex
         var outU = new List<float>();
@@ -532,6 +740,19 @@ public static class RegionVolumeEvaluator
         for (int t = 0; t * 3 + 2 < indices.Length; t++)
         {
             int i0 = indices[t * 3], i1 = indices[t * 3 + 1], i2 = indices[t * 3 + 2];
+
+            // Edited patch: induced whole-triangle rule (all three verts members or skip).
+            if (hasEdits)
+            {
+                if (!(Member(i0) && Member(i1) && Member(i2))) continue;
+                int wholeBase = outPos.Count;
+                outPos.Add(ToLocal(zeroedPositions[i0])); outTri.Add(t); outU.Add(1f); outV.Add(0f); outW.Add(0f);
+                outPos.Add(ToLocal(zeroedPositions[i1])); outTri.Add(t); outU.Add(0f); outV.Add(1f); outW.Add(0f);
+                outPos.Add(ToLocal(zeroedPositions[i2])); outTri.Add(t); outU.Add(0f); outV.Add(0f); outW.Add(1f);
+                triFan.Add(wholeBase); triFan.Add(wholeBase + 1); triFan.Add(wholeBase + 2);
+                continue;
+            }
+
             poly.Clear();
             // Clip in box-local space; the barycentric weights (1,0,0)/(0,1,0)/(0,0,1) are unchanged by
             // the transform, so the baked refs still interpolate correctly against WORLD positions.
@@ -744,10 +965,18 @@ public static class RegionVolumeEvaluator
     /// A region whose shape has no loaded geometry yields an invalid <see cref="ResolvedRegion"/>
     /// with a diagnostic rather than being omitted, so callers can surface the reason.
     /// </summary>
+    /// <summary>Default tolerance for matching a stored vertex-edit position to a current-mesh vertex
+    /// (mesh-local NIF units). Small enough not to grab a neighbor on a dense body, loose enough to ride
+    /// out the float rounding a body-mod re-export introduces. The matcher always takes the *nearest*
+    /// within this radius, so the exact-same-mesh case (distance 0) is never ambiguous.</summary>
+    public const float DefaultVertexEditMatchEps = 1e-3f;
+
     public static Dictionary<string, ResolvedRegion> ResolveRegions(
         IEnumerable<NamedRegion> regions,
         Func<string, Vector3[]?> shapePositions,
-        Func<string, int[]?> shapeIndices)
+        Func<string, int[]?> shapeIndices,
+        Action<string>? logMisses = null,
+        float matchEps = DefaultVertexEditMatchEps)
     {
         var result = new Dictionary<string, ResolvedRegion>(StringComparer.Ordinal);
         if (regions == null) return result;
@@ -770,8 +999,28 @@ public static class RegionVolumeEvaluator
                     new Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
                     new Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
                 var rotation = new BoxRotation(region.RotX, region.RotY, region.RotZ);
-                resolved = ResolveRegion(positions, indices, box, rotation,
-                    new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount, CapMode = region.CapMode });
+                var options = new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount, CapMode = region.CapMode };
+
+                // Option B: match the curated edits (zeroed-space positions) to current-mesh vertices.
+                // The positions array IS the sliders-0 mesh (the edits were authored in that space), so
+                // the match is exact on the same mesh and survives a renumber by position. Unmatched
+                // edits are logged, not silently dropped.
+                if (region.VertexEdits != null && region.VertexEdits.Count > 0)
+                {
+                    var editRefs = new List<VertexEditRef>(region.VertexEdits.Count);
+                    foreach (var e in region.VertexEdits)
+                    {
+                        if (e == null) continue;
+                        editRefs.Add(new VertexEditRef(new Vector3(e.X, e.Y, e.Z), e.Additive, e.IndexHint));
+                    }
+                    var matched = MatchVertexEdits(positions, editRefs, matchEps);
+                    options.AddVertexIndices = matched.AddIndices;
+                    options.RemoveVertexIndices = matched.RemoveIndices;
+                    if (matched.MissCount > 0)
+                        logMisses?.Invoke($"Region '{name}': {matched.MissCount} curated vertex edit(s) matched no vertex on shape '{region.ShapeName}' within {matchEps} units and were skipped.");
+                }
+
+                resolved = ResolveRegion(positions, indices, box, rotation, options);
             }
             resolved.ShapeName = region.ShapeName ?? "";
             result[name] = resolved;

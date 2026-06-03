@@ -1576,6 +1576,23 @@ public class VM_CharacterViewer : ViewerVm
     public bool IsBoundingBoxPickMode { get; set; } = false;
 
     /// <summary>
+    /// When true, a left-click in the viewport toggles a single mesh vertex into/out of the selected
+    /// RegionVolume region's curated edit set, and a left-drag rubber-bands a screen rect to bulk-edit
+    /// every enclosed vertex (Option B vertex-level region curation). The Add-vs-Remove direction is
+    /// <see cref="RegionVertexEditAdditive"/>. Mutually exclusive with orbit and the other pick modes
+    /// (the view checks them in order). Selection state lives on the editor VM; the viewer only reports
+    /// picks via <see cref="RegionVertexEdited"/> and renders the live selection through the preview
+    /// marker channel.
+    /// </summary>
+    public bool IsRegionVertexEditMode { get; set; } = false;
+
+    /// <summary>Sub-mode for <see cref="IsRegionVertexEditMode"/>: true = additive (force the picked
+    /// vertices into the region), false = subtractive (force them out). Bound to an Add/Remove toggle
+    /// in the viewer toolbar; read at pick time and stamped onto each emitted
+    /// <see cref="RegionVertexEditPick"/>.</summary>
+    public bool RegionVertexEditAdditive { get; set; } = true;
+
+    /// <summary>
     /// Current <see cref="BoxCriterionSelection"/> chosen in the viewer combo. Read at the
     /// moment the user releases the mouse so the emitted pick carries the criterion the
     /// user meant. Default <see cref="BoxCriterionSelection.MaxX"/>.
@@ -1695,6 +1712,14 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Process-wide fan-out for region picks (parallel to <see cref="AnyKeyVertexBoxPicked"/>).</summary>
     public static event Action<VM_CharacterViewer, KeyVertexBoxPick>? AnyRegionBoxPicked;
 
+    /// <summary>Per-viewer fan-out for a region vertex-edit pick (one click or a rubber-band of
+    /// vertices toggled add/remove). Parallel to <see cref="RegionBoxPicked"/>; the editor VM applies it
+    /// to the selected region's curated edit set and re-resolves.</summary>
+    public event Action<RegionVertexEditPick>? RegionVertexEdited;
+
+    /// <summary>Process-wide fan-out for region vertex-edit picks (parallel to <see cref="AnyRegionBoxPicked"/>).</summary>
+    public static event Action<VM_CharacterViewer, RegionVertexEditPick>? AnyRegionVertexEdited;
+
     /// <summary>
     /// Fires at the end of ApplyBodySlide, after CpuPositions have been refreshed. The
     /// BodyTypeProfile editor subscribes so live measurement readouts recompute after the
@@ -1748,6 +1773,32 @@ public class VM_CharacterViewer : ViewerVm
         /// consumer to always create a new row even if an edit session is active, so the box
         /// can be reused with a different criterion alongside the row being edited.</summary>
         public bool IsDuplicate { get; }
+    }
+
+    /// <summary>Result of a region vertex-edit pick: the target shape, the Add-vs-Remove direction, and
+    /// the affected vertices given both as original indices (non-authoritative hints) and as their
+    /// <b>sliders-0 (zeroed) positions</b> (the durable, renumber-stable identity the editor persists).
+    /// One entry for a single-click toggle; many for a rubber-band bulk edit. The zeroed positions are
+    /// looked up via <see cref="GetZeroedShapePositions"/> regardless of which body is displayed, so the
+    /// stored edit is display-space-independent (the "Show zeroed body" flip needs no per-edit
+    /// conversion).</summary>
+    public readonly struct RegionVertexEditPick
+    {
+        public RegionVertexEditPick(
+            string shapeName, bool additive,
+            IReadOnlyList<int> vertexIndices,
+            IReadOnlyList<OpenTK.Mathematics.Vector3> zeroedPositions)
+        {
+            ShapeName = shapeName ?? "";
+            Additive = additive;
+            VertexIndices = vertexIndices ?? Array.Empty<int>();
+            ZeroedPositions = zeroedPositions ?? Array.Empty<OpenTK.Mathematics.Vector3>();
+        }
+        public string ShapeName { get; }
+        public bool Additive { get; }
+        public IReadOnlyList<int> VertexIndices { get; }
+        public IReadOnlyList<OpenTK.Mathematics.Vector3> ZeroedPositions { get; }
+        public int Count => VertexIndices.Count;
     }
 
     /// <summary>
@@ -2017,6 +2068,97 @@ public class VM_CharacterViewer : ViewerVm
     {
         RegionBoxPicked?.Invoke(pick);
         AnyRegionBoxPicked?.Invoke(this, pick);
+    }
+
+    /// <summary>Fans a region vertex-edit pick out to per-viewer and process-wide subscribers (parallels
+    /// <see cref="NotifyRegionBoxPicked"/>). No-ops when the pick is empty.</summary>
+    public void NotifyRegionVertexEdited(RegionVertexEditPick pick)
+    {
+        if (pick.Count == 0) return;
+        RegionVertexEdited?.Invoke(pick);
+        AnyRegionVertexEdited?.Invoke(this, pick);
+    }
+
+    /// <summary>Builds a single-vertex region edit from a ray pick: looks the picked vertex's
+    /// <b>zeroed</b> position up via <see cref="GetZeroedShapePositions"/> (so the stored edit is
+    /// display-space-independent), stamping the current <see cref="RegionVertexEditAdditive"/> direction.
+    /// Falls back to the picked deformed position only when the zeroed snapshot is unavailable. Returns
+    /// null when the pick has no shape.</summary>
+    public RegionVertexEditPick? BuildRegionVertexEdit(KeyVertexPick pick)
+    {
+        var shape = pick.Mesh?.ShapeName ?? "";
+        if (shape.Length == 0 || pick.VertexIndex < 0) return null;
+
+        var zeroed = GetZeroedShapePositions(shape, NpcWeight);
+        var zpos = (zeroed != null && pick.VertexIndex < zeroed.Length) ? zeroed[pick.VertexIndex] : pick.LocalPos;
+        return new RegionVertexEditPick(shape, RegionVertexEditAdditive,
+            new[] { pick.VertexIndex }, new[] { zpos });
+    }
+
+    /// <summary>Builds a bulk region edit from a screen rectangle: projects every rendered mesh's
+    /// vertices through the current view-projection (matching <see cref="ComputeBoxFromScreenRect"/>),
+    /// keeps the ones inside the rect, buckets by mesh, and takes the mesh with the most hits. The
+    /// enclosed vertices' indices + zeroed positions are stamped with the current
+    /// <see cref="RegionVertexEditAdditive"/> direction. Returns null on a degenerate rect or when no
+    /// vertex fell inside it.</summary>
+    public RegionVertexEditPick? BuildRegionVertexEditFromScreenRect(
+        float x0, float y0, float x1, float y1, float viewportWidth, float viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0) return null;
+
+        float rectMinX = MathF.Min(x0, x1), rectMaxX = MathF.Max(x0, x1);
+        float rectMinY = MathF.Min(y0, y1), rectMaxY = MathF.Max(y0, y1);
+        if ((rectMaxX - rectMinX) < 4f || (rectMaxY - rectMinY) < 4f) return null;
+
+        float aspect = viewportWidth / viewportHeight;
+        var viewProj = Camera.GetViewMatrix() * Camera.GetProjectionMatrix(aspect);
+        float modelScale = Renderer.ModelScale;
+
+        GlMesh? bestMesh = null;
+        List<int>? bestIndices = null;
+
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (!mesh.IsRendering) continue;
+            if (mesh.CpuPositions == null || mesh.CpuPositions.Length == 0) continue;
+
+            var positions = mesh.CpuPositions;
+            var indices = new List<int>();
+            for (int i = 0; i < positions.Length; i++)
+            {
+                var p = positions[i];
+                var world = new OpenTK.Mathematics.Vector4(p.X * modelScale, p.Y * modelScale, p.Z * modelScale, 1f);
+                var clip = world * viewProj;
+                if (clip.W <= 0f) continue;
+                float screenX = (clip.X / clip.W * 0.5f + 0.5f) * viewportWidth;
+                float screenY = (1f - (clip.Y / clip.W * 0.5f + 0.5f)) * viewportHeight;
+                if (screenX < rectMinX || screenX > rectMaxX) continue;
+                if (screenY < rectMinY || screenY > rectMaxY) continue;
+                indices.Add(i);
+            }
+
+            if (bestIndices == null || indices.Count > bestIndices.Count)
+            {
+                bestIndices = indices;
+                bestMesh = mesh;
+            }
+        }
+
+        if (bestMesh == null || bestIndices == null || bestIndices.Count == 0) return null;
+
+        var shape = bestMesh.ShapeName ?? "";
+        var zeroed = GetZeroedShapePositions(shape, NpcWeight);
+        var zpos = new OpenTK.Mathematics.Vector3[bestIndices.Count];
+        for (int k = 0; k < bestIndices.Count; k++)
+        {
+            int idx = bestIndices[k];
+            zpos[k] = (zeroed != null && idx < zeroed.Length)
+                ? zeroed[idx]
+                : new OpenTK.Mathematics.Vector3(bestMesh.CpuPositions![idx].X, bestMesh.CpuPositions![idx].Y, bestMesh.CpuPositions![idx].Z);
+        }
+
+        LogVerbose($"CharacterViewer: region vertex-edit rect captured {bestIndices.Count} vertices on '{shape}' (additive={RegionVertexEditAdditive}).");
+        return new RegionVertexEditPick(shape, RegionVertexEditAdditive, bestIndices, zpos);
     }
 
     /// <summary>Parks a freshly-captured rectangle pick in the pending-box editor state
@@ -2932,6 +3074,21 @@ public class VM_CharacterViewer : ViewerVm
         if (wireEdges != null)
             foreach (var (a, b) in wireEdges)
                 Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = wireColor });
+    }
+
+    /// <summary>Replaces the region wireframe channel (<see cref="GlRenderer.RegionWireLines"/>) with
+    /// <b>per-segment-colored</b> line segments, instead of the single-color wire <see cref="SetRegionSolid"/>
+    /// pushes. The editor uses this to recolor an edited region's wireframe: cyan for untouched edges,
+    /// green for the half-edges around curated <i>added</i> vertices, and small red/green node crosses
+    /// for removed / isolated-added vertices. Pass null/empty to clear. Does not touch the solid-faces or
+    /// cap-loop channels, so call it after <see cref="SetRegionSolid"/> / <see cref="SetRegionOverlay"/>.</summary>
+    public void SetRegionWireColored(
+        IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>? segments)
+    {
+        Renderer.RegionWireLines.Clear();
+        if (segments == null) return;
+        foreach (var s in segments)
+            Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = s.A, B = s.B, Color = s.Color });
     }
 
     /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface + wireframe).

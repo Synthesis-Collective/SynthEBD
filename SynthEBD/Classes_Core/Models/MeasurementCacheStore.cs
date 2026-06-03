@@ -458,6 +458,20 @@ public static class MeasurementCacheStore
         // all three are 0 — which is the default, so existing axis-aligned regions don't re-fingerprint.
         if (rg.RotX != 0f || rg.RotY != 0f || rg.RotZ != 0f)
             sb.Append("|R=").Append(rg.RotX).Append(',').Append(rg.RotY).Append(',').Append(rg.RotZ);
+        // Hand-curated vertex edits (Option B) change which vertices the patch encloses, so they're part
+        // of the identity — a vertex add/remove must invalidate the cached volume. Quantized to ride out
+        // float churn and emitted order-independently (sorted) so reordering the edit list doesn't shift
+        // the hash. Appended only when the list is non-empty, so a plain box region's fingerprint is
+        // byte-identical to before this feature (no spurious rescan on upgrade).
+        if (rg.VertexEdits != null && rg.VertexEdits.Count > 0)
+        {
+            static long Q(float v) => (long)Math.Round(v * 1e4f); // 0.1 mm-ish quantum in NIF units
+            var tokens = rg.VertexEdits
+                .Where(e => e != null)
+                .Select(e => $"{(e.Additive ? '+' : '-')}{Q(e.X)},{Q(e.Y)},{Q(e.Z)}")
+                .OrderBy(s => s, StringComparer.Ordinal);
+            sb.Append("|VE=[").Append(string.Join(";", tokens)).Append(']');
+        }
     }
 
     private static string Sha256Hex(string input)

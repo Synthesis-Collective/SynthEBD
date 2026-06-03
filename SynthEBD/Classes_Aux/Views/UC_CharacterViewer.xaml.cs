@@ -120,6 +120,11 @@ public partial class UC_CharacterViewer : UserControl
     private bool _boxDragging;
     private Point _boxDragStart;
 
+    // Region vertex-edit drag state. Shares the BoxSelectionRect rubber-band with BB pick. On MouseUp a
+    // tiny rect is treated as a single-vertex click (ray pick → toggle), a real rect as a bulk edit.
+    private bool _vertexEditDragging;
+    private Point _vertexEditDragStart;
+
     // Axis-gizmo drag state. MouseDown on AxisGizmoBorder seeds the offset between the cursor
     // and the widget's Canvas.Left/Top; MouseMove keeps that offset constant so the border
     // tracks the cursor without snapping. MouseUp releases capture.
@@ -552,6 +557,23 @@ public partial class UC_CharacterViewer : UserControl
             return;
         }
 
+        // Region vertex-edit: left press starts a rubber-band (shared with BB). A tiny rect on release
+        // is a single-vertex toggle; a real rect bulk-edits every enclosed vertex. Takes precedence over
+        // orbit + light arrows like the other pick modes.
+        if (e.ChangedButton == MouseButton.Left && _vm.IsRegionVertexEditMode)
+        {
+            _vertexEditDragging = true;
+            _vertexEditDragStart = pos;
+            Canvas.SetLeft(BoxSelectionRect, pos.X);
+            Canvas.SetTop(BoxSelectionRect, pos.Y);
+            BoxSelectionRect.Width = 0;
+            BoxSelectionRect.Height = 0;
+            BoxSelectionRect.Visibility = Visibility.Visible;
+            GlControl.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         // Arrow picking: left-click on a light gizmo selects that light for
         // editing instead of starting a camera orbit.
         if (e.ChangedButton == MouseButton.Left && _vm.ShowLightControls)
@@ -586,14 +608,15 @@ public partial class UC_CharacterViewer : UserControl
 
         var pos = e.GetPosition(GlControl);
 
-        // While painting a BB, keep the rubber-band rect in sync and suppress the
+        // While painting a BB or a vertex-edit rect, keep the rubber-band rect in sync and suppress the
         // orbit/pan update + hover tooltip. Camera state stays untouched.
-        if (_boxDragging)
+        if (_boxDragging || _vertexEditDragging)
         {
-            double x = Math.Min(_boxDragStart.X, pos.X);
-            double y = Math.Min(_boxDragStart.Y, pos.Y);
-            double w = Math.Abs(pos.X - _boxDragStart.X);
-            double h = Math.Abs(pos.Y - _boxDragStart.Y);
+            var dragStart = _boxDragging ? _boxDragStart : _vertexEditDragStart;
+            double x = Math.Min(dragStart.X, pos.X);
+            double y = Math.Min(dragStart.Y, pos.Y);
+            double w = Math.Abs(pos.X - dragStart.X);
+            double h = Math.Abs(pos.Y - dragStart.Y);
             Canvas.SetLeft(BoxSelectionRect, x);
             Canvas.SetTop(BoxSelectionRect, y);
             BoxSelectionRect.Width = w;
@@ -623,6 +646,38 @@ public partial class UC_CharacterViewer : UserControl
     {
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
+
+        // Region vertex-edit release: a tiny rect = single-vertex ray-pick toggle; a real rect =
+        // bulk-edit every enclosed vertex. Either way the affected vertices fan out through
+        // NotifyRegionVertexEdited (with the current Add/Remove direction) to the editor VM.
+        if (_vertexEditDragging && e.ChangedButton == MouseButton.Left)
+        {
+            _vertexEditDragging = false;
+            BoxSelectionRect.Visibility = Visibility.Collapsed;
+            GlControl.ReleaseMouseCapture();
+
+            var end = e.GetPosition(GlControl);
+            float vw = (float)GlControl.ActualWidth, vh = (float)GlControl.ActualHeight;
+            double dragW = Math.Abs(end.X - _vertexEditDragStart.X);
+            double dragH = Math.Abs(end.Y - _vertexEditDragStart.Y);
+
+            VM_CharacterViewer.RegionVertexEditPick? pick;
+            if (dragW < 4 && dragH < 4)
+            {
+                // Click → ray-pick the nearest vertex under the cursor.
+                var hit = _vm.HitTestKeyVertex((float)end.X, (float)end.Y, vw, vh);
+                pick = hit.HasValue ? _vm.BuildRegionVertexEdit(hit.Value) : null;
+            }
+            else
+            {
+                pick = _vm.BuildRegionVertexEditFromScreenRect(
+                    (float)_vertexEditDragStart.X, (float)_vertexEditDragStart.Y, (float)end.X, (float)end.Y, vw, vh);
+            }
+            if (pick.HasValue) _vm.NotifyRegionVertexEdited(pick.Value);
+
+            e.Handled = true;
+            return;
+        }
 
         // BB drag release: resolve the painted screen rect into a mesh-local AABB via
         // the VM and fan out through NotifyKeyVertexBoxPicked. Tiny/degenerate drags are

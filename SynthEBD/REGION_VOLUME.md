@@ -14,8 +14,9 @@ A reference for the **RegionVolume** body measurement in the BodySlide classifie
 6. [Box rotation](#box-rotation)
 7. [The session cache + fingerprint](#the-session-cache--fingerprint)
 8. [Authoring lifecycle (editor)](#authoring-lifecycle-editor)
-9. [Persistence model](#persistence-model)
-10. [Code map](#code-map)
+9. [Vertex-edit layer (curated regions)](#vertex-edit-layer-curated-regions)
+10. [Persistence model](#persistence-model)
+11. [Code map](#code-map)
 
 ---
 
@@ -91,7 +92,7 @@ An identity rotation takes a path byte-identical to the no-rotation overload —
 
 Resolving is expensive, so the editor caches `ResolvedRegion`s for the session, keyed by region name and tagged with `(body-mesh hash, box+rotation+cap fingerprint)` — `VM_BodyTypeProfile.GetOrResolveRegion`. A cache entry is reused while the body topology and the region's resolve inputs are unchanged; it's invalidated (re-resolved) on a box/shape/rotation/cap edit, a rename (entry moved to the new key), a delete, or a viewer rebind.
 
-The measurement **cache fingerprint** (`MeasurementCacheStore.AppendRegion`) hashes the region's identity — shape, box coords, expected cap count, **cap mode**, and **rotation** (the latter two only when non-default, so existing axis-aligned/flat regions don't re-fingerprint). It deliberately **excludes** the resolved patch/loops and the defining preset/weight: those are session-derived or informational and don't change the computed value. This mirrors the BoundingBox key-vertex fingerprint (commit `5e9610a7`), which excludes the resolved vertex index for the same reason — including session-volatile data spuriously invalidates the disk cache on every restart.
+The measurement **cache fingerprint** (`MeasurementCacheStore.AppendRegion`) hashes the region's identity — shape, box coords, expected cap count, **cap mode**, **rotation**, and the **vertex edits** (the latter three only when non-default/non-empty, so existing axis-aligned/flat box-only regions don't re-fingerprint). The edits are quantized and emitted order-independently (sorted) so reordering the list doesn't shift the hash; the `IndexHint` is excluded (it's a re-validated cache, not identity). It deliberately **excludes** the resolved patch/loops and the defining preset/weight: those are session-derived or informational and don't change the computed value. This mirrors the BoundingBox key-vertex fingerprint (commit `5e9610a7`), which excludes the resolved vertex index for the same reason — including session-volatile data spuriously invalidates the disk cache on every restart.
 
 ---
 
@@ -107,6 +108,22 @@ In the BodyTypeProfile editor's **Regions** tab:
 
 ---
 
+## Vertex-edit layer (curated regions)
+
+A pure box selects a clean rectangular prism of surface. To carve an **irregular** selection — add a vertex the box missed, or remove one it wrongly caught — a region can carry a **vertex-edit layer** on top of its box (`NamedRegion.VertexEdits`). This is the "Option B" design: keep the box, layer hand-curated add/remove edits on it.
+
+**What an edit is.** Each `RegionVertexEdit` is one vertex's **zeroed-space position** (XYZ) plus an `Additive` flag (true = force into the region, false = force out) and a non-authoritative `IndexHint`. Edits are stored as *positions*, never raw indices, for the same reason the box is — a body-mod reinstall renumbers vertices, but the mesh-local position survives. At resolve time `RegionVolumeEvaluator.MatchVertexEdits` matches each stored position to the nearest current-mesh vertex within an epsilon (the hint is tried first and accepted only if it still sits on the stored position; otherwise a brute-force nearest search runs). Unmatched edits are **logged, never silently dropped**.
+
+**Induced-on-edit (the watertightness rule).** A region with **no** edits resolves exactly as before — the smooth analytic box clip, byte-identical. The moment it has **any** edit, the *whole* patch switches to a vertex-granular **induced rule**: a triangle is in the patch iff all three of its original vertices are members of `(box ∪ additive-edits) \ subtractive-edits`. The smooth box clip and vertex-granular growth are deliberately **not** mixed: where a grown whole-triangle's full edge meets a box-clipped sliver's truncated edge, the box-face cut point lands mid-edge on the grown triangle — a T-junction that gives a boundary vertex two outgoing edges and fails the manifold check. Resolving the entire edited patch by whole-triangle membership keeps it watertight (no split vertices → no T-junctions). The trade is a vertex-granular boundary once edited; on a dense body mesh this is barely visible, and it's the natural cost of thinking in individual vertices. The existing weld → boundary-loop → validate → cut-normal → volume tail is reused unchanged, so caps, rotation, and cross-preset tracking are unaffected. Removing an interior vertex drops its incident triangles and **opens a hole** (an extra boundary loop); adding an out-of-box vertex pulls in the triangles all of whose vertices have become members.
+
+**Minimal edit set.** The editor only stores an edit that genuinely deviates from the box: **Add** records a force-in edit only for a vertex the box does *not* already contain; **Remove** records a force-out edit only for one the box *does* contain (`RegionVolumeEvaluator.BoxContainsRotated` tests membership). So a region whose edits exactly match its box keeps an **empty** edit list and stays on the smooth-clip path — only real deviations switch it to the induced path. ("Clear" on the row empties the list and reverts to the box.)
+
+**Migration / back-compat.** Old profiles deserialize with an empty `VertexEdits` list → plain box, unchanged. There's no separate "mode" flag: the box is always the base, edits just append ("bake-on-first-edit" collapses to this since under Option B the box never goes away). The disk-cache fingerprint and the session resolve fingerprint both include the edits (quantized, order-independent, appended only when non-empty), so an edit invalidates the cache but a box-only region fingerprints identically to before the feature.
+
+**Authoring.** Select a region row, enable **Edit Region Verts** in the viewer toolbar, pick the **Add / Remove** direction, then **left-click** a vertex to toggle it or **left-drag** a rectangle to bulk-edit every enclosed vertex. The curated vertices are shown by **recoloring the region wireframe** (in Solid view): added vertices and the half of each incident edge nearest them turn green; removed vertices (and any isolated added vertex) get small red/green node crosses. The cap-loop / Solid overlay and the live volume re-resolve on every edit. Edits are stored at the region's **resolve weight** in **zeroed** space (the sliders-0 mesh lerps with NPC weight, so store-weight and match-weight must agree — the vertex *index* is weight-independent but the position→index re-match is not), and are display-space-independent, so the "Show zeroed body" flip needs no per-edit conversion.
+
+---
+
 ## Persistence model
 
 `NamedRegion` (on `BodyTypeProfile.Regions`) stores **only**:
@@ -114,9 +131,10 @@ In the BodyTypeProfile editor's **Regions** tab:
 - `Name`, `ShapeName`
 - the box: `BoxMin/Max X/Y/Z` (zeroed-space), `RotX/Y/Z`
 - `ExpectedCapCount`, `CapMode`
+- `VertexEdits` — the curated add/remove layer, each a zeroed-space position + sign + index hint (see [Vertex-edit layer](#vertex-edit-layer-curated-regions)); empty for a plain box.
 - `DefiningPresetLabel` / `DefiningWeight` — recordkeeping only (which preset+weight the box was framed against, for re-editing); **not** in the fingerprint.
 
-Everything else — the resolved patch, boundary loops, baked refs, cached volumes — is **recomputed each session** from (box + zeroed mesh). Vertex indices are never persisted, because a body-mod update or reinstall can renumber them; the box, defined in mesh-local 3D space, survives that.
+Everything else — the resolved patch, boundary loops, baked refs, cached volumes — is **recomputed each session** from (box + edits + zeroed mesh). Vertex indices are never persisted (only zeroed positions, re-matched per session), because a body-mod update or reinstall can renumber them; the box and the edit positions, defined in mesh-local 3D space, survive that.
 
 ---
 
@@ -124,8 +142,8 @@ Everything else — the resolved patch, boundary loops, baked refs, cached volum
 
 | Concern | Location |
 |---|---|
-| Geometry core (clip, weld, loops, volume, caps, rotation, convert, solid/wire builders) | [Classes_Core/Models/RegionVolumeEvaluator.cs](Classes_Core/Models/RegionVolumeEvaluator.cs) |
-| Model (`NamedRegion`, `MeasurementKind.RegionVolume`, `MeasurementDefinition.RegionRefName`) | [Settings/Settings_OBody/BodyTypeProfile.cs](Settings/Settings_OBody/BodyTypeProfile.cs) |
+| Geometry core (clip, weld, loops, volume, caps, rotation, convert, solid/wire builders, vertex-edit induced patch + matcher) | [Classes_Core/Models/RegionVolumeEvaluator.cs](Classes_Core/Models/RegionVolumeEvaluator.cs) |
+| Model (`NamedRegion`, `RegionVertexEdit`, `MeasurementKind.RegionVolume`, `MeasurementDefinition.RegionRefName`) | [Settings/Settings_OBody/BodyTypeProfile.cs](Settings/Settings_OBody/BodyTypeProfile.cs) |
 | Cache fingerprint (`AppendRegion`) | [Classes_Core/Models/MeasurementCacheStore.cs](Classes_Core/Models/MeasurementCacheStore.cs) |
 | Evaluator hook (`TryEvaluateRegionVolume`) | [Classes_Core/Models/BodySlideMeasurementEvaluator.cs](Classes_Core/Models/BodySlideMeasurementEvaluator.cs) |
 | Editor VM (resolve cache, overlay, edit lifecycle, scan integration) | [Classes_Core/ViewModels/OBody SubModels/VM_BodyTypeProfileEditor.cs](Classes_Core/ViewModels/OBody%20SubModels/VM_BodyTypeProfileEditor.cs) |

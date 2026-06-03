@@ -121,6 +121,18 @@
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
                           ToolTip="Left-drag a rectangle across the model to define a mesh-local bounding box. The classifier picks the vertex matching the selected Criterion inside that box at runtime, so the anatomical landmark tracks the mesh across presets."/>
 
+                <CheckBox Content="Edit Region Verts" FontSize="11" Foreground="#FFFF66CC"
+                          Margin="10,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding IsRegionVertexEditMode}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Add/remove individual vertices from the SELECTED RegionVolume region (select a region row in the BodyTypeProfile editor first). Left-click a vertex to toggle it; left-drag a rectangle to bulk-edit every enclosed vertex. The Add/Remove direction is the toggle to the right. Camera orbit is disabled while this is on. Any edit switches the region to a vertex-granular patch (the smooth box cut is kept only for unedited regions)."/>
+
+                <CheckBox Content="Add (off = Remove)" FontSize="11" Foreground="#FFFF66CC"
+                          Margin="6,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding RegionVertexEditAdditive}"
+                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          ToolTip="Checked: picks force vertices INTO the region (grow the patch past the box at those vertices). Unchecked: picks force them OUT (carve the patch; removing an interior vertex opens a hole)."/>
+
                 <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="8,0,3,0"
                            Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>

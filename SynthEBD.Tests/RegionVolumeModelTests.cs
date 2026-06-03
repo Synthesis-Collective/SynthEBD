@@ -174,4 +174,106 @@ public class RegionVolumeModelTests
 
         Fp(vol, ChestRegion()).Should().NotBe(Fp(dist, ChestRegion()));
     }
+
+    // ---- vertex-edit layer (Option B) ----
+
+    private static RegionVertexEdit Edit(float x, float y, float z, bool add) =>
+        new RegionVertexEdit { X = x, Y = y, Z = z, Additive = add, IndexHint = -1 };
+
+    [Fact]
+    public void Region_WithVertexEdits_SurvivesJsonRoundTrip()
+    {
+        var profile = new BodyTypeProfile { Name = "RT", BodyTypeName = "CBBE 3BA" };
+        var rg = ChestRegion();
+        rg.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: true));
+        rg.VertexEdits.Add(Edit(-2f, 100f, 0f, add: false));
+        profile.Regions.Add(rg);
+
+        var clone = JSONhandler<BodyTypeProfile>.CloneViaJSON(profile);
+        clone.Should().NotBeNull();
+        var rc = clone.Regions.Should().ContainSingle().Subject;
+        rc.VertexEdits.Should().HaveCount(2);
+        rc.VertexEdits[0].Additive.Should().BeTrue();
+        rc.VertexEdits[0].X.Should().Be(1.5f);
+        rc.VertexEdits[0].Z.Should().Be(-3f);
+        rc.VertexEdits[1].Additive.Should().BeFalse();
+        rc.VertexEdits[1].Y.Should().Be(100f);
+    }
+
+    [Fact]
+    public void LegacyRegion_WithoutVertexEdits_DeserializesToEmptyList()
+    {
+        // A region JSON authored before this feature has no "VertexEdits" key at all → empty list,
+        // which the resolver treats as a plain box (back-compat).
+        const string legacy = "{ \"Name\": \"Old\", \"BodyTypeName\": \"CBBE 3BA\", \"Regions\": " +
+            "[ { \"Name\": \"chest_bump\", \"ShapeName\": \"CBBE 3BA\", \"BoxMinX\": -8 } ] }";
+        var profile = JSONhandler<BodyTypeProfile>.Deserialize(legacy, out bool ok, out string err);
+        ok.Should().BeTrue(err);
+        profile.Regions.Should().ContainSingle();
+        profile.Regions[0].VertexEdits.Should().NotBeNull();
+        profile.Regions[0].VertexEdits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Fingerprint_EmptyVertexEdits_MatchesPreFeatureBoxRegion()
+    {
+        // A box-only region (no edits) must fingerprint byte-identically to before the feature existed,
+        // so upgrading the app does not invalidate every cached region volume.
+        var withEmptyList = ChestRegion();           // VertexEdits defaults to an empty list
+        var baseline = Fp(VolumeMeasurement(), withEmptyList);
+
+        var rg = ChestRegion();
+        rg.VertexEdits.Clear();                       // explicitly empty
+        Fp(VolumeMeasurement(), rg).Should().Be(baseline);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenAVertexEditIsAdded()
+    {
+        var baseline = Fp(VolumeMeasurement(), ChestRegion());
+
+        var edited = ChestRegion();
+        edited.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: true));
+        Fp(VolumeMeasurement(), edited).Should().NotBe(baseline);
+    }
+
+    [Fact]
+    public void Fingerprint_IsOrderIndependent_ForVertexEdits()
+    {
+        var a = ChestRegion();
+        a.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: true));
+        a.VertexEdits.Add(Edit(-2f, 100f, 0f, add: false));
+
+        var b = ChestRegion();
+        b.VertexEdits.Add(Edit(-2f, 100f, 0f, add: false));   // reversed order
+        b.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: true));
+
+        Fp(VolumeMeasurement(), a).Should().Be(Fp(VolumeMeasurement(), b));
+    }
+
+    [Fact]
+    public void Fingerprint_DistinguishesAddFromRemove_AtSamePosition()
+    {
+        var add = ChestRegion();
+        add.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: true));
+
+        var remove = ChestRegion();
+        remove.VertexEdits.Add(Edit(1.5f, 95f, -3f, add: false));
+
+        Fp(VolumeMeasurement(), add).Should().NotBe(Fp(VolumeMeasurement(), remove));
+    }
+
+    [Fact]
+    public void Fingerprint_IgnoresIndexHint_ForVertexEdits()
+    {
+        // IndexHint is a non-authoritative cache, re-validated by position at resolve time, so it must
+        // not enter the fingerprint (it can legitimately differ across sessions without an authoring change).
+        var a = ChestRegion();
+        a.VertexEdits.Add(new RegionVertexEdit { X = 1.5f, Y = 95f, Z = -3f, Additive = true, IndexHint = 1234 });
+
+        var b = ChestRegion();
+        b.VertexEdits.Add(new RegionVertexEdit { X = 1.5f, Y = 95f, Z = -3f, Additive = true, IndexHint = 9999 });
+
+        Fp(VolumeMeasurement(), a).Should().Be(Fp(VolumeMeasurement(), b));
+    }
 }

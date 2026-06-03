@@ -654,6 +654,22 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="Vertex Edits" Width="120" IsReadOnly="True">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                                    ToolTip="Hand-curated add/remove vertex edits layered on the box. Non-zero means this region resolves by the vertex-granular induced patch (box ∪ adds \ removes) instead of the smooth box clip. Select the row, enable 'Edit Region Verts' in the viewer toolbar, then click/drag vertices. 'Clear' reverts to the plain box.">
+                                                            <TextBlock Foreground="#FFFF66CC" FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center"
+                                                                       Text="{Binding EditedVertexCount, StringFormat='✎ {0}'}"
+                                                                       Visibility="{Binding HasVertexEdits, Converter={StaticResource BoolToVis}}"/>
+                                                            <Button Content="Clear" FontSize="10" Margin="6,0,0,0" Padding="4,0"
+                                                                    Command="{Binding ClearEditsCommand}"
+                                                                    Visibility="{Binding HasVertexEdits, Converter={StaticResource BoolToVis}}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

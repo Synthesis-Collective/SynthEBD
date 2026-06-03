@@ -205,6 +205,7 @@ public class VM_BodyTypeProfileEditor : VM
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
         VM_CharacterViewer.AnyRegionBoxPicked += OnAnyRegionBoxPicked;
+        VM_CharacterViewer.AnyRegionVertexEdited += OnAnyRegionVertexEdited;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -535,6 +536,7 @@ public class VM_BodyTypeProfileEditor : VM
         VM_CharacterViewer.AnyKeyVertexPicked -= OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked -= OnAnyKeyVertexBoxPicked;
         VM_CharacterViewer.AnyRegionBoxPicked -= OnAnyRegionBoxPicked;
+        VM_CharacterViewer.AnyRegionVertexEdited -= OnAnyRegionVertexEdited;
         base.Dispose();
     }
 
@@ -847,6 +849,17 @@ public class VM_BodyTypeProfileEditor : VM
         // Like box picks, region confirms are an explicit button press ("Confirm as Region" on
         // the pending-box panel), so they bypass the CapturePicks toggle too.
         profile.OnRegionBoxPickedFromViewer(viewer, pick);
+    }
+
+    private void OnAnyRegionVertexEdited(VM_CharacterViewer viewer, VM_CharacterViewer.RegionVertexEditPick pick)
+    {
+        if (!ReferenceEquals(viewer, CharacterViewer)) return;
+
+        var profile = SelectedProfile;
+        if (profile == null) return;
+        // Vertex-edit picks are explicit (the user is in region-vertex-edit mode), so they bypass the
+        // CapturePicks toggle like region box confirms.
+        profile.OnRegionVertexEditFromViewer(viewer, pick);
     }
 
     /// <summary>Wires up <see cref="DescriptorFilter"/> using the same factory + dependencies
@@ -4609,7 +4622,7 @@ public class VM_BodyTypeProfile : VM
 
         // Evaluate the transient region against the CURRENTLY SHOWN body so the overlay sits on it.
         var evalPositions = shown ?? zeroed;
-        PushRegionOverlay(viewer, rr, evalPositions);
+        PushRegionOverlay(viewer, rr, evalPositions, MatchRegionEditsForOverlay(viewer, model));
     }
 
     /// <summary>Expands an authoring-time <see cref="BoxCriterionSelection"/> into the one
@@ -5092,6 +5105,100 @@ public class VM_BodyTypeProfile : VM
         RefreshRegionOverlay();
     }
 
+    /// <summary>Applies a viewer vertex-edit pick (one click or a rubber-band of vertices, Add or
+    /// Remove) to the <see cref="SelectedRegion"/>'s curated edit set, then invalidates that region's
+    /// resolve cache and refreshes its volume + overlay. Each edit is stored in zeroed space and only
+    /// when it actually changes membership: Add stores a force-in edit only for a vertex the box does
+    /// <i>not</i> already contain (and clears any stale opposite edit there); Remove stores a force-out
+    /// edit only for a vertex the box <i>does</i> contain. So a region whose edits exactly match its box
+    /// keeps an empty edit list and stays on the smooth box path — only genuine deviations switch it to
+    /// the induced path.</summary>
+    public void OnRegionVertexEditFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.RegionVertexEditPick pick)
+    {
+        ActiveViewer = viewer;
+
+        var region = SelectedRegion;
+        if (region == null)
+        {
+            _parent?.Logger?.LogMessage("RegionVolume vertex edit: no region selected. Select a region row first, then add/remove vertices.");
+            return;
+        }
+        if (pick.Count == 0) return;
+        if (!string.Equals(region.ShapeName ?? "", pick.ShapeName ?? "", StringComparison.OrdinalIgnoreCase))
+        {
+            _parent?.Logger?.LogMessage($"RegionVolume vertex edit: picked shape '{pick.ShapeName}' differs from the selected region's shape '{region.ShapeName}'. Ignored.");
+            return;
+        }
+
+        var box = new RegionVolumeEvaluator.RegionAabb(
+            new OpenTK.Mathematics.Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
+            new OpenTK.Mathematics.Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
+        var rot = new RegionVolumeEvaluator.BoxRotation(region.RotX, region.RotY, region.RotZ);
+        const float eps = RegionVolumeEvaluator.DefaultVertexEditMatchEps;
+        float epsSq = eps * eps;
+
+        // The sliders-0 mesh lerps with NPC weight, so an edit must be stored in the SAME weight's
+        // zeroed space that the resolve/overlay matches against (vertex indices are weight-independent,
+        // but the stored position → index re-match isn't). The pick's positions came from the viewer's
+        // display weight; re-look the vertex up at the region's resolve weight instead, so store-weight
+        // and match-weight agree regardless of which weight the body is currently shown at.
+        int regionWeight = region.DefiningWeight >= 0 ? region.DefiningWeight : (_parent?.PreviewWeight ?? 0);
+        var zeroedAtWeight = viewer.GetZeroedShapePositions(region.ShapeName, regionWeight);
+
+        static float SqDist(RegionVertexEdit e, OpenTK.Mathematics.Vector3 p)
+        {
+            float dx = e.X - p.X, dy = e.Y - p.Y, dz = e.Z - p.Z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        int changed = 0;
+        for (int i = 0; i < pick.Count; i++)
+        {
+            int hint = (i < pick.VertexIndices.Count) ? pick.VertexIndices[i] : -1;
+            // Prefer the region-weight zeroed position (consistent with resolve); fall back to the pick's
+            // own zeroed position only when the snapshot or index is unavailable.
+            var p = (zeroedAtWeight != null && hint >= 0 && hint < zeroedAtWeight.Length)
+                ? zeroedAtWeight[hint]
+                : pick.ZeroedPositions[i];
+            bool inBox = RegionVolumeEvaluator.BoxContainsRotated(box, rot, p, eps);
+
+            // Drop any existing edit at this position (it either becomes redundant or gets replaced).
+            int existing = region.VertexEdits.FindIndex(e => e != null && SqDist(e, p) <= epsSq);
+            if (existing >= 0) { region.VertexEdits.RemoveAt(existing); changed++; }
+
+            // Store an edit only when it deviates from the box: Add a vertex the box misses, or Remove
+            // one the box contains. (Add-in-box / Remove-out-of-box are already satisfied by the box.)
+            if (pick.Additive && !inBox)
+            {
+                region.VertexEdits.Add(new RegionVertexEdit { X = p.X, Y = p.Y, Z = p.Z, Additive = true, IndexHint = hint });
+                changed++;
+            }
+            else if (!pick.Additive && inBox)
+            {
+                region.VertexEdits.Add(new RegionVertexEdit { X = p.X, Y = p.Y, Z = p.Z, Additive = false, IndexHint = hint });
+                changed++;
+            }
+        }
+        if (changed == 0) return;
+
+        region.EditedVertexCount = region.VertexEdits.Count;
+        InvalidateResolvedRegion(region.Name);
+        RefreshMeasurementValues();
+        RefreshRegionOverlay();
+    }
+
+    /// <summary>Clears all curated vertex edits on <paramref name="region"/> (reverts it to the plain
+    /// box / smooth-clip path) and refreshes. Bound to the "Clear edits" affordance.</summary>
+    public void ClearRegionVertexEdits(VM_NamedRegion? region)
+    {
+        if (region == null || region.VertexEdits.Count == 0) return;
+        region.VertexEdits.Clear();
+        region.EditedVertexCount = 0;
+        InvalidateResolvedRegion(region.Name);
+        RefreshMeasurementValues();
+        if (ReferenceEquals(region, SelectedRegion)) RefreshRegionOverlay();
+    }
+
     private VM_NamedRegion AddRegionRow(
         string shapeName,
         OpenTK.Mathematics.Vector3 boxMin,
@@ -5131,8 +5238,18 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>Compact fingerprint of a region's resolve inputs (shape + box + expected caps). When
     /// this changes (box edited), the cached ResolvedRegion is stale and gets re-resolved.</summary>
-    private static string RegionResolveFingerprint(NamedRegion r) =>
-        $"{r.ShapeName}|{r.BoxMinX},{r.BoxMinY},{r.BoxMinZ}-{r.BoxMaxX},{r.BoxMaxY},{r.BoxMaxZ}|cc={(r.ExpectedCapCount?.ToString() ?? "-")}|cm={(int)r.CapMode}|rot={r.RotX},{r.RotY},{r.RotZ}";
+    private static string RegionResolveFingerprint(NamedRegion r)
+    {
+        var baseFp = $"{r.ShapeName}|{r.BoxMinX},{r.BoxMinY},{r.BoxMinZ}-{r.BoxMaxX},{r.BoxMaxY},{r.BoxMaxZ}|cc={(r.ExpectedCapCount?.ToString() ?? "-")}|cm={(int)r.CapMode}|rot={r.RotX},{r.RotY},{r.RotZ}";
+        if (r.VertexEdits == null || r.VertexEdits.Count == 0) return baseFp; // box-only → unchanged fingerprint
+        // Curated edits change the resolved patch, so they must invalidate the session cache. Quantized
+        // + order-independent, mirroring MeasurementCacheStore.AppendRegion's disk fingerprint.
+        var tokens = r.VertexEdits
+            .Where(e => e != null)
+            .Select(e => $"{(e.Additive ? '+' : '-')}{(long)System.Math.Round(e.X * 1e4f)},{(long)System.Math.Round(e.Y * 1e4f)},{(long)System.Math.Round(e.Z * 1e4f)}")
+            .OrderBy(s => s, System.StringComparer.Ordinal);
+        return baseFp + "|ve=[" + string.Join(";", tokens) + "]";
+    }
 
     /// <summary>Returns the baked <see cref="RegionVolumeEvaluator.ResolvedRegion"/> for
     /// <paramref name="model"/>, resolving it once against the viewer's <b>sliders-0</b> mesh (at the
@@ -5159,7 +5276,8 @@ public class VM_BodyTypeProfile : VM
         var resolved = RegionVolumeEvaluator.ResolveRegions(
             new[] { model },
             shape => viewer.GetZeroedShapePositions(shape, weight),
-            shape => viewer.GetShapeIndices(shape));
+            shape => viewer.GetShapeIndices(shape),
+            logMisses: msg => _parent?.Logger?.LogMessage(msg));
         if (!resolved.TryGetValue(model.Name, out var rr) || rr == null) return null;
 
         _resolvedRegionCache[model.Name] = (meshHash, fp, rr);
@@ -5194,6 +5312,7 @@ public class VM_BodyTypeProfile : VM
         if (region == null)
         {
             viewer.ClearRegionOverlay();
+            viewer.SetPreviewPickMarkers(null); // drop any lingering vertex-edit markers on deselect
             return;
         }
 
@@ -5213,14 +5332,40 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
+        var matched = MatchRegionEditsForOverlay(viewer, model);
         var rr = GetOrResolveRegion(viewer, model);
         if (rr == null || !rr.IsValid)
         {
             viewer.ClearRegionOverlay();
+            // Region is unresolvable/invalid, but still show the curated edit nodes (red removed / green
+            // added crosses) so the user can see and fix a bad edited region.
+            if (matched != null && !matched.IsEmpty)
+                viewer.SetRegionWireColored(BuildEditNodeCrosses(null, deformed, matched, EstimateShapeEdgeLength(viewer, model.ShapeName, deformed) * 0.6f));
+            else
+                viewer.SetRegionWireColored(null);
+            viewer.SetPreviewPickMarkers(null);
             return;
         }
 
-        PushRegionOverlay(viewer, rr, deformed);
+        PushRegionOverlay(viewer, rr, deformed, matched);
+    }
+
+    /// <summary>Rough mean triangle-edge length of a shape's current mesh, for sizing edit-node glyphs
+    /// when no resolved patch is available (invalid region). Samples the first <paramref name="sampleTris"/>
+    /// triangles; returns 0 when the shape has no geometry.</summary>
+    private static float EstimateShapeEdgeLength(VM_CharacterViewer viewer, string shapeName, OpenTK.Mathematics.Vector3[] pos, int sampleTris = 300)
+    {
+        var idx = viewer.GetShapeIndices(shapeName);
+        if (idx == null || idx.Length < 3 || pos == null || pos.Length == 0) return 0f;
+        double sum = 0; int cnt = 0;
+        for (int t = 0; t + 2 < idx.Length && cnt < sampleTris * 3; t += 3)
+        {
+            int a = idx[t], b = idx[t + 1], c = idx[t + 2];
+            if (a >= pos.Length || b >= pos.Length || c >= pos.Length) continue;
+            sum += (pos[a] - pos[b]).Length; sum += (pos[b] - pos[c]).Length; sum += (pos[c] - pos[a]).Length;
+            cnt += 3;
+        }
+        return cnt > 0 ? (float)(sum / cnt) : 0f;
     }
 
     /// <summary>Pushes a resolved region's overlay to the viewer in the current
@@ -5228,9 +5373,17 @@ public class VM_BodyTypeProfile : VM
     /// (the body the overlay should sit on). End-Cap: cyan cap-loop contour. Solid: magenta filled
     /// surface + thin cyan wireframe. Shared by the static select path (<see cref="RefreshRegionOverlay"/>)
     /// and the live box-edit preview (<see cref="RefreshSelectedRegionFromPendingBox"/>).</summary>
-    private void PushRegionOverlay(VM_CharacterViewer viewer, RegionVolumeEvaluator.ResolvedRegion rr, OpenTK.Mathematics.Vector3[] deformed)
+    // Curated-edit overlay colors. Untouched patch edges stay cyan; added vertices + the half of each
+    // incident edge nearest them go green; removed (and isolated added) vertices get small node crosses.
+    private static readonly OpenTK.Mathematics.Vector3 RegionWireCyan = new(0.20f, 0.90f, 1.0f);
+    private static readonly OpenTK.Mathematics.Vector3 RegionEditGreen = new(0.25f, 1.0f, 0.30f);
+    private static readonly OpenTK.Mathematics.Vector3 RegionEditRed = new(1.0f, 0.28f, 0.28f);
+
+    private void PushRegionOverlay(VM_CharacterViewer viewer, RegionVolumeEvaluator.ResolvedRegion rr,
+        OpenTK.Mathematics.Vector3[] deformed, RegionVolumeEvaluator.MatchedEdits? edits)
     {
-        var cyan = new OpenTK.Mathematics.Vector3(0.20f, 0.90f, 1.0f);
+        var cyan = RegionWireCyan;
+        bool hasEdits = edits != null && !edits.IsEmpty;
 
         // Build the per-loop EDGES for the overlay, drawn in the region's cap mode so the contour
         // matches the measured volume: FlatPlane projects the ring onto the flat cut plane (a clean
@@ -5248,22 +5401,116 @@ public class VM_BodyTypeProfile : VM
         if (RegionViewMode == RegionViewModeKind.Solid)
         {
             // Solid mode: magenta filled surface (patch + caps) drawn through the body, with a THIN
-            // cyan WIREFRAME of the patch triangle edges over it (vertices+edges as wireframe, faces as
-            // solid). No marker spheres (too big) and no thick contour — the wireframe carries the
-            // vertex/edge detail. The solid + wire come from the same baked region the volume uses.
+            // wireframe of the patch triangle edges over it. Unedited regions keep the original
+            // single-color cyan wire; edited ones get the per-segment-colored edit wire (green added
+            // half-edges + red removed-node crosses) instead.
             var solid = RegionVolumeEvaluator.BuildSolidSurface(rr, deformed, rr.CapMode);
-            var wire = RegionVolumeEvaluator.BuildSolidWireframe(rr, deformed);
-            viewer.SetRegionSolid(solid, wire, cyan);
+            if (hasEdits)
+            {
+                viewer.SetRegionSolid(solid, null);                                   // faces only
+                viewer.SetRegionWireColored(BuildColoredEditWire(rr, deformed, edits!)); // colored wire + node crosses
+            }
+            else
+            {
+                var wire = RegionVolumeEvaluator.BuildSolidWireframe(rr, deformed);
+                viewer.SetRegionSolid(solid, wire, cyan);                             // original behavior
+            }
             // Clear the cap-loop contour/markers channel — the wireframe replaces it in Solid mode.
             viewer.SetRegionOverlay(null, null, cyan);
         }
         else
         {
-            // End-Cap mode (default): just the clean cyan contour, no per-vertex markers (a fine cut
-            // loop's vertices sit under the marker radius and would render as a lumpy beaded cord).
+            // End-Cap mode (default): the clean cyan contour. When edited, add the green/red node
+            // crosses so the curated vertices are still visible without cluttering the contour.
             viewer.SetRegionSolid(null);
             viewer.SetRegionOverlay(null, edges, cyan);
+            viewer.SetRegionWireColored(hasEdits ? BuildEditNodeCrosses(rr, deformed, edits!, null) : null);
         }
+
+        // The colored wire / crosses replace the old preview-sphere markers — make sure none linger.
+        viewer.SetPreviewPickMarkers(null);
+    }
+
+    /// <summary>Colored Solid-mode wireframe for an edited region: each patch edge is cyan, except the
+    /// half nearest a curated <i>added</i> vertex, which is green (a whole edge between two added
+    /// vertices is fully green). Removed vertices — which have no edges, having been carved out — and
+    /// isolated added vertices (no triangle formed yet) get small node crosses (red / green) sized to
+    /// the local mesh.</summary>
+    private List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> BuildColoredEditWire(
+        RegionVolumeEvaluator.ResolvedRegion rr, OpenTK.Mathematics.Vector3[] deformed, RegionVolumeEvaluator.MatchedEdits edits)
+    {
+        var segs = new List<(OpenTK.Mathematics.Vector3, OpenTK.Mathematics.Vector3, OpenTK.Mathematics.Vector3)>();
+        var tagged = RegionVolumeEvaluator.BuildTaggedWireframe(rr, deformed, edits.AddIndices);
+
+        foreach (var (a, b, aAdded, bAdded) in tagged.Edges)
+        {
+            if (aAdded && bAdded) segs.Add((a, b, RegionEditGreen));
+            else if (!aAdded && !bAdded) segs.Add((a, b, RegionWireCyan));
+            else
+            {
+                var mid = (a + b) * 0.5f;
+                if (aAdded) { segs.Add((a, mid, RegionEditGreen)); segs.Add((mid, b, RegionWireCyan)); }
+                else { segs.Add((a, mid, RegionWireCyan)); segs.Add((mid, b, RegionEditGreen)); }
+            }
+        }
+
+        // Node crosses: red for removed vertices (no edges to recolor); green for any added vertex that
+        // didn't form a triangle (isolated — neighbors not all members yet), so it's still visible.
+        float size = tagged.AverageEdgeLength > 1e-4f ? tagged.AverageEdgeLength * 0.6f : 0.5f;
+        AppendNodeCrosses(segs, edits.RemoveIndices, deformed, RegionEditRed, size);
+        foreach (var idx in edits.AddIndices)
+            if (!tagged.PresentAddedIndices.Contains(idx))
+                AppendCross(segs, idx, deformed, RegionEditGreen, size);
+        return segs;
+    }
+
+    /// <summary>End-Cap-mode (or invalid-patch) edit decoration: just the node crosses — green for
+    /// added vertices, red for removed — with no half-edge recolor (no patch wireframe is drawn).
+    /// <paramref name="sizeHint"/> overrides the auto size when the patch has no edges to measure.</summary>
+    private List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> BuildEditNodeCrosses(
+        RegionVolumeEvaluator.ResolvedRegion? rr, OpenTK.Mathematics.Vector3[] deformed, RegionVolumeEvaluator.MatchedEdits edits, float? sizeHint)
+    {
+        var segs = new List<(OpenTK.Mathematics.Vector3, OpenTK.Mathematics.Vector3, OpenTK.Mathematics.Vector3)>();
+        float size = sizeHint
+            ?? (rr != null ? RegionVolumeEvaluator.BuildTaggedWireframe(rr, deformed, edits.AddIndices).AverageEdgeLength * 0.6f : 0f);
+        if (size <= 1e-4f) size = 0.5f;
+        AppendNodeCrosses(segs, edits.AddIndices, deformed, RegionEditGreen, size);
+        AppendNodeCrosses(segs, edits.RemoveIndices, deformed, RegionEditRed, size);
+        return segs;
+    }
+
+    private static void AppendNodeCrosses(
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> segs,
+        IEnumerable<int> indices, OpenTK.Mathematics.Vector3[] deformed, OpenTK.Mathematics.Vector3 color, float size)
+    {
+        foreach (var idx in indices) AppendCross(segs, idx, deformed, color, size);
+    }
+
+    private static void AppendCross(
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)> segs,
+        int idx, OpenTK.Mathematics.Vector3[] deformed, OpenTK.Mathematics.Vector3 color, float size)
+    {
+        if (idx < 0 || idx >= deformed.Length) return;
+        var c = deformed[idx];
+        segs.Add((c - new OpenTK.Mathematics.Vector3(size, 0, 0), c + new OpenTK.Mathematics.Vector3(size, 0, 0), color));
+        segs.Add((c - new OpenTK.Mathematics.Vector3(0, size, 0), c + new OpenTK.Mathematics.Vector3(0, size, 0), color));
+        segs.Add((c - new OpenTK.Mathematics.Vector3(0, 0, size), c + new OpenTK.Mathematics.Vector3(0, 0, size), color));
+    }
+
+    /// <summary>Matches the region's curated edits to current-mesh vertex indices for the overlay's
+    /// add/remove coloring. Returns null when the region has no edits (so the overlay takes the plain
+    /// cyan path). Matched against the sliders-0 mesh (the space edits are stored in).</summary>
+    private RegionVolumeEvaluator.MatchedEdits? MatchRegionEditsForOverlay(VM_CharacterViewer viewer, NamedRegion model)
+    {
+        if (model?.VertexEdits == null || model.VertexEdits.Count == 0) return null;
+        int weight = model.DefiningWeight >= 0 ? model.DefiningWeight : (_parent?.PreviewWeight ?? 0);
+        var zeroed = viewer.GetZeroedShapePositions(model.ShapeName, weight);
+        if (zeroed == null || zeroed.Length == 0) return null;
+        var refs = new List<RegionVolumeEvaluator.VertexEditRef>(model.VertexEdits.Count);
+        foreach (var e in model.VertexEdits)
+            if (e != null)
+                refs.Add(new RegionVolumeEvaluator.VertexEditRef(new OpenTK.Mathematics.Vector3(e.X, e.Y, e.Z), e.Additive, e.IndexHint));
+        return RegionVolumeEvaluator.MatchVertexEdits(zeroed, refs, RegionVolumeEvaluator.DefaultVertexEditMatchEps);
     }
 
     /// <summary>How the selected region is visualized in the viewer. End-Cap (default) shows just the
@@ -8903,10 +9150,22 @@ public class VM_NamedRegion : VM
         CapMode = source.CapMode;
         DefiningPresetLabel = source.DefiningPresetLabel ?? "";
         DefiningWeight = source.DefiningWeight;
+        // Deep-copy the curated vertex edits so the row VM owns its own mutable list (the geometry the
+        // model holds and the geometry the grid edits must not alias).
+        if (source.VertexEdits != null)
+            foreach (var e in source.VertexEdits)
+                if (e != null)
+                    VertexEdits.Add(new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint });
+        EditedVertexCount = VertexEdits.Count;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => _parent.Regions.Remove(this));
+
+        // Reverts the region to a plain box (drops every curated vertex edit). No-ops when there are none.
+        ClearEditsCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => _parent.ClearRegionVertexEdits(this));
     }
 
     public string Name { get; set; }
@@ -8936,6 +9195,19 @@ public class VM_NamedRegion : VM
     /// <summary>Combo options for the CapMode column.</summary>
     public static System.Array CapModeOptions { get; } = System.Enum.GetValues(typeof(RegionVolumeEvaluator.RegionCapMode));
 
+    /// <summary>Hand-curated add/remove vertex edits (Option B), in zeroed space. Mutated by the
+    /// editor's vertex-edit pick handler; mirrored to/from the model. Non-empty switches the region's
+    /// resolve onto the vertex-granular induced path. Bulk-managed (not per-field bound), so the row
+    /// surfaces <see cref="EditedVertexCount"/> for its badge rather than the list itself.</summary>
+    public List<RegionVertexEdit> VertexEdits { get; set; } = new();
+
+    /// <summary>Count of <see cref="VertexEdits"/>, surfaced for the grid's "edited" badge. Set whenever
+    /// the list changes (Fody raises the notification so the badge updates live).</summary>
+    public int EditedVertexCount { get; set; }
+
+    /// <summary>True when this region carries any curated vertex edit (drives the row badge visibility).</summary>
+    public bool HasVertexEdits => EditedVertexCount > 0;
+
     /// <summary>Recordkeeping (read-only in the grid): the preset + weight the box was authored
     /// against. The box is stored in sliders-0 space; these just let the user reload that context.</summary>
     public string DefiningPresetLabel { get; set; } = "";
@@ -8964,6 +9236,10 @@ public class VM_NamedRegion : VM
 
     public RelayCommand DeleteCommand { get; }
 
+    /// <summary>Drops every curated vertex edit, reverting the region to its plain box. Bound to the
+    /// "Clear edits" affordance in the Regions grid.</summary>
+    public RelayCommand ClearEditsCommand { get; }
+
     public NamedRegion DumpToModel() => new()
     {
         Name = Name?.Trim() ?? "",
@@ -8981,6 +9257,11 @@ public class VM_NamedRegion : VM
         CapMode = CapMode,
         DefiningPresetLabel = DefiningPresetLabel ?? "",
         DefiningWeight = DefiningWeight,
+        VertexEdits = VertexEdits == null
+            ? new List<RegionVertexEdit>()
+            : VertexEdits.Where(e => e != null)
+                .Select(e => new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint })
+                .ToList(),
     };
 }
 

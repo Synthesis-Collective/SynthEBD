@@ -348,6 +348,43 @@ public class NamedRegion
     /// </summary>
     public string DefiningPresetLabel { get; set; } = "";
     public int DefiningWeight { get; set; } = -1;
+
+    /// <summary>
+    /// Hand-curated add/remove vertex edits layered on top of the box (Option B — "box + edit layer").
+    /// Empty (the default, and what old JSON deserializes to) = a plain box that resolves exactly as
+    /// before. Non-empty triggers "bake-on-first-edit": the patch is then resolved by the vertex-granular
+    /// induced rule (box ∪ additive-edits \ subtractive-edits) instead of the smooth analytic clip.
+    ///
+    /// <para>Each edit is stored renumber-stably as a zeroed-space position (never a raw index — a
+    /// body-mod reinstall renumbers indices but the mesh-local position survives), matched back to the
+    /// current mesh by <c>RegionVolumeEvaluator.MatchVertexEdits</c> at resolve time. This is in the
+    /// measurement fingerprint (a vertex edit changes the computed volume) but, like the box, is excluded
+    /// from session-derived data.</para>
+    /// </summary>
+    public List<RegionVertexEdit> VertexEdits { get; set; } = new();
+}
+
+/// <summary>
+/// One hand-curated add/remove vertex edit on a <see cref="NamedRegion"/>. Persisted as a zeroed-space
+/// position (<see cref="X"/>/<see cref="Y"/>/<see cref="Z"/>) so it survives vertex renumbering, plus a
+/// non-authoritative <see cref="IndexHint"/> that is validated by position and never trusted blindly.
+/// <see cref="Additive"/> = true forces the matched vertex into the region (grows the patch past the
+/// box); = false forces it out (an interior removal opens a hole). Mirrors the float-field style of the
+/// box coordinates on <see cref="NamedRegion"/>.
+/// </summary>
+[DebuggerDisplay("{(Additive ? \"+\" : \"-\")} [{X},{Y},{Z}] hint={IndexHint}")]
+public class RegionVertexEdit
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>true = additive (force into the region), false = subtractive (force out).</summary>
+    public bool Additive { get; set; } = true;
+
+    /// <summary>Last-resolved original vertex index. A performance hint only — re-validated against the
+    /// stored position at resolve time, and silently re-searched if a renumber invalidated it. -1 = none.</summary>
+    public int IndexHint { get; set; } = -1;
 }
 
 /// <summary>
