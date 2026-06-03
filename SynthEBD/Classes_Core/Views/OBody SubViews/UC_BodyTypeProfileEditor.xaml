@@ -553,6 +553,10 @@
 
                             <TabItem Header="Regions">
                                 <DockPanel>
+                                    <DockPanel.InputBindings>
+                                        <KeyBinding Modifiers="Control" Key="Z" Command="{Binding UndoRegionEditCommand}"/>
+                                        <KeyBinding Modifiers="Control" Key="Y" Command="{Binding RedoRegionEditCommand}"/>
+                                    </DockPanel.InputBindings>
                                     <Border DockPanel.Dock="Top"
                                             Style="{StaticResource DuplicateNameBannerStyle}"
                                             Visibility="{Binding HasDuplicateRegionNames, Converter={StaticResource BoolToVis}}">
@@ -573,6 +577,13 @@
                                                   ItemsSource="{Binding RegionViewModeOptions}"
                                                   Width="120"
                                                   ToolTip="How the selected region is drawn in the viewer. End-Cap: just the cyan cut contour. Solid: the whole region as a magenta filled object, visible through the body from any angle, with cyan vertices + edges on top."/>
+                                        <Separator Margin="10,0" Background="#FF555555"/>
+                                        <Button Content="↶ Undo" FontSize="11" Padding="8,2" Margin="0,0,4,0"
+                                                Command="{Binding UndoRegionEditCommand}"
+                                                ToolTip="Undo the last vertex add/remove on the selected region (a click or a lasso = one action; up to 50 steps). Ctrl+Z."/>
+                                        <Button Content="↷ Redo" FontSize="11" Padding="8,2"
+                                                Command="{Binding RedoRegionEditCommand}"
+                                                ToolTip="Redo the last undone vertex edit on the selected region. Ctrl+Y."/>
                                     </StackPanel>
                                     <DataGrid x:Name="RegionsGrid"
                                               ItemsSource="{Binding Regions}"

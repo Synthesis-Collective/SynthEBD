@@ -3275,6 +3275,13 @@ public class VM_BodyTypeProfile : VM
             canExecute: _ => true,
             execute: _ => Measurements.Add(new VM_MeasurementDefinition(new MeasurementDefinition { Name = NextDefaultName("Measurement", Measurements.Select(x => x.Name)) }, this)));
 
+        UndoRegionEditCommand = new RelayCommand(
+            canExecute: _ => CanUndoRegionEdit,
+            execute: _ => UndoRegionEdit());
+        RedoRegionEditCommand = new RelayCommand(
+            canExecute: _ => CanRedoRegionEdit,
+            execute: _ => RedoRegionEdit());
+
         // Developer convenience: uniform Ctrl+S/Ctrl+L on every Body Type Profile sub-tab
         // (KeyVertices, Measurements, Rules) saves and loads that tab's collection as a
         // standalone JSON envelope. Format matches the Revised_BodyTypeProfile_Rules.json
@@ -4422,6 +4429,23 @@ public class VM_BodyTypeProfile : VM
             {
                 if (!hasBox)
                 {
+                    // A real Cancel (the Cancel button: no pick fired, not a programmatic teardown)
+                    // reverts the vertex edits made since the session began. A confirm or a click-away
+                    // does not.
+                    if (!_regionPickFiredThisSession && !_suppressCancelRevert
+                        && _regionSessionBaselineRegion != null && Regions.Contains(_regionSessionBaselineRegion))
+                    {
+                        ApplyRegionEditSnapshot(_regionSessionBaselineRegion, _regionSessionBaseline);
+                        if (ReferenceEquals(_regionEditHistoryOwner, _regionSessionBaselineRegion))
+                        {
+                            _regionEditUndo.Clear();
+                            _regionEditRedo.Clear();
+                        }
+                    }
+                    _regionPickFiredThisSession = false;
+                    _regionSessionBaseline = null;
+                    _regionSessionBaselineRegion = null;
+
                     _pendingBoxEditTarget = null;
                     _pendingRegionEditTarget = null;
                     _pendingRegionDeformedPositions = null;
@@ -4804,6 +4828,8 @@ public class VM_BodyTypeProfile : VM
     public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
     {
         ActiveViewer = viewer;
+        _regionPickFiredThisSession = true; // a Confirm was clicked (even if the guard below cancels it,
+                                            // the user pressed a Confirm, not the Cancel button)
 
         // Guard: a region box-edit session is active but the user clicked a bounding-box / key-vertex
         // Confirm (the green "Confirm" or "Confirm as Duplicate") instead of "Confirm as Region". That
@@ -4972,10 +4998,18 @@ public class VM_BodyTypeProfile : VM
 
         if (region == null || string.IsNullOrEmpty(region.ShapeName))
         {
-            // Selection moved off a region: tear down the region edit session if one is active. The
-            // HasPendingBox subscription clears the region edit-target + caches.
+            // Selection moved off a region: tear down the region edit session if one is active. This is a
+            // programmatic cancel (clicking AWAY), NOT the Cancel button, so it must NOT revert the
+            // region's committed vertex edits — suppress the revert around it. The HasPendingBox
+            // subscription clears _pendingRegionEditTarget + caches.
             if (_pendingRegionEditTarget != null && viewer.HasPendingBox)
-                viewer.CancelPendingBox();
+            {
+                _suppressCancelRevert = true;
+                try { viewer.CancelPendingBox(); } finally { _suppressCancelRevert = false; }
+            }
+            // No region selected → no undo history applies.
+            _regionEditHistoryOwner = null;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             return;
         }
 
@@ -5006,6 +5040,8 @@ public class VM_BodyTypeProfile : VM
         }
 
         _pendingRegionEditTarget = region;
+        // Start a fresh edit session: snapshot the baseline (for Cancel-revert) and clear undo/redo.
+        BeginRegionEditSession(region);
         // Criterion is irrelevant for regions; pass a default. BeginPendingBox resets ShowZeroed=false,
         // which matches _pendingRegionBoxIsZeroed=false for the deformed display box above.
         var initial = new VM_CharacterViewer.KeyVertexBoxPick(
@@ -5076,6 +5112,7 @@ public class VM_BodyTypeProfile : VM
     public void OnRegionBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
     {
         ActiveViewer = viewer;
+        _regionPickFiredThisSession = true; // a confirm happened → the pending teardown is not a Cancel
 
         var shapeName = pick.ShapeName ?? "";
         var boxMin = pick.BoxMin;
@@ -5109,14 +5146,11 @@ public class VM_BodyTypeProfile : VM
         var editTarget = _pendingRegionEditTarget;
         // Guard against the row being deleted mid-edit.
         if (editTarget != null && !Regions.Contains(editTarget)) editTarget = null;
-        // "Duplicate as Region" forks to a new row even mid-edit (matches the KV behavior). Capture the
-        // region being forked first so the new row can carry its curated vertex edits.
-        VM_NamedRegion? duplicateSource = null;
-        if (pick.IsDuplicate)
-        {
-            duplicateSource = editTarget ?? SelectedRegion;
-            editTarget = null;
-        }
+        // "Duplicate as Region" forks to a new row even mid-edit. The source is the region whose box-edit
+        // session is active (NOT just any selected row), so a fresh draw doesn't accidentally clone an
+        // unrelated selection.
+        VM_NamedRegion? duplicateSource = pick.IsDuplicate ? editTarget : null;
+        if (pick.IsDuplicate) editTarget = null;
 
         VM_NamedRegion target;
         if (editTarget != null)
@@ -5128,32 +5162,132 @@ public class VM_BodyTypeProfile : VM
             target = editTarget;
             _pendingRegionEditTarget = null;
         }
+        else if (duplicateSource != null)
+        {
+            // Duplicate an existing region: make an EXACT deep copy (box, rotation, cap, expected caps,
+            // defining preset, and curated vertex edits) from its stored zeroed data. This bypasses the
+            // pending box entirely — that box was round-tripped zeroed→deformed for display, and feeding
+            // it back through ConvertBoxByVertexSet (deformed→zeroed) would expand it (the conversion
+            // isn't an exact inverse), catching extra periphery vertices. Copying the source's stored box
+            // makes the fork identical, with no drift.
+            target = DuplicateRegionRow(duplicateSource);
+        }
         else
         {
+            // Fresh draw (or duplicate with no active region session): create a region from the drawn box.
             var presetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
             target = AddRegionRow(shapeName, boxMin, boxMax, presetLabel, weight);
-            // A region duplicate carries the source region's curated vertex edits. They're stored as
-            // zeroed-space positions (box-independent), so they apply to the fork's box the same way.
-            if (duplicateSource != null && duplicateSource.VertexEdits.Count > 0)
-            {
-                foreach (var e in duplicateSource.VertexEdits)
-                    if (e != null)
-                        target.VertexEdits.Add(new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint });
-                target.EditedVertexCount = target.VertexEdits.Count;
-            }
         }
 
         // For a fresh draw / in-place box edit, select the (new/updated) row. For a DUPLICATE, leave the
-        // selection on the original: selecting the fork would fire SyncRegionBoxEditSessionWithSelection,
-        // which re-seeds the pending box by round-tripping the fork's stored box back into deformed space
-        // (ConvertBoxByVertexSet zeroed->deformed is not an exact inverse). Each duplicate would then
-        // drift the box and catch more periphery vertices. Keeping the original selected anchors the
-        // pending box so repeated duplicates are identical copies.
+        // selection on the original so its box-edit session (and the pending box) stay anchored and
+        // repeated duplicates are identical copies.
         if (!pick.IsDuplicate) SelectedRegion = target;
         // Resolve the (new/updated) row's box against the zeroed mesh so its Status badge + overlay
         // populate immediately (RefreshMeasurementValues runs RecomputeRegionResolutionStates at its tail).
         RefreshMeasurementValues();
         RefreshRegionOverlay();
+    }
+
+    // ─────────────── Region vertex-edit undo/redo + Cancel-revert ───────────────
+    // Each vertex-edit ACTION (one click, or one lasso of many vertices = a single action) snapshots the
+    // region's edit list so it can be undone/redone, capped at the last RegionEditHistoryCap actions. The
+    // history is per-region: it's cleared when the selected region changes (a fresh editing session). A
+    // separate session BASELINE is captured when a region's box-edit session begins, so the pending-box
+    // "Cancel" reverts every vertex edit made since you (re-)selected the region — while clicking AWAY to
+    // another row keeps your edits (they're committed live).
+
+    private const int RegionEditHistoryCap = 50;
+    private readonly List<List<RegionVertexEdit>> _regionEditUndo = new();
+    private readonly List<List<RegionVertexEdit>> _regionEditRedo = new();
+    private VM_NamedRegion? _regionEditHistoryOwner;
+
+    /// <summary>Vertex edits at the start of the current box-edit session, restored by "Cancel".</summary>
+    private List<RegionVertexEdit>? _regionSessionBaseline;
+    private VM_NamedRegion? _regionSessionBaselineRegion;
+    /// <summary>Set when a box pick (region or key-vertex) is confirmed, so the HasPendingBox→false
+    /// handler can tell a real Cancel (no pick) from a confirm.</summary>
+    private bool _regionPickFiredThisSession;
+    /// <summary>Set while the editor itself programmatically cancels the pending box (selection moved
+    /// off a region) so that path doesn't revert the just-committed edits like the Cancel button does.</summary>
+    private bool _suppressCancelRevert;
+
+    public RelayCommand UndoRegionEditCommand { get; }
+    public RelayCommand RedoRegionEditCommand { get; }
+
+    /// <summary>True when there's an undoable vertex-edit action for the selected region.</summary>
+    public bool CanUndoRegionEdit =>
+        SelectedRegion != null && ReferenceEquals(_regionEditHistoryOwner, SelectedRegion) && _regionEditUndo.Count > 0;
+    public bool CanRedoRegionEdit =>
+        SelectedRegion != null && ReferenceEquals(_regionEditHistoryOwner, SelectedRegion) && _regionEditRedo.Count > 0;
+
+    private static List<RegionVertexEdit> SnapshotEdits(VM_NamedRegion region) =>
+        region.VertexEdits.Where(e => e != null)
+            .Select(e => new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint })
+            .ToList();
+
+    /// <summary>Pushes <paramref name="beforeState"/> (the edit list prior to an action) onto the undo
+    /// stack for <paramref name="region"/>, resetting the history if it belonged to a different region,
+    /// capping its depth, and clearing the redo stack (a new action invalidates the redo branch).</summary>
+    private void PushRegionEditUndo(VM_NamedRegion region, List<RegionVertexEdit> beforeState)
+    {
+        if (!ReferenceEquals(_regionEditHistoryOwner, region))
+        {
+            _regionEditUndo.Clear();
+            _regionEditHistoryOwner = region;
+        }
+        _regionEditUndo.Add(beforeState);
+        if (_regionEditUndo.Count > RegionEditHistoryCap) _regionEditUndo.RemoveAt(0);
+        _regionEditRedo.Clear();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>Replaces a region's vertex edits with <paramref name="snapshot"/> and refreshes its
+    /// volume + overlay (used by undo/redo and Cancel-revert).</summary>
+    private void ApplyRegionEditSnapshot(VM_NamedRegion region, List<RegionVertexEdit>? snapshot)
+    {
+        region.VertexEdits.Clear();
+        if (snapshot != null)
+            foreach (var e in snapshot)
+                region.VertexEdits.Add(new RegionVertexEdit { X = e.X, Y = e.Y, Z = e.Z, Additive = e.Additive, IndexHint = e.IndexHint });
+        region.EditedVertexCount = region.VertexEdits.Count;
+        InvalidateResolvedRegion(region.Name);
+        RefreshMeasurementValues();
+        if (ReferenceEquals(region, SelectedRegion)) RefreshRegionOverlay();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    public void UndoRegionEdit()
+    {
+        var region = SelectedRegion;
+        if (region == null || !ReferenceEquals(_regionEditHistoryOwner, region) || _regionEditUndo.Count == 0) return;
+        _regionEditRedo.Add(SnapshotEdits(region));                 // current state → redo
+        var prev = _regionEditUndo[^1];
+        _regionEditUndo.RemoveAt(_regionEditUndo.Count - 1);
+        ApplyRegionEditSnapshot(region, prev);
+    }
+
+    public void RedoRegionEdit()
+    {
+        var region = SelectedRegion;
+        if (region == null || !ReferenceEquals(_regionEditHistoryOwner, region) || _regionEditRedo.Count == 0) return;
+        _regionEditUndo.Add(SnapshotEdits(region));                 // current state → undo
+        var next = _regionEditRedo[^1];
+        _regionEditRedo.RemoveAt(_regionEditRedo.Count - 1);
+        ApplyRegionEditSnapshot(region, next);
+    }
+
+    /// <summary>Captures the per-region undo baseline when a box-edit session begins (the region is
+    /// (re-)selected), and clears the action history so undo/redo is scoped to this session.</summary>
+    private void BeginRegionEditSession(VM_NamedRegion region)
+    {
+        _regionSessionBaseline = SnapshotEdits(region);
+        _regionSessionBaselineRegion = region;
+        _regionPickFiredThisSession = false;
+        _regionEditUndo.Clear();
+        _regionEditRedo.Clear();
+        _regionEditHistoryOwner = region;
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
     /// <summary>Applies a viewer vertex-edit pick (one click or a rubber-band of vertices, Add or
@@ -5202,6 +5336,9 @@ public class VM_BodyTypeProfile : VM
             return dx * dx + dy * dy + dz * dz;
         }
 
+        // Snapshot the edit list BEFORE this action (one click or one lasso = a single undoable action).
+        var beforeEdits = SnapshotEdits(region);
+
         int changed = 0;
         for (int i = 0; i < pick.Count; i++)
         {
@@ -5232,6 +5369,7 @@ public class VM_BodyTypeProfile : VM
         }
         if (changed == 0) return;
 
+        PushRegionEditUndo(region, beforeEdits);
         region.EditedVertexCount = region.VertexEdits.Count;
         InvalidateResolvedRegion(region.Name);
         RefreshMeasurementValues();
@@ -5239,15 +5377,30 @@ public class VM_BodyTypeProfile : VM
     }
 
     /// <summary>Clears all curated vertex edits on <paramref name="region"/> (reverts it to the plain
-    /// box / smooth-clip path) and refreshes. Bound to the "Clear edits" affordance.</summary>
+    /// box / smooth-clip path) and refreshes. Bound to the "Clear edits" affordance. Undoable.</summary>
     public void ClearRegionVertexEdits(VM_NamedRegion? region)
     {
         if (region == null || region.VertexEdits.Count == 0) return;
+        PushRegionEditUndo(region, SnapshotEdits(region));
         region.VertexEdits.Clear();
         region.EditedVertexCount = 0;
         InvalidateResolvedRegion(region.Name);
         RefreshMeasurementValues();
         if (ReferenceEquals(region, SelectedRegion)) RefreshRegionOverlay();
+    }
+
+    /// <summary>Creates an exact copy of <paramref name="source"/> (box, rotation, cap mode, expected
+    /// caps, defining preset, and curated vertex edits) as a new row with a unique name. Uses the
+    /// source's stored zeroed data directly — no pending-box round-trip — so duplicating never drifts
+    /// the box or re-selects extra vertices. <see cref="VM_NamedRegion"/>'s ctor deep-copies the model
+    /// (including the edit list).</summary>
+    private VM_NamedRegion DuplicateRegionRow(VM_NamedRegion source)
+    {
+        var model = source.DumpToModel();
+        model.Name = NextDefaultName("Region", Regions.Select(r => r.Name));
+        var vm = new VM_NamedRegion(model, this);
+        Regions.Add(vm);
+        return vm;
     }
 
     private VM_NamedRegion AddRegionRow(
