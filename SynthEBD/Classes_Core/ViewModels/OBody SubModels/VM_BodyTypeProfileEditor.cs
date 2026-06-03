@@ -4382,6 +4382,13 @@ public class VM_BodyTypeProfile : VM
     /// region box is being edited.</summary>
     private OpenTK.Mathematics.Vector3[]? _pendingRegionDeformedPositions;
 
+    /// <summary>The pending box exactly as a region edit-session opened it (the framed display box).
+    /// On Confirm, if the current pending box still equals this, the user never touched the box, so we
+    /// keep the region's STORED zeroed box verbatim instead of re-converting it — re-converting after a
+    /// preset/weight change captures the wrong vertices and corrupts the box ("Bad box"). Null when no
+    /// region box session is active.</summary>
+    private RegionVolumeEvaluator.RegionAabb? _pendingRegionSessionBox;
+
     /// <summary>True while a region box is open and the body has been flipped to its zeroed state, so
     /// the pending-box coords are currently in ZEROED space (vs deformed). Tracks the viewer's
     /// PendingBoxShowZeroed for the region edit path so confirm/flip convert in the right direction.</summary>
@@ -4449,6 +4456,7 @@ public class VM_BodyTypeProfile : VM
                     _pendingBoxEditTarget = null;
                     _pendingRegionEditTarget = null;
                     _pendingRegionDeformedPositions = null;
+                    _pendingRegionSessionBox = null;
                     _pendingRegionBoxIsZeroed = false;
                 }
             });
@@ -5040,6 +5048,7 @@ public class VM_BodyTypeProfile : VM
         }
 
         _pendingRegionEditTarget = region;
+        _pendingRegionSessionBox = displayBox; // remember the framed box so Confirm can tell "untouched"
         // Start a fresh edit session: snapshot the baseline (for Cancel-revert) and clear undo/redo.
         BeginRegionEditSession(region);
         // Criterion is irrelevant for regions; pass a default. BeginPendingBox resets ShowZeroed=false,
@@ -5117,15 +5126,36 @@ public class VM_BodyTypeProfile : VM
         var shapeName = pick.ShapeName ?? "";
         var boxMin = pick.BoxMin;
         var boxMax = pick.BoxMax;
-        int weight = _parent?.PreviewWeight ?? 0;
+        var sessionRegion = _pendingRegionEditTarget;
+        // The box must convert against the SAME (deformed mesh, weight) it was framed on. For an active
+        // edit session that is the session-start snapshot, NOT the live body — otherwise changing the
+        // preset (or weight) after framing the box re-converts it against a different mesh, capturing the
+        // wrong vertices and producing a corrupt "Bad box". Use the region's resolve weight too, matching
+        // how the session cache + GetOrResolveRegion read the zeroed mesh.
+        int weight = (sessionRegion?.DefiningWeight ?? -1) >= 0
+            ? sessionRegion!.DefiningWeight
+            : (_parent?.PreviewWeight ?? 0);
 
-        // The pending box is in DEFORMED space unless the user flipped to "Show zeroed body" while it
-        // was open — then it's already zeroed and needs no conversion. Convert deformed→zeroed so the
-        // stored box bounds the same vertex set on the topology-stable sliders-0 mesh.
+        // If this is an edit session and the user never TOUCHED the box (the pending box still equals the
+        // one the session framed), keep the region's STORED zeroed box verbatim — don't re-convert. The
+        // box is already correct in zeroed space; re-converting it (especially after a mid-edit preset or
+        // weight change, which is NOT re-framed onto the pending box) would capture the wrong vertices and
+        // corrupt it ("Bad box"). Keeping the stored box also correctly leaves "Defined On" unchanged.
+        bool boxUntouched = sessionRegion != null && Regions.Contains(sessionRegion)
+            && _pendingRegionSessionBox.HasValue
+            && BoxApproxEqual(pick.BoxMin, pick.BoxMax, _pendingRegionSessionBox.Value, 1e-3f);
+
         bool alreadyZeroed = viewer.PendingBoxShowZeroed;
-        if (!alreadyZeroed)
+        if (boxUntouched)
         {
-            var deformed = viewer.GetShapePositions(shapeName);
+            boxMin = new OpenTK.Mathematics.Vector3(sessionRegion!.BoxMinX, sessionRegion.BoxMinY, sessionRegion.BoxMinZ);
+            boxMax = new OpenTK.Mathematics.Vector3(sessionRegion.BoxMaxX, sessionRegion.BoxMaxY, sessionRegion.BoxMaxZ);
+        }
+        else if (!alreadyZeroed)
+        {
+            // Framing-time deformed mesh (cached when the session began) so a mid-edit preset/weight
+            // change doesn't shift the conversion; fall back to the live body for a fresh draw.
+            var deformed = _pendingRegionDeformedPositions ?? viewer.GetShapePositions(shapeName);
             var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
             if (deformed != null && zeroed != null)
             {
@@ -5388,6 +5418,11 @@ public class VM_BodyTypeProfile : VM
         RefreshMeasurementValues();
         if (ReferenceEquals(region, SelectedRegion)) RefreshRegionOverlay();
     }
+
+    /// <summary>Component-wise approximate equality of a (min,max) box against a <see cref="RegionVolumeEvaluator.RegionAabb"/>.</summary>
+    private static bool BoxApproxEqual(OpenTK.Mathematics.Vector3 min, OpenTK.Mathematics.Vector3 max, RegionVolumeEvaluator.RegionAabb other, float eps)
+        => System.MathF.Abs(min.X - other.Min.X) <= eps && System.MathF.Abs(min.Y - other.Min.Y) <= eps && System.MathF.Abs(min.Z - other.Min.Z) <= eps
+        && System.MathF.Abs(max.X - other.Max.X) <= eps && System.MathF.Abs(max.Y - other.Max.Y) <= eps && System.MathF.Abs(max.Z - other.Max.Z) <= eps;
 
     /// <summary>Creates an exact copy of <paramref name="source"/> (box, rotation, cap mode, expected
     /// caps, defining preset, and curated vertex edits) as a new row with a unique name. Uses the
