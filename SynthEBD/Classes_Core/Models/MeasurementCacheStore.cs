@@ -366,6 +366,29 @@ public static class MeasurementCacheStore
         return Sha256Hex(sb.ToString());
     }
 
+    /// <summary>Decides whether a single cache entry is complete-and-current relative to the
+    /// supplied current fingerprints: it must hold every current measurement <i>key</i> under a
+    /// fingerprint that matches. A present key with a <c>null</c> value is current — null is a valid
+    /// terminal scan result ("the evaluator ran but produced no number for this preset/weight"),
+    /// stored deliberately with its fingerprint, so it must not count as incomplete. Only a genuinely
+    /// absent key (never scanned) or an absent/mismatched fingerprint (definition drifted) is
+    /// not-current. Currency is decided by the fingerprint, never the value.</summary>
+    public static bool EntryHasAllCurrentMeasurements(
+        IReadOnlyDictionary<string, string> currentFingerprints,
+        IReadOnlyDictionary<string, float?>? entryValues,
+        IReadOnlyDictionary<string, string>? entryFingerprints)
+    {
+        if (currentFingerprints == null) return true;
+        if (entryValues == null || entryFingerprints == null) return false;
+        foreach (var kv in currentFingerprints)
+        {
+            if (!entryValues.ContainsKey(kv.Key)) return false;
+            if (!entryFingerprints.TryGetValue(kv.Key, out var fp)
+                || !string.Equals(fp, kv.Value, StringComparison.Ordinal)) return false;
+        }
+        return true;
+    }
+
     /// <summary>Pre-builds a {name → fingerprint} map for the supplied profile state.
     /// Caller passes this into the cache-entry validation loop to avoid recomputing
     /// fingerprints per entry.</summary>

@@ -280,6 +280,10 @@ public class VM_BodyTypeProfileEditor : VM
                     ScanCacheStale = SelectedProfile == null
                         || SelectedProfile.MeasurementCacheStale
                         || SelectedProfile.ScanResultsStale;
+                    // Selecting a profile that's also stale leaves ScanCacheStale true→true, so the
+                    // OnScanCacheStaleChanged hook doesn't fire — refresh the reason explicitly so it
+                    // reflects the newly-selected profile rather than the prior one.
+                    RefreshScanStaleReason();
                     ScanStatus = SelectedProfile == null
                         ? "No profile selected."
                         : (SelectedProfile.ScanResults.Count == 0 ? "No scan yet." : $"Cached scan: {SelectedProfile.ScanResults.Count} preset-weight combinations.");
@@ -436,6 +440,34 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>True when the cached scan results are out of date (an edit happened after the
     /// last scan). Prompts the user to re-scan before trusting the filter output.</summary>
     public bool ScanCacheStale { get; set; }
+
+    /// <summary>Detail naming which part of the cache fingerprint drifted — e.g.
+    /// "measurement 'Waist' changed" or "scoring rules changed". Empty when nothing is stale.
+    /// Recomputed by <see cref="RefreshScanStaleReason"/> from the selected profile whenever
+    /// <see cref="ScanCacheStale"/> flips (the <c>OnScanCacheStaleChanged</c> Fody hook) or a
+    /// further edit re-derives the stale state while it is already set.</summary>
+    public string ScanStaleReason { get; set; } = "";
+
+    /// <summary>The full stale-badge text bound by the Match Presets toolbar. Folds
+    /// <see cref="ScanStaleReason"/> into the "re-scan recommended" nudge so a glance tells the
+    /// user not just <i>that</i> the cache is stale but <i>which</i> definition made it so.</summary>
+    public string ScanStaleMessage { get; set; } = "(results stale — re-scan recommended)";
+
+    /// <summary>Recomputes <see cref="ScanStaleReason"/> / <see cref="ScanStaleMessage"/> from the
+    /// selected profile's stale state. Clears them when nothing is stale or no profile is selected.</summary>
+    private void RefreshScanStaleReason()
+    {
+        var reason = ScanCacheStale && SelectedProfile != null
+            ? SelectedProfile.DescribeStaleReason()
+            : "";
+        ScanStaleReason = reason;
+        ScanStaleMessage = string.IsNullOrEmpty(reason)
+            ? "(results stale — re-scan recommended)"
+            : $"(results stale: {reason} — re-scan recommended)";
+    }
+
+    /// <summary>Fody hook: refresh the stale-reason detail whenever the badge toggles.</summary>
+    private void OnScanCacheStaleChanged() => RefreshScanStaleReason();
 
     /// <summary>Toggle on the Match Presets tab. When enabled, <see cref="RunScanAsync"/>
     /// emits structured diagnostic lines (target count, viewer/key-vertex/fingerprint shape
@@ -2900,6 +2932,9 @@ public class VM_BodyTypeProfileEditor : VM
         if (ReferenceEquals(profile, SelectedProfile))
         {
             ScanCacheStale = true;
+            // A second stale-causing edit while already stale leaves ScanCacheStale true→true (no
+            // hook), but the drifted measurement set may have grown — refresh the reason explicitly.
+            RefreshScanStaleReason();
             // Flip the Rules-tab list to its "stale" empty state immediately so the user
             // doesn't keep clicking rows whose underlying data is no longer current. The
             // debounced auto-rebuild below will repopulate it on the next tick if the
@@ -8274,11 +8309,17 @@ public class VM_BodyTypeProfile : VM
         else ClearMeasurementCacheBaseline();
     }
 
-    /// <summary>True when every cache entry already holds every currently-defined measurement with a
-    /// fingerprint matching the current definition (vertex + measurement defs). Walks the cache, so
-    /// it is meant for load-time validation, not per-edit checks. Only inspects existing entries —
-    /// a slice that was never scanned isn't "incomplete", but a slice missing a now-drifted
-    /// measurement value is.</summary>
+    /// <summary>True when every cache entry already holds every currently-defined measurement keyed
+    /// under a fingerprint matching the current definition (vertex + measurement defs). Walks the
+    /// cache, so it is meant for load-time validation, not per-edit checks. Only inspects existing
+    /// entries — a slice that was never scanned isn't "incomplete", but a slice missing a now-drifted
+    /// measurement <i>key</i> is.
+    /// <para>A present key whose <c>Value</c> is null is <b>current, not incomplete</b>: null is a
+    /// valid terminal scan result ("the evaluator ran but produced no number for this preset/weight"
+    /// — e.g. a missing vertex or a near-zero ratio denominator), stored deliberately with its
+    /// fingerprint. Treating it as incomplete flagged the whole cache stale on every reload for any
+    /// measurement that is uncomputable on even one preset — a false positive a re-scan can't clear
+    /// (the value comes back null). Currency is decided by the fingerprint, never the value.</para></summary>
     private bool IsMeasurementCacheCompleteAndCurrent()
     {
         if (MeasurementCache.Count == 0) return false;
@@ -8286,14 +8327,107 @@ public class VM_BodyTypeProfile : VM
         foreach (var entry in MeasurementCache.Values)
         {
             if (entry?.Measurements == null) return false;
-            foreach (var kv in current)
-            {
-                if (!entry.Measurements.TryGetValue(kv.Key, out var v) || !v.HasValue) return false;
-                if (!entry.MeasurementFingerprints.TryGetValue(kv.Key, out var fp)
-                    || !string.Equals(fp, kv.Value, StringComparison.Ordinal)) return false;
-            }
+            // Per-entry decision lives in MeasurementCacheStore so it's unit-testable without the VM.
+            // A present key with a null value is current (valid scanned result); only a missing key
+            // or a drifted/absent fingerprint is not-current.
+            if (!MeasurementCacheStore.EntryHasAllCurrentMeasurements(
+                    current, entry.Measurements, entry.MeasurementFingerprints))
+                return false;
         }
         return true;
+    }
+
+    /// <summary>Human-readable explanation of which part of the cache fingerprint is out of date,
+    /// for the Match Presets "stale" badge. Distinguishes the measurement layer (key vertices /
+    /// measurement definitions / regions — named per drifted measurement) from the rule layer
+    /// (scoring rules changed but the measurement values are still valid). Empty when nothing is
+    /// stale. The measurement layer takes precedence because it implies the rule layer too.</summary>
+    public string DescribeStaleReason()
+    {
+        if (MeasurementCacheStale)
+        {
+            if (MeasurementCache.Count == 0) return "measurements not yet scanned";
+            var drift = DescribeMeasurementDrift();
+            return drift.Length > 0 ? drift : "measurement definitions changed";
+        }
+        if (ScanResultsStale) return "scoring rules changed";
+        return "";
+    }
+
+    /// <summary>Diffs the current measurement fingerprints against the baseline the cache was last
+    /// validated under (or, when no in-memory baseline exists — e.g. just after a fresh profile load
+    /// or a purge — against the cache's own stored per-entry fingerprints) and names the measurements
+    /// whose definition, or a key vertex / region they reference, drifted. Because each measurement's
+    /// fingerprint embeds its dependent vertices/region, a key-vertex edit surfaces here under the
+    /// measurement(s) that use it. Caps the name list so the toolbar badge stays short.</summary>
+    private string DescribeMeasurementDrift()
+    {
+        var current = CurrentMeasurementFingerprints();
+        var changed = new List<string>();
+        var added = new List<string>();
+        var removed = new List<string>();
+        var incomplete = new List<string>();
+
+        var baseline = _measurementCacheBaselineFps;
+        if (baseline != null && baseline.Count > 0)
+        {
+            foreach (var kv in current)
+            {
+                if (!baseline.TryGetValue(kv.Key, out var b)) added.Add(kv.Key);
+                else if (!string.Equals(b, kv.Value, StringComparison.Ordinal)) changed.Add(kv.Key);
+            }
+            foreach (var name in baseline.Keys)
+                if (!current.ContainsKey(name)) removed.Add(name);
+        }
+        else
+        {
+            // No in-memory baseline: classify each current measurement against the cache entries'
+            // own stored fingerprints. A fingerprint that differs is genuinely "changed" (a definition
+            // edit); one that's simply absent or value-less in some entry is "not yet scanned" — an
+            // incomplete cache, not a definition change. Conflating the two is misleading (the user
+            // sees "changed" for measurements they never touched — e.g. a partial cache holding only
+            // one measurement), so they're reported with distinct verbs.
+            foreach (var kv in current)
+            {
+                bool mismatch = false, missing = false;
+                foreach (var entry in MeasurementCache.Values)
+                {
+                    if (entry == null) continue;
+                    // A present key with a null value is a valid scanned result (see
+                    // IsMeasurementCacheCompleteAndCurrent), so only a genuinely absent key — or an
+                    // absent/empty per-entry fingerprint — counts as "not yet scanned".
+                    if (!entry.Measurements.ContainsKey(kv.Key)
+                        || !entry.MeasurementFingerprints.TryGetValue(kv.Key, out var fp)
+                        || string.IsNullOrEmpty(fp))
+                    {
+                        missing = true;
+                    }
+                    else if (!string.Equals(fp, kv.Value, StringComparison.Ordinal))
+                    {
+                        mismatch = true;
+                    }
+                }
+                if (mismatch) changed.Add(kv.Key);
+                else if (missing) incomplete.Add(kv.Key);
+            }
+        }
+
+        var parts = new List<string>();
+        if (changed.Count > 0) parts.Add(FormatDriftedNames(changed, "changed"));
+        if (added.Count > 0) parts.Add(FormatDriftedNames(added, "added"));
+        if (removed.Count > 0) parts.Add(FormatDriftedNames(removed, "removed"));
+        if (incomplete.Count > 0) parts.Add(FormatDriftedNames(incomplete, "not yet scanned"));
+        return string.Join("; ", parts);
+    }
+
+    private static string FormatDriftedNames(List<string> names, string verb)
+    {
+        const int cap = 3;
+        var shown = names.Count <= cap ? names : names.GetRange(0, cap);
+        var quoted = string.Join(", ", shown.ConvertAll(n => $"'{n}'"));
+        var extra = names.Count > cap ? $" +{names.Count - cap} more" : "";
+        var noun = names.Count == 1 ? "measurement" : "measurements";
+        return $"{noun} {quoted}{extra} {verb}";
     }
 
     /// <summary>Snapshots the rule signature the current ScanResults were derived under. Called from

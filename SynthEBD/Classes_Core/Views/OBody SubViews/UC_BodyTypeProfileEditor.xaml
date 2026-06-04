@@ -1405,7 +1405,7 @@
                                              can I do?" and "what just happened?" without scanning a second line. -->
                                         <TextBlock Text="{Binding DataContext.ScanStatus, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                    FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                                        <TextBlock Text="(results stale — re-scan recommended)" Foreground="OrangeRed"
+                                        <TextBlock Text="{Binding DataContext.ScanStaleMessage, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="OrangeRed"
                                                    FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,5"
                                                    Visibility="{Binding DataContext.ScanCacheStale, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
                                         <!-- Disk-cache status + Purge. The cache stores measurements (not descriptors)
