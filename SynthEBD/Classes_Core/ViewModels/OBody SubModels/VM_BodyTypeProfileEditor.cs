@@ -1571,7 +1571,11 @@ public class VM_BodyTypeProfileEditor : VM
             Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>> resolvedRegionsByWeight = null;
             bool hasRegionVolumes = profileModel.Measurements != null
                 && profileModel.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume);
-            if (hasRegionVolumes && profileModel.Regions != null && profileModel.Regions.Count > 0)
+            // Region-strategy key vertices also need their region resolved, even with no RegionVolume
+            // measurement, so the scan can pick their member-set anchor.
+            bool hasRegionKeyVertices = profileModel.KeyVertices != null
+                && profileModel.KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region);
+            if ((hasRegionVolumes || hasRegionKeyVertices) && profileModel.Regions != null && profileModel.Regions.Count > 0)
             {
                 resolvedRegionsByWeight = new Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>>();
                 var primeModel = missing.Count > 0 ? missing[0].ph?.AssociatedModel : null;
@@ -3826,6 +3830,7 @@ public class VM_BodyTypeProfile : VM
             case nameof(VM_NamedKeyVertex.ShapeName):
             case nameof(VM_NamedKeyVertex.Strategy):
             case nameof(VM_NamedKeyVertex.Criterion):
+            case nameof(VM_NamedKeyVertex.RegionRefName):
             case nameof(VM_NamedKeyVertex.BoxMinX):
             case nameof(VM_NamedKeyVertex.BoxMinY):
             case nameof(VM_NamedKeyVertex.BoxMinZ):
@@ -5960,16 +5965,27 @@ public class VM_BodyTypeProfile : VM
         int unresolved = 0;
         foreach (var kv in KeyVertices)
         {
+            // Region rows resolve against the referenced region's shape (the row's own ShapeName is
+            // not used for picking); an empty/missing region reads as ShapeNotLoaded.
+            string effectiveShape = kv.ShapeName;
+            if (kv.Strategy == KeyVertexStrategy.Region)
+            {
+                var regionVm = string.IsNullOrEmpty(kv.RegionRefName)
+                    ? null
+                    : Regions.FirstOrDefault(r => string.Equals(r.Name, kv.RegionRefName, StringComparison.Ordinal));
+                effectiveShape = regionVm?.ShapeName ?? "";
+            }
+
             KeyVertexResolutionState state;
             if (kv.NeedsRepick && kv.Strategy == KeyVertexStrategy.Explicit)
             {
                 state = KeyVertexResolutionState.NeedsRepick;
             }
-            else if (string.IsNullOrEmpty(kv.ShapeName))
+            else if (string.IsNullOrEmpty(effectiveShape))
             {
                 state = KeyVertexResolutionState.ShapeNotLoaded;
             }
-            else if (!counts.TryGetValue(kv.ShapeName, out int n))
+            else if (!counts.TryGetValue(effectiveShape, out int n))
             {
                 state = KeyVertexResolutionState.ShapeNotLoaded;
             }
@@ -6145,7 +6161,8 @@ public class VM_BodyTypeProfile : VM
         Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
         if (viewer != null
             && Regions.Count > 0
-            && Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume))
+            && (Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume)
+                || KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region)))
         {
             resolvedRegions = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
             foreach (var r in Regions)
@@ -6180,6 +6197,7 @@ public class VM_BodyTypeProfile : VM
                 (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null,
                 shape => viewer.GetShapePositions(shape),
                 shape => viewer.GetShapeBoneInfo(shape),
+                resolvedRegions,
                 out float v))
             {
                 m.LiveValue = v;
@@ -6345,13 +6363,13 @@ public class VM_BodyTypeProfile : VM
     {
         if (viewer == null) return;
 
-        // Pre-snapshot every BB row as a plain model so pair-sibling lookup can see the peers
-        // without each FindBestInBox call rebuilding the snapshot. Keyed by VM identity so we
+        // Pre-snapshot every BB and Region row as a plain model so pair-sibling lookup can see the
+        // peers without each FindBestInBox call rebuilding the snapshot. Keyed by VM identity so we
         // can pull the snapshot back out for the current row without a second DumpToModel.
         var bbSnapshots = new Dictionary<VM_NamedKeyVertex, NamedKeyVertex>(ReferenceEqualityComparer.Instance);
         foreach (var vm in KeyVertices)
         {
-            if (vm.Strategy != KeyVertexStrategy.BoundingBox) continue;
+            if (vm.Strategy != KeyVertexStrategy.BoundingBox && vm.Strategy != KeyVertexStrategy.Region) continue;
             bbSnapshots[vm] = vm.DumpToModel();
         }
 
@@ -6363,41 +6381,70 @@ public class VM_BodyTypeProfile : VM
         // never trigger the fetch at all.
         var boneCache = new Dictionary<string, (int[]? Indices, float[]? Weights)>(StringComparer.OrdinalIgnoreCase);
 
+        // Region member sets (resolved once against the zeroed mesh via GetOrResolveRegion), keyed by
+        // region name. A null entry means the region is missing/unresolvable — its rows are skipped.
+        var regionCache = new Dictionary<string, (HashSet<int>? Members, string ShapeName)>(StringComparer.Ordinal);
+
         foreach (var kv in KeyVertices)
         {
-            if (kv.Strategy != KeyVertexStrategy.BoundingBox) continue;
-            if (string.IsNullOrEmpty(kv.ShapeName)) continue;
+            if (kv.Strategy != KeyVertexStrategy.BoundingBox && kv.Strategy != KeyVertexStrategy.Region) continue;
 
-            var positions = viewer.GetShapePositions(kv.ShapeName);
+            // Candidate shape + (for Region rows) member set.
+            HashSet<int>? regionMembers = null;
+            string shapeName = kv.ShapeName;
+            if (kv.Strategy == KeyVertexStrategy.Region)
+            {
+                if (string.IsNullOrEmpty(kv.RegionRefName)) continue;
+                if (!regionCache.TryGetValue(kv.RegionRefName, out var cachedRegion))
+                {
+                    cachedRegion = (null, "");
+                    var regionVm = Regions.FirstOrDefault(r => string.Equals(r.Name, kv.RegionRefName, StringComparison.Ordinal));
+                    if (regionVm != null)
+                    {
+                        var rr = GetOrResolveRegion(viewer, regionVm.DumpToModel());
+                        if (rr != null && rr.MemberVertexIndices.Length > 0)
+                        {
+                            cachedRegion = (new HashSet<int>(rr.MemberVertexIndices), rr.ShapeName);
+                        }
+                    }
+                    regionCache[kv.RegionRefName] = cachedRegion;
+                }
+                if (cachedRegion.Members == null) continue;
+                regionMembers = cachedRegion.Members;
+                shapeName = cachedRegion.ShapeName;
+            }
+            if (string.IsNullOrEmpty(shapeName)) continue;
+
+            var positions = viewer.GetShapePositions(shapeName);
             if (positions == null || positions.Length == 0) continue;
 
             int[]? rowBoneIndices = null;
             float[]? rowBoneWeights = null;
             if (MeasurementMath.IsBoneTransitionCriterion(kv.Criterion))
             {
-                if (!boneCache.TryGetValue(kv.ShapeName, out var cached))
+                if (!boneCache.TryGetValue(shapeName, out var cached))
                 {
-                    cached = viewer.GetShapeBoneInfo(kv.ShapeName);
-                    boneCache[kv.ShapeName] = cached;
+                    cached = viewer.GetShapeBoneInfo(shapeName);
+                    boneCache[shapeName] = cached;
                 }
                 rowBoneIndices = cached.Indices;
                 rowBoneWeights = cached.Weights;
             }
 
             var model = bbSnapshots[kv];
-            int? idx = MeasurementMath.FindBestInBox(positions, model, kv.Criterion, findSibling, rowBoneIndices, rowBoneWeights);
+            int? idx = MeasurementMath.FindBestInBox(positions, model, kv.Criterion, findSibling, rowBoneIndices, rowBoneWeights, regionMembers);
             if (idx == null) continue;
 
             int oldIdx = kv.VertexIndex;
             kv.VertexIndex = idx.Value;
 
             // Keep any orange pick previously shown (via "Show Picks in Viewer" or on box
-            // confirm) in sync with the newly-resolved BB index so selecting this KeyVertex
+            // confirm) in sync with the newly-resolved index so selecting this KeyVertex
             // in the editor continues to green-highlight the right marker across preset/weight
             // switches. No-op when the pick isn't in the viewer's list yet.
             if (oldIdx >= 0 && oldIdx != idx.Value)
             {
-                viewer.MigrateKeyVertexPick(kv.ShapeName, oldIdx, idx.Value);
+                viewer.MigrateKeyVertexPick(shapeName, oldIdx, idx.Value);
             }
         }
     }
@@ -9657,6 +9704,7 @@ public class VM_NamedKeyVertex : VM
         BoxMaxY = source.BoxMaxY;
         BoxMaxZ = source.BoxMaxZ;
         Criterion = source.Criterion;
+        RegionRefName = source.RegionRefName ?? "";
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -9674,6 +9722,15 @@ public class VM_NamedKeyVertex : VM
     public float BoxMaxY { get; set; }
     public float BoxMaxZ { get; set; }
     public BoundingBoxCriterion Criterion { get; set; }
+
+    /// <summary>Name of the region whose member vertices form the candidate set. Only meaningful when
+    /// <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Region"/>; bound to the region dropdown that
+    /// replaces the box cell for Region rows.</summary>
+    public string RegionRefName { get; set; } = "";
+
+    /// <summary>Region names available to the Region-strategy dropdown, sourced from the parent profile's
+    /// Regions tab (the same list the RegionVolume measurement dropdown uses).</summary>
+    public IEnumerable<string> AvailableRegionNames => _parent.AvailableRegionNames;
 
     /// <summary>True when at least one other row in the parent profile's <see cref="VM_BodyTypeProfile.KeyVertices"/>
     /// collection has the same <see cref="Name"/> (Ordinal, trimmed). Driven by
@@ -9708,6 +9765,7 @@ public class VM_NamedKeyVertex : VM
         BoxMaxY = BoxMaxY,
         BoxMaxZ = BoxMaxZ,
         Criterion = Criterion,
+        RegionRefName = RegionRefName?.Trim() ?? "",
     };
 }
 

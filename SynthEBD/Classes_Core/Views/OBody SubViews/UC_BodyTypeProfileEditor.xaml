@@ -13,6 +13,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:EnumDescriptionConverter x:Key="EnumDesc"/>
         <local:EnumShortLabelConverter x:Key="EnumShortLabel"/>
+        <local:EnumEqualsToVisibilityConverter x:Key="EnumEqualsToVis"/>
 
         <!-- Cell-level red wash for any Name cell whose row carries HasDuplicateName=True.
              Shared by both the KeyVertices and Measurements grids (each row VM exposes the
@@ -521,21 +522,32 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="Box (min / max)" Width="240">
+                                            <!-- For Explicit/BoundingBox rows this shows the box min/max; for Region rows it
+                                                 is replaced by a dropdown of region names (the candidate set comes from the
+                                                 region, not a box). Visibility is switched on Strategy via EnumEqualsToVis. -->
+                                            <DataGridTemplateColumn Header="Box / Region" Width="240">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center">
-                                                            <TextBlock.Text>
-                                                                <MultiBinding StringFormat="({0:F1},{1:F1},{2:F1}) / ({3:F1},{4:F1},{5:F1})">
-                                                                    <Binding Path="BoxMinX"/>
-                                                                    <Binding Path="BoxMinY"/>
-                                                                    <Binding Path="BoxMinZ"/>
-                                                                    <Binding Path="BoxMaxX"/>
-                                                                    <Binding Path="BoxMaxY"/>
-                                                                    <Binding Path="BoxMaxZ"/>
-                                                                </MultiBinding>
-                                                            </TextBlock.Text>
-                                                        </TextBlock>
+                                                        <Grid>
+                                                            <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center"
+                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=!Region}">
+                                                                <TextBlock.Text>
+                                                                    <MultiBinding StringFormat="({0:F1},{1:F1},{2:F1}) / ({3:F1},{4:F1},{5:F1})">
+                                                                        <Binding Path="BoxMinX"/>
+                                                                        <Binding Path="BoxMinY"/>
+                                                                        <Binding Path="BoxMinZ"/>
+                                                                        <Binding Path="BoxMaxX"/>
+                                                                        <Binding Path="BoxMaxY"/>
+                                                                        <Binding Path="BoxMaxZ"/>
+                                                                    </MultiBinding>
+                                                                </TextBlock.Text>
+                                                            </TextBlock>
+                                                            <ComboBox ItemsSource="{Binding AvailableRegionNames}" IsEditable="True"
+                                                                      VerticalAlignment="Center"
+                                                                      Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=Region}"
+                                                                      Text="{Binding RegionRefName, UpdateSourceTrigger=PropertyChanged}"
+                                                                      ToolTip="Region strategy: the region whose member vertices form the candidate set. The Criterion then picks one vertex from that set. Author regions on the Regions tab."/>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>

@@ -115,6 +115,14 @@ public enum KeyVertexStrategy
     /// (widest X in hip band, frontmost Z on breast, etc.) across BodySlide presets even when
     /// the extremal vertex migrates to a neighbor index.</summary>
     BoundingBox = 1,
+
+    /// <summary>Scan the vertices belonging to a named <see cref="NamedRegion"/> (referenced by
+    /// <see cref="NamedKeyVertex.RegionRefName"/>) and pick by <see cref="NamedKeyVertex.Criterion"/>,
+    /// exactly as <see cref="BoundingBox"/> does but with the candidate set scoped to the region's
+    /// member vertices (its box ∪ additive edits \ subtractive edits, resolved in zeroed space)
+    /// instead of an axis-aligned box stored on the row. Band/centerline/bone criteria derive their
+    /// geometric frame from the AABB of the member vertices' deformed positions.</summary>
+    Region = 2,
 }
 
 /// <summary>Extremum to select inside a <see cref="KeyVertexStrategy.BoundingBox"/> region.
@@ -277,6 +285,11 @@ public class NamedKeyVertex
 
     /// <summary>Which extremum to pick inside the box. Only consulted when <see cref="Strategy"/> = BoundingBox.</summary>
     public BoundingBoxCriterion Criterion { get; set; } = BoundingBoxCriterion.MaxX;
+
+    /// <summary>Name of the <see cref="NamedRegion"/> whose member vertices form the candidate set.
+    /// Only consulted when <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Region"/>. Empty (the
+    /// default, and what older JSON deserializes to) leaves a Region-strategy row unresolved.</summary>
+    public string RegionRefName { get; set; } = "";
 }
 
 /// <summary>
@@ -731,6 +744,12 @@ public static class MeasurementMath
         => TryEvaluate(def, keyVertsByName, lookup, shapeLookup, null, out value);
 
     public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, out float value)
+        => TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, null, out value);
+
+    /// <param name="resolvedRegions">Regions resolved against the zeroed reference mesh, keyed by name.
+    /// Only consulted for <see cref="KeyVertexStrategy.Region"/> key vertices (to obtain their member
+    /// vertex set); pass null when no Region-strategy rows are in play.</param>
+    public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, out float value)
     {
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
@@ -738,8 +757,8 @@ public static class MeasurementMath
         int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
         if (def.VertexRefNames.Count < needed) return false;
 
-        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, out var a)) return false;
-        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, boneLookup, out var b)) return false;
+        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var a)) return false;
+        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var b)) return false;
 
         switch (def.Kind)
         {
@@ -785,8 +804,8 @@ public static class MeasurementMath
                 return true;
 
             case MeasurementKind.RatioDistance:
-                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, out var c)) return false;
-                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, out var d)) return false;
+                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var c)) return false;
+                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var d)) return false;
                 float num = AxisOrLength(a - b, def.NumeratorAxis);
                 float denom = AxisOrLength(c - d, def.DenominatorAxis);
                 if (denom < 1e-6f) return false;
@@ -798,16 +817,36 @@ public static class MeasurementMath
         }
     }
 
-    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, out OpenTK.Mathematics.Vector3 pos)
+    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, out OpenTK.Mathematics.Vector3 pos)
     {
         pos = default;
         if (string.IsNullOrEmpty(vertexRefName)) return false;
         if (!keyVertsByName.TryGetValue(vertexRefName, out var kv) || kv == null) return false;
 
-        if (kv.Strategy == KeyVertexStrategy.BoundingBox)
+        if (kv.Strategy == KeyVertexStrategy.BoundingBox || kv.Strategy == KeyVertexStrategy.Region)
         {
             if (shapeLookup == null) return false;
-            var positions = shapeLookup(kv.ShapeName);
+
+            // Region strategy: the candidate set is the named region's member vertices (resolved in
+            // zeroed space), and positions/bone-info come from the region's shape. Bail out cleanly
+            // when the region is missing or has no members so the row reads as unresolved.
+            HashSet<int>? regionMembers = null;
+            string shapeName = kv.ShapeName;
+            if (kv.Strategy == KeyVertexStrategy.Region)
+            {
+                if (resolvedRegions == null
+                    || string.IsNullOrEmpty(kv.RegionRefName)
+                    || !resolvedRegions.TryGetValue(kv.RegionRefName, out var region)
+                    || region == null
+                    || region.MemberVertexIndices.Length == 0)
+                {
+                    return false;
+                }
+                regionMembers = new HashSet<int>(region.MemberVertexIndices);
+                shapeName = region.ShapeName; // member indices live in the region's shape index space
+            }
+
+            var positions = shapeLookup(shapeName);
             if (positions == null || positions.Length == 0) return false;
             // Paired criteria need to see peer rows to find their sibling. Build the lookup
             // only when it matters so non-paired resolution stays cheap.
@@ -823,9 +862,9 @@ public static class MeasurementMath
             float[]? boneWeights = null;
             if (IsBoneTransitionCriterion(kv.Criterion) && boneLookup != null)
             {
-                (boneIndices, boneWeights) = boneLookup(kv.ShapeName);
+                (boneIndices, boneWeights) = boneLookup(shapeName);
             }
-            int? idx = FindBestInBox(positions, kv, kv.Criterion, findSibling, boneIndices, boneWeights);
+            int? idx = FindBestInBox(positions, kv, kv.Criterion, findSibling, boneIndices, boneWeights, regionMembers);
             if (idx == null) return false;
             kv.VertexIndex = idx.Value; // cache for marker display / downstream lookups
             pos = positions[idx.Value];
@@ -845,16 +884,33 @@ public static class MeasurementMath
     /// <paramref name="kv"/>, it must return the partner row (same ShapeName, identical box, opposite pair
     /// criterion) or null. When a sibling is missing the method falls back to the non-paired criterion so
     /// half-built profiles still resolve.</para></summary>
-    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion, Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null, int[]? boneIndices = null, float[]? boneWeights = null)
+    public static int? FindBestInBox(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, BoundingBoxCriterion criterion, Func<NamedKeyVertex, NamedKeyVertex?>? findSibling = null, int[]? boneIndices = null, float[]? boneWeights = null, HashSet<int>? regionMembers = null)
     {
         if (positions == null || positions.Length == 0) return null;
 
+        // Candidate context: in BoundingBox mode the gate is "inside kv's AABB" and the frame is
+        // that same AABB. In Region mode (regionMembers != null) the gate is "index ∈ member set"
+        // and the frame is the AABB of the member vertices' (deformed) positions — used by the
+        // band/tube/bone criteria for binning, tube tolerances and anchor centers. Every helper
+        // reads only `cand`, so the two strategies share one code path and BoundingBox stays
+        // byte-identical when regionMembers is null.
+        CandidateRegion cand;
+        if (regionMembers != null)
+        {
+            if (!TryComputeMemberAabb(positions, regionMembers, out var rmin, out var rmax)) return null;
+            cand = CandidateRegion.FromMembers(regionMembers, rmin, rmax);
+        }
+        else
+        {
+            cand = CandidateRegion.FromBox(kv);
+        }
+
         switch (criterion)
         {
-            case BoundingBoxCriterion.PinchMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: true);
-            case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: true);
-            case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, kv, leftSide: true,  wantPinch: false);
-            case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, kv, leftSide: false, wantPinch: false);
+            case BoundingBoxCriterion.PinchMinX: return FindPinchOrBulgeX(positions, in cand, leftSide: true,  wantPinch: true);
+            case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, in cand, leftSide: false, wantPinch: true);
+            case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, in cand, leftSide: true,  wantPinch: false);
+            case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, in cand, leftSide: false, wantPinch: false);
             case BoundingBoxCriterion.BoneTransitionMinX:
             case BoundingBoxCriterion.BoneTransitionMaxX:
             {
@@ -865,9 +921,9 @@ public static class MeasurementMath
                 // degradation path for Pinch/Bulge pairs.
                 if (boneIndices == null || boneWeights == null)
                 {
-                    return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+                    return FindAxisExtremum(positions, in cand, axis: 0, wantMax: !leftSide);
                 }
-                return FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+                return FindBoneTransitionX(positions, boneIndices, boneWeights, in cand, leftSide);
             }
             case BoundingBoxCriterion.BoneTransitionPairMinX:
             case BoundingBoxCriterion.BoneTransitionPairMaxX:
@@ -875,15 +931,15 @@ public static class MeasurementMath
                 bool leftSide = criterion == BoundingBoxCriterion.BoneTransitionPairMinX;
                 if (boneIndices == null || boneWeights == null)
                 {
-                    return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+                    return FindAxisExtremum(positions, in cand, axis: 0, wantMax: !leftSide);
                 }
                 var sibling = findSibling?.Invoke(kv);
                 if (sibling != null)
                 {
-                    return FindPairedBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+                    return FindPairedBoneTransitionX(positions, boneIndices, boneWeights, in cand, leftSide);
                 }
                 // No sibling — degrade to the non-paired equivalent so the row still resolves.
-                return FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide);
+                return FindBoneTransitionX(positions, boneIndices, boneWeights, in cand, leftSide);
             }
             case BoundingBoxCriterion.PinchPairMinX:
             case BoundingBoxCriterion.PinchPairMaxX:
@@ -893,29 +949,26 @@ public static class MeasurementMath
                 var sibling = findSibling?.Invoke(kv);
                 if (sibling != null)
                 {
-                    return FindPairedPinchOrBulgeX(positions, kv, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+                    return FindPairedPinchOrBulgeX(positions, in cand, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
                 }
                 // No sibling — degrade to the non-paired equivalent so the row still resolves.
-                return FindPinchOrBulgeX(positions, kv, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+                return FindPinchOrBulgeX(positions, in cand, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
             }
-            case BoundingBoxCriterion.MinYLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: false, useY: true);
-            case BoundingBoxCriterion.MinYRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: false, useY: true);
-            case BoundingBoxCriterion.MaxYLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: true,  useY: true);
-            case BoundingBoxCriterion.MaxYRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: true,  useY: true);
-            case BoundingBoxCriterion.MinZLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: false, useY: false);
-            case BoundingBoxCriterion.MinZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: false, useY: false);
-            case BoundingBoxCriterion.MaxZLeftOfX:  return FindExtremumOnXSide(positions, kv, leftSide: true,  wantMax: true,  useY: false);
-            case BoundingBoxCriterion.MaxZRightOfX: return FindExtremumOnXSide(positions, kv, leftSide: false, wantMax: true,  useY: false);
-            case BoundingBoxCriterion.MaxXAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 0, wantMax: true);
-            case BoundingBoxCriterion.MinXAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 0, wantMax: false);
-            case BoundingBoxCriterion.MaxYAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 1, wantMax: true);
-            case BoundingBoxCriterion.MinYAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 1, wantMax: false);
-            case BoundingBoxCriterion.MaxZAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 2, wantMax: true);
-            case BoundingBoxCriterion.MinZAtCenter: return FindClosestToBoxFaceCenter(positions, kv, axis: 2, wantMax: false);
+            case BoundingBoxCriterion.MinYLeftOfX:  return FindExtremumOnXSide(positions, in cand, leftSide: true,  wantMax: false, useY: true);
+            case BoundingBoxCriterion.MinYRightOfX: return FindExtremumOnXSide(positions, in cand, leftSide: false, wantMax: false, useY: true);
+            case BoundingBoxCriterion.MaxYLeftOfX:  return FindExtremumOnXSide(positions, in cand, leftSide: true,  wantMax: true,  useY: true);
+            case BoundingBoxCriterion.MaxYRightOfX: return FindExtremumOnXSide(positions, in cand, leftSide: false, wantMax: true,  useY: true);
+            case BoundingBoxCriterion.MinZLeftOfX:  return FindExtremumOnXSide(positions, in cand, leftSide: true,  wantMax: false, useY: false);
+            case BoundingBoxCriterion.MinZRightOfX: return FindExtremumOnXSide(positions, in cand, leftSide: false, wantMax: false, useY: false);
+            case BoundingBoxCriterion.MaxZLeftOfX:  return FindExtremumOnXSide(positions, in cand, leftSide: true,  wantMax: true,  useY: false);
+            case BoundingBoxCriterion.MaxZRightOfX: return FindExtremumOnXSide(positions, in cand, leftSide: false, wantMax: true,  useY: false);
+            case BoundingBoxCriterion.MaxXAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 0, wantMax: true);
+            case BoundingBoxCriterion.MinXAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 0, wantMax: false);
+            case BoundingBoxCriterion.MaxYAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 1, wantMax: true);
+            case BoundingBoxCriterion.MinYAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 1, wantMax: false);
+            case BoundingBoxCriterion.MaxZAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 2, wantMax: true);
+            case BoundingBoxCriterion.MinZAtCenter: return FindClosestToBoxFaceCenter(positions, in cand, axis: 2, wantMax: false);
         }
-
-        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
-        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
 
         bool wantMax = criterion == BoundingBoxCriterion.MaxX
                     || criterion == BoundingBoxCriterion.MaxY
@@ -927,9 +980,7 @@ public static class MeasurementMath
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
 
             float val = criterion switch
             {
@@ -945,19 +996,74 @@ public static class MeasurementMath
         return bestIdx >= 0 ? bestIdx : null;
     }
 
+    /// <summary>The candidate set + geometric frame that the criterion helpers operate over.
+    /// <para><b>Gate</b> (<see cref="Contains"/>): which vertices are eligible. In box mode this is
+    /// "inside the AABB"; in region mode it is "index is in the member set".</para>
+    /// <para><b>Frame</b> (<see cref="Min"/>/<see cref="Max"/>): the reference AABB the band/tube/bone
+    /// criteria slice and center against. In box mode it is the row's box; in region mode it is the AABB
+    /// of the member vertices' deformed positions.</para>
+    /// Passed <c>in</c> to keep the readonly struct copy-free on the hot per-vertex loops.</summary>
+    private readonly struct CandidateRegion
+    {
+        public readonly OpenTK.Mathematics.Vector3 Min;
+        public readonly OpenTK.Mathematics.Vector3 Max;
+        private readonly HashSet<int>? _members; // null => box mode: the gate is AABB containment.
+
+        private CandidateRegion(OpenTK.Mathematics.Vector3 min, OpenTK.Mathematics.Vector3 max, HashSet<int>? members)
+        {
+            Min = min; Max = max; _members = members;
+        }
+
+        public static CandidateRegion FromBox(NamedKeyVertex kv) => new(
+            new OpenTK.Mathematics.Vector3(kv.BoxMinX, kv.BoxMinY, kv.BoxMinZ),
+            new OpenTK.Mathematics.Vector3(kv.BoxMaxX, kv.BoxMaxY, kv.BoxMaxZ),
+            null);
+
+        public static CandidateRegion FromMembers(HashSet<int> members, OpenTK.Mathematics.Vector3 min, OpenTK.Mathematics.Vector3 max)
+            => new(min, max, members);
+
+        /// <summary>Gate: is vertex <paramref name="index"/> (at position <paramref name="p"/>) a candidate?
+        /// Region mode tests membership by index; box mode tests AABB containment of the position.</summary>
+        public bool Contains(int index, OpenTK.Mathematics.Vector3 p)
+        {
+            if (_members != null) return _members.Contains(index);
+            return p.X >= Min.X && p.X <= Max.X
+                && p.Y >= Min.Y && p.Y <= Max.Y
+                && p.Z >= Min.Z && p.Z <= Max.Z;
+        }
+    }
+
+    /// <summary>AABB of the member vertices' positions (those member indices that are in range of the
+    /// current mesh). Returns false when no member resolves — the Region key vertex then fails to
+    /// resolve, exactly as a BoundingBox row whose box catches no vertices.</summary>
+    private static bool TryComputeMemberAabb(OpenTK.Mathematics.Vector3[] positions, HashSet<int> members, out OpenTK.Mathematics.Vector3 min, out OpenTK.Mathematics.Vector3 max)
+    {
+        min = new OpenTK.Mathematics.Vector3(float.MaxValue);
+        max = new OpenTK.Mathematics.Vector3(float.MinValue);
+        bool any = false;
+        foreach (int i in members)
+        {
+            if (i < 0 || i >= positions.Length) continue;
+            var p = positions[i];
+            if (p.X < min.X) min.X = p.X; if (p.X > max.X) max.X = p.X;
+            if (p.Y < min.Y) min.Y = p.Y; if (p.Y > max.Y) max.Y = p.Y;
+            if (p.Z < min.Z) min.Z = p.Z; if (p.Z > max.Z) max.Z = p.Z;
+            any = true;
+        }
+        return any;
+    }
+
     /// <summary>Slice the AABB's Y range into <c>BinCount</c> equal bands; per band, record the
     /// silhouette vertex on the chosen side (smallest X for left, largest X for right) — that vertex
     /// is by definition the outer surface at that Y-level. Across bands, return the one whose
     /// recorded X is closest to the midline (<paramref name="wantPinch"/>=true) or farthest from it
     /// (<paramref name="wantPinch"/>=false). Suits waist-pinch (<c>PinchMin/MaxX</c>) and widest-hip
     /// (<c>BulgeMin/MaxX</c>) anchors. 20 bins balances resolution vs. noise for typical box sizes.</summary>
-    private static int? FindPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantPinch)
+    private static int? FindPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, bool leftSide, bool wantPinch)
     {
         const int BinCount = 20;
 
-        float minX = kv.BoxMinX, maxX = kv.BoxMaxX;
-        float minY = kv.BoxMinY, maxY = kv.BoxMaxY;
-        float minZ = kv.BoxMinZ, maxZ = kv.BoxMaxZ;
+        float minY = cand.Min.Y, maxY = cand.Max.Y;
 
         float yRange = maxY - minY;
         if (yRange <= 1e-6f) return null;
@@ -973,9 +1079,7 @@ public static class MeasurementMath
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
 
             int bin = (int)((p.Y - minY) / yRange * BinCount);
             if (bin < 0) bin = 0;
@@ -1056,9 +1160,8 @@ public static class MeasurementMath
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
+            if (!cand.Contains(i, p)) continue;
             if (p.Y < bandMinY || p.Y > bandMaxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
 
             if (leftSide)
             {
@@ -1173,13 +1276,11 @@ public static class MeasurementMath
         return result;
     }
 
-    private static int? FindPairedPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantPinch)
+    private static int? FindPairedPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, bool leftSide, bool wantPinch)
     {
         const int BinCount = 20;
 
-        float minX = kv.BoxMinX, maxX = kv.BoxMaxX;
-        float minY = kv.BoxMinY, maxY = kv.BoxMaxY;
-        float minZ = kv.BoxMinZ, maxZ = kv.BoxMaxZ;
+        float minY = cand.Min.Y, maxY = cand.Max.Y;
 
         float yRange = maxY - minY;
         if (yRange <= 1e-6f) return null;
@@ -1199,9 +1300,7 @@ public static class MeasurementMath
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
 
             int bin = (int)((p.Y - minY) / yRange * BinCount);
             if (bin < 0) bin = 0;
@@ -1289,20 +1388,15 @@ public static class MeasurementMath
     /// when no vertex on the requested side falls inside the box. Used by the <c>MinY/MaxY/MinZ/MaxZ*OfX</c>
     /// criteria to author paired top/bottom or front/back landmarks where each side of the body
     /// contributes one anchor (e.g. lowest point of each foot, front-most point of each breast).</summary>
-    private static int? FindExtremumOnXSide(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool leftSide, bool wantMax, bool useY)
+    private static int? FindExtremumOnXSide(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, bool leftSide, bool wantMax, bool useY)
     {
-        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
-        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
-
         int bestIdx = -1;
         float bestVal = wantMax ? float.MinValue : float.MaxValue;
 
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
             // Midline filter: left = strictly negative X, right = zero-or-positive X. The asymmetry
             // around 0 is intentional — a vertex exactly on the midline contributes to the right
             // side only, so the two paired rows partition the box without overlap.
@@ -1335,11 +1429,11 @@ public static class MeasurementMath
     /// vertex lose to a slightly-off-center vertex that was deeper on Z — the primary
     /// axis's magnitude dominated the distance. The tube formulation makes centering a
     /// hard constraint instead of a soft weight, which matches "AtCenter" semantically.</para></summary>
-    private static int? FindClosestToBoxFaceCenter(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
+    private static int? FindClosestToBoxFaceCenter(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, int axis, bool wantMax)
     {
-        float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
-        float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
-        float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
+        float cx = (cand.Min.X + cand.Max.X) * 0.5f;
+        float cy = (cand.Min.Y + cand.Max.Y) * 0.5f;
+        float cz = (cand.Min.Z + cand.Max.Z) * 0.5f;
 
         // Schedule of perpendicular-tube fractions, applied to each perpendicular
         // half-extent. 0.15 is the "AtCenter" intent at full strength — tight enough that
@@ -1355,9 +1449,9 @@ public static class MeasurementMath
 
         foreach (var fraction in fractions)
         {
-            float xTol = (kv.BoxMaxX - kv.BoxMinX) * 0.5f * fraction;
-            float yTol = (kv.BoxMaxY - kv.BoxMinY) * 0.5f * fraction;
-            float zTol = (kv.BoxMaxZ - kv.BoxMinZ) * 0.5f * fraction;
+            float xTol = (cand.Max.X - cand.Min.X) * 0.5f * fraction;
+            float yTol = (cand.Max.Y - cand.Min.Y) * 0.5f * fraction;
+            float zTol = (cand.Max.Z - cand.Min.Z) * 0.5f * fraction;
 
             int passBestIdx = -1;
             float passBestPrimary = wantMax ? float.MinValue : float.MaxValue;
@@ -1366,9 +1460,7 @@ public static class MeasurementMath
             for (int i = 0; i < positions.Length; i++)
             {
                 var p = positions[i];
-                if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
-                if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
-                if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+                if (!cand.Contains(i, p)) continue;
 
                 switch (axis)
                 {
@@ -1408,20 +1500,15 @@ public static class MeasurementMath
     /// <summary>Single-axis extremum inside the AABB. Lifted out of the default-case loop in
     /// <see cref="FindBestInBox"/> so the bone-transition fallback can call it directly without
     /// re-entering the public dispatch.</summary>
-    private static int? FindAxisExtremum(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, int axis, bool wantMax)
+    private static int? FindAxisExtremum(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, int axis, bool wantMax)
     {
-        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
-        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
-
         int bestIdx = -1;
         float bestVal = wantMax ? float.MinValue : float.MaxValue;
 
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
 
             float val = axis == 0 ? p.X : (axis == 1 ? p.Y : p.Z);
             bool isBest = wantMax ? val > bestVal : val < bestVal;
@@ -1446,19 +1533,17 @@ public static class MeasurementMath
     /// multiple Y heights with different bone transitions (e.g. armpit + shoulder), the
     /// outward X-walk may pick whichever transition has the smaller |X| — the user controls
     /// this by drawing a vertically tight box around the anatomical region they're after.</para></summary>
-    private static int? FindBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, NamedKeyVertex kv, bool leftSide)
+    private static int? FindBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, in CandidateRegion cand, bool leftSide)
     {
-        float minX = kv.BoxMinX, minY = kv.BoxMinY, minZ = kv.BoxMinZ;
-        float maxX = kv.BoxMaxX, maxY = kv.BoxMaxY, maxZ = kv.BoxMaxZ;
-        float cx = (minX + maxX) * 0.5f;
-        float cy = (minY + maxY) * 0.5f;
-        float cz = (minZ + maxZ) * 0.5f;
+        float cx = (cand.Min.X + cand.Max.X) * 0.5f;
+        float cy = (cand.Min.Y + cand.Max.Y) * 0.5f;
+        float cz = (cand.Min.Z + cand.Max.Z) * 0.5f;
 
         // Sanity-check the weight buffer matches the position count — a host that
         // accidentally hands in mismatched arrays would otherwise index out of bounds.
         if (boneIndices.Length < positions.Length * 4 || boneWeights.Length < positions.Length * 4)
         {
-            return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+            return FindAxisExtremum(positions, in cand, axis: 0, wantMax: !leftSide);
         }
 
         // Single pass to find both (a) the anchor vertex (closest to box center, any side)
@@ -1473,9 +1558,7 @@ public static class MeasurementMath
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < minX || p.X > maxX) continue;
-            if (p.Y < minY || p.Y > maxY) continue;
-            if (p.Z < minZ || p.Z > maxZ) continue;
+            if (!cand.Contains(i, p)) continue;
 
             float dx = p.X - cx, dy = p.Y - cy, dz = p.Z - cz;
             float distSq = dx * dx + dy * dy + dz * dz;
@@ -1496,7 +1579,7 @@ public static class MeasurementMath
         {
             // Anchor has no weight at all — degenerate skinning data. Fall back to axis
             // extremum rather than returning null, so the row at least picks SOMETHING.
-            return FindAxisExtremum(positions, kv, axis: 0, wantMax: !leftSide);
+            return FindAxisExtremum(positions, in cand, axis: 0, wantMax: !leftSide);
         }
 
         // Sort by distance from the center going outward: for the left side that's
@@ -1534,11 +1617,11 @@ public static class MeasurementMath
     /// even narrow boxes have a real Y window. Falls back to the single-side pick when no
     /// root-bone vertex sits within the Y-band on the requested side (degenerate, but better
     /// than returning null and breaking the dependent measurement).</para></summary>
-    private static int? FindPairedBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, NamedKeyVertex kv, bool leftSide)
+    private static int? FindPairedBoneTransitionX(OpenTK.Mathematics.Vector3[] positions, int[] boneIndices, float[] boneWeights, in CandidateRegion cand, bool leftSide)
     {
         // Step 1: get each side's unpaired pick.
-        int? leftPick = FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide: true);
-        int? rightPick = FindBoneTransitionX(positions, boneIndices, boneWeights, kv, leftSide: false);
+        int? leftPick = FindBoneTransitionX(positions, boneIndices, boneWeights, in cand, leftSide: true);
+        int? rightPick = FindBoneTransitionX(positions, boneIndices, boneWeights, in cand, leftSide: false);
         if (leftPick == null && rightPick == null) return null;
         if (leftPick == null) return leftSide ? null : rightPick;
         if (rightPick == null) return leftSide ? leftPick : null;
@@ -1549,17 +1632,15 @@ public static class MeasurementMath
         // Step 3: identify the root bone (same anchor logic as FindBoneTransitionX). Could be
         // cached out of the sub-calls, but keeping the two passes independent keeps the
         // single-side algorithm self-contained.
-        float cx = (kv.BoxMinX + kv.BoxMaxX) * 0.5f;
-        float cy = (kv.BoxMinY + kv.BoxMaxY) * 0.5f;
-        float cz = (kv.BoxMinZ + kv.BoxMaxZ) * 0.5f;
+        float cx = (cand.Min.X + cand.Max.X) * 0.5f;
+        float cy = (cand.Min.Y + cand.Max.Y) * 0.5f;
+        float cz = (cand.Min.Z + cand.Max.Z) * 0.5f;
         int anchorIdx = -1;
         float anchorDistSq = float.MaxValue;
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
-            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
-            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+            if (!cand.Contains(i, p)) continue;
             float dx = p.X - cx, dy = p.Y - cy, dz = p.Z - cz;
             float d2 = dx * dx + dy * dy + dz * dz;
             if (d2 < anchorDistSq) { anchorDistSq = d2; anchorIdx = i; }
@@ -1572,15 +1653,13 @@ public static class MeasurementMath
         // requested side. Floor on the tolerance protects narrow boxes — without it, a box
         // with a Y range of e.g. 8 NIF units would have a 0.4-unit window which can be tighter
         // than typical vertex spacing on the back surface and pick nothing.
-        float yTolerance = MathF.Max(0.2f, (kv.BoxMaxY - kv.BoxMinY) * 0.05f);
+        float yTolerance = MathF.Max(0.2f, (cand.Max.Y - cand.Min.Y) * 0.05f);
         int bestIdx = -1;
         float bestX = leftSide ? float.MaxValue : float.MinValue;
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
-            if (p.X < kv.BoxMinX || p.X > kv.BoxMaxX) continue;
-            if (p.Y < kv.BoxMinY || p.Y > kv.BoxMaxY) continue;
-            if (p.Z < kv.BoxMinZ || p.Z > kv.BoxMaxZ) continue;
+            if (!cand.Contains(i, p)) continue;
             if (leftSide ? p.X >= cx : p.X <= cx) continue;
             if (MathF.Abs(p.Y - avgY) > yTolerance) continue;
             if (GetDominantBone(i, boneIndices, boneWeights) != rootBone) continue;
@@ -1614,24 +1693,38 @@ public static class MeasurementMath
     }
 
     /// <summary>Find the pair partner for <paramref name="kv"/> within <paramref name="candidates"/>.
-    /// A sibling matches on ShapeName (case-insensitive), exact float equality on all six box
-    /// coordinates, and carries the opposite-side pair criterion. Returns null when no match exists.
-    /// Exact equality is intentional — pair rows are always authored together from a shared box, so
-    /// any coordinate mismatch indicates a genuinely different selection, not float drift.</summary>
+    /// A sibling carries the opposite-side pair criterion, the same <see cref="NamedKeyVertex.Strategy"/>,
+    /// and the same ShapeName (case-insensitive). For <see cref="KeyVertexStrategy.BoundingBox"/> rows it
+    /// must additionally share exact float equality on all six box coordinates; for
+    /// <see cref="KeyVertexStrategy.Region"/> rows it must reference the same region
+    /// (<see cref="NamedKeyVertex.RegionRefName"/>). Returns null when no match exists. Exact equality is
+    /// intentional — pair rows are always authored together from a shared box/region, so any mismatch
+    /// indicates a genuinely different selection, not float drift.</summary>
     public static NamedKeyVertex? FindPairSibling(NamedKeyVertex kv, IEnumerable<NamedKeyVertex> candidates)
     {
         if (kv == null || candidates == null) return null;
         if (!IsPairCriterion(kv.Criterion)) return null;
+        // Only BoundingBox and Region rows feed the box/member-scanning paired helpers; Explicit rows
+        // never reach FindBestInBox, so they can't be a sibling.
+        if (kv.Strategy != KeyVertexStrategy.BoundingBox && kv.Strategy != KeyVertexStrategy.Region) return null;
         var partner = PartnerCriterion(kv.Criterion);
         foreach (var other in candidates)
         {
             if (other == null || ReferenceEquals(other, kv)) continue;
-            if (other.Strategy != KeyVertexStrategy.BoundingBox) continue;
+            if (other.Strategy != kv.Strategy) continue;
             if (other.Criterion != partner) continue;
             if (!string.Equals(other.ShapeName, kv.ShapeName, StringComparison.OrdinalIgnoreCase)) continue;
-            if (other.BoxMinX != kv.BoxMinX || other.BoxMaxX != kv.BoxMaxX) continue;
-            if (other.BoxMinY != kv.BoxMinY || other.BoxMaxY != kv.BoxMaxY) continue;
-            if (other.BoxMinZ != kv.BoxMinZ || other.BoxMaxZ != kv.BoxMaxZ) continue;
+            if (kv.Strategy == KeyVertexStrategy.Region)
+            {
+                // Region siblings share the candidate set by referencing the same region.
+                if (!string.Equals(other.RegionRefName, kv.RegionRefName, StringComparison.Ordinal)) continue;
+            }
+            else
+            {
+                if (other.BoxMinX != kv.BoxMinX || other.BoxMaxX != kv.BoxMaxX) continue;
+                if (other.BoxMinY != kv.BoxMinY || other.BoxMaxY != kv.BoxMaxY) continue;
+                if (other.BoxMinZ != kv.BoxMinZ || other.BoxMaxZ != kv.BoxMaxZ) continue;
+            }
             return other;
         }
         return null;

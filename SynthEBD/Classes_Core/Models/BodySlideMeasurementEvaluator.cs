@@ -159,7 +159,7 @@ public static class BodySlideMeasurementEvaluator
                         result.FailedMeasurements[def.Name] = rreason;
                     continue;
                 }
-                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, out float v))
+                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out float v))
                 {
                     result.Measurements[def.Name] = v;
                 }

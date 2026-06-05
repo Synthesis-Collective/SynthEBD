@@ -353,7 +353,7 @@ public static class MeasurementCacheStore
                     sb.Append(refName).Append(':');
                     if (keyVerticesByName != null && keyVerticesByName.TryGetValue(refName, out var kv) && kv != null)
                     {
-                        AppendKeyVertex(sb, kv);
+                        AppendKeyVertex(sb, kv, regionsByName);
                     }
                     else
                     {
@@ -438,10 +438,28 @@ public static class MeasurementCacheStore
         return result;
     }
 
-    private static void AppendKeyVertex(StringBuilder sb, NamedKeyVertex kv)
+    private static void AppendKeyVertex(StringBuilder sb, NamedKeyVertex kv, IReadOnlyDictionary<string, NamedRegion>? regionsByName)
     {
         sb.Append("S=").Append(kv.ShapeName ?? "").Append('|');
         sb.Append("St=").Append((int)kv.Strategy).Append('|');
+        // Region strategy: the candidate set (hence the resolved vertex, hence the measurement value)
+        // is defined entirely by the referenced region. Fold the region's own fingerprint in — box,
+        // rotation, cap count/mode, and vertex edits all change Member(), so any region edit must
+        // invalidate measurements that depend on a Region key vertex.
+        if (kv.Strategy == KeyVertexStrategy.Region)
+        {
+            var rrName = kv.RegionRefName ?? "";
+            sb.Append("RR=").Append(rrName).Append(':');
+            if (regionsByName != null && regionsByName.TryGetValue(rrName, out var rkvRegion) && rkvRegion != null)
+            {
+                AppendRegion(sb, rkvRegion);
+            }
+            else
+            {
+                sb.Append("MISSING");
+            }
+            sb.Append('|');
+        }
         // VertexIndex is part of the defining identity for Explicit strategy (the user
         // typed a specific vertex index and the rule's value depends on it). For
         // BoundingBox strategy, VertexIndex is a runtime-resolved cache — the box gets

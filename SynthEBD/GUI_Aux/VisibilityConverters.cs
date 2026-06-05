@@ -125,6 +125,25 @@ public class IntEqualsToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
 }
 
+// Shows an element only when an enum value matches (or, with a leading '!', does NOT match) the
+// ConverterParameter name. Used by the Key Vertices grid to swap the box-coordinate text for a region
+// dropdown on Region-strategy rows: parameter "Region" reveals the dropdown, "!Region" reveals the text.
+[ValueConversion(typeof(Enum), typeof(Visibility))]
+public class EnumEqualsToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        string param = (parameter as string) ?? "";
+        bool negate = param.StartsWith("!", StringComparison.Ordinal);
+        if (negate) param = param.Substring(1);
+        bool matches = value != null && string.Equals(value.ToString(), param, StringComparison.Ordinal);
+        bool visible = negate ? !matches : matches;
+        return visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
+}
+
 //https://stackoverflow.com/a/2427307
 [ValueConversion(typeof(bool), typeof(Visibility))]
 public class InvertableBooleanToVisibilityConverter : IValueConverter

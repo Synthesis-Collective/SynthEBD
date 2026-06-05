@@ -152,6 +152,14 @@ public static class RegionVolumeEvaluator
         /// <summary>Volume evaluated on the zeroed mesh — a reference baseline (the per-body constant offset).</summary>
         public double ZeroedVolume;
 
+        /// <summary>Original vertex indices that belong to this region — the membership rule
+        /// (box ∪ additive edits \ subtractive edits) evaluated in zeroed space by
+        /// <see cref="ResolveMemberVertices"/>. Populated <b>before</b> any validity gating so it is
+        /// available even when <see cref="IsValid"/> is false: a <see cref="KeyVertexStrategy.Region"/>
+        /// key vertex only needs the member set, not a valid closed volume. These are indices into the
+        /// shape's full per-vertex arrays, so they index the deformed positions directly.</summary>
+        public int[] MemberVertexIndices = Array.Empty<int>();
+
         public int LoopCount => CapLoops.Length;
     }
 
@@ -657,6 +665,39 @@ public static class RegionVolumeEvaluator
     // ------------------------------------------------------------------ resolution
 
     /// <summary>
+    /// The set of original vertex indices that belong to a region, by the same rule
+    /// <see cref="ResolveRegion"/> uses for its edited-patch membership: the (optionally rotated) box
+    /// contains the vertex in box-local space OR it is force-added, AND it is not force-removed (remove
+    /// wins). Evaluated in <b>zeroed</b> space so it is preset- and renumber-stable; the returned indices
+    /// index the shape's full per-vertex arrays, so a caller can apply them to the deformed positions.
+    /// Exposed for <see cref="KeyVertexStrategy.Region"/> key vertices, which need the candidate set even
+    /// when the region is not a valid closed volume.
+    /// </summary>
+    public static int[] ResolveMemberVertices(Vector3[] zeroedPositions, RegionAabb box, BoxRotation rotation, HashSet<int>? addSet, HashSet<int>? removeSet, float planeEps = 1e-5f)
+    {
+        if (zeroedPositions == null || zeroedPositions.Length == 0) return Array.Empty<int>();
+
+        bool rotated = !rotation.IsIdentity;
+        Vector3 center = box.Center;
+        var (ax, ay, az) = rotation.Basis();
+        Vector3 ToLocal(Vector3 wp)
+        {
+            if (!rotated) return wp;
+            Vector3 d = wp - center;
+            return new Vector3(Vector3.Dot(d, ax), Vector3.Dot(d, ay), Vector3.Dot(d, az)) + center;
+        }
+
+        var members = new List<int>();
+        for (int vid = 0; vid < zeroedPositions.Length; vid++)
+        {
+            bool inRegion = (box.Contains(ToLocal(zeroedPositions[vid]), planeEps) || (addSet != null && addSet.Contains(vid)))
+                            && !(removeSet != null && removeSet.Contains(vid));
+            if (inRegion) members.Add(vid);
+        }
+        return members.ToArray();
+    }
+
+    /// <summary>
     /// Resolve a region against the zeroed reference mesh: clip every triangle to the box (tracking
     /// barycentric coordinates), weld the clipped vertices, extract boundary loops, validate watertightness,
     /// and bake a <see cref="ResolvedRegion"/>. On failure, returns a region with <see cref="ResolvedRegion.IsValid"/>
@@ -713,6 +754,11 @@ public static class RegionVolumeEvaluator
         bool Member(int vid) =>
             (box.Contains(ToLocal(zeroedPositions[vid]), planeEps) || (addSet != null && addSet.Contains(vid))) &&
             !(remSet != null && remSet.Contains(vid));
+
+        // Member set (original indices) — captured here, BEFORE any validity gating below, so a
+        // Region-strategy key vertex can use it even when the volume patch is rejected. Same rule as
+        // Member(), shared via the public helper. Cheap O(n) pass; only walked once per resolve.
+        result.MemberVertexIndices = ResolveMemberVertices(zeroedPositions, box, rotation, addSet, remSet, planeEps);
 
         // 1. Build the surface patch.
         //
