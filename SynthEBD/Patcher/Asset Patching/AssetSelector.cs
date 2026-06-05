@@ -327,12 +327,20 @@ public class AssetSelector
             {
                 var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
                     x.ForceIfMatchCount == matchedForceIfCount);
-                nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups);
+                nextSubgroup = ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups,
+                    x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                        x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
+                        x.ParentAssetPack.Source.AttributeGroups, _attributeMatcher,
+                        _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id));
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
             {
-                nextSubgroup = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i]);
+                nextSubgroup = ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i],
+                    x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                        x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
+                        x.ParentAssetPack.Source.AttributeGroups, _attributeMatcher,
+                        _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id));
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " at random." + Environment.NewLine, false, npcInfo);
             }
             #endregion
@@ -1276,7 +1284,13 @@ public class AssetSelector
 
     private bool SkipMixInByProbability(FlattenedAssetPack mixInPack, NPCInfo npcInfo)
     {
-        if (!BoolByProbability.Decide(mixInPack.DistributionRules.ProbabilityWeighting))
+        // Scale the inclusion probability by any matched whole-config probability modifiers, clamped to 100.
+        double modifierFactor = ProbabilityWeighting.GetProbabilityModifierFactor(
+            mixInPack.DistributionRules.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
+            mixInPack.Source.AttributeGroups, _attributeMatcher,
+            _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, mixInPack.GroupName);
+        double scaledProbability = Math.Min(100.0, mixInPack.DistributionRules.ProbabilityWeighting * modifierFactor);
+        if (!BoolByProbability.Decide(scaledProbability))
         {
             _logger.LogReport("Mix In " + mixInPack.GroupName + " was chosen at random to NOT be assigned.", false, npcInfo);
             return true;

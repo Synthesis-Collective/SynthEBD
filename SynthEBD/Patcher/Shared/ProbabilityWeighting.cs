@@ -1,4 +1,7 @@
-﻿namespace SynthEBD;
+﻿using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Skyrim;
+
+namespace SynthEBD;
 
 public interface IProbabilityWeighted
 {
@@ -63,5 +66,52 @@ public class ProbabilityWeighting
 
         // Fallback if due to rounding no element was returned
         return inputs.Last();
+    }
+
+    /// <summary>
+    /// Computes the multiplicative probability-modifier factor for a carrier: the product of the
+    /// <see cref="AttributeWeightModifier.Factor"/> of every modifier whose attribute condition is
+    /// satisfied (per <paramref name="npcMatches"/>). Returns 1.0 when the list is null/empty or
+    /// nothing matches, so callers can multiply the base <see cref="IProbabilityWeighted.ProbabilityWeighting"/>
+    /// unconditionally. Blank conditions (no sub-attributes) are skipped. This predicate-based
+    /// overload exists so the multiplicative math is unit-testable without a live Mutagen environment.
+    /// </summary>
+    public static double GetProbabilityModifierFactor(IEnumerable<AttributeWeightModifier>? modifiers, Func<NPCAttribute, bool> npcMatches)
+    {
+        if (modifiers == null) { return 1.0; }
+        double factor = 1.0;
+        foreach (var modifier in modifiers)
+        {
+            if (modifier?.Attribute == null || modifier.Attribute.SubAttributes.Count == 0) { continue; } // blank condition = no-op
+            if (npcMatches(modifier.Attribute)) { factor *= modifier.Factor; }
+        }
+        return factor;
+    }
+
+    /// <summary>
+    /// Production overload of <see cref="GetProbabilityModifierFactor(IEnumerable{AttributeWeightModifier}, Func{NPCAttribute, bool})"/>.
+    /// Each modifier's single attribute is tested against the NPC via <see cref="AttributeMatcher"/>
+    /// (treated as a pure restriction, exactly like a Disallowed-attribute match test). When verbose
+    /// detailed-attribute logging is enabled and a <paramref name="logger"/> is supplied, each applied
+    /// factor is written to the NPC report.
+    /// </summary>
+    public static double GetProbabilityModifierFactor(IEnumerable<AttributeWeightModifier>? modifiers, INpcGetter npc, FormKey? raceOverride, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attributeMatcher, bool detailedLogging, Logger logger = null, NPCInfo npcInfoForLog = null, string itemName = null)
+    {
+        if (modifiers == null) { return 1.0; }
+        double factor = 1.0;
+        foreach (var modifier in modifiers)
+        {
+            if (modifier?.Attribute == null || modifier.Attribute.SubAttributes.Count == 0) { continue; } // blank condition = no-op
+            attributeMatcher.MatchNPCtoAttributeList(new HashSet<NPCAttribute> { modifier.Attribute }, npc, raceOverride, attributeGroups, detailedLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int _, out string matchLog, out string _, out string _, null);
+            if (hasAttributeRestrictions && matchesAttributeRestrictions)
+            {
+                factor *= modifier.Factor;
+                if (logger != null && detailedLogging)
+                {
+                    logger.LogReport((itemName ?? "Item") + ": probability weight x" + modifier.Factor + " (NPC matched probability modifier" + (string.IsNullOrWhiteSpace(matchLog) ? "" : ": " + matchLog.Trim()) + ")", false, npcInfoForLog);
+                }
+            }
+        }
+        return factor;
     }
 }

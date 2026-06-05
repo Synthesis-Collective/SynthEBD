@@ -25,6 +25,7 @@ public class VM_Subgroup : VM
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
     private readonly VM_FilePathReplacementMenu.Factory _filePathReplacementMenuFactory;
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
@@ -42,6 +43,7 @@ public class VM_Subgroup : VM
         bool setExplicitReferenceNPC,
         VM_SettingsOBody oBody,
         VM_NPCAttributeCreator attributeCreator,
+        VM_AttributeWeightModifier.Factory weightModifierFactory,
         VM_FilePathReplacementMenu.Factory filePathReplacementMenuFactory,
         VM_FilePathReplacement.Factory filePathReplacementFactory,
         VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory,
@@ -50,6 +52,7 @@ public class VM_Subgroup : VM
         _environmentProvider = environmentProvider;
         _logger = logger;
         _attributeCreator = attributeCreator;
+        _weightModifierFactory = weightModifierFactory;
         _filePathReplacementMenuFactory = filePathReplacementMenuFactory;
         _filePathReplacementFactory = filePathReplacementFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
@@ -144,6 +147,11 @@ public class VM_Subgroup : VM
             execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
+        AddProbabilityWeightModifier = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ProbabilityWeightModifiers.Add(_weightModifierFactory(ProbabilityWeightModifiers, parentAssetPack.AttributeGroupMenu.Groups))
+        );
+
         AddNPCKeyword = new RelayCommand(
             canExecute: _ => true,
             execute: _ => AddKeywords.Add(new VM_CollectionMemberString("", AddKeywords))
@@ -204,6 +212,7 @@ public class VM_Subgroup : VM
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
     public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new();
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
     public bool AllowUnique { get; set; } = true;
     public bool AllowNonUnique { get; set; } = true;
     public VM_PositionalSubgroupContainerCollection RequiredSubgroups { get; set; }
@@ -232,6 +241,7 @@ public class VM_Subgroup : VM
     public RelayCommand AutoGenerateID_All_Command { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
+    public RelayCommand AddProbabilityWeightModifier { get; }
     public RelayCommand AddNPCKeyword { get; }
     public RelayCommand AddPath { get; }
     public RelayCommand DeleteRequiredSubgroup { get; }
@@ -270,6 +280,11 @@ public class VM_Subgroup : VM
         WeightRange = model.WeightRange;
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentAssetPack.AttributeGroupMenu.Groups, false, null);
+        ProbabilityWeightModifiers.Clear();
+        foreach (var m in model.ProbabilityWeightModifiers)
+        {
+            ProbabilityWeightModifiers.Add(VM_AttributeWeightModifier.GetViewModelFromModel(m, ProbabilityWeightModifiers, ParentAssetPack.AttributeGroupMenu.Groups, _weightModifierFactory, _attributeCreator));
+        }
         AllowedRaceGroupings.CopyInRaceGroupingsByLabel(model.AllowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentAssetPack.RaceGroupingEditor.RaceGroupings);
         
@@ -303,6 +318,7 @@ public class VM_Subgroup : VM
         model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.ProbabilityWeightModifiers = ProbabilityWeightModifiers.Select(x => x.DumpViewModelToModel()).ToList();
         model.AllowUnique = AllowUnique;
         model.AllowNonUnique = AllowNonUnique;
         model.RequiredSubgroups = RequiredSubgroups.DumpToCollection().ToList();

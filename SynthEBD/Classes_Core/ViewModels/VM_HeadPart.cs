@@ -18,12 +18,14 @@ namespace SynthEBD
     {
         private IEnvironmentStateProvider _environmentProvider;
         private readonly VM_NPCAttributeCreator _attributeCreator;
+        private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
         public delegate VM_HeadPart Factory(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
-        public VM_HeadPart(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+        public VM_HeadPart(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _environmentProvider = environmentProvider;
             _attributeCreator = attributeCreator;
+            _weightModifierFactory = weightModifierFactory;
             _descriptorSelectionFactory = descriptorSelectionFactory;
 
             AssociatedPlaceHolder = associatedPlaceHolder;
@@ -57,6 +59,11 @@ namespace SynthEBD
             AddDisallowedAttribute = new RelayCommand(
                 canExecute: _ => true,
                 execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenu.AttributeGroupMenu.Groups))
+            );
+
+            AddProbabilityWeightModifier = new RelayCommand(
+                canExecute: _ => true,
+                execute: _ => ProbabilityWeightModifiers.Add(_weightModifierFactory(ProbabilityWeightModifiers, ParentMenu.AttributeGroupMenu.Groups))
             );
 
             this.WhenAnyValue(x => x.FormKey).Subscribe(x =>
@@ -97,6 +104,7 @@ namespace SynthEBD
         public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
         public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
         public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+        public ObservableCollection<VM_AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
         public bool bAllowUnique { get; set; } = true;
         public bool bAllowNonUnique { get; set; } = true;
         public bool bAllowRandom { get; set; } = true;
@@ -117,6 +125,7 @@ namespace SynthEBD
         public RelayCommand DeleteMe { get; }
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
+        public RelayCommand AddProbabilityWeightModifier { get; }
         public RelayCommand Clone { get; }
         public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentMenu { get; set; }
@@ -136,6 +145,11 @@ namespace SynthEBD
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenu.AttributeGroupMenu.Groups, true, null);
             _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenu.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            ProbabilityWeightModifiers.Clear();
+            foreach (var m in model.ProbabilityWeightModifiers)
+            {
+                ProbabilityWeightModifiers.Add(VM_AttributeWeightModifier.GetViewModelFromModel(m, ProbabilityWeightModifiers, ParentMenu.AttributeGroupMenu.Groups, _weightModifierFactory, _attributeCreator));
+            }
             bAllowUnique = model.bAllowUnique;
             bAllowNonUnique = model.bAllowNonUnique;
             bAllowRandom = model.bAllowRandom;
@@ -169,6 +183,7 @@ namespace SynthEBD
                 DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet(),
                 AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes),
                 DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes),
+                ProbabilityWeightModifiers = ProbabilityWeightModifiers.Select(x => x.DumpViewModelToModel()).ToList(),
                 bAllowUnique = bAllowUnique,
                 bAllowNonUnique = bAllowNonUnique,
                 bAllowRandom = bAllowRandom,

@@ -27,6 +27,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         AllowedRaces = AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed(AllowedRaces, DisallowedRaces);
         AllowedAttributes = new HashSet<NPCAttribute>(template.AllowedAttributes);
         DisallowedAttributes = new HashSet<NPCAttribute>(template.DisallowedAttributes);
+        ProbabilityWeightModifiers = template.ProbabilityWeightModifiers.Select(AttributeWeightModifier.CloneAsNew).ToList();
         AllowUnique = template.AllowUnique;
         AllowNonUnique = template.AllowNonUnique;
         RequiredSubgroupIDs = _dictionaryMapper.RequiredOrExcludedSubgroupsToDictionary(template.RequiredSubgroups, subgroupHierarchy);
@@ -56,6 +57,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public bool AllowedRacesIsEmpty { get; set; } // distinguishes between initially empty (All races valid) vs. empty after pruning of Disallowed Races (subgroup is invalid)
     public HashSet<NPCAttribute> AllowedAttributes { get; set; }
     public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
+    public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
     public bool AllowUnique { get; set; }
     public bool AllowNonUnique { get; set; }
     public Dictionary<int, HashSet<string>> RequiredSubgroupIDs { get; set; }
@@ -161,6 +163,12 @@ public class FlattenedSubgroup : IProbabilityWeighted
             // Attribute Merging
             flattened.AllowedAttributes = NPCAttribute.InheritAttributes(parent.AllowedAttributes, flattened.AllowedAttributes);
             flattened.DisallowedAttributes = NPCAttribute.InheritAttributes(parent.DisallowedAttributes, flattened.DisallowedAttributes);
+
+            // Probability modifiers concatenate (union) parent -> child; they are independent multiplicative
+            // terms, NOT cross-producted like AllowedAttributes. Unlike the base ProbabilityWeighting multiply
+            // above (which the ConfigDistributionRules guard skips), whole-config modifiers SHOULD apply, so this
+            // runs for every parent including the ConfigDistributionRules pseudo-parent.
+            flattened.ProbabilityWeightModifiers.InsertRange(0, parent.ProbabilityWeightModifiers.Select(AttributeWeightModifier.CloneAsNew));
 
             // Weight Range
             if (parent.WeightRange.Lower > flattened.WeightRange.Lower) { flattened.WeightRange.Lower = parent.WeightRange.Lower; }

@@ -1,0 +1,40 @@
+<UserControl x:Class="SynthEBD.UC_AttributeWeightModifier"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             d:DataContext="{d:DesignInstance Type=local:VM_AttributeWeightModifier}"
+             mc:Ignorable="d"
+             d:DesignHeight="120" d:DesignWidth="800">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- The single attribute condition, rendered by the shared UC_NPCAttribute via the 1-element host collection. -->
+        <ItemsControl Grid.Column="0" ItemsSource="{Binding AttributeContainer}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
+                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 5"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- The multiplicative factor. -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10 0 0 0">
+            <TextBlock Text="&#215; " VerticalAlignment="Center" Foreground="White"/>
+            <xctk:DoubleUpDown Width="70" Minimum="0" Increment="0.1" Value="{Binding Factor}" Foreground="White"
+                               ToolTip="Probability multiplier applied when an NPC matches this condition"/>
+        </StackPanel>
+
+        <Button Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10 0 0 0"
+                Command="{Binding DeleteCommand}" Foreground="Firebrick">
+            <TextBlock FontSize="11">Remove</TextBlock>
+        </Button>
+    </Grid>
+</UserControl>

@@ -142,7 +142,17 @@
             <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="Body shape descriptors that a BodyGen morph may not have if it is to be paired with this headpart" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Female BodyGen Descriptors</TextBlock>
             <local:UC_BodyShapeDescriptorSelectionMenu Grid.Row="17" Grid.Column="2"  Visibility="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" DataContext="{Binding DisallowedBodyGenDescriptorsFemale}" />
 
-            <Button Grid.Row="18" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this head part from SynthEBD's settings" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Head Part</Button>
+            <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" ToolTip="Per-attribute multipliers on this head part's selection probability. When an NPC matches a modifier's attribute, this head part's probability is scaled by that modifier's factor (multiple matches multiply)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Probability Modifiers</TextBlock>
+            <Button Grid.Row="18" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="Lightgreen">Add New</Button>
+            <ItemsControl Grid.Row="18" Grid.Column="2" ItemsSource="{Binding ProbabilityWeightModifiers}" BorderThickness="1" BorderBrush="#5844b4">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:VM_AttributeWeightModifier}">
+                        <local:UC_AttributeWeightModifier Background="Black" Margin="0 0 0 10"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Grid.Row="19" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding DeleteMe}" ToolTip="Delete this head part from SynthEBD's settings" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Delete Head Part</Button>
         </Grid>
     </ScrollViewer>
 </UserControl>

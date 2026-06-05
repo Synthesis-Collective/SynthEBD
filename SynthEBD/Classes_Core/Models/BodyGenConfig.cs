@@ -39,6 +39,8 @@ public class BodyGenConfig
         {
             public List<string> Members { get; set; } = new();
             public double ProbabilityWeighting { get; set; } = 1;
+            public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new(); // editing UI deferred; honored by the selector when authored
+            public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         }
     }
 
@@ -60,6 +62,8 @@ public class BodyGenConfig
         public bool AllowNonUnique { get; set; } = true;
         public bool AllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
+        public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<string> RequiredTemplates { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
 

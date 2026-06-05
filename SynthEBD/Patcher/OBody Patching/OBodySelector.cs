@@ -141,7 +141,11 @@ public class OBodySelector
                 }
                 else
                 {
-                    var selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(forceIfPresets);
+                    var selectedPreset = ProbabilityWeighting.SelectByProbability(forceIfPresets,
+                        x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                            x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                            _patcherState.OBodySettings.AttributeGroups, _attributeMatcher,
+                            _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Label));
                     if (selectedPreset != null)
                     {
                         selectedPresets.Add(selectedPreset);
@@ -174,7 +178,11 @@ public class OBodySelector
                 }
                 else
                 {
-                    var selectedPreset = (BodySlideSetting)ProbabilityWeighting.SelectByProbability(filteredPresets);
+                    var selectedPreset = ProbabilityWeighting.SelectByProbability(filteredPresets,
+                        x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                            x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                            _patcherState.OBodySettings.AttributeGroups, _attributeMatcher,
+                            _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Label));
                     if (selectedPreset != null)
                     {
                         selectedPresets.Add(selectedPreset);

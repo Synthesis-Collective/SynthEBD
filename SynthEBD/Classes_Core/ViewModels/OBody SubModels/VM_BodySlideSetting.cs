@@ -21,6 +21,7 @@ public class VM_BodySlideSetting : VM
     private IEnvironmentStateProvider _environmentProvider;
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
     private readonly BodySlideAnnotator _bodySlideAnnotator;
     private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
     private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
@@ -33,7 +34,7 @@ public class VM_BodySlideSetting : VM
     private readonly Logger _logger;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -42,6 +43,7 @@ public class VM_BodySlideSetting : VM
 
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
+        _weightModifierFactory = weightModifierFactory;
         _bodySlideAnnotator = bodySlideAnnotator;
         _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
         _raceGroupingVMs = raceGroupingVMs;
@@ -96,6 +98,11 @@ public class VM_BodySlideSetting : VM
         AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentMenuVM.AttributeGroupMenu.Groups))
+        );
+
+        AddProbabilityWeightModifier = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ProbabilityWeightModifiers.Add(_weightModifierFactory(ProbabilityWeightModifiers, ParentMenuVM.AttributeGroupMenu.Groups))
         );
 
         DeleteMe = new RelayCommand(
@@ -439,6 +446,7 @@ public class VM_BodySlideSetting : VM
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
     public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
     public bool bAllowUnique { get; set; } = true;
     public bool bAllowNonUnique { get; set; } = true;
     public bool bAllowRandom { get; set; } = true;
@@ -467,6 +475,7 @@ public class VM_BodySlideSetting : VM
     public RelayCommand ToggleLock { get; }
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
+    public RelayCommand AddProbabilityWeightModifier { get; }
     public RelayCommand DeleteMe { get; }
     public RelayCommand CloneCommand { get; }
     public RelayCommand ToggleHide { get; }
@@ -749,6 +758,11 @@ public class VM_BodySlideSetting : VM
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        ProbabilityWeightModifiers.Clear();
+        foreach (var m in model.ProbabilityWeightModifiers)
+        {
+            ProbabilityWeightModifiers.Add(VM_AttributeWeightModifier.GetViewModelFromModel(m, ProbabilityWeightModifiers, ParentMenuVM.AttributeGroupMenu.Groups, _weightModifierFactory, _attributeCreator));
+        }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
         bAllowRandom = model.AllowRandom;
@@ -836,6 +850,7 @@ public class VM_BodySlideSetting : VM
         model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.ProbabilityWeightModifiers = ProbabilityWeightModifiers.Select(x => x.DumpViewModelToModel()).ToList();
         model.AllowUnique = bAllowUnique;
         model.AllowNonUnique = bAllowNonUnique;
         model.AllowRandom = bAllowRandom;

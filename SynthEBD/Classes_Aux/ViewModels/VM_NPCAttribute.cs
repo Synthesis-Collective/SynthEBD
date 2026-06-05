@@ -54,6 +54,8 @@ public class VM_NPCAttribute : VM
     public RelayCommand Validate { get; }
     public bool DisplayForceIfOption { get; set; } = true;
     public bool? DisplayForceIfWeight { get; set; }
+    public bool DisplayORButton { get; set; } = true; // hidden when this box is a single-condition host (e.g. a Probability Modifier row)
+    public bool DisplayRemoveButton { get; set; } = true; // hidden when an outer row owns removal (e.g. a Probability Modifier row)
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
     public VM_NPCAttributeShell MostRecentlyEditedShell { get; set; }
     public IObservable<Unit> NeedsRefresh { get; set; }

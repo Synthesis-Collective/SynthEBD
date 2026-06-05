@@ -168,15 +168,17 @@ public class VM_BodyGenTemplate : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     private readonly VM_SettingsBodyGen _bodyGenSettingsVM;
     private readonly PreviewNpcResolver _previewNpcResolver;
     public delegate VM_BodyGenTemplate Factory(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig);
-    public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_SettingsBodyGen bodyGenSettingsVM, PreviewNpcResolver previewNpcResolver)
+    public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_SettingsBodyGen bodyGenSettingsVM, PreviewNpcResolver previewNpcResolver)
     {
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
+        _weightModifierFactory = weightModifierFactory;
         _logger = logger;
         _descriptorSelectionFactory = descriptorSelectionFactory;
         _bodyGenSettingsVM = bodyGenSettingsVM;
@@ -233,6 +235,11 @@ public class VM_BodyGenTemplate : VM
             execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, ParentConfig.AttributeGroupMenu.Groups))
         );
 
+        AddProbabilityWeightModifier = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ProbabilityWeightModifiers.Add(_weightModifierFactory(ProbabilityWeightModifiers, ParentConfig.AttributeGroupMenu.Groups))
+        );
+
         AddRequiredTemplate = new RelayCommand(
             canExecute: _ => true,
             execute: _ => RequiredTemplates.Add(new VM_CollectionMemberString("", this.RequiredTemplates))
@@ -256,6 +263,7 @@ public class VM_BodyGenTemplate : VM
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
     public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new(); // keeping as array to allow deserialization of original zEBD settings files
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
     public bool bAllowUnique { get; set; } = true;
     public bool bAllowNonUnique { get; set; } = true;
     public bool bAllowRandom { get; set; } = true;
@@ -270,6 +278,7 @@ public class VM_BodyGenTemplate : VM
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
+    public RelayCommand AddProbabilityWeightModifier { get; }
     public RelayCommand AddRequiredTemplate { get; }
     public RelayCommand DeleteMe { get; }
 
@@ -325,6 +334,11 @@ public class VM_BodyGenTemplate : VM
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
         foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+        ProbabilityWeightModifiers.Clear();
+        foreach (var m in model.ProbabilityWeightModifiers)
+        {
+            ProbabilityWeightModifiers.Add(VM_AttributeWeightModifier.GetViewModelFromModel(m, ProbabilityWeightModifiers, ParentConfig.AttributeGroupMenu.Groups, _weightModifierFactory, _attributeCreator));
+        }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
         bAllowRandom = model.AllowRandom;
@@ -408,6 +422,7 @@ public class VM_BodyGenTemplate : VM
         model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.ProbabilityWeightModifiers = ProbabilityWeightModifiers.Select(x => x.DumpViewModelToModel()).ToList();
         model.AllowUnique = bAllowUnique;
         model.AllowNonUnique = bAllowNonUnique;
         model.AllowRandom = bAllowRandom;

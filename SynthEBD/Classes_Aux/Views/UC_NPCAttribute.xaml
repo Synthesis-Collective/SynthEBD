@@ -5,8 +5,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
              d:DataContext="{d:DesignInstance Type=local:VM_NPCAttribute}"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -32,7 +36,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick">
+                <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding DeleteCommand}" Foreground="Firebrick" Visibility="{Binding DisplayRemoveButton, Converter={StaticResource BoolToVis}}">
                     <TextBlock FontSize="11">Remove<LineBreak/>Attribute</TextBlock>
                 </Button>
                 <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Command="{Binding Validate}" Foreground="LightGreen">
@@ -40,6 +44,6 @@
                 </Button>
             </Grid>
         </Border>
-        <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}" Foreground="Lightgreen">OR</Button>
+        <Button Grid.Row="1" Grid.Column="0" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddToParent}" Foreground="Lightgreen" Visibility="{Binding DisplayORButton, Converter={StaticResource BoolToVis}}">OR</Button>
     </Grid>
 </UserControl>

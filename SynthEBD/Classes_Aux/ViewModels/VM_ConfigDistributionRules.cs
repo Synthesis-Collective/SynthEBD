@@ -15,15 +15,17 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     private readonly VM_SettingsOBody _oBody;
     private readonly Logger _logger;
     private readonly VM_NPCAttributeCreator _attributeCreator;
+    private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     public delegate VM_ConfigDistributionRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack);
 
-    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IEnvironmentStateProvider environmentProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
+    public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IEnvironmentStateProvider environmentProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         _environmentProvider = environmentProvider;
         _oBody = oBody;
         _logger = logger;
         _attributeCreator = attributeCreator;
+        _weightModifierFactory = weightModifierFactory;
         _descriptorSelectionFactory = descriptorSelectionFactory;
 
         SubscribedRaceGroupings = raceGroupingVMs;
@@ -50,6 +52,11 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         AddDisallowedAttribute = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisallowedAttributes.Add(_attributeCreator.CreateNewFromUI(DisallowedAttributes, false, null, parentAssetPack.AttributeGroupMenu.Groups))
+        );
+
+        AddProbabilityWeightModifier = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ProbabilityWeightModifiers.Add(_weightModifierFactory(ProbabilityWeightModifiers, parentAssetPack.AttributeGroupMenu.Groups))
         );
 
         AddNPCKeyword = new RelayCommand(
@@ -90,6 +97,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public VM_RaceGroupingCheckboxList DisallowedRaceGroupings { get; set; }
     public ObservableCollection<VM_NPCAttribute> AllowedAttributes { get; set; } = new();
     public ObservableCollection<VM_NPCAttribute> DisallowedAttributes { get; set; } = new();
+    public ObservableCollection<VM_AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
     public bool DistributionEnabled { get; set; } = true;
     public bool AllowUnique { get; set; } = true;
     public bool AllowNonUnique { get; set; } = true;
@@ -108,6 +116,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 
     public RelayCommand AddAllowedAttribute { get; }
     public RelayCommand AddDisallowedAttribute { get; }
+    public RelayCommand AddProbabilityWeightModifier { get; }
     public RelayCommand AddNPCKeyword { get; }
     public VM_AssetPack ParentAssetPack { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
@@ -125,6 +134,11 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
             _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
             foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
+            ProbabilityWeightModifiers.Clear();
+            foreach (var m in model.ProbabilityWeightModifiers)
+            {
+                ProbabilityWeightModifiers.Add(VM_AttributeWeightModifier.GetViewModelFromModel(m, ProbabilityWeightModifiers, parentAssetPack.AttributeGroupMenu.Groups, _weightModifierFactory, _attributeCreator));
+            }
             DistributionEnabled = model.DistributionEnabled;
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
@@ -154,6 +168,7 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         model.DisallowedRaceGroupings = DisallowedRaceGroupings.RaceGroupingSelections.Where(x => x.IsSelected).Select(x => x.SubscribedMasterRaceGrouping.Label).ToHashSet();
         model.AllowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(AllowedAttributes);
         model.DisallowedAttributes = VM_NPCAttribute.DumpViewModelsToModels(DisallowedAttributes);
+        model.ProbabilityWeightModifiers = ProbabilityWeightModifiers.Select(x => x.DumpViewModelToModel()).ToList();
         model.DistributionEnabled = DistributionEnabled;
         model.AllowUnique = AllowUnique;
         model.AllowNonUnique = AllowNonUnique;

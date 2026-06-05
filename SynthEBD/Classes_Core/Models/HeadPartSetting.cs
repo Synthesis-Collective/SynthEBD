@@ -24,6 +24,8 @@ namespace SynthEBD
         public bool bAllowNonUnique { get; set; } = true;
         public bool bAllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
+        public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public NPCWeightRange WeightRange { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
         public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;

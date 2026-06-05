@@ -48,6 +48,8 @@ public class AssetPack : IModelHasSubgroups
         public bool AllowNonUnique { get; set; } = true;
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
+        public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
         public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptors { get; set; } = new();
@@ -78,6 +80,7 @@ public class AssetPack : IModelHasSubgroups
             subgroup.AllowNonUnique = rules.AllowNonUnique;
             subgroup.AddKeywords = new HashSet<string>(rules.AddKeywords ?? new());
             subgroup.ProbabilityWeighting = rules.ProbabilityWeighting;
+            subgroup.ProbabilityWeightModifiers = (rules.ProbabilityWeightModifiers ?? new()).Select(AttributeWeightModifier.CloneAsNew).ToList();
             subgroup.AllowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.AllowedBodyGenDescriptors ?? new());
             subgroup.AllowedBodyGenMatchMode = rules.AllowedBodyGenMatchMode;
             subgroup.DisallowedBodyGenDescriptors = new HashSet<BodyShapeDescriptor.LabelSignature>(rules.DisallowedBodyGenDescriptors ?? new());
@@ -111,6 +114,8 @@ public class AssetPack : IModelHasSubgroups
         public List<string> ExcludedSubgroups { get; set; } = new();
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
+        public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<FilePathReplacement> Paths { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
         public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;

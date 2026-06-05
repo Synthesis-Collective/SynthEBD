@@ -200,11 +200,19 @@ public class BodyGenSelector
 
         foreach (var combinationList in prioritizedCombinations)
         {
-            var currentCombination = (GroupCombinationObject)ProbabilityWeighting.SelectByProbability(availableCombinations);
+            var currentCombination = ProbabilityWeighting.SelectByProbability(availableCombinations,
+                c => c.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                    c.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                    c.Templates.FirstOrDefault(g => g.Any())?.First().ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
+                    _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, null));
 
             foreach (var availableMorphsAtPosition in currentCombination.Templates)
             {
-                var candidateMorph = (BodyGenConfig.BodyGenTemplate)ProbabilityWeighting.SelectByProbability(availableMorphsAtPosition);
+                var candidateMorph = ProbabilityWeighting.SelectByProbability(availableMorphsAtPosition,
+                    t => t.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                        t.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                        t.ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
+                        _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, t.Label));
                 chosenMorphs.Add(candidateMorph);
             }
         }
@@ -622,6 +630,7 @@ public class BodyGenSelector
         {
             MaxMatchedForceIfAttributes = 0;
             ProbabilityWeighting = bodyGenCombination.ProbabilityWeighting;
+            ProbabilityWeightModifiers = bodyGenCombination.ProbabilityWeightModifiers.Select(AttributeWeightModifier.CloneAsNew).ToList();
             Categories = new(bodyGenCombination.Members);
 
             foreach (var templateGroup in bodyGenCombination.Members)
@@ -646,6 +655,7 @@ public class BodyGenSelector
         {
             MaxMatchedForceIfAttributes = template.MaxMatchedForceIfAttributes;
             ProbabilityWeighting = template.ProbabilityWeighting;
+            ProbabilityWeightModifiers = template.ProbabilityWeightModifiers.Select(AttributeWeightModifier.CloneAsNew).ToList();
             InitializedSuccessfully = template.InitializedSuccessfully;
             foreach (var setAtPosition in template.Templates)
             {
@@ -656,6 +666,7 @@ public class BodyGenSelector
 
         public int MaxMatchedForceIfAttributes { get; set; }
         public double ProbabilityWeighting { get; set; }
+        public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
         public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; } = new();
         public bool InitializedSuccessfully { get; set; } // false if one or more of the template sublists contains no templates.
         public List<string> Categories { get; set; }

@@ -316,6 +316,8 @@ public class BodySlideSetting : IProbabilityWeighted
     public bool AllowNonUnique { get; set; } = true;
     public bool AllowRandom { get; set; } = true;
     public double ProbabilityWeighting { get; set; } = 1;
+    public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+    public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
     public NPCWeightRange WeightRange { get; set; } = new();
     public bool HideInMenu { get; set; } = false;
     [JsonIgnore]

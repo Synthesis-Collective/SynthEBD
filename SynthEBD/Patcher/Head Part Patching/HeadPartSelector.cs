@@ -277,7 +277,11 @@ namespace SynthEBD
                 return null;
             }
 
-            var selectedAssignment = (HeadPartSetting)ProbabilityWeighting.SelectByProbability(options);
+            var selectedAssignment = ProbabilityWeighting.SelectByProbability(options,
+                o => o.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                    o.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.HeadPartsRace,
+                    _patcherState.GeneralSettings.AttributeGroups, _attributeMatcher,
+                    _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, o.EditorID));
             _logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
