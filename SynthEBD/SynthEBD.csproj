@@ -253,12 +253,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="GongSolutions.Wpf.DragDrop">
-      <HintPath>E:\Downloads\gong-wpf-dragdrop\GongSolutions.Wpf.DragDrop\bin\Debug\GongSolutions.Wpf.DragDrop.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- NifTextureLoader is dead code (replaced by GlTextureManager); exclude to avoid HelixToolkit compile errors -->
     <Compile Remove="Classes_Aux\Models\NifTextureLoader.cs" />
   </ItemGroup>
