@@ -3586,6 +3586,7 @@ public class VM_BodyTypeProfile : VM
                     _regionLastNames[r] = r.Name ?? "";
                 }
             RecomputeDuplicateRegionNames();
+            NotifyAvailableRegionNamesChanged(); // a region added/removed changes the dropdown lists
             RevalidateMeasurementCacheStale();
             RefreshMeasurementValues();
         };
@@ -3877,6 +3878,7 @@ public class VM_BodyTypeProfile : VM
             }
             _regionLastNames[rRow] = rRow.Name ?? "";
             RecomputeDuplicateRegionNames();
+            NotifyAvailableRegionNamesChanged(); // a region rename changes the dropdown lists
         }
 
         switch (e.PropertyName)
@@ -3906,8 +3908,9 @@ public class VM_BodyTypeProfile : VM
     }
 
     /// <summary>Rewrites <see cref="MeasurementDefinition.RegionRefName"/> on every RegionVolume
-    /// measurement that pointed at <paramref name="oldName"/> so a region rename doesn't orphan its
-    /// referencing measurements. Mirrors <see cref="CascadeKeyVertexRename"/>.</summary>
+    /// measurement, and <see cref="VM_NamedKeyVertex.RegionRefName"/> on every Region-strategy key
+    /// vertex, that pointed at <paramref name="oldName"/> so a region rename doesn't orphan its
+    /// references. Mirrors <see cref="CascadeKeyVertexRename"/>.</summary>
     private void CascadeRegionRename(string oldName, string newName)
     {
         var from = (oldName ?? "").Trim();
@@ -3919,6 +3922,14 @@ public class VM_BodyTypeProfile : VM
                 && string.Equals((m.RegionRefName ?? "").Trim(), from, StringComparison.Ordinal))
             {
                 m.RegionRefName = to;
+            }
+        }
+        foreach (var k in KeyVertices)
+        {
+            if (k != null && k.Strategy == KeyVertexStrategy.Region
+                && string.Equals((k.RegionRefName ?? "").Trim(), from, StringComparison.Ordinal))
+            {
+                k.RegionRefName = to;
             }
         }
     }
@@ -4748,6 +4759,17 @@ public class VM_BodyTypeProfile : VM
     /// analog of <see cref="AvailableKeyVertexNames"/>). Empty names are filtered so the dropdown
     /// only offers nameable references.</summary>
     public IEnumerable<string> AvailableRegionNames => Regions.Select(r => r.Name).Where(n => !string.IsNullOrEmpty(n));
+
+    /// <summary>Refreshes the region-name dropdowns on every row that sources its list from
+    /// <see cref="AvailableRegionNames"/> (key-vertex rows and measurement rows). Those getters delegate
+    /// to this VM's <see cref="Regions"/> collection, a cross-object dependency Fody can't see, so the
+    /// item lists must be re-pushed by hand whenever the set of region names changes — a region added,
+    /// removed, or renamed. Without this the dropdowns keep their first-bind snapshot.</summary>
+    private void NotifyAvailableRegionNamesChanged()
+    {
+        foreach (var k in KeyVertices) k.ManuallyRaisePropertyChanged(nameof(VM_NamedKeyVertex.AvailableRegionNames));
+        foreach (var m in Measurements) m.ManuallyRaisePropertyChanged(nameof(VM_MeasurementDefinition.AvailableRegionNames));
+    }
 
     public ObservableCollection<string> AvailableBodyTypeNames => _parent.AvailableBodyTypeNames;
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors => _parent.AvailableDescriptors;
