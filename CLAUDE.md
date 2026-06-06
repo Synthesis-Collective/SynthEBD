@@ -28,7 +28,7 @@ Tests cover the BodySlide group classifier (ML.NET-based), form-key replacement 
 
 ### Build gotcha
 
-[SynthEBD/SynthEBD.csproj](SynthEBD/SynthEBD.csproj) carries both a NuGet `PackageReference` to `gong-wpf-dragdrop` **and** a hardcoded local `<Reference>` HintPath (`E:\Downloads\gong-wpf-dragdrop\...`). On a machine without that path, drop or fix the local `<Reference>` element. Ignore the stray `SynthEBD_pwwzxdzj_wpftmp.csproj` (a transient WPF temp project).
+[SynthEBD/SynthEBD.csproj](SynthEBD/SynthEBD.csproj) references `gong-wpf-dragdrop` via a NuGet `PackageReference` only. (It previously also carried a hardcoded local `<Reference>` HintPath into `E:\Downloads\...`, which broke builds on any other machine; that local reference was removed in commit `e64f6a98`, so no manual fix is needed anymore.) Ignore the stray `SynthEBD_pwwzxdzj_wpftmp.csproj` (a transient WPF temp project).
 
 ## Solution structure
 
