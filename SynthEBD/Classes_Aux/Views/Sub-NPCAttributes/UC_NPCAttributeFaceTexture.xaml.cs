@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_NPCAttributeFaceTexture.xaml
+/// Code-behind for the FaceTexture NPC-attribute editor user control (the view for VM_NPCAttributeFaceTexture).
 /// </summary>
 public partial class UC_NPCAttributeFaceTexture : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_NPCAttributeFaceTexture()
     {
         InitializeComponent();

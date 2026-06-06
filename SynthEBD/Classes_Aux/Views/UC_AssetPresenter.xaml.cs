@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AssetPresenter.xaml
+    /// Code-behind for the asset-presenter user control (the view for VM_AssetPresenter).
     /// </summary>
     public partial class UC_AssetPresenter : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_AssetPresenter()
         {
             InitializeComponent();

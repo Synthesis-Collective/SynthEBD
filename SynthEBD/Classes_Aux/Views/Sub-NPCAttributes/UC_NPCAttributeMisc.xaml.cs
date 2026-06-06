@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_NPCAttributeMisc.xaml
+/// Code-behind for the Misc NPC-attribute editor user control (the view for VM_NPCAttributeMisc).
 /// </summary>
 public partial class UC_NPCAttributeMisc : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_NPCAttributeMisc()
     {
         InitializeComponent();

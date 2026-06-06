@@ -11,8 +11,18 @@ using OpenTK.Wpf;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Code-behind for the embedded OpenGL character viewer (hosts an <see cref="OpenTK.Wpf.GLWpfControl"/>).
+/// Drives the GL lifecycle (deferred start, sleep/wake suspend, context-loss recovery on navigation),
+/// translates mouse input into camera orbit/pan/zoom and the pick modes (key-vertex, bounding-box,
+/// region vertex-edit, light-arrow), renders the axis gizmo and pending-box wireframe overlays each frame,
+/// and builds the right-click texture-toggle menu and hover tooltips. All VM interaction goes through a
+/// lazily-resolved <see cref="VM_CharacterViewer"/> (a persistent singleton re-bound when WPF recreates
+/// this control). See also <c>RENDERING_PIPELINE.md</c>.
+/// </summary>
 public partial class UC_CharacterViewer : UserControl
 {
+    /// <summary>Wires the GL control's mouse events, the hover-tooltip dwell timer, the deferred GL-start hooks (SizeChanged/Loaded), the axis-gizmo placement, the pending-box wireframe lines, and sleep/wake power-mode suspension; unsubscribes power events on unload.</summary>
     public UC_CharacterViewer()
     {
         InitializeComponent();
@@ -141,6 +151,7 @@ public partial class UC_CharacterViewer : UserControl
     // each frame without re-creating Line instances.
     private readonly System.Windows.Shapes.Line[] _boxWireLines = new System.Windows.Shapes.Line[12];
 
+    /// <summary>Re-subscribes the pick-collection and pick-selection-request events to the new <see cref="VM_CharacterViewer"/> when the DataContext changes, then attempts to start GL.</summary>
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_vm != null)
@@ -174,6 +185,7 @@ public partial class UC_CharacterViewer : UserControl
         }));
     }
 
+    /// <summary>Auto-selects the most recently added pick (so "Select Mirror" defaults to it); clears the VM selection on a collection reset.</summary>
     private void Picks_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         // Auto-select the most recently added pick so Select Mirror operates on it
@@ -193,6 +205,7 @@ public partial class UC_CharacterViewer : UserControl
         }
     }
 
+    /// <summary>Forwards the list's selected pick rows to <see cref="VM_CharacterViewer.SetSelectedPicks"/>.</summary>
     private void PicksList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_vm == null) return;
@@ -202,6 +215,7 @@ public partial class UC_CharacterViewer : UserControl
         _vm.SetSelectedPicks(sel);
     }
 
+    /// <summary>Starts the GL render loop once the control is loaded and has a non-zero size; idempotent. Toggles visibility afterward to work around a GLWpfControl bug where continuous rendering isn't registered when the control is already visible at Start().</summary>
     private void TryStartGl()
     {
         if (_glStarted) return;
@@ -241,6 +255,7 @@ public partial class UC_CharacterViewer : UserControl
             + GlControl.ActualHeight.ToString("F0") + ")");
     }
 
+    /// <summary>Collapses the GL control before sleep and restores it (deferred) on resume, so OnRender never runs against an invalidated GL context across a sleep/wake cycle.</summary>
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
         if (e.Mode == PowerModes.Suspend)
@@ -263,6 +278,8 @@ public partial class UC_CharacterViewer : UserControl
     //  GL RENDER CALLBACK
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Per-frame GL render callback: recovers from context loss on a reused VM, initializes GL on the first frame, uploads any pending scene, renders at device-pixel resolution, and updates the axis-gizmo + box-wireframe overlays. Emits one-shot first-render / zombie-render diagnostics.</summary>
+    /// <param name="delta">Time since the previous frame (unused; rendering is state-driven).</param>
     private void GlControl_OnRender(TimeSpan delta)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -354,6 +371,7 @@ public partial class UC_CharacterViewer : UserControl
         (0b000, 0b010), (0b001, 0b011), (0b100, 0b110), (0b101, 0b111), // verticals
     };
 
+    /// <summary>Creates the 12 reusable WPF lines for the pending-box AABB wireframe overlay once, so <see cref="UpdateBoxWireframe"/> can rewrite their endpoints each frame without reallocating.</summary>
     private void BuildBoxWireframeLines()
     {
         var stroke = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0xCC, 0x40));
@@ -450,6 +468,7 @@ public partial class UC_CharacterViewer : UserControl
         UpdateAxisLine(AxisZ_Line, AxisZ_Label, cx, cy, zView.X, zView.Y, length);
     }
 
+    /// <summary>Positions one gizmo axis line and its label from a screen-space direction (dx, dy) about the widget centre; flips Y for WPF's Y-down coordinates.</summary>
     private static void UpdateAxisLine(
         System.Windows.Shapes.Line line, TextBlock label,
         float cx, float cy, float dx, float dy, float length)
@@ -462,6 +481,7 @@ public partial class UC_CharacterViewer : UserControl
         Canvas.SetTop(label, ey - 8);
     }
 
+    /// <summary>Places the axis-gizmo widget in the bottom-left corner the first time the overlay canvas gets a real size (only once, so later user drags stick).</summary>
     private void GizmoCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (_gizmoDefaultPositioned) return;
@@ -472,6 +492,7 @@ public partial class UC_CharacterViewer : UserControl
         _gizmoDefaultPositioned = true;
     }
 
+    /// <summary>Begins dragging the axis-gizmo widget, capturing the mouse and seeding the cursor-to-widget offset.</summary>
     private void AxisGizmo_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _gizmoDragging = true;
@@ -485,6 +506,7 @@ public partial class UC_CharacterViewer : UserControl
         e.Handled = true;
     }
 
+    /// <summary>While dragging, moves the axis-gizmo widget with the cursor, clamped inside the overlay canvas.</summary>
     private void AxisGizmo_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_gizmoDragging) return;
@@ -501,6 +523,7 @@ public partial class UC_CharacterViewer : UserControl
         Canvas.SetTop(AxisGizmoBorder, newTop);
     }
 
+    /// <summary>Ends the axis-gizmo drag and releases mouse capture.</summary>
     private void AxisGizmo_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (!_gizmoDragging) return;
@@ -513,6 +536,7 @@ public partial class UC_CharacterViewer : UserControl
     //  MOUSE → ORBIT CAMERA
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Left-button handler: routes to the active pick mode (key-vertex, bounding-box rubber-band, region vertex-edit, or light-arrow) if one is on, otherwise begins a camera orbit/pan. Cancels any hover tooltip.</summary>
     private void GlControl_MouseDown(object sender, MouseButtonEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -601,6 +625,7 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.CaptureMouse();
     }
 
+    /// <summary>Updates the rubber-band rect while painting a BB/vertex-edit selection, otherwise drives camera orbit/pan and restarts the hover dwell timer when not actively orbiting.</summary>
     private void GlControl_MouseMove(object sender, MouseEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -642,6 +667,7 @@ public partial class UC_CharacterViewer : UserControl
         }
     }
 
+    /// <summary>Completes a region vertex-edit or bounding-box selection (resolving the painted rect into a vertex pick or mesh-local AABB), otherwise ends the camera drag.</summary>
     private void GlControl_MouseUp(object sender, MouseButtonEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -708,6 +734,7 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.ReleaseMouseCapture();
     }
 
+    /// <summary>Zooms the camera by the wheel delta and hides any hover tooltip.</summary>
     private void GlControl_MouseWheel(object sender, MouseWheelEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -717,6 +744,7 @@ public partial class UC_CharacterViewer : UserControl
         _vm.Camera.OnMouseWheel(e.Delta);
     }
 
+    /// <summary>Hides the hover tooltip when the cursor leaves the GL control.</summary>
     private void GlControl_MouseLeave(object sender, MouseEventArgs e)
     {
         HideHoverTooltip();
@@ -726,6 +754,7 @@ public partial class UC_CharacterViewer : UserControl
     //  RIGHT-CLICK → MESH PICKING & TEXTURE TOGGLE CONTEXT MENU
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Right-click handler: hit-tests the mesh under the cursor and opens a context menu of per-slot texture toggles, mesh visibility, and "show all / reset all" actions for it.</summary>
     private void GlControl_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -835,6 +864,7 @@ public partial class UC_CharacterViewer : UserControl
         e.Handled = true;
     }
 
+    /// <summary>Builds the context-menu label for a mesh's tint-color toggle, appending the RGB values when a tint colour is present.</summary>
     private static string TintColorLabel(GlMesh mesh)
     {
         if (!mesh.HasTintColor) return "Tint Color";
@@ -858,6 +888,7 @@ public partial class UC_CharacterViewer : UserControl
         (45f/255f,  90f/255f,  39f/255f),  // Forest
     };
 
+    /// <summary>Applies the chosen viewport background colour to the renderer's clear colour.</summary>
     private void BgColorCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -868,30 +899,35 @@ public partial class UC_CharacterViewer : UserControl
         _vm.Renderer.ClearColor = new OpenTK.Mathematics.Vector3(r, g, b);
     }
 
+    /// <summary>Resets the camera to its default position.</summary>
     private void ResetViewButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.Camera.Reset();
     }
 
+    /// <summary>Logs the current lighting settings to the viewer diagnostic log.</summary>
     private void LogLightingButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.LogLightingSettings();
     }
 
+    /// <summary>Clears all key-vertex pick markers from the scene.</summary>
     private void ClearKeyVertexMarkersButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.ClearKeyVertexMarkers();
     }
 
+    /// <summary>Selects the mirror-image counterparts of the current picks.</summary>
     private void SelectMirrorPicksButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         _vm?.SelectMirrorPicks();
     }
 
+    /// <summary>Projects the most recent pick across the mirror axis to create its pair.</summary>
     private void PairAcrossAxisButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -929,6 +965,7 @@ public partial class UC_CharacterViewer : UserControl
     //  HOVER TOOLTIP — MESH & TEXTURE SOURCE PATHS
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Dwell-timer callback: shows a tooltip for the measurement line (priority) or mesh under the cursor, rebuilding its content only when the hover target changes.</summary>
     private void HoverTimer_Tick(object? sender, EventArgs e)
     {
         _hoverTimer.Stop();
@@ -984,6 +1021,7 @@ public partial class UC_CharacterViewer : UserControl
             _hoverTooltip.IsOpen = true;
     }
 
+    /// <summary>Stops the dwell timer, clears the tracked hover target, and closes the tooltip.</summary>
     private void HideHoverTooltip()
     {
         _hoverTimer.Stop();
@@ -1005,6 +1043,7 @@ public partial class UC_CharacterViewer : UserControl
         FontWeight = FontWeights.Bold,
     };
 
+    /// <summary>Builds the mesh hover tooltip: a shape/body-part header plus the resolved mesh and per-slot texture asset sources.</summary>
     private static TextBlock BuildHoverTooltipContent(GlMesh mesh)
     {
         var tb = new TextBlock
@@ -1048,6 +1087,7 @@ public partial class UC_CharacterViewer : UserControl
         return tb;
     }
 
+    /// <summary>Appends an asset source's game path and origin (loose file / BSA / not found) to a tooltip text block.</summary>
     private static void AppendAssetSource(TextBlock tb, AssetSource? source)
     {
         if (source == null)
@@ -1077,6 +1117,7 @@ public partial class UC_CharacterViewer : UserControl
         }
     }
 
+    /// <summary>Shows/hides the lighting settings panel and updates the toggle button caption.</summary>
     private void LightSettingsToggleButton_Click(object sender, RoutedEventArgs e)
     {
         bool show = LightingPanel.Visibility != Visibility.Visible;
@@ -1084,6 +1125,7 @@ public partial class UC_CharacterViewer : UserControl
         LightSettingsToggleButton.Content = show ? "Hide Light Settings" : "Show Light Settings";
     }
 
+    /// <summary>Shows/hides the render settings panel and updates the toggle button caption.</summary>
     private void RenderSettingsToggleButton_Click(object sender, RoutedEventArgs e)
     {
         bool show = RenderPanel.Visibility != Visibility.Visible;
@@ -1091,6 +1133,7 @@ public partial class UC_CharacterViewer : UserControl
         RenderSettingsToggleButton.Content = show ? "Hide Render Settings" : "Show Render Settings";
     }
 
+    /// <summary>Opens a message window summarizing the 3D viewer's mouse and toolbar controls.</summary>
     private void ControlsButton_Click(object sender, RoutedEventArgs e)
     {
         var msg = new VM_MessageWindowOK(

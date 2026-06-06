@@ -12,6 +12,7 @@ namespace SynthEBD;
 /// </summary>
 public partial class Window_MeasurementHistogram : Window
 {
+    /// <summary>Calls InitializeComponent and hooks the window's Closed event to persist the histogram's bin-count settings to the process-static cache ("last to close wins").</summary>
     public Window_MeasurementHistogram()
     {
         InitializeComponent();
@@ -28,6 +29,7 @@ public partial class Window_MeasurementHistogram : Window
         };
     }
 
+    /// <summary>Forwards the chart area's actual height to <see cref="VM_MeasurementHistogram.RescaleBars"/> so the bars re-normalize when the layout settles or the window is resized.</summary>
     private void ChartArea_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // ActualHeight is read off the ItemsControl (the sender) rather than the Border

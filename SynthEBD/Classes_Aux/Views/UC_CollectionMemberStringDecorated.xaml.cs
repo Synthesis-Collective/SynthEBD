@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_CollectionMemberStringDecorated.xaml
+    /// Code-behind for the decorated collection-member string user control.
     /// </summary>
     public partial class UC_CollectionMemberStringDecorated : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_CollectionMemberStringDecorated()
         {
             InitializeComponent();

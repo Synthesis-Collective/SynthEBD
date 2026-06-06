@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_NPCAttributeKeyword.xaml
+    /// Code-behind for the Keyword NPC-attribute editor user control (the view for VM_NPCAttributeKeyword).
     /// </summary>
     public partial class UC_NPCAttributeKeyword : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_NPCAttributeKeyword()
         {
             InitializeComponent();

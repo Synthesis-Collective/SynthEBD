@@ -553,6 +553,76 @@ times in this one file — once in `DestinationDetailAbstractDictionary` (path�
 fourth time in `FilePathDestinationMap`. Any change to a destination path means editing four hand-kept
 copies. A single bidirectional table (friendly-name ⇄ path) driving all four would remove the drift risk.
 
+### `VM_NPCAttributeCustom.Evaluate` — 🐞 possible bug (missing `return` → null reference NPC)
+
+[VM_NPCAttribute.cs:797](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L797) · When
+`_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC)` fails, the
+method sets `EvalResult = "Error: can't resolve reference NPC."` but does **not** `return`. It falls
+through and passes the unresolved (null) `refNPC` straight into
+`_attributeMatcher.EvaluateCustomAttribute(refNPC, …)`. Depending on how the matcher dereferences the NPC
+this is a latent NRE (or at best a misleading second result that overwrites the error message). The
+failed-resolve branch should `return` (or guard the subsequent call).
+
+### `VM_NPCAttribute` view-model family mirrors the model boilerplate — 🔧 modernize
+
+[VM_NPCAttribute.cs:504](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L504) (and the other 10) · The
+eleven `VM_NPCAttribute*` sub-VMs are the VM-side twins of the eleven `NPCAttribute*` models and carry the
+same ~90% duplication: each repeats an identical constructor (store parent VM/shell, subscribe `LinkCache`,
+wire `DeleteCommand`), an identical `DebuggerString`, and near-identical static
+`GetViewModelFromModel`/`DumpViewModelToModel` round-trip helpers that differ only in the FormKey field and
+log label. A shared generic base (paralleling the `NPCAttributeFormKeyBase<TGetter>` suggested for the
+models) would collapse most of the file. *(Following the model-family precedent, this pass documented the
+`ISubAttributeViewModel` contract once plus each class summary, constructor, and round-trip helper, rather
+than ~33 redundant per-member copies.)*
+
+### `VM_NPCAttributeShell` Factory drops `displayForceIfWeight` — 💭 / 🔧 (dead factory parameter)
+
+[VM_NPCAttribute.cs:311](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L311) · The `Factory` delegate
+declares `bool? displayForceIfWeight`, and callers (`CreateNewFromUI`, `CreateNewShell`,
+`GetViewModelFromModel`) all pass it — but the constructor
+([:333](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L333)) has no matching parameter, so Autofac's
+delegate factory silently discards the argument. `DisplayForceIfWeight` is instead derived reactively from
+`ForceModeStr`, so behaviour is unaffected, but the unused delegate parameter is misleading and threads a
+value through three call sites that goes nowhere. Drop it, or have the ctor consume it.
+
+### `VM_NPCAttribute` constructor `selfFactory` unused — 🔧 (minor)
+
+[VM_NPCAttribute.cs:47](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L47) · The injected
+`VM_NPCAttribute.Factory selfFactory` is never referenced (new conditions are created through
+`_creator` instead). Dead injected parameter — safe to remove.
+
+### `VM_NPCAttributeShell.GetOrCreateSubAttribute` — 💭 (Group case bypasses the factory)
+
+[VM_NPCAttribute.cs:471](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L471) · Every attribute type is
+constructed through an injected `*.Factory` delegate except `NPCAttributeType.Group`, which is `new
+VM_NPCAttributeGroup(...)`d inline (it takes no injected services, so it has no factory). Minor
+inconsistency. Relatedly, `InitializedVMcache` and this `switch` are two manual-sync points that must both
+be updated when a new attribute type is added (same single-source-of-truth smell flagged on the model's
+`CloneAsNew` switch).
+
+### `NumericOnly` TextBox handler duplicated across views — 🔧 modernize
+
+Five view code-behinds carry an identical `NumericOnly(object, TextCompositionEventArgs)` handler that
+defers to `IsNumeric.IsTextNumeric` to reject non-numeric keystrokes:
+[UC_NPCAttributeFactions.xaml.cs:16](SynthEBD/Classes_Aux/Views/Sub-NPCAttributes/UC_NPCAttributeFactions.xaml.cs#L16),
+[UC_BodyShapeDescriptorRules.xaml.cs:17](SynthEBD/Classes_Aux/Views/BodyShape%20SubViews/UC_BodyShapeDescriptorRules.xaml.cs#L17),
+[UC_ConfigDistributionRules.xaml.cs:17](SynthEBD/Classes_Aux/Views/UC_ConfigDistributionRules.xaml.cs#L17),
+[UC_DetailedReportNPCSelector.xaml.cs:30](SynthEBD/Classes_Aux/Views/UC_DetailedReportNPCSelector.xaml.cs#L30),
+[Window_AssetDistributionSimulator.xaml.cs:29](SynthEBD/Classes_Aux/Views/Window_AssetDistributionSimulator.xaml.cs#L29).
+A single attached behavior (e.g. a `NumericInputBehavior` bound in XAML) would remove the copy-paste and the
+per-view event wiring.
+
+### Auto-generated view summaries had stale XAML filenames — 💭 (rename history smell, now fixed)
+
+While documenting the trivial Views, four code-behinds carried Visual Studio's auto-generated
+`/// Interaction logic for <X>.xaml` summary that named a *different* file than the class — evidence the
+`.cs`/`.xaml` pair was copied or renamed without updating the boilerplate:
+`UC_BodyShapeDescriptorSelectionMenu` (said `…Selector.xaml`), `UC_AssetReplacementAssignment_Consistency`
+(said `UC_AssetReplacerAssignment_Consistency.xaml`), `UC_RaceGroupingCheckboxList` (said
+`…Checkbox.xaml`), and `UC_AttributeGroupMenu` (said `UC_AttributeGroup.xaml`). These boilerplate summaries
+were replaced with meaningful ones in this pass, so the stale references are gone — flagging only as a sign
+that a few of these views were cloned from siblings.
+
 <!-- ENTRIES:Classes_Aux_VM -->
 
 ---

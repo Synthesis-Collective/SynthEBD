@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_MessageWindowYesNo.xaml
+    /// Code-behind for the Yes/No message dialog window.
     /// </summary>
     public partial class Window_MessageWindowYesNo : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_MessageWindowYesNo()
         {
             InitializeComponent();

@@ -16,7 +16,8 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_DetailedReportNPCSelector.xaml
+    /// Code-behind for the detailed-report NPC selector user control. The only logic is
+    /// constraining numeric fields to numeric input.
     /// </summary>
     public partial class UC_DetailedReportNPCSelector : UserControl
     {
@@ -25,6 +26,7 @@ namespace SynthEBD
             InitializeComponent();
         }
 
+        /// <summary>Text-input handler that rejects non-numeric keystrokes in a <see cref="System.Windows.Controls.TextBox"/>.</summary>
         //https://stackoverflow.com/questions/4085471/allow-only-numeric-entry-in-wpf-text-box
         private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)
         {

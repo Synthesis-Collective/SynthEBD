@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_NPCAttributeMod.xaml
+    /// Code-behind for the Mod NPC-attribute editor user control (the view for VM_NPCAttributeMod).
     /// </summary>
     public partial class UC_NPCAttributeMod : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_NPCAttributeMod()
         {
             InitializeComponent();

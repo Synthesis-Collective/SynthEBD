@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_AttributeValidator.xaml
+    /// Code-behind for the NPC-attribute validator window.
     /// </summary>
     public partial class Window_AttributeValidator : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_AttributeValidator()
         {
             InitializeComponent();

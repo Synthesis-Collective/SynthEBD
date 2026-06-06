@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_HeadPartList.xaml
+    /// Code-behind for the head-part list user control (the view for VM_HeadPartList).
     /// </summary>
     public partial class UC_HeadPartList : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_HeadPartList()
         {
             InitializeComponent();

@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_PositionalSubgroupEntry.xaml
+    /// Code-behind for the positional-subgroup entry user control.
     /// </summary>
     public partial class UC_PositionalSubgroupEntry : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_PositionalSubgroupEntry()
         {
             InitializeComponent();

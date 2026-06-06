@@ -20,12 +20,30 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View-model mirror of the <see cref="NPCAttribute"/> model: a single NPC-matching condition whose
+/// <see cref="GroupedSubAttributes"/> shells are combined with AND logic (an NPC matches only if it
+/// matches every shell). Sibling conditions in <see cref="ParentCollection"/> combine with OR logic.
+/// Owns the UI commands for adding an OR-sibling, deleting itself, and launching the attribute validator.
+/// </summary>
 [DebuggerDisplay("Attribute VM with {GroupedSubAttributes.Count} Sub-Attributes (AND logic)")]
 public class VM_NPCAttribute : VM
 {
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_NPCAttribute"/> bound to its OR-sibling collection and the available attribute groups.</summary>
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
     private VM_NPCAttributeCreator _creator;
     private ObservableCollection<VM_AttributeGroup> _subscribedAttributeGroups;
+    /// <summary>
+    /// Wires the delete / add-OR-sibling / validate commands and subscribes to the shell collection so
+    /// <see cref="NeedsRefresh"/> is rebuilt and empty conditions are trimmed whenever the shells change.
+    /// </summary>
+    /// <param name="parentCollection">The OR-combined collection this condition belongs to.</param>
+    /// <param name="attributeGroups">Attribute groups selectable by child <see cref="VM_NPCAttributeGroup"/> shells.</param>
+    /// <param name="creator">Factory helper used to build new conditions/shells and to round-trip models.</param>
+    /// <param name="attributeMatcher">Matcher used by the attribute-validator dialog.</param>
+    /// <param name="environmentProvider">Supplies the link cache/load order consumed by the validator.</param>
+    /// <param name="patcherState">Patcher state consumed by the validator.</param>
+    /// <param name="selfFactory">Injected self factory; currently unused by the constructor body (see review notes).</param>
     public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_NPCAttribute.Factory selfFactory)
     {
         _creator = creator;
@@ -48,18 +66,28 @@ public class VM_NPCAttribute : VM
         }).DisposeWith(this);
     }
 
+    /// <summary>The sub-attribute shells combined with AND logic — the NPC must match every shell for this condition to hold.</summary>
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
     public RelayCommand DeleteCommand { get; }
     public RelayCommand AddToParent { get; }
     public RelayCommand Validate { get; }
+    /// <summary>Whether the per-shell forcing ("Force If") options are offered in the UI (false where only restriction makes sense).</summary>
     public bool DisplayForceIfOption { get; set; } = true;
+    /// <summary>Whether the Force-If weighting field is shown (driven by the forcing mode chosen on the owning shell).</summary>
     public bool? DisplayForceIfWeight { get; set; }
-    public bool DisplayORButton { get; set; } = true; // hidden when this box is a single-condition host (e.g. a Probability Modifier row)
-    public bool DisplayRemoveButton { get; set; } = true; // hidden when an outer row owns removal (e.g. a Probability Modifier row)
+    /// <summary>Whether the "OR" button is shown; hidden when this box is a single-condition host (e.g. a Probability Modifier row).</summary>
+    public bool DisplayORButton { get; set; } = true;
+    /// <summary>Whether the remove button is shown; hidden when an outer row owns removal (e.g. a Probability Modifier row).</summary>
+    public bool DisplayRemoveButton { get; set; } = true;
     public ObservableCollection<VM_NPCAttribute> ParentCollection { get; set; }
+    /// <summary>Tracks the most recently edited shell so the UI can focus it; set by child group-selection edits.</summary>
     public VM_NPCAttributeShell MostRecentlyEditedShell { get; set; }
+    /// <summary>Fires when any child shell signals a refresh need; rebuilt whenever the shell collection changes.</summary>
     public IObservable<Unit> NeedsRefresh { get; set; }
 
+    /// <summary>Deep-copies this condition into another collection by round-tripping through its model, reusing this VM's subscribed attribute groups.</summary>
+    /// <param name="parentCollection">The collection the clone is created against.</param>
+    /// <returns>The cloned condition.</returns>
     public VM_NPCAttribute CloneInto(ObservableCollection<VM_NPCAttribute> parentCollection)
     {
         var model = DumpViewModelToModel();
@@ -67,6 +95,10 @@ public class VM_NPCAttribute : VM
         return clone;
     }
 
+    /// <summary>Deep-copies this condition into another collection, binding the clone's group shells to a different set of attribute groups.</summary>
+    /// <param name="parentCollection">The collection the clone is created against.</param>
+    /// <param name="subscribedAttributeGroups">The attribute groups the clone's group shells should reference.</param>
+    /// <returns>The cloned condition.</returns>
     public VM_NPCAttribute CloneInto(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> subscribedAttributeGroups)
     {
         var model = DumpViewModelToModel();
@@ -74,6 +106,11 @@ public class VM_NPCAttribute : VM
         return clone;
     }
 
+    /// <summary>
+    /// Factory/helper that constructs <see cref="VM_NPCAttribute"/> conditions and their typed sub-attribute
+    /// shells, and round-trips them to/from <see cref="NPCAttribute"/> models. Holds the Autofac factory
+    /// delegates for every sub-attribute VM type so the correct concrete VM can be created per attribute type.
+    /// </summary>
     public class VM_NPCAttributeCreator
     {
         private readonly VM_NPCAttribute.Factory _attributeFactory;
@@ -91,6 +128,7 @@ public class VM_NPCAttribute : VM
 
         private readonly Logger _logger;
 
+        /// <summary>Captures the per-type sub-attribute VM factory delegates plus the logger used when an unknown attribute type is encountered during model reconstruction.</summary>
         public VM_NPCAttributeCreator(VM_NPCAttribute.Factory factory,
             VM_NPCAttributeShell.Factory shellFactory,
             VM_NPCAttributeClass.Factory classFactory,
@@ -122,10 +160,17 @@ public class VM_NPCAttribute : VM
 
             _logger = logger;
         }
+        /// <summary>Creates an empty condition VM (no shells) bound to the given collection and attribute groups.</summary>
         public VM_NPCAttribute CreateNew(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             return _attributeFactory(parentCollection, attributeGroups);
         }
+        /// <summary>Creates a condition pre-seeded with one <see cref="NPCAttributeType.Class"/> shell, as used when the user adds a new attribute box in the UI.</summary>
+        /// <param name="parentCollection">The OR-collection to bind the new condition to.</param>
+        /// <param name="displayForceIfOption">Whether forcing options should be offered on the seeded shell.</param>
+        /// <param name="displayForceIfWeight">Initial Force-If weight visibility for the condition.</param>
+        /// <param name="attributeGroups">Attribute groups available to group shells.</param>
+        /// <returns>The new condition with its starting Class shell registered in the shell's per-type cache.</returns>
         public VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             var newAtt = _attributeFactory(parentCollection, attributeGroups);
@@ -139,11 +184,18 @@ public class VM_NPCAttribute : VM
             newAtt.DisplayForceIfWeight = displayForceIfWeight;
             return newAtt;
         }
+        /// <summary>Creates a single sub-attribute shell (defaulting to a Class attribute) parented to <paramref name="parentVM"/>.</summary>
         public VM_NPCAttributeShell CreateNewShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             return _shellFactory(parentVM, displayForceIfOption, displayForceIfWeight, attributeGroups);
         }
 
+        /// <summary>Adds VMs for every model not already represented in <paramref name="viewModelCollection"/> (deduplicated by round-tripping the existing VMs back to models).</summary>
+        /// <param name="models">The source attribute models to import.</param>
+        /// <param name="viewModelCollection">The target VM collection, appended in place.</param>
+        /// <param name="attributeGroups">Attribute groups available to group shells.</param>
+        /// <param name="displayForceIfOption">Forcing-option visibility applied to imported conditions.</param>
+        /// <param name="displayForceIfWeight">Force-If weight visibility applied to imported conditions.</param>
         public void CopyInFromModels(HashSet<NPCAttribute> models, ObservableCollection<VM_NPCAttribute> viewModelCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
         {
             var alreadyLoadedModels = viewModelCollection.Select(x => x.DumpViewModelToModel()).ToHashSet();
@@ -155,6 +207,17 @@ public class VM_NPCAttribute : VM
             }
         }
 
+        /// <summary>
+        /// Builds a fully-populated condition VM from a model, creating and type-dispatching a shell VM for each
+        /// <see cref="NPCAttribute.SubAttributes"/> entry and registering it in the shell's per-type cache.
+        /// </summary>
+        /// <param name="model">The source attribute model.</param>
+        /// <param name="parentCollection">The OR-collection to bind the new condition to.</param>
+        /// <param name="attributeGroups">Attribute groups available to group shells.</param>
+        /// <param name="displayForceIfOption">Forcing-option visibility for the new condition.</param>
+        /// <param name="displayForceIfWeight">Force-If weight visibility for the new condition.</param>
+        /// <returns>The reconstructed condition VM.</returns>
+        /// <remarks>For <see cref="NPCAttributeType.Group"/> shells the checkbox selections must be applied by the caller after every attribute-group VM exists (see the inline note and <c>VM_AttributeGroupMenu.GetViewModelFromModels</c>).</remarks>
         public VM_NPCAttribute GetViewModelFromModel(NPCAttribute model, ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, bool displayForceIfOption, bool? displayForceIfWeight)
         {
             VM_NPCAttribute viewModel = CreateNew(parentCollection, attributeGroups);
@@ -190,6 +253,7 @@ public class VM_NPCAttribute : VM
         }
     }
 
+    /// <summary>Removes this condition from its parent OR-collection once it has no remaining sub-attribute shells.</summary>
     public void TrimEmptyAttributes()
     {
         if (GroupedSubAttributes.Count == 0)
@@ -198,6 +262,7 @@ public class VM_NPCAttribute : VM
         }
     }
 
+    /// <summary>Serializes a collection of condition VMs to a set of <see cref="NPCAttribute"/> models.</summary>
     public static HashSet<NPCAttribute> DumpViewModelsToModels(ObservableCollection<VM_NPCAttribute> viewModels)
     {
         HashSet<NPCAttribute> hs = new HashSet<NPCAttribute>();
@@ -208,6 +273,7 @@ public class VM_NPCAttribute : VM
         return hs;
     }
 
+    /// <summary>Serializes this condition to an <see cref="NPCAttribute"/> model, dispatching each shell to its concrete VM's <c>DumpViewModelToModel</c> by attribute type.</summary>
     public NPCAttribute DumpViewModelToModel()
     {
         var model = new NPCAttribute();
@@ -232,9 +298,16 @@ public class VM_NPCAttribute : VM
     }
 }
 
+/// <summary>
+/// Wraps one typed sub-attribute (an <see cref="ISubAttributeViewModel"/>) together with the per-shell
+/// forcing mode, Force-If weight, and negation flag. The attribute type can be switched at runtime via
+/// <see cref="ChangeType"/>; previously-created VMs are kept per type in <see cref="InitializedVMcache"/>
+/// so switching back and forth preserves their state. One shell is one AND-term of its parent condition.
+/// </summary>
 [DebuggerDisplay("{Attribute.DebuggerString}")]
 public class VM_NPCAttributeShell : VM
 {
+    /// <summary>Autofac factory delegate for constructing a shell parented to a condition VM.</summary>
     public delegate VM_NPCAttributeShell Factory(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups);
     private readonly Factory _selfFactory;
     private readonly VM_NPCAttributeClass.Factory _classFactory;
@@ -247,6 +320,16 @@ public class VM_NPCAttributeShell : VM
     private readonly VM_NPCAttributeNPC.Factory _npcFactory;
     private readonly VM_NPCAttributeRace.Factory _raceFactory;
     private readonly VM_NPCAttributeVoiceType.Factory _voiceTypeFactory;
+    /// <summary>
+    /// Seeds a default <see cref="NPCAttributeType.Class"/> attribute, subscribes the forcing-mode string so
+    /// the Force-If weight field is shown only for the forcing modes that use it, and wires the add-sibling,
+    /// delete, and change-type commands.
+    /// </summary>
+    /// <param name="parentVM">The owning AND-condition.</param>
+    /// <param name="displayForceIfOption">Whether forcing options are offered for this shell.</param>
+    /// <param name="attributeGroups">Attribute groups available when the shell is switched to the Group type.</param>
+    /// <param name="selfFactory">Factory used to add a sibling shell to the parent condition.</param>
+    /// <remarks>The <see cref="Factory"/> delegate also carries a <c>displayForceIfWeight</c> parameter that this constructor does not consume (see review notes).</remarks>
     public VM_NPCAttributeShell(VM_NPCAttribute parentVM, 
         bool displayForceIfOption, 
         ObservableCollection<VM_AttributeGroup> attributeGroups, 
@@ -303,12 +386,17 @@ public class VM_NPCAttributeShell : VM
         ChangeType = new RelayCommand(canExecute: _ => true, execute: _ => GetOrCreateSubAttribute(Type, parentVM, attributeGroups)
         );
     }
+    /// <summary>The currently-selected typed sub-attribute VM (swapped when <see cref="Type"/> changes).</summary>
     public ISubAttributeViewModel Attribute { get; set; }
+    /// <summary>The attribute kind this shell currently represents.</summary>
     public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
+    /// <summary>The forcing mode as its UI display string (see <see cref="ForceModeOptions"/>); mapped to/from <see cref="AttributeForcing"/> via the dictionaries below.</summary>
     public string ForceModeStr { get; set; } = ForceModeOptions.FirstOrDefault();
+    /// <summary>Relative weight applied when this shell's forcing mode forces selection.</summary>
     public int ForceIfWeight { get; set; } = 1;
     public bool DisplayForceIfOption { get; set; }
     public bool DisplayForceIfWeight { get; set; }
+    /// <summary>When true, the match condition for this shell is negated.</summary>
     public bool Not { get; set; } = false;
 
     public RelayCommand AddAdditionalSubAttributeToParent { get; }
@@ -316,11 +404,16 @@ public class VM_NPCAttributeShell : VM
 
     public RelayCommand ChangeType { get; }
 
+    /// <summary>UI label for the <see cref="AttributeForcing.Restrict"/> forcing mode.</summary>
     public static string AttributeAllowStr { get; } = "Restrict";
+    /// <summary>UI label for the <see cref="AttributeForcing.ForceIf"/> forcing mode.</summary>
     public static string AttributeForceIfStr { get; } = "Force If";
+    /// <summary>UI label for the <see cref="AttributeForcing.ForceIfAndRestrict"/> forcing mode.</summary>
     public static string AttributeForceIfandRestrictStr { get; } = "Force If and Restrict";
+    /// <summary>The forcing-mode labels offered in the UI dropdown, in order.</summary>
     public static List<string> ForceModeOptions = new() { AttributeAllowStr, AttributeForceIfStr, AttributeForceIfandRestrictStr };
 
+    /// <summary>Maps a forcing-mode display string to its <see cref="AttributeForcing"/> enum value.</summary>
     public static Dictionary<string, AttributeForcing> ForceModeStrToEnumDict = new()
     {
         { AttributeAllowStr, AttributeForcing.Restrict },
@@ -328,6 +421,7 @@ public class VM_NPCAttributeShell : VM
         { AttributeForceIfandRestrictStr, AttributeForcing.ForceIfAndRestrict }
     };
 
+    /// <summary>Maps an <see cref="AttributeForcing"/> enum value back to its forcing-mode display string.</summary>
     public static Dictionary<AttributeForcing, string> ForceModeEnumToStrDict = new()
     {
         { AttributeForcing.Restrict, AttributeAllowStr },
@@ -335,6 +429,7 @@ public class VM_NPCAttributeShell : VM
         { AttributeForcing.ForceIfAndRestrict, AttributeForceIfandRestrictStr }
     };
 
+    /// <summary>Per-type cache of already-constructed sub-attribute VMs, so switching <see cref="Type"/> back to a previously-used type restores that VM's state instead of rebuilding it. Add an entry here when introducing a new attribute type.</summary>
     // If adding a new attribute type, be sure to register it here
     public Dictionary<NPCAttributeType, ISubAttributeViewModel> InitializedVMcache { get; set; } = new()
     {
@@ -351,6 +446,14 @@ public class VM_NPCAttributeShell : VM
         { NPCAttributeType.VoiceType, null }
     };
 
+    /// <summary>
+    /// Switches <see cref="Attribute"/> to the requested type, reusing the cached VM for that type if one
+    /// exists or constructing (and caching) a new one via the appropriate factory.
+    /// </summary>
+    /// <param name="type">The attribute type to switch to.</param>
+    /// <param name="parentVM">The owning condition passed to the created VM.</param>
+    /// <param name="attributeGroups">Attribute groups passed when constructing a Group VM.</param>
+    /// <remarks>The Group case is constructed inline rather than via an injected factory (see review notes); an unmapped type throws <see cref="NotImplementedException"/>.</remarks>
     public void GetOrCreateSubAttribute(NPCAttributeType type, VM_NPCAttribute parentVM, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
         if (InitializedVMcache[type] is not null)
@@ -379,19 +482,32 @@ public class VM_NPCAttributeShell : VM
     }
 }
 
+/// <summary>
+/// Common contract for the typed sub-attribute view models a <see cref="VM_NPCAttributeShell"/> can host
+/// (Class, Custom, Faction, FaceTexture, Keyword, Misc, Mod, NPC, Race, VoiceType, Group). Each owns a
+/// back-reference to its parent condition, a refresh signal, and a debugger string. The concrete VMs
+/// additionally expose static <c>GetViewModelFromModel</c>/<c>DumpViewModelToModel</c> helpers that
+/// round-trip the matching <see cref="ITypedNPCAttribute"/> model.
+/// </summary>
 public interface ISubAttributeViewModel
 {
+    /// <summary>The owning AND-condition VM.</summary>
     VM_NPCAttribute ParentVM { get; set; }
+    /// <summary>Fires when the UI should re-evaluate this attribute (e.g. its selection changed).</summary>
     IObservable<System.Reactive.Unit> NeedsRefresh { get; }
+    /// <summary>Human-readable summary shown in the debugger and as the shell's display string.</summary>
     public string DebuggerString { get; }
 }
 
+/// <summary>Sub-attribute VM matching NPCs whose voice type is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (which removes this shell and the parent condition once it is left empty).</summary>
     public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -437,6 +553,7 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a VoiceType sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeVoiceType GetViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeVoiceType.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -445,18 +562,22 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
         parentShell.Not = model.Not;
         return newAtt;
     }
+    /// <summary>Serializes this VoiceType sub-attribute (with the shell's forcing mode, weight, and negation) back to an <see cref="NPCAttributeVoiceType"/> model.</summary>
     public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, string forceModeStr)
     {
         return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs whose Class record is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeClass Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -492,6 +613,7 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Class sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeClass GetViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeClass.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -501,12 +623,20 @@ public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
         return newAtt;
     }
 
+    /// <summary>Serializes this Class sub-attribute (with the shell's forcing mode, weight, and negation) back to an <see cref="NPCAttributeClass"/> model.</summary>
     public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, string forceModeStr)
     {
         return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>
+/// Sub-attribute VM matching NPCs by a custom record-path comparison: the value at an intellisensed
+/// record <see cref="IntellisensedPath"/> is compared — per <see cref="CustomType"/> and
+/// <see cref="ChosenComparator"/> — against a text/numeric/boolean value or a set of FormKeys. Also
+/// implements <see cref="IImplementsRecordIntellisense"/> for path autocompletion and supports live
+/// evaluation against a chosen reference NPC. See <see cref="ISubAttributeViewModel"/> for the shared contract.
+/// </summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsRecordIntellisense
 {
@@ -514,7 +644,13 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     private AttributeMatcher _attributeMatcher;
     private RecordIntellisense _recordIntellisense;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeCustom Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>
+    /// Populates the record-type dropdown from the Skyrim major-record registrations, wires the intellisense
+    /// subscriptions, and re-runs <see cref="Evaluate"/> whenever the type, value, comparator, path, or
+    /// reference NPC changes. Tracks the link cache for record resolution.
+    /// </summary>
     public VM_NPCAttributeCustom(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, AttributeMatcher attributeMatcher, RecordIntellisense recordIntellisense, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -583,6 +719,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         }
     }
 
+    /// <summary>Builds a Custom sub-attribute VM from its model, restoring the path, comparator, value(s), reference NPC, and the shell's weight/negation.</summary>
     public static VM_NPCAttributeCustom GetViewModelFromModel(NPCAttributeCustom model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeCustom.Factory factory)
     {
         var viewModel = factory(parentVM, parentShell);
@@ -599,6 +736,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         return viewModel;
     }
 
+    /// <summary>Serializes this Custom sub-attribute (path, comparator, value(s), reference NPC, and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeCustom"/> model.</summary>
     public static NPCAttributeCustom DumpViewModelToModel(VM_NPCAttributeCustom viewModel, string forceModeStr)
     {
         var model = new NPCAttributeCustom();
@@ -616,6 +754,12 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         return model;
     }
 
+    /// <summary>
+    /// Validates the current inputs and, when complete, resolves the reference NPC and asks the
+    /// <see cref="AttributeMatcher"/> whether it satisfies this condition, surfacing the outcome (and a
+    /// status colour) via <see cref="EvalResult"/>/<see cref="StatusFontColor"/>.
+    /// </summary>
+    /// <remarks>If the reference NPC fails to resolve, the error is reported but evaluation still proceeds with a null reference (see review notes).</remarks>
     public void Evaluate()
     {
         if (ReferenceNPCFormKey.IsNull)
@@ -669,6 +813,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         }
     }
 
+    /// <summary>Shows the value editor appropriate to <see cref="CustomType"/> (text field / FormKey picker / boolean picker), rebuilds the comparators valid for that type, then re-evaluates.</summary>
     public void UpdateValueDisplay()
     {
         if (CustomType == CustomAttributeType.Record)
@@ -708,6 +853,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
         Evaluate();
     }
 
+    /// <summary>Narrows the FormKey picker to the currently selected record type, then re-evaluates.</summary>
     public void UpdateFormKeyPickerRecordType()
     {
         ValueFKtypeCollection = ValueFKtype.AsEnumerable();
@@ -715,12 +861,15 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs that belong to any of the selected factions within the rank range <see cref="RankMin"/>–<see cref="RankMax"/>. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeFactions Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeFactions(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -734,7 +883,9 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
     public ObservableCollection<FormKey> FactionFormKeys { get; set; } = new();
+    /// <summary>Minimum faction rank to match (inclusive); the default -1 matches any rank at or below <see cref="RankMax"/>.</summary>
     public int RankMin { get; set; } = -1;
+    /// <summary>Maximum faction rank to match (inclusive).</summary>
     public int RankMax { get; set; } = 100;
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
@@ -758,6 +909,7 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Factions sub-attribute VM from its model, copying the FormKeys, rank range, weight, and negation onto the VM/shell.</summary>
     public static VM_NPCAttributeFactions GetViewModelFromModel(NPCAttributeFactions model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeFactions.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -768,18 +920,22 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
         parentShell.Not = model.Not;
         return newAtt;
     }
+    /// <summary>Serializes this Factions sub-attribute (FormKeys, rank range, and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeFactions"/> model.</summary>
     public static NPCAttributeFactions DumpViewModelToModel(VM_NPCAttributeFactions viewModel, string forceModeStr)
     {
         return new NPCAttributeFactions() { Type = NPCAttributeType.Faction, FormKeys = viewModel.FactionFormKeys.ToHashSet(), RankMin = viewModel.RankMin, RankMax = viewModel.RankMax, ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs whose head FaceTexture (texture set) is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeFaceTexture Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -815,6 +971,7 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a FaceTexture sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeFaceTexture.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -824,18 +981,22 @@ public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
         return newAtt;
     }
 
+    /// <summary>Serializes this FaceTexture sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeFaceTexture"/> model.</summary>
     public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, string forceModeStr)
     {
         return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs that carry any of the selected keywords. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeKeyword Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeKeyword(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -871,6 +1032,7 @@ public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Keyword sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeKeyword GetViewModelFromModel(NPCAttributeKeyword model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeKeyword.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -879,18 +1041,22 @@ public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
         parentShell.Not = model.Not;
         return newAtt;
     }
+    /// <summary>Serializes this Keyword sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeKeyword"/> model.</summary>
     public static NPCAttributeKeyword DumpViewModelToModel(VM_NPCAttributeKeyword viewModel, string forceModeStr)
     {
         return new NPCAttributeKeyword() { Type = NPCAttributeType.Keyword, FormKeys = viewModel.KeywordFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs of any of the selected races. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeRace Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -926,6 +1092,7 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Race sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeRace GetViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeRace.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -935,18 +1102,26 @@ public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
         return newAtt;
     }
 
+    /// <summary>Serializes this Race sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeRace"/> model.</summary>
     public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
         return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>
+/// Sub-attribute VM matching NPCs by miscellaneous tri-state flags (unique, essential, protected,
+/// summonable, ghost, invulnerable) and, optionally, mood, aggression, and gender. See
+/// <see cref="ISubAttributeViewModel"/> for the shared contract.
+/// </summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeMisc Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeMisc(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -985,6 +1160,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Misc sub-attribute VM from its model, copying every flag/trait plus the shell's weight and negation.</summary>
     public static VM_NPCAttributeMisc GetViewModelFromModel(NPCAttributeMisc model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeMisc.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -1004,6 +1180,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
         parentShell.Not = model.Not;
         return newAtt;
     }
+    /// <summary>Serializes this Misc sub-attribute (every flag/trait plus the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeMisc"/> model.</summary>
     public static NPCAttributeMisc DumpViewModelToModel(VM_NPCAttributeMisc viewModel, string forceModeStr)
     {
         var model = new NPCAttributeMisc();
@@ -1026,12 +1203,15 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     }
 }
 
+/// <summary>Sub-attribute VM matching NPCs by mod provenance (created / patched / winning override / winning appearance) for the selected mod keys, per <see cref="ModActionType"/>. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 {
     private IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeMod Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache and load order, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeMod(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -1050,7 +1230,9 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
 
+    /// <summary>The mod keys to match against.</summary>
     public ObservableCollection<ModKey> ModKeys { get; set; } = new();
+    /// <summary>Which provenance relationship between the NPC record and the mod keys must hold.</summary>
     public ModAttributeEnum ModActionType { get; set; } = ModAttributeEnum.PatchedBy;
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
@@ -1075,6 +1257,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds a Mod sub-attribute VM from its model, copying the mod keys, action type, weight, and negation onto the VM/shell.</summary>
     public static VM_NPCAttributeMod GetViewModelFromModel(NPCAttributeMod model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeMod.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -1085,6 +1268,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
         return newAtt;
     }
 
+    /// <summary>Serializes this Mod sub-attribute (mod keys, action type, and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeMod"/> model.</summary>
     public static NPCAttributeMod DumpViewModelToModel(VM_NPCAttributeMod viewModel, string forceModeStr)
     {
         var model = new NPCAttributeMod();
@@ -1097,12 +1281,15 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
     }
 }
 
+/// <summary>Sub-attribute VM matching the specific NPCs selected by FormKey. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeNPC Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
     public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -1138,6 +1325,7 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Builds an NPC sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeNPC GetViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeNPC.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
@@ -1146,15 +1334,30 @@ public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
         parentShell.Not = model.Not;
         return newAtt;
     }
+    /// <summary>Serializes this NPC sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeNPC"/> model.</summary>
     public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, string forceModeStr)
     {
         return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>
+/// Sub-attribute VM matching NPCs that satisfy any of the selected attribute groups (resolved by label).
+/// Presents the available groups as a checkable list (<see cref="SelectableAttributeGroups"/>) that
+/// re-syncs whenever the source group collection changes. See <see cref="ISubAttributeViewModel"/> for the
+/// shared contract.
+/// </summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 {
+    /// <summary>
+    /// Builds the selectable checklist from the source groups and keeps it in sync (preserving checked
+    /// labels) as groups are added/removed, rebuilding <see cref="NeedsRefresh"/> on each change. Wires the
+    /// delete command and forwards the most-recently-edited selection to the parent condition.
+    /// </summary>
+    /// <param name="parentAttributeVM">The owning AND-condition.</param>
+    /// <param name="parentShell">The shell hosting this attribute.</param>
+    /// <param name="sourceAttributeGroups">The live collection of available attribute groups to mirror as checkboxes.</param>
     public VM_NPCAttributeGroup(VM_NPCAttribute parentAttributeVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> sourceAttributeGroups)
     {
         ParentVM = parentAttributeVM;
@@ -1182,8 +1385,11 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
     public IObservable<Unit> NeedsRefresh { get; set; }
+    /// <summary>The live source collection of available attribute groups this checklist mirrors.</summary>
     public ObservableCollection<VM_AttributeGroup> SubscribedAttributeGroups { get; set; }
+    /// <summary>The per-group checkbox rows shown in the UI, kept in sync with <see cref="SubscribedAttributeGroups"/>.</summary>
     public ObservableCollection<AttributeGroupSelection> SelectableAttributeGroups { get; set; } = new();
+    /// <summary>The most recently toggled checkbox row (used to surface the active shell to the parent condition).</summary>
     public AttributeGroupSelection MostRecentlyEditedSelection { get; set; }
 
     public string DebuggerString
@@ -1201,6 +1407,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
         }
     }
 
+    /// <summary>Rebuilds <see cref="SelectableAttributeGroups"/> from the current source groups, preserving which group labels were checked.</summary>
     void RefreshCheckList()
     {
         var currentSelections = SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToList();
@@ -1216,8 +1423,10 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
             SelectableAttributeGroups.Add(newSelection);
         }
     }
+    /// <summary>One checkbox row pairing an available <see cref="VM_AttributeGroup"/> with its checked state; reports itself to the parent as the most-recently-edited selection when toggled.</summary>
     public class AttributeGroupSelection : VM
     {
+        /// <summary>Captures the group and parent, and notifies the parent whenever this row's checked state changes.</summary>
         public AttributeGroupSelection(VM_AttributeGroup attributeGroupVM, VM_NPCAttributeGroup parent)
         {
             SubscribedAttributeGroup = attributeGroupVM;
@@ -1231,6 +1440,7 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
         public VM_NPCAttributeGroup Parent { get; set; }
     }
 
+    /// <summary>Builds a Group sub-attribute VM from its model, checking the boxes whose labels are listed in the model and restoring the shell's weight/negation.</summary>
     public static VM_NPCAttributeGroup GetViewModelFromModel(NPCAttributeGroup model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups)
     {
         var newAtt = new VM_NPCAttributeGroup(parentVM, parentShell, attributeGroups);
@@ -1246,14 +1456,18 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
 
         return newAtt;
     }
+    /// <summary>Serializes this Group sub-attribute (the checked group labels and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeGroup"/> model.</summary>
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, string forceModeStr)
     {
         return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
+/// <summary>Boolean choices presented as a two-item enum for binding a true/false picker in the UI.</summary>
 public enum BoolVals
 {
+    /// <summary>Boolean true.</summary>
     True,
+    /// <summary>Boolean false.</summary>
     False
 }

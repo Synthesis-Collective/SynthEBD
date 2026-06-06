@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_Alphabetizer.xaml
+    /// Code-behind for the alphabetizer user control (the view for VM_Alphabetizer).
     /// </summary>
     public partial class UC_Alphabetizer : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_Alphabetizer()
         {
             InitializeComponent();

@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_AssetReplicateTextureRemover.xaml
+    /// Code-behind for the asset-replicate texture-remover window.
     /// </summary>
     public partial class Window_AssetReplicateTextureRemover : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_AssetReplicateTextureRemover()
         {
             InitializeComponent();

@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AssetPackMiscMenu.xaml
+    /// Code-behind for the asset-pack misc menu user control (the view for VM_AssetPackMiscMenu).
     /// </summary>
     public partial class UC_AssetPackMiscMenu : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_AssetPackMiscMenu()
         {
             InitializeComponent();

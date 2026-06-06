@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_NPCAttribute.xaml
+/// Code-behind for the NPC-attribute user control (the view for VM_NPCAttribute).
 /// </summary>
 public partial class UC_NPCAttribute : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_NPCAttribute()
     {
         InitializeComponent();

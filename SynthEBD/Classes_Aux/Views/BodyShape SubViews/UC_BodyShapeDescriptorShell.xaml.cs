@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_BodyShapeDescriptorShell.xaml
+/// Code-behind for the body-shape descriptor shell user control (the view for VM_BodyShapeDescriptorShell).
 /// </summary>
 public partial class UC_BodyShapeDescriptorShell : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_BodyShapeDescriptorShell()
     {
         InitializeComponent();

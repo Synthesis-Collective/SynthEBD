@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_MessageWindowOK.xaml
+    /// Code-behind for the OK-only message dialog window.
     /// </summary>
     public partial class Window_MessageWindowOK : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_MessageWindowOK()
         {
             InitializeComponent();

@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_AssetReplacerAssignment_Consistency.xaml
+/// Code-behind for the asset-replacement consistency assignment user control.
 /// </summary>
 public partial class UC_AssetReplacementAssignment_Consistency : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_AssetReplacementAssignment_Consistency()
     {
         InitializeComponent();

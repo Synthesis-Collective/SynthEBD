@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_RaceGroupingEditor.xaml
+    /// Code-behind for the race-grouping editor user control (the view for VM_RaceGroupingEditor).
     /// </summary>
     public partial class UC_RaceGroupingEditor : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_RaceGroupingEditor()
         {
             InitializeComponent();

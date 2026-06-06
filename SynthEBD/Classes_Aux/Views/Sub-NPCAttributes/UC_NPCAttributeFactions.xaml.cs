@@ -3,7 +3,8 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_NPCAttributeFactions.xaml
+/// Code-behind for the Factions NPC-attribute editor (the view for <see cref="VM_NPCAttributeFactions"/>).
+/// The only logic is constraining the faction rank fields to numeric input.
 /// </summary>
 public partial class UC_NPCAttributeFactions : UserControl
 {
@@ -12,6 +13,7 @@ public partial class UC_NPCAttributeFactions : UserControl
         InitializeComponent();
     }
 
+    /// <summary>Text-input handler that rejects non-numeric keystrokes in a <see cref="System.Windows.Controls.TextBox"/>.</summary>
     private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)
     {
         var senderTextBox = (System.Windows.Controls.TextBox)sender;

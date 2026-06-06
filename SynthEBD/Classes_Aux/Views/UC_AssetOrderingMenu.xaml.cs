@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AssetOrderingMenu.xaml
+    /// Code-behind for the asset-ordering menu user control (the view for VM_AssetOrderingMenu).
     /// </summary>
     public partial class UC_AssetOrderingMenu : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_AssetOrderingMenu()
         {
             InitializeComponent();

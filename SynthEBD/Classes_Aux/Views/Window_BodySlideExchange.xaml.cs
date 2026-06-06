@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_BodySlideExchange.xaml
+    /// Code-behind for the BodySlide exchange window.
     /// </summary>
     public partial class Window_BodySlideExchange : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_BodySlideExchange()
         {
             InitializeComponent();

@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_HeadPartImport.xaml
+    /// Code-behind for the head-part import user control (the view for VM_HeadPartImport).
     /// </summary>
     public partial class UC_HeadPartImport : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_HeadPartImport()
         {
             InitializeComponent();
