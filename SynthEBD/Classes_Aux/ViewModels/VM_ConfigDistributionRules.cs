@@ -9,6 +9,11 @@ using DynamicData;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for an asset pack's whole-config distribution rules: allowed/disallowed races, race
+/// groupings, attributes, BodyGen/BodySlide descriptor filters, probability weighting (and modifiers),
+/// added keywords, and weight range. Round-trips to/from <see cref="AssetPack.ConfigDistributionRules"/>.
+/// </summary>
 public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -17,8 +22,18 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+    /// <summary>Autofac factory delegate for constructing the rules under an asset pack.</summary>
     public delegate VM_ConfigDistributionRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack);
 
+    /// <summary>Creates the rules VM, building the descriptor-selection menus and race-grouping lists, wiring add commands, and adjusting probability semantics when the pack switches between primary and mix-in.</summary>
+    /// <param name="raceGroupingVMs">Race groupings available to the rules.</param>
+    /// <param name="parentAssetPack">The owning asset-pack VM.</param>
+    /// <param name="environmentProvider">Supplies the link cache for race pickers.</param>
+    /// <param name="oBody">OBody settings (BodySlide descriptor source).</param>
+    /// <param name="logger">Logger used by the rules summary.</param>
+    /// <param name="attributeCreator">Factory for attribute VMs.</param>
+    /// <param name="weightModifierFactory">Factory for probability-weight-modifier VMs.</param>
+    /// <param name="descriptorSelectionFactory">Factory for descriptor-selection menus.</param>
     public VM_ConfigDistributionRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack, IEnvironmentStateProvider environmentProvider, VM_SettingsOBody oBody, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
     {
         _environmentProvider = environmentProvider;
@@ -123,6 +138,10 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
     public string ProbabilityLabelStr { get; set; } = "Distribution Probability Weighting";
     public bool bIsMixIn { get; set; } = false;
 
+    /// <summary>Populates this VM from a persisted distribution-rules model.</summary>
+    /// <param name="model">The rules model to load; ignored when null.</param>
+    /// <param name="raceGroupingVMs">Race groupings used to resolve grouping selections.</param>
+    /// <param name="parentAssetPack">The owning asset-pack VM (attribute-group source).</param>
     public void CopyInViewModelFromModel(AssetPack.ConfigDistributionRules model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AssetPack parentAssetPack)
     {
         if (model != null)
@@ -158,6 +177,8 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         }
     }
 
+    /// <summary>Projects this VM back into an <see cref="AssetPack.ConfigDistributionRules"/> model.</summary>
+    /// <returns>The populated model.</returns>
     public AssetPack.ConfigDistributionRules DumpViewModelToModel()
     {
         var model = new AssetPack.ConfigDistributionRules();
@@ -190,6 +211,8 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
         return model;
     }
 
+    /// <summary>Returns a human-readable summary of the active config-wide rules (for verbose logging), or an empty list when no rules are set.</summary>
+    /// <returns>The summary lines (with a header) or an empty list.</returns>
     public List<string> GetRulesSummary()
     {
         List<string> rulesSummary = new();

@@ -12,11 +12,19 @@ using System.Windows.Documents;
 
 namespace SynthEBD
 {
+    /// <summary>View model for an asset pack's miscellaneous menu: descriptor match-mode setters, BSA association, missing-descriptor cleanup, and mix-in specific-assignment helpers.</summary>
     public class VM_AssetPackMiscMenu : VM
     {
         private readonly VM_AssetPack _parent;
 
+        /// <summary>Autofac factory delegate for constructing the menu under an asset pack.</summary>
         public delegate VM_AssetPackMiscMenu Factory(VM_AssetPack parentPack);
+        /// <summary>Creates the menu, wiring the descriptor-match-mode, delete-missing-descriptor, and add-mix-in-to-specific-assignments commands plus load-order/BSA tracking.</summary>
+        /// <param name="parentPack">The owning asset pack VM.</param>
+        /// <param name="environmentProvider">Supplies the load order and link cache.</param>
+        /// <param name="specificAssignmentsUI">Specific-NPC-assignments UI (target of the add-mix-in command).</param>
+        /// <param name="mixInFactory">Factory for mix-in specific assignments.</param>
+        /// <param name="logger">Logger for diagnostics.</param>
         public VM_AssetPackMiscMenu(VM_AssetPack parentPack, IEnvironmentStateProvider environmentProvider, VM_SpecificNPCAssignmentsUI specificAssignmentsUI, VM_SpecificNPCAssignment.VM_MixInSpecificAssignment.Factory mixInFactory, Logger logger)
         {
             _parent = parentPack;
@@ -86,18 +94,23 @@ namespace SynthEBD
         public ObservableCollection<ModKey> AssociatedBsaModKeys { get; set; } = new();
         public IEnumerable<ModKey> LoadOrder { get; private set; }
 
+        /// <summary>Loads the associated BSA mod keys from a model.</summary>
+        /// <param name="model">The asset-pack model to read.</param>
         public void CopyInViewModelFromModel(AssetPack model)
         {
             AssociatedBsaModKeys.Clear();
             AssociatedBsaModKeys.AddRange(model.AssociatedBsaModKeys);
         }
 
+        /// <summary>Writes the associated BSA mod keys back into a model.</summary>
+        /// <param name="model">The asset-pack model to update.</param>
         public void MergeIntoModel(AssetPack model)
         {
             model.AssociatedBsaModKeys.Clear();
             model.AssociatedBsaModKeys.AddRange(AssociatedBsaModKeys);
         }
 
+        /// <summary>Refreshes the source-validity color of the displayed subgroup's paths (e.g. after BSA associations change).</summary>
         private void UpdateFilePathStatus()
         {
             if (_parent.DisplayedSubgroup != null)
@@ -109,6 +122,9 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Applies a descriptor match mode to the displayed subgroup and recursively to every subgroup (and replacer subgroup) in the pack.</summary>
+        /// <param name="descriptorTypes">"Allowed" or "Disallowed".</param>
+        /// <param name="mode">The match mode to apply.</param>
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
             if (_parent.DisplayedSubgroup != null)
@@ -139,6 +155,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Recursively sets the allowed/disallowed BodyGen and BodySlide descriptor match modes on a subgroup and all its descendants.</summary>
+        /// <param name="subgroup">The subgroup to update.</param>
+        /// <param name="descriptorType">"Allowed" or "Disallowed".</param>
+        /// <param name="mode">The match mode to apply.</param>
         public static void SetSubgroupMatchModes(VM_SubgroupPlaceHolder subgroup, string descriptorType, DescriptorMatchMode mode)
         {
             switch(descriptorType)

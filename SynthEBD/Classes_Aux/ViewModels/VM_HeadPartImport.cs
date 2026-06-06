@@ -16,11 +16,21 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the head-part import tool: scans a selected plugin's HeadPart records (filtered by
+    /// sex/type/playable/etc.), validates the selections per type, and imports them into the head-parts
+    /// settings, mapping each part's valid races to a race grouping where possible.
+    /// </summary>
     public class VM_HeadPartImport : VM
     {
         private IEnvironmentStateProvider _environmentProvider;
         private readonly Logger _logger;
         private readonly VM_HeadPartPlaceHolder.Factory _placeHolderFactory;
+        /// <summary>Creates the import tool, wiring load-order/link-cache tracking, debounced re-selection on filter changes, per-type validation, and the import command.</summary>
+        /// <param name="parentMenu">The head-parts settings VM imported into.</param>
+        /// <param name="logger">Logger for status updates.</param>
+        /// <param name="environmentProvider">Supplies the load order and link cache.</param>
+        /// <param name="placeholderFactory">Factory for head-part placeholder VMs.</param>
         public VM_HeadPartImport(VM_Settings_Headparts parentMenu, Logger logger, IEnvironmentStateProvider environmentProvider, VM_HeadPartPlaceHolder.Factory placeholderFactory)
         {
             ParentMenu = parentMenu;
@@ -98,6 +108,7 @@ namespace SynthEBD
         public IEnumerable<ModKey> LoadOrder { get; private set; }
         public ILinkCache lk { get; private set; }
 
+        /// <summary>Per-type import bucket: the selected head-part FormKeys plus a validity border color and status string.</summary>
         public class HeadPartImportContainer : VM
         {
             public ObservableCollection<FormKey> FormKeys { get; set; } = new();
@@ -105,6 +116,7 @@ namespace SynthEBD
             public string StatusString { get; set; } = String.Empty;
         }
 
+        /// <summary>Repopulates the per-type selections from the chosen mod, applying the sex / type / playable / extra-part filters.</summary>
         public void UpdateSelections()
         {
             ClearSelections();
@@ -131,6 +143,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Clears all per-type selections.</summary>
         public void ClearSelections()
         {
             foreach (var value in Imports.Values)
@@ -139,6 +152,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Revalidates one type's selections, updating its border color and listing any entries of the wrong type (which won't be imported).</summary>
+        /// <param name="type">The head-part type to validate.</param>
         public void ValidateNewSelection(HeadPart.TypeEnum type)
         {
             List<string> invalidEditorIDs = new List<string>();
@@ -155,6 +170,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Returns the border color for a selection set (red on any invalid/wrong-type entry, green if non-empty and valid, grey if empty) and collects the invalid EditorIDs.</summary>
+        /// <param name="collection">The selected head-part FormKeys.</param>
+        /// <param name="type">The expected head-part type.</param>
+        /// <param name="invalidEditorIDs">Receives the EditorIDs of invalid/wrong-type entries.</param>
+        /// <returns>The status border color.</returns>
         public SolidColorBrush GetBorderColor(ObservableCollection<FormKey> collection, HeadPart.TypeEnum type, List<string> invalidEditorIDs)
         {
             invalidEditorIDs.Clear();
@@ -192,6 +212,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Imports the selected head parts into the settings (skipping any already present), notifies about duplicates, and reports the imported count.</summary>
         public void ImportSelections()
         {
             int importCount = 0;
@@ -223,6 +244,13 @@ namespace SynthEBD
             _logger.CallTimedNotifyStatusUpdateAsync("Imported " + importCount + " head parts.", 5);
         }
 
+        /// <summary>Builds a head-part setting/placeholder from a record, copying sex flags and (when enabled) mapping the record's valid races to a race grouping, falling back to an explicit race set.</summary>
+        /// <param name="headPart">The head-part record to import.</param>
+        /// <param name="bodyShapeDescriptors">Descriptor menu (available for rule setup).</param>
+        /// <param name="raceGroupingVMs">Race groupings used to match the record's valid races.</param>
+        /// <param name="parentCollection">The head-part list the placeholder is added to.</param>
+        /// <param name="parentConfig">The head-parts settings VM (for the respect-races option).</param>
+        /// <returns>The created placeholder VM.</returns>
         public VM_HeadPartPlaceHolder ImportHeadPart(IHeadPartGetter headPart, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, ObservableCollection<VM_HeadPartPlaceHolder> parentCollection, VM_Settings_Headparts parentConfig)
         {
             var imported = new HeadPartSetting() { HeadPartFormKey = headPart.FormKey};

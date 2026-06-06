@@ -13,11 +13,21 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the attribute-validator UI: takes a trial attribute and a test NPC, runs it through the
+    /// <see cref="AttributeMatcher"/>, and surfaces the match / restriction / force-if results with status colors.
+    /// </summary>
     public class VM_AttributeValidator : VM
     {
         private readonly PatcherState _patcherState;
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly AttributeMatcher _attributeMatcher;
+        /// <summary>Creates the validator from a trial attribute and the available groups, re-testing whenever the chosen NPC changes.</summary>
+        /// <param name="trialAttribute">The attribute being validated (dumped to a model).</param>
+        /// <param name="attGroupVMs">Attribute groups available for resolution.</param>
+        /// <param name="patcherState">Patcher state (for race aliases).</param>
+        /// <param name="environmentProvider">Supplies the link cache.</param>
+        /// <param name="attributeMatcher">The matcher used to evaluate the attribute against the NPC.</param>
         public VM_AttributeValidator(VM_NPCAttribute trialAttribute, ObservableCollection<VM_AttributeGroup> attGroupVMs, PatcherState patcherState, IEnvironmentStateProvider environmentProvider, AttributeMatcher attributeMatcher)
         {
             _patcherState = patcherState;
@@ -54,6 +64,7 @@ namespace SynthEBD
         public string MatchedLog { get; set; }
         public string UnMatchedLog { get; set; }
         public string ForceIfLog { get; set; }
+        /// <summary>Resolves the selected NPC, applies any race alias, runs the matcher against the trial attribute, and updates the result fields and status colors.</summary>
         public void TestNPC()
         {
             var attList = new HashSet<NPCAttribute>() { TrialAttribute };

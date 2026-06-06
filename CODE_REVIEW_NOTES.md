@@ -529,6 +529,19 @@ primary NPC's FormKey via `vm.Primary.Split('|')[2]`, assuming the display strin
 other display shape, would mis-parse or throw `IndexOutOfRange`. Storing the FormKey on the VM rather
 than re-parsing the display string would be robust.
 
+### `VM_AssetPresenter.UpdatePreviewImages` — 🐞 possible bug (`&` vs `&&`)
+
+[VM_AssetPresenter.cs:208](SynthEBD/Classes_Aux/ViewModels/VM_AssetPresenter.cs#L208) ·
+`sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(...)` uses the
+non-short-circuiting bitwise `&`, so the right operand is evaluated even when `SourceChain` is null —
+a null-reference risk. Should be `&&`.
+
+### `VM_BodyShapeDescriptor.DumpViewModeltoModel` — 💭 (typo)
+
+[VM_BodyShapeDescriptor.cs:77](SynthEBD/Classes_Aux/ViewModels/VM_BodyShapeDescriptor.cs#L77) · Method
+name has a lowercase "to" (`DumpViewModeltoModel`) — inconsistent with the `DumpViewModelToModel`
+convention used everywhere else. Cosmetic rename.
+
 <!-- ENTRIES:Classes_Aux_VM -->
 
 ---

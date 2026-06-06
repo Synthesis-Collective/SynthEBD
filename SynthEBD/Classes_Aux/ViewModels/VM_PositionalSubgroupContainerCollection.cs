@@ -13,10 +13,19 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model and drag-drop target for the positional subgroup-ordering list: holds one
+    /// <see cref="VM_PositionalSubgroupContainer"/> per top-level position, accepts subgroup drops, and
+    /// round-trips to/from the saved list of subgroup IDs.
+    /// </summary>
     public class VM_PositionalSubgroupContainerCollection : VM, IDropTarget
     {
         private readonly Logger _logger;
+        /// <summary>Autofac factory delegate for constructing the collection under an asset pack.</summary>
         public delegate VM_PositionalSubgroupContainerCollection Factory(VM_AssetPack parent);
+        /// <summary>Creates the collection and toggles the "drag here" instruction text as containers come and go.</summary>
+        /// <param name="parent">The owning asset-pack VM.</param>
+        /// <param name="logger">Logger for unresolved-subgroup errors.</param>
         public VM_PositionalSubgroupContainerCollection(VM_AssetPack parent, Logger logger)
         {
             ParentConfig = parent;
@@ -29,6 +38,8 @@ namespace SynthEBD
         public string InstructionString { get; set; } = String.Empty;
         private string _instructionString = "Drag Subgroups here from the Tree View";
 
+        /// <summary>Populates the list from saved subgroup IDs, logging any that cannot be resolved in the parent pack.</summary>
+        /// <param name="subgroupIDs">The saved subgroup IDs, in order.</param>
         public void InitializeFromCollection(IEnumerable<string> subgroupIDs)
         {
             foreach (var id in subgroupIDs.Where(x => !x.IsNullOrWhitespace()))
@@ -46,16 +57,23 @@ namespace SynthEBD
             ToggleInstructionString();
         }
 
+        /// <summary>Whether the given subgroup is already present anywhere in the list.</summary>
+        /// <param name="subgroup">The subgroup to look for.</param>
+        /// <returns><c>true</c> if present.</returns>
         public bool ContainsSubgroup(VM_SubgroupPlaceHolder subgroup)
         {
             return ContainersByIndex.SelectMany(x => x.ContainedSubgroupPlaceholders).Select(X => X.Subgroup).Contains(subgroup);
         }
 
+        /// <summary>Returns the ordered subgroup IDs across all positions.</summary>
+        /// <returns>The subgroup IDs in display order.</returns>
         public string[] DumpToCollection()
         {
             return ContainersByIndex.SelectMany(x => x.ContainedSubgroupPlaceholders).Select(x => x.Subgroup.ID).ToArray();
         }
 
+        /// <summary>Adds a subgroup to the container for its top-level position, creating and re-sorting a new container if that position has none yet.</summary>
+        /// <param name="subgroup">The subgroup to add.</param>
         public void AddSubgroup(VM_SubgroupPlaceHolder subgroup)
         {
             var topLevelIndex = subgroup.GetTopLevelIndex();
@@ -72,6 +90,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Removes the given subgroup from whichever container holds it.</summary>
+        /// <param name="subgroup">The subgroup to remove.</param>
         public void RemoveSubgroup(VM_SubgroupPlaceHolder subgroup)
         {
             for (int i = 0; i < ContainersByIndex.Count; i++)
@@ -90,6 +110,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Shows the "drag here" instruction only when the list is empty.</summary>
         private void ToggleInstructionString()
         {
             if (ContainersByIndex.Any())
@@ -102,6 +123,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Drag-over handler: accepts a dragged subgroup placeholder with a move/highlight effect.</summary>
+        /// <param name="dropInfo">The gong-wpf-dragdrop drop info.</param>
         public void DragOver(IDropInfo dropInfo)
         {
             if (dropInfo.Data is VM_SubgroupPlaceHolder)
@@ -111,6 +134,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Drop handler: adds the dropped subgroup to this list, warning if it is already present.</summary>
+        /// <param name="dropInfo">The gong-wpf-dragdrop drop info.</param>
         public void Drop(IDropInfo dropInfo)
         {
             // Assuming dropInfo.VisualTarget is the UI element being dropped on

@@ -10,8 +10,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>View model for the head-parts miscellaneous settings: patching mode, per-type source-conflict winners, BodyGen config tracking, and descriptor match-mode setters.</summary>
     public class VM_HeadPartMiscSettings: VM
     {
+        /// <summary>Creates the settings VM and wires the allowed/disallowed descriptor-match-mode commands.</summary>
+        /// <param name="parentMenu">The owning head-parts settings VM.</param>
+        /// <param name="bodyGenVM">BodyGen settings VM (source of available configs).</param>
         public VM_HeadPartMiscSettings(VM_Settings_Headparts parentMenu, VM_SettingsBodyGen bodyGenVM)
         {
             ParentMenu = parentMenu;
@@ -56,6 +60,9 @@ namespace SynthEBD
         private const string AllowedStr = "Allowed";
         private const string DisallowedStr = "Disallowed";
 
+        /// <summary>Applies a descriptor match mode across every head-part type's rule set and its head parts.</summary>
+        /// <param name="descriptorTypes">"Allowed" or "Disallowed".</param>
+        /// <param name="mode">The match mode to apply.</param>
         public void SetMatchModes(string descriptorTypes, DescriptorMatchMode mode)
         {
             foreach (var entry in ParentMenu.Types)
@@ -93,6 +100,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Populates this VM (patching mode, source-conflict winners, tracked BodyGen configs, flags) from a <see cref="Settings_Headparts"/> model.</summary>
+        /// <param name="model">The settings model to load.</param>
         public void GetViewModelFromModel(Settings_Headparts model)
         {
             PatchingMode = model.PatchingMode;
@@ -123,6 +132,8 @@ namespace SynthEBD
             bSkyPatcherModeHeadparts = model.bSkyPatcherModeHeadparts;
         }
 
+        /// <summary>Writes this VM's values back into a <see cref="Settings_Headparts"/> model.</summary>
+        /// <param name="model">The settings model to update.</param>
         public void MergeViewModelIntoModel(Settings_Headparts model)
         {
             model.PatchingMode = PatchingMode;
@@ -139,14 +150,19 @@ namespace SynthEBD
         }
     }
 
+    /// <summary>View model wrapping the chosen winner of a head-part source conflict.</summary>
     public class HeadPartSource: VM
     {
+        /// <summary>The subsystem that wins the conflict.</summary>
         public HeadPartSourceCandidate Source { get; set; }
     }
 
+    /// <summary>Which subsystem wins a head-part source conflict.</summary>
     public enum HeadPartSourceCandidate
     {
+        /// <summary>The asset pack provides the head part.</summary>
         AssetPack,
+        /// <summary>The head-parts menu provides the head part.</summary>
         HeadPartsMenu
     }
 }

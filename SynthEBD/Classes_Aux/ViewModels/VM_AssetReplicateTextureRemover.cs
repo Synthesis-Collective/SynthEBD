@@ -12,8 +12,17 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the "remove replicate textures" tool: hashes an asset pack's textures to find
+    /// duplicates, then either remaps duplicate paths to a single file or removes wholly-replicate
+    /// subgroups (fixing up Required/Excluded references), reporting hashing progress as it goes.
+    /// </summary>
     public class VM_AssetReplicateTextureRemover : VM
     {
+        /// <summary>Creates the tool and wires the "check duplicates" and "clean asset pack" reactive commands.</summary>
+        /// <param name="configDrafter">Drafter used for duplicate computation.</param>
+        /// <param name="modManagerSettings">Mod-manager settings (affects duplicate scanning).</param>
+        /// <param name="environmentProvider">Supplies the data-folder path for resolving texture files.</param>
         public VM_AssetReplicateTextureRemover(ConfigDrafter configDrafter, VM_SettingsModManager modManagerSettings, IEnvironmentStateProvider environmentProvider)
         {
             DuplicateCheckProgress = new(report =>
@@ -91,6 +100,8 @@ namespace SynthEBD
         public HashSet<VM_SubgroupPlaceHolder> AllSubgroups { get; set; } = new();
         public List<VM_SubgroupPlaceHolder> CleanedSubgroups { get; set; } = new();
 
+        /// <summary>Resets the tool's state for a new asset pack and caches its subgroups.</summary>
+        /// <param name="assetPack">The asset pack to operate on.</param>
         public void Initialize(VM_AssetPack assetPack)
         {
             AssetPack = assetPack;
@@ -100,6 +111,8 @@ namespace SynthEBD
             AllSubgroups = AssetPack.GetAllSubgroups();
         }
 
+        /// <summary>Remaps every subgroup's duplicate texture paths to each multiplet's primary path.</summary>
+        /// <param name="multiplets">The detected duplicate groups.</param>
         private void RemapTexturePaths(List<Multiplet> multiplets)
         {
             var subgroups = AssetPack.GetAllSubgroups();
@@ -109,6 +122,9 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Remaps a single subgroup's duplicate paths, recording it as cleaned if anything changed.</summary>
+        /// <param name="subgroup">The subgroup to remap.</param>
+        /// <param name="multiplets">The detected duplicate groups.</param>
         private void RemapSubgroup(VM_SubgroupPlaceHolder subgroup, List<Multiplet> multiplets)
         {
             bool wasRemapped = false;
@@ -126,6 +142,12 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>If a path is a known duplicate, repoints it to the multiplet's primary file and notes the change on the subgroup.</summary>
+        /// <param name="subgroup">The owning subgroup (its Notes are appended).</param>
+        /// <param name="path">The path to consider remapping.</param>
+        /// <param name="multiplets">The detected duplicate groups.</param>
+        /// <param name="correspondingMultiplet">Receives the matched multiplet, or null.</param>
+        /// <returns><c>true</c> if the path was remapped.</returns>
         private bool RemapPath(VM_SubgroupPlaceHolder subgroup, FilePathReplacement path, List<Multiplet> multiplets, out Multiplet? correspondingMultiplet)
         {
             correspondingMultiplet = multiplets.Where(x => x.ReplicatePaths.Contains(path.Source, StringComparer.OrdinalIgnoreCase)).FirstOrDefault();
@@ -142,6 +164,8 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>Removes subgroups whose every texture is a duplicate, recursing into descendants but keeping top-level subgroups.</summary>
+        /// <param name="multiplets">The detected duplicate groups.</param>
         private void RemoveReplicateSubgroups(List<Multiplet> multiplets)
         {
             foreach (var sg in AssetPack.Subgroups)
@@ -150,6 +174,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Depth-first removal: removes a subgroup when it is a leaf whose paths are all replicates of a single primary subgroup, remapping its Required/Excluded references first.</summary>
+        /// <param name="subgroup">The subgroup to evaluate.</param>
+        /// <param name="multiplets">The detected duplicate groups.</param>
+        /// <returns><c>true</c> if this subgroup should be removed by its caller.</returns>
         private bool RemoveReplicateSubgroupsRecursive(VM_SubgroupPlaceHolder subgroup, List<Multiplet> multiplets)
         {
             // do recursion first to trip "fingertip nodes" and avoid leaving orphans
@@ -192,12 +220,19 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Finds the subgroup that holds the given primary texture path.</summary>
+        /// <param name="primaryPath">The primary file path to locate.</param>
+        /// <param name="subgroup">Receives the holding subgroup, or null.</param>
+        /// <returns><c>true</c> if a holder was found.</returns>
         private bool TryGetPrimaryPathHolder(string primaryPath, out VM_SubgroupPlaceHolder? subgroup)
         {
             subgroup = AllSubgroups.Where(subgroup => subgroup.AssociatedModel.Paths.Where(path => path.Source.Equals(primaryPath, StringComparison.OrdinalIgnoreCase)).Any()).FirstOrDefault();
             return subgroup != null;
         }
 
+        /// <summary>Repoints every subgroup's Required/Excluded references from a removed subgroup ID to its replacement.</summary>
+        /// <param name="oldID">The removed subgroup's ID.</param>
+        /// <param name="newID">The replacement (primary) subgroup's ID.</param>
         private void RemapRequiredExcludedSubgroups(string oldID, string newID)
         {
             foreach(var subgroup in AllSubgroups)

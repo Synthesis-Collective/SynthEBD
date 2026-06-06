@@ -15,6 +15,11 @@ using Pfim;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the asset-preview pane: drives either the image-preview pipeline or the 3D
+    /// CharacterViewer render preview for the selected subgroup, accumulating texture overrides and
+    /// resolving a suitable preview NPC.
+    /// </summary>
     public class VM_AssetPresenter : VM
     {
         private readonly Logger _logger;
@@ -22,6 +27,13 @@ namespace SynthEBD
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly SubgroupTextureMapper _textureMapper;
 
+        /// <summary>Creates the presenter, building the read-only character viewer and wiring preview-mode/selection/NPC-override subscriptions plus the select-from-config and reset commands.</summary>
+        /// <param name="parent">The owning texture/mesh settings VM.</param>
+        /// <param name="logger">Logger for diagnostics.</param>
+        /// <param name="generalSettings">General settings (preview-NPC resolution).</param>
+        /// <param name="environmentProvider">Supplies the link cache.</param>
+        /// <param name="textureMapper">Maps subgroup/pack textures and resolves effective races.</param>
+        /// <param name="characterViewerFactory">Factory for the embedded 3D character viewer.</param>
         public VM_AssetPresenter(
             VM_SettingsTexMesh parent,
             Logger logger,
@@ -120,6 +132,7 @@ namespace SynthEBD
 
         private const ulong ByteLimit = 157286400; // minimum available RAM for image preview to function (in bytes)
 
+        /// <summary>Reacts to a preview trigger by clearing/loading image previews or refreshing the 3D render, per the current preview mode.</summary>
         private void OnPreviewTriggerChanged()
         {
             switch (ParentUI.PreviewMode)
@@ -137,6 +150,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Resolves the effective races, gender, and preview NPC for the selected subgroup, loads it into the character viewer, and applies the accumulated texture overrides.</summary>
         private async Task RefreshRenderPreviewAsync()
         {
             if (AssetPack == null || AssetPack.SelectedPlaceHolder == null || lk == null) return;
@@ -194,6 +208,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Loads the selected subgroup's preview images (respecting an available-RAM floor and abandoning stale loads when the selection changes).</summary>
+        /// <param name="source">The asset pack whose selected subgroup's images are loaded.</param>
         public async void UpdatePreviewImages(VM_AssetPack source)
         {
             ClearPreviewImages(); // Try to free memory as completely as possible before loading more images
@@ -234,6 +250,7 @@ namespace SynthEBD
             return;
         }
 
+        /// <summary>Disposes and clears the current preview images and forces a GC pass to release their (often large) memory.</summary>
         private void ClearPreviewImages()
         {
             foreach (var i in PreviewImages)

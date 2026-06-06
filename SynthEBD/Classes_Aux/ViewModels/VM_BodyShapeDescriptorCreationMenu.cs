@@ -4,17 +4,31 @@ using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the body-shape descriptor creation/editing menu: an editable tree of category shells
+/// and their descriptor values, with import/merge support and several dump variants (all values, only
+/// selected values).
+/// </summary>
 public class VM_BodyShapeDescriptorCreationMenu : VM
 {
     private readonly VM_Settings_General _generalSettings;
     private readonly Logger _logger;
     private readonly VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator _descriptorCreator;
     private readonly IHasAttributeGroupMenu _parentConfig;
+    /// <summary>Autofac factory delegate for constructing the menu, supplying the change/deletion callbacks.</summary>
     public delegate VM_BodyShapeDescriptorCreationMenu Factory(IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> responseToValueDeletion, Action<string> repsonseToCategoryDeletion);
     public Action<(string, string), (string, string)> ResponseToChange { get; set; }
     public Action<string> ResponseToValueDeletion { get; set; }
     public Action<string> RepsonseToCategoryDeletion { get; set; }
 
+    /// <summary>Creates the menu, seeding a blank category shell and wiring the add/remove-shell commands.</summary>
+    /// <param name="parentConfig">The owning config (attribute-group menu source).</param>
+    /// <param name="generalSettings">General settings (race-grouping source).</param>
+    /// <param name="logger">Logger for diagnostics.</param>
+    /// <param name="descriptorCreator">Factory for shell and descriptor VMs.</param>
+    /// <param name="responseToChange">Callback invoked when a descriptor's (category, value) changes.</param>
+    /// <param name="responseToValueDeletion">Callback invoked when a descriptor value is deleted.</param>
+    /// <param name="repsonseToCategoryDeletion">Callback invoked when a category shell is deleted.</param>
     public VM_BodyShapeDescriptorCreationMenu(IHasAttributeGroupMenu parentConfig, VM_Settings_General generalSettings, Logger logger, VM_BodyShapeDescriptor.VM_BodyShapeDescriptorCreator descriptorCreator, Action<(string, string), (string, string)> responseToChange, Action<string> responseToValueDeletion, Action<string> repsonseToCategoryDeletion)
     {
         _generalSettings = generalSettings;
@@ -43,11 +57,15 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         );
     }
 
+    /// <summary>Replaces the menu's descriptors with those from the given shells (overwrite merge).</summary>
+    /// <param name="models">The shell models to load.</param>
     public void CopyInViewModelsFromModels(List<BodyShapeDescriptorShell> models)
     {
         MergeInMissingModels(models, DescriptorRulesMergeMode.Overwrite, new List<string>());
     }
 
+    /// <summary>Projects the full descriptor tree into shell models, emitting one CategoryDescription per category.</summary>
+    /// <returns>The shell models.</returns>
     public List<BodyShapeDescriptorShell> DumpToViewModels()
     {
         // Emit one shell per category VM with one CategoryDescription, then each value VM's
@@ -70,6 +88,9 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         return models;
     }
 
+    /// <summary>Projects only the named (Category, Value) descriptors into shell models, omitting categories with no selected values.</summary>
+    /// <param name="selectedDescriptors">The descriptor signatures to include.</param>
+    /// <returns>The filtered shell models.</returns>
     public List<BodyShapeDescriptorShell> DumpSelectedToViewModels(IEnumerable<BodyShapeDescriptor.LabelSignature> selectedDescriptors)
     {
         // Same shape as DumpToViewModels, but filtered to (Category, Value) pairs the caller
@@ -98,6 +119,10 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         return models;
     }
 
+    /// <summary>Merges shells into the menu: adds missing categories and values, and for already-present values applies the given rules merge mode.</summary>
+    /// <param name="shells">The shell models to merge in.</param>
+    /// <param name="mode">How to combine rules for descriptors that already exist (skip/overwrite/merge).</param>
+    /// <param name="mergedDescriptors">Receives the signatures of descriptors whose rules were merged.</param>
     public void MergeInMissingModels(List<BodyShapeDescriptorShell> shells, DescriptorRulesMergeMode mode, List<string> mergedDescriptors)
     {
         mergedDescriptors.Clear();
@@ -160,9 +185,13 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
     public RelayCommand RemoveTemplateDescriptorShell { get; }
 }
 
+/// <summary>How imported descriptor rules combine with existing ones during a merge.</summary>
 public enum DescriptorRulesMergeMode
 {
+    /// <summary>Keep the existing rules unchanged.</summary>
     Skip,
+    /// <summary>Replace the existing rules with the imported ones.</summary>
     Overwrite,
+    /// <summary>Merge the imported rules into the existing ones.</summary>
     Merge
 }

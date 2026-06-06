@@ -7,11 +7,15 @@ using System.Reactive.Linq;
 
 namespace SynthEBD
 {
+    /// <summary>View model for the asset assignment-order UI: maintains the ordered list of the primary pack plus selected mix-in packs, keeping it in sync as packs are added/removed/selected.</summary>
     public class VM_AssetOrderingMenu : VM
     {
         private readonly VM_SettingsTexMesh _texMeshVM;
+        /// <summary>Caption for the fixed primary/body-shape entry that always heads the order.</summary>
         public const string PrimaryLabel = "Primary & Body Shape";
-        
+
+        /// <summary>Creates the menu and subscribes to keep the assignment order synced to the asset-pack list and selections.</summary>
+        /// <param name="texMeshVM">The texture/mesh settings VM holding the asset packs.</param>
         public VM_AssetOrderingMenu(VM_SettingsTexMesh texMeshVM)
         {
             _texMeshVM = texMeshVM;
@@ -30,6 +34,7 @@ namespace SynthEBD
 
         public ObservableCollection<string> AssignmentOrder { get; set; } = new();
 
+        /// <summary>Ensures the primary entry is present, appends newly-selected mix-ins, and drops mix-ins that are no longer selected.</summary>
         private void UpdateAssignmentOrder()
         {
             if (!AssignmentOrder.Contains(PrimaryLabel))
@@ -59,6 +64,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Loads the saved order, keeping only entries that still correspond to a known pack (or the primary), then re-syncs.</summary>
+        /// <param name="assetOrder">The saved order; null is ignored.</param>
         public void CopyInFromModel(List<string> assetOrder)
         {
             if (assetOrder == null)
@@ -77,6 +84,8 @@ namespace SynthEBD
             UpdateAssignmentOrder();
         }
 
+        /// <summary>Returns the current assignment order as a list.</summary>
+        /// <returns>The ordered entry labels.</returns>
         public List<string> DumpToModel()
         {
             return AssignmentOrder.ToList();
