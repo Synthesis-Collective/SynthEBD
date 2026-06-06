@@ -1036,6 +1036,47 @@ Any caller relying on it to reset status flags is silently getting nothing.
   sub-attribute per NPC (hot-path cost across the load order); `dynamic ==` string comparisons could be
   `string.Equals`. All 🔧/💭, not correctness bugs.
 
+### `HeadPartSelector` duplicate condition — 🐞 bug (unreachable warning)
+
+[HeadPartSelector.cs:199](SynthEBD/Patcher/Head%20Part%20Patching/HeadPartSelector.cs#L199) · The `else if`
+repeats the **exact** condition of the preceding `if` at
+[:193](SynthEBD/Patcher/Head%20Part%20Patching/HeadPartSelector.cs#L193)
+(`specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart != null`), so the else
+branch is unreachable and its warning — "…calls for {FormKey} but this head part does not currently exist in
+the load order" — never fires. The intended condition was `ResolvedHeadPart == null`. Also
+[:708-709](SynthEBD/Patcher/Head%20Part%20Patching/HeadPartSelector.cs#L708): `headPartAssignment == null` /
+`assetAssignment == null` compare `FormKey` (a struct) to null — always false/true — so those conflict-
+resolution early-outs are dead (use `.IsNull`).
+
+### `VanillaBodyPathSetter` `&&`/`||` precedence — 🐞 bug
+
+[VanillaBodyPathSetter.cs:216](SynthEBD/Patcher/Asset%20Patching/VanillaBodyPathSetter.cs#L216) ·
+`if (!bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1)` parses as
+`(!SkyPatcher && Count==2) || Count==1`, so the branch fires whenever `contexts.Count == 1` regardless of
+SkyPatcher mode — the trailing comment ("base mod and output mod only") implies the SkyPatcher guard was meant
+to cover both counts: `!SkyPatcher && (Count == 2 || Count == 1)`. Bracket it.
+
+### `BodyGenSelector` / `OBodySelector` priority not applied — 🐞 possible bug
+
+- `BodyGenSelector.ChooseMorphs` computes a ForceIf-prioritized grouping of combinations, but the actual
+  `ProbabilityWeighting.SelectByProbability(...)` is run over the **full** available-combination set rather
+  than the current priority group — so the highest-ForceIf tier isn't actually preferred. Verify against the
+  intended ForceIf semantics.
+- [OBodySelector.cs:465](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L465) (and the equivalent in
+  BodyGenSelector) — `priorities.OrderBy(x => x.Priority);` discards its result (LINQ `OrderBy` is
+  non-mutating), and the following loop consumes `priorities` in unsorted order, so descriptor priority is
+  never applied. Assign the result (`priorities = priorities.OrderBy(...).ToList()`).
+
+### Selector log/style nits — 💭 / 🔧
+
+- `OBodySelector` log lines [:97](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L97),
+  [:112](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L112) concatenate a `List<BodySlideSetting>`
+  directly (and `String.Join` over the objects), so the report prints the type name rather than the preset
+  labels — `.Select(x => x.Label)` is needed. Plus log typos "desecriptor"/"Presests".
+- `VanillaBodyPathSetter` — stray `using System.DirectoryServices.ActiveDirectory;`, a FormKey compared via
+  `.ToString() ==` (line ~55), and `ArmatureHasVanillaPath` returns `true` ("assume vanilla / skip") on an
+  unresolvable path — an inverted-return readability trap. 💭
+
 <!-- ENTRIES:Patcher -->
 
 ---

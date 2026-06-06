@@ -17,6 +17,14 @@ using Serilog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Output-stage helper that forces the vanilla (race default) body mesh path onto NPCs whose worn-armor
+/// armatures point at non-vanilla body meshes (and were not assigned one from a config). Caches each
+/// race/gender's default body/hands/feet/tail mesh paths, then for each eligible NPC either edits the
+/// existing armor/armature or clones surrogate armor and armatures, applying the change directly or via
+/// SkyPatcher's ApplySkin in SkyPatcher asset mode. Honors patchable-race, player, preset, and block-list
+/// exclusions. Runs after asset assignment in the patcher pipeline.
+/// </summary>
 public class VanillaBodyPathSetter
 {
     private readonly IEnvironmentStateProvider _environmentStateProvider;
@@ -26,6 +34,7 @@ public class VanillaBodyPathSetter
     private readonly PatchableRaceResolver _raceResolver;
     private readonly SurrogateNPCProvider _surrogateNpcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
+    /// <summary>Injects environment, patcher state, logging, status-bar UI, race resolution, surrogate NPCs, and the SkyPatcher interface.</summary>
     public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface)
     {
         _environmentStateProvider = environmentStateProvider;
@@ -37,6 +46,11 @@ public class VanillaBodyPathSetter
         _skyPatcherInterface = skyPatcherInterface;
     }
 
+    /// <summary>
+    /// Top-level driver: iterates all NPCs, skips those of non-patchable race, the player, presets, and
+    /// block-listed NPCs, and applies <see cref="SetVanillaBodyPath"/> to the rest while advancing the status bar.
+    /// </summary>
+    /// <remarks>Updates the status-bar UI and writes records to <paramref name="outputMod"/>.</remarks>
     public void SetVanillaBodyMeshPaths(ISkyrimMod outputMod, IEnumerable<INpcGetter> allNPCs)
     {
         _statusBar.ProgressBarCurrent = 0;
@@ -71,6 +85,7 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>Clears all per-run caches (paths, blocked armatures/NPCs, duplicated armor/armatures, asset NIFs) and rebuilds the default race/gender mesh-path table.</summary>
     public void Reinitialize()
     {
         PathsByRaceGender.Clear();
@@ -83,12 +98,22 @@ public class VanillaBodyPathSetter
         InitializeDefaultMeshPaths();
     }
 
+    /// <summary>Armatures (with their primary body part) that already had a vanilla path and must be left untouched / cloned.</summary>
     private Dictionary<FormKey, BipedObjectFlag> BlockedArmatures = new();
+    /// <summary>NPCs explicitly blocked from forced vanilla body paths.</summary>
     private HashSet<FormKey> BlockedNPCs = new();
+    /// <summary>Cache mapping a source armature FormKey to its already-cloned vanilla-path duplicate.</summary>
     private Dictionary<FormKey, IArmorAddonGetter> ArmatureDuplicatedWithVanillaPath = new();
+    /// <summary>Cache mapping a source armor FormKey to its already-cloned vanilla-path duplicate.</summary>
     private Dictionary<FormKey, IArmorGetter> ArmorDuplicatedwithVanillaPaths = new();
+    /// <summary>Body NIF source paths assigned to NPCs from config files, so armatures pointing at them are not overwritten.</summary>
     private HashSet<string> ArmatureNifsFromAssets = new();
 
+    /// <summary>
+    /// Marks an NPC as blocked from vanilla body paths and records its body armatures (that currently carry a
+    /// non-vanilla world-model path) in <see cref="BlockedArmatures"/>, so later cloning preserves their custom paths.
+    /// </summary>
+    /// <remarks>Mutates <see cref="BlockedNPCs"/> and <see cref="BlockedArmatures"/>.</remarks>
     public void RegisterBlockedFromVanillaBodyPaths(NPCInfo currentNPCinfo)
     {
         BlockedNPCs.Add(currentNPCinfo.NPC.FormKey);
@@ -110,6 +135,13 @@ public class VanillaBodyPathSetter
     }
     
 
+    /// <summary>
+    /// Core per-NPC logic: resolves the NPC's effective worn armor (surrogate or output override), reuses a
+    /// cached duplicated armor if present, determines whether any body armature still has a non-vanilla path,
+    /// warns when an NPC with no overriding appearance mods is being modified, then routes to
+    /// <see cref="SetViaNewArmor"/> (clone) or <see cref="SetInExistingArmor"/> (edit in place).
+    /// </summary>
+    /// <remarks>Writes records to <paramref name="outputMod"/> and/or emits SkyPatcher directives; logs.</remarks>
     private void SetVanillaBodyPath(INpcGetter npcGetter, ISkyrimMod outputMod)
     {
         if (npcGetter == null)
@@ -204,6 +236,13 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>
+    /// Creates a vanilla-path worn armor for the NPC by cloning the template armor (or overriding the surrogate's
+    /// armor in SkyPatcher mode), suffixing EditorIDs with "_VanillaBodyPath", caching the result, and rewriting
+    /// each body armature to a cloned/overridden armature carrying the race-default world-model path. Routes the
+    /// NPC to the new armor via ApplySkin (SkyPatcher mode) or a WornArmor override.
+    /// </summary>
+    /// <remarks>Writes armor/armature records, mutates the duplicate caches, may emit SkyPatcher directives, and logs.</remarks>
     private void SetViaNewArmor(ISkyrimMod outputMod, IArmorGetter templateArmorGetter, INpcGetter npcGetter, Gender currentGender)
     {
         Armor wornArmor;
@@ -299,6 +338,11 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>
+    /// Sets the race-default world-model path directly on the NPC's existing body armatures (overriding each in
+    /// the output mod) for those that are valid body armatures with a world model and a non-vanilla path.
+    /// </summary>
+    /// <remarks>Writes armature overrides to <paramref name="outputMod"/> and logs unresolved armatures.</remarks>
     private void SetInExistingArmor(ISkyrimMod outputMod, IArmorGetter currentArmorGetter, INpcGetter npcGetter, Gender currentGender)
     {
         for (int i = 0; i < currentArmorGetter.Armature.Count; i++)
@@ -321,6 +365,7 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>Writes <paramref name="updatedPath"/> to the gender-appropriate world-model File of the armature.</summary>
     private void SetArmatureVanillaPath(ArmorAddon armature, Gender currentGender, string updatedPath)
     {
         switch (currentGender)
@@ -330,6 +375,12 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>
+    /// Looks up the cached race/gender/body-part default mesh path for the NPC's race, logging an error and
+    /// returning false if the race or the requested entry is missing from <see cref="PathsByRaceGender"/>.
+    /// </summary>
+    /// <param name="vanillaPath">The resolved vanilla mesh path, or empty on failure.</param>
+    /// <returns>True if a path was found.</returns>
     private bool GetArmatureVanillaPath(BipedObjectFlag currentBodyPart, Gender currentGender, INpcGetter npcGetter, out string vanillaPath)
     {
         vanillaPath = "";
@@ -359,6 +410,11 @@ public class VanillaBodyPathSetter
             return true;
         }
     }
+    /// <summary>
+    /// Returns whether the armature's gender-appropriate world-model path already equals the race-default path
+    /// (case-insensitive). When the default path cannot be resolved, returns true so the armature is skipped.
+    /// </summary>
+    /// <param name="vanillaPath">The race-default path used for the comparison.</param>
     private bool ArmatureHasVanillaPath(IArmorAddonGetter armaGetter, BipedObjectFlag currentBodyPart, Gender currentGender, INpcGetter npcGetter, out string vanillaPath) // function assumes that IsBodyArmature() has been called so potential null refs have been checked.
     {
         if (!GetArmatureVanillaPath(currentBodyPart, currentGender, npcGetter, out vanillaPath))
@@ -374,11 +430,16 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>
+    /// Records the .nif source paths of all meshes assigned from the given asset combinations into
+    /// <see cref="ArmatureNifsFromAssets"/>, so armatures pointing at them are not reset to vanilla.
+    /// </summary>
     public void RegisterAssetAssignedMeshes(List<SubgroupCombination> assignedCombinations)
     {
         ArmatureNifsFromAssets.UnionWith(assignedCombinations.SelectMany(x => x.ContainedSubgroups).SelectMany(x => x.Paths).Select(x => x.Source).Where(x => x.EndsWith(".nif", StringComparison.OrdinalIgnoreCase)));
     }
 
+    /// <summary>Returns true if the armature's gender world-model path is one of the NIF paths assigned from a config (so it should be left alone).</summary>
     private bool ArmaturePathAssignedFromConfig(IArmorAddonGetter armaGetter, Gender currentGender)
     {
         if (currentGender == Gender.Female && armaGetter.WorldModel?.Female?.File.GivenPath != null && ArmatureNifsFromAssets.Contains(armaGetter.WorldModel.Female.File.GivenPath) ||
@@ -389,6 +450,7 @@ public class VanillaBodyPathSetter
         return false;
     }
 
+    /// <summary>Returns true if the armature has a world model for the given gender.</summary>
     private bool ArmatureHasWorldModel(IArmorAddonGetter armaGetter, Gender currentGender)
     {
         if (armaGetter.WorldModel == null)
@@ -403,6 +465,12 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>
+    /// Determines whether an armature is a body armature eligible for vanilla-path handling: it is a body part,
+    /// its armor is not flagged ArmorClothing, and the armature applies to the NPC's race (directly or via
+    /// additional races).
+    /// </summary>
+    /// <param name="primaryBodyPart">The matched body-part biped flag.</param>
     private bool IsValidBodyArmature(IArmorAddonGetter armaGetter, IArmorGetter armorGetter, INpcGetter currentNPC, out BipedObjectFlag primaryBodyPart)
     {
         return IsBodyPart(armaGetter, out primaryBodyPart, currentNPC) &&
@@ -411,6 +479,8 @@ public class VanillaBodyPathSetter
             (armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(currentNPC.Race)));
     }
     
+    /// <summary>Returns true if the armature's body template covers one of the tracked body parts (see <see cref="BodyFlags"/>), outputting the first match.</summary>
+    /// <param name="primaryBodyPart">The first matching body-part flag, or 0 if none.</param>
     private bool IsBodyPart(IArmorAddonGetter armaGetter, out BipedObjectFlag primaryBodyPart, INpcGetter currentNpcGetter)
     {
         primaryBodyPart = 0;
@@ -428,6 +498,7 @@ public class VanillaBodyPathSetter
         return false;
     }
 
+    /// <summary>Returns true (and logs) if the NPC is blocked from forced vanilla body paths via the NPC or plugin block lists.</summary>
     public bool IsBlockedForVanillaBodyPaths(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.VanillaBodyPath)
@@ -442,6 +513,10 @@ public class VanillaBodyPathSetter
         }
         return false;
     }
+    /// <summary>
+    /// Builds <see cref="PathsByRaceGender"/> by reading each patchable race's skin armor armatures and recording
+    /// the male/female world-model body/hands/feet/tail mesh paths as that race's vanilla defaults.
+    /// </summary>
     private void InitializeDefaultMeshPaths()
     {
         foreach (var race in _raceResolver.PatchableRaces)
@@ -478,8 +553,10 @@ public class VanillaBodyPathSetter
         }
     }
 
+    /// <summary>Cached race-default mesh paths, keyed by race FormKey then gender then body-part flag.</summary>
     private Dictionary<FormKey, Dictionary<Gender, Dictionary<BipedObjectFlag, string>>> PathsByRaceGender = new();
 
+    /// <summary>The biped body-part flags treated as "body" meshes for vanilla-path handling (body, hands, feet, tail).</summary>
     public static HashSet<BipedObjectFlag> BodyFlags = new()
     {
         BipedObjectFlag.Body,

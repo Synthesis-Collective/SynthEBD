@@ -2,6 +2,13 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Per-NPC BodyGen assignment axis of the patcher. Chooses one or more BodyGen morph templates for an
+/// NPC from the gender-appropriate <see cref="BodyGenConfig"/>, by building category combinations from
+/// the config's racial template map, filtering candidate morphs by rule (random/unique/race/weight/
+/// attribute/descriptor), then resolving Specific assignments, link-group and unique-NPC inheritance,
+/// and consistency before selecting by probability weighting.
+/// </summary>
 public class BodyGenSelector
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -9,6 +16,7 @@ public class BodyGenSelector
     private readonly Logger _logger;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
+    /// <summary>Injects patcher state, environment, logging, attribute matching, and unique-NPC tracking dependencies.</summary>
     public BodyGenSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
         _environmentProvider = environmentProvider;
@@ -18,6 +26,18 @@ public class BodyGenSelector
         _uniqueNPCData = uniqueNPCData;
     }
 
+    /// <summary>
+    /// Main entry point: selects the BodyGen morph(s) for an NPC. Resolves the applicable
+    /// <see cref="BodyGenConfig"/> (from the assigned asset pack or the default config for the gender),
+    /// builds valid category combinations, then applies (in order) Specific assignments, link-group and
+    /// unique-NPC inheritance, and consistency, before choosing via <see cref="ChooseMorphs"/>. Records the
+    /// chosen morphs into the run-wide BodyGen tracker and sets consistency-match status flags.
+    /// </summary>
+    /// <param name="selectionMade">True if at least one morph was assigned.</param>
+    /// <param name="assignedPrimaryCombination">The NPC's assigned asset combination, used to pick a linked BodyGen config.</param>
+    /// <param name="statusFlags">Outputs consistency-related status flags for the body-shape selector.</param>
+    /// <returns>The chosen morph templates (empty/null if none could be assigned).</returns>
+    /// <remarks>Mutates the global <c>Patcher.BodyGenTracker</c> and logs.</remarks>
     public List<BodyGenConfig.BodyGenTemplate> SelectMorphs(NPCInfo npcInfo, out bool selectionMade, BodyGenConfigs bodyGenConfigs, SubgroupCombination assignedPrimaryCombination, IEnumerable<SubgroupCombination> assignedAssetCombinations, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         _logger.OpenReportSubsection("BodyGenSelection", npcInfo);
@@ -172,6 +192,12 @@ public class BodyGenSelector
         return chosenMorphs;
     }
 
+    /// <summary>
+    /// Picks the final morphs from the available combinations: prioritizes combinations by their maximum
+    /// matched ForceIf count, then selects a combination and one morph per category position by probability
+    /// weighting (with attribute modifiers).
+    /// </summary>
+    /// <returns>The list of chosen morph templates, or null if no combinations are available.</returns>
     public List<BodyGenConfig.BodyGenTemplate> ChooseMorphs(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo)
     {
         var chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
@@ -220,6 +246,12 @@ public class BodyGenSelector
         return chosenMorphs;
     }
 
+    /// <summary>
+    /// Prunes each combination's per-position template sets down to morphs whose labels appear in the NPC's
+    /// Specific assignment, keeping only combinations that still have a morph at every position.
+    /// </summary>
+    /// <param name="success">True if any combination satisfied the specific assignment.</param>
+    /// <returns>The filtered combinations, or the original set when none matched.</returns>
     public HashSet<GroupCombinationObject> FilterBySpecificNPCAssignments (HashSet<GroupCombinationObject> allCombinations, NPCInfo npcInfo, out bool success)
     {
         HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
@@ -253,6 +285,12 @@ public class BodyGenSelector
         return output;
     }
 
+    /// <summary>
+    /// Finds a single combination that can reproduce the morphs assigned to a parent/founder NPC (used for
+    /// link groups and unique-NPC replication), matching morph labels position-by-position.
+    /// </summary>
+    /// <param name="searchMorphs">The morphs to reproduce, in order.</param>
+    /// <returns>A one-element set with the pinned combination, or null if none matched.</returns>
     public HashSet<GroupCombinationObject> GetLinkedCombination(HashSet<GroupCombinationObject> availableCombinations, List<BodyGenConfig.BodyGenTemplate> searchMorphs)
     {
         HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
@@ -293,6 +331,13 @@ public class BodyGenSelector
         }
     }
 
+    /// <summary>
+    /// Filters combinations to those matching the NPC's stored consistency morphs. Prefers fully matching
+    /// combinations; otherwise falls back to partial matches; otherwise returns the original set. Sets the
+    /// MatchesConsistency / ConsistencyMorphIsInvalid status flags accordingly.
+    /// </summary>
+    /// <param name="updatedStatusFlags">The input flags OR-ed with the consistency outcome.</param>
+    /// <returns>The consistency-matched, partial-match, or original combination set.</returns>
     public HashSet<GroupCombinationObject> GetConsistencyCombinations(HashSet<GroupCombinationObject> availableCombinations, NPCInfo npcInfo, AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags, out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag updatedStatusFlags)
     {
         var consistencyMorphs = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames;
@@ -375,6 +420,13 @@ public class BodyGenSelector
         return outputMorphs;
     }
 
+    /// <summary>
+    /// Validates a single morph against the NPC: random/unique/race/weight/allowed-disallowed attribute rules
+    /// (setting and accumulating <c>MatchedForceIfCount</c>), the morph's own descriptor rules, and the
+    /// allowed/disallowed BodyGen descriptors of every assigned asset combination and its subgroups.
+    /// <paramref name="ignoredFactors"/> can skip race checks or bypass validation entirely.
+    /// </summary>
+    /// <returns>True if the morph may be assigned to the NPC.</returns>
     public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         if (ignoredFactors == ValidationIgnore.All)
@@ -573,6 +625,12 @@ public class BodyGenSelector
         return output;
     }
 
+    /// <summary>
+    /// Builds the union of all category combinations across every supplied config's racial template map,
+    /// regardless of the NPC's race, de-duplicating by combination membership. Used as the unfiltered pool
+    /// for Specific/link-group/unique resolution.
+    /// </summary>
+    /// <returns>All distinct combination objects across the configs.</returns>
     public static HashSet<GroupCombinationObject> GetAllCombinations(HashSet<BodyGenConfig> bodyGenConfigs, NPCInfo npcInfo, ValidationIgnore ignoreFlags)
     {
         HashSet<GroupCombinationObject> output = new();
@@ -596,6 +654,10 @@ public class BodyGenSelector
         return output;
     }
 
+    /// <summary>
+    /// Returns true if any already-added combination contains every member of <paramref name="currentCombination"/>
+    /// (order-independent membership test used to de-duplicate combinations).
+    /// </summary>
     private static bool CollectionContainsCombination(IEnumerable<string> currentCombination, IEnumerable<IEnumerable<string>> addedCombinations)
     {
         foreach (var combination in addedCombinations)
@@ -617,15 +679,29 @@ public class BodyGenSelector
         return false;
     }
 
+    /// <summary>Controls which validity checks <see cref="MorphIsValid"/> skips.</summary>
     public enum ValidationIgnore
     {
+        /// <summary>Apply all validity checks.</summary>
         None,
+        /// <summary>Skip the allowed/disallowed race checks.</summary>
         Race,
+        /// <summary>Bypass validation entirely (treat every morph as valid).</summary>
         All
     }
 
+    /// <summary>
+    /// A concrete, NPC-resolvable BodyGen combination: for each category in a config's combination it holds the
+    /// set of available templates belonging to that category. Carries probability weighting and the maximum
+    /// matched ForceIf count used to prioritize combinations during selection.
+    /// </summary>
     public class GroupCombinationObject : IProbabilityWeighted
     {
+        /// <summary>
+        /// Builds a combination from a config's string-category combination, populating each position with the
+        /// available templates in that category. Sets <see cref="InitializedSuccessfully"/> to false if any
+        /// category resolves to no templates, and computes <see cref="MaxMatchedForceIfAttributes"/>.
+        /// </summary>
         public GroupCombinationObject(BodyGenConfig.RacialMapping.BodyGenCombination bodyGenCombination, HashSet<BodyGenConfig.BodyGenTemplate> availableTemplates)
         {
             MaxMatchedForceIfAttributes = 0;
@@ -651,6 +727,7 @@ public class BodyGenSelector
             InitializedSuccessfully = true;
         }
 
+        /// <summary>Deep-copies a combination, cloning the per-position template sets and weight modifiers so the copy can be pruned independently.</summary>
         public GroupCombinationObject(GroupCombinationObject template)
         {
             MaxMatchedForceIfAttributes = template.MaxMatchedForceIfAttributes;
@@ -664,14 +741,18 @@ public class BodyGenSelector
             Categories = new(template.Categories);
         }
 
+        /// <summary>Highest matched ForceIf count among this combination's templates; used to prioritize selection.</summary>
         public int MaxMatchedForceIfAttributes { get; set; }
         public double ProbabilityWeighting { get; set; }
         public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        /// <summary>Candidate templates per category position; one element per category in <see cref="Categories"/>.</summary>
         public List<HashSet<BodyGenConfig.BodyGenTemplate>> Templates { get; set; } = new();
         public bool InitializedSuccessfully { get; set; } // false if one or more of the template sublists contains no templates.
+        /// <summary>The combination's category labels, in position order.</summary>
         public List<string> Categories { get; set; }
     }
 
+    /// <summary>Returns true if any BodyGen config exists for the given gender.</summary>
     public static bool BodyGenAvailableForGender(Gender gender, BodyGenConfigs bodyGenConfigs)
     {
         switch (gender)
@@ -698,6 +779,11 @@ public class BodyGenSelector
         return false;
     }
 
+    /// <summary>
+    /// Persists the assigned morphs as the NPC's consistency record and propagates them to the NPC's link
+    /// group (if primary) and unique-NPC tracker (when same-name linking is enabled).
+    /// </summary>
+    /// <remarks>Mutates <paramref name="npcInfo"/>'s consistency/link-group state and the unique-NPC tracker.</remarks>
     public void RecordBodyGenConsistencyAndLinkedNPCs(List<BodyGenConfig.BodyGenTemplate> assignedMorphs, NPCInfo npcInfo)
     {
         npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames = assignedMorphs.Select(x => x.Label).ToList();
@@ -714,6 +800,7 @@ public class BodyGenSelector
         }
     }
 
+    /// <summary>Logs the body-shape descriptors carried by each chosen morph (or "None") to the NPC's report.</summary>
     public void GenerateBodyGenDescriptorReport(List<BodyGenConfig.BodyGenTemplate> chosenMorphs, NPCInfo npcInfo)
     {
         Dictionary<string, string> descriptorRules = new();

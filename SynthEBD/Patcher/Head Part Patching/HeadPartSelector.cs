@@ -14,6 +14,14 @@ using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Per-NPC head-part assignment axis of the patcher. Chooses a head part (eyes, hair, brows,
+    /// facial hair, scars, face, etc.) of each configured <see cref="HeadPart.TypeEnum"/> for an NPC
+    /// from the user's <see cref="Settings_Headparts"/>, honoring block lists, allow/disallow filters,
+    /// weight/race/attribute/descriptor rules, probability weighting, consistency, link groups, and
+    /// unique-NPC linkage. Also resolves conflicts against head parts coming from asset packs and
+    /// patches head-part race compatibility into the output mod.
+    /// </summary>
     public class HeadPartSelector
     {
         private readonly IOutputEnvironmentStateProvider _environmentProvider;
@@ -21,6 +29,7 @@ namespace SynthEBD
         private readonly Logger _logger;
         private readonly AttributeMatcher _attributeMatcher;
         private readonly UniqueNPCData _uniqueNPCData;
+        /// <summary>Injects patcher state, environment, logging, attribute matching, and unique-NPC tracking dependencies.</summary>
         public HeadPartSelector(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
         {
             _environmentProvider = environmentProvider;
@@ -30,11 +39,22 @@ namespace SynthEBD
             _uniqueNPCData = uniqueNPCData;
         }
 
+        /// <summary>Clears the cached per-head-part race FormLists so a fresh patcher run starts clean.</summary>
         public void Reinitialize()
         {
             headPartFormLists = new();
         }
 
+        /// <summary>
+        /// Assigns a head part of every configured type to the NPC. Iterates the enabled
+        /// <see cref="HeadPart.TypeEnum"/>s, skipping any blocked by the NPC or plugin block lists,
+        /// delegates per-type selection to <see cref="AssignHeadPartType"/>, then records consistency,
+        /// link-group, and unique-NPC linkage state for each result.
+        /// </summary>
+        /// <param name="assignedBodySlides">BodySlide presets already assigned to this NPC (for descriptor filtering).</param>
+        /// <param name="assignedBodyGenMorphs">BodyGen morphs already assigned to this NPC, or null (for descriptor filtering).</param>
+        /// <returns>Map of head-part type to chosen head-part FormKey (types with no selection are omitted).</returns>
+        /// <remarks>Mutates <paramref name="npcInfo"/>'s consistency, link-group, and unique-NPC head-part state, and logs.</remarks>
         public Dictionary<HeadPart.TypeEnum, FormKey> AssignHeadParts(NPCInfo npcInfo, Settings_Headparts settings, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs)
         {
             _logger.OpenReportSubsection("HeadParts", npcInfo);
@@ -149,6 +169,13 @@ namespace SynthEBD
             return selectedHeadParts;
         }
         
+        /// <summary>
+        /// Selects a single head part of <paramref name="type"/> for the NPC, in priority order:
+        /// Specific NPC assignment, link-group inheritance, unique-NPC inheritance, then ForceIf
+        /// matches, consistency, or weighted random over the rule-valid candidates.
+        /// </summary>
+        /// <param name="randomizedToNone">True if the NPC was randomly chosen to receive no head part of this type.</param>
+        /// <returns>The chosen head part getter, or null if none is assigned.</returns>
         public IHeadPartGetter AssignHeadPartType(Settings_HeadPartType currentSettings, HashSet<AttributeGroup> attributeGroups, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate>? assignedBodyGenMorphs, HeadPartConsistency currentConsistency, out bool randomizedToNone)
         {
             randomizedToNone = false;
@@ -256,6 +283,13 @@ namespace SynthEBD
             return selectedHeadPart;
         }
 
+        /// <summary>
+        /// Picks one head part from <paramref name="options"/>: returns the consistency pick if present in
+        /// the set, otherwise rolls <paramref name="randomizationPercentage"/> to decide whether to assign
+        /// none, then selects by probability weighting (with attribute modifiers).
+        /// </summary>
+        /// <param name="randomizedToNone">True if the randomization roll chose to assign no head part.</param>
+        /// <returns>The selected head part getter, or null when randomized to none.</returns>
         public IHeadPartGetter ChooseHeadPart(IEnumerable<HeadPartSetting> options, IHeadPartGetter consistencyHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, double randomizationPercentage, out bool randomizedToNone)
         {
             randomizedToNone = false;
@@ -285,6 +319,13 @@ namespace SynthEBD
             _logger.LogReport("Selected " + type + ": " + EditorIDHandler.GetEditorIDSafely(selectedAssignment.ResolvedHeadPart) + " at random.", false, npcInfo);
             return selectedAssignment.ResolvedHeadPart;
         }
+        /// <summary>
+        /// Gates whether the NPC may receive any head part of this type, checking the type-level rules:
+        /// random-allowed flag, gender, restrict-to-existing-type, unique/non-unique, allowed/disallowed
+        /// races, weight range, allowed/disallowed attributes (sets <c>MatchedForceIfCount</c>), and
+        /// allowed/disallowed BodySlide and BodyGen descriptors.
+        /// </summary>
+        /// <returns>True if at least one head part of this type could be assigned; false if the whole type is disallowed.</returns>
         public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
@@ -472,6 +513,12 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>
+        /// Per-candidate validity check: applies the same rule battery as <see cref="CanGetThisHeadPartType"/>
+        /// (random/unique/race/weight/attribute/descriptor rules, setting <c>MatchedForceIfCount</c>) to a
+        /// single <see cref="HeadPartSetting"/>. Specific NPC assignment short-circuits to valid.
+        /// </summary>
+        /// <returns>True if the candidate head part may be distributed to the NPC.</returns>
         public bool HeadPartIsValid(HeadPartSetting candidateHeadPart, NPCInfo npcInfo, HeadPart.TypeEnum type, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
             if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.Equals(candidateHeadPart.HeadPartFormKey))
@@ -612,6 +659,12 @@ namespace SynthEBD
         }
 
         // Assign conflict-winning headpart assignements back to the headPartAssignments dictionary
+        /// <summary>
+        /// Merges head parts assigned via asset packs into the main head-part menu assignments. For NPCs in
+        /// both maps, resolves per-type clashes via <see cref="ResolveConflictWithAssetAssignment"/>; asset-only
+        /// types are added, and NPCs present only in the asset map are copied wholesale into the main map.
+        /// </summary>
+        /// <remarks>Mutates <paramref name="mainHeadPartNpcs"/> (and the nested head-part dictionaries) in place.</remarks>
         public void ResolveConflictsWithAssetAssignments(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> mainHeadPartNpcs, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assetHeadPartNpcs)
         {
             foreach (var entry in mainHeadPartNpcs.Where(x => assetHeadPartNpcs.ContainsKey(x.Key)))
@@ -645,6 +698,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Picks the winner when both an asset pack and the head-part menu assign the same type, using the
+        /// user-configured <c>SourceConflictWinners</c> for that type (defaulting to the head-part menu).
+        /// </summary>
+        /// <returns>The winning FormKey.</returns>
         public FormKey ResolveConflictWithAssetAssignment(FormKey assetAssignment, FormKey headPartAssignment, HeadPart.TypeEnum type)
         {
             if (headPartAssignment == null && assetAssignment != null) { return assetAssignment; }
@@ -659,6 +717,12 @@ namespace SynthEBD
             }
         }
         
+        /// <summary>
+        /// Adds a generated/replacer head part to the NPC's assignment dictionary, honoring NPC and plugin
+        /// block lists, refusing to overwrite an already-assigned type, and logging when the head part has no
+        /// <see cref="HeadPart.TypeEnum"/>.
+        /// </summary>
+        /// <remarks>Mutates <paramref name="dict"/> and logs.</remarks>
         public void SetGeneratedHeadPart(HeadPart hp, Dictionary<HeadPart.TypeEnum, FormKey> dict, NPCInfo npcInfo)
         {
             if (hp.Type != null)
@@ -690,6 +754,12 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Determines whether the NPC should be excluded from head-part patching because it already has custom
+        /// FaceGen, by comparing the winning override's FaceMorph/FaceParts/HeadParts against the base record.
+        /// Returns false when the setting to exclude custom heads is off.
+        /// </summary>
+        /// <returns>True if the NPC has a custom face and should be blocked.</returns>
         public bool BlockNPCWithCustomFaceGen(NPCInfo npcInfo) // currently incredibly inefficient - will try to speed up later.
         {
             if (!_patcherState.GeneralSettings.bHeadPartsExcludeCustomHeads)
@@ -745,6 +815,10 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>
+        /// For every assigned head part, ensures its ValidRaces list includes the NPC's race by delegating to
+        /// <see cref="MakeRaceCompatible"/> (overriding the head part in the output mod as needed).
+        /// </summary>
         public void EnsureHeadPartRaceCompatibility(
             Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> headPartAssignments)
         {
@@ -767,6 +841,12 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Ensures the head part's ValidRaces FormList contains <paramref name="currentNpcRaceFK"/>, creating or
+        /// reusing a generated FormList (see <see cref="GetRaceFormList"/>) and writing an override of the head
+        /// part into the output mod when a change is required.
+        /// </summary>
+        /// <remarks>Writes records to the output mod.</remarks>
         private void  MakeRaceCompatible(IHeadPartGetter selectedHeadPartGetter, FormKey currentNpcRaceFK)
         {
             if (selectedHeadPartGetter == null) { return; }
@@ -791,6 +871,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Returns the cached generated race FormList for the head part, or creates a new
+        /// <c>FL_HeadPartRaces_*</c> FormList in the output mod and caches it in <see cref="headPartFormLists"/>.
+        /// </summary>
         private FormList GetRaceFormList(IHeadPartGetter selectedHeadPartGetter, ISkyrimMod outputMod)
         {
             if (headPartFormLists.ContainsKey(selectedHeadPartGetter))
@@ -806,6 +890,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Cache of generated race FormLists keyed by head part, reused across NPCs within a run.</summary>
         private Dictionary<IHeadPartGetter, FormList> headPartFormLists = new();
     }
 }

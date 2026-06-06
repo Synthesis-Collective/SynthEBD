@@ -3,6 +3,13 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Per-NPC BodySlide (OBody/AutoBody) assignment axis of the patcher. Chooses one or more BodySlide
+/// presets for an NPC from the gender-appropriate <see cref="Settings_OBody"/> list, honoring Specific
+/// assignments, link-group and unique-NPC inheritance, rule validity (unique/race/weight/attribute/
+/// descriptor), asset-imposed descriptor priorities, consistency, and probability weighting. Supports a
+/// multiple-assignment mode where OBody itself picks at runtime from the candidate set.
+/// </summary>
 public class OBodySelector
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -10,6 +17,7 @@ public class OBodySelector
     private readonly Logger _logger;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
+    /// <summary>Injects patcher state, environment, logging, attribute matching, and unique-NPC tracking dependencies.</summary>
     public OBodySelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger,AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
         _environmentProvider = environmentProvider;
@@ -18,6 +26,18 @@ public class OBodySelector
         _attributeMatcher = attributeMatcher;   
         _uniqueNPCData = uniqueNPCData;
     }
+    /// <summary>
+    /// Main entry point: selects the BodySlide preset(s) for an NPC from the gender-appropriate list. Resolves
+    /// (in order) Specific assignment, link-group and unique-NPC inheritance, then a random path that filters
+    /// presets by <see cref="PresetIsValid"/>, prefers ForceIf-matched presets, applies asset-imposed
+    /// descriptor priorities, and honors consistency or probability weighting. In multiple-assignment mode it
+    /// returns the whole candidate set for OBody to choose from at runtime.
+    /// </summary>
+    /// <param name="selectionMade">True if at least one preset was assigned.</param>
+    /// <param name="assignedAssetCombinations">Asset combinations assigned to this NPC (drive descriptor rules/priorities).</param>
+    /// <param name="statusFlags">Outputs consistency-related status flags for the body-shape selector.</param>
+    /// <returns>The chosen presets, or null if none could be assigned.</returns>
+    /// <remarks>Mutates each candidate preset's <c>MatchedForceIfCount</c> and logs.</remarks>
     public List<BodySlideSetting> SelectBodySlidePresets(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         selectionMade = false;
@@ -243,6 +263,14 @@ public class OBodySelector
         return selectedPresets;
     }
 
+    /// <summary>
+    /// Validates a single BodySlide preset against the NPC: unique/non-unique, allowed/disallowed races,
+    /// weight range, allowed/disallowed attributes (setting and accumulating <c>MatchedForceIfCount</c>), the
+    /// preset's per-weight descriptor rules, and the allowed/disallowed descriptors of every assigned asset
+    /// combination and its subgroups. Specific assignment short-circuits to valid; the random-allowed flag is
+    /// checked last so ForceIf matches can override it.
+    /// </summary>
+    /// <returns>True if the preset may be assigned to the NPC.</returns>
     public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, IEnumerable<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
     {
         if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
@@ -388,6 +416,12 @@ public class OBodySelector
         return true;
     }
     
+    /// <summary>
+    /// Narrows <paramref name="bodySlides"/> in place toward presets matching the body-shape descriptor
+    /// priorities imposed by the assigned asset subgroups, processing priorities in order and only applying a
+    /// filter step when at least one preset matches (so it never empties the list).
+    /// </summary>
+    /// <remarks>Mutates <paramref name="bodySlides"/> in place and logs.</remarks>
     public void FilterPresetsByPreferredDescriptors(NPCInfo npcInfo, List<BodySlideSetting> bodySlides, IEnumerable<SubgroupCombination> assignedAssetCombinations)
     {
         if (!bodySlides.Any())
@@ -450,6 +484,11 @@ public class OBodySelector
         }
     }
 
+    /// <summary>
+    /// Lightweight pre-check (race-only) for whether any gender-appropriate BodySlide preset could possibly
+    /// apply to the NPC, used to skip the full selection when nothing is available.
+    /// </summary>
+    /// <returns>True if at least one preset passes the allowed/disallowed race filter.</returns>
     public bool CurrentNPCHasAvailablePresets(NPCInfo npcInfo, Settings_OBody oBodySettings)
     {
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
@@ -479,6 +518,12 @@ public class OBodySelector
 
         return false;
     }
+    /// <summary>
+    /// Persists the assigned BodySlide as the NPC's consistency record and propagates it to the NPC's link
+    /// group (if primary) and unique-NPC tracker (when same-name linking is enabled). No-ops in OBody native
+    /// multiple-assignment mode, where the runtime picks at random.
+    /// </summary>
+    /// <remarks>Mutates <paramref name="npcInfo"/>'s consistency/link-group state and the unique-NPC tracker.</remarks>
     public void RecordBodySlideConsistencyAndLinkedNPCs(List<BodySlideSetting> assignedBodySlides, NPCInfo npcInfo)
     {
         if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && _patcherState.OBodySettings.OBodyEnableMultipleAssignments)
@@ -507,6 +552,7 @@ public class OBodySelector
         }
     }
 
+    /// <summary>Logs the per-weight body-shape descriptors that drove distribution for each chosen BodySlide (or "None").</summary>
     public void GenerateBodySlideDescriptorReport(List<BodySlideSetting> bodySlides, NPCInfo npcInfo)
     {
         foreach(var bodySlide in bodySlides)
