@@ -396,6 +396,29 @@ descriptor list) would collapse most of this file. High-value, low-risk cleanup.
   index-decrement removal and recomputes duplicate counts with repeated `Where(...).Count()`; a
   `GroupBy(x => x.Label)` pass would be clearer. 🔧
 
+### General_Aux view models (deferred items) — 🔧 / 🐞 / 💭
+
+*The two higher-level General_Aux VMs (`VM_7ZipInterface`, `VM_CustomEnvironment`) and their windows,
+documented after their dependencies.*
+
+- **`VM_7ZipInterface.StartExtraction` is a dead command.**
+  [VM_7ZipInterface.cs:53](SynthEBD/General_Aux/ViewModels/VM_7ZipInterface.cs#L53) · The `StartExtraction`
+  RelayCommand is declared get-only but never assigned, so it is always null. Either wire it to the
+  extraction path or remove it. 💭
+- **`VM_CustomEnvironment` redundant `PropertyChanged` event.**
+  [VM_CustomEnvironment.cs:129](SynthEBD/General_Aux/ViewModels/VM_CustomEnvironment.cs#L129) · The base
+  `VM` already implements `INotifyPropertyChanged` (Fody-woven), but this class hand-declares
+  `public event PropertyChangedEventHandler PropertyChanged;` which is never raised. Dead/shadowing — remove. 🔧
+- **`VM_CustomEnvironment.UpdateTrialEnvironment` builds the environment twice.**
+  [VM_CustomEnvironment.cs:152](SynthEBD/General_Aux/ViewModels/VM_CustomEnvironment.cs#L152) · Right after
+  `TrialEnvironment = builder.TransformModListings(...).Build();`, a bare `builder.Build();` runs again and
+  discards the result. Building a Mutagen environment is not cheap, so this doubles the cost for nothing —
+  looks like a leftover; drop the second call. 🐞/🔧
+- **WinForms cursor set from a VM.**
+  [VM_CustomEnvironment.cs:140](SynthEBD/General_Aux/ViewModels/VM_CustomEnvironment.cs#L140),
+  [:164](SynthEBD/General_Aux/ViewModels/VM_CustomEnvironment.cs#L164) · `Cursor.Current = Cursors.WaitCursor/Default`
+  (System.Windows.Forms) is driven from inside the view model — UI concern that belongs in the view. Minor. 💭
+
 ---
 
 ## Classes_Aux (models)

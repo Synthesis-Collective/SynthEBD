@@ -11,8 +11,23 @@ using Noggog;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the custom-environment dialog, where the user points SynthEBD at a game executable
+    /// when the default Mutagen environment can't be located. Building a trial
+    /// <see cref="IGameEnvironment{TMod, TModGetter}"/> from the chosen data folder validates the selection
+    /// and previews the resulting load order; OK is enabled only once an environment validates.
+    /// </summary>
     public class VM_CustomEnvironment : VM
     {
+        /// <summary>
+        /// Seeds the game path by probing for SkyrimSE/TESV/SkyrimVR next to <paramref name="initDataFolder"/>,
+        /// wires the select/clear/show-error/OK/exit commands, and sets up the reactive chain that recomputes
+        /// the data directory and rebuilds the trial environment whenever the path or release changes.
+        /// </summary>
+        /// <param name="window">The owning dialog window (closed by OK/Exit).</param>
+        /// <param name="message">Instruction text shown at the top of the dialog.</param>
+        /// <param name="initRelease">The Skyrim release to pre-select.</param>
+        /// <param name="initDataFolder">An existing data-folder hint used to guess the game executable.</param>
         public VM_CustomEnvironment(Window_CustomEnvironment window, string message, SkyrimRelease initRelease, string initDataFolder)
         {
             InstructionMessage = message;
@@ -113,6 +128,11 @@ namespace SynthEBD
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// Builds a trial Mutagen game environment from the chosen data folder and release, validates it, and
+        /// updates the status text/colour and load-order preview — surfacing a detailed error (with an
+        /// explanation button) when construction fails.
+        /// </summary>
         public void UpdateTrialEnvironment()
         {
             ShowErrorExplanationButton = false;
@@ -168,6 +188,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Marks the environment validated when the trial environment exposes a non-empty load order; otherwise records an error.</summary>
         private void Validate()
         {
             if (TrialEnvironment.LinkCache.ListedOrder.Any())

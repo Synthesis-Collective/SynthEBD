@@ -15,10 +15,12 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_7ZipInterface.xaml
+    /// Code-behind for the 7-Zip progress window (the view for <see cref="VM_7ZipInterface"/>), which shows
+    /// console-style extraction/listing output.
     /// </summary>
     public partial class Window_7ZipInterface : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_7ZipInterface()
         {
             InitializeComponent();

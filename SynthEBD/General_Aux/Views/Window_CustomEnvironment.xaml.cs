@@ -15,10 +15,12 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_CustomEnvironmentWindow.xaml
+    /// Code-behind for the custom-environment dialog (the view for <see cref="VM_CustomEnvironment"/>), where
+    /// the user selects a game executable to build a valid Mutagen environment.
     /// </summary>
     public partial class Window_CustomEnvironment : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_CustomEnvironment()
         {
             InitializeComponent();
