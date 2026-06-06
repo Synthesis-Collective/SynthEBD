@@ -871,3 +871,46 @@ view's `.xaml.cs` — a general-purpose visual-tree helper that would be easier 
 <!-- ENTRIES:Classes_Core_Views -->
 
 ---
+
+## Patcher
+
+*The patching engine — per-NPC assignment of assets/body/height/head parts and record/script/NIF output.
+Reviewed leaf-first. The newer files here (FaceGenPatcher, TriFileParser, the SourceResolver chain) were
+already documented; this pass covers the older undocumented engine code. Started with the internal data
+structures and small aux helpers.*
+
+### `BoolByProbability.Decide` — 🐞 possible bug (per-call Random + off-by-one)
+
+[BoolByProbability.cs:21](SynthEBD/Patcher/PatcherAux/BoolByProbability.cs#L21) · Two issues in five lines:
+(1) `new Random()` is constructed on **every** call — in a tight per-NPC loop the time-seeded instances
+produce correlated/repeated draws; use `Random.Shared` (or a single shared instance). (2) `gen.Next(100)`
+yields 0–99 but the test is `prob <= trueProbability`, so for an integer probability `T` it returns true for
+`T+1` of the 100 buckets (e.g. `T=50` → 51% true) — a ~1% upward bias, and `T=0` still returns true ~1% of
+the time. Use `prob < trueProbability` (with `Next(100)`), or `Next(1,101)`/a `[0,1)` double comparison.
+
+### `FlattenedAssetPack` subgroup-index guard — 🐞 possible bug (off-by-one)
+
+[FlattenedAssetPack.cs:218](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L218) ·
+`Source.Subgroups.Count >= index && Source.Subgroups[index] != null` — valid indices are `0..Count-1`, so the
+`>= index` guard admits `index == Count` and then `Source.Subgroups[index]` throws
+`ArgumentOutOfRangeException`. Should be `Count > index`.
+
+### `NPCInfo.AllLinkedNPCGroupInfos` static cache — 🐞 verify (cross-run stale state)
+
+[NPCInfo.cs:169](SynthEBD/Patcher/PatcherAux/NPCInfo.cs#L169) · A `private static HashSet<LinkedNPCGroupInfo>`
+accumulates linked-NPC-group infos but is never cleared. In the long-lived standalone UI process this persists
+across successive patcher runs, so a second run can see linked-group state from the first. Worth confirming it
+is reset at the start of each run (and made instance/scoped state if not).
+
+### Patcher leaf-file smaller items — 🔧 / 💭
+
+- `FlattenedSubgroup.cs:6` — stray `using System.DirectoryServices.ActiveDirectory;` (accidental auto-import;
+  unused, pulls in an unrelated assembly namespace). 💭
+- `.Where(pred).First()/.FirstOrDefault()` → `.First(pred)/.FirstOrDefault(pred)` recurs
+  (`FlattenedAssetPack`, `NPCInfo`, `LinkedNPCGroupInfo`). FormKey comparisons done via `.ToString() ==`
+  (`NPCInfo`) can use value equality directly. `output.Select(x => x.Label).Contains(...)` in a loop
+  (`FlattenedAssetPack`) is O(n²) — a `HashSet` of seen labels is cleaner. All 🔧 minor.
+
+<!-- ENTRIES:Patcher -->
+
+---

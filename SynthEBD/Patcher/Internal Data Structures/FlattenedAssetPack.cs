@@ -3,11 +3,19 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Runtime (flattened) counterpart of the <see cref="AssetPack"/> settings model that the asset selector walks
+/// during patching. Flattening collapses each subgroup tree into lists of bottom-level <see cref="FlattenedSubgroup"/>s
+/// (inheriting parent rules and resolving race groupings to form keys), flattens the replacer groups, and lifts the
+/// pack-wide distribution rules into a virtual <see cref="DistributionRules"/> subgroup.
+/// </summary>
 [DebuggerDisplay("{GroupName}")]
 public class FlattenedAssetPack
 {
+    /// <summary>Mapper used to translate subgroup references and body-shape descriptors into id/label dictionaries.</summary>
     public readonly DictionaryMapper _dictionaryMapper;
     private readonly PatcherState _patcherState;
+    /// <summary>Creates a flattened pack from a source <see cref="AssetPack"/>, copying its metadata and building the virtual distribution-rules subgroup.</summary>
     public FlattenedAssetPack(AssetPack source, AssetPackType type, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         _dictionaryMapper = dictionaryMapper;
@@ -25,6 +33,7 @@ public class FlattenedAssetPack
         DistributionRules = new FlattenedSubgroup(configRulesSubgroup, GetRaceGroupings(), new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
+    /// <summary>Creates a flattened pack from explicit field values (used by <see cref="ShallowCopy"/>) and builds the virtual distribution-rules subgroup.</summary>
     public FlattenedAssetPack(string groupName, Gender gender, FormKey defaultRecordTemplate, HashSet<AdditionalRecordTemplate> additionalRecordTemplateAssignments, string associatedBodyGenConfigName, AssetPack source, AssetPackType type, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         _dictionaryMapper = dictionaryMapper;
@@ -42,6 +51,7 @@ public class FlattenedAssetPack
         DistributionRules = new FlattenedSubgroup(configRulesSubgroup, GetRaceGroupings(), new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
+    /// <summary>Creates an empty flattened pack of the given type with default/blank metadata (used when building a virtual pack from a replacer group).</summary>
     public FlattenedAssetPack(AssetPackType type, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         _dictionaryMapper = dictionaryMapper;
@@ -57,27 +67,51 @@ public class FlattenedAssetPack
         DistributionRules = new FlattenedSubgroup(new AssetPack.Subgroup(), GetRaceGroupings(), new List<AssetPack.Subgroup>(), this, _dictionaryMapper);
     }
 
+    /// <summary>The asset pack's name.</summary>
     public string GroupName { get; set; }
+    /// <summary>The gender this pack applies to.</summary>
     public Gender Gender { get; set; }
+    /// <summary>Per top-level position, the flattened bottom-level subgroups available for selection.</summary>
     public List<List<FlattenedSubgroup>> Subgroups { get; set; } = new();
+    /// <summary>Form key of the default record template used to seed generated records.</summary>
     public FormKey DefaultRecordTemplate { get; set; }
+    /// <summary>Additional per-condition record template overrides.</summary>
     public HashSet<AdditionalRecordTemplate> AdditionalRecordTemplateAssignments { get; set; }
+    /// <summary>Name of the BodyGen config associated with this pack, if any.</summary>
     public string AssociatedBodyGenConfigName { get; set; }
+    /// <summary>The settings-model asset pack this flattened pack was built from.</summary>
     public AssetPack Source { get; set; }
+    /// <summary>The pack's flattened replacer groups.</summary>
     public List<FlattenedReplacerGroup> AssetReplacerGroups { get; set; } = new();
+    /// <summary>Whether this pack is a primary, mix-in, or replacer-virtual pack.</summary>
     public AssetPackType Type { get; set; }
+    /// <summary>Replacer name; only used when <see cref="Type"/> is <see cref="AssetPackType.ReplacerVirtual"/>.</summary>
     public string ReplacerName { get; set; } = ""; // only used when Type == ReplacerVirtual
+    /// <summary>Count of whole-config ForceIf attributes matched for the current NPC (used in selection scoring).</summary>
     public int MatchedWholeConfigForceIfs { get; set; } = 0;
+    /// <summary>Virtual subgroup carrying the pack-wide distribution rules, inherited by every real subgroup during flattening.</summary>
     public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
+    /// <summary>Running count of how many times this pack has been assigned (for logging).</summary>
     public int AssignmentCount { get; set; } = 0; // for logging
 
+    /// <summary>Categorizes a flattened asset pack by its role in the patcher.</summary>
     public enum AssetPackType
     {
+        /// <summary>A standard primary asset pack.</summary>
         Primary,
+        /// <summary>A mix-in pack layered on top of a primary assignment.</summary>
         MixIn,
+        /// <summary>A synthetic pack wrapping a replacer group (see <see cref="CreateVirtualFromReplacerGroup"/>).</summary>
         ReplacerVirtual
     }
 
+    /// <summary>
+    /// Flattens a settings-model <see cref="AssetPack"/> into its runtime form: chooses Primary vs MixIn type,
+    /// flattens each top-level subgroup tree into bottom-level <see cref="FlattenedSubgroup"/>s, and flattens the replacer groups.
+    /// </summary>
+    /// <param name="source">The asset pack to flatten.</param>
+    /// <param name="dictionaryMapper">Mapper for subgroup/descriptor id resolution.</param>
+    /// <param name="patcherState">Current patcher state (general settings, race groupings).</param>
     public static FlattenedAssetPack FlattenAssetPack(AssetPack source, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         FlattenedAssetPack output = null;
@@ -106,6 +140,7 @@ public class FlattenedAssetPack
         return output;
     }
 
+    /// <summary>Returns a shallow copy: a new pack with copied metadata and fresh subgroup/replacer lists holding the same (shallow-copied) child references.</summary>
     public FlattenedAssetPack ShallowCopy()
     {
         FlattenedAssetPack copy = new FlattenedAssetPack(GroupName, Gender, DefaultRecordTemplate, AdditionalRecordTemplateAssignments, AssociatedBodyGenConfigName, Source, Type, _dictionaryMapper, _patcherState);
@@ -120,6 +155,13 @@ public class FlattenedAssetPack
         return copy;
     }
 
+    /// <summary>
+    /// Wraps a <see cref="FlattenedReplacerGroup"/> in a synthetic <see cref="AssetPackType.ReplacerVirtual"/> pack so the
+    /// asset selector can treat replacer subgroups uniformly with normal asset packs.
+    /// </summary>
+    /// <param name="source">The flattened replacer group to wrap.</param>
+    /// <param name="dictionaryMapper">Mapper for subgroup/descriptor id resolution.</param>
+    /// <param name="patcherState">Current patcher state.</param>
     public static FlattenedAssetPack CreateVirtualFromReplacerGroup(FlattenedReplacerGroup source, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         FlattenedAssetPack virtualFAP = new FlattenedAssetPack(AssetPackType.ReplacerVirtual, dictionaryMapper, patcherState);
@@ -133,6 +175,11 @@ public class FlattenedAssetPack
         return virtualFAP;
     }
 
+    /// <summary>
+    /// Resolves the effective race groupings for this pack: when <c>OverwritePluginRaceGroups</c> is set, the
+    /// pack's groupings whose labels match the main settings are replaced by the main-settings groupings; all
+    /// remaining pack groupings are then appended unless their label is already present.
+    /// </summary>
     private List<RaceGrouping> GetRaceGroupings()
     {
         var output = new List<RaceGrouping>();
@@ -158,6 +205,12 @@ public class FlattenedAssetPack
         return output;
     }
 
+    /// <summary>
+    /// Builds a display label for the top-level subgroup at the given position, formatted as "ID: Name"
+    /// (optionally wrapped in parentheses), or an empty string if the position is out of range.
+    /// </summary>
+    /// <param name="index">Top-level subgroup position.</param>
+    /// <param name="includeFormatting">When true, wraps the result in " (" and ")".</param>
     public string GetSubgroupPositionString(int index, bool includeFormatting = true)
     {
         string output = string.Empty;

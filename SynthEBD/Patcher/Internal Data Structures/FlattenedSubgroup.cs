@@ -9,10 +9,23 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Runtime (flattened) counterpart of an <see cref="AssetPack.Subgroup"/>. Represents a single bottom-level
+/// subgroup with its rules already resolved: race groupings merged into allowed/disallowed form-key sets,
+/// required/excluded subgroup references mapped to id dictionaries, body-shape descriptors mapped to dictionaries,
+/// and (after <see cref="FlattenSubgroups"/>) all ancestor rules inherited. Implements <see cref="IProbabilityWeighted"/>
+/// so it can participate in weighted random selection.
+/// </summary>
 [DebuggerDisplay("{Id}: {Name}")]
 public class FlattenedSubgroup : IProbabilityWeighted
 {
     private readonly DictionaryMapper _dictionaryMapper;
+    /// <summary>
+    /// Builds a flattened subgroup from a settings-model <see cref="Subgroup"/> template: merges race groupings
+    /// into allowed/disallowed sets (and trims disallowed from allowed), clones attribute and weight rules, and
+    /// maps required/excluded subgroups and body-shape descriptors into dictionaries. Inheritance from parents is
+    /// applied separately by <see cref="FlattenSubgroups"/>.
+    /// </summary>
     public FlattenedSubgroup(Subgroup template, List<RaceGrouping> raceGroupingList, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parent, DictionaryMapper dictionaryMapper)
     {
         _dictionaryMapper = dictionaryMapper;
@@ -49,21 +62,37 @@ public class FlattenedSubgroup : IProbabilityWeighted
         ContainedSubgroupNames = new List<string> { Name };
         ParentAssetPack = parent;
     }
+    /// <summary>The subgroup's ID.</summary>
     public string Id { get; set; }
+    /// <summary>The subgroup's display name.</summary>
     public string Name { get; set; }
+    /// <summary>Whether this subgroup participates in random distribution (can be forced off by an ancestor).</summary>
     public bool DistributionEnabled { get; set; }
+    /// <summary>Allowed race form keys (race groupings merged in, disallowed races trimmed out).</summary>
     public HashSet<FormKey> AllowedRaces { get; set; }
+    /// <summary>Disallowed race form keys (race groupings merged in).</summary>
     public HashSet<FormKey> DisallowedRaces { get; set; }
+    /// <summary>Distinguishes an initially empty allowed-races set (all races valid) from one emptied by trimming disallowed races (subgroup invalid).</summary>
     public bool AllowedRacesIsEmpty { get; set; } // distinguishes between initially empty (All races valid) vs. empty after pruning of Disallowed Races (subgroup is invalid)
+    /// <summary>Attributes an NPC must match for this subgroup to be allowed.</summary>
     public HashSet<NPCAttribute> AllowedAttributes { get; set; }
+    /// <summary>Attributes that, if matched, exclude this subgroup.</summary>
     public HashSet<NPCAttribute> DisallowedAttributes { get; set; }
+    /// <summary>Attribute-based multiplicative modifiers applied to this subgroup's selection weight.</summary>
     public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+    /// <summary>Whether this subgroup may be assigned to unique NPCs.</summary>
     public bool AllowUnique { get; set; }
+    /// <summary>Whether this subgroup may be assigned to non-unique NPCs.</summary>
     public bool AllowNonUnique { get; set; }
+    /// <summary>Required co-subgroups keyed by top-level position; an assignment must include one of the listed IDs at each position.</summary>
     public Dictionary<int, HashSet<string>> RequiredSubgroupIDs { get; set; }
+    /// <summary>Excluded co-subgroups keyed by top-level position; an assignment must not include any listed ID.</summary>
     public Dictionary<int, HashSet<string>> ExcludedSubgroupIDs { get; set; }
+    /// <summary>Keywords to add to the NPC/record when this subgroup is assigned.</summary>
     public HashSet<string> AddKeywords { get; set; }
+    /// <summary>Base selection weight for this subgroup (multiplied by ancestors' weights during flattening).</summary>
     public double ProbabilityWeighting { get; set; }
+    /// <summary>File path replacements (source -> destination) contributed by this subgroup.</summary>
     public HashSet<FilePathReplacement> Paths { get; set; }
     public Dictionary<string, HashSet<string>> AllowedBodyGenDescriptors { get; set; }
     public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
@@ -73,20 +102,34 @@ public class FlattenedSubgroup : IProbabilityWeighted
     public DescriptorMatchMode AllowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.All;
     public Dictionary<string, HashSet<string>> DisallowedBodySlideDescriptors { get; set; }
     public DescriptorMatchMode DisallowedBodySlideMatchMode { get; set; } = DescriptorMatchMode.Any;
+    /// <summary>BodySlide descriptors with priority weights, grouped by category, used to bias preset selection.</summary>
     public Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>> PrioritizedBodySlideDescriptors { get; set; } = new();
+    /// <summary>NPC weight (0-100) range this subgroup applies to (narrowed to the intersection with ancestors during flattening).</summary>
     public NPCWeightRange WeightRange { get; set; }
+    /// <summary>The top-level subgroup position this flattened subgroup descends from.</summary>
     public int TopLevelSubgroupIndex { get; set; }
+    /// <summary>IDs of every subgroup in this flattened chain, from top-level ancestor down to this subgroup.</summary>
     public List<string> ContainedSubgroupIDs { get; set; }
+    /// <summary>Names of every subgroup in this flattened chain, parallel to <see cref="ContainedSubgroupIDs"/>.</summary>
     public List<string> ContainedSubgroupNames { get; set; }
 
     // used during combination generation
+    /// <summary>The flattened asset pack this subgroup belongs to.</summary>
     public FlattenedAssetPack ParentAssetPack { get; set; }
+    /// <summary>Count of ForceIf attributes matched for the current NPC (used in selection scoring).</summary>
     public int ForceIfMatchCount { get; set; } = 0;
+    /// <summary>IDs of the direct ancestor subgroups inherited during flattening.</summary>
     public List<string> ParentSubgroupIDs { get; set; } = new();
     // used for logging
+    /// <summary>Running count of how many times this subgroup has been assigned (for logging).</summary>
     public int AssignmentCount { get; set; } = 0;
+    /// <summary>The contained subgroup names joined with " -> " for log display.</summary>
     public string DeepNamesString => String.Join(" -> ", ContainedSubgroupNames);
 
+    /// <summary>
+    /// Joins the contained subgroup names with "/". When <paramref name="ignoreTopLevel"/> is true, the top-level
+    /// name is omitted (replaced by "Top Level" only if it is the sole entry).
+    /// </summary>
     public string GetNestedNameString(bool ignoreTopLevel)
     {
         List<string> names = new();
@@ -105,11 +148,30 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return string.Join("/", names);
     }
 
+    /// <summary>Returns "Id (nested-name-string)" for log display.</summary>
     public string GetDetailedID_NameString(bool ignoreTopLevel)
     {
         return Id + " (" + GetNestedNameString(ignoreTopLevel) + ")";
     }
 
+    /// <summary>
+    /// Recursively flattens a subgroup tree, appending one <see cref="FlattenedSubgroup"/> per leaf to
+    /// <paramref name="bottomLevelSubgroups"/>. Disabled subgroups are skipped. When a parent is supplied, the
+    /// child inherits and merges the parent's rules (distribution/unique flags, multiplicative probability weight,
+    /// allowed/disallowed races by intersection, required/excluded subgroups, attributes, weight range, keywords,
+    /// paths, and body-shape descriptors). A subgroup that becomes incompatible with its parent (e.g. empty allowed
+    /// races, invalid required/excluded set, or invalid descriptors) is pruned along with its entire subtree.
+    /// </summary>
+    /// <param name="toFlatten">The current subgroup to flatten.</param>
+    /// <param name="parent">The already-flattened parent whose rules are inherited, or null at the top level.</param>
+    /// <param name="bottomLevelSubgroups">Accumulator that receives the flattened leaf subgroups.</param>
+    /// <param name="raceGroupingList">Race groupings used to resolve allowed/disallowed race lists.</param>
+    /// <param name="parentAssetPackName">Name of the owning asset pack (for context).</param>
+    /// <param name="topLevelIndex">The top-level subgroup position being flattened.</param>
+    /// <param name="subgroupHierarchy">The full top-level subgroup list, used to resolve required-subgroup parent chains.</param>
+    /// <param name="parentAssetPack">The flattened asset pack each produced subgroup is attached to.</param>
+    /// <param name="dictionaryMapper">Mapper for subgroup/descriptor id resolution.</param>
+    /// <param name="patcherState">Current patcher state (determines BodyGen vs BodySlide descriptor merging).</param>
     public static void FlattenSubgroups(Subgroup toFlatten, FlattenedSubgroup parent, List<FlattenedSubgroup> bottomLevelSubgroups, List<RaceGrouping> raceGroupingList, string parentAssetPackName, int topLevelIndex, List<Subgroup> subgroupHierarchy, FlattenedAssetPack parentAssetPack, DictionaryMapper dictionaryMapper, PatcherState patcherState)
     {
         if (toFlatten.Enabled == false) { return; }
@@ -210,11 +272,20 @@ public class FlattenedSubgroup : IProbabilityWeighted
         }
     }
 
+    /// <summary>Returns "Subgroup Id (Name) " for log/report output.</summary>
     public string GetReportString()
     {
         return "Subgroup " + Id + " (" + Name + ") ";
     }
 
+    /// <summary>
+    /// Merges the required-subgroup constraints of two subgroups, keyed by top-level position. Where both constrain
+    /// the same position, the more specific child requirements are kept and any of the other side's requirements that
+    /// are merely parents (umbrella) of those children are discarded; otherwise both sides' requirements are retained.
+    /// </summary>
+    /// <param name="subgroupA">First subgroup whose required IDs are merged.</param>
+    /// <param name="subgroupB">Second subgroup (typically the parent) whose required IDs are merged.</param>
+    /// <param name="subgroupHierarchy">The top-level subgroup list used to resolve parent chains.</param>
     // if the required subgroups being inherited are children of an existing required subgroup, keep the children (more specific restriction) and get rid of the parent
     // otherwise keep both
     public static Dictionary<int, HashSet<string>> MergeRequiredSubgroupIDs(FlattenedSubgroup subgroupA, FlattenedSubgroup subgroupB, List<Subgroup> subgroupHierarchy)
@@ -264,6 +335,10 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return mergedRequiredSubgroupIDs;
     }
 
+    /// <summary>
+    /// Returns the chain of ancestor subgroups (from immediate parent up to the top-level subgroup) of
+    /// <paramref name="toMatch"/> within the given top-level position, or an empty list if not found or the index is out of range.
+    /// </summary>
     private static List<Subgroup> GetParentChain(List<Subgroup> subgroupHierarchy, Subgroup toMatch, int topLevelIndex)
     {
         List<Subgroup> parentChain = new();
@@ -281,6 +356,11 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return parentChain;
     }
 
+    /// <summary>
+    /// Recursive helper for <see cref="GetParentChain"/>: walks the subtree of <paramref name="subgroup"/> looking for
+    /// <paramref name="toMatch"/>, appending each ancestor to <paramref name="chain"/> on the way back up.
+    /// </summary>
+    /// <returns>True if <paramref name="toMatch"/> was found in (a descendant of) <paramref name="subgroup"/>.</returns>
     private static bool AddToParentChain(Subgroup subgroup, Subgroup toMatch, List<Subgroup> chain)
     {
         if (subgroup.Subgroups.Contains(toMatch))
@@ -299,6 +379,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return false;
     }
 
+    /// <summary>Searches the entire subgroup hierarchy (all positions, recursively) for a subgroup with the given ID.</summary>
+    /// <returns>True and sets <paramref name="match"/> if found; otherwise false.</returns>
     public static bool TryGetSubgroupByID(List<Subgroup> subgroupHierarchy, string id, out Subgroup? match)
     {
         match = null;
@@ -312,6 +394,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return false;
     }
 
+    /// <summary>Searches only the subtree at the given top-level position for a subgroup with the given ID.</summary>
+    /// <returns>True and sets <paramref name="match"/> if found (and the index is in range); otherwise false.</returns>
     public static bool TryGetSubgroupByID(List<Subgroup> subgroupHierarchy, string id, int topLevelIndex, out Subgroup? match)
     {
         match = null;
@@ -323,6 +407,8 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return TryGetSubgroupByID(subgroupHierarchy[topLevelIndex].Subgroups, id, out match);
     }
 
+    /// <summary>Recursively searches a subgroup and its descendants for a matching ID.</summary>
+    /// <returns>True and sets <paramref name="match"/> if found; otherwise false.</returns>
     private static bool TryGetSubgroupRecursive(Subgroup subgroup, string id, out Subgroup? match)
     {
         match = null;
@@ -342,6 +428,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return false;
     }
 
+    /// <summary>Resolves a collection of subgroup IDs to their <see cref="Subgroup"/> objects (searching the whole hierarchy); IDs not found are skipped.</summary>
     public static List<Subgroup> TryGetSubgroupCollectionByID(List<Subgroup> subgroupHierarchy, IEnumerable<string> ids)
     {
         List<Subgroup> subgroups = new();
@@ -356,6 +443,7 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return subgroups;
     }
 
+    /// <summary>Resolves a collection of subgroup IDs to their <see cref="Subgroup"/> objects within a single top-level position; IDs not found are skipped.</summary>
     public static List<Subgroup> TryGetSubgroupCollectionByID(List<Subgroup> subgroupHierarchy, IEnumerable<string> ids, int topLevelIndex)
     {
         List<Subgroup> subgroups = new();
@@ -370,6 +458,13 @@ public class FlattenedSubgroup : IProbabilityWeighted
         return subgroups;
     }
 
+    /// <summary>
+    /// Merges the prioritized BodySlide descriptors of a parent (already flattened) and an incoming child subgroup,
+    /// grouped by category. Categories present on only one side are carried over; for categories on both sides,
+    /// descriptors with the same value are combined and their priorities summed.
+    /// </summary>
+    /// <param name="parent">The flattened parent whose prioritized descriptors are inherited.</param>
+    /// <param name="subgroup">The child subgroup contributing its own prioritized descriptors.</param>
     private static Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>> MergePrioritizedDescriptors(FlattenedSubgroup parent, Subgroup subgroup)
     {
         var mergedDescriptors = new Dictionary<string, List<BodyShapeDescriptor.PrioritizedLabelSignature>>();

@@ -11,6 +11,12 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Ensures the Face head part of each NPC has a matching Name and EditorID on older SKSE runtimes
+/// (Skyrim VR, LE, Enderal LE, or SE configured for the old SKSE version) that lack the
+/// <c>GetPartName()</c> function. Without a matching Name/EditorID the head part script would
+/// produce a visible neck seam.
+/// </summary>
 public class FacePartCompliance
 {
     // SKSE for VR and SSE 1.5.97 or < did not yet have the GetPartName() function
@@ -18,7 +24,11 @@ public class FacePartCompliance
 
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
-    
+
+    /// <summary>
+    /// Initializes the compliance checker and determines whether the current game release/SKSE
+    /// configuration requires the Name/EditorID fix (sets <see cref="RequiresComplianceCheck"/>).
+    /// </summary>
     public FacePartCompliance(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState)
     {
         _environmentProvider = environmentProvider;
@@ -35,6 +45,12 @@ public class FacePartCompliance
         }
     }
 
+    /// <summary>
+    /// For the given NPC, finds any Face head part whose EditorID and Name do not match and overrides
+    /// it in the output mod to bring them into agreement: copies EditorID into Name when EditorID exists,
+    /// copies Name into EditorID when only Name exists, or assigns a generated unique name when neither does.
+    /// </summary>
+    /// <param name="npcInfo">The NPC whose head parts are inspected and fixed.</param>
     public void CheckAndFixFaceName(NPCInfo npcInfo)
     {
         if (npcInfo.NPC != null && npcInfo.NPC.HeadParts != null)
@@ -67,12 +83,17 @@ public class FacePartCompliance
         }
     }
 
+    /// <summary>
+    /// Resets the generated-name counter and re-enables the compliance check for a new patcher run.
+    /// </summary>
     public void Reinitialize()
     {
         FacePartCount = 0;
         RequiresComplianceCheck = true;
     }
 
+    /// <summary>Running counter used to generate unique fallback EditorID/Name values ("SynthEBDFace{N}").</summary>
     private int FacePartCount { get; set; } = 0;
+    /// <summary>Whether the current game release/SKSE configuration needs the Face Name/EditorID fix applied.</summary>
     public bool RequiresComplianceCheck { get; set; } = false;
 }

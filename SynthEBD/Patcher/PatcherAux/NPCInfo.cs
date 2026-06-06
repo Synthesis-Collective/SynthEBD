@@ -3,6 +3,12 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Per-NPC context object threaded through the patcher's assignment axes. Resolves the NPC's gender,
+/// per-axis (alias-mapped) races, patchability, linked-group membership, unique-NPC status, and any
+/// specific/consistency assignments, and caches existing head parts and block-list status. Equality is
+/// defined by the original NPC record.
+/// </summary>
 public class NPCInfo : IEquatable<NPCInfo>
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -11,8 +17,14 @@ public class NPCInfo : IEquatable<NPCInfo>
     private readonly AliasHandler _aliasHandler;
     private readonly UniqueNPCData _uniqueNPCData;
 
+    /// <summary>Autofac factory delegate for constructing an <see cref="NPCInfo"/> with its non-injected arguments.</summary>
     public delegate NPCInfo Factory(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos);
-    
+
+    /// <summary>
+    /// Builds the per-NPC context: resolves gender and per-axis races, determines patchability (short-circuiting
+    /// if the NPC is not patchable), wires up linked-group info, unique status, specific/consistency assignments,
+    /// existing head parts, and block-list status.
+    /// </summary>
     public NPCInfo(INpcGetter npc, HashSet<LinkedNPCGroup> definedLinkGroups, HashSet<LinkedNPCGroupInfo> createdLinkGroupInfos, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AliasHandler aliasHandler, UniqueNPCData uniqueNPCData)
     {
         _environmentProvider = environmentProvider;
@@ -90,33 +102,59 @@ public class NPCInfo : IEquatable<NPCInfo>
         BlockedPluginEntry = BlockListHandler.GetCurrentPluginBlockStatus(_patcherState.BlockList, npc.FormKey, _environmentProvider.LinkCache);
     }
 
+    /// <summary>The NPC record being patched (may be swapped to a deep copy during patching).</summary>
     public INpcGetter NPC { get; set; }
+    /// <summary>The original NPC record before any deep-copy substitution.</summary>
     public INpcGetter OriginalNPC { get; set; } // NPC may be changed if patcer deep copies in the NPC
+    /// <summary>Display name resolved for the NPC (used for unique tracking and logging).</summary>
     public string Name { get; set; }
+    /// <summary>Human-readable identifier string used in log output.</summary>
     public string LogIDstring { get; set; }
+    /// <summary>The NPC's gender.</summary>
     public Gender Gender { get; set; }
+    /// <summary>The alias-mapped race used for asset (texture/mesh) selection.</summary>
     public FormKey AssetsRace { get; set; }
+    /// <summary>The alias-mapped race used for body-shape selection.</summary>
     public FormKey BodyShapeRace { get; set; }
+    /// <summary>The alias-mapped race used for height assignment.</summary>
     public FormKey HeightRace { get; set; }
+    /// <summary>The alias-mapped race used for head-part selection.</summary>
     public FormKey HeadPartsRace { get; set; }
+    /// <summary>Whether any of the NPC's per-axis races is in the patchable-races set.</summary>
     public bool IsPatchable { get; set; }
+    /// <summary>The linked-NPC-group info this NPC belongs to, or null if unlinked.</summary>
     public LinkedNPCGroupInfo AssociatedLinkGroup { get; set; }
+    /// <summary>This NPC's role within its linked group (none, primary, or secondary).</summary>
     public LinkGroupMemberType LinkGroupMember { get; set; } = LinkGroupMemberType.None;
+    /// <summary>Whether the NPC is a valid linked unique (shares appearance across instances of the same unique character).</summary>
     public bool IsValidLinkedUnique { get; set; }
+    /// <summary>A user-defined forced assignment targeting this specific NPC, if any.</summary>
     public NPCAssignment SpecificNPCAssignment { get; set; }
+    /// <summary>The NPC's consistency record (previous-run assignments), created if not already present.</summary>
     public NPCAssignment ConsistencyNPCAssignment { get; set; }
+    /// <summary>Per-NPC report accumulator for logging assignment decisions.</summary>
     public Logger.NPCReport Report { get; set; }
+    /// <summary>The NPC's currently assigned head parts, resolved from the link cache (only populated when head-part patching is enabled).</summary>
     public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
+    /// <summary>The NPC's entry in the block list, if it is individually blocked.</summary>
     public BlockedNPC BlockedNPCEntry { get; set; }
+    /// <summary>The block-list entry for the NPC's source plugin, if its plugin is blocked.</summary>
     public BlockedPlugin BlockedPluginEntry { get; set; }
 
+    /// <summary>An NPC's role within a linked NPC group.</summary>
     public enum LinkGroupMemberType
     {
+        /// <summary>Not a member of any linked group.</summary>
         None,
+        /// <summary>The primary member, whose assignments drive the group.</summary>
         Primary,
+        /// <summary>A secondary member, which inherits the primary's assignments.</summary>
         Secondary
     }
 
+    /// <summary>Returns the NPC's gender based on its configuration's Female flag.</summary>
+    /// <param name="npc">The NPC to inspect.</param>
+    /// <returns><see cref="Gender.Female"/> if the Female flag is set; otherwise <see cref="Gender.Male"/>.</returns>
     public static Gender GetGender(INpcGetter npc)
     {
         if (npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female))
@@ -127,8 +165,12 @@ public class NPCInfo : IEquatable<NPCInfo>
         return Gender.Male;
     }
 
+    /// <summary>Process-wide cache of all linked-group infos created so far, shared across NPCInfo instances.</summary>
     private static HashSet<LinkedNPCGroupInfo> AllLinkedNPCGroupInfos = new HashSet<LinkedNPCGroupInfo>();
 
+    /// <summary>Searches the static cache for a linked-group info that already contains the given NPC form key.</summary>
+    /// <param name="currentFormKey">The NPC form key to look up.</param>
+    /// <returns>The matching group info, or null if none contains the form key.</returns>
     private static LinkedNPCGroupInfo SearchLinkedInfoFromList(FormKey currentFormKey)
     {
         foreach (var l in AllLinkedNPCGroupInfos)
@@ -141,14 +183,17 @@ public class NPCInfo : IEquatable<NPCInfo>
         return null;
     }
     
+    /// <summary>Two <see cref="NPCInfo"/> instances are equal when they wrap the same original NPC record.</summary>
     public bool Equals(NPCInfo other)
     {
         if (other == null) return false;
         return Equals(this.OriginalNPC, other.OriginalNPC);
     }
 
+    /// <inheritdoc/>
     public override bool Equals(object obj) => Equals(obj as NPCInfo);
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         return OriginalNPC?.GetHashCode() ?? 0;
