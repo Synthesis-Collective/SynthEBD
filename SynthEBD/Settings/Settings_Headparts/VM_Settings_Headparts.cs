@@ -10,12 +10,23 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Head Parts settings tab, backing the <see cref="Settings_Headparts"/> model.
+/// Hosts the import menu, the per-type <see cref="VM_HeadPartList"/> sub-menus (Eyebrows, Eyes,
+/// Face, FacialHair, Hair, Misc, Scars), and the misc settings menu, swapping the displayed
+/// sub-menu via the View* commands. Shares the general settings' attribute groups and race groupings.
+/// </summary>
 public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_Settings_General _generalSettingsVM;
     private readonly VM_HeadPartList.Factory _listFactory;
     private readonly Logger _logger;
+    /// <summary>
+    /// Builds the import and misc-settings sub-menus, mirrors shared attribute groups / race
+    /// groupings / OBody descriptors / body-shape mode from general settings, and wires the
+    /// View* navigation <see cref="RelayCommand"/>s that swap <see cref="DisplayedMenu"/>.
+    /// </summary>
     public VM_Settings_Headparts(VM_Settings_General generalSettingsVM, VM_SettingsOBody oBodySettings, VM_SettingsBodyGen bodyGenSettings, VM_HeadPartList.Factory listFactory, VM_HeadPartPlaceHolder.Factory placeHolderFactory, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
@@ -118,6 +129,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
     public RelayCommand ViewScarsMenu { get; }
     public RelayCommand ViewSettingsMenu { get; }
 
+    /// <summary>Builds the per-type <see cref="VM_HeadPartList"/> dictionary; called after construction (configs reference shared race groupings).</summary>
     public void Initialize()
     {
         Types = new()
@@ -132,6 +144,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         };
     }
 
+    /// <summary>Model → VM: loads the misc settings (first), then each per-type head-part list from the model.</summary>
     public void CopyInFromModel(Settings_Headparts model, ObservableCollection<VM_RaceGrouping> raceGroupings)
     {
         if (model == null)
@@ -149,6 +162,7 @@ public class VM_Settings_Headparts: VM, IHasAttributeGroupMenu
         _logger.LogStartupEventEnd("Loading UI for HeadParts Menu");
     }
 
+    /// <summary>VM → Model: dumps each per-type head-part list and merges the misc settings into a new <see cref="Settings_Headparts"/>.</summary>
     public Settings_Headparts DumpViewModelToModel()
     {
         Settings_Headparts model = new();

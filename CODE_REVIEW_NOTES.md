@@ -1181,6 +1181,33 @@ the CotR Imperial-Vampire race is left un-aliased by default.
   ("Mildly" misspelled). `Settings_General.BlockedModsFromImport`'s trailing comment implies the base-master
   block is SkyPatcher-mode-only, but the default list is unconditional — confirm the consumer scopes it. 💭
 
+### `VM_TexMeshBatchActions` batch-apply ignores the selection — 🐞 bug
+
+[VM_TexMeshBatchActions.cs:40](SynthEBD/Settings/Settings_TexMesh/TexMeshBatchActions/VM_TexMeshBatchActions.cs#L40) ·
+`ApplyAsAllowedAttribute` and `ApplyAsDisallowedAttribute` do `foreach (var assetPack in AssetPacks)` and add
+the attribute to **every** pack — they never consult `assetPack.IsSelected`. But the VM also exposes
+`SelectAll`/`DeselectAll` commands and a per-pack `IsSelected` checkbox (the wrapper rows), whose only purpose
+is to choose which packs the batch action targets. So the selection UI is inert and the action always applies
+to all packs. Should iterate `AssetPacks.Where(x => x.IsSelected)`.
+
+### `VM_SpecificNPCAssignmentsUI.DumpViewModelToModels` null-deref — 🐞 possible bug
+
+[VM_SpecificNPCAssignmentsUI.cs:254](SynthEBD/Settings/Settings_SpecificNPCAssignments/VM_SpecificNPCAssignmentsUI.cs#L254) ·
+Dereferences `CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel()`
+with no null guard on `AssociatedViewModel`. The selection-change path nulls `AssociatedViewModel` (to free the
+heavy editor VM) while leaving `CurrentlyDisplayedAssignment` set, so a save in that window NREs.
+
+### Settings VM smaller items — 💭
+
+- `VM_BlockListUI` and `VM_SpecificNPCAssignmentsUI` both set a malformed save-dialog filter
+  `"JSON files (.json|*.json"` (missing `)`, wrong pattern — should be `"JSON files (*.json)|*.json"`). 💭
+- `VM_SettingsModManager.UpdatePatcherSettings` guards with `if (this != null)` — always true, dead check;
+  `VM_Settings_Headparts._environmentProvider` is assigned but never read (dead field), and `Types` is
+  populated only in `Initialize()` so the View* commands NRE if it's skipped. 💭
+- `VM_SettingsOBody.CopyInViewModelFromModel` has several unused (dead) parameters, and its descriptor value-
+  deletion compares `x.ToLabelSignature().ToString()` for BodySlides but `x.ToString()` for subgroup
+  descriptors — verify the two stringifications agree or the subgroup cleanup may miss entries. 🔧/💭
+
 <!-- ENTRIES:Settings -->
 
 ---

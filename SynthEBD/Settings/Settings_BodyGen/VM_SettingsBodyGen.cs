@@ -7,11 +7,22 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the BodyGen settings tab, backing the <see cref="Settings_BodyGen"/> model
+/// (and the separate <see cref="BodyGenConfigs"/> store). Holds the male/female
+/// <see cref="VM_BodyGenConfig"/> collections, tracks the current per-gender and currently
+/// displayed config, and stores the per-gender preview NPC and slider group.
+/// </summary>
 public class VM_SettingsBodyGen : VM
 {
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
+    /// <summary>
+    /// Mirrors the environment link cache and wires the display-male/female, add-new-male/female
+    /// config <see cref="RelayCommand"/>s plus subscriptions that keep the displayed config in
+    /// sync when the current per-gender config changes.
+    /// </summary>
     public VM_SettingsBodyGen(
         PatcherState patcherState,
         Logger logger,
@@ -114,6 +125,10 @@ public class VM_SettingsBodyGen : VM
     public RelayCommand DisplayFemaleConfig { get; }
     public RelayCommand AddNewFemaleConfig { get; }
 
+    /// <summary>
+    /// Model → VM: loads preview settings, disposes and rebuilds the male/female config VMs from
+    /// <paramref name="configModels"/>, and resolves/initializes the current and displayed configs.
+    /// </summary>
     public void CopyInViewModelFromModel(
         BodyGenConfigs configModels,
         Settings_BodyGen model,
@@ -189,6 +204,7 @@ public class VM_SettingsBodyGen : VM
         }
     }
 
+    /// <summary>Returns true if any config in the collection has the given label.</summary>
     public static bool ConfigExists(string label, ObservableCollection<VM_BodyGenConfig> configs)
     {
         foreach (var config in configs)
@@ -201,6 +217,7 @@ public class VM_SettingsBodyGen : VM
         return false;
     }
 
+    /// <summary>Returns the first config with the given label, or null if none matches.</summary>
     public static VM_BodyGenConfig GetConfigByLabel(string label, ObservableCollection<VM_BodyGenConfig> configs)
     {
         foreach (var config in configs)
@@ -213,6 +230,7 @@ public class VM_SettingsBodyGen : VM
         return null;
     }
 
+    /// <summary>VM → Model: writes the current male/female config labels and per-gender preview NPC/slider-group settings to a new <see cref="Settings_BodyGen"/>.</summary>
     public Settings_BodyGen DumpViewModelToModel()
     {
         Settings_BodyGen model = new();
@@ -242,6 +260,7 @@ public class VM_SettingsBodyGen : VM
         return model;
     }
 
+    /// <summary>VM → Models: dumps every male/female config VM into a new <see cref="BodyGenConfigs"/> store.</summary>
     public BodyGenConfigs DumpBodyGenConfigsToModels()
     {
         BodyGenConfigs cfgs = new();
@@ -257,6 +276,7 @@ public class VM_SettingsBodyGen : VM
         return cfgs;
     }
 
+    /// <summary>Seeds a freshly-created config with a starter template group, a humanoid-race mapping, and a starter combination.</summary>
     public void InitializeNewBodyGenConfig(VM_BodyGenConfig newConfig, VM_Settings_General generalSettingsVM)
     {
         var starterGroup = new VM_CollectionMemberString("Group 1", newConfig.GroupUI.TemplateGroups);

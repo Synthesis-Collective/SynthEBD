@@ -6,12 +6,21 @@ using DynamicData;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Height settings tab, backing the <see cref="Settings_Height"/>
+/// model. Holds the global height-patching toggles plus the collection of available
+/// <see cref="VM_HeightConfig"/> height-distribution configs and the currently selected one.
+/// </summary>
 public class VM_SettingsHeight : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly VM_HeightConfig.Factory _configFactory;
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
+    /// <summary>
+    /// Seeds an empty selected config, mirrors the environment link cache, and wires the
+    /// add/delete height-config <see cref="RelayCommand"/>s (delete prompts for file removal).
+    /// </summary>
     public VM_SettingsHeight(IEnvironmentStateProvider environmentProvider, FileDialogs fileDialogs, VM_HeightConfig.Factory configFactory, PatcherState patcherState, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -64,6 +73,7 @@ public class VM_SettingsHeight : VM
 
     public RelayCommand DeleteCurrentHeightConfig { get; }
 
+    /// <summary>Model → VM: loads the height toggles and resolves the selected height config by label.</summary>
     public void CopyInFromModel(Settings_Height model)
     {
         if (model == null)
@@ -94,6 +104,7 @@ public class VM_SettingsHeight : VM
         _logger.LogStartupEventEnd("Loading UI for Height Menu");
     }
 
+    /// <summary>VM → Model: writes the height toggles and the selected config's label back to a new <see cref="Settings_Height"/>.</summary>
     public Settings_Height DumpViewModelToModel()
     {
         Settings_Height model = new();

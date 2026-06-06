@@ -6,6 +6,14 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Specific NPC Assignments settings tab, backing the set of
+/// <see cref="NPCAssignment"/> forced-assignment models. Maintains an alphabetized list of
+/// lightweight placeholders; the selected placeholder is expanded into a full
+/// <see cref="VM_SpecificNPCAssignment"/> editor (which owns a 3D <c>VM_CharacterViewer</c> /
+/// GL context that must be disposed on selection change). Supports add/remove, save, and
+/// importing legacy zEBD assignment lists and BodyGen Morphs.ini files.
+/// </summary>
 public class VM_SpecificNPCAssignmentsUI : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -21,6 +29,12 @@ public class VM_SpecificNPCAssignmentsUI : VM
     private readonly SettingsIO_SpecificNPCAssignments _specificAssignmentIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
 
+    /// <summary>
+    /// Wires the add/remove/import/save <see cref="RelayCommand"/>s, the alphabetizer over the
+    /// assignment list, and the selected-placeholder change subscription that disposes the
+    /// outgoing viewer VM and materializes the incoming assignment editor. Seeds preview
+    /// settings from general settings.
+    /// </summary>
     public VM_SpecificNPCAssignmentsUI(
         IEnvironmentStateProvider environmentProvider,
         VM_SettingsTexMesh texMeshSettings,
@@ -209,6 +223,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
     public bool Show3DPreview { get; set; } = true;
     public double PreviewerWidth { get; set; } = 525;
 
+    /// <summary>Models → VM: disposes existing viewer VMs, then rebuilds the placeholder list from the assignment models (skipping null FormKeys).</summary>
     public void GetViewModelFromModels(HashSet<NPCAssignment> models)
     {
         if (models == null)
@@ -243,6 +258,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         _logger.LogStartupEventEnd("Loading UI for Specific NPC Assignments Menu");
     }
 
+    /// <summary>VM → Models: syncs preview settings to general settings, flushes the displayed assignment, and collects all placeholder models into a set.</summary>
     public HashSet<NPCAssignment> DumpViewModelToModels()
     {
         // Sync preview settings back to general settings for persistence
@@ -262,6 +278,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         return models;
     }
 
+    /// <summary>Prompts for a zEBD ForceNPCList JSON file, converts it to SynthEBD assignments, and appends them as placeholders (skipping null FormKeys).</summary>
     public void ImportFromZEBD()
     {
         // Configure open file dialog box

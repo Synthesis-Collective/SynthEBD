@@ -6,11 +6,23 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Mod Manager Integration settings tab, backing the
+/// <see cref="Settings_ModManager"/> model. Selects the active <see cref="ModManager"/>
+/// (None / MO2 / Vortex), exposes the matching sub-VM, and tracks the temp-extraction
+/// folder and effective file-path length limit used during config installation.
+/// </summary>
 public class VM_SettingsModManager : VM
 {
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_SettingsModManager"/>.</summary>
     public delegate VM_SettingsModManager Factory();
+    /// <summary>
+    /// Wires the temp-folder picker command and subscriptions that refresh the displayed
+    /// sub-VM, path limit, and patcher settings when the mod-manager type changes, and that
+    /// warn when the temp-folder path is excessively deep (&gt;100 chars).
+    /// </summary>
     public VM_SettingsModManager(PatcherState patcherState, Logger logger)
     {
         _patcherState = patcherState;
@@ -54,6 +66,7 @@ public class VM_SettingsModManager : VM
     public int FilePathLimit_NoModManager { get; set; } = 260;
     public RelayCommand SelectTempFolder { get; set; }
 
+    /// <summary>Selects <see cref="DisplayedSubVM"/> (null / MO2 / Vortex) to match <see cref="ModManagerType"/>.</summary>
     public void UpdateDisplayedVM()
     {
         switch(ModManagerType)
@@ -64,6 +77,7 @@ public class VM_SettingsModManager : VM
         }
     }
 
+    /// <summary>Dumps the current VM state into <see cref="PatcherState.ModManagerSettings"/> to keep runtime state synced.</summary>
     public void UpdatePatcherSettings()
     {
         if (this != null)
@@ -72,6 +86,7 @@ public class VM_SettingsModManager : VM
         }
     }
 
+    /// <summary>Sets <see cref="FilePathLimit"/> from the active mod manager's configured limit.</summary>
     private void UpdateFilePathLimit()
     {
         switch (ModManagerType)
@@ -82,6 +97,7 @@ public class VM_SettingsModManager : VM
         }
     }
 
+    /// <summary>Model → VM: loads sub-VMs, temp folder, manager type, and path limit, and resolves the current install folder.</summary>
     public void CopyInViewModelFromModel(Settings_ModManager model)
     {
         if (model == null)
@@ -104,6 +120,7 @@ public class VM_SettingsModManager : VM
         _logger.LogStartupEventEnd("Loading Mod Manager Settings UI");
     }
 
+    /// <summary>VM → Model: writes manager type, sub-VM settings, temp folder, install folder, and path limit to a new model.</summary>
     public Settings_ModManager DumpViewModelToModel()
     {
         Settings_ModManager model = new();
@@ -124,8 +141,14 @@ public class VM_SettingsModManager : VM
     }
 }
 
+/// <summary>
+/// Sub-VM for Mod Organizer 2 integration, backing <see cref="Settings_ModManager.MO2"/>.
+/// Holds the mod folder, MO2 executable path, and path limit, and auto-derives the mod
+/// folder from ModOrganizer.ini when the executable is chosen.
+/// </summary>
 public class VM_MO2Integration : VM
 {
+    /// <summary>Wires the folder/executable picker commands and refreshes the mod folder when the executable path changes.</summary>
     public VM_MO2Integration()
     {
         FindModFolder = new RelayCommand(
@@ -161,6 +184,11 @@ public class VM_MO2Integration : VM
     public RelayCommand FindModFolder { get; set; }
     public RelayCommand FindExecutable { get; set; }
 
+    /// <summary>
+    /// Derives <see cref="ModFolderPath"/> by parsing the <c>mod_directory</c> entry of the
+    /// ModOrganizer.ini next to the executable; falls back to the default "mods" subfolder.
+    /// No-op if the mod folder is already set and exists, or the executable path is invalid.
+    /// </summary>
     public void UpdateModFolderPath()
     {
         if (!ModFolderPath.IsNullOrEmpty() && Directory.Exists(ModFolderPath))
@@ -205,6 +233,7 @@ public class VM_MO2Integration : VM
         }
     }
 
+    /// <summary>Sets <see cref="ModFolderPath"/> to the "mods" folder beside the executable when it exists.</summary>
     public void SetDefaultModDirPath()
     {
         string mo2Dir = Path.GetDirectoryName(ExecutablePath);
@@ -215,12 +244,14 @@ public class VM_MO2Integration : VM
         }
     }
 
+    /// <summary>Model → VM: loads the MO2 mod folder, executable path, and path limit.</summary>
     public void GetViewModelFromModel(Settings_ModManager.MO2 model)
     {
         ModFolderPath = model.ModFolderPath;
         ExecutablePath = model.ExecutablePath;
         FilePathLimit = model.FilePathLimit;
     }
+    /// <summary>VM → Model: writes the MO2 mod folder, executable path, and path limit to a new model.</summary>
     public Settings_ModManager.MO2 DumpViewModelToModel()
     {
         Settings_ModManager.MO2 model = new();
@@ -231,8 +262,13 @@ public class VM_MO2Integration : VM
     }
 }
 
+/// <summary>
+/// Sub-VM for Vortex integration, backing <see cref="Settings_ModManager.Vortex"/>.
+/// Holds the staging folder path and path limit.
+/// </summary>
 public class VM_VortexIntergation : VM
 {
+    /// <summary>Wires the staging-folder picker command.</summary>
     public VM_VortexIntergation()
     {
         FindStagingFolder = new RelayCommand(
@@ -250,11 +286,13 @@ public class VM_VortexIntergation : VM
     public int FilePathLimit { get; set; } = 220;
     public RelayCommand FindStagingFolder { get; set; }
 
+    /// <summary>Model → VM: loads the Vortex staging folder and path limit.</summary>
     public void GetViewModelFromModel(Settings_ModManager.Vortex model)
     {
         StagingFolderPath = model.StagingFolderPath;
         FilePathLimit = model.FilePathLimit;
     }
+    /// <summary>VM → Model: writes the Vortex staging folder and path limit to a new model.</summary>
     public Settings_ModManager.Vortex DumpViewModelToModel()
     {
         Settings_ModManager.Vortex model = new();
@@ -264,8 +302,13 @@ public class VM_VortexIntergation : VM
     }
 }
 
+/// <summary>
+/// WPF value converter that shows the no-mod-manager file-path-limit control only when the
+/// bound <see cref="ModManager"/> value is <see cref="ModManager.None"/>.
+/// </summary>
 public class PathLimitVisibilityConverter : System.Windows.Data.IValueConverter
 {
+    /// <summary>Returns Visible when the value is <see cref="ModManager.None"/>, otherwise Collapsed.</summary>
     public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
     {
         bool visibility = false;
@@ -275,6 +318,7 @@ public class PathLimitVisibilityConverter : System.Windows.Data.IValueConverter
         }
         return visibility ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
     }
+    /// <summary>Maps Visibility back to a bool (true when Visible).</summary>
     public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
     {
         System.Windows.Visibility visibility = (System.Windows.Visibility)value;

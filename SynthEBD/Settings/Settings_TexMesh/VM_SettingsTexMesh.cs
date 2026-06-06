@@ -12,6 +12,7 @@ using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
+/// <summary>How a selected subgroup's assets are previewed in the Textures &amp; Meshes editor: not at all, as flat images, or in the 3D render viewer.</summary>
 public enum PreviewMode
 {
     None,
@@ -19,6 +20,13 @@ public enum PreviewMode
     Render
 }
 
+/// <summary>
+/// View model for the Textures &amp; Meshes (asset) settings tab, backing the
+/// <see cref="Settings_TexMesh"/> model. The most feature-dense settings tab: owns the installed
+/// asset-pack config VMs and the primary/secondary asset presenters, the global asset-patching
+/// toggles and EBD/SkyPatcher/face-patching mode options, total-skin (WNAM) replacements, trigger
+/// events and trim paths, and commands for installing/creating/validating/simulating configs.
+/// </summary>
 public class VM_SettingsTexMesh : VM
 {
     private List<string> InstalledConfigsInCurrentSession = new List<string>();
@@ -31,6 +39,12 @@ public class VM_SettingsTexMesh : VM
     private readonly Func<ViewModelLoader> _getVMLoader;
     private readonly Func<VM_TexMeshBatchActions> _getBatchActionsMenu;
 
+    /// <summary>
+    /// Mirrors the enabled load order, wires the asset-pack change-set subscriptions that refresh
+    /// the displayed-config string, computes EBD/troubleshooting option visibility, builds the
+    /// primary/secondary asset presenters, and wires all of this tab's <see cref="RelayCommand"/>s
+    /// (add/import/install/validate/simulate configs, WNAM and trim-path editing, mode validation).
+    /// </summary>
     public VM_SettingsTexMesh(
         PatcherState patcherState,
         Func<ViewModelLoader> getVMLoader,
@@ -349,9 +363,11 @@ public class VM_SettingsTexMesh : VM
     public List<string> SKSEversionOptions { get; set; } = new() { newSKSEversion, oldSKSEversion };
     public PreviewMode PreviewMode { get; set; } = PreviewMode.Image;
     public IEnumerable<PreviewMode> PreviewModeOptions { get; } = Enum.GetValues<PreviewMode>();
+    /// <summary>Computed: true only when <see cref="PreviewMode"/> is Image (legacy-checkbox binding shim).</summary>
     // Shim for XAML bindings that used the old checkbox — evaluates true only in Image mode.
     // Fody PropertyChanged tracks the PreviewMode dependency and re-raises this on change.
     public bool bShowPreviewImages => PreviewMode == PreviewMode.Image;
+    /// <summary>Computed: true only when <see cref="PreviewMode"/> is Render.</summary>
     public bool bShowRenderPreview => PreviewMode == PreviewMode.Render;
     public int MaxPreviewImageSize { get; set; } = 1024;
     public bool bShowMenuButtons { get; set; } = true;
@@ -397,6 +413,7 @@ public class VM_SettingsTexMesh : VM
     private List<ObservableCollection<VM_CollectionMemberString>> StrippedSkinWNAMsHistory = new();
     public bool bShowTroubleshootingSettings { get; set; } = false;
 
+    /// <summary>Validates every selected asset pack against the given BodyGen/OBody settings; returns false and aggregates per-config errors via <paramref name="errors"/>.</summary>
     public bool ValidateAllConfigs(BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, out List<string> errors)
     {
         bool isValid = true;
@@ -413,6 +430,7 @@ public class VM_SettingsTexMesh : VM
         return isValid;
     }
 
+    /// <summary>Model → VM: loads the asset-patching toggles, preview/SKSE/EBD/SkyPatcher/face-patching options, WNAMs, trigger events, and trim paths (migrating the legacy preview-images bool).</summary>
     public void CopyInViewModelFromModel(Settings_TexMesh model)
     {
         if (model == null)
@@ -465,6 +483,7 @@ public class VM_SettingsTexMesh : VM
         _logger.LogStartupEventEnd("Loading TexMesh Settings UI");
     }
 
+    /// <summary>VM → Model: writes the asset-patching toggles, preview/mode options, selected/last-viewed asset packs, WNAMs, asset order, trigger events, and trim paths to a new <see cref="Settings_TexMesh"/>.</summary>
     public Settings_TexMesh DumpViewModelToModel()
     {
         Settings_TexMesh model = new();
@@ -503,6 +522,7 @@ public class VM_SettingsTexMesh : VM
         return model;
     }
 
+    /// <summary>Records newly installed configs for the session, saves/refreshes plugins, and auto-selects the matching asset packs.</summary>
     public void RefreshInstalledConfigs(List<string> installedConfigs)
     {
         InstalledConfigsInCurrentSession.AddRange(installedConfigs);
@@ -515,11 +535,13 @@ public class VM_SettingsTexMesh : VM
         Cursor.Current = Cursors.Default;
     }
 
+    /// <summary>Recomputes the " | "-joined short-name string of the currently selected asset packs.</summary>
     public void RefreshDisplayedAssetPackString()
     {
         DisplayedAssetPackStr = string.Join(" | ", AssetPacks.Where(x => x.IsSelected).Select(x => x.ShortName));
     }
 
+    /// <summary>Opens the asset-distribution simulator window bound to a freshly reinitialized simulator VM.</summary>
     public void SimulateAssetAssignment()
     {
         Window_AssetDistributionSimulator simWindow = new();
@@ -529,6 +551,7 @@ public class VM_SettingsTexMesh : VM
         simWindow.ShowDialog();
     }
 
+    /// <summary>Shows the SKSE-version options (SE) or PO3 options (VR) when fixed scripts are enabled, hiding both otherwise.</summary>
     private void UpdateEBDOptionsVisibility()
     {
         if (bApplyFixedScripts && _environmentProvider.SkyrimVersion == Mutagen.Bethesda.Skyrim.SkyrimRelease.SkyrimSE)
@@ -548,6 +571,7 @@ public class VM_SettingsTexMesh : VM
         }
     }
 
+    /// <summary>Runs every <see cref="Version"/> config-compatibility update over the given asset packs.</summary>
     public void ConfigUpdateAll(List<string> assetPacks)
     {
         foreach (Version version in Enum.GetValues(typeof(Version)))
@@ -556,6 +580,7 @@ public class VM_SettingsTexMesh : VM
         }
     }
 
+    /// <summary>Detects asset packs predating <paramref name="version"/> and, on user confirmation, applies that version's compatibility update. Empty <paramref name="assetPacks"/> means all packs.</summary>
     public void ConfigVersionUpdate(Version version, List<string> assetPacks)
     {
         List<VM_AssetPack> toUpdate = new();
@@ -595,6 +620,7 @@ public class VM_SettingsTexMesh : VM
         }
     }
 
+    /// <summary>Formats a <see cref="Version"/> enum name as a dotted version string (e.g. strips a leading 'v' and dot-joins the digits).</summary>
     private string GetVersionString(Version version)
     {
         var verStr = version.ToString();
@@ -606,6 +632,11 @@ public class VM_SettingsTexMesh : VM
         return string.Join('.', verStr.ToArray());
     }
 
+    /// <summary>
+    /// Reverts the Textures &amp; Meshes troubleshooting settings to their defaults. In
+    /// <paramref name="preparationMode"/> only collects and returns the human-readable list of
+    /// pending changes (for a confirmation prompt) without mutating state; otherwise applies them.
+    /// </summary>
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)
     {
         var changes = new List<string>();
@@ -839,6 +870,7 @@ public class VM_SettingsTexMesh : VM
         return changes;
     }
 
+    /// <summary>Pure-script (SkyPatcher) asset mode is incompatible with legacy EBD mode; prompts to disable legacy mode or else reverts the SkyPatcher toggle.</summary>
     private void ValidatePureScriptMode()
     {
         if (bSkyPatcherModeAssets)
@@ -857,6 +889,7 @@ public class VM_SettingsTexMesh : VM
         }
     }
     
+    /// <summary>Inverse guard of <see cref="ValidatePureScriptMode"/>: enabling legacy EBD mode prompts to disable SkyPatcher asset mode or else reverts the legacy toggle.</summary>
     private void ValidateLegacyEBDMode()
     {
         if (bLegacyEBDMode)

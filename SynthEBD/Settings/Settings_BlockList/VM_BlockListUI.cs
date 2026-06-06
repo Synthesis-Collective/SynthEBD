@@ -6,6 +6,12 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Block List settings tab, backing the <see cref="BlockList"/> model.
+/// Maintains two parallel master/detail lists — blocked NPCs and blocked plugins — where each
+/// list item is a lightweight placeholder and the selected item is expanded into a full editor
+/// VM. Supports adding/removing entries, saving the list, and importing a legacy zEBD block list.
+/// </summary>
 public class VM_BlockListUI : VM
 {
     private readonly Logger _logger;
@@ -13,6 +19,11 @@ public class VM_BlockListUI : VM
     private readonly VM_BlockedNPC.Factory _blockedNPCFactory;
     private readonly VM_BlockedPlugin.Factory _blockedPluginFactory;
     private readonly VM_BlockedNPCPlaceHolder.Factory _blockedNPCPlaceHolderFactory;
+    /// <summary>
+    /// Wires the selected-NPC and selected-plugin change subscriptions (dump outgoing placeholder
+    /// to model, expand incoming into a detail VM) and the add/remove/import/save
+    /// <see cref="RelayCommand"/>s.
+    /// </summary>
     public VM_BlockListUI(Logger logger, SettingsIO_BlockList blockListIO, VM_BlockedNPC.Factory blockedNPCFactory, VM_BlockedPlugin.Factory blockedPluginFactory, VM_BlockedNPCPlaceHolder.Factory npcPlaceHolderFactory)
     {
         _logger = logger;
@@ -123,6 +134,7 @@ public class VM_BlockListUI : VM
     public RelayCommand ImportFromZEBDcommand { get; set; }
     public RelayCommand Save { get; }
 
+    /// <summary>Model → VM: rebuilds the blocked-NPC and blocked-plugin placeholder collections from the model.</summary>
     public void CopyInViewModelFromModel(BlockList model)
     {
         if (model == null)
@@ -144,6 +156,7 @@ public class VM_BlockListUI : VM
         _logger.LogStartupEventEnd("Loading BlockList UI");
     }
 
+    /// <summary>VM → Model: flushes the displayed NPC/plugin detail VMs, then collects all placeholder models into a new <see cref="BlockList"/>.</summary>
     public BlockList DumpViewModelToModel()
     {
         if (DisplayedNPC != null)
@@ -170,6 +183,7 @@ public class VM_BlockListUI : VM
         return model;
     }
 
+    /// <summary>Prompts for a zEBD block-list JSON file, parses it, converts it to the SynthEBD model, and loads it into the UI.</summary>
     public void ImportFromZEBD()
     {
         // Configure open file dialog box
@@ -201,6 +215,7 @@ public class VM_BlockListUI : VM
     }
 }
 
+/// <summary>Row VM pairing a head-part <see cref="HeadPart.TypeEnum"/> with a per-type block flag, used when editing a blocked NPC.</summary>
 public class VM_HeadPartBlock : VM
 {
     public VM_HeadPartBlock(HeadPart.TypeEnum type, bool isBlocked)

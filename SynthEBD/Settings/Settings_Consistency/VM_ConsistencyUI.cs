@@ -9,6 +9,13 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Consistency settings tab. Edits the persisted consistency dictionary
+/// (<see cref="PatcherState.Consistency"/>, keyed by NPC FormKey string) that records each NPC's
+/// previously-assigned appearance so re-runs stay stable. Selecting an NPC lazily materializes a
+/// <see cref="VM_ConsistencyAssignment"/>; the "Delete All ..." commands wipe a single axis
+/// (assets / body shape / height / head parts) or the whole file.
+/// </summary>
 public class VM_ConsistencyUI : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -17,6 +24,12 @@ public class VM_ConsistencyUI : VM
     private readonly VM_ConsistencyAssignment.Factory _consistencyFactory;
     private readonly VM_Settings_General _generalSettings;
 
+    /// <summary>
+    /// Wires the selected-NPC change subscription (dumps/disposes the outgoing assignment and
+    /// reloads the new one), mirrors the environment link cache, and builds the delete-current
+    /// and per-axis/all "Delete All" <see cref="RelayCommand"/>s. Seeds preview settings from
+    /// general settings.
+    /// </summary>
     public VM_ConsistencyUI(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, VM_ConsistencyAssignment.Factory consistencyFactory, VM_Settings_General generalSettings)
     {
         _environmentProvider = environmentProvider;
@@ -149,6 +162,7 @@ public class VM_ConsistencyUI : VM
     public bool Show3DPreview { get; set; } = true;
     public double PreviewerWidth { get; set; } = 525;
 
+    /// <summary>Disposes the current assignment VM and rebuilds it from the consistency entry for the selected NPC, if any.</summary>
     public void ReloadActiveViewModel()
     {
         if (CurrentlyDisplayedAssignment != null)
@@ -185,6 +199,7 @@ public class VM_ConsistencyUI : VM
         logger.LogStartupEventEnd("Loading UI for Consistency Menu");
     }
     */
+    /// <summary>VM → Models: syncs preview settings to general settings, flushes the displayed assignment, and returns the consistency dictionary.</summary>
     public Dictionary<string, NPCAssignment> DumpViewModelsToModels()
     {
         // Sync preview settings back to general settings for persistence.

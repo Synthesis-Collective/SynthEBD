@@ -11,6 +11,15 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the General settings tab, backing the <see cref="Settings_General"/> model.
+/// This is the broadest settings VM: it owns the global feature toggles (which axes to patch,
+/// consistency, NPC linking), the shared <see cref="VM_AttributeGroupMenu"/> and
+/// <see cref="VM_RaceGroupingEditor"/> consumed by other tabs, patchable races / race aliases,
+/// output folder and portable-settings folder selection, appearance-merger (EasyNPC/NPC2)
+/// integration, troubleshooting settings, Character Viewer lighting/preview state, and the
+/// preview-NPC mappings. Hosts the standalone environment settings VM when run standalone.
+/// </summary>
 public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
     public IEnvironmentStateProvider _environmentProvider { get; }
@@ -24,6 +33,13 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     private readonly VM_LinkedNPCGroup.Factory _linkedNPCFactory;
     private readonly FirstLaunch _firstLaunch;
     private readonly SynthEBDPaths _paths;
+    /// <summary>
+    /// Builds the attribute-group menu, race-grouping editor, and detailed-report selector;
+    /// mirrors the environment link cache and load order; and wires the many General-tab
+    /// <see cref="RelayCommand"/>s (add race alias / linked NPC group, output and portable
+    /// settings folder selection, EasyNPC/NPC2 path selection, troubleshooting toggle/reset)
+    /// plus guard subscriptions (head-part and validation warnings, first-run launch, tooltips).
+    /// </summary>
     public VM_Settings_General(
         VM_SettingsModManager modManagerSettings,
         PatcherSettingsSourceProvider settingsProvider,
@@ -376,6 +392,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public VM_NifPreviewNpcSettings PreviewNpcs { get; set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
+    /// <summary>
+    /// Model → VM: loads every General setting from <paramref name="model"/> into the VM
+    /// (toggles, race/alias/grouping/attribute collections, preview NPCs, Character Viewer
+    /// lighting/preview state). Sets <see cref="IsCurrentlyLoading"/> around the copy so guard
+    /// subscriptions don't fire confirmation prompts during load.
+    /// </summary>
     public void CopyInFromModel(Settings_General model, VM_RaceAlias.Factory aliasFactory, VM_LinkedNPCGroup.Factory linkedNPCFactory, ILinkCache linkCache)
     {
         if (model == null)
@@ -442,10 +464,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
 
+    /// <summary>Reloads the VM from the current persisted <see cref="PatcherState.GeneralSettings"/> model.</summary>
     public void Refresh()
     {
         CopyInFromModel(_patcherState.GeneralSettings, _aliasFactory, _linkedNPCFactory, lk);
     }
+    /// <summary>VM → Model: writes every General setting back to a new <see cref="Settings_General"/> (clears the first-run flag, marks the UI as opened).</summary>
     public Settings_General DumpViewModelToModel()
     {
         Settings_General model = new();
@@ -506,6 +530,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         return model;
     }
 
+    /// <summary>
+    /// Reverts the General-tab troubleshooting settings to their defaults. In
+    /// <paramref name="preparationMode"/> only collects and returns a human-readable list of the
+    /// changes that would be made (for a confirmation prompt) without mutating state; otherwise
+    /// applies them. Returns the list of pending/applied changes.
+    /// </summary>
     private List<string> ResetTroubleShootingToDefault(bool preparationMode)
     {
         var changes = new List<string>();

@@ -20,6 +20,7 @@ public class VM_NifPreviewNpcSettings : VM
     private readonly PreviewNpcResolver _previewNpcResolver;
     private readonly Logger _logger;
 
+    /// <summary>Mirrors the environment link cache and seeds the special "Default" fallback row.</summary>
     public VM_NifPreviewNpcSettings(
         IEnvironmentStateProvider environmentProvider,
         PreviewNpcResolver previewNpcResolver,
@@ -85,6 +86,7 @@ public class VM_NifPreviewNpcSettings : VM
         }
     }
 
+    /// <summary>VM → Model: writes the default pair and every per-race row back to a new <see cref="NifPreviewNpcSettings"/>.</summary>
     public NifPreviewNpcSettings DumpToModel()
     {
         var model = new NifPreviewNpcSettings
@@ -128,10 +130,15 @@ public class VM_NifPreviewNpcSettings : VM
     }
 }
 
+/// <summary>
+/// One row of <see cref="VM_NifPreviewNpcSettings"/>: a single race mapped to its male and
+/// female preview NPCs (or the synthetic "Default" row when <see cref="IsDefault"/> is set).
+/// </summary>
 public class VM_RaceNpcRow : VM
 {
     private readonly VM_NifPreviewNpcSettings _parent;
 
+    /// <summary>Records the race and mirrors the parent's link cache for race-name resolution.</summary>
     public VM_RaceNpcRow(FormKey race, VM_NifPreviewNpcSettings parent)
     {
         _parent = parent;
@@ -147,6 +154,7 @@ public class VM_RaceNpcRow : VM
     public FormKey FemaleNpc { get; set; } = FormKey.Null;
     public bool IsDefault { get; set; } = false;
 
+    /// <summary>Display label for the row: "Default", "(none)", or the race's EditorID/FormKey resolved via the link cache.</summary>
     public string RaceDisplay
     {
         get

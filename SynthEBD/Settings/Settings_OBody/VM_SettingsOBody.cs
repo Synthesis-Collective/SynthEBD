@@ -10,6 +10,13 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the OBody / BodySlide settings tab, backing the <see cref="Settings_OBody"/>
+/// model. Hosts the sub-menus shown in this tab — BodySlides, body-shape descriptors, attribute
+/// groups, misc settings, the auto-annotator/trainer, and the body-type registry/profile editor —
+/// swapping the active one via the Click* commands. Also propagates descriptor renames/deletions
+/// across all BodySlides and referencing asset-pack subgroups.
+/// </summary>
 public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 {
     private readonly Logger _logger;
@@ -19,6 +26,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlideAnnotator.Factory _bodySlideAnnotatorFactory;
     private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
 
+    /// <summary>
+    /// Builds the descriptor / BodySlides / attribute-group / misc / annotator sub-menus, wires
+    /// the Click* navigation <see cref="RelayCommand"/>s, and subscribes to the body-selection
+    /// mode so switching to BodySlide mid-session re-runs installed-body detection.
+    /// </summary>
     public VM_SettingsOBody(
         VM_Settings_General generalSettingsVM,
         Func<VM_SettingsTexMesh> texMeshSettings,
@@ -129,6 +141,12 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickBodyTypeProfilesMenu { get; }
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new(); // storage variable - keeps data from model to pass back to model on dump
 
+    /// <summary>
+    /// Model → VM: loads attribute groups (first, so others can reference them), descriptors,
+    /// the existing-BodySlides set, then disposes/rebuilds the male/female BodySlide placeholder
+    /// lists (de-duplicating labels), and loads misc / body-type registry / profile-editor /
+    /// annotator state. Kicks off non-blocking installed-body detection.
+    /// </summary>
     public void CopyInViewModelFromModel(Settings_OBody model, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
     {
         if (model == null)
@@ -224,6 +242,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _logger.LogStartupEventEnd("Loading OBody Menu UI");
     }
 
+    /// <summary>
+    /// VM → Model: dumps descriptors, the male/female BodySlide presets (stripping non-manual
+    /// auto-annotated descriptors first), attribute groups, misc / body-type / profile / classification-rule
+    /// state, and the existing-BodySlides set into a new <see cref="Settings_OBody"/>.
+    /// </summary>
     public Settings_OBody DumpViewModelToModel()
     {
         Settings_OBody model = new();
@@ -265,6 +288,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         return model;
     }
 
+    /// <summary>Propagates a descriptor (category, value) rename across all BodySlides and asset-pack subgroup descriptor lists.</summary>
     public void UpdateState((string, string) previousDescriptor, (string, string) newDescriptor)
     {
         if (previousDescriptor.Item2.IsNullOrWhitespace())
@@ -293,6 +317,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
     }
 
+    /// <summary>After a descriptor category is deleted, prompts to also remove all descriptors in that category from every BodySlide and asset-pack subgroup.</summary>
     public void OnDescriptorCategoryDeletion(string category)
     {
         if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + category + " Descriptors from all BodySlides and Config Files that reference it?"))
@@ -319,6 +344,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
     }
 
+    /// <summary>After a single descriptor value is deleted, prompts to also remove that descriptor (by signature) from every BodySlide and asset-pack subgroup.</summary>
     public void OnDescriptorValueDeletion(string decriptorSignature)
     {
         if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + decriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
@@ -345,6 +371,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
     }
 
+    /// <summary>In-place renames matching descriptors in one collection: remaps category, and value only where the old value also matched.</summary>
     private void UpdateDescriptors<T>(ICollection<T> descriptors, string oldCategory, string oldValue, string newCategory, string newValue)
         where T : BodyShapeDescriptor.LabelSignature
     {
