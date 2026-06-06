@@ -10,10 +10,14 @@ namespace SynthEBD;
 /// just a presentation layer on top.</summary>
 public sealed class BoundingBoxCriterionCategory
 {
+    /// <summary>Display header for the category node.</summary>
     public string Header { get; }
+    /// <summary>Tooltip/description explaining how the category's algorithms behave.</summary>
     public string Description { get; }
+    /// <summary>The selectable <see cref="BoundingBoxCriterion"/> leaves under this category.</summary>
     public IReadOnlyList<BoundingBoxCriterionLeaf> Children { get; }
 
+    /// <summary>Creates a category node with its header, description, and child leaves.</summary>
     public BoundingBoxCriterionCategory(string header, string description, IReadOnlyList<BoundingBoxCriterionLeaf> children)
     {
         Header = header;
@@ -22,12 +26,18 @@ public sealed class BoundingBoxCriterionCategory
     }
 }
 
+/// <summary>A selectable leaf in the Criterion picker tree, wrapping one <see cref="BoundingBoxCriterion"/>
+/// enum value with its display label and description (pulled from the enum's attributes).</summary>
 public sealed class BoundingBoxCriterionLeaf
 {
+    /// <summary>Short display label for the criterion.</summary>
     public string Label { get; }
+    /// <summary>Tooltip/description for the criterion.</summary>
     public string Description { get; }
+    /// <summary>The underlying enum value this leaf selects.</summary>
     public BoundingBoxCriterion Value { get; }
 
+    /// <summary>Creates a leaf wrapping one criterion value with its label and description.</summary>
     public BoundingBoxCriterionLeaf(string label, string description, BoundingBoxCriterion value)
     {
         Label = label;
@@ -36,10 +46,16 @@ public sealed class BoundingBoxCriterionLeaf
     }
 }
 
+/// <summary>Builds the static, presentation-only tree of <see cref="BoundingBoxCriterion"/> values
+/// grouped into algorithm categories (axis extremes, mirrored halves, waist-pinch/hip-bulge,
+/// centerline-anchored, bone-transition) for the OBody bounding-box Criterion picker. Labels and
+/// descriptions are read from the enum's <see cref="ShortLabelAttribute"/>/<see cref="DescriptionAttribute"/>.</summary>
 public static class BoundingBoxCriterionTree
 {
+    /// <summary>The grouped, ready-to-bind category tree (built once at type initialization).</summary>
     public static IReadOnlyList<BoundingBoxCriterionCategory> Categories { get; } = Build();
 
+    /// <summary>Constructs the full category tree with its hardcoded groupings and leaf ordering.</summary>
     private static IReadOnlyList<BoundingBoxCriterionCategory> Build() => new[]
     {
         new BoundingBoxCriterionCategory(
@@ -118,15 +134,18 @@ public static class BoundingBoxCriterionTree
             }),
     };
 
+    /// <summary>Wraps a criterion value into a leaf, resolving its label and description via reflection.</summary>
     private static BoundingBoxCriterionLeaf Leaf(BoundingBoxCriterion c)
         => new(GetDisplayName(c), GetDescription(c), c);
 
+    /// <summary>Returns the criterion's <see cref="ShortLabelAttribute"/> label, falling back to its enum name.</summary>
     private static string GetDisplayName(BoundingBoxCriterion c)
     {
         var field = typeof(BoundingBoxCriterion).GetField(c.ToString());
         return field?.GetCustomAttribute<ShortLabelAttribute>()?.Label ?? c.ToString();
     }
 
+    /// <summary>Returns the criterion's <see cref="DescriptionAttribute"/> text, falling back to its enum name.</summary>
     private static string GetDescription(BoundingBoxCriterion c)
     {
         var field = typeof(BoundingBoxCriterion).GetField(c.ToString());

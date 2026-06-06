@@ -3,6 +3,11 @@ using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
+/// <summary>Builds the shipped default <see cref="AttributeGroup"/> entries used to seed
+/// <see cref="Settings_General.AttributeGroups"/> when no user settings exist. Each static field
+/// is a named, reusable NPC-attribute set (matching NPCs by class, faction, voice type, face
+/// texture, mod, or uniqueness) that config rules can reference by label — e.g. "Must be Fit",
+/// "Can Be Dirty", or face-aging groups.</summary>
 public class DefaultAttributeGroups
 {
     public static AttributeGroup CannotHaveDefinition = new()

@@ -2,8 +2,13 @@ using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD;
 
+/// <summary>Builds the shipped default <see cref="RaceGrouping"/> entries used to seed
+/// <see cref="Settings_General.RaceGroupings"/> when no user settings exist. Each static field is
+/// a named, reusable set of race FormKeys (e.g. all humanoids, all elves, a single race plus its
+/// vampire variant) that config filters can reference by label.</summary>
 public class DefaultRaceGroupings
 {
+    /// <summary>All vanilla humanoid races including vampire, Astrid, Afflicted, Snow Elf, and DLC1 Nord variants.</summary>
     public static RaceGrouping Humanoid = new RaceGrouping()
     {
         Label = "Humanoid",

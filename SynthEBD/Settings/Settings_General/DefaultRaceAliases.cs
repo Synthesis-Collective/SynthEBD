@@ -3,8 +3,13 @@ using Mutagen.Bethesda.Plugins;
 
 namespace SynthEBD;
 
+/// <summary>Builds the shipped default <see cref="RaceAlias"/> entries used to seed
+/// <see cref="Settings_General.RaceAliases"/> when no user settings exist. Each static field
+/// maps a non-patchable race (the Afflicted race, or a Charmers of the Reach custom race) onto a
+/// vanilla race for one or more appearance axes.</summary>
 public class DefaultRaceAliases
 {
+    /// <summary>Aliases the DA13 Afflicted race onto the vanilla Breton race (body/height/headparts only, not assets).</summary>
     public static RaceAlias RaceAliasAfflicted = new()
     {
         Race = Skyrim.Race.DA13AfflictedRace.FormKey,
@@ -17,6 +22,8 @@ public class DefaultRaceAliases
         bApplyToHeadParts = true
     };
     
+    /// <summary>Charmers of the Reach (COR_AllRace.esp) custom race aliases onto their vanilla
+    /// equivalents for all axes. One field per vanilla race plus its vampire variant.</summary>
     public static RaceAlias RaceAliasCotR_Breton= new()
     {
         Race = FormKey.Factory("005734:COR_AllRace.esp"),

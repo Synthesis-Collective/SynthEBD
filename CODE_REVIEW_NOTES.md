@@ -1163,6 +1163,24 @@ from the consistency loader above). The matching error toast also names `Consist
   (`OnLoadValidator`); and the `AttributeGroups.Select(x => x.Label).Contains(...)` linear merge repeated
   across the AssetPack/BodyGen/OBody loaders (a `HashSet` of labels would be O(1)). 💭/🔧
 
+### `Settings_General` default race aliases duplicate Imperial — 🐞 bug
+
+[Settings_General.cs:219-220](SynthEBD/Settings/Settings_General/Settings_General.cs#L219) · The default
+`RaceAliases` list contains `DefaultRaceAliases.RaceAliasCotR_Imperial` **twice** and never
+`RaceAliasCotR_ImperialVampire`. Every other Creation-of-the-Realm race in the list pairs a base alias with a
+`_Vampire` variant, so line 220 was almost certainly meant to be `RaceAliasCotR_ImperialVampire` — as written,
+the CotR Imperial-Vampire race is left un-aliased by default.
+
+### Settings model smaller items — 💭
+
+- `Settings_ModManager` initializes `TempExtractionFolder` from
+  `Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)` with no null guard; `GetEntryAssembly()` can be
+  null and `.Location` is empty under single-file publish (the project currently publishes
+  `PublishSingleFile=false`, so it's populated — but fragile). 💭
+- `DefaultAttributeGroups` — the `MatureFace` group's user-facing `Label` is "Can Get **Mildy** Older Face"
+  ("Mildly" misspelled). `Settings_General.BlockedModsFromImport`'s trailing comment implies the base-master
+  block is SkyPatcher-mode-only, but the default list is unconditional — confirm the consumer scopes it. 💭
+
 <!-- ENTRIES:Settings -->
 
 ---
