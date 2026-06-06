@@ -5,18 +5,34 @@ using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
+/// <summary>
+/// File-system helper utilities for the settings IO layer: filename validation/sanitization, folder/file
+/// open-and-save dialogs, line-based file reading, and robust (long-path-aware) directory/file deletion.
+/// Static members are pure helpers; instance members use the injected <see cref="Logger"/> to report and
+/// swallow deletion errors. Several methods pop Windows UI dialogs.
+/// </summary>
 public class IO_Aux
 {
     private readonly Logger _logger;
+    /// <summary>Injects the logger used by the instance deletion helpers.</summary>
     public IO_Aux(Logger logger)
     {
         _logger = logger;
     }
+    /// <summary>
+    /// Returns true if <paramref name="testName"/> is already a valid filename (i.e. sanitizing it is a no-op).
+    /// </summary>
     public static bool IsValidFilename(string testName)
     {
         return MakeValidFileName(testName) == testName;
     }
 
+    /// <summary>
+    /// Pops a folder-browser dialog. UI side effect.
+    /// </summary>
+    /// <param name="initDir">Initial directory, or empty to use the dialog default.</param>
+    /// <param name="path">The selected folder path, or empty if canceled.</param>
+    /// <returns>True if the user picked a folder; false if canceled.</returns>
     public static bool SelectFolder(string initDir, out string path)
     {
         System.Windows.Forms.FolderBrowserDialog dialog = new System.Windows.Forms.FolderBrowserDialog();
@@ -38,6 +54,15 @@ public class IO_Aux
         }
     }
 
+    /// <summary>
+    /// Pops an open-file dialog. UI side effect.
+    /// </summary>
+    /// <param name="initDir">Initial directory, or empty for the dialog default.</param>
+    /// <param name="filter">File-type filter string, or empty/whitespace for none.</param>
+    /// <param name="title">Dialog title.</param>
+    /// <param name="path">The selected file path, or empty if canceled.</param>
+    /// <param name="startingFileName">Optional pre-filled file name.</param>
+    /// <returns>True if the user picked a file; false if canceled.</returns>
     public static bool SelectFile(string initDir, string filter, string title, out string path, string startingFileName = "")
     {
         path = "";
@@ -70,6 +95,16 @@ public class IO_Aux
         }
     }
     
+    /// <summary>
+    /// Pops a save-file dialog. UI side effect.
+    /// </summary>
+    /// <param name="initDir">Initial directory, or empty for the dialog default.</param>
+    /// <param name="filter">File-type filter string, or empty/whitespace for none.</param>
+    /// <param name="defaultExtension">Default extension applied when the user omits one.</param>
+    /// <param name="title">Dialog title.</param>
+    /// <param name="path">The chosen save path (set from the dialog regardless of the result).</param>
+    /// <param name="startingFileName">Optional pre-filled file name.</param>
+    /// <returns>True if the user confirmed the save; false if canceled.</returns>
     public static bool SelectFileSave(string initDir, string filter, string defaultExtension, string title, out string path, string startingFileName = "")
     {
         // Configure save file dialog box
@@ -101,6 +136,12 @@ public class IO_Aux
         return result ?? false;
     }
 
+    /// <summary>
+    /// Reads a file into a list of its lines. Reads from disk.
+    /// </summary>
+    /// <param name="path">Absolute path to the file.</param>
+    /// <param name="wasRead">Set true if the file existed and was read; false otherwise.</param>
+    /// <returns>The file's lines, or an empty list if the file does not exist.</returns>
     public static List<string> ReadFileToList(string path, out bool wasRead)
     {
         wasRead = false;
@@ -116,6 +157,11 @@ public class IO_Aux
         return lines;
     }
         
+    /// <summary>
+    /// Recursively deletes a directory and all its contents using AlphaFS long-path APIs (handles paths beyond
+    /// the 260-character limit). Deletes from disk; may throw if a file/directory cannot be removed.
+    /// </summary>
+    /// <param name="dir">The directory to delete.</param>
     public static void DeleteDirectoryAF(string dir)
     {
         var directories = Alphaleonis.Win32.Filesystem.Directory.GetDirectories(dir);
@@ -135,6 +181,14 @@ public class IO_Aux
         var longDir = @"\\?\" + dir;
         Alphaleonis.Win32.Filesystem.Directory.Delete(longDir, Alphaleonis.Win32.Filesystem.PathFormat.LongFullPath);
     }
+    /// <summary>
+    /// Recursively deletes a directory using the <c>\\?\</c> long-path prefix, clearing read-only attributes
+    /// first. Deletes from disk; individual failures are logged rather than thrown. Paths exceeding 260
+    /// characters are skipped, and at the top level (<paramref name="isInner"/> false) a warning dialog is
+    /// shown listing that some paths must be removed manually.
+    /// </summary>
+    /// <param name="target_dir">The directory to delete.</param>
+    /// <param name="isInner">True for recursive inner calls; false for the top-level call (enables the warning prompt).</param>
     public void DeleteDirectory(string target_dir, bool isInner)
     {
         string[] files = Directory.GetFiles(target_dir);
@@ -232,6 +286,10 @@ public class IO_Aux
         return changed ? sb.ToString() : text;
     }
 
+    /// <summary>
+    /// Deletes a file, logging (and swallowing) any exception. Deletes from disk.
+    /// </summary>
+    /// <param name="path">The file to delete.</param>
     public void TryDeleteFile(string path)
     {
         try
@@ -245,6 +303,11 @@ public class IO_Aux
     }
 
 
+    /// <summary>
+    /// Deletes a directory, logging (and swallowing) any exception. Deletes from disk.
+    /// </summary>
+    /// <param name="path">The directory to delete.</param>
+    /// <param name="recursive">Whether to delete contained files and subdirectories.</param>
     public void TryDeleteDirectory(string path, bool recursive)
     {
         try
@@ -257,6 +320,11 @@ public class IO_Aux
         }
     }
 
+    /// <summary>
+    /// Walks up from <paramref name="dirPath"/>, deleting it and successive empty parents. Deletes from disk
+    /// (errors are logged and swallowed via <see cref="TryDeleteDirectory"/>).
+    /// </summary>
+    /// <param name="dirPath">The starting directory.</param>
     public void DeleteDirectoryChainIfEmpty(string dirPath) // deletes directory if empty, and parent directory if empty, recursively
     {
         var parentDir = Directory.GetParent(dirPath);

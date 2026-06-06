@@ -1129,3 +1129,40 @@ dictionary here, but semantically it should use identity hashing). Adapted third
 <!-- ENTRIES:Patcher -->
 
 ---
+
+## Settings
+
+*The settings persistence layer (JSON load/save handlers, validators, source DTOs) and the settings models /
+view models / views. Reviewed leaf-first, starting with the SettingsIO handlers.*
+
+### `SettingsIO_BodyGen` female loop iterates Male — 🐞 bug
+
+[SettingsIO_BodyGen.cs:205](SynthEBD/Settings/SettingsIO/SettingsIO_BodyGen.cs#L205) · After the male loop
+`foreach (var maleConfig in loadedPacks.Male)` ([:194](SynthEBD/Settings/SettingsIO/SettingsIO_BodyGen.cs#L194)),
+the "female" loop is `foreach (var femaleConfig in loadedPacks.Male)` — it iterates **Male** again. So the
+general-settings attribute groups are never merged into the female BodyGen configs, and the male configs are
+processed twice. Should be `loadedPacks.Female`.
+
+### `SettingsIO_Misc` update-log fallback gated on the wrong file — 🐞 bug
+
+[SettingsIO_Misc.cs:94](SynthEBD/Settings/SettingsIO/SettingsIO_Misc.cs#L94) · The update-log fallback branch
+is `else if (File.Exists(_paths.GetFallBackPath(_paths.ConsistencyPath)))` but its body loads
+`_paths.UpdateLogPath` ([:96](SynthEBD/Settings/SettingsIO/SettingsIO_Misc.cs#L96)). So the update-log
+fallback is taken based on whether the *consistency* fallback file exists, not the update-log one (copy-paste
+from the consistency loader above). The matching error toast also names `ConsistencyPath`.
+
+### Settings IO smaller items — 🐞 / 💭
+
+- `IO_Aux.SelectFileSave` / `SettingsIO_AssetPack` save path — the dialog `out path` is assigned before the
+  method returns the dialog's bool result, so on **cancel** the caller still receives a populated path it may
+  treat as written. Callers must check the bool. 🐞
+- `SettingsIO_Height` parses zEBD height strings (always `.`-decimal) with culture-sensitive
+  `float.TryParse`, so comma-decimal locales silently drop the value. 💭
+- Empty `catch { }` blocks that swallow the exception (`SettingsIO_BodyGen` legacy load,
+  `SettingsIO_General` error-dump); UI dialogs (`MessageWindow`) invoked from the IO/validation layer
+  (`OnLoadValidator`); and the `AttributeGroups.Select(x => x.Label).Contains(...)` linear merge repeated
+  across the AssetPack/BodyGen/OBody loaders (a `HashSet` of labels would be O(1)). 💭/🔧
+
+<!-- ENTRIES:Settings -->
+
+---

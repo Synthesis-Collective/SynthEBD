@@ -3,12 +3,19 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and saves the application-wide <see cref="Settings_General"/> model to/from JSON. Owns the
+/// general-settings half of the VM ⇄ model persistence flow: reading at startup into
+/// <see cref="PatcherState.GeneralSettings"/> (with output-folder and race-grouping fixups) and dumping
+/// the general settings view model back to disk on save.
+/// </summary>
 public class SettingsIO_General
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
+    /// <summary>Injects the environment provider, runtime <see cref="PatcherState"/>, logger, and path resolver.</summary>
     public SettingsIO_General(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths)
     {
         _environmentProvider = environmentProvider;
@@ -16,6 +23,14 @@ public class SettingsIO_General
         _logger = logger;
         _paths = paths;
     }
+    /// <summary>
+    /// Loads general settings from disk into <see cref="PatcherState.GeneralSettings"/>, or substitutes a
+    /// fresh default object if the file is missing or unparseable. Side effects: reads the settings file;
+    /// on parse failure best-effort writes a timestamped error dump to a sibling Logs folder; resolves the
+    /// effective output data folder onto <see cref="SynthEBDPaths.OutputDataFolder"/> (falling back to the
+    /// game data folder if the configured one is blank or missing); and dedupes race groupings.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if settings loaded cleanly (or defaulted), false on parse error.</param>
     public void LoadGeneralSettings(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading general settings from disk");
@@ -64,6 +79,11 @@ public class SettingsIO_General
         _patcherState.GeneralSettings.RaceGroupings = MiscValidation.CheckRaceGroupingDuplicates(_patcherState.GeneralSettings.RaceGroupings, "General Settings").ToList();
     }
 
+    /// <summary>
+    /// Dumps the general-settings view model back into <see cref="PatcherState.GeneralSettings"/> and writes
+    /// it to disk. No-op if no general settings model exists. Side effect: writes the settings file.
+    /// </summary>
+    /// <param name="generalSettingsVM">The view model whose state is persisted.</param>
     public void DumpVMandSave(VM_Settings_General generalSettingsVM)
     {
         if (_patcherState.GeneralSettings == null)

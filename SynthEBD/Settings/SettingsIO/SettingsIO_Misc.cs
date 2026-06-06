@@ -2,16 +2,28 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and saves miscellaneous persisted state: the consistency map (NPC ID → its previously assigned
+/// <see cref="NPCAssignment"/>, used to keep appearances stable across runs) and the <see cref="UpdateLog"/>.
+/// Handles primary/fallback path resolution; absence is treated as normal (no user alert).
+/// </summary>
 public class SettingsIO_Misc
 {
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
+    /// <summary>Injects the logger and path resolver.</summary>
     public SettingsIO_Misc(Logger logger, SynthEBDPaths paths)
     {
         _logger = logger;
         _paths = paths;
     }
 
+    /// <summary>
+    /// Loads the consistency map from the primary path, then the fallback path. Reads from disk. Returns an
+    /// empty map if no file exists or if parsing failed (which would otherwise leave a null result).
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or empty), false on parse error.</param>
+    /// <returns>The consistency map.</returns>
     public Dictionary<string, NPCAssignment> LoadConsistency(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading Consistency from disk");
@@ -41,6 +53,11 @@ public class SettingsIO_Misc
         _logger.LogStartupEventEnd("Loading Consistency from disk");
         return loaded;
     }
+    /// <summary>
+    /// Writes the consistency map to disk. On failure logs and raises a timed status-update error.
+    /// </summary>
+    /// <param name="consistency">The consistency map to save.</param>
+    /// <param name="saveSuccess">Set true on success, false on save failure.</param>
     public void SaveConsistency(Dictionary<string, NPCAssignment> consistency, out bool saveSuccess)
     {
         JSONhandler<Dictionary<string, NPCAssignment>>.SaveJSONFile(consistency, _paths.ConsistencyPath, out saveSuccess, out string exceptionStr);
@@ -52,6 +69,13 @@ public class SettingsIO_Misc
         }
     }
 
+    /// <summary>
+    /// Loads the update log from the primary path, then the fallback path. Reads from disk. Returns an empty
+    /// <see cref="UpdateLog"/> if no file exists (e.g. when upgrading from a version earlier than 1.0.1.2) or
+    /// if parsing failed.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or empty), false on parse error.</param>
+    /// <returns>The loaded or default <see cref="UpdateLog"/>.</returns>
     public UpdateLog LoadUpdateLog(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading Update Log from disk");
@@ -81,6 +105,11 @@ public class SettingsIO_Misc
         _logger.LogStartupEventEnd("Loading Update Log from disk");
         return loaded;
     }
+    /// <summary>
+    /// Writes the update log to disk. On failure logs and raises a timed status-update error.
+    /// </summary>
+    /// <param name="updateLog">The update log to save.</param>
+    /// <param name="saveSuccess">Set true on success, false on save failure.</param>
     public void SaveUpdateLog(UpdateLog updateLog, out bool saveSuccess)
     {
         JSONhandler<UpdateLog>.SaveJSONFile(updateLog, _paths.UpdateLogPath, out saveSuccess, out string exceptionStr);

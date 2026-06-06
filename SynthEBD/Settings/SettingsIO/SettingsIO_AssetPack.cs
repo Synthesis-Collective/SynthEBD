@@ -3,6 +3,12 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and saves the asset-patching settings: the top-level <see cref="Settings_TexMesh"/> model, the
+/// per-config <see cref="AssetPack"/> JSON files (with transparent zEBD-format fallback), and the record
+/// template plugins. Handles primary/fallback directory resolution and, on save, filename validation plus
+/// file-dialog prompts for configs whose group name is not a valid filename.
+/// </summary>
 public class SettingsIO_AssetPack
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -10,6 +16,7 @@ public class SettingsIO_AssetPack
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
+    /// <summary>Injects the environment provider, runtime <see cref="PatcherState"/>, logger, path resolver, and record converters.</summary>
     public SettingsIO_AssetPack(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -18,6 +25,12 @@ public class SettingsIO_AssetPack
         _paths = paths;
         _converters = converters;
     }
+    /// <summary>
+    /// Loads the top-level texture/mesh settings from the primary path, then the fallback path, returning a
+    /// fresh default if neither exists. Reads from disk.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or defaulted), false on parse error.</param>
+    /// <returns>The loaded or default <see cref="Settings_TexMesh"/>.</returns>
     public Settings_TexMesh LoadTexMeshSettings(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading TexMesh settings from disk");
@@ -45,6 +58,16 @@ public class SettingsIO_AssetPack
         return texMeshSettings;
     }
 
+    /// <summary>
+    /// Enumerates every *.json file in the asset-pack directory (or its fallback) and loads each as an
+    /// <see cref="AssetPack"/> via <see cref="LoadAssetPack"/>. Reads from disk. A single failed file logs an
+    /// error and clears <paramref name="loadSuccess"/> but does not abort the rest.
+    /// </summary>
+    /// <param name="raceGroupings">Fallback race groupings passed to zEBD conversion.</param>
+    /// <param name="recordTemplatePlugins">Record template plugins passed to zEBD conversion.</param>
+    /// <param name="availableBodyGenConfigs">BodyGen configs passed to zEBD conversion.</param>
+    /// <param name="loadSuccess">Set false if any config file failed to load.</param>
+    /// <returns>The successfully loaded asset packs.</returns>
     public List<AssetPack> LoadAssetPacks(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
     {
         List<AssetPack> loadedPacks = new List<AssetPack>();
@@ -86,6 +109,18 @@ public class SettingsIO_AssetPack
         return loadedPacks;
     }
 
+    /// <summary>
+    /// Loads a single asset config from <paramref name="path"/>, first as a SynthEBD <see cref="AssetPack"/>
+    /// and, if that fails, as a legacy <see cref="ZEBDAssetPack"/> which is converted in place. Reads from
+    /// disk. Merges in any attribute groups from general settings that the config lacks, and stamps the
+    /// config's <see cref="AssetPack.FilePath"/>.
+    /// </summary>
+    /// <param name="path">Absolute path to the config file.</param>
+    /// <param name="fallBackRaceGroupings">Race groupings used when converting a zEBD config.</param>
+    /// <param name="recordTemplatePlugins">Record templates used when converting a zEBD config.</param>
+    /// <param name="availableBodyGenConfigs">BodyGen configs used when converting a zEBD config.</param>
+    /// <param name="loadSuccess">Set true on success, false if neither format parsed.</param>
+    /// <returns>The loaded asset pack; a partially initialized pack on failure.</returns>
     public AssetPack LoadAssetPack(string path, List<RaceGrouping> fallBackRaceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, out bool loadSuccess)
     {
         var synthEBDconfig = new AssetPack();
@@ -123,6 +158,13 @@ public class SettingsIO_AssetPack
         return synthEBDconfig;
     }
 
+    /// <summary>
+    /// Loads all *.esp record template plugins from the primary directory plus any additional ones present
+    /// only in the fallback directory (so missing templates don't break configs). Reads/parses plugin files
+    /// via Mutagen. A plugin that fails to parse logs an error and clears <paramref name="loadSuccess"/>.
+    /// </summary>
+    /// <param name="loadSuccess">Set false if any plugin failed to parse.</param>
+    /// <returns>The loaded record template plugins.</returns>
     public List<SkyrimMod> LoadRecordTemplates(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading Record Template Plugins from disk");
@@ -163,6 +205,13 @@ public class SettingsIO_AssetPack
         return loadedTemplatePlugins;
     }
 
+    /// <summary>
+    /// Loads record template plugins from an explicit set of file paths. Reads/parses plugin files via
+    /// Mutagen. A plugin that fails to parse logs an error and clears <paramref name="loadSuccess"/>.
+    /// </summary>
+    /// <param name="filePaths">Absolute paths of the .esp plugins to load.</param>
+    /// <param name="loadSuccess">Set false if any plugin failed to parse.</param>
+    /// <returns>The loaded record template plugins.</returns>
     public List<SkyrimMod> LoadRecordTemplates(HashSet<string> filePaths, out bool loadSuccess)
     {
         List<SkyrimMod> loadedTemplatePlugins = new List<SkyrimMod>();
@@ -184,6 +233,12 @@ public class SettingsIO_AssetPack
         return loadedTemplatePlugins;
     }
 
+    /// <summary>
+    /// Saves each asset pack in the list via <see cref="SaveAssetPack"/>. Writes to disk and may pop save
+    /// dialogs. <paramref name="success"/> is cleared if any individual save fails.
+    /// </summary>
+    /// <param name="assetPacks">The asset packs to save.</param>
+    /// <param name="success">Set false if any pack failed to save.</param>
     public void SaveAssetPacks(List<AssetPack> assetPacks, out bool success)
     {
         success = true;
@@ -197,6 +252,14 @@ public class SettingsIO_AssetPack
         }
     }
 
+    /// <summary>
+    /// Saves a single asset pack. If it already has a path under the asset-pack directory, overwrites it;
+    /// otherwise derives a path from the group name (when it is a valid filename) or prompts the user with a
+    /// save-file dialog. Writes to disk and may pop a UI dialog.
+    /// </summary>
+    /// <param name="assetPack">The asset pack to save.</param>
+    /// <param name="success">Set true on success, false on save failure.</param>
+    /// <returns>The path the config was saved to (may be empty/unset if the user canceled the dialog).</returns>
     public string SaveAssetPack(AssetPack assetPack, out bool success) // returns the path to which config was saved
     {
         success = true;

@@ -3,6 +3,12 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and migrates the OBody/AutoBody settings (<see cref="Settings_OBody"/>), and seeds/maintains the
+/// Body-Type Registry that drives BodySlide group classification. Responsibilities: merge shipped registry
+/// defaults, scan installed entries via the fingerprint scanner, derive each entry's slider catalog from its
+/// OSD/BSD files, run the legacy flat-descriptor migration, and load default BodySlide annotation CSVs.
+/// </summary>
 public class SettingsIO_OBody
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -15,6 +21,11 @@ public class SettingsIO_OBody
     private readonly BodyTypeFingerprintScanner _bodyTypeFingerprintScanner;
     private readonly BodyTypeSliderExtractor _bodyTypeSliderExtractor;
     private readonly BsdFileParser _bsdFileParser;
+    /// <summary>
+    /// Injects the environment provider, runtime <see cref="PatcherState"/>, logger, path resolver, and the
+    /// BodySlide collaborators: settings migrator, slider-catalog loader, group classifier, fingerprint
+    /// scanner, slider extractor, and BSD file parser.
+    /// </summary>
     public SettingsIO_OBody(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, BodySlideSettingMigrator bodySlideSettingMigrator, SliderCatalogLoader sliderCatalogLoader, BodySlideGroupClassifier bodySlideGroupClassifier, BodyTypeFingerprintScanner bodyTypeFingerprintScanner, BodyTypeSliderExtractor bodyTypeSliderExtractor, BsdFileParser bsdFileParser)
     {
         _environmentProvider = environmentProvider;
@@ -121,6 +132,11 @@ public class SettingsIO_OBody
         }
     }
 
+    /// <summary>
+    /// Logs a one-line-per-entry summary of the Body-Type Registry (install state, resolved slider count, and
+    /// any superset relationship). No-op for a null/empty list.
+    /// </summary>
+    /// <param name="entries">The registry entries to summarize.</param>
     private void LogRegistrySummary(List<BodyTypeRegistryEntry> entries)
     {
         if (entries == null || entries.Count == 0) return;
@@ -134,6 +150,14 @@ public class SettingsIO_OBody
             _logger.LogMessage($"BodyTypeRegistry: {e.Name} [{e.Gender}] -- {installed}, {e.ResolvedSliders?.Count ?? 0} slider(s){superset}");
         }
     }
+    /// <summary>
+    /// Loads the OBody/AutoBody settings from the primary path, then the fallback path, returning a fresh
+    /// default if neither exists or parsing yields null. Reads from disk. Runs the legacy flat-descriptor
+    /// migration (<see cref="BodySlideSettingMigrator.MigrateIfNeeded"/>) and merges in any missing attribute
+    /// groups from general settings.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or defaulted), false on parse error.</param>
+    /// <returns>The loaded or default <see cref="Settings_OBody"/>.</returns>
     public Settings_OBody LoadOBodySettings(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading OBody settings from disk");
@@ -177,6 +201,12 @@ public class SettingsIO_OBody
         return oBodySettings;
     }
 
+    /// <summary>
+    /// Reads the shipped default BodySlide annotation CSVs from InternalData, building a map from config name
+    /// to its set of descriptor strings. Reads from disk; the first column is the config name and remaining
+    /// columns are descriptors. Returns an empty map if the annotation directory is absent.
+    /// </summary>
+    /// <returns>Config-name to descriptor-set map.</returns>
     public Dictionary<string, HashSet<string>> LoadDefaultBodySlideAnnotation()
     {
         Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();

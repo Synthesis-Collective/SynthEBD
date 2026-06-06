@@ -7,8 +7,20 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Post-load settings validation that must run AFTER the main view model has initialized (deferred because
+    /// of a MaterialMessageBox bug that closes the app if a prompt is dismissed before the main window loads).
+    /// Detects and offers to remove duplicate race groupings, attribute groups, and body-shape descriptors
+    /// across general settings, asset packs, BodyGen configs, and OBody settings.
+    /// </summary>
     public class OnLoadValidator // Validation that has to load AFTER the main view model has initialized. This is due to bug in MaterialMessageBox that closes the app if a button is pressed before the main window loads.
     {
+        /// <summary>
+        /// Runs the full duplicate-detection pass over all loaded settings, mutating <paramref name="patcherState"/>
+        /// in place by replacing its grouping/descriptor collections with deduped versions. May pop yes/no
+        /// confirmation dialogs (one per duplicated collection).
+        /// </summary>
+        /// <param name="patcherState">The runtime state whose loaded settings are validated.</param>
         public static void ValidateSettings(PatcherState patcherState)
         {
             patcherState.GeneralSettings.RaceGroupings = CheckGroupDuplicates(patcherState.GeneralSettings.RaceGroupings, "General Settings", "Race Groupings").Cast<RaceGrouping>().ToList();
@@ -77,6 +89,16 @@ namespace SynthEBD
             shells.AddRange(deduped);
         }
 
+        /// <summary>
+        /// Detects entries in <paramref name="groupings"/> that share a <see cref="IHasLabel.Label"/>. If any
+        /// duplicates exist, prompts the user (a UI yes/no dialog); on confirmation, returns a copy keeping
+        /// only the first occurrence of each label. If declined or no duplicates exist, returns the input
+        /// unchanged.
+        /// </summary>
+        /// <param name="groupings">The labeled items to check.</param>
+        /// <param name="parentDispName">Display name of the owning config, shown in the prompt.</param>
+        /// <param name="type">Human-readable item type (e.g. "Race Groupings"), shown in the prompt.</param>
+        /// <returns>The deduplicated sequence, or the original if unchanged.</returns>
         public static IEnumerable<IHasLabel> CheckGroupDuplicates(IEnumerable<IHasLabel> groupings, string parentDispName, string type)
         {
             var filteredGroupings = groupings.ToList();

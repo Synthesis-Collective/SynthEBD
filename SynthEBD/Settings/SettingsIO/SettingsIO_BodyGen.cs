@@ -4,6 +4,12 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and saves BodyGen data: the top-level <see cref="Settings_BodyGen"/> model and the per-gender
+/// <see cref="BodyGenConfig"/> JSON files (with legacy zEBD-format conversion, including the "params"→"specs"
+/// key rename and male/female file splitting). Also parses BodyGen template and morph .ini files. Handles
+/// primary/fallback directory resolution and save-dialog prompts.
+/// </summary>
 public class SettingsIO_BodyGen
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -11,6 +17,7 @@ public class SettingsIO_BodyGen
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
+    /// <summary>Injects the environment provider, runtime <see cref="PatcherState"/>, logger, path resolver, and record converters.</summary>
     public SettingsIO_BodyGen(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -19,6 +26,12 @@ public class SettingsIO_BodyGen
         _paths = paths;
         _converters = converters;
     }
+    /// <summary>
+    /// Loads the top-level BodyGen settings from the primary path, then the fallback path, returning a fresh
+    /// default if neither exists. Reads from disk.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or defaulted), false on parse error.</param>
+    /// <returns>The loaded or default <see cref="Settings_BodyGen"/>.</returns>
     public Settings_BodyGen LoadBodyGenSettings(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading BodyGen settings from disk");
@@ -46,11 +59,29 @@ public class SettingsIO_BodyGen
         return bodygenSettings;
     }
 
+    /// <summary>
+    /// Convenience overload that loads all BodyGen configs from the default directory using the general
+    /// settings' race groupings. Reads from disk.
+    /// </summary>
+    /// <param name="raceGroupings">Accepted but ignored; the general settings' groupings are used instead.</param>
+    /// <param name="loadSuccess">Set false if any config failed to load.</param>
+    /// <returns>The loaded male/female config collection.</returns>
     public BodyGenConfigs LoadBodyGenConfigs(List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
         string[] empty = new string[0];
         return LoadBodyGenConfigs(empty, _patcherState.GeneralSettings.RaceGroupings, out loadSuccess);
     }
+    /// <summary>
+    /// Loads BodyGen configs from the given file paths (or, if none supplied, every *.json in the config
+    /// directory or its fallback), sorting each into the male or female bucket by gender. Reads from and may
+    /// write to disk: legacy zEBD configs are converted (with the "params"→"specs" rename) and, when a single
+    /// file yields both male and female configs, the original is split into two and the source file is
+    /// deleted. Finally merges in any missing attribute groups from general settings.
+    /// </summary>
+    /// <param name="filePaths">Explicit config files to load, or empty to scan the config directory.</param>
+    /// <param name="raceGroupings">Race groupings used when converting legacy zEBD configs.</param>
+    /// <param name="loadSuccess">Set false if any config failed to load or convert.</param>
+    /// <returns>The loaded male/female config collection.</returns>
     public BodyGenConfigs LoadBodyGenConfigs(string[] filePaths, List<RaceGrouping> raceGroupings, out bool loadSuccess)
     {
         BodyGenConfigs loadedPacks = new BodyGenConfigs();
@@ -185,6 +216,12 @@ public class SettingsIO_BodyGen
         return loadedPacks;
     }
 
+    /// <summary>
+    /// Saves each BodyGen config via <see cref="SaveBodyGenConfig"/>. Writes to disk and may pop save
+    /// dialogs. <paramref name="saveSuccess"/> is cleared if any individual save fails.
+    /// </summary>
+    /// <param name="bodyGenConfigs">The configs to save.</param>
+    /// <param name="saveSuccess">Set false if any config failed to save.</param>
     public void SaveBodyGenConfigs(HashSet<BodyGenConfig> bodyGenConfigs, out bool saveSuccess)
     {
         saveSuccess = true;
@@ -198,6 +235,13 @@ public class SettingsIO_BodyGen
         }
     }
 
+    /// <summary>
+    /// Saves a single BodyGen config. If it already has a path under the config directory, overwrites it;
+    /// otherwise derives a path from the label (when it is a valid filename) or prompts the user with a
+    /// save-file dialog. Writes to disk and may pop a UI dialog.
+    /// </summary>
+    /// <param name="bgConfig">The config to save.</param>
+    /// <param name="saveSuccess">Set true on success, false on save failure.</param>
     public void SaveBodyGenConfig(BodyGenConfig bgConfig, out bool saveSuccess)
     {
         saveSuccess = true; 
@@ -268,6 +312,13 @@ public class SettingsIO_BodyGen
         }
     }
 
+    /// <summary>
+    /// Parses a BodyGen templates .ini file (skipping '#' comment lines) into template objects, splitting
+    /// each non-comment line on '=' into Label and Specs. Reads from disk; returns an empty set if the file
+    /// is missing or unreadable.
+    /// </summary>
+    /// <param name="loadPath">Absolute path to the templates .ini.</param>
+    /// <returns>The parsed templates.</returns>
     public HashSet<BodyGenConfig.BodyGenTemplate> LoadTemplatesINI(string loadPath)
     {
         var newTemplates = new HashSet<BodyGenConfig.BodyGenTemplate>();
@@ -292,6 +343,13 @@ public class SettingsIO_BodyGen
         return newTemplates;
     }
 
+    /// <summary>
+    /// Parses a BodyGen morphs .ini file (skipping '#' comment lines) into (FormKey, morphs) pairs. Each line
+    /// is split on '=' into a "Plugin|FormID" NPC reference and the assigned morph string; the FormID is
+    /// zero-padded to 6 digits. Reads from disk; lines whose FormKey cannot be parsed are skipped.
+    /// </summary>
+    /// <param name="loadPath">Absolute path to the morphs .ini.</param>
+    /// <returns>The parsed NPC-to-morph assignments.</returns>
     public HashSet<Tuple<FormKey, string>> LoadMorphsINI(string loadPath)
     {
         var loadedAssignments = new HashSet<Tuple<FormKey, string>>();

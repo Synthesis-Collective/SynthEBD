@@ -2,17 +2,30 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Loads and saves height data: the top-level <see cref="Settings_Height"/> model and the per-config
+/// <see cref="HeightConfig"/> JSON files (with conversion of legacy zEBD-format configs, detected by an
+/// "EDID" key, into the modern race-FormKey model). Handles primary/fallback directory resolution and
+/// save-dialog prompts.
+/// </summary>
 public class SettingsIO_Height
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly SynthEBDPaths _paths;
+    /// <summary>Injects the environment provider, logger, and path resolver.</summary>
     public SettingsIO_Height(IEnvironmentStateProvider environmentProvider, Logger logger, SynthEBDPaths paths)
     {
         _environmentProvider = environmentProvider;
         _logger = logger;
         _paths = paths;
     }
+    /// <summary>
+    /// Loads the top-level height settings from the primary path, then the fallback path, returning a fresh
+    /// default if neither exists. Reads from disk.
+    /// </summary>
+    /// <param name="loadSuccess">Set true if loaded cleanly (or defaulted), false on parse error.</param>
+    /// <returns>The loaded or default <see cref="Settings_Height"/>.</returns>
     public Settings_Height LoadHeightSettings(out bool loadSuccess)
     {
         _logger.LogStartupEventStart("Loading Height settings from disk");
@@ -40,6 +53,15 @@ public class SettingsIO_Height
         return heightSettings;
     }
 
+    /// <summary>
+    /// Loads every *.json height config from the config directory (or its fallback). Reads from disk. Files
+    /// containing an "EDID" key are treated as legacy zEBD configs and converted: race EDIDs are resolved to
+    /// FormKeys and male/female heights and ranges are culture-dependently parsed from strings (unparseable
+    /// values are logged and skipped). Returns the loaded configs, or empty with <paramref name="loadSuccess"/>
+    /// false if the directory cannot be found.
+    /// </summary>
+    /// <param name="loadSuccess">Set false if the directory is missing or any config failed to load.</param>
+    /// <returns>The loaded height configs.</returns>
     public List<HeightConfig> LoadHeightConfigs(out bool loadSuccess)
     {
         List<HeightConfig> loaded = new List<HeightConfig>();
@@ -150,6 +172,12 @@ public class SettingsIO_Height
         return loaded;
     }
 
+    /// <summary>
+    /// Saves each height config via <see cref="SaveHeightConfig"/>. Writes to disk and may pop save dialogs.
+    /// <paramref name="saveSuccess"/> is cleared if any individual save fails.
+    /// </summary>
+    /// <param name="heightConfigs">The configs to save.</param>
+    /// <param name="saveSuccess">Set false if any config failed to save.</param>
     public void SaveHeightConfigs(List<HeightConfig> heightConfigs, out bool saveSuccess)
     {
         saveSuccess = true;
@@ -163,6 +191,13 @@ public class SettingsIO_Height
         }
     }
 
+    /// <summary>
+    /// Saves a single height config. If it already has a path under the config directory, overwrites it;
+    /// otherwise derives a path from the label (when it is a valid filename) or prompts the user with a
+    /// save-file dialog. Writes to disk and may pop a UI dialog.
+    /// </summary>
+    /// <param name="heightConfig">The config to save.</param>
+    /// <param name="saveSuccess">Set true on success, false on save failure.</param>
     public void SaveHeightConfig(HeightConfig heightConfig, out bool saveSuccess)
     {
         saveSuccess = true;
