@@ -1009,6 +1009,33 @@ against the wrong (OBody) group set.
   that is a prefix of another can match the wrong line); `OBodyWriter._loadOrderCaseSensitive` is assigned but
   never read (dead). 💭
 
+### `AssetAndBodyShapeSelector.ClearStatusFlags` — 🐞 bug (complete no-op)
+
+[AssetAndBodyShapeSelector.cs:371](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L371) · This method
+does nothing: (1) `flags` is a **by-value** parameter, so reassigning it never reaches the caller; and (2)
+each line is `flags = ~BodyShapeSelectorStatusFlag.X`, which *replaces* `flags` with the complement of one
+flag (i.e. sets every other bit) rather than clearing that bit — and the three lines just overwrite each
+other. To actually clear bits it would need `flags &= ~X` on a `ref` parameter (or return the new value).
+Any caller relying on it to reset status flags is silently getting nothing.
+
+### Patcher core-logic items — 🐞 / 🔧 / 💭
+
+- `UpdateHandler` [:331](SynthEBD/Patcher/PatcherAux/UpdateHandler.cs#L331) — a migration does
+  `...FirstOrDefault(...).GroupedSubAttributes.First().Attribute as VM_NPCAttributeMod` with no null check on
+  the `FirstOrDefault`, so an unexpected settings shape NREs mid-migration. 🐞
+- `PatcherExt` [:202](SynthEBD/Patcher/PatcherAux/PatcherExt.cs#L202) — `recordsToDuplicate.Contains(dup)`
+  tests the freshly-created duplicate `Npc` against the original source enumerable by reference, so it is
+  ~always false and the guarded branch never fires (dead/ineffective condition). 🐞
+- `UniqueNPCData` [:97](SynthEBD/Patcher/PatcherAux/UniqueNPCData.cs#L97) —
+  `UniqueNameExclusions.Contains(npcName, StringComparer.CurrentCultureIgnoreCase)` uses the LINQ `Contains`
+  (O(n) scan, bypassing the HashSet's O(1) lookup) and a culture-sensitive comparer inconsistent with the
+  set's default-ordinal construction. Also heavy repeated triple-dictionary indexing
+  (`[name][race][gender]`) that a single `TryGetValue` chain would simplify. 🔧
+- `AttributeMatcher` — the per-sub-attribute `Not` handling
+  `(matched && !Not) || (!matched && Not)` is just `matched ^ Not`; `ResolveAllContexts<...>` is re-run per
+  sub-attribute per NPC (hot-path cost across the load order); `dynamic ==` string comparisons could be
+  `string.Equals`. All 🔧/💭, not correctness bugs.
+
 <!-- ENTRIES:Patcher -->
 
 ---

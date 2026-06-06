@@ -7,6 +7,10 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Mutagen extension helpers for the patcher. Currently provides the surrogate-NPC duplication
+/// routine used by <see cref="SurrogateNPCProvider"/> in SkyPatcher mode.
+/// </summary>
 public static class PatcherExt
 {
     /// <summary>
@@ -25,6 +29,17 @@ public static class PatcherExt
     /// surrogate NPC but point to the original records rather than remapped copies.
     /// This is safe because SkyPatcher resolves these references at runtime.
     /// </summary>
+    /// <param name="modToDuplicateInto">The output mod that receives the surrogate and duplicated sub-records.</param>
+    /// <param name="recordsToDuplicate">Source records to process. When <paramref name="onlyAppearance"/> is true these must be <see cref="INpcGetter"/>s.</param>
+    /// <param name="linkCache">Link cache used to resolve referenced records.</param>
+    /// <param name="modKeyToDuplicateFrom">The mod whose owned sub-records are duplicated; must differ from the output mod's key.</param>
+    /// <param name="mapping">By-ref original→duplicate FormKey map, populated here and applied via RemapLinks. Persists across calls.</param>
+    /// <param name="onlyAppearance">When true, build appearance-only surrogate NPC records rather than full duplicates.</param>
+    /// <param name="topLevelRemaps">By-ref map of original→surrogate FormKeys for the top-level records, for callers to locate the new records.</param>
+    /// <param name="blockedMods">Mods whose sub-records are referenced but not duplicated; the surrogate keeps the original FormKeys.</param>
+    /// <param name="typesToInspect">Unused passthrough type filter.</param>
+    /// <exception cref="ArgumentException">Thrown if the source mod key equals the output mod key, or a non-NPC record is passed with <paramref name="onlyAppearance"/>.</exception>
+    /// <exception cref="KeyNotFoundException">Thrown if an identified record cannot be resolved for duplication.</exception>
     public static void DuplicateFromOnlyReferencedNpcs<TMod, TModGetter>(
         this TMod modToDuplicateInto,
         IEnumerable<IMajorRecordGetter> recordsToDuplicate,

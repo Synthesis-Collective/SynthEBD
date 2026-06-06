@@ -4,6 +4,13 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Central matching engine that tests whether an NPC satisfies a set of <see cref="NPCAttribute"/>s —
+/// class, faction, keyword, race, voice type, face texture, source/winning-override mod, misc flags, attribute
+/// groups, and custom record-path queries. Honors allow/disallow ("Not"), Restrict vs. ForceIf forcing,
+/// per-attribute weighting, and recursive attribute groups. Used throughout the patcher to gate and weight
+/// asset/body/headpart/height assignments per NPC.
+/// </summary>
 public class AttributeMatcher
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -12,6 +19,7 @@ public class AttributeMatcher
     private readonly RecordPathParser _recordPathParser;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
     private readonly NPC2ProfileParser _npc2ProfileParser;
+    /// <summary>Captures the environment, patcher state, logger, record-path parser, and appearance-merge profile parsers used during matching.</summary>
     public AttributeMatcher(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, RecordPathParser recordPathParser, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser)
     {
         _environmentProvider = environmentProvider;
@@ -401,6 +409,16 @@ public class AttributeMatcher
         return;
     }
 
+    /// <summary>
+    /// Evaluates a custom record-path attribute: resolves the object(s) at the attribute's path on the NPC,
+    /// then tests them as text/integer/decimal/boolean/record against the attribute's value and comparator.
+    /// A match on any resolved object counts.
+    /// </summary>
+    /// <param name="npc">NPC to evaluate.</param>
+    /// <param name="attribute">The custom attribute (path, expected type, comparator, value).</param>
+    /// <param name="linkCache">Link cache used to resolve the path.</param>
+    /// <param name="dispMessage">Output: human-readable reason for a non-match (or empty on match).</param>
+    /// <returns>True if the NPC's value(s) at the path satisfy the comparator; false otherwise.</returns>
     public bool EvaluateCustomAttribute(INpcGetter npc, NPCAttributeCustom attribute, ILinkCache linkCache, out string dispMessage)
     {
         var resolvedObjects = new List<dynamic>();
@@ -560,6 +578,7 @@ public class AttributeMatcher
         }
     }
 
+    /// <summary>Applies a string comparator (=, !=, &lt;, &gt;, &lt;=, &gt;=) to two integers. Returns true on satisfaction, false with an explanatory <paramref name="dispMessage"/> otherwise.</summary>
     private static bool CompareResult(int toEval, int comparison, string comparator, out string dispMessage)
     {
         dispMessage = "";
@@ -588,6 +607,7 @@ public class AttributeMatcher
         }
     }
 
+    /// <summary>Applies a string comparator (=, !=, &lt;, &gt;, &lt;=, &gt;=) to two floats. Returns true on satisfaction, false with an explanatory <paramref name="dispMessage"/> otherwise.</summary>
     private static bool CompareResult(float toEval, float comparison, string comparator, out string dispMessage)
     {
         dispMessage = "";
@@ -616,6 +636,13 @@ public class AttributeMatcher
         }
     }
 
+    /// <summary>
+    /// Resolves which merged-appearance plugin (EasyNPC or NPC2) holds this NPC's merged record, per the
+    /// configured appearance-merge type. Used by Mod-type attribute matching to credit the original appearance
+    /// source when an appearance merger has consolidated it.
+    /// </summary>
+    /// <param name="mergeModKey">Output: the merge destination plugin, or null if none applies.</param>
+    /// <returns>True if a valid merge destination was found.</returns>
     private bool GetApperanceMergeDestinationMod(FormKey npcFormKey, out ModKey? mergeModKey)
     {
         mergeModKey = null;
@@ -639,6 +666,13 @@ public class AttributeMatcher
         return false;
     }
     
+    /// <summary>
+    /// Resolves the original appearance source plugin that the appearance merger (EasyNPC or NPC2) used for
+    /// this NPC's merged entry. Lets Mod-type attribute matching attribute the merged appearance back to its
+    /// true source plugin.
+    /// </summary>
+    /// <param name="appearanceModKey">Output: the original appearance source plugin, or null if none applies.</param>
+    /// <returns>True if a valid appearance source was found.</returns>
     private bool GetAppearanceMergeSourceMod(FormKey npcFormKey, out ModKey? appearanceModKey)
     {
         appearanceModKey = null;

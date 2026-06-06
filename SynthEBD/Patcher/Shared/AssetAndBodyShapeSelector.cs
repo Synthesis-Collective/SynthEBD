@@ -2,6 +2,14 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Coordinates choosing an asset-pack <see cref="SubgroupCombination"/> together with a body shape (BodyGen
+/// morphs or BodySlide presets) for an NPC. Because the chosen asset combination can impose body-shape
+/// constraints (and vice versa), this class drives the joint selection — including a decision tree that tries
+/// to keep an NPC's consistency body shape while finding a compatible combination. Called from the asset
+/// patching stage of the pipeline; delegates to <see cref="AssetSelector"/>, <see cref="BodyGenSelector"/>,
+/// and <see cref="OBodySelector"/>.
+/// </summary>
 public class AssetAndBodyShapeSelector
 {
     private readonly PatcherState _patcherState;
@@ -11,6 +19,7 @@ public class AssetAndBodyShapeSelector
     private readonly OBodySelector _oBodySelector;
     private readonly UniqueNPCData _uniqueNPCData;
 
+    /// <summary>Captures patcher state, logger, and the per-axis selectors used during joint selection.</summary>
     public AssetAndBodyShapeSelector(PatcherState patcherState, Logger logger, AssetSelector assetSelector, BodyGenSelector bodyGenSelector, OBodySelector oBodySelector, UniqueNPCData uniqueNPCData)
     {
         _patcherState = patcherState;
@@ -21,10 +30,14 @@ public class AssetAndBodyShapeSelector
         _uniqueNPCData = uniqueNPCData;
     }
 
+    /// <summary>Result of a joint asset + body-shape selection: the chosen asset combination plus whichever body-shape representation applies.</summary>
     public class AssetAndBodyShapeAssignment
     {
+        /// <summary>The chosen asset-pack subgroup combination (null if none assigned).</summary>
         public SubgroupCombination Assets { get; set; } = null;
+        /// <summary>BodyGen morphs assigned (empty unless in BodyGen mode).</summary>
         public List<BodyGenConfig.BodyGenTemplate> BodyGenMorphs { get; set; } = new();
+        /// <summary>BodySlide presets assigned (empty unless in BodySlide/OBody mode).</summary>
         public List<BodySlideSetting> BodySlidePresets { get; set; } = new(); 
     }
 
@@ -32,10 +45,15 @@ public class AssetAndBodyShapeSelector
     /// Assigns a SubgroupCombination to the given NPC
     /// If BodyGen integration is enabled, attempts to assign a morph that complies with the chosen combination's bodygen restrictions.
     /// </summary>
+    /// <param name="assetsAssigned">Output: true if a named asset combination was assigned.</param>
     /// <param name="bodyShapeAssigned">true if a BodyGen morph was able to be assigned. false if a morph could not be assigned and must be set independently of the SubgroupCombination</param>
     /// <param name="availableAssetPacks">Asset packs available to the current NPC</param>
+    /// <param name="bodyGenConfigs">Available BodyGen configs (used when in BodyGen mode).</param>
+    /// <param name="oBodySettings">OBody/BodySlide settings (used when in BodySlide mode).</param>
     /// <param name="npcInfo">NPC info class</param>
-    /// <returns></returns>
+    /// <param name="mode">Primary vs. mix-in/replacer assignment mode.</param>
+    /// <param name="previousAssignments">Combinations already assigned to this NPC, fed to body-shape selection for conflict avoidance.</param>
+    /// <returns>The chosen asset combination and body shape. Side effect: writes the chosen body shape into the NPC's consistency record when one was assigned.</returns>
     public AssetAndBodyShapeAssignment ChooseCombinationAndBodyShape(out bool assetsAssigned, out bool bodyShapeAssigned, HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment assignment = new AssetAndBodyShapeAssignment();
@@ -147,6 +165,15 @@ public class AssetAndBodyShapeSelector
         return assignment;
     }
 
+    /// <summary>
+    /// Generates an asset combination and a compatible body shape from scratch (when the NPC isn't inheriting
+    /// from a link group or same-name unique). Repeatedly draws candidate combinations and runs the
+    /// three-branch decision tree: accept the combination as-is when body shape is irrelevant or unconstrained,
+    /// retry to honor a consistency body shape, or fall back to the first valid combination/shape pair when no
+    /// fully consistent combination exists. Relaxes consistency filtering if it leaves no candidates. Writes
+    /// warnings to the log/report when an asset–body-shape rule conflict forces a re-randomized body shape.
+    /// </summary>
+    /// <returns>The chosen combination plus its body-shape morphs/presets.</returns>
     public AssetAndBodyShapeAssignment GenerateCombinationWithBodyShape(HashSet<FlattenedAssetPack> availableAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings, NPCInfo npcInfo, AssetSelector.AssetPackAssignmentMode mode, List<SubgroupCombination> previousAssignments)
     {
         AssetAndBodyShapeAssignment output = new();
@@ -331,6 +358,7 @@ public class AssetAndBodyShapeSelector
         return output;
     }
 
+    /// <summary>Status flags reported by body-shape selection, describing how the result relates to the NPC's consistency body shape.</summary>
     [Flags]
     public enum BodyShapeSelectorStatusFlag
     {
@@ -339,6 +367,7 @@ public class AssetAndBodyShapeSelector
         ConsistencyMorphIsInvalid = 4 // the consistency morph is no longer valid because its rule set no longer permits this NPC
     }
 
+    /// <summary>Clears the given status flags. Note: operates on the by-value parameter, so it does not affect the caller's variable.</summary>
     public static void ClearStatusFlags(BodyShapeSelectorStatusFlag flags)
     {
         flags = ~BodyShapeSelectorStatusFlag.NoneValidForNPC;

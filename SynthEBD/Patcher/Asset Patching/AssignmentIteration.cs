@@ -6,16 +6,28 @@ namespace SynthEBD;
 /// </summary>
 public class AssignmentIteration
 {
+    /// <summary>Initializes an empty iteration with no previously-generated combinations recorded.</summary>
     public AssignmentIteration()
     {
         PreviouslyGeneratedCombinations = new HashSet<string>();
     }
+    /// <summary>Seed subgroups still eligible to begin a combination; depleted as seeds are tried and rejected.</summary>
     public List<FlattenedSubgroup> AvailableSeeds { get; set; } = new();
+    /// <summary>The seed subgroup chosen for the current combination attempt.</summary>
     public FlattenedSubgroup ChosenSeed { get; set; } = null;
+    /// <summary>The asset pack the current combination is being built from (set by <see cref="ChooseSeedSubgroup"/>).</summary>
     public FlattenedAssetPack ChosenAssetPack { get; set; } = null;
+    /// <summary>Snapshot of the working asset pack at each subgroup index, enabling <see cref="BackTrack"/> to revert when a constraint fails.</summary>
     public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; } = new();
+    /// <summary>Signatures of combinations already produced this pass, used to avoid re-generating the same combination in an infinite loop.</summary>
     public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
+    /// <summary>
+    /// Picks a parent asset pack (weighted by its distribution probability) from the supplied seeds, then a
+    /// seed subgroup within that pack (weighted by the seed's probability). Sets <see cref="ChosenAssetPack"/>
+    /// and <see cref="ChosenSeed"/>; both remain null if no asset pack could be selected.
+    /// </summary>
+    /// <param name="availableSeeds">Candidate seed subgroups across all available asset packs.</param>
     public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds)
     {
         // 1. Collect all unique ParentAssetPack members from availableSeeds.
@@ -39,6 +51,16 @@ public class AssignmentIteration
         ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(seedsFromChosenPack);
     }
     
+    /// <summary>
+    /// Reverts the iteration to an earlier subgroup index when the current path can't be completed, optionally
+    /// removing the offending subgroup from the reverted state so it won't be retried. Mutates
+    /// <paramref name="iterationInfo"/>'s <see cref="ChosenAssetPack"/>.
+    /// </summary>
+    /// <param name="iterationInfo">The iteration state to roll back.</param>
+    /// <param name="toRemove">Subgroup to remove from the reverted asset pack at the target index, or null to remove nothing.</param>
+    /// <param name="currentIndex">The subgroup index currently being processed.</param>
+    /// <param name="steps">How many indices to step back.</param>
+    /// <returns>The index the caller's for-loop should resume from (one less than the revert target, since the loop re-increments).</returns>
     public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, int steps)
     {
         FlattenedAssetPack revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - steps];

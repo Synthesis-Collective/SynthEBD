@@ -11,6 +11,13 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Migrates user settings and bundled data forward across SynthEBD versions. On startup
+/// <see cref="CheckBackwardCompatibility"/> determines the last applied version and runs each intervening
+/// migration in order (cumulatively). Individual update routines may copy bundled record templates, fix race
+/// groupings/aliases, add attribute groups, and prompt the user via message windows. Operates on the
+/// settings view models, so it mutates in-memory settings and can pop UI dialogs.
+/// </summary>
 public class UpdateHandler // handles backward compatibility for previous SynthEBD versions
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -22,6 +29,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     private readonly VM_SettingsTexMesh _texMeshVM;
     private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
 
+    /// <summary>Captures the environment, paths, patcher state, IO helper, logger, settings VMs, and race-grouping factory used by the migrations.</summary>
     public UpdateHandler(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_RaceGrouping.Factory raceGroupingFactory)
     {
         _environmentProvider = environmentProvider;
@@ -34,6 +42,12 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         _raceGroupingFactory = raceGroupingFactory;
     }
 
+    /// <summary>
+    /// Entry point for version migration. Always runs asset-pack config updates, stamps a fresh install with
+    /// the current version, derives the last-applied version from legacy booleans if needed, then runs each
+    /// version's migration whose threshold exceeds the applied version (cumulatively). Finally stamps
+    /// LastAppliedVersion to the current version. Mutates settings and may show update dialogs.
+    /// </summary>
     public void CheckBackwardCompatibility()
     {
         UpdateAssetPacks(_texMeshVM); // always runs — handles its own internal config versioning
@@ -96,23 +110,28 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         return "0.0.0.0";
     }
 
+    /// <summary>Runs each asset pack's internal config-version update via the TexMesh VM. Always executed, independent of the version gate.</summary>
     private void UpdateAssetPacks(VM_SettingsTexMesh texMeshVM)
     {
         texMeshVM.ConfigUpdateAll(new());
     }
+    /// <summary>Deletes a stale SPID head-part distributor ini from a previous output run. Writes to disk.</summary>
     public void CleanSPIDiniHeadParts()
     {
         _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDHeadPartDistributor_DISTR.ini"), _logger);
     }
+    /// <summary>Deletes a stale SPID BodySlide distributor ini from a previous output run. Writes to disk.</summary>
     public void CleanSPIDiniOBody()
     {
         _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBDBodySlideDistributor_DISTR.ini"), _logger);
     }
+    /// <summary>Deletes the legacy BodySlideDict.json left by older versions. Writes to disk.</summary>
     public void CleanOldBodySlideDict()
     {
         _patcherIO.TryDeleteFile(Path.Combine(_paths.OutputDataFolder, "SynthEBD", "BodySlideDict.json"), _logger);
     }
 
+    /// <summary>v1.0.1.2: offers to add a recommended set of generic names to the linked-unique name exclusions. Prompts the user; may mutate settings.</summary>
     private void UpdateV1012(VM_Settings_General generalVM)
     {
         var missingNames = v1012UniqueNameExclusions.Where(x => !generalVM.LinkedNameExclusions.Select(y => y.Content).Contains(x)).ToHashSet();
@@ -126,6 +145,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.1.3: adds the "Humanoid Playable Non-Vampire" default race grouping if missing. Mutates settings.</summary>
     private void UpdateV1013(VM_Settings_General generalVM)
     {
         if (!generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == DefaultRaceGroupings.HumanoidPlayableNonVampire.Label).Any())
@@ -135,6 +155,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.1.3: copies the bundled 3BA and BHUNP record-template plugins into the record-templates folder if absent. Writes files; logs copy failures.</summary>
     private void UpdateV1013RecordTemplates()
     {
         string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources");
@@ -156,6 +177,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.1.6: adds the Housecarl faction to the default "Must Be Athletic" and "Must Be Muscular" attribute groups. Mutates settings.</summary>
     private void UpdateV1016AttributeGroups()
     {
         var athleticGroup = _generalVM.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.MustBeAthletic.Label).FirstOrDefault();
@@ -165,6 +187,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         UpdateV1016_Aux_AddFaction(muscularGroup);
     }
 
+    /// <summary>Helper for <see cref="UpdateV1016AttributeGroups"/>: adds the JobHousecarlFaction form key to the group's first faction sub-attribute if not already present. Mutates settings.</summary>
     private void UpdateV1016_Aux_AddFaction(VM_AttributeGroup? group)
     {
         if (group != null)
@@ -185,6 +208,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.1.8: copies the bundled "The New Gentleman" record-template plugin into the record-templates folder if absent. Writes files; logs copy failures.</summary>
     private void UpdateV1018RecordTemplates()
     {
         string defaultRecordTemplatesStartPath = Path.Combine(_environmentProvider.InternalDataPath, "FirstLaunchResources");
@@ -203,6 +227,11 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>
+    /// v1.0.2.5: detects "Humanoid Playable" race groupings (in general settings, asset-pack VMs, and asset-pack
+    /// models) that erroneously include Elder Race/Elder Race Vampire, and offers to remove them. Prompts the
+    /// user; may mutate settings.
+    /// </summary>
     private void UpdateV1025RaceGroupings()
     {
         List<VM_RaceGrouping> toUpdateVMs = new();
@@ -245,6 +274,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>Removes Elder Race and Elder Race Vampire form keys from the given race list, if present. Mutates the collection.</summary>
     private void RemoveEldersFromGrouping(ICollection<FormKey> raceGroupingList)
     {
         if (raceGroupingList.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey))
@@ -257,6 +287,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.2.8: if the legacy "Use Original EBD Scripts" toggle was left enabled by the old default, offers to disable it. Prompts the user; may mutate settings.</summary>
     private void UpdateV1028Toggle()
     {
         if (_texMeshVM.bLegacyEBDMode == true &&
@@ -266,6 +297,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.3.2: adds the "Charmers of the Reach Heads" default attribute group to general settings and each asset pack if missing. Mutates settings.</summary>
     private void UpdateV1032AttributeGroups()
     {
         if (!_patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
@@ -282,6 +314,11 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>
+    /// v1.0.4.8: fixes an erroneous Auri replacer mod key and adds "Gentle Auri.esp" in the CotR attribute
+    /// group, then offers to add the default Charmers of the Reach vanilla-race aliases that are not yet
+    /// present. Prompts the user; may mutate settings.
+    /// </summary>
     private void UpdateV1048RaceAliases()
     {
         // first update attribute group:
@@ -379,6 +416,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.5.3: offers to switch the CotR-heads attribute group's Mod-type attributes to the new "WinningAppearanceIsFrom" mode. Prompts the user; may mutate settings.</summary>
     private void UpdateV1053CotrAttributes()
     {
         List<VM_NPCAttributeMod> toUpdate = new();
@@ -430,6 +468,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>v1.0.6.8: shows an informational dialog describing new Script/NifEdit modes for face textures and head parts, and the removal of mandatory updates. Pops UI; no settings change.</summary>
     private void UpdateV1068()
     {
         MessageWindow.DisplayNotificationOK("Version 1.0.6.8 Update Notes",
@@ -453,6 +492,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
             """);
     }
 
+    /// <summary>v1.0.5.5: adds a set of additional CotR-related mod keys (MOS/Refined plugins) to the CotR-heads attribute group's Mod-type attributes. Mutates settings (no prompt).</summary>
     private void UpdateV1055CotrAttributes()
     {
         List<VM_NPCAttributeMod> toUpdate = new();
@@ -516,6 +556,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         }
     }
 
+    /// <summary>Legacy texture-path key remappings used to migrate v0.9-era asset paths to the current ".GivenPath" suffixed form.</summary>
     public Dictionary<string, string> V09PathReplacements { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "Diffuse", "Diffuse.GivenPath" },
@@ -525,6 +566,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         { "Height", "Height.GivenPath" }
     };
 
+    /// <summary>Recommended generic NPC names suggested for the linked-unique exclusion list by the v1.0.1.2 migration.</summary>
     public HashSet<string> v1012UniqueNameExclusions { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         "Courier",
@@ -540,6 +582,11 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     };
 }
 
+/// <summary>
+/// Persisted record (UpdateLog.json) of which version migrations have been applied. Going forward this is the
+/// single <see cref="LastAppliedVersion"/> string; the legacy per-update booleans are retained only for
+/// deserializing old files and one-time migration into <see cref="LastAppliedVersion"/>.
+/// </summary>
 public class UpdateLog
 {
     /// <summary>
