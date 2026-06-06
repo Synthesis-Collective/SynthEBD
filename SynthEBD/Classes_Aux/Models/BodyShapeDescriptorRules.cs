@@ -3,6 +3,11 @@ using Newtonsoft.Json;
 
 namespace SynthEBD;
 
+/// <summary>
+/// The allow/disallow rules attached to a body-shape descriptor (or other rule-bearing item): race and
+/// race-grouping filters, attribute filters, unique/non-unique flags, a weight range, and a probability
+/// weight. <see cref="NPCisValid"/> evaluates an NPC against these rules.
+/// </summary>
 public class BodyShapeDescriptorRules
 {
     public HashSet<FormKey> AllowedRaces { get; set; } = new();
@@ -20,6 +25,15 @@ public class BodyShapeDescriptorRules
     [JsonIgnore]
     public int MatchedForceIfCount { get; set; } = 0;
 
+    /// <summary>Evaluates whether an NPC satisfies a descriptor's rules (unique/non-unique, allowed/disallowed races, weight range, allowed/forced and disallowed attributes).</summary>
+    /// <param name="descriptor">The descriptor whose <see cref="BodyShapeDescriptorRules"/> are evaluated.</param>
+    /// <param name="attributeGroups">Named attribute groups referenced by the rules.</param>
+    /// <param name="npcInfo">The NPC under evaluation.</param>
+    /// <param name="attMatcher">Matcher used to evaluate attribute rules.</param>
+    /// <param name="bDetailedAttributeLogging">When true, produces verbose attribute-match logs.</param>
+    /// <param name="reportStr">Receives a human-readable reason for rejection, or a matched-forced-attribute note.</param>
+    /// <returns><c>true</c> if the NPC is allowed by the rules.</returns>
+    /// <remarks>Side effect: sets <c>descriptor.AssociatedRules.MatchedForceIfCount</c> to the number of matched ForceIf attributes, which downstream code uses to bias selection.</remarks>
     public bool NPCisValid(BodyShapeDescriptor descriptor, HashSet<AttributeGroup> attributeGroups, NPCInfo npcInfo, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr)
     {
         reportStr = "";
@@ -88,7 +102,9 @@ public class BodyShapeDescriptorRules
     }
 }
 
+/// <summary>Implemented by items that own a set of <see cref="BodyShapeDescriptorRules"/>.</summary>
 public interface IHasDescriptorRules
 {
+    /// <summary>The descriptor rule sets attached to this item.</summary>
     public HashSet<BodyShapeDescriptorRules> DescriptorRules { get; set; }
 }

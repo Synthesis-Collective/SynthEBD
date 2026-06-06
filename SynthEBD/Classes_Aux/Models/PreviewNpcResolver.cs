@@ -13,6 +13,9 @@ public class PreviewNpcResolver
     private readonly IEnvironmentStateProvider _env;
     private readonly Logger _logger;
 
+    /// <summary>Creates the resolver.</summary>
+    /// <param name="env">Supplies the load order and link cache.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public PreviewNpcResolver(IEnvironmentStateProvider env, Logger logger)
     {
         _env = env;
@@ -247,6 +250,9 @@ public class PreviewNpcResolver
         return null;
     }
 
+    /// <summary>Returns the NPC's gender from its configuration flags.</summary>
+    /// <param name="npc">The NPC record.</param>
+    /// <returns><see cref="Gender.Female"/> if the Female flag is set; otherwise <see cref="Gender.Male"/>.</returns>
     private static Gender GetGender(INpcGetter npc)
     {
         return npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)

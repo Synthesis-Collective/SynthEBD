@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// A serializable bundle of BodySlide settings (male/female presets, template descriptors, race
+    /// groupings, attribute groups) for exporting/importing OBody configuration between users.
+    /// </summary>
     public class BodySlideExchange
     {
         public List<BodySlideSetting> BodySlidesMale { get; set; } = new();

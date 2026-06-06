@@ -102,9 +102,11 @@ public static class BodyShapeDescriptorShellExtensions
 /// HashSet).</para></summary>
 public class BodyShapeDescriptorShellListConverter : JsonConverter
 {
+    /// <summary>Handles only <c>List&lt;BodyShapeDescriptorShell&gt;</c>.</summary>
     public override bool CanConvert(System.Type objectType)
         => objectType == typeof(List<BodyShapeDescriptorShell>);
 
+    /// <summary>Reads either the new grouped shell shape or the legacy flat descriptor shape (detected by an "ID" vs "Descriptors" property), migrating legacy data into shells.</summary>
     public override object? ReadJson(JsonReader reader, System.Type objectType, object? existingValue, JsonSerializer serializer)
     {
         if (reader.TokenType == JsonToken.Null) return new List<BodyShapeDescriptorShell>();
@@ -148,6 +150,7 @@ public class BodyShapeDescriptorShellListConverter : JsonConverter
         return result;
     }
 
+    /// <summary>Writes the current grouped shell shape via the default serializer.</summary>
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
         serializer.Serialize(writer, value);

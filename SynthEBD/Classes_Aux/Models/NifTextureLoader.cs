@@ -49,6 +49,9 @@ public class NifTextureLoader
     /// </summary>
     public TextureLoadStrategy LoadStrategy { get; set; } = TextureLoadStrategy.BmpStream;
 
+    /// <summary>Creates the loader.</summary>
+    /// <param name="assetResolver">Resolves game-relative asset paths to files on disk / in BSAs.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public NifTextureLoader(GameAssetResolver assetResolver, Logger logger)
     {
         _assetResolver = assetResolver;
@@ -214,6 +217,10 @@ public class NifTextureLoader
         return LoadDdsTextureViaPfim(relativeGamePath, resolved);
     }
 
+    /// <summary>Decodes a DDS via Pfim into BGRA pixels (handling Rgba32/Rgb24/Rgb8 source formats) and uploads it as a <see cref="TextureModel"/>.</summary>
+    /// <param name="relativeGamePath">Original game-relative path (for logging).</param>
+    /// <param name="resolved">Resolved on-disk path to the DDS.</param>
+    /// <returns>The texture model, or null on unsupported format / decode failure.</returns>
     private TextureModel? LoadDdsTextureViaPfim(string relativeGamePath, string resolved)
     {
         try

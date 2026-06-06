@@ -12,6 +12,9 @@ public class AttributeWeightModifier
     public NPCAttribute Attribute { get; set; } = new();
     public double Factor { get; set; } = 1.0; // multiplicative identity; a blank or unmatched modifier is a no-op
 
+    /// <summary>Deep-clones a modifier, cloning its inner attribute, for safe duplication.</summary>
+    /// <param name="input">The modifier to clone.</param>
+    /// <returns>A new, independent <see cref="AttributeWeightModifier"/>.</returns>
     public static AttributeWeightModifier CloneAsNew(AttributeWeightModifier input) => new()
     {
         Attribute = NPCAttribute.CloneAsNew(input.Attribute),

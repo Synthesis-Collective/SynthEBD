@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Filter criteria selecting which NPCs receive a detailed verbose report — by allowed/disallowed
+    /// races and race groupings, allowed/disallowed attributes, unique/non-unique status, and weight range.
+    /// </summary>
     public class DetailedReportNPCSelector
     {
         public HashSet<FormKey> AllowedRaces { get; set; } = new();

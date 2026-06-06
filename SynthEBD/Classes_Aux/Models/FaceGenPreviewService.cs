@@ -28,6 +28,12 @@ public class FaceGenPreviewService : IDisposable
     private readonly object _bsaLoadLock = new();
     private bool _bsaIndexLoaded;
 
+    /// <summary>Creates the service, resolving the temp preview-output root under %TEMP%.</summary>
+    /// <param name="faceGenPatcher">The patcher used to bake preview FaceGen NIFs.</param>
+    /// <param name="npcInfoFactory">Factory for building the <see cref="NPCInfo"/> the patcher needs.</param>
+    /// <param name="patcherState">Patcher state (for linked-NPC groups).</param>
+    /// <param name="environmentProvider">Supplies the link cache.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public FaceGenPreviewService(
         FaceGenPatcher faceGenPatcher,
         NPCInfo.Factory npcInfoFactory,
@@ -139,6 +145,7 @@ public class FaceGenPreviewService : IDisposable
         return outputPath;
     }
 
+    /// <summary>Lazily loads the FaceGen BSA index cache once (double-checked under a lock) so preview generation can find vanilla FaceGen assets.</summary>
     private void EnsureBsaIndexLoaded()
     {
         if (_bsaIndexLoaded) return;
@@ -157,6 +164,7 @@ public class FaceGenPreviewService : IDisposable
         }
     }
 
+    /// <summary>Deletes the temp preview-output directory and all generated preview NIFs.</summary>
     public void Dispose()
     {
         try

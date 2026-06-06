@@ -15,12 +15,17 @@ public class NpcMeshResolver
     private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
 
+    /// <summary>Creates the resolver.</summary>
+    /// <param name="logger">Character-viewer logger for diagnostics.</param>
+    /// <param name="logGate">Gate controlling whether verbose messages are emitted.</param>
     public NpcMeshResolver(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;
     }
 
+    /// <summary>Logs a message only when verbose logging is enabled on the log gate.</summary>
+    /// <param name="message">The message to log.</param>
     private void LogVerbose(string message)
     {
         if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
@@ -276,6 +281,11 @@ public class NpcMeshResolver
         };
     }
 
+    /// <summary>Resolves the armor that provides the NPC's skin meshes: the NPC's WornArmor, falling back to its Race.Skin.</summary>
+    /// <param name="npcGetter">The NPC record.</param>
+    /// <param name="linkCache">Link cache for resolution.</param>
+    /// <param name="npcName">Display name for logging.</param>
+    /// <returns>The resolved armor and a source label for the resolution chain, or (null, "(none)") when neither resolves.</returns>
     private (IArmorGetter? armor, string source) ResolveWornArmor(INpcGetter npcGetter, ILinkCache linkCache, string npcName)
     {
         // Primary: NPC.WornArmor
@@ -330,6 +340,10 @@ public class NpcMeshResolver
         return false;
     }
 
+    /// <summary>Returns the gender-appropriate WorldModel mesh path for an armature, normalized to a Data-relative path (with a "meshes\" prefix).</summary>
+    /// <param name="armaGetter">The armature (ARMA) record.</param>
+    /// <param name="gender">Which gendered WorldModel to read.</param>
+    /// <returns>The mesh path, or null when the armature has no usable model for the gender.</returns>
     private static string? GetWorldModelPath(IArmorAddonGetter armaGetter, Gender gender)
     {
         if (armaGetter.WorldModel == null)
@@ -426,6 +440,9 @@ public class NpcMeshResolver
         return result;
     }
 
+    /// <summary>Builds the conventional FaceGen geometry NIF path for an NPC from its FormKey.</summary>
+    /// <param name="formKey">The NPC's FormKey.</param>
+    /// <returns>A Data-relative path like <c>meshes\actors\character\FaceGenData\FaceGeom\{plugin}\{formID}.nif</c>.</returns>
     private static string BuildFaceGenPath(FormKey formKey)
     {
         // Skyrim FaceGen NIF convention:
@@ -435,6 +452,9 @@ public class NpcMeshResolver
         return "meshes\\actors\\character\\FaceGenData\\FaceGeom\\" + plugin + "\\" + formId + ".nif";
     }
 
+    /// <summary>Builds the conventional FaceTint DDS path for an NPC from its FormKey.</summary>
+    /// <param name="formKey">The NPC's FormKey.</param>
+    /// <returns>A Data-relative path like <c>textures\actors\character\FaceGenData\FaceTint\{plugin}\{formID}.dds</c>.</returns>
     private static string BuildFaceTintPath(FormKey formKey)
     {
         // Skyrim FaceTint DDS convention:
@@ -483,6 +503,9 @@ public class NpcMeshResolver
         return path;
     }
 
+    /// <summary>Returns the NPC's gender from its configuration flags.</summary>
+    /// <param name="npc">The NPC record.</param>
+    /// <returns><see cref="Gender.Female"/> if the Female flag is set; otherwise <see cref="Gender.Male"/>.</returns>
     private static Gender GetGender(INpcGetter npc)
     {
         return npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)

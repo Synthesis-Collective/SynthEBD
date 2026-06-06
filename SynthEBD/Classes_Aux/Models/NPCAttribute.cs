@@ -14,17 +14,27 @@ using System.Diagnostics;
 namespace SynthEBD;
 
 // Each NPCAttribute within a HashSet<NPC> Attribute is treated with OR logic; i.e. if an NPC matches ANY of the NPCAttributes, the NPCAttribute's parent object can be assigned to the NPC
+/// <summary>
+/// One NPC-matching condition: a set of typed sub-attributes combined with AND logic (an NPC matches
+/// only if it matches every <see cref="ITypedNPCAttribute"/> in <see cref="SubAttributes"/>). Owners
+/// combine collections of NPCAttribute with OR logic.
+/// </summary>
 [DebuggerDisplay("Attribute with {SubAttributes.Count} Sub-Attributes (AND logic)")]
 public class NPCAttribute
 {
     public HashSet<ITypedNPCAttribute> SubAttributes { get; set; } = new(); // AND Logic
 
+    /// <summary>Value equality against another <see cref="NPCAttribute"/>.</summary>
     public override bool Equals(object? obj)
     {
         NPCAttribute otherAttribute = obj as NPCAttribute;
         return otherAttribute != null && this.Equals(otherAttribute);
     }
 
+    /// <summary>Determines whether two NPCAttributes have the same set of sub-attributes.</summary>
+    /// <param name="other">The attribute to compare against.</param>
+    /// <returns><c>true</c> if the sub-attribute sets match.</returns>
+    /// <remarks>Compares the sub-attributes positionally after <c>ToArray()</c>; because <see cref="SubAttributes"/> is an unordered <see cref="HashSet{T}"/>, this can report inequality for equal sets in different enumeration order — see review notes.</remarks>
     public bool Equals(NPCAttribute other)
     {
         var thisArray = this.SubAttributes.ToArray();
@@ -41,6 +51,7 @@ public class NPCAttribute
         return true;
     }
 
+    /// <summary>Order-independent hash over the sub-attributes (consistent with <see cref="Equals(NPCAttribute)"/>).</summary>
     public override int GetHashCode()
     {
         bool first = true;
@@ -60,6 +71,12 @@ public class NPCAttribute
         return hashCode;
     }
 
+    /// <summary>Resolves an attribute group by label, preferring the main settings' groups (when override is enabled) and falling back to plugin-supplied definitions.</summary>
+    /// <param name="label">The group label to find.</param>
+    /// <param name="groupDefinitions">Plugin-supplied group definitions (fallback).</param>
+    /// <param name="patcherState">Patcher state holding the main group definitions and the override flag.</param>
+    /// <param name="logger">Logger used when the group cannot be found.</param>
+    /// <returns>The matching <see cref="AttributeGroup"/>, or null if none is found.</returns>
     public static AttributeGroup GetAttributeGroupByLabel(string label, HashSet<AttributeGroup> groupDefinitions, PatcherState patcherState, Logger logger)
     {
         if (patcherState.GeneralSettings.OverwritePluginAttGroups)
@@ -81,6 +98,9 @@ public class NPCAttribute
         return null;
     }
 
+    /// <summary>Deep-clones an NPCAttribute, cloning each sub-attribute via the typed <see cref="CloneAsNew(ITypedNPCAttribute)"/> factory.</summary>
+    /// <param name="input">The attribute to clone.</param>
+    /// <returns>A new NPCAttribute with cloned sub-attributes.</returns>
     public static NPCAttribute CloneAsNew(NPCAttribute input)
     {
         NPCAttribute output = new NPCAttribute();
@@ -91,11 +111,19 @@ public class NPCAttribute
         return output;
     }
 
+    /// <summary>Renders the attribute as "{sub AND sub AND ...}" for logs.</summary>
+    /// <param name="bDetailedAttributes">When true, resolves FormKeys to names/EditorIDs.</param>
+    /// <param name="linkCache">Link cache for name resolution.</param>
+    /// <returns>A human-readable representation.</returns>
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
     {
         return "{" + string.Join(" AND ", SubAttributes.Select(x => x.ToLogString(bDetailedAttributes, linkCache))) + "}";
     }
 
+    /// <summary>Type-dispatching factory that clones any <see cref="ITypedNPCAttribute"/> by delegating to the concrete type's <c>CloneAsNew</c>.</summary>
+    /// <param name="inputInterface">The sub-attribute to clone.</param>
+    /// <returns>A new sub-attribute of the same concrete type, or null for an unknown type.</returns>
+    /// <remarks>Must be kept in sync with <see cref="NPCAttributeType"/> and the JSON attribute converter whenever a new attribute type is added (see the file header comment).</remarks>
     public static ITypedNPCAttribute CloneAsNew(ITypedNPCAttribute inputInterface)
     {
         switch(inputInterface.Type)
@@ -119,6 +147,10 @@ public class NPCAttribute
     // Parent has attributes (A && B) || (C && D)
     // Child has attributes (E && F) || (G && H)
     // After inheriting, child will have attributes (A && B && E && F) || (A && B && G && H) || (C && D && E && F) || (C && D && G && H)
+    /// <summary>Merges two OR-sets of attributes by distributing AND across them: each parent OR-term is combined with each child OR-term into a new AND-combined term.</summary>
+    /// <param name="inheritFrom">The parent attribute set.</param>
+    /// <param name="inherits">The child attribute set.</param>
+    /// <returns>The cartesian AND-merge; or whichever input is non-empty when the other is empty.</returns>
     public static HashSet<NPCAttribute> InheritAttributes(HashSet<NPCAttribute> inheritFrom, HashSet<NPCAttribute> inherits)
     {
         var mergedAttributes = new HashSet<NPCAttribute>();
@@ -157,6 +189,11 @@ public class NPCAttribute
         return mergedAttributes;
     }
 
+    /// <summary>Resolves a FormKey to a display string (preferring Name, then EditorID, then the raw key) for record types that expose a name.</summary>
+    /// <typeparam name="T">A named major-record getter type.</typeparam>
+    /// <param name="fk">The FormKey to resolve.</param>
+    /// <param name="linkCache">Link cache for resolution.</param>
+    /// <returns>The record's name/EditorID, or the FormKey string when unresolved.</returns>
     public static string FormKeyToLogStringNamed<T>(FormKey fk, ILinkCache linkCache) where T: class, IMajorRecordGetter, INamedGetter
     {
         string output = fk.ToString();
@@ -174,6 +211,11 @@ public class NPCAttribute
         return output;
     }
 
+    /// <summary>Resolves a FormKey to its EditorID (or the raw key) for record types without a name.</summary>
+    /// <typeparam name="T">A major-record getter type.</typeparam>
+    /// <param name="fk">The FormKey to resolve.</param>
+    /// <param name="linkCache">Link cache for resolution.</param>
+    /// <returns>The record's EditorID, or the FormKey string when unresolved.</returns>
     public static string FormKeyToLogStringUnnamed<T>(FormKey fk, ILinkCache linkCache) where T : class, IMajorRecordGetter
     {
         string output = fk.ToString();
@@ -185,36 +227,59 @@ public class NPCAttribute
     }
 }
 
+/// <summary>The kind of NPC property an <see cref="ITypedNPCAttribute"/> matches against (also the serialization discriminator).</summary>
 public enum NPCAttributeType
 {
+    /// <summary>NPC Class record.</summary>
     Class,
+    /// <summary>Custom record-path comparison.</summary>
     Custom,
+    /// <summary>Head FaceTexture (texture set).</summary>
     FaceTexture,
+    /// <summary>Faction membership (with rank range).</summary>
     Faction,
+    /// <summary>A referenced attribute group.</summary>
     Group,
+    /// <summary>Keyword.</summary>
     Keyword,
+    /// <summary>Miscellaneous flags/traits.</summary>
     Misc,
+    /// <summary>Mod provenance.</summary>
     Mod,
+    /// <summary>A specific NPC.</summary>
     NPC,
+    /// <summary>Race.</summary>
     Race,
+    /// <summary>Voice type.</summary>
     VoiceType
 }
+/// <summary>Value kind for a <see cref="NPCAttributeCustom"/> condition.</summary>
 public enum CustomAttributeType // moved outside of NPCAttributeCustom so that it can be visible to UC_NPCAttributeCustom's View binding
 {
+    /// <summary>String comparison.</summary>
     Text,
+    /// <summary>Integer comparison.</summary>
     Integer,
+    /// <summary>Decimal comparison.</summary>
     Decimal,
+    /// <summary>Boolean comparison.</summary>
     Boolean,
+    /// <summary>Record (FormKey) comparison.</summary>
     Record
 }
 
+/// <summary>How a matched attribute influences selection: restrict eligibility, force selection, or both.</summary>
 public enum AttributeForcing
 {
+    /// <summary>The attribute only restricts which items may be selected.</summary>
     Restrict,
+    /// <summary>If matched, forces selection of the carrying item.</summary>
     ForceIf,
+    /// <summary>Both forces selection when matched and restricts otherwise.</summary>
     ForceIfAndRestrict
 }
 
+/// <summary>Matches NPCs whose Class record is among <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeClass : ITypedNPCAttribute
 {
@@ -260,6 +325,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
+    /// <summary>Returns a copy of the given attribute (for safe duplication in the UI). See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
         var output = new NPCAttributeClass();
@@ -289,6 +355,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs by a custom record-path comparison: the value at <see cref="Path"/> compared (per <see cref="CustomType"/> and <see cref="Comparator"/>) against <see cref="ValueStr"/> or <see cref="ValueFKs"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeCustom : ITypedNPCAttribute
 {
@@ -355,6 +422,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
         }
         return false;
     }
+    /// <summary>Returns a copy of the given attribute (deep-copies the Record FormKey set; copies the scalar value otherwise).</summary>
     public static NPCAttributeCustom CloneAsNew(NPCAttributeCustom input)
     {
         var output = new NPCAttributeCustom();
@@ -400,6 +468,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs belonging to any faction in <see cref="FormKeys"/> within the <see cref="RankMin"/>–<see cref="RankMax"/> rank range.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeFactions : ITypedNPCAttribute
 {
@@ -450,6 +519,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeFactions CloneAsNew(NPCAttributeFactions input)
     {
         var output = new NPCAttributeFactions();
@@ -481,6 +551,7 @@ public class NPCAttributeFactions : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs whose head FaceTexture (texture set) is among <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeFaceTexture : ITypedNPCAttribute
 {
@@ -526,6 +597,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
         var output = new NPCAttributeFaceTexture();
@@ -555,6 +627,7 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs carrying any of the keywords in <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeKeyword : ITypedNPCAttribute
 {
@@ -600,6 +673,7 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeKeyword CloneAsNew(NPCAttributeKeyword input)
     {
         var output = new NPCAttributeKeyword();
@@ -629,6 +703,7 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs of any race in <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeRace : ITypedNPCAttribute
 {
@@ -673,6 +748,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
         var output = new NPCAttributeRace();
@@ -702,6 +778,7 @@ public class NPCAttributeRace : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs by miscellaneous flags/traits (unique, essential, protected, summonable, ghost, invulnerable) and optionally mood, aggression, and gender.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeMisc : ITypedNPCAttribute
 {
@@ -786,6 +863,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
             Not.GetHashCode();
 }
 
+    /// <summary>Returns a copy of the given attribute. Note: several fields (Mood, Aggression, gender, Not) are not copied — see review notes.</summary>
     public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)
     {
         var output = new NPCAttributeMisc();
@@ -825,6 +903,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs by mod provenance — created/patched/winning-override/winning-appearance from any of <see cref="ModKeys"/>, per <see cref="ModActionType"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeMod : ITypedNPCAttribute
 {
@@ -871,6 +950,7 @@ public class NPCAttributeMod : ITypedNPCAttribute
     {
         return !ModKeys.Any();
     }
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeMod CloneAsNew(NPCAttributeMod input)
     {
         var output = new NPCAttributeMod();
@@ -893,6 +973,7 @@ public class NPCAttributeMod : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches specific NPCs by FormKey (<see cref="FormKeys"/>).</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeNPC : ITypedNPCAttribute
 {
@@ -937,6 +1018,7 @@ public class NPCAttributeNPC : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
         var output = new NPCAttributeNPC();
@@ -966,6 +1048,7 @@ public class NPCAttributeNPC : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs whose voice type is among <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeVoiceType : ITypedNPCAttribute
 {
@@ -1010,6 +1093,7 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
         var output = new NPCAttributeVoiceType();
@@ -1039,6 +1123,7 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     }
 }
 
+/// <summary>Matches NPCs that satisfy any of the attribute groups named in <see cref="SelectedLabels"/> (resolved by label at match time).</summary>
 [DebuggerDisplay("{DebuggerString}")]
 public class NPCAttributeGroup : ITypedNPCAttribute
 {
@@ -1084,6 +1169,9 @@ public class NPCAttributeGroup : ITypedNPCAttribute
             Not.GetHashCode();
     }
 
+    /// <summary>Order-independent hash for a set of group labels.</summary>
+    /// <param name="e">The labels to hash.</param>
+    /// <returns>A hash identical for any two collections with the same label set.</returns>
     public static int ComparableSetHashCode(IEnumerable<string> e)
     {
         bool first = true;
@@ -1107,6 +1195,7 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     {
         return !SelectedLabels.Any();
     }
+    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
     public static NPCAttributeGroup CloneAsNew(NPCAttributeGroup input)
     {
         var output = new NPCAttributeGroup();
@@ -1129,19 +1218,34 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     }
 }
 
+/// <summary>
+/// Common contract for the typed sub-attributes that make up an <see cref="NPCAttribute"/> — each matches
+/// a specific NPC property (class, faction, keyword, race, mod provenance, etc.). Implementations supply
+/// value equality, a hash, blank detection, a log rendering, and the shared forcing/weighting/negation knobs.
+/// </summary>
 public interface ITypedNPCAttribute
 {
+    /// <summary>The attribute kind (discriminator for serialization and dispatch).</summary>
     NPCAttributeType Type { get; set; }
+    /// <summary>Value equality against another typed attribute of the same kind.</summary>
     bool Equals(ITypedNPCAttribute other);
+    /// <summary>Hash consistent with <see cref="Equals(ITypedNPCAttribute)"/>.</summary>
     int GetHashCode();
+    /// <summary>Whether this attribute is empty/unconfigured (and should be ignored or flagged).</summary>
     bool IsBlank();
+    /// <summary>How a match forces/restricts selection.</summary>
     public AttributeForcing ForceMode { get; set; }
+    /// <summary>Relative weight applied when this attribute participates in weighted selection.</summary>
     public int Weighting { get; set; }
+    /// <summary>When true, the match condition is negated.</summary>
     public bool Not { get; set; }
+    /// <summary>Renders the attribute for logs.</summary>
     public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
+    /// <summary>Debugger display string.</summary>
     public string DebuggerString { get; }
 }
 
+/// <summary>A named, reusable set of <see cref="NPCAttribute"/>s referenced by label (via <see cref="NPCAttributeGroup"/>).</summary>
 [DebuggerDisplay("{Label}")]
 public class AttributeGroup : IHasLabel
 {
@@ -1149,17 +1253,26 @@ public class AttributeGroup : IHasLabel
     public HashSet<NPCAttribute> Attributes { get; set; } = new();
 }
 
+/// <summary>A tri-state flag filter: ignore the flag, require it set, or require it unset.</summary>
 public enum ThreeWayState
 {
+    /// <summary>Do not consider this flag.</summary>
     Ignore,
+    /// <summary>Require the flag to be set.</summary>
     Is,
+    /// <summary>Require the flag to be unset.</summary>
     IsNot
 }
 
+/// <summary>How a <see cref="NPCAttributeMod"/> relates an NPC record to a mod.</summary>
 public enum ModAttributeEnum
 {
+    /// <summary>The NPC record was originally created by the mod.</summary>
     CreatedBy,
+    /// <summary>The mod provides an override of the NPC record.</summary>
     PatchedBy,
+    /// <summary>The mod is the winning override of the NPC record.</summary>
     WinningOverrideIsFrom,
+    /// <summary>The mod is the winning appearance (visual) override of the NPC record.</summary>
     WinningAppearanceIsFrom
 }

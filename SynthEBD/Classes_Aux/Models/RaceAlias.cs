@@ -2,6 +2,11 @@
 
 namespace SynthEBD;
 
+/// <summary>
+/// Redirects one race to another for assignment purposes (an NPC of <see cref="Race"/> is treated as
+/// <see cref="AliasRace"/>), scoped by sex and by which assignment axes (assets/bodygen/height/headparts)
+/// the alias applies to.
+/// </summary>
 public class RaceAlias
 {
     public FormKey Race { get; set; } = new();

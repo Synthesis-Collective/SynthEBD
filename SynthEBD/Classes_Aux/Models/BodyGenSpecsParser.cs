@@ -59,6 +59,11 @@ public static class BodyGenSpecsParser
         return merged;
     }
 
+    /// <summary>Parses one BodyGen Specs string into a virtual <see cref="BodySlideSetting"/>, mapping each "Slider@Value" or "Slider@Low:High" entry to Big/Small slider deltas.</summary>
+    /// <param name="specs">The Specs string to parse.</param>
+    /// <param name="sliderGroup">Slider group to stamp on the resulting preset.</param>
+    /// <param name="errors">Receives messages for any malformed entries (which are skipped).</param>
+    /// <returns>A preset whose slider values encode the template (single values collapse to Big==Small).</returns>
     public static BodySlideSetting Parse(string specs, string sliderGroup, out List<string> errors)
     {
         errors = new List<string>();

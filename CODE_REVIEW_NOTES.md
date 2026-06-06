@@ -397,3 +397,107 @@ descriptor list) would collapse most of this file. High-value, low-risk cleanup.
   `GroupBy(x => x.Label)` pass would be clearer. 🔧
 
 ---
+
+## Classes_Aux (models)
+
+*Core data models — POCO settings carriers plus heavier descriptor/attribute models and the
+preview/mesh/texture services. Reviewed before their view models and views.*
+
+### `RaceGrouping.MergeRaceAndGroupingList` — 🔧 modernize + 💭
+
+[RaceGrouping.cs:12](SynthEBD/Classes_Aux/Models/RaceGrouping.cs#L12) · Carries a stale uncertainty
+comment ("this might need to work - might need to convert to string. Be sure to validate.") that reads
+like a note-to-self left in shipped code. The body also builds a `HashSet<HashSet<FormKey>>` and unions
+in a loop; it collapses to one expression:
+`indivRaceList.Concat(raceGroupingList.Where(g => selected.Contains(g.Label)).SelectMany(g => g.Races)).ToHashSet()`.
+
+*(The remaining small POCOs in this folder — Gender, TrimPath, AdditionalRecordTemplate, LinkedNPCGroup,
+RaceAlias, HeadPartConsistency, BodySlideExchange, DetailedReportNPCSelector — are clean data carriers
+with nothing to flag.)*
+
+### `BodyShapeDescriptorRules.NPCisValid` — 💭 opinion (hidden side effect)
+
+[BodyShapeDescriptorRules.cs:23](SynthEBD/Classes_Aux/Models/BodyShapeDescriptorRules.cs#L23) · A
+method named `...isValid` that returns a bool also **mutates** `descriptor.AssociatedRules.MatchedForceIfCount`
+as a side effect (read later by selection code). It works, but a predicate-named method with a write is
+a readability trap — worth either renaming or returning the count explicitly. Minor: the
+`AllowedAttributes` field comment says "keeping as array" but the type is a `HashSet` (stale wording).
+
+*(The newer files in this tier — SliderCategoryCatalog, SubgroupTextureMapper, BodyGenSpecsParser,
+BodyShapeDescriptorShell, NifPreviewNpcSettings — are already thoroughly documented and cleanly written;
+this pass only filled a few gaps.)*
+
+### `BodyShapeDescriptor` — 🔧 modernize (minor)
+
+[BodyShapeDescriptor.cs:38](SynthEBD/Classes_Aux/Models/BodyShapeDescriptor.cs#L38) · The two `MapsTo`
+methods (and `Equals`) use `obj is X` followed by `obj as X` — pattern matching
+(`if (obj is BodyShapeDescriptor other)`) does both in one step. The two `MapsTo` implementations
+(descriptor vs signature) are near-identical and could share a helper. `using
+Synthesis.Bethesda.Execution.DotNet;` ([:2](SynthEBD/Classes_Aux/Models/BodyShapeDescriptor.cs#L2)) looks
+like a stray import (nothing uses it), and `GetHashCode` could use `HashCode.Combine`. All cosmetic.
+
+### `NPCAttribute*.CloneAsNew` — 🐞 possible bug (shallow copy + dropped fields)
+
+[NPCAttribute.cs:263](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L263) (and the other 10) · Most
+`CloneAsNew` factories assign the collection by reference — `output.FormKeys = input.FormKeys;` — so
+the "clone" shares the *same* `HashSet` as the original; mutating one mutates the other. Only
+`NPCAttributeCustom` deep-copies (and only its Record branch). Separately, several clones **drop
+fields**: every type omits `Not`, and `NPCAttributeMisc.CloneAsNew`
+([:789](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L789)) omits `Mood`, `Aggression`, `EvalGender`,
+and `NPCGender`. If these are used for UI "duplicate" actions, the duplicate silently diverges.
+
+### `NPCAttribute.Equals(NPCAttribute)` — 🐞 possible bug (order-dependent set compare)
+
+[NPCAttribute.cs:28](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L28) · Compares `SubAttributes` by
+`ToArray()` then index-by-index, but `SubAttributes` is an unordered `HashSet`. Two attributes with the
+same sub-attributes enumerated in different order would compare unequal (and, paired with the XOR
+`GetHashCode`, could land in a set inconsistently). Use `SetEquals`, or order both sides the same way
+the hash does.
+
+### `NPCAttributeCustom.GetHashCode` — 🐞 possible NRE
+
+[NPCAttribute.cs:333](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L333) · Calls
+`Comparator.GetHashCode()`, but `Comparator` has no default and can be null (unlike the other string
+fields it's not initialized to `""`). A null `Comparator` throws inside `GetHashCode`. Use
+`Comparator?.GetHashCode() ?? 0` (or `HashCode.Combine`).
+
+### `NPCAttribute` family duplication — 🔧 modernize (headline)
+
+The 11 `NPCAttribute*` classes are ~90% identical boilerplate. The six FormKey-based ones (Class,
+FaceTexture, Keyword, Race, NPC, VoiceType) differ only in `Type`, the log label, and the getter type
+passed to `FormKeyToLogString*`. A generic base (e.g. `NPCAttributeFormKeyBase<TGetter>` carrying
+`FormKeys`/`Type`/`ForceMode`/`Weighting`/`Not` + shared `Equals`/`GetHashCode`/`IsBlank`/`CloneAsNew`)
+would remove hundreds of lines and eliminate the per-class clone bugs above in one place. This is the
+single biggest cleanup opportunity in the models folder. *(Because the members are pure interface
+boilerplate, this pass documented the `ITypedNPCAttribute` contract once plus each class's summary and
+`CloneAsNew`, rather than 55 redundant per-member copies — say the word if you'd prefer `<inheritdoc/>`
+on every implementation.)*
+
+### `NPCAttribute` smaller items — 🔧 / 💭
+
+- The XOR set-hash helpers (`NPCAttribute.GetHashCode`, `NPCAttributeGroup.ComparableSetHashCode`)
+  repeat the redundant `first`-flag pattern from `FormKeyHashSetComparer`; XOR is commutative so the
+  `OrderBy` in `NPCAttribute.GetHashCode` ([:48](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L48)) is
+  wasted. 🔧
+- Adding a new attribute type requires manually updating three places that can silently drift: the
+  `CloneAsNew` switch ([:101](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L101)), the file-header
+  comment's `JSONhandler.AttributeConverter`, and `NPCAttributeType`. A registry/dictionary keyed by
+  type would make this single-source. 💭
+- `NPCAttributeMisc.GetHashCode` closing brace ([:787](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L787))
+  is indented to column 0. Cosmetic. 💭
+
+### Preview / mesh services — 💭 mostly clean
+
+`FaceGenPreviewService`, `PreviewNpcResolver`, `NpcMeshResolver`, and `NifTextureLoader` are recent
+CharacterViewer code, already thoroughly documented and cleanly written; this pass only filled
+constructor / private-helper gaps. Two minor items:
+
+- `NifTextureLoader.LoadDdsTextureViaPfim` and `LoadDdsPixels`
+  ([NifTextureLoader.cs:217](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L217),
+  [:403](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L403)) duplicate the same Pfim
+  Rgba32/Rgb24/Rgb8 → BGRA decode switch; a shared `DecodeToBgra` helper would remove the copy. 🔧
+- `NifTextureLoader.CreateTextureModelViaBmp`
+  ([:683](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L683)) actually encodes **PNG** (its own doc
+  says so, to preserve alpha) — the "Bmp" in the name is a leftover and misleads. 💭
+
+---
