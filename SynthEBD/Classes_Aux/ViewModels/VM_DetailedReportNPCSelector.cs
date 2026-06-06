@@ -13,6 +13,11 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the detailed-report NPC filter: allowed/disallowed races, race groupings, and
+    /// attributes, plus unique/non-unique flags and a weight range. Round-trips to/from
+    /// <see cref="DetailedReportNPCSelector"/>.
+    /// </summary>
     public class VM_DetailedReportNPCSelector : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -20,7 +25,14 @@ namespace SynthEBD
         private readonly VM_NPCAttributeCreator _attributeCreator;
         private readonly VM_AttributeGroupMenu _generalSettingsAttGroupMenu;
         private readonly VM_RaceGroupingEditor _generalSettingsRaceGroupingEditor;
+        /// <summary>Autofac factory delegate for constructing the selector with the general-settings attribute/race-grouping editors.</summary>
         public delegate VM_DetailedReportNPCSelector Factory(VM_AttributeGroupMenu generalSettingsAttGroupMenu, VM_RaceGroupingEditor generalSettingsRaceGroupingEditor);
+        /// <summary>Creates the selector, wiring the allowed/disallowed race-grouping checkbox lists and add-attribute commands.</summary>
+        /// <param name="environmentProvider">Supplies the link cache for race pickers.</param>
+        /// <param name="logger">Logger for diagnostics.</param>
+        /// <param name="attributeCreator">Factory for attribute VMs.</param>
+        /// <param name="generalSettingsAttGroupMenu">General-settings attribute groups referenced by the rules.</param>
+        /// <param name="generalSettingsRaceGroupingEditor">General-settings race groupings referenced by the rules.</param>
         public VM_DetailedReportNPCSelector(IEnvironmentStateProvider environmentProvider, Logger logger, VM_NPCAttributeCreator attributeCreator, VM_AttributeGroupMenu generalSettingsAttGroupMenu, VM_RaceGroupingEditor generalSettingsRaceGroupingEditor)
         {
             _environmentProvider = environmentProvider;
@@ -63,6 +75,8 @@ namespace SynthEBD
         public IEnumerable<Type> RacePickerFormKeys { get; set; } = typeof(IRaceGetter).AsEnumerable();
 
 
+        /// <summary>Populates this VM from a persisted <see cref="DetailedReportNPCSelector"/> model.</summary>
+        /// <param name="model">The model to load.</param>
         public void CopyInFromModel(DetailedReportNPCSelector model)
         {
             AllowedRaces.AddRange(model.AllowedRaces);
@@ -77,6 +91,8 @@ namespace SynthEBD
             WeightRange = model.WeightRange;
         }
 
+        /// <summary>Projects this VM back into a <see cref="DetailedReportNPCSelector"/> model for saving.</summary>
+        /// <returns>The populated model.</returns>
         public DetailedReportNPCSelector DumpToModel()
         {
             DetailedReportNPCSelector model = new();

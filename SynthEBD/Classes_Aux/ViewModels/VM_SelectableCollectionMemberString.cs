@@ -7,8 +7,12 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>View model wrapping a <see cref="VM_CollectionMemberString"/> with a checkbox selection state, notifying its parent on content/selection changes.</summary>
 public class VM_SelectableCollectionMemberString : VM
 {
+    /// <summary>Creates the row, wiring the delete command and parent notifications on content/selection change.</summary>
+    /// <param name="subscribedString">The wrapped string VM.</param>
+    /// <param name="parentCollection">The owning collection parent.</param>
     public VM_SelectableCollectionMemberString(VM_CollectionMemberString subscribedString, ICollectionParent parentCollection)
     {
         SubscribedString = subscribedString;
@@ -23,21 +27,29 @@ public class VM_SelectableCollectionMemberString : VM
     public bool IsSelected { get; set; } = false;
     public RelayCommand DeleteCommand { get; }
 
+    /// <summary>Notifies the parent collection that a member's content or selection changed.</summary>
     public void TriggerParentMemberChanged()
     {
         Parent.CollectionMemberChangedAction();
     }
 }
 
+/// <summary>Implemented by view models that host a selectable-string collection and react to member changes.</summary>
 public interface ICollectionParent
 {
+    /// <summary>The selectable string rows.</summary>
     ObservableCollection<VM_SelectableCollectionMemberString> CollectionMemberStrings { get; set; }
+    /// <summary>Comma-joined caption of the selected members.</summary>
     string Header { get; set; }
+    /// <summary>Invoked when any member's content or selection changes.</summary>
     void CollectionMemberChangedAction();
 }
 
+/// <summary>View model for a checkbox list of strings synced to a master collection, maintaining a comma-joined header of the selected items.</summary>
 public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
 {
+    /// <summary>Creates the list from a master string collection, building a selectable row per member and refreshing on master-list changes.</summary>
+    /// <param name="actualMasterList">The master string collection to mirror.</param>
     public VM_CollectionMemberStringCheckboxList(ObservableCollection<VM_CollectionMemberString> actualMasterList)
     {
         SubscribedMasterList = actualMasterList;
@@ -55,6 +67,8 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
     public string Header { get; set; }
     public ObservableCollection<VM_CollectionMemberString> SubscribedMasterList { get; } = new(); // to fire the CollectionChanged event
 
+    /// <summary>Adds rows for newly-added master items and removes rows for removed ones.</summary>
+    /// <param name="masterList">The current master string collection.</param>
     void RefreshCheckList(ObservableCollection<VM_CollectionMemberString> masterList)
     {
         if (masterList == null) { return; }
@@ -81,6 +95,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         }
     }
 
+    /// <summary>Refreshes the rows against the master list and rebuilds the comma-joined selected-items header.</summary>
     public void CollectionMemberChangedAction()
     {
         RefreshCheckList(SubscribedMasterList);
@@ -101,6 +116,8 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         Header = header;
     }
 
+    /// <summary>Sets each row's selection based on whether its content is in the given set.</summary>
+    /// <param name="selectedStrings">Contents that should be checked.</param>
     public void InitializeFromHashSet(HashSet<string> selectedStrings)
     {
         foreach (var cms in CollectionMemberStrings)
@@ -117,8 +134,12 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
     }
 }
 
+/// <summary>Minimal selectable string row (content + selection + delete) for simple list scenarios.</summary>
 public class VM_SimpleSelectableCollectionMemberString : VM
 {
+    /// <summary>Creates the row with a delete command.</summary>
+    /// <param name="content">The string value.</param>
+    /// <param name="parentCollection">The collection this row belongs to.</param>
     public VM_SimpleSelectableCollectionMemberString(string content, ObservableCollection<VM_SimpleSelectableCollectionMemberString> parentCollection)
     {
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));

@@ -10,11 +10,19 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for a linked-NPC group (a set of NPCs that share assignments, anchored to a primary).
+/// Reactively recomputes the human-readable primary-candidate names as the member list or link cache changes.
+/// </summary>
 public class VM_LinkedNPCGroup : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    /// <summary>Autofac factory delegate for constructing an empty linked-NPC-group VM.</summary>
     public delegate VM_LinkedNPCGroup Factory();
+    /// <summary>Creates the VM and wires reactive recomputation of <see cref="PrimaryCandidates"/> from the member list and link cache.</summary>
+    /// <param name="environmentProvider">Supplies the link cache for resolving member NPCs.</param>
+    /// <param name="logger">Logger used to format NPC display names.</param>
     public VM_LinkedNPCGroup(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -53,6 +61,12 @@ public class VM_LinkedNPCGroup : VM
 
     public IReadOnlyCollection<string> PrimaryCandidates { get; private set; }
 
+    /// <summary>Builds linked-group VMs from models, resolving each group's primary NPC display name (falling back to the first member when none is set).</summary>
+    /// <param name="models">The group models.</param>
+    /// <param name="factory">Factory used to construct each VM.</param>
+    /// <param name="linkCache">Link cache for resolving NPCs.</param>
+    /// <param name="logger">Logger used to format NPC display names.</param>
+    /// <returns>A collection of linked-group view models.</returns>
     public static ObservableCollection<VM_LinkedNPCGroup> GetViewModelsFromModels(List<LinkedNPCGroup> models, VM_LinkedNPCGroup.Factory factory, ILinkCache linkCache, Logger logger)
     {
         var viewModels = new ObservableCollection<VM_LinkedNPCGroup>();
@@ -75,6 +89,10 @@ public class VM_LinkedNPCGroup : VM
         return viewModels;
     }
 
+    /// <summary>Replaces the contents of <paramref name="models"/> with models projected from the given VMs, parsing each primary's FormKey out of its "Name | EditorID | FormKey" display string.</summary>
+    /// <param name="models">Target model list (cleared and repopulated).</param>
+    /// <param name="viewModels">Source view models.</param>
+    /// <remarks>Primary parsing relies on the display string having a pipe-delimited FormKey in the third field; see review notes on its fragility.</remarks>
     public static void DumpViewModelsToModels(List<LinkedNPCGroup> models, ObservableCollection<VM_LinkedNPCGroup> viewModels)
     {
         models.Clear();

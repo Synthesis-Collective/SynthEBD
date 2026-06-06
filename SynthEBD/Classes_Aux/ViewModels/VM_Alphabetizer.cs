@@ -12,6 +12,13 @@ using Noggog;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Reusable view model for an alphabetize/undo toggle button over an observable collection: sorts by a
+    /// key selector (ascending ↔ descending), labels the button "AZ"/"ZA" from the current sort state, and
+    /// can revert to the pre-sort order.
+    /// </summary>
+    /// <typeparam name="TSource">Element type of the collection.</typeparam>
+    /// <typeparam name="TKey">Sort key type.</typeparam>
     public class VM_Alphabetizer<TSource, TKey> : VM
     {
         public ObservableCollection<TSource> SubscribedCollection { get; set; } = new();
@@ -24,6 +31,10 @@ namespace SynthEBD
         private ObservableCollection<TSource> _originalOrder { get; set; } = new();
         public bool WasSorted { get; set; } = false;
 
+        /// <summary>Creates the alphabetizer over a collection, wiring sort/undo commands and tracking the collection's sort state (throttled).</summary>
+        /// <param name="subscribedCollection">The collection to sort.</param>
+        /// <param name="keySelector">Selects the sort key from an element.</param>
+        /// <param name="buttonColor">Button color.</param>
         public VM_Alphabetizer(ObservableCollection<TSource> subscribedCollection, Func<TSource, TKey> keySelector, SolidColorBrush buttonColor)
         {
             SubscribedCollection = subscribedCollection;
@@ -48,13 +59,18 @@ namespace SynthEBD
             }).DisposeWith(this); ;
         }
 
+        /// <summary>Whether the collection is currently sorted forward, reversed, or in neither order.</summary>
         private enum SortState
         {
+            /// <summary>Sorted ascending by the key.</summary>
             Forward,
+            /// <summary>Sorted descending by the key.</summary>
             Reversed,
+            /// <summary>Not sorted in either direction.</summary>
             Unsorted
         }
 
+        /// <summary>Sorts the collection, toggling ascending/descending from the current state and snapshotting the original order on first sort.</summary>
         private void Sort()
         {
             if (SubscribedCollection is null) { return; }
@@ -74,6 +90,7 @@ namespace SynthEBD
             WasSorted = true;
         }
 
+        /// <summary>Restores the collection to its pre-sort order.</summary>
         private void Revert()
         {
             if (SubscribedCollection is null) { return; }
@@ -88,6 +105,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Recomputes <see cref="State"/> by testing whether the collection is currently sorted forward, reversed, or neither.</summary>
         private void GetSortState()
         {
             if (SubscribedCollection is null || SubscribedCollection.Where(x => x == null).Any()) { return; }

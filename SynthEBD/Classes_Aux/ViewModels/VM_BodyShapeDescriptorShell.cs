@@ -7,11 +7,23 @@ using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for one body-shape descriptor category "shell" — groups the <see cref="VM_BodyShapeDescriptor"/>
+/// value rows under a <see cref="Category"/>, with a command to add a new value.
+/// </summary>
 [DebuggerDisplay("{Category}: {Descriptors.Count} Values")]
 public class VM_BodyShapeDescriptorShell : VM
 {
     private VM_BodyShapeDescriptorCreator _creator;
+    /// <summary>Autofac factory delegate for constructing a shell within a parent collection.</summary>
     public delegate VM_BodyShapeDescriptorShell Factory(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, Action<(string, string), (string, string)> responseToChange, Action<string> responseToDeletion);
+    /// <summary>Creates the shell view model and wires the "add descriptor value" command.</summary>
+    /// <param name="parentCollection">The collection of shells this belongs to.</param>
+    /// <param name="raceGroupings">Race groupings available to descriptor rules.</param>
+    /// <param name="parentConfig">The owning config exposing the attribute-group menu.</param>
+    /// <param name="creator">Factory for creating descriptor value VMs.</param>
+    /// <param name="responseToChange">Callback invoked when a descriptor's (category, value) changes.</param>
+    /// <param name="responseToDeletion">Callback invoked when a descriptor is deleted.</param>
     public VM_BodyShapeDescriptorShell(ObservableCollection<VM_BodyShapeDescriptorShell> parentCollection, ObservableCollection<VM_RaceGrouping> raceGroupings, IHasAttributeGroupMenu parentConfig, VM_BodyShapeDescriptorCreator creator, Action<(string, string), (string, string)> responseToChange, Action<string> responseToDeletion)
     {
         _creator = creator;

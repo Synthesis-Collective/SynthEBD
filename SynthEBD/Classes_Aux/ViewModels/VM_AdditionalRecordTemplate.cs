@@ -7,11 +7,20 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for an additional record-template assignment: maps a set of races to a template NPC plus
+/// the record paths used to resolve those races, with commands to add paths and delete the entry.
+/// </summary>
 public class VM_AdditionalRecordTemplate : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    /// <summary>Autofac factory delegate for constructing an assignment within a parent collection.</summary>
     public delegate VM_AdditionalRecordTemplate Factory(ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache,
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection);
+    /// <summary>Creates the VM, wiring link-cache tracking and the add-path / delete commands.</summary>
+    /// <param name="environmentProvider">Supplies the main link cache for race pickers.</param>
+    /// <param name="recordTemplateLinkCache">Link cache over the record-template plugins (for the template-NPC picker).</param>
+    /// <param name="parentCollection">The collection this entry belongs to.</param>
     public VM_AdditionalRecordTemplate(IEnvironmentStateProvider environmentProvider,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache,
         ObservableCollection<VM_AdditionalRecordTemplate> parentCollection)
@@ -35,6 +44,9 @@ public class VM_AdditionalRecordTemplate : VM
         );
     }
 
+    /// <summary>Projects the view model back into an <see cref="AdditionalRecordTemplate"/> model.</summary>
+    /// <param name="viewModel">The view model to project.</param>
+    /// <returns>The populated model.</returns>
     public static AdditionalRecordTemplate DumpViewModelToModel(VM_AdditionalRecordTemplate viewModel)
     {
         return new AdditionalRecordTemplate() { Races = viewModel.RaceFormKeys.ToHashSet(), TemplateNPC = viewModel.TemplateNPC, AdditionalRacesPaths = viewModel.AdditionalRacesPaths.Select(x => x.Content).ToHashSet() };
@@ -56,6 +68,7 @@ public class VM_AdditionalRecordTemplate : VM
     public RelayCommand AddAdditionalRacesPath { get; }
     public RelayCommand DeleteCommand { get; set; }
 
+    /// <summary>Default AdditionalRaces record paths (body/hands/feet armatures) seeded for non-beast races.</summary>
     public static List<string> AdditionalRacesPathsDefault = new()
     {
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces",
@@ -63,11 +76,13 @@ public class VM_AdditionalRecordTemplate : VM
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
     };
 
+    /// <summary>Additional AdditionalRaces record path (tail armature) seeded for beast races.</summary>
     public static List<string> AdditionalRacesPathsBeast = new()
     {
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"
     };
 
+    /// <summary>Additional AdditionalRaces record path (TNG genital armature, biped slot 52) seeded when TNG is in use.</summary>
     public static List<string> AdditionalRacesPathsTNG = new()
     {
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag((BipedObjectFlag)4194304) && MatchRace(Race, AdditionalRaces, MatchDefault)].AdditionalRaces"

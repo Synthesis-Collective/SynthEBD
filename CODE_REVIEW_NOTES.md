@@ -501,3 +501,34 @@ constructor / private-helper gaps. Two minor items:
   says so, to preserve alpha) — the "Bmp" in the name is a leftover and misleads. 💭
 
 ---
+
+## Classes_Aux (view models & views)
+
+*The VM_* view models behind the settings UI, plus the .xaml.cs view code-behind. This is the layer the
+user flagged as their .NET learning ground, so most notes here are 🔧 modernization opportunities.*
+
+### View-model round-trip pattern — 💭 observation
+
+Nearly every `VM_*` follows the same shape: an Autofac `Factory` delegate, a constructor that wires
+`RelayCommand`s and `WhenAnyValue` subscriptions, and `GetViewModelFromModel` / `DumpViewModelToModel`
+(or `CopyInFromModel`) round-trip helpers. It's consistent and readable; the recurring 🔧 theme is hand-
+rolled loops where LINQ/`SetEquals` would be terser (the user's noted pre-LINQ habit). Individual items
+below; not re-flagged per file.
+
+### `VM_RaceGrouping.CollectionMatchesRaceGrouping` — 🔧 modernize + 💭
+
+[VM_RaceGrouping.cs:63](SynthEBD/Classes_Aux/ViewModels/VM_RaceGrouping.cs#L63) · O(n²) nested-loop set
+comparison (→ `group.Races.ToHashSet().SetEquals(collection)`), and the trailing inline comment still
+says "returns true if…" though the method was changed to return the matched set.
+
+### `VM_LinkedNPCGroup.DumpViewModelsToModels` — 🐞 possible bug (fragile parse)
+
+[VM_LinkedNPCGroup.cs:90](SynthEBD/Classes_Aux/ViewModels/VM_LinkedNPCGroup.cs#L90) · Recovers the
+primary NPC's FormKey via `vm.Primary.Split('|')[2]`, assuming the display string is always the
+3-field "Name | EditorID | FormKey" form. A primary whose name/EditorID itself contains `|`, or any
+other display shape, would mis-parse or throw `IndexOutOfRange`. Storing the FormKey on the VM rather
+than re-parsing the display string would be robust.
+
+<!-- ENTRIES:Classes_Aux_VM -->
+
+---

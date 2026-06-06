@@ -4,8 +4,12 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>View model for a per-NPC assignment of a replacer asset group (by name) and the specific subgroup IDs to apply.</summary>
 public class VM_AssetReplacementAssignment : VM
 {
+    /// <summary>Creates the assignment VM, wiring delete/add-subgroup commands and keeping the resolved replacer group in sync with the chosen name.</summary>
+    /// <param name="parent">The owning asset-pack VM.</param>
+    /// <param name="parentCollection">The collection of assignments this belongs to.</param>
     public VM_AssetReplacementAssignment(VM_AssetPack parent, ObservableCollection<VM_AssetReplacementAssignment> parentCollection)
     {
         ParentAssetPack = parent;
@@ -46,6 +50,8 @@ public class VM_AssetReplacementAssignment : VM
     public RelayCommand DeleteCommand { get; set; }
     public RelayCommand AddSubgroupCommand { get; set; }
 
+    /// <summary>Populates this VM from a persisted <see cref="NPCAssignment.AssetReplacerAssignment"/> model.</summary>
+    /// <param name="model">The model to load.</param>
     public void CopyInViewModelFromModel(NPCAssignment.AssetReplacerAssignment model)
     {
         this.ReplacerName = model.ReplacerName;
@@ -55,6 +61,9 @@ public class VM_AssetReplacementAssignment : VM
         }
     }
 
+    /// <summary>Projects a VM back into a <see cref="NPCAssignment.AssetReplacerAssignment"/> model.</summary>
+    /// <param name="viewModel">The view model to project.</param>
+    /// <returns>The populated model.</returns>
     public static NPCAssignment.AssetReplacerAssignment DumpViewModelToModel(VM_AssetReplacementAssignment viewModel)
     {
         NPCAssignment.AssetReplacerAssignment model = new NPCAssignment.AssetReplacerAssignment();

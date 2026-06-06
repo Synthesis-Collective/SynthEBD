@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using System.Windows.Documents;
 
 namespace SynthEBD;
+/// <summary>View model for a persisted per-NPC head-part consistency assignment, with a command to clear it.</summary>
 public class VM_HeadPartConsistency : VM
 {
+    /// <summary>Creates the VM and wires the clear-selection command.</summary>
     public VM_HeadPartConsistency()
     {
         ClearSelection = new RelayCommand(
@@ -24,6 +26,9 @@ public class VM_HeadPartConsistency : VM
     public bool RandomizedToNone { get; set;} = false;
     public RelayCommand ClearSelection { get; set; }
 
+    /// <summary>Builds a view model from a persisted <see cref="HeadPartConsistency"/> model.</summary>
+    /// <param name="model">The model to project.</param>
+    /// <returns>A populated view model.</returns>
     public static VM_HeadPartConsistency GetViewModelFromModel(HeadPartConsistency model)
     {
         var viewModel = new VM_HeadPartConsistency();
@@ -34,6 +39,8 @@ public class VM_HeadPartConsistency : VM
         return viewModel;
     }
 
+    /// <summary>Projects this view model back into a <see cref="HeadPartConsistency"/> model for saving.</summary>
+    /// <returns>The populated model.</returns>
     public HeadPartConsistency DumpToModel()
     {
         var model = new HeadPartConsistency();
@@ -44,6 +51,7 @@ public class VM_HeadPartConsistency : VM
         return model;
     }
 
+    /// <summary>Clears the assignment (FormKey, label, flags) back to empty/uninitialized.</summary>
     public void ClearAssignment()
     {
         FormKey = new();
