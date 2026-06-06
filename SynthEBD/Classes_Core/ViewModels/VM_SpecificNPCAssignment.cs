@@ -16,8 +16,16 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model behind the "Specific NPC Assignments" editor: the forced appearance
+/// overrides (asset pack and subgroups, height, BodyGen morphs, BodySlide preset,
+/// head parts, mix-ins, and asset replacers) for a single chosen NPC. Its backing
+/// model is <see cref="NPCAssignment"/>; it also drives a live <see cref="VM_CharacterViewer"/>
+/// preview of the assignment.
+/// </summary>
 public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender, IHasHeadPartAssignments
 {
+    /// <summary>Autofac factory delegate that creates a view model for the given placeholder.</summary>
     public delegate VM_SpecificNPCAssignment Factory(VM_SpecificNPCAssignmentPlaceHolder associatedPlaceHolder);
 
     private IEnvironmentStateProvider _environmentProvider;
@@ -33,6 +41,14 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly VM_HeadPartAssignment.Factory _headPartFactory;
     private readonly Converters _converters;
 
+    /// <summary>
+    /// Wires up the assignment editor: seeds the subscribed settings VMs and asset
+    /// pack list, builds the seven head-part assignment sub-VMs, registers all
+    /// <see cref="RelayCommand"/>s (add/delete subgroups, morphs, mix-ins, replacers,
+    /// asset-order sync), and sets up the ReactiveUI chains that recompute available
+    /// asset packs/subgroups/morphs and drive the live character viewer (textures,
+    /// BodySlide, BodyGen, height, and FaceGen re-bake) as the user edits.
+    /// </summary>
     public VM_SpecificNPCAssignment(
         VM_SpecificNPCAssignmentPlaceHolder associatedPlaceHolder,
         IEnvironmentStateProvider environmentProvider,
@@ -395,6 +411,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     public RelayCommand SyncThisAssetOrder { get; set; }
     public RelayCommand SyncAllAssetOrders { get; set; }
     public VM_CharacterViewer CharacterViewer { get; }
+    /// <summary>
+    /// Populates this view model from a saved <see cref="NPCAssignment"/> model:
+    /// resolves the NPC and gender, links the forced asset pack/subgroups, mix-ins,
+    /// asset order, height, BodyGen morphs, asset replacers, BodySlide preset, and
+    /// head parts, logging warnings for any referenced item that no longer exists.
+    /// </summary>
     public void CopyInFromModel(NPCAssignment model)
     {
         NPCFormKey = model.NPCFormKey;
@@ -503,6 +525,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         DispName = _converters.CreateNPCDispNameFromFormKey(NPCFormKey);
     }
 
+    /// <summary>
+    /// Finds the asset pack named <paramref name="assetPackName"/> in <paramref name="assetPacks"/>,
+    /// assigns it as the view model's forced pack, and resolves the model's subgroup IDs
+    /// into forced subgroups (logging warnings for any missing pack or subgroup).
+    /// Returns whether the asset pack was found.
+    /// </summary>
     private static bool LinkAssetPackToForcedAssignment(NPCAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, Logger logger)
     {
         bool assetPackFound = false;
@@ -536,6 +564,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return assetPackFound;
     }
 
+    /// <summary>
+    /// Mix-in counterpart of <see cref="LinkAssetPackToForcedAssignment"/>: links the
+    /// named asset pack and its subgroup IDs onto a mix-in view model from its
+    /// <see cref="NPCAssignment.MixInAssignment"/> model. Returns whether the pack was found.
+    /// </summary>
     private static bool LinkMixInToForcedAssignment(NPCAssignment.MixInAssignment model, IHasForcedAssets viewModel, string assetPackName, ObservableCollection<VM_AssetPack> assetPacks, string npcName, Logger logger)
     {
         bool assetPackFound = false;
@@ -569,6 +602,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return assetPackFound;
     }
 
+    /// <summary>
+    /// Serializes this view model back into a fresh <see cref="NPCAssignment"/> model:
+    /// forced asset pack/subgroup IDs, asset replacers, mix-ins (deduplicated by pack
+    /// name), asset order, parsed height, BodyGen morph labels, BodySlide preset,
+    /// NPC FormKey, and per-type head parts.
+    /// </summary>
     public NPCAssignment DumpViewModelToModel()
     {
         NPCAssignment model = new NPCAssignment();
@@ -626,6 +665,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return model;
     }
 
+    /// <summary>
+    /// Recomputes the available primary and mix-in asset pack lists for the assignment,
+    /// keeping only selected packs matching the NPC's gender. Adds newly-eligible packs
+    /// and removes no-longer-eligible ones in place (deliberately avoiding LINQ
+    /// RemoveWhere, which would transiently clear the forced selection — see code note).
+    /// </summary>
     public void UpdateAvailableAssetPacks(VM_SpecificNPCAssignment assignment)
     {
         var availablePrimaryAssetPacks = assignment.SubscribedAssetPacks.Where(x => x.IsSelected && x.Gender == assignment.Gender && x.ConfigType == AssetPackType.Primary).ToArray();
@@ -658,6 +703,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         assignment.AvailableMixInAssetPacks.Sort(x => x.GroupName, false);
     }
 
+    /// <summary>
+    /// Rebuilds the assignment's available top-level subgroups from its forced asset
+    /// pack, excluding any top-level group already represented (directly or via a
+    /// descendant) among the currently forced subgroups.
+    /// </summary>
     public static void UpdateAvailableSubgroups(IHasForcedAssets assignment)
     {
         assignment.AvailableSubgroups.Clear();
@@ -680,6 +730,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Recursively tests whether the subgroup tree contains a subgroup with the given ID.</summary>
     public static bool ContainsSubgroupID(ObservableCollection<VM_SubgroupPlaceHolder> subgroups, string id)
     {
         foreach(var sg in subgroups)
@@ -693,6 +744,12 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return false;
     }
 
+    /// <summary>
+    /// Rebuilds the assignment's available BodyGen morph list from the forced asset
+    /// pack's tracked config (or, failing that, the gender-appropriate current config),
+    /// excluding morphs already forced and any whose template groups collide with an
+    /// already-forced morph's groups.
+    /// </summary>
     public static void UpdateAvailableMorphs(VM_SpecificNPCAssignment assignment)
     {
         // clear available morphs besides the ones that are forced (removing those from the available morph list also clears their combobox selection)
@@ -751,6 +808,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>
+    /// Selects the gender-appropriate subscribed BodySlide collection and rebuilds the
+    /// available list with a leading blank entry followed by those presets.
+    /// </summary>
     public void UpdateAvailableBodySlides()
     {
         switch(Gender)
@@ -766,6 +827,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     //  CHARACTER VIEWER REFRESH
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Reloads the viewer's NPC meshes for the current FormKey — baking a FaceGen
+    /// preview NIF when any head-part overrides are active, otherwise a plain load —
+    /// then reapplies the active texture, BodySlide, and BodyGen overrides.
+    /// </summary>
     private async Task RefreshViewerNpcAsync()
     {
         if (NPCFormKey.IsNull || lk == null)
@@ -794,6 +860,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         RefreshViewerBodyGen();
     }
 
+    /// <summary>
+    /// Collects all texture/mesh path overrides from the forced subgroups, mix-in
+    /// subgroups, and asset-replacer subgroups (resolved by ID), and applies them to
+    /// the loaded viewer meshes.
+    /// </summary>
     private void RefreshViewerTextures()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0)
@@ -838,6 +909,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Pushes the parsed positive <see cref="ForcedHeight"/> as the viewer's height scale override, or clears it.</summary>
     private void RefreshViewerHeight()
     {
         if (!string.IsNullOrWhiteSpace(ForcedHeight) && float.TryParse(ForcedHeight, out var h) && h > 0f)
@@ -850,6 +922,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Looks up the forced BodySlide preset by label among the available presets and applies it to the viewer.</summary>
     private void RefreshViewerBodySlide()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0 || string.IsNullOrEmpty(ForcedBodySlide))
@@ -868,6 +941,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Applies the forced BodyGen morph templates to the viewer using the gender-appropriate preview slider group.</summary>
     private void RefreshViewerBodyGen()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0) return;
@@ -886,6 +960,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         CharacterViewer.ApplyBodyGen(templates, sliderGroup, CharacterViewer.NpcWeight);
     }
 
+    /// <summary>
+    /// Refreshes display name and gender from the current NPC FormKey and rebuilds all
+    /// dependent lists (asset packs, subgroups, morphs, BodySlides). No-op if no NPC is set.
+    /// </summary>
     public void RefreshAll()
     {
         if (NPCFormKey.IsNull)
@@ -902,12 +980,18 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         UpdateAvailableBodySlides();
     }
         
+    /// <summary>Rebuilds the available asset packs and subgroups (subset of <see cref="RefreshAll"/>) after an asset-pack change.</summary>
     public void RefreshAssets()
     {
         UpdateAvailableAssetPacks(this);
         UpdateAvailableSubgroups(this);
     }
 
+    /// <summary>
+    /// Resolves the NPC's gender from its FormKey via the load order, returning
+    /// <see cref="Gender.Female"/> or <see cref="Gender.Male"/>. Defaults to Male and
+    /// logs an error if a non-null FormKey cannot be resolved.
+    /// </summary>
     public static Gender GetGender (FormKey NPCFormKey, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
@@ -931,6 +1015,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         return Gender.Male;
     }
 
+    /// <summary>
+    /// Rebuilds <see cref="ForcedMixIns"/> from the model's mix-in assignments, linking
+    /// each to its asset pack/subgroups and carrying over its declined flag; mix-ins
+    /// whose asset pack is missing are dropped.
+    /// </summary>
     public void CopyInMixInViewModels(List<NPCAssignment.MixInAssignment> models)
     {
         ForcedMixIns.Clear();
@@ -945,6 +1034,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Applies the name search filter to each available subgroup's visibility (outer assignment).</summary>
     private void CheckSubgroupVisibility(string searchText, bool caseSensitive)
     {
         foreach (var subgroup in AvailableSubgroups)
@@ -953,9 +1043,22 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         }
     }
 
+    /// <summary>
+    /// View model for a single forced mix-in asset pack assignment within a
+    /// <see cref="VM_SpecificNPCAssignment"/>: a chosen mix-in pack with its forced
+    /// subgroups, asset replacers, and a "decline" toggle. Backed by
+    /// <see cref="NPCAssignment.MixInAssignment"/>.
+    /// </summary>
     public class VM_MixInSpecificAssignment : VM, IHasForcedAssets
     {
+        /// <summary>Autofac factory delegate creating a mix-in assignment under the given parent.</summary>
         public delegate VM_MixInSpecificAssignment Factory(VM_SpecificNPCAssignment parent);
+        /// <summary>
+        /// Wires up the mix-in editor: seeds the available mix-in pack list from the
+        /// parent, registers delete/add-replacer commands, and sets up the reactive
+        /// chains that recompute available subgroups, sync replacer parent packs,
+        /// toggle subgroup visibility on decline, and apply the name-search filter.
+        /// </summary>
         public VM_MixInSpecificAssignment(VM_SpecificNPCAssignment parent, VM_AssetPack.Factory assetPackFactory)
         {
             Parent = parent;
@@ -1050,6 +1153,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         public string NameSearchStr { get; set; }
         public bool NameSearchCaseSensitive { get; set; } = false;
 
+        /// <summary>
+        /// Serializes a mix-in view model into a <see cref="NPCAssignment.MixInAssignment"/>
+        /// model: declined flag, asset pack name, forced subgroup IDs, and asset replacers.
+        /// </summary>
         public static NPCAssignment.MixInAssignment DumpViewModelToModel(VM_MixInSpecificAssignment viewModel)
         {
             NPCAssignment.MixInAssignment model = new NPCAssignment.MixInAssignment();
@@ -1065,6 +1172,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             return model;
         }
 
+        /// <summary>Applies the name search filter to each available subgroup's visibility (mix-in).</summary>
         private void CheckSubgroupVisibility(string searchText, bool caseSensitive)
         {
             foreach (var subgroup in AvailableSubgroups)
@@ -1075,6 +1183,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     }
 }
 
+/// <summary>
+/// Contract for view models that carry a forced asset pack plus its forced and
+/// available subgroup collections, letting the shared subgroup-linking helpers
+/// operate uniformly over primary assignments and mix-ins.
+/// </summary>
 public interface IHasForcedAssets
 {
     public VM_AssetPack ForcedAssetPack { get; set; }

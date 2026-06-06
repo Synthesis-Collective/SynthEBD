@@ -761,6 +761,41 @@ male/female base heights and ranges are held as UI `string`s and re-parsed with 
 `DumpViewModelToModel`. This is locale-dependent and defers validation to save time; binding to typed
 `float` (or validating on edit) would be more robust.
 
+### `VM_AssetPack` beast-template additional-races path — 🐞 possible bug (wrong owner collection)
+
+[VM_AssetPack.cs:1716](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L1716) · When adding a beast-race
+additional-races path, the new `VM_CollectionMemberString` is constructed with
+`DefaultRecordTemplateAdditionalRacesPaths` (the asset-pack-level collection) as its *owner*, yet it is added
+to `currentBeastTemplate.AdditionalRacesPaths`. The non-beast sibling at
+[:1686](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L1686) correctly passes the matching owner, so
+removing one of these beast entries in the UI would mutate the wrong collection. Copy-paste slip.
+
+### `VM_AssetPack` FormKey `== null` checks are dead — 🔧 / 🐞 (minor)
+
+[VM_AssetPack.cs:869](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L869),
+[:1145](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L1145) · `DefaultTemplateFK` is a Mutagen `FormKey`
+(a struct). `DefaultTemplateFK == null` (:869) is always false and `DefaultTemplateFK != null` (:1145) always
+true — the real test is `.IsNull` (already OR-ed in at :869, but the :1145 guard does nothing). Use `.IsNull`.
+
+### `VM_AssetPack` LINQ / robustness nits — 🔧 / 💭
+
+`.Where(pred).First()` / `.FirstOrDefault()` / `.Where(pred).Any()` recur throughout the record-template and
+subgroup lookups → `.First(pred)` / `.FirstOrDefault(pred)` / `.Any(pred)`. Also, `DeleteAssetFiles` wraps
+its token-file reads in bare `catch { continue; }`, silently swallowing all IO exceptions — a real disk
+error during cleanup would be indistinguishable from "no token file". 💭
+
+### `VM_SpecificNPCAssignment` items — 🐞 / 🔧 / 💭
+
+- [VM_SpecificNPCAssignment.cs:518](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L518) ·
+  `CopyInFromModel` has the same head-parts pattern flagged for `VM_ConsistencyAssignment` — it mutates the
+  source `model.HeadParts` during a model→VM load and only refreshes the VM for keys already present.
+- [:490](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L490) · stray `break; ;` (dead empty statement).
+- [:797](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L797) ·
+  `candidateGroups.Intersect(forcedGroups).ToArray().Length > 0` → `.Any()` (no allocation).
+- `LinkAssetPackToForcedAssignment` / `LinkMixInToForcedAssignment` don't `break` after a name match, so a
+  duplicate `GroupName` is processed twice (last wins); the `.Where(x => x.GroupName == ...).FirstOrDefault()`
+  could be `.FirstOrDefault(pred)`.
+
 <!-- ENTRIES:Classes_Core_VM -->
 
 ---
