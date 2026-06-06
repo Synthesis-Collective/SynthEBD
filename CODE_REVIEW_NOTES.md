@@ -1107,6 +1107,25 @@ resolution `else` calls `OutputMod.Armors.Remove(newSkin)` with `newSkin` still 
 `AssignArmorAddon` return values are captured into unused locals, and FormKey membership is tested via
 `.Select(x => x.FormKey.ToString()).Contains(...)` (string compares). 💭
 
+### `Patcher` orchestrator items — 🐞 / 💭
+
+- [Patcher.cs:1473](SynthEBD/Patcher/Patcher.cs#L1473) · `FormatEntry` computes
+  `(assignablePairing.Assigned * 100 / assignablePairing.Assignable).ToString("N2")` — `Assigned`/`Assignable`
+  are ints, so this is **integer** division and the `"N2"` decimals are always `.00` (e.g. 1 of 3 prints
+  `33.00%`, not `33.33%`). Cast to `double` before dividing. 🐞
+- [Patcher.cs:1216](SynthEBD/Patcher/Patcher.cs#L1216) · dead debug stub left in the head-part region:
+  `if (currentNPCInfo.Name.StartsWith("Uthgerd")) { int n = 0; }` — hardcoded NPC name + no-op body; remove. 💭
+- `timer_Tick` appears to have no subscriber (dead leftover from the old timer-based status update); two
+  user-facing status strings read "Made/Applied **seleections**" (typo); `AppearsHumanoidByArmature` mutates
+  its lists with manual `i--`/`Remove` index fix-ups (clumsy, set-difference would be clearer). 💭
+
+### `DeepCopyByExpressionTrees` — 💭 (third-party utility)
+
+`ReferenceEqualityComparer.GetHashCode` calls `obj.GetHashCode()` rather than
+`RuntimeHelpers.GetHashCode(obj)`; since its `Equals` is reference identity, an overridden value-based
+`GetHashCode` on a key type makes the hash inconsistent with the equality (benign for the reference-tracking
+dictionary here, but semantically it should use identity hashing). Adapted third-party code; low priority.
+
 <!-- ENTRIES:Patcher -->
 
 ---

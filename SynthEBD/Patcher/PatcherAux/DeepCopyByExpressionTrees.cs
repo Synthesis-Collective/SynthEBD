@@ -14,10 +14,14 @@ namespace SynthEBD;
 /// </summary>
 public static class DeepCopyByExpressionTrees
 {
+    /// <summary>Lock guarding replacement of <see cref="IsStructTypeToDeepCopyDictionary"/>.</summary>
     private static readonly object IsStructTypeToDeepCopyDictionaryLocker = new object();
+    /// <summary>Per-type memoized result of whether a struct type needs deep copying.</summary>
     private static Dictionary<Type, bool> IsStructTypeToDeepCopyDictionary = new Dictionary<Type, bool>();
 
+    /// <summary>Lock guarding replacement of <see cref="CompiledCopyFunctionsDictionary"/>.</summary>
     private static readonly object CompiledCopyFunctionsDictionaryLocker = new object();
+    /// <summary>Cache of compiled per-type copy delegates, keyed by the type being copied.</summary>
     private static Dictionary<Type, Func<object, Dictionary<object, object>, object>> CompiledCopyFunctionsDictionary =
         new Dictionary<Type, Func<object, Dictionary<object, object>, object>>();
 
@@ -36,6 +40,15 @@ public static class DeepCopyByExpressionTrees
         return (T)DeepCopyByExpressionTreeObj(original, false, copiedReferencesDict ?? new Dictionary<object, object>(new ReferenceEqualityComparer()));
     }
         
+    /// <summary>
+    /// Core recursive copy routine. Returns the original unchanged for types that need no deep
+    /// copy (or delegates, returned as null), short-circuits on already-copied references via
+    /// <paramref name="copiedReferencesDict"/> to preserve shared references and break cycles,
+    /// otherwise invokes the cached compiled copy function for the type.
+    /// </summary>
+    /// <param name="original">The object to copy.</param>
+    /// <param name="forceDeepCopy">When true, deep-copies even types that would otherwise be returned as-is (used for array elements/fields).</param>
+    /// <param name="copiedReferencesDict">Reference-identity map of originals to their copies.</param>
     private static object DeepCopyByExpressionTreeObj(object original, bool forceDeepCopy, Dictionary<object, object> copiedReferencesDict)
     {
         if (original == null)
@@ -74,6 +87,7 @@ public static class DeepCopyByExpressionTrees
         return copy;
     }
         
+    /// <summary>Returns the cached compiled copy delegate for <paramref name="type"/>, building and caching it on first use. Thread-safe via copy-on-write replacement of the cache dictionary.</summary>
     private static Func<object, Dictionary<object,object>, object> GetOrCreateCompiledLambdaCopyFunction(Type type)
     {
         // The following structure ensures that multiple threads can use the dictionary
@@ -105,6 +119,11 @@ public static class DeepCopyByExpressionTrees
         return compiledCopyFunction;
     }
 
+    /// <summary>
+    /// Builds (but does not compile) the expression-tree copy lambda for <paramref name="type"/>:
+    /// MemberwiseClone the input, register it in the references dictionary, deep-copy reference/struct
+    /// fields, and element-copy arrays. Returns the assembled lambda expression.
+    /// </summary>
     private static Expression<Func<object, Dictionary<object, object>, object>> CreateCompiledLambdaCopyFunctionForType(Type type)
     {
         ParameterExpression inputParameter;
@@ -169,6 +188,7 @@ public static class DeepCopyByExpressionTrees
         return lambda;
     }
         
+    /// <summary>Creates the shared parameter/variable expressions (input, references dictionary, output, boxing temp, end label) and the variable/expression lists used while building the copy lambda.</summary>
     private static void InitializeExpressions(Type type,
         out ParameterExpression inputParameter,
         out ParameterExpression inputDictionary,
@@ -197,6 +217,7 @@ public static class DeepCopyByExpressionTrees
         variables.Add(boxingVariable);
     }
 
+    /// <summary>Appends an expression that returns early (to <paramref name="endLabel"/>) when the input is null.</summary>
     private static void IfNullThenReturnNullExpression(ParameterExpression inputParameter, LabelTarget endLabel, List<Expression> expressions)
     {
         ///// Intended code:
@@ -216,6 +237,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(ifNullThenReturnNullExpression);
     }
 
+    /// <summary>Appends an expression that shallow-clones the input via Object.MemberwiseClone and assigns the result to the output variable.</summary>
     private static void MemberwiseCloneInputToOutputExpression(
         Type type,
         ParameterExpression inputParameter,
@@ -240,6 +262,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(memberwiseCloneInputExpression);
     }
         
+    /// <summary>Appends an expression that records the original→copy mapping in the references dictionary so shared references and cycles are preserved.</summary>
     private static void StoreReferencesIntoDictionaryExpression(ParameterExpression inputParameter,
         ParameterExpression inputDictionary,
         ParameterExpression outputVariable,
@@ -260,6 +283,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(storeReferencesExpression);
     }
 
+    /// <summary>Wraps the accumulated expressions and variables in a block (ending with the return label and the boxed output) and returns the final copy lambda.</summary>
     private static Expression<Func<object, Dictionary<object, object>, object>> CombineAllIntoLambdaFunctionExpression(
         ParameterExpression inputParameter,
         ParameterExpression inputDictionary,
@@ -279,6 +303,7 @@ public static class DeepCopyByExpressionTrees
         return lambda;
     }
 
+    /// <summary>Appends nested loop expressions that deep-copy every element of an array of arbitrary rank into the cloned output array.</summary>
     private static void CreateArrayCopyLoopExpression(Type type,
         ParameterExpression inputParameter,
         ParameterExpression inputDictionary,
@@ -355,6 +380,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(forExpression);
     }
 
+    /// <summary>Creates one Int32 index variable expression per array dimension.</summary>
     private static List<ParameterExpression> GenerateIndices(int arrayRank)
     {
         ///// Intended code:
@@ -373,6 +399,7 @@ public static class DeepCopyByExpressionTrees
         return indices;
     }
 
+    /// <summary>Builds the innermost assignment expression that deep-copies one array element from the source array to the destination array at the given indices.</summary>
     private static BinaryExpression ArrayFieldToArrayFieldAssignExpression(
         ParameterExpression inputParameter,
         ParameterExpression inputDictionary,
@@ -407,6 +434,7 @@ public static class DeepCopyByExpressionTrees
         return assignExpression;
     }
 
+    /// <summary>Wraps an inner loop/assignment in a counted while-loop over one array dimension, returning the resulting block expression.</summary>
     private static BlockExpression LoopIntoLoopExpression(
         ParameterExpression inputParameter,
         ParameterExpression indexVariable,
@@ -454,6 +482,7 @@ public static class DeepCopyByExpressionTrees
             newLoop);
     }
 
+    /// <summary>Builds an expression assigning the input array's length along dimension <paramref name="i"/> to the loop's length variable.</summary>
     private static BinaryExpression GetLengthForDimensionExpression(
         ParameterExpression lengthVariable,
         ParameterExpression inputParameter,
@@ -475,6 +504,11 @@ public static class DeepCopyByExpressionTrees
                 new[] { dimensionConstant }));
     }
 
+    /// <summary>
+    /// Appends per-field deep-copy expressions for all relevant fields of <paramref name="type"/>.
+    /// Readonly fields are copied through a boxed temporary (reflection SetValue) since they can't
+    /// be assigned directly; writable fields are assigned normally. Delegate fields are nulled out.
+    /// </summary>
     private static void FieldsCopyExpressions(Type type,
         ParameterExpression inputParameter,
         ParameterExpression inputDictionary,
@@ -542,6 +576,7 @@ public static class DeepCopyByExpressionTrees
         }
     }
         
+    /// <summary>Gathers all instance fields up the type hierarchy, by default keeping only those whose type needs deep copying (or all when <paramref name="forceAllFields"/> is true).</summary>
     private static FieldInfo[] GetAllRelevantFields(Type type, bool forceAllFields = false)
     {
         var fieldsList = new List<FieldInfo>();
@@ -561,6 +596,7 @@ public static class DeepCopyByExpressionTrees
         return fieldsList.ToArray();
     }
 
+    /// <summary>Gathers every instance field up the type hierarchy regardless of field type.</summary>
     private static FieldInfo[] GetAllFields(Type type)
     {
         return GetAllRelevantFields(type, forceAllFields: true);
@@ -569,6 +605,7 @@ public static class DeepCopyByExpressionTrees
     private static readonly Type FieldInfoType = typeof(FieldInfo);
     private static readonly MethodInfo SetValueMethod = FieldInfoType.GetMethod("SetValue", new[] { ObjectType, ObjectType });
 
+    /// <summary>Appends an expression that sets a readonly delegate field to null on the boxed output (via reflection, since readonly fields can't be assigned in expression trees).</summary>
     private static void ReadonlyFieldToNullExpression(FieldInfo field, ParameterExpression boxingVariable, List<Expression> expressions)
     {
         // This option must be implemented by Reflection because of the following:
@@ -591,6 +628,7 @@ public static class DeepCopyByExpressionTrees
     private static readonly Type ThisType = typeof(DeepCopyByExpressionTrees);
     private static readonly MethodInfo DeepCopyByExpressionTreeObjMethod = ThisType.GetMethod("DeepCopyByExpressionTreeObj", BindingFlags.NonPublic | BindingFlags.Static);
 
+    /// <summary>Appends an expression that deep-copies a readonly field and writes it to the boxed output via reflection SetValue (readonly fields can't be assigned directly in expression trees).</summary>
     private static void ReadonlyFieldCopyExpression(Type type,
         FieldInfo field,
         ParameterExpression inputParameter,
@@ -623,6 +661,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(fieldDeepCopyExpression);
     }
 
+    /// <summary>Appends an expression that sets a writable delegate field to null on the output.</summary>
     private static void WritableFieldToNullExpression(FieldInfo field, ParameterExpression outputVariable, List<Expression> expressions)
     {
         ///// Intended code:
@@ -639,6 +678,7 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(fieldToNullExpression);
     }
 
+    /// <summary>Appends an expression that deep-copies a writable field and assigns it directly to the output.</summary>
     private static void WritableFieldCopyExpression(Type type,
         FieldInfo field,
         ParameterExpression inputParameter,
@@ -672,27 +712,32 @@ public static class DeepCopyByExpressionTrees
         expressions.Add(fieldDeepCopyExpression);
     }
 
+    /// <summary>True if the type is an array.</summary>
     private static bool IsArray(Type type)
     {
         return type.IsArray;
     }
 
+    /// <summary>True if the type is a delegate type (delegates are not deep-copied; they're nulled).</summary>
     private static bool IsDelegate(Type type)
     {
         return typeof(Delegate).IsAssignableFrom(type);
     }
 
+    /// <summary>True if the type requires deep copying: a non-string reference type, or a struct containing reference-type fields.</summary>
     private static bool IsTypeToDeepCopy(Type type)
     {
         return IsClassOtherThanString(type)
                || IsStructWhichNeedsDeepCopy(type);
     }
 
+    /// <summary>True if the type is a reference type other than <see cref="string"/>.</summary>
     private static bool IsClassOtherThanString(Type type)
     {
         return !type.IsValueType && type != typeof(String);
     }
 
+    /// <summary>Memoized check for whether a struct type transitively contains class fields and therefore needs deep copying. Thread-safe via copy-on-write cache replacement.</summary>
     private static bool IsStructWhichNeedsDeepCopy(Type type)
     {
         // The following structure ensures that multiple threads can use the dictionary
@@ -722,12 +767,14 @@ public static class DeepCopyByExpressionTrees
         return isStructTypeToDeepCopy;
     }
         
+    /// <summary>Uncached computation backing <see cref="IsStructWhichNeedsDeepCopy"/>: a non-basic struct that has class fields somewhere in its hierarchy.</summary>
     private static bool IsStructWhichNeedsDeepCopy_NoDictionaryUsed(Type type)
     {
         return IsStructOtherThanBasicValueTypes(type)
                && HasInItsHierarchyFieldsWithClasses(type);
     }
         
+    /// <summary>True if the type is a value type that is not a primitive, enum, or decimal (i.e. a non-trivial struct).</summary>
     private static bool IsStructOtherThanBasicValueTypes(Type type)
     {
         return type.IsValueType
@@ -736,6 +783,7 @@ public static class DeepCopyByExpressionTrees
                && type != typeof(Decimal);
     }
 
+    /// <summary>Recursively determines whether the type (or any nested non-basic struct field) declares a class-typed field, guarding against cycles via <paramref name="alreadyCheckedTypes"/>.</summary>
     private static bool HasInItsHierarchyFieldsWithClasses(Type type, HashSet<Type> alreadyCheckedTypes = null)
     {
         alreadyCheckedTypes = alreadyCheckedTypes ?? new HashSet<Type>();
@@ -768,13 +816,16 @@ public static class DeepCopyByExpressionTrees
         return false;
     }
         
+    /// <summary>Equality comparer that compares objects by reference identity, used to key the copied-references dictionary so distinct-but-equal objects get separate copies.</summary>
     public class ReferenceEqualityComparer : EqualityComparer<Object>
     {
+        /// <summary>Returns true only if the two arguments are the same reference.</summary>
         public override bool Equals(object x, object y)
         {
             return ReferenceEquals(x, y);
         }
 
+        /// <summary>Returns the object's identity hash code (0 for null).</summary>
         public override int GetHashCode(object obj)
         {
             if (obj == null) return 0;

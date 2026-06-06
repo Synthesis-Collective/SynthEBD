@@ -10,6 +10,15 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Orchestrator for the entire patching pipeline. Sets up the output mod and its
+/// supporting records/scripts, runs the four per-NPC assignment axes (assets, body
+/// shape, height, head parts) via their selectors, then applies the selections to
+/// generate output: plugin records, FaceGen NIFs, Papyrus script JSON, and
+/// SkyPatcher ini directives. <see cref="RunPatcher"/> is the entry point; its
+/// doc comment carries the 16-case truth table governing surrogate/NIF/SkyPatcher
+/// behavior.
+/// </summary>
 public class Patcher
 {
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
@@ -62,9 +71,12 @@ public class Patcher
     private Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
     private Dictionary<FormKey, (NPCInfo NpcInfo, float Height)> _heightAssignmentTransfers = new(); // storage for moving assignments between selection and application. Keyed by NPC FormKey for uniqueness.
     
+    /// <summary>Accumulates per-race/per-gender assignable-vs-assigned counts for the post-run primary asset coverage report.</summary>
     private AssetStatsTracker _assetsStatsTracker { get; set; }
+    /// <summary>Running count of NPCs processed in the assignment loop; drives progress display.</summary>
     private int _patchedNpcCount { get; set; }
 
+    /// <summary>Stores the injected dependencies and creates the initial <see cref="AssetStatsTracker"/>. All collaborators are supplied by Autofac.</summary>
     public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, AnnotationLibraryAnnotator libraryAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
     {
         _environmentProvider = environmentProvider;
@@ -868,13 +880,16 @@ public class Patcher
         _statusBar.IsPatching = false;
     }
 
+    /// <summary>Timer callback that resets the status line to "Finished Patching". Currently unused.</summary>
     private void timer_Tick(object sender, EventArgs e)
     {
         _logger.UpdateStatus("Finished Patching", false);
     }
 
+    /// <summary>Buckets the flattened asset packs by gender and Primary/MixIn type so the assignment loop can grab the relevant subset per NPC.</summary>
     public class CategorizedFlattenedAssetPacks
     {
+        /// <summary>Partitions <paramref name="availableAssetPacks"/> into the four gender × type buckets.</summary>
         public CategorizedFlattenedAssetPacks(HashSet<FlattenedAssetPack> availableAssetPacks)
         {
             PrimaryMale = availableAssetPacks.Where(x => x.Gender == Gender.Male && x.Type == FlattenedAssetPack.AssetPackType.Primary).ToHashSet();
@@ -888,6 +903,14 @@ public class Patcher
         public HashSet<FlattenedAssetPack> MixInFemale { get; set; }
     }
 
+    /// <summary>
+    /// Per-NPC selection pass (parallelizable). For each NPC in <paramref name="npcCollection"/>
+    /// it builds an <see cref="NPCInfo"/>, applies block-list/exclusion filters, then runs the
+    /// asset, body shape, height, and head part selectors, recording the chosen values into the
+    /// transfer dictionaries and trackers for the later serial application pass. Secondary linked
+    /// NPCs are deferred into <paramref name="skippedLinkedNPCs"/> when <paramref name="skipLinkedSecondaryNPCs"/> is set.
+    /// Mutates the transfer dictionaries, the BodyGen/BodySlide trackers, and <see cref="_patchedNpcCount"/>.
+    /// </summary>
     private void AssignmentLoop(
         IEnumerable<INpcGetter> npcCollection, bool skipLinkedSecondaryNPCs, ISkyrimMod outputMod,
         CategorizedFlattenedAssetPacks sortedAssetPacks, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings,
@@ -1218,6 +1241,11 @@ public class Patcher
         }
     }
 
+    /// <summary>
+    /// For every asset pack, registers all patchable races onto the default record template (and
+    /// each additional-template's own race set) so generated records resolve for those races.
+    /// Mutates the record template plugins via <see cref="SetRecordTemplateAdditionalRaces"/>.
+    /// </summary>
     private void UpdateRecordTemplateAdditonalRaces(List<AssetPack> assetPacks, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
     {
         Dictionary<string, HashSet<string>> patchedTemplates = new Dictionary<string, HashSet<string>>();
@@ -1235,6 +1263,12 @@ public class Patcher
         }
     }
 
+    /// <summary>
+    /// Resolves the template NPC and, at each "additional races" record path, adds the given
+    /// races to the AdditionalRaces collection on an override of the parent record. Skips paths
+    /// already handled (tracked in <paramref name="alreadyPatchedTemplates"/>); logs and continues on failure.
+    /// Mutates <paramref name="recordTemplatePlugins"/>.
+    /// </summary>
     private void SetRecordTemplateAdditionalRaces(HashSet<string> additionalRacesPaths, FormKey templateFK, HashSet<FormKey> racesToAdd, Dictionary<string, HashSet<string>> alreadyPatchedTemplates, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<SkyrimMod> recordTemplatePlugins)
     {
         foreach (var path in additionalRacesPaths)
@@ -1287,8 +1321,14 @@ public class Patcher
         }
     }
 
+    /// <summary>
+    /// Flattened snapshot of one assigned <see cref="SubgroupCombination"/>: the asset pack name,
+    /// type, file-path replacements, and keywords to apply. Carries the selection from the
+    /// parallel selection pass to the serial record-application pass.
+    /// </summary>
     public class SelectedAssetContainer
     {
+        /// <summary>Builds the container by flattening the subgroups of <paramref name="combination"/> into path and keyword lists.</summary>
         public SelectedAssetContainer(SubgroupCombination combination)
         {
             AssetPackName = combination.AssetPack.GroupName;
@@ -1308,18 +1348,29 @@ public class Patcher
         public HashSet<GeneratedRecordInfo> TraversedRecords { get; set; } = new(); // for logging only
     }
 
+    /// <summary>Global tracker of BodyGen morph assignments; only assigned morphs are written to the generated templates.ini.</summary>
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
+    /// <summary>Global map of NPC FormKey to its assigned BodySlide preset names (multiple entries only in Native OBody mode).</summary>
     public static Dictionary<FormKey, List<string>> BodySlideTracker = new Dictionary<FormKey, List<string>>(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 
 
+    /// <summary>Records BodyGen morph assignments: per-NPC morph labels plus the set of all chosen morphs by gender.</summary>
     public class BodyGenAssignmentTracker
     {
+        /// <summary>Maps each NPC FormKey to the morph labels assigned to it.</summary>
         public Dictionary<FormKey, List<string>> NPCAssignments = new();
+        /// <summary>All male morphs chosen, keyed by parent config name.</summary>
         public Dictionary<string, HashSet<string>> AllChosenMorphsMale = new();
+        /// <summary>All female morphs chosen, keyed by parent config name.</summary>
         public Dictionary<string, HashSet<string>> AllChosenMorphsFemale = new();
     }
 
+    /// <summary>
+    /// Tracks how many NPCs were assignable vs. actually assigned a primary asset config,
+    /// broken down by gender and race, and emits the coverage report at end of run.
+    /// </summary>
     public class AssetStatsTracker
     {
+        /// <summary>Assignable-vs-assigned counter pair for one gender/race bucket.</summary>
         public class AssignablePairing
         {
             public int Assignable { get; set; } = 0;
@@ -1336,6 +1387,7 @@ public class Patcher
         private readonly Logger _logger;
         private readonly ILinkCache _linkCache;
 
+        /// <summary>Initializes the gender-config flags from the selected asset packs and stores the logger and link cache.</summary>
         public AssetStatsTracker(PatcherState patcherState, Logger logger, ILinkCache linkCache)
         {
             HasGenderedConfigs.Add(Gender.Male, false);
@@ -1347,6 +1399,7 @@ public class Patcher
             _linkCache = linkCache;
         }
 
+        /// <summary>Increments the assignable count for the NPC's gender/race, and the assigned count when <paramref name="primaryAssetsAssigned"/> is true.</summary>
         public void LogNPCAssets(NPCInfo npcInfo, bool primaryAssetsAssigned)
         {
             if (!AssignmentsByGenderAndRace.ContainsKey(npcInfo.Gender))
@@ -1367,6 +1420,7 @@ public class Patcher
             }
         }
 
+        /// <summary>Logs primary asset coverage (assigned of assignable, with percentage) per race for each gender that has installed configs.</summary>
         public void WriteReport()
         {
             if (!HasGenderedConfigs[Gender.Male] && !HasGenderedConfigs[Gender.Female])
@@ -1410,6 +1464,7 @@ public class Patcher
             }
         }
 
+        /// <summary>Formats a single coverage line ("Race Gender: assigned of assignable (pct%)").</summary>
         private string FormatEntry(Gender gender, IFormLinkGetter<IRaceGetter> raceLink, AssignablePairing assignablePairing)
         {
             string raceDispStr = GetRaceDisplayString(raceLink);
@@ -1420,6 +1475,7 @@ public class Patcher
             return raceDispStr + " " + gender.ToString() + ": " + assignablePairing.Assigned + " of " + assignablePairing.Assignable + " (" + percentage + "%)";
         }
 
+        /// <summary>Resolves a race link to a human-readable label, preferring a cleaned EditorID over the raw FormKey.</summary>
         private string GetRaceDisplayString(IFormLinkGetter<IRaceGetter> raceLink)
         {
             string raceDispStr = "";
@@ -1442,6 +1498,7 @@ public class Patcher
         }
     }
 
+    /// <summary>Returns true (and logs a reason) if the NPC is blocked from asset assignment by the NPC/plugin block lists or by an existing-asset rule.</summary>
     public bool IsBlockedForAssets(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.Assets)
@@ -1461,6 +1518,7 @@ public class Patcher
         return false;
     }
 
+    /// <summary>Returns true (and logs a reason) if the NPC is blocked from body shape assignment by the block lists or because it inherits traits from a template NPC.</summary>
     public bool IsBlockedForBodyShape(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.BodyShape)
@@ -1481,6 +1539,7 @@ public class Patcher
         return false;
     }
 
+    /// <summary>Returns true (and logs a reason) if the NPC is blocked from height assignment by the NPC/plugin block lists.</summary>
     public bool IsBlockedForHeight(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.Height)
@@ -1496,6 +1555,7 @@ public class Patcher
         return false;
     }
 
+    /// <summary>Returns true (and logs a reason) if the NPC is blocked from head part assignment by the block lists or custom-FaceGen detection, unless overridden by a Specific NPC Assignment head part.</summary>
     public bool IsBlockedForHeadParts(NPCInfo npcInfo)
     {
         if (npcInfo.BlockedNPCEntry.HeadParts)
@@ -1523,6 +1583,11 @@ public class Patcher
         return false;
     }
 
+    /// <summary>
+    /// Heuristic to filter out creatures wrongly assigned a humanoid race: returns true if the
+    /// NPC's worn skin armature contains body, hands, and feet parts (or if it has no resolvable
+    /// skin to judge by). Used by the armature filter to skip non-humanoids.
+    /// </summary>
     private bool AppearsHumanoidByArmature(INpcGetter npc) // tries to identify creatures that are wrongly assigned a humanoid race via their armature
     {
         if (npc.WornArmor == null || npc.WornArmor.IsNull)
