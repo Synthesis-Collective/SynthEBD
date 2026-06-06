@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AndGatedSliderRuleGroup.xaml
+    /// Code-behind for the AND-gated slider rule group user control.
     /// </summary>
     public partial class UC_AndGatedSliderRuleGroup : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_AndGatedSliderRuleGroup()
         {
             InitializeComponent();

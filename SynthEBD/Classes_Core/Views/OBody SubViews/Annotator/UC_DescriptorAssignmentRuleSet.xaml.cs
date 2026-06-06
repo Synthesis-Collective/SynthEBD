@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_DescriptorAssignmentRuleSet.xaml
+    /// Code-behind for the descriptor assignment rule set user control.
     /// </summary>
     public partial class UC_DescriptorAssignmentRuleSet : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_DescriptorAssignmentRuleSet()
         {
             InitializeComponent();

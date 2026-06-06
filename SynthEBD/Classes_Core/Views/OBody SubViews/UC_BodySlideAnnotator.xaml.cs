@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_BodySlideAnnotator.xaml
+    /// Code-behind for the BodySlide annotator user control.
     /// </summary>
     public partial class UC_BodySlideAnnotator : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_BodySlideAnnotator()
         {
             InitializeComponent();

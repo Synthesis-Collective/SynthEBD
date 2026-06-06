@@ -6,14 +6,17 @@ using System.Windows.Media;
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_BodySlideMenu.xaml
+/// Code-behind for the BodySlide menu user control.
 /// </summary>
 public partial class UC_BodySlideMenu : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_BodySlideMenu()
     {
         InitializeComponent();
     }
+    /// <summary>Selects the clicked TextBlock's data item in its parent ListBox on left mouse-down,
+    /// so clicking the label text (not just the row) selects the item.</summary>
     private void TextBlock_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is TextBlock textBlock)
@@ -30,6 +33,8 @@ public partial class UC_BodySlideMenu : UserControl
         }
     }
 
+    /// <summary>Walks up the visual tree from <paramref name="child"/> to find the nearest
+    /// ancestor of type <typeparamref name="T"/>, or null if none exists.</summary>
     private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
     {
         DependencyObject parentObject = VisualTreeHelper.GetParent(child);

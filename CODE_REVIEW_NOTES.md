@@ -827,3 +827,47 @@ unwired). Across `VM_BodyGenGroupMappingMenu` / `VM_BodyGenTemplateMenu` / `VM_B
 <!-- ENTRIES:Classes_Core_VM -->
 
 ---
+
+## Classes_Core (views)
+
+*The .xaml.cs code-behind for the Core editors. Most are trivial InitializeComponent-only controls (a
+meaningful class summary + ctor doc was added, replacing the auto-generated "Interaction logic for X.xaml").
+The dozen-odd with real logic — numeric-input filters, the asset-pack subgroup-tree drag/drop, and the
+assignment previewers — were documented in full.*
+
+### Assignment previewer code-behinds leak a PropertyChanged handler — 🐞 possible bug
+
+[UC_SpecificNPCAssignment.xaml.cs:45](SynthEBD/Classes_Core/Views/UC_SpecificNPCAssignment.xaml.cs#L45),
+[UC_ConsistencyAssignment.xaml.cs:41](SynthEBD/Classes_Core/Views/UC_ConsistencyAssignment.xaml.cs#L41) ·
+`OnLoaded` does `_parentVM.PropertyChanged += OnParentVMPropertyChanged;` but neither control has an
+`Unloaded` handler that unsubscribes. Because these UCs are created/destroyed as the navigation
+`DataTemplate` is swapped, reloading the same view re-subscribes (multiplying the handler) and keeps the old
+code-behind alive via the VM — a handler leak. Capture the subscription and detach on `Unloaded`.
+
+### `VisualTreeHelpers.NotifyDragDelta` — 💭 (misleading name / dead param; doc corrected here)
+
+[UC_SpecificNPCAssignment.xaml.cs:118](SynthEBD/Classes_Core/Views/UC_SpecificNPCAssignment.xaml.cs#L118) ·
+The method's original summary claimed it "listens for SizeChanged … when the width stabilizes," but it
+actually handles the bubbling `Thumb.DragCompletedEvent` (this pass corrected the docstring). Its
+`column` parameter is never used. Also, `VisualTreeHelpers` is declared as a second top-level class inside a
+view's `.xaml.cs` — a general-purpose visual-tree helper that would be easier to find in its own utilities file.
+
+### View code-behind duplication — 🔧 modernize
+
+- `HandleSelectPreviewMouseDown`/`HandleSelectPreviewMouseUp` are copy-pasted verbatim across
+  `UC_AssetPack`, `UC_AssetPackSubGroupTreePresenter`, and `UC_AssetReplacerGroup`.
+- The `NumericOnly` TextBox handler recurs in ~6 more Core views (in addition to the Classes_Aux ones already
+  flagged) — an attached behavior would remove every copy.
+- `UC_SpecificNPCAssignment` and `UC_ConsistencyAssignment` code-behinds are near-identical previewer-column
+  logic (including a duplicated `525` default-width magic number) — candidates for a shared base/behavior.
+
+### Smaller view items — 💭
+
+- `Window_RuleDeleteExportPicker.xaml.cs` wraps `DialogResult = confirmed;` in `try { } catch { }` —
+  a blanket empty catch (guards against non-modal misuse, but hides any unexpected failure).
+- `UC_BodyTypeProfileEditor.RegionsGrid_SelectionChanged` is an empty, wired-but-dead handler kept as a
+  future hook (the inline comment acknowledges it).
+
+<!-- ENTRIES:Classes_Core_Views -->
+
+---

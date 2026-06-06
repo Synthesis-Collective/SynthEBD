@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_AssetPackRecordTemplateSelector.xaml
+    /// Code-behind for the asset pack record template selector user control.
     /// </summary>
     public partial class UC_AssetPackRecordTemplateSelector : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_AssetPackRecordTemplateSelector()
         {
             InitializeComponent();

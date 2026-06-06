@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_Settings_Environment.xaml
+    /// Code-behind for the environment settings user control.
     /// </summary>
     public partial class UC_Settings_Environment : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_Settings_Environment()
         {
             InitializeComponent();

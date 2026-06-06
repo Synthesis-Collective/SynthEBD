@@ -5,18 +5,24 @@ using System.Windows.Controls;
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_ConsistencyAssignment.xaml
+/// Code-behind for the consistency assignment user control. Manages the collapsible 3D
+/// previewer column: restores its persisted width, toggles it with the parent VM's
+/// Show3DPreview flag, and writes the width back on splitter drag.
 /// </summary>
 public partial class UC_ConsistencyAssignment : UserControl
 {
     private VM_ConsistencyUI? _parentVM;
 
+    /// <summary>Initializes the view's XAML components and defers preview-column setup to Loaded.</summary>
     public UC_ConsistencyAssignment()
     {
         InitializeComponent();
         Loaded += OnLoaded;
     }
 
+    /// <summary>On load, locates the parent <see cref="VM_ConsistencyUI"/>, restores the
+    /// previewer column width, applies its visibility, and wires up the splitter-drag and
+    /// Show3DPreview change listeners.</summary>
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         var parentUC = this.FindAncestor<UC_ConsistencyUI>();
@@ -38,6 +44,7 @@ public partial class UC_ConsistencyAssignment : UserControl
         PreviewerColumn.NotifyDragDelta(this, OnSplitterDragCompleted);
     }
 
+    /// <summary>Re-applies preview-column visibility whenever the parent VM's Show3DPreview changes.</summary>
     private void OnParentVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(VM_ConsistencyUI.Show3DPreview) && _parentVM != null)
@@ -46,6 +53,8 @@ public partial class UC_ConsistencyAssignment : UserControl
         }
     }
 
+    /// <summary>Shows the previewer column at its persisted (or default 525px) width, or
+    /// collapses it to zero width when the preview is hidden.</summary>
     private void ApplyPreviewVisibility(bool show)
     {
         if (show)
@@ -60,6 +69,8 @@ public partial class UC_ConsistencyAssignment : UserControl
         }
     }
 
+    /// <summary>Persists the current previewer column width back to the parent VM after a
+    /// splitter drag completes.</summary>
     private void OnSplitterDragCompleted()
     {
         if (_parentVM != null && PreviewerColumn.ActualWidth > 0)

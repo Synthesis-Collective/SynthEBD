@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_SliderClassificationRuleSet.xaml
+    /// Code-behind for the descriptor classification rule set user control.
     /// </summary>
     public partial class UC_DescriptorClassificationRuleSet : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_DescriptorClassificationRuleSet()
         {
             InitializeComponent();

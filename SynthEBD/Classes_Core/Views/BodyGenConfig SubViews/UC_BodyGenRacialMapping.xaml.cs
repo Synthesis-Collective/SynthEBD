@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_BodyGenRacialSettings.xaml
+/// Code-behind for the BodyGen racial-mapping user control.
 /// </summary>
 public partial class UC_BodyGenRacialMapping : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_BodyGenRacialMapping()
     {
         InitializeComponent();

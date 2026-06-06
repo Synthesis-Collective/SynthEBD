@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_SliderClassificationRulesByBodyType.xaml
+    /// Code-behind for the per-body-type slider classification rules user control.
     /// </summary>
     public partial class UC_SliderClassificationRulesByBodyType : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_SliderClassificationRulesByBodyType()
         {
             InitializeComponent();

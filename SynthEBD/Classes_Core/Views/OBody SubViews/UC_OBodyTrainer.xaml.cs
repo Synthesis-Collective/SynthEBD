@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_OBodyTrainer.xaml
+    /// Code-behind for the OBody trainer user control.
     /// </summary>
     public partial class UC_OBodyTrainer : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_OBodyTrainer()
         {
             InitializeComponent();
