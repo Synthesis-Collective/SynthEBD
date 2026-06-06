@@ -10,17 +10,30 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Thin wrapper over the bundled 7-Zip command-line tool (<c>7z.exe</c>) for extracting archives and
+    /// listing their contents. Used by the installer/import flows.
+    /// </summary>
     public class _7ZipInterface
     {
         private readonly IEnvironmentStateProvider _environmentStateProvider;
+        /// <summary>Full path to the architecture-appropriate (x64/x86) bundled <c>7z.exe</c>.</summary>
         private string _sevenZipPath => Path.Combine(_environmentStateProvider.InternalDataPath, "7Zip",
                             Environment.Is64BitProcess ? "x64" : "x86", "7z.exe");
 
+        /// <summary>Creates the interface, capturing the environment provider used to locate the bundled 7-Zip executable.</summary>
+        /// <param name="environmentStateProvider">Provides the internal data path where 7-Zip is bundled.</param>
         public _7ZipInterface(IEnvironmentStateProvider environmentStateProvider)
         {
             _environmentStateProvider = environmentStateProvider;
         }
 
+        /// <summary>Extracts an archive to a destination folder by invoking <c>7z x</c>, optionally streaming progress lines to a callback.</summary>
+        /// <param name="archivePath">Path to the archive to extract.</param>
+        /// <param name="destinationPath">Folder to extract into (overwriting via <c>-y</c>).</param>
+        /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
+        /// <param name="mirrorUIstr">Callback receiving each line of 7-Zip's stdout (e.g. to mirror progress in the UI).</param>
+        /// <returns><c>true</c> on success; <c>false</c> if extraction failed or 7-Zip reported "Can't open as archive". Failures show a notification dialog.</returns>
         public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr)
         {
             try
@@ -80,11 +93,20 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>Lists the file entries in an archive, with no progress callback.</summary>
+        /// <param name="archivePath">Path to the archive.</param>
+        /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
+        /// <returns>The archive's file paths, or an empty list on failure.</returns>
         public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow)
         {
             return await GetArchiveContents(archivePath, hideWindow, (_) => { });
         }
 
+        /// <summary>Lists the file entries in an archive by invoking <c>7z l -slt</c> and parsing the "Path = " lines.</summary>
+        /// <param name="archivePath">Path to the archive.</param>
+        /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
+        /// <param name="mirrorUIstr">Callback receiving each line of 7-Zip's stdout.</param>
+        /// <returns>The archive's file paths (entries judged to be files by <see cref="IsFilePathFragment"/>), or an empty list on failure.</returns>
         public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow, Action<string> mirrorUIstr)
         {
             List<string> outputLines = new();
@@ -147,6 +169,10 @@ namespace SynthEBD
             return processedOutput;
         }
 
+        /// <summary>Heuristically decides whether an archive entry path refers to a file rather than a directory.</summary>
+        /// <param name="input">An archive entry path.</param>
+        /// <returns><c>true</c> if the last path segment contains a dot (treated as an extension).</returns>
+        /// <remarks>Splits on <see cref="Path.DirectorySeparatorChar"/> and assumes "has a dot ⇒ is a file", so dotted folder names or extensionless files are misclassified.</remarks>
         private bool IsFilePathFragment(string input)
         {
             var last = input.Split(Path.DirectorySeparatorChar).Last();

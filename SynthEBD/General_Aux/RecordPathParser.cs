@@ -11,20 +11,42 @@ using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Metadata about an object located by <see cref="RecordPathParser.GetObjectAtPath(dynamic, IMajorRecordGetter, string, Dictionary{string, dynamic}, ILinkCache, bool, string, out dynamic, out ObjectInfo)"/>:
+/// whether it is a record (has a FormKey), its resolved type/registration, and its index within a parent array.
+/// </summary>
 public class ObjectInfo
 {
+    /// <summary>True if the located object is (or resolves to) a record with a FormKey.</summary>
     public bool HasFormKey { get; set; } = false;
+    /// <summary>True if the path terminated at a form link that is null/unresolvable.</summary>
     public bool IsNullFormLink { get; set; } = false;
+    /// <summary>The Loqui/record type of the located object, when known.</summary>
     public Type RecordType { get; set; } = null;
+    /// <summary>The Loqui registration for <see cref="RecordType"/>, when the object is a record.</summary>
     public ILoquiRegistration LoquiRegistration { get; set; } = null;
+    /// <summary>The FormKey of the located record (default when not a record).</summary>
     public FormKey RecordFormKey { get; set; } = new();
+    /// <summary>Index of the object within its parent array, when reached through an array specifier.</summary>
     public int? IndexInParentArray { get; set; } = null;
 }
+/// <summary>
+/// Traverses and mutates Mutagen records via a string "record path" DSL (e.g.
+/// <c>WornArmor.Armature[BodyTemplate...HasFlag(...) &amp;&amp; MatchRace(...)].SkinTexture.Male.Diffuse.GivenPath</c>).
+/// Walks properties by reflection, supports array indexing by position, wildcard, or a boolean condition,
+/// and evaluates those conditions with DynamicExpresso — including the custom <c>MatchRace</c> and
+/// <c>PatchableRaces</c> operators. This is the engine behind the destination paths in
+/// <see cref="FilePathDestinationMap"/> and the record output in <c>RecordGenerator</c>.
+/// </summary>
 public class RecordPathParser
 {
     private readonly IEnvironmentStateProvider _environmentProvider; 
     private readonly Logger _logger;
     private readonly PatchableRaceResolver _raceResolver;
+    /// <summary>Creates the parser.</summary>
+    /// <param name="environmentProvider">Supplies the link cache for resolving records during traversal.</param>
+    /// <param name="logger">Logger for path-resolution errors.</param>
+    /// <param name="raceResolver">Supplies the patchable-race set for the <c>PatchableRaces</c> condition operator.</param>
     public RecordPathParser(IEnvironmentStateProvider environmentProvider, Logger logger, PatchableRaceResolver raceResolver)
     {
         _environmentProvider = environmentProvider;
@@ -33,6 +55,8 @@ public class RecordPathParser
     }
 
     private static readonly Interpreter _dynExpInterpreter = CreateInterpreter();
+    /// <summary>Builds the shared DynamicExpresso interpreter, registering all exported Skyrim types so conditions can reference enums/flags like <c>BipedObjectFlag</c>.</summary>
+    /// <returns>A configured interpreter used to compile array-condition expressions.</returns>
     private static Interpreter CreateInterpreter()
     {
         var interp = new Interpreter();
@@ -45,6 +69,11 @@ public class RecordPathParser
 
     private static readonly Dictionary<string, Lambda> _lambdaCache = new();
 
+    /// <summary>Compiles (and caches) a boolean condition expression for the given parameter types and evaluates it.</summary>
+    /// <param name="expression">The condition text, with parameters referenced as <c>_0</c>, <c>_1</c>, ...</param>
+    /// <param name="parameters">The actual parameter values, in order.</param>
+    /// <returns>The boolean result of evaluating the expression.</returns>
+    /// <remarks>Lambdas are cached by expression text plus parameter type signature. The cache is a plain dictionary — see review notes on thread-safety.</remarks>
     private static bool EvalBoolExpression(string expression, List<dynamic> parameters)
     {
         var dynParams = new Parameter[parameters.Count];
@@ -71,11 +100,33 @@ public class RecordPathParser
     }
 
     //note: To allow the most flexibility in alternative usages, rootRecord can be any IMajorRecordGetter, but in SynthEBD it should always be the root INpcGetter.
+    /// <summary>Resolves the single object at a record path relative to <paramref name="rootObj"/> (convenience overload that discards the <see cref="ObjectInfo"/>).</summary>
+    /// <param name="rootObj">The object the path is traversed from (may be a sub-object of <paramref name="rootRecord"/>).</param>
+    /// <param name="rootRecord">The root record of the whole tree (used to evaluate race/condition operators).</param>
+    /// <param name="relativePath">The dot/bracket-delimited path to traverse.</param>
+    /// <param name="objectCache">Per-traversal cache of already-resolved sub-paths.</param>
+    /// <param name="linkCache">Link cache for resolving sub-records.</param>
+    /// <param name="suppressMissingPathErrors">When true, missing path segments are not logged as errors.</param>
+    /// <param name="errorCaption">Caption prefixed to any logged errors.</param>
+    /// <param name="outputObj">Receives the resolved object, or null.</param>
+    /// <returns><c>true</c> if the path resolved to an object.</returns>
     public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
         return GetObjectAtPath(rootObj, rootRecord, relativePath, objectCache, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out ObjectInfo _);
     }
 
+    /// <summary>Resolves the single object at a record path relative to <paramref name="rootObj"/>, reflecting through properties and resolving array specifiers and sub-records, and reports metadata about the result.</summary>
+    /// <param name="rootObj">The object the path is traversed from (may be a sub-object of <paramref name="rootRecord"/>).</param>
+    /// <param name="rootRecord">The root record of the whole tree (used to evaluate race/condition operators).</param>
+    /// <param name="relativePath">The dot/bracket-delimited path to traverse; an empty path returns <paramref name="rootObj"/> itself.</param>
+    /// <param name="objectCache">Per-traversal cache of already-resolved sub-paths (populated as it walks).</param>
+    /// <param name="linkCache">Link cache for resolving sub-records.</param>
+    /// <param name="suppressMissingPathErrors">When true, missing path segments are not logged as errors.</param>
+    /// <param name="errorCaption">Caption prefixed to any logged errors.</param>
+    /// <param name="outputObj">Receives the resolved object, or null.</param>
+    /// <param name="outputObjInfo">Receives metadata (record-ness, type, FormKey, array index) for the final object.</param>
+    /// <returns><c>true</c> if the path resolved to an object.</returns>
+    /// <remarks>Null form links are intentionally not cached, so upstream callers can distinguish "resolved" from "present but null".</remarks>
     public bool GetObjectAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out ObjectInfo outputObjInfo) // rootObj is the object relative to which the path is to be traversed. rootRecord is the parent record of the entire tree - this may be the same as rootObj, but rootObj may be a sub-object of rootRecord
     {
         outputObj = null;
@@ -189,6 +240,17 @@ public class RecordPathParser
         return true;
     }
 
+    /// <summary>Resolves a record path that may fan out to multiple objects (via a wildcard <c>[*]</c> or multi-match condition), accumulating every matching object.</summary>
+    /// <param name="rootObj">The object the path is traversed from.</param>
+    /// <param name="rootRecord">The root record of the whole tree.</param>
+    /// <param name="relativePath">The dot/bracket-delimited path to traverse; an empty path yields <paramref name="rootObj"/> alone.</param>
+    /// <param name="objectCache">Per-traversal cache of resolved sub-paths.</param>
+    /// <param name="linkCache">Link cache for resolving sub-records.</param>
+    /// <param name="suppressMissingPathErrors">When true, missing path segments are not logged as errors.</param>
+    /// <param name="errorCaption">Caption prefixed to any logged errors.</param>
+    /// <param name="outputObjectCollection">Receives all resolved objects (de-duplicated).</param>
+    /// <returns><c>true</c> if at least one object resolved.</returns>
+    /// <remarks>When a path segment fans out, the remaining sub-path is resolved recursively against each branch and the results unioned.</remarks>
     public bool GetObjectCollectionAtPath(dynamic rootObj, IMajorRecordGetter rootRecord, string relativePath, Dictionary<string, dynamic> objectCache, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         if (rootObj == null)
@@ -295,6 +357,16 @@ public class RecordPathParser
         return outputObjectCollection.Any();
     }
 
+    /// <summary>Walks a path segment-by-segment and reports the deepest record encountered along it, plus the remaining sub-path from that record to the target.</summary>
+    /// <param name="rootGetter">The record to start from.</param>
+    /// <param name="path">The full path to walk.</param>
+    /// <param name="linkCache">Link cache for resolving sub-records.</param>
+    /// <param name="suppressMissingPathErrors">When true, missing path segments are not logged as errors.</param>
+    /// <param name="errorCaption">Caption prefixed to any logged errors.</param>
+    /// <param name="parentRecordGetter">Receives the nearest (deepest) record getter along the path.</param>
+    /// <param name="relativePath">Receives the path from <paramref name="parentRecordGetter"/> to the target.</param>
+    /// <returns><c>true</c> if the whole path resolved; <c>false</c> if any segment failed.</returns>
+    /// <remarks>Used so the patcher can override the nearest concrete record rather than a non-record sub-object.</remarks>
     public bool GetNearestParentGetter(IMajorRecordGetter rootGetter, string path, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, bool suppressMissingPathErrors, string errorCaption, out IMajorRecordGetter parentRecordGetter, out string relativePath)
     {
         string[] splitPath = SplitPath(path);
@@ -330,10 +402,29 @@ public class RecordPathParser
 
         return true;
     }
+    /// <summary>Resolves the single array element selected by an index specifier, discarding the element's index.</summary>
+    /// <param name="currentObj">The array/list object.</param>
+    /// <param name="arrIndex">The specifier inside the brackets: a number or a boolean condition.</param>
+    /// <param name="rootRecord">Root record for condition evaluation.</param>
+    /// <param name="linkCache">Link cache for resolving records.</param>
+    /// <param name="suppressMissingPathErrors">When true, suppresses missing-element error logging.</param>
+    /// <param name="errorCaption">Caption for logged errors.</param>
+    /// <param name="outputObj">Receives the selected element, or null.</param>
+    /// <returns><c>true</c> if an element was selected.</returns>
     private bool GetArrayObjectAtSpecifier(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj)
     {
         return GetArrayObjectAtIndex(currentObj, arrIndex, rootRecord, linkCache, suppressMissingPathErrors, errorCaption, out outputObj, out int? _);
     }
+    /// <summary>Selects the array element identified by <paramref name="arrIndex"/> — either a numeric position or a boolean condition matched against each element.</summary>
+    /// <param name="currentObj">The array/list object (must be an <see cref="IReadOnlyList{T}"/> of dynamic).</param>
+    /// <param name="arrIndex">A numeric index, or a condition expression.</param>
+    /// <param name="rootRecord">Root record for condition evaluation.</param>
+    /// <param name="linkCache">Link cache for resolving records.</param>
+    /// <param name="suppressMissingPathErrors">When true, suppresses missing-element error logging.</param>
+    /// <param name="errorCaption">Caption for logged errors.</param>
+    /// <param name="outputObj">Receives the selected element, or null.</param>
+    /// <param name="indexInParent">Receives the element's index within the array.</param>
+    /// <returns><c>true</c> if an element was selected.</returns>
     private bool GetArrayObjectAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
@@ -380,6 +471,15 @@ public class RecordPathParser
         return true;
     }
 
+    /// <summary>Selects array elements by specifier into a collection: a numeric index (one element), <c>*</c> (all elements), or a boolean condition (all matches).</summary>
+    /// <param name="currentObj">The array/list object.</param>
+    /// <param name="arrIndex">A numeric index, <c>*</c>, or a condition expression.</param>
+    /// <param name="rootRecord">Root record for condition evaluation.</param>
+    /// <param name="linkCache">Link cache for resolving records.</param>
+    /// <param name="suppressMissingPathErrors">When true, suppresses missing-element error logging.</param>
+    /// <param name="errorCaption">Caption for logged errors.</param>
+    /// <param name="outputObjectCollection">Receives the selected elements (cleared first).</param>
+    /// <returns><c>true</c> if at least one element was selected.</returns>
     private bool GetArrayObjectCollectionAtIndex(dynamic currentObj, string arrIndex, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> outputObjectCollection)
     {
         outputObjectCollection.Clear();
@@ -437,8 +537,16 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>
+    /// Parses and represents a single array-index condition from the path DSL — its subject path, the
+    /// expression template substituted by a parameter placeholder, the comparison/match condition, and
+    /// any special handling (<c>Invoke</c>, <c>MatchRace</c>, <c>PatchableRaces</c>).
+    /// </summary>
     private class ArrayPathCondition
     {
+        /// <summary>Parses a single condition string into its path, replacer template, comparator, and match condition.</summary>
+        /// <param name="strIndex">The raw condition text (one term of an array specifier).</param>
+        /// <param name="parsed">Receives whether parsing succeeded.</param>
         private ArrayPathCondition(string strIndex, out bool parsed)
         {
             parsed = false;
@@ -494,24 +602,39 @@ public class RecordPathParser
             }
             parsed = true;
         }
+        /// <summary>Creates an empty condition for callers that populate the fields directly (e.g. special-command conditions).</summary>
         private ArrayPathCondition()
         {
 
         }
+        /// <summary>The subject path whose value is compared (the left side of the condition).</summary>
         public string Path;
+        /// <summary>The exact substring (including user whitespace/operators) replaced by the parameter placeholder during expression formatting.</summary>
         public string ReplacerTemplate;
+        /// <summary>The comparison/match portion appended after the substituted parameter.</summary>
         public string MatchCondition;
+        /// <summary>Which custom operator (if any) this condition uses.</summary>
         public SpecialHandlingType SpecialHandling = SpecialHandlingType.None;
+        /// <summary>The comparison operator (==, !=, &lt;, &gt;, ...) found in the condition.</summary>
         public string Comparator;
 
+        /// <summary>Identifies which custom condition operator an <see cref="ArrayPathCondition"/> uses.</summary>
         public enum SpecialHandlingType
         {
+            /// <summary>A plain comparison with no special operator.</summary>
             None,
+            /// <summary>The <c>PatchableRaces</c> operator (membership in the patchable-race set).</summary>
             PatchableRaces,
+            /// <summary>A boolean method invocation (e.g. <c>HasFlag(...)</c>) treated as <c>== true</c>.</summary>
             Invoke,
+            /// <summary>The custom <c>MatchRace(...)</c> operator.</summary>
             MatchRace
         }
 
+        /// <summary>Rewrites bare boolean <c>Invoke:</c> calls into explicit <c>== true</c> comparisons so they parse as conditions.</summary>
+        /// <param name="argStr">The condition text possibly containing <c>Invoke:</c> calls.</param>
+        /// <param name="replacedStr">Receives the rewritten text.</param>
+        /// <returns><c>true</c> on success; <c>false</c> if an <c>Invoke:</c> call's arguments could not be parsed.</returns>
         private static bool ReplaceUncomparedInvokeCalls(string argStr, out string replacedStr) // replaces Invoke calls, which are assumed to be boolean, with a corresponding comparison (== true)
         {
             replacedStr = "";
@@ -538,6 +661,10 @@ public class RecordPathParser
             return true;
         }
 
+        /// <summary>Strips fully-enclosing paired parentheses from a string, repeatedly.</summary>
+        /// <param name="str">The string to unwrap.</param>
+        /// <returns>The string without redundant outer parentheses.</returns>
+        /// <remarks>Naive: it only checks the first/last characters, so non-enclosing parens such as <c>(a) &amp;&amp; (b)</c> can be mis-stripped — see review notes.</remarks>
         private static string RemovePairedParens(string str)
         {
             while (str.StartsWith('(') && str.EndsWith(')'))
@@ -547,6 +674,9 @@ public class RecordPathParser
             return str;
         }
 
+        /// <summary>Removes a single unmatched leading or trailing parenthesis, using quote- and depth-aware scanning so genuinely paired parentheses are preserved.</summary>
+        /// <param name="str">The string to trim.</param>
+        /// <returns>The string with a stray outer parenthesis removed if present.</returns>
         private static string TrimParens(string str)
         {
             if (str.StartsWith('('))
@@ -582,6 +712,10 @@ public class RecordPathParser
             return str;
         }
 
+        /// <summary>Extracts the parenthesized argument list (including nested parentheses) from the start of a function-call substring.</summary>
+        /// <param name="subStr">Text beginning at or before the opening parenthesis.</param>
+        /// <param name="parsedStr">Receives the captured text through the matching close parenthesis.</param>
+        /// <returns><c>true</c> if a balanced parenthesis group was captured.</returns>
         private static bool GetFunctionArgsString(string subStr, out string parsedStr)
         {
             parsedStr = "";
@@ -604,8 +738,13 @@ public class RecordPathParser
             else { return false; }
         }
 
+        /// <summary>The comparison operators recognized in array conditions.</summary>
         public static HashSet<string> Comparators = new HashSet<string>() { "==", "!=", "<", ">", "<=", ">=" };
 
+        /// <summary>Splits a composite array condition on logical operators and parses each term into an <see cref="ArrayPathCondition"/>, handling the special <c>PatchableRaces</c> and <c>MatchRace</c> commands.</summary>
+        /// <param name="input">The full bracketed condition expression.</param>
+        /// <param name="parsed">Receives whether every term parsed successfully.</param>
+        /// <returns>The parsed conditions (empty when parsing fails).</returns>
         public static List<ArrayPathCondition> GetConditionsFromString(string input, out bool parsed)
         {
             parsed = true;
@@ -649,6 +788,10 @@ public class RecordPathParser
             return output;
         }
 
+        /// <summary>Extracts the argument string inside the outermost parentheses of a <c>MatchRace(...)</c> condition.</summary>
+        /// <param name="conditionStr">The condition text containing the call.</param>
+        /// <param name="args">Receives the argument text.</param>
+        /// <returns><c>true</c> if a parenthesized argument list was found.</returns>
         private static bool GetMatchRaceArgStr(string conditionStr, out string args)
         {
             args = "";
@@ -664,6 +807,10 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>Substitutes each parsed condition's replacer template in the raw condition string with a positional parameter placeholder (<c>_0</c>, <c>_1</c>, ...) so the result can be compiled by DynamicExpresso.</summary>
+    /// <param name="matchConditionStr">The raw condition string.</param>
+    /// <param name="arrayMatchConditions">The parsed conditions, in order.</param>
+    /// <returns>The condition string with subjects replaced by parameter placeholders.</returns>
     private static string FormatMatchConditionString(string matchConditionStr, List<ArrayPathCondition> arrayMatchConditions)
     {
         int argIndex = 0;
@@ -699,6 +846,11 @@ public class RecordPathParser
         return matchConditionStr;
     }
 
+    /// <summary>Evaluates the custom <c>MatchRace</c> operator: resolves each comma-separated race path and returns whether any resolves to the NPC's race (or, with <c>MatchDefault</c>, the default race).</summary>
+    /// <param name="rootRecord">The record the race paths are resolved against.</param>
+    /// <param name="npcDyn">The NPC whose race is being matched (must be an <see cref="INpcGetter"/>).</param>
+    /// <param name="toMatchPathStr">Comma-separated race paths, optionally including the literal <c>MatchDefault</c>.</param>
+    /// <returns><c>true</c> if any candidate race matches the NPC's race.</returns>
     private bool MatchRace(dynamic rootRecord, dynamic npcDyn, string toMatchPathStr)
     {
         var npc = npcDyn as INpcGetter;
@@ -747,6 +899,16 @@ public class RecordPathParser
         return false;
     }
 
+    /// <summary>Returns the first array element satisfying a (possibly compound) boolean condition, evaluating the condition per element via DynamicExpresso and the custom race operators.</summary>
+    /// <param name="variants">The candidate array elements.</param>
+    /// <param name="matchConditionStr">The bracketed condition expression.</param>
+    /// <param name="rootRecord">Root record for race/condition evaluation.</param>
+    /// <param name="linkCache">Link cache for resolving records.</param>
+    /// <param name="suppressMissingPathErrors">When true, suppresses missing-path error logging.</param>
+    /// <param name="errorCaption">Caption for logged errors.</param>
+    /// <param name="outputObj">Receives the first matching element, or null.</param>
+    /// <param name="indexInParent">Receives the matching element's index.</param>
+    /// <returns><c>true</c> if an element matched.</returns>
     private bool ChooseWhichArrayObject(IReadOnlyList<dynamic> variants, string matchConditionStr, IMajorRecordGetter rootRecord, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, out dynamic outputObj, out int? indexInParent)
     {
         outputObj = null;
@@ -849,6 +1011,15 @@ public class RecordPathParser
         return false;
     }
 
+    /// <summary>Collects every array element satisfying a (possibly compound) boolean condition (the multi-match counterpart of <see cref="ChooseWhichArrayObject"/>).</summary>
+    /// <param name="variants">The candidate array elements.</param>
+    /// <param name="rootRecord">Root record for race/condition evaluation.</param>
+    /// <param name="matchConditionStr">The bracketed condition expression.</param>
+    /// <param name="linkCache">Link cache for resolving records.</param>
+    /// <param name="suppressMissingPathErrors">When true, suppresses missing-path error logging.</param>
+    /// <param name="errorCaption">Caption for logged errors.</param>
+    /// <param name="matchedObjects">Receives all matching elements.</param>
+    /// <returns><c>true</c> if at least one element matched.</returns>
     private bool ChooseSelectedArrayObjects(IReadOnlyList<dynamic> variants, IMajorRecordGetter rootRecord, string matchConditionStr, ILinkCache linkCache, bool suppressMissingPathErrors, string errorCaption, List<dynamic> matchedObjects)
     {
         var arrayMatchConditions = ArrayPathCondition.GetConditionsFromString(matchConditionStr, out bool parsed);
@@ -944,6 +1115,10 @@ public class RecordPathParser
         return matchedObjects.Any();
     }
 
+    /// <summary>Determines whether a path segment is an array specifier of the form <c>[index]</c> and extracts the inner specifier.</summary>
+    /// <param name="path">The path segment to test.</param>
+    /// <param name="index">Receives the text between the brackets.</param>
+    /// <returns><c>true</c> if the segment is bracketed.</returns>
     private static bool PathIsArray(string path, out string index) //correct input is of form [y]
     {
         index = "";
@@ -955,11 +1130,18 @@ public class RecordPathParser
         return false;
     }
 
+    /// <summary>Determines whether a path segment is an array specifier of the form <c>[index]</c>.</summary>
+    /// <param name="path">The path segment to test.</param>
+    /// <returns><c>true</c> if the segment is bracketed.</returns>
     public static bool PathIsArray(string path) //correct input is of form [y]
     {
         return PathIsArray(path, out string _);
     }
 
+    /// <summary>Determines the Loqui/record type to use when resolving an object — its own type if it's a Loqui type, or the target type of a (nullable) form link.</summary>
+    /// <param name="currentObject">The object to inspect.</param>
+    /// <param name="registerType">Receives the resolved type, or null.</param>
+    /// <returns><c>true</c> if a usable type was found.</returns>
     public static bool TryGetRegister(dynamic currentObject, out Type registerType)
     {
         Type objType = currentObject.GetType();
@@ -986,6 +1168,11 @@ public class RecordPathParser
         return false;
     }
 
+    /// <summary>Reads a named property from an object via reflection.</summary>
+    /// <param name="root">The object to read from.</param>
+    /// <param name="propertyName">The property to read.</param>
+    /// <param name="outputObj">Receives the property value, or null.</param>
+    /// <returns><c>true</c> if the property exists, is a simple (parameterless) getter, and returned a non-null value.</returns>
     public static bool GetSubObject(dynamic root, string propertyName, out dynamic outputObj)
     {
         Type type = root.GetType();
@@ -1023,6 +1210,11 @@ public class RecordPathParser
         */
     }
 
+    /// <summary>Sets a named property on an object via reflection, logging a detailed error on failure.</summary>
+    /// <param name="root">The object to mutate.</param>
+    /// <param name="propertyName">The property to set.</param>
+    /// <param name="value">The value to assign.</param>
+    /// <returns><c>true</c> if the property existed and was set without throwing.</returns>
     public bool SetPropertyValue(dynamic root, string propertyName, dynamic value)
     {
         Type type = root.GetType();
@@ -1069,6 +1261,10 @@ public class RecordPathParser
         */
     }
 
+    /// <summary>Determines whether an object exposes a <c>FormKey</c> property and returns it.</summary>
+    /// <param name="obj">The object to inspect.</param>
+    /// <param name="formKey">Receives the FormKey, or null when absent.</param>
+    /// <returns><c>true</c> if the object has a FormKey.</returns>
     public static bool ObjectHasFormKey(dynamic obj, out FormKey? formKey)
     {
         bool hasFormKey = GetSubObject(obj, "FormKey", out dynamic formKeyDyn);
@@ -1084,11 +1280,17 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>Determines whether an object exposes a <c>FormKey</c> property.</summary>
+    /// <param name="obj">The object to inspect.</param>
+    /// <returns><c>true</c> if the object has a FormKey.</returns>
     public static bool ObjectHasFormKey(dynamic obj)
     {
         return GetSubObject(obj, "FormKey", out dynamic _);
     }
 
+    /// <summary>Splits a record path into segments on dots — but not dots inside bracketed array specifiers — and separates a trailing <c>[..]</c> specifier into its own segment.</summary>
+    /// <param name="input">The full record path.</param>
+    /// <returns>The ordered path segments.</returns>
     public static string[] SplitPath(string input)
     {
         var pattern = @"\.(?![^\[]*[\]])";
@@ -1112,8 +1314,14 @@ public class RecordPathParser
         return output.ToArray();
     }
 
+    /// <summary>Per-type cache of resolved <see cref="PropertyInfo"/> by property name, used by <see cref="GetPropertyInfo"/>.</summary>
     public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
 
+    /// <summary>Resolves a property's <see cref="PropertyInfo"/> by reflection without caching. Retained for performance comparison.</summary>
+    /// <param name="obj">The object whose type is inspected.</param>
+    /// <param name="propertyName">The property to resolve.</param>
+    /// <param name="property">Receives the resolved <see cref="PropertyInfo"/>, or null.</param>
+    /// <returns><c>true</c> if the property exists.</returns>
     public static bool GetPropertyInfo_NoCache(dynamic obj, string propertyName, out System.Reflection.PropertyInfo property) // for performance testing only
     {
         property = null;
@@ -1128,6 +1336,12 @@ public class RecordPathParser
             return false;
         }
     }
+    /// <summary>Resolves a property's <see cref="PropertyInfo"/> by reflection, caching the result per type in <see cref="PropertyCache"/>.</summary>
+    /// <param name="obj">The object whose type is inspected.</param>
+    /// <param name="propertyName">The property to resolve.</param>
+    /// <param name="property">Receives the resolved <see cref="PropertyInfo"/>, or null.</param>
+    /// <returns><c>true</c> if the property exists.</returns>
+    /// <remarks>The cache is a non-thread-safe dictionary; see review notes.</remarks>
     public static bool GetPropertyInfo(dynamic obj, string propertyName, out System.Reflection.PropertyInfo property)
     {
         property = null;
@@ -1163,15 +1377,26 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>Per-type cache of compiled getter delegates by property name (used by <see cref="GetAccessor"/>).</summary>
     public static Dictionary<Type, Dictionary<string, Delegate>> GetterEmbassy = new Dictionary<Type, Dictionary<string, Delegate>>();
+    /// <summary>Per-type cache of compiled setter delegates by property name (used by <see cref="GetAccessor"/>).</summary>
     public static Dictionary<Type, Dictionary<string, Delegate>> SetterEmbassy = new Dictionary<Type, Dictionary<string, Delegate>>();
 
+    /// <summary>Selects whether an accessor delegate is a property getter or setter.</summary>
     public enum AccessorType
     {
+        /// <summary>A property getter.</summary>
         Getter,
+        /// <summary>A property setter.</summary>
         Setter
     }
 
+    /// <summary>Builds a getter/setter delegate for a property without caching. Retained for performance comparison.</summary>
+    /// <param name="obj">The object whose type is inspected.</param>
+    /// <param name="propertyName">The property to build an accessor for.</param>
+    /// <param name="accessorType">Whether to build a getter or setter.</param>
+    /// <param name="accessor">Receives the delegate, or null.</param>
+    /// <returns><c>true</c> if an accessor was built.</returns>
     public static bool GetAccessor_NoCache(dynamic obj, string propertyName, AccessorType accessorType, out Delegate accessor) // for performance testing only
     {
         accessor = null;
@@ -1200,6 +1425,13 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>Builds (and caches per type) a getter or setter delegate for a property.</summary>
+    /// <param name="obj">The object whose type is inspected.</param>
+    /// <param name="propertyName">The property to build an accessor for.</param>
+    /// <param name="accessorType">Whether to build a getter or setter.</param>
+    /// <param name="accessor">Receives the cached/created delegate, or null.</param>
+    /// <returns><c>true</c> if an accessor was built.</returns>
+    /// <remarks>Part of the disabled delegate-caching experiment (see the commented-out blocks in <see cref="GetSubObject"/>/<see cref="SetPropertyValue"/>); caches are non-thread-safe — see review notes.</remarks>
     public static bool GetAccessor(dynamic obj, string propertyName, AccessorType accessorType, out Delegate accessor)
     {
         accessor = null;
@@ -1262,12 +1494,18 @@ public class RecordPathParser
         }
     }
 
+    /// <summary>Creates a strongly-typed getter delegate from a property's get method.</summary>
+    /// <param name="property">The property to wrap.</param>
+    /// <returns>A delegate that reads the property given an instance.</returns>
     public static Delegate CreateDelegateGetter(PropertyInfo property)
     {
         var delegateType = Expression.GetFuncType(property.DeclaringType, property.GetMethod.ReturnType);
         return property.GetMethod.CreateDelegate(delegateType);
     }
 
+    /// <summary>Creates a setter delegate from a property's set method.</summary>
+    /// <param name="property">The property to wrap.</param>
+    /// <returns>A delegate that writes the property.</returns>
     public static Delegate CreateDelegateSetter(PropertyInfo property)
     {
         var delegateType = Expression.GetActionType(property.PropertyType);

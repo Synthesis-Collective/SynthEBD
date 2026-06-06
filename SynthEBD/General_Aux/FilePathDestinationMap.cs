@@ -7,6 +7,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Static lookup tables mapping vanilla skin-texture <c>.dds</c> file names to the record paths
+    /// they should be written to (head/torso/hands/feet/tail/TNG/etc., per sex and per beast/special
+    /// race), plus helpers for detecting TNG or "etc" body textures within a set of paths. The
+    /// destination strings are a custom record-path DSL consumed by <see cref="RecordPathParser"/>.
+    /// </summary>
     internal static class FilePathDestinationMap
     {
         /// <summary>
@@ -247,6 +253,7 @@ namespace SynthEBD
         public const string Source_EtcFemaleSubsurface = "femalebody_etc_v2_1_sk.dds";
         public const string Source_EtcFemaleSpecular = "femalebody_etc_v2_1_s.dds";
 
+        /// <summary>Maps each known vanilla source texture file name to its destination record path (case-insensitive).</summary>
         public static readonly Dictionary<string, string> FileNameToDestMap = new(StringComparer.OrdinalIgnoreCase)
         {
             { Source_HeadDetailDefault, Dest_HeadDetail }, // common to male and female
@@ -414,6 +421,9 @@ namespace SynthEBD
             { Source_TNGMaleSpecularKhajiit, Dest_TNGMaleSpecular }
         };
 
+        /// <summary>Determines whether any of the given paths ends with a known male TNG (genital) texture file name.</summary>
+        /// <param name="paths">Candidate file paths.</param>
+        /// <returns><c>true</c> if at least one path is a recognized TNG texture.</returns>
         public static bool HasTNGPaths(IEnumerable<string> paths)
         {
             return paths.Where(x =>
@@ -433,6 +443,9 @@ namespace SynthEBD
                 .Any();
         }
 
+        /// <summary>Determines whether any of the given paths ends with a known female "etc" body texture file name.</summary>
+        /// <param name="paths">Candidate file paths.</param>
+        /// <returns><c>true</c> if at least one path is a recognized "etc" texture.</returns>
         public static bool HasEtcPaths(IEnumerable<string> paths)
         {
             return paths.Where(x =>
@@ -443,6 +456,7 @@ namespace SynthEBD
                 .Any();
         }
 
+        /// <summary>Subset map of male torso source textures (including beast/afflicted variants) to their destination record paths (case-insensitive).</summary>
         public static readonly Dictionary<string, string> MaleTorsoPaths = new(StringComparer.OrdinalIgnoreCase)
         {
             { Source_TorsoDiffuseMale, Dest_TorsoMaleDiffuse },
@@ -458,6 +472,7 @@ namespace SynthEBD
             { Source_TorsoSpecularArgonianMale, Dest_TorsoMaleSpecular },
         };
 
+        /// <summary>Subset map of female torso source textures (including beast/afflicted variants) to their destination record paths (case-insensitive).</summary>
         public static readonly Dictionary<string, string> FemaleTorsoPaths = new(StringComparer.OrdinalIgnoreCase)
         {
             { Source_TorsoDiffuseFemale, Dest_TorsoFemaleDiffuse },

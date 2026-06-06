@@ -3,6 +3,12 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// A collection of pre-run "is dependency X installed / configured correctly" checks: required SKSE
+/// plugins and Papyrus scripts (EBD, RaceMenu, OBody/AutoBody, JContainers, SPID, SkyPatcher, PO3),
+/// RaceMenu ini settings, generated body <c>.tri</c> morphs, BodySlide label/reference integrity,
+/// blank-attribute detection, and race-grouping de-duplication. Each check logs actionable guidance.
+/// </summary>
 public class MiscValidation
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -10,6 +16,12 @@ public class MiscValidation
     private readonly SynthEBDPaths _paths;
     private readonly RaceMenuIniHandler _raceMenuHandler;
     private readonly PatcherState _patcherState;
+    /// <summary>Creates the validation helper.</summary>
+    /// <param name="environmentProvider">Supplies the data-folder path and Skyrim version.</param>
+    /// <param name="patcherState">Settings/state inspected by the verifications.</param>
+    /// <param name="logger">Logger for surfacing problems.</param>
+    /// <param name="paths">Resolved SynthEBD paths.</param>
+    /// <param name="raceMenuHandler">Reads/parses the RaceMenu ini.</param>
     public MiscValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, RaceMenuIniHandler raceMenuHandler)
     {
         _environmentProvider = environmentProvider;
@@ -18,6 +30,8 @@ public class MiscValidation
         _paths = paths;
         _raceMenuHandler = raceMenuHandler;
     }
+    /// <summary>Verifies that EveryBody's Different Redone's Papyrus scripts are present in the Data folder.</summary>
+    /// <returns><c>true</c> if both required <c>.pex</c> scripts exist.</returns>
     public bool VerifyEBDInstalled()
     {
         bool verified = true;
@@ -44,6 +58,8 @@ public class MiscValidation
         return verified;
     }
 
+    /// <summary>Verifies that RaceMenu (SE or VR) is installed by checking for its SKSE plugin DLL and ini.</summary>
+    /// <returns><c>true</c> if a RaceMenu DLL and ini are present.</returns>
     public bool VerifyRaceMenuInstalled()
     {
         bool verified = true;
@@ -72,6 +88,8 @@ public class MiscValidation
         return verified;
     }
 
+    /// <summary>Verifies that OBody is installed (its Papyrus script and SKSE plugin DLL).</summary>
+    /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyOBodyInstalled()
     {
         bool verified = true;
@@ -98,6 +116,8 @@ public class MiscValidation
         return verified;
     }
 
+    /// <summary>Verifies that OBody's preset-distribution config JSON exists in the Data folder.</summary>
+    /// <returns><c>true</c> if the config JSON is present.</returns>
     public bool VerifyOBodyTemplateJsonExits()
     {
         bool verified = true;
@@ -112,6 +132,8 @@ public class MiscValidation
         return verified;
     }
 
+    /// <summary>Verifies that AutoBody is installed (its Papyrus script and SKSE plugin DLL).</summary>
+    /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyAutoBodyInstalled()
     {
         bool verified = true;
@@ -138,6 +160,8 @@ public class MiscValidation
         return verified;
     }
 
+    /// <summary>Verifies that every configured BodySlide setting (male and female) has a unique label.</summary>
+    /// <returns><c>true</c> if no duplicate labels were found.</returns>
     public bool VerifyBodySlideUniqueLabels()
     {
         List<string> existingLabels = new();
@@ -157,6 +181,8 @@ public class MiscValidation
         return !foundDuplicate;
     }
 
+    /// <summary>Verifies that every configured BodySlide setting references a non-empty BodySlide.</summary>
+    /// <returns><c>true</c> if none are empty.</returns>
     public bool VerifyReferencedBodySlides()
     {
         bool foundEmpty = false;
@@ -171,6 +197,9 @@ public class MiscValidation
         return !foundEmpty;
     }
 
+    /// <summary>Verifies that Spell Perk Item Distributor (SPID) is installed.</summary>
+    /// <param name="bSilent">When true, suppresses the not-found log messages.</param>
+    /// <returns><c>true</c> if the SPID DLL is present.</returns>
     public bool VerifySPIDInstalled(bool bSilent)
     {
         string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
@@ -187,6 +216,9 @@ public class MiscValidation
         return true;
     }
     
+    /// <summary>Verifies that SkyPatcher is installed.</summary>
+    /// <param name="bSilent">When true, suppresses the not-found log messages.</param>
+    /// <returns><c>true</c> if the SkyPatcher DLL is present.</returns>
     public bool VerifySkyPatcherInstalled(bool bSilent)
     {
         string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "SkyPatcher.dll");
@@ -203,6 +235,9 @@ public class MiscValidation
         return true;
     }
 
+    /// <summary>Verifies that the JContainers build matching the current Skyrim edition (SE/AE vs VR) is installed.</summary>
+    /// <param name="bSilent">When true, suppresses the not-found log messages.</param>
+    /// <returns><c>true</c> if the appropriate JContainers DLL is present.</returns>
     public bool VerifyJContainersInstalled(bool bSilent)
     {
         string dllPathSE_AE = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
@@ -229,6 +264,10 @@ public class MiscValidation
         return true;
     }
 
+    /// <summary>Checks that active BodyGen morphs referenced by the given asset packs have body-shape descriptors, prompting the user to continue if some are unannotated.</summary>
+    /// <param name="assetPacks">Asset packs whose associated BodyGen configs are checked.</param>
+    /// <param name="bodyGenConfigs">Available BodyGen configs.</param>
+    /// <returns><c>true</c> to proceed (all annotated, or the user chose to continue); <c>false</c> if a referenced config is missing or the user declined.</returns>
     public bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
     {
         bool valid = true;
@@ -294,6 +333,9 @@ public class MiscValidation
         }
     }
 
+    /// <summary>Scans asset packs, body-shape configs, and head-part rules for NPC attributes that are blank (which can break distribution), collecting the offending items.</summary>
+    /// <param name="itemsWithBlankAttributes">Receives a description of each item that has a blank attribute.</param>
+    /// <returns><c>true</c> if no blank attributes were found.</returns>
     public bool VerifyBlankAttributes(List<string> itemsWithBlankAttributes)
     {
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
@@ -386,6 +428,10 @@ public class MiscValidation
         return !itemsWithBlankAttributes.Any();
     }
 
+    /// <summary>Recursively records the IDs of a subgroup (and its descendants) that have any blank attribute.</summary>
+    /// <param name="sg">The subgroup to check.</param>
+    /// <param name="subgroupIDs">Receives the IDs of subgroups with blank attributes.</param>
+    /// <returns><c>true</c> if this subgroup or any descendant had a blank attribute.</returns>
     private bool CheckSubgroupHasBlankAttribute(AssetPack.Subgroup sg, List<string> subgroupIDs)
     {
         bool hasBlank = false;
@@ -404,6 +450,9 @@ public class MiscValidation
         return hasBlank;
     }
 
+    /// <summary>Determines whether any sub-attribute within the given attributes is blank.</summary>
+    /// <param name="attributes">Attributes to inspect.</param>
+    /// <returns><c>true</c> if at least one sub-attribute is blank.</returns>
     private bool HasBlankAttribute(IEnumerable<NPCAttribute> attributes)
     {
         foreach (var attribute in attributes)
@@ -419,6 +468,9 @@ public class MiscValidation
         return false;
     }
 
+    /// <summary>Checks that active, currently-present BodySlides have body-shape descriptors, prompting the user to continue if some are unannotated (unless auto-annotation is enabled).</summary>
+    /// <param name="obodySettings">OBody settings containing the BodySlides and the existing-BodySlide list.</param>
+    /// <returns><c>true</c> to proceed; <c>false</c> if the user declined.</returns>
     public bool VerifyBodySlideAnnotations(Settings_OBody obodySettings)
     {
         if (obodySettings.AutoApplyMissingAnnotations)
@@ -442,6 +494,10 @@ public class MiscValidation
         }
     }
 
+    /// <summary>Collects the labels of active BodySlides that are present in the Data folder but lack descriptors.</summary>
+    /// <param name="bodySlidesInSettings">Configured BodySlides to check.</param>
+    /// <param name="bodySlideNamesInDataFolder">Labels of BodySlides actually present (others are ignored, since they won't be distributed).</param>
+    /// <param name="bsMissingDescriptors">Receives the labels missing descriptors.</param>
     public void GetMissingBodySlideAnnotations(List<BodySlideSetting> bodySlidesInSettings, HashSet<string> bodySlideNamesInDataFolder, List<string> bsMissingDescriptors)
     {
         foreach (var bs in bodySlidesInSettings)
@@ -453,6 +509,9 @@ public class MiscValidation
             }
         }
     }
+    /// <summary>Verifies that the body <c>.tri</c> morph files required by active OBody BodySlides exist for each gender in use.</summary>
+    /// <param name="oBodySettings">OBody settings listing the active BodySlides.</param>
+    /// <returns><c>true</c> if the needed <c>malebody.tri</c>/<c>femalebody.tri</c> files exist.</returns>
     public bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
     {
         bool valid = true;
@@ -484,6 +543,10 @@ public class MiscValidation
         return valid;
     }
 
+    /// <summary>Verifies that the body <c>.tri</c> morph files required by active BodyGen configs exist for each gender in use.</summary>
+    /// <param name="assetPacks">Asset packs referencing BodyGen configs.</param>
+    /// <param name="bodyGenConfigs">Available BodyGen configs.</param>
+    /// <returns><c>true</c> if the needed <c>.tri</c> files exist.</returns>
     public bool VerifyGeneratedTriFilesForBodyGen(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
     {
         bool valid = true;
@@ -516,6 +579,11 @@ public class MiscValidation
         return valid;
     }
 
+    /// <summary>Determines whether the asset packs reference any active male and/or female BodyGen configs.</summary>
+    /// <param name="assetPacks">Asset packs to scan.</param>
+    /// <param name="bodyGenConfigs">Available BodyGen configs.</param>
+    /// <param name="hasMaleConfigs">Receives whether any male config is referenced.</param>
+    /// <param name="hasFemaleConfigs">Receives whether any female config is referenced.</param>
     private void BodyGenHasActiveGenderedConfigs(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs, out bool hasMaleConfigs, out bool hasFemaleConfigs)
     {
         hasMaleConfigs = false;
@@ -544,6 +612,8 @@ public class MiscValidation
         }
     }
 
+    /// <summary>Verifies the RaceMenu ini settings required for BodyGen: body morph and BodyGen enabled, and a non-zero scale mode (warning on the problematic mode 2).</summary>
+    /// <returns><c>true</c> if the ini is configured correctly for BodyGen.</returns>
     public bool VerifyRaceMenuIniForBodyGen()
     {
         bool valid = true;
@@ -610,6 +680,8 @@ public class MiscValidation
         return valid;
     }
 
+    /// <summary>Verifies the RaceMenu ini settings required for BodySlide/OBody: body morph enabled and BodyGen disabled.</summary>
+    /// <returns><c>true</c> if the ini is configured correctly for BodySlide.</returns>
     public bool VerifyRaceMenuIniForBodySlide()
     {
         bool valid = true;
@@ -655,6 +727,10 @@ public class MiscValidation
         return valid;
     }
 
+    /// <summary>Detects duplicate race-grouping labels and, with user confirmation, returns a de-duplicated list keeping the first occurrence of each.</summary>
+    /// <param name="raceGroupings">The race groupings to check.</param>
+    /// <param name="parentDispName">Display name of the containing settings, used in the prompt.</param>
+    /// <returns>A de-duplicated list if the user opted to remove duplicates; otherwise the original list.</returns>
     public static IEnumerable<RaceGrouping> CheckRaceGroupingDuplicates(IEnumerable<RaceGrouping> raceGroupings, string parentDispName)
     {
         var filteredRaceGroupings = raceGroupings.ToList();
@@ -709,6 +785,8 @@ public class MiscValidation
         return raceGroupings;
     }
 
+    /// <summary>Verifies that PowerOfThree's Papyrus Extender (script and DLL) is installed.</summary>
+    /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyPO3ExtenderInstalled()
     {
         bool valid = true;
@@ -730,6 +808,8 @@ public class MiscValidation
         return valid;
     }
 
+    /// <summary>Verifies that powerofthree's Tweaks (script and DLL) is installed.</summary>
+    /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyPO3TweaksInstalled()
     {
         bool valid = true;

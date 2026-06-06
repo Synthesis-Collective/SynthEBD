@@ -12,12 +12,21 @@ using System.Collections.Concurrent;
 
 namespace SynthEBD;
 
+/// <summary>Pairs an opened archive reader with the file path of the BSA it was opened from.</summary>
 public class PathedArchiveReader
 {
+    /// <summary>The opened archive reader, or null if it could not be opened.</summary>
     public IArchiveReader? Reader { get; set; }
+    /// <summary>The on-disk path of the BSA this reader corresponds to.</summary>
     public Noggog.FilePath FilePath { get; set; }
 }
 
+/// <summary>
+/// Resolves and extracts files from Skyrim BSA archives. Maintains an in-memory cache of each opened
+/// archive's file listing, plus an on-disk path-only index so subsequent runs can answer "does BSA X
+/// contain path Y?" without opening the archive — deferring the (expensive) reader creation until a
+/// file is actually extracted.
+/// </summary>
 public class BSAHandler : ViewModel
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -55,6 +64,9 @@ public class BSAHandler : ViewModel
     private bool _diskCacheLoaded = false;
     private bool _diskCacheDirty = false;
 
+    /// <summary>Creates the handler and keeps the enabled-mod sets in sync with the load order.</summary>
+    /// <param name="environmentProvider">Supplies the Skyrim version, data folder, and load order.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public BSAHandler(IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -68,6 +80,8 @@ public class BSAHandler : ViewModel
     }
 
     // Helper method to populate the cache immediately upon opening a reader
+    /// <summary>Builds and caches a case-insensitive path → <see cref="IArchiveFile"/> map for a reader, so later lookups avoid re-enumerating the archive.</summary>
+    /// <param name="reader">The archive reader to index. No-op if already cached.</param>
     private void CacheReaderFiles(IArchiveReader reader)
     {
         if (!_archiveFileCache.ContainsKey(reader))
@@ -96,6 +110,7 @@ public class BSAHandler : ViewModel
         public List<BsaIndexEntry> Entries { get; set; } = new();
     }
 
+    /// <summary>One BSA's entry in the on-disk index cache: its path, change-detection stamps, and internal file listing.</summary>
     private class BsaIndexEntry
     {
         public string BsaPath { get; set; }
@@ -280,6 +295,11 @@ public class BSAHandler : ViewModel
         return null;
     }
 
+    /// <summary>Determines whether a "&lt;ModName&gt;\&lt;subpath&gt;"-style asset path exists inside the corresponding mod's BSA(s).</summary>
+    /// <param name="expectedFilePath">Path whose first segment is the owning plugin's file name and whose remainder is the path inside the BSA.</param>
+    /// <param name="archiveExists">Receives whether any BSA for the resolved mod was found.</param>
+    /// <param name="modName">Receives the parsed mod name (empty when parsing fails).</param>
+    /// <returns><c>true</c> if the file was found in the mod's archives.</returns>
     public bool ReferencedPathExists(string expectedFilePath, out bool archiveExists, out string modName)
     {
         // ... (Unchanged logic) ...
@@ -321,6 +341,12 @@ public class BSAHandler : ViewModel
         return ReadersOrDeferredHaveFile(subPath, modKey, archiveReaders, out _);
     }
 
+    /// <summary>Determines whether a sub-path exists in the BSA(s) of any of the given candidate mods (first match wins).</summary>
+    /// <param name="expectedFilePath">The path inside the BSA to look for.</param>
+    /// <param name="candidateMods">Enabled mods to search, in order.</param>
+    /// <param name="archiveExists">Receives whether any candidate mod had a BSA.</param>
+    /// <param name="modName">Receives the owning mod name — note: this overload leaves it empty (see review notes).</param>
+    /// <returns><c>true</c> if the file was found in any candidate mod's archives.</returns>
     public bool ReferencedPathExists(string expectedFilePath, IEnumerable<ModKey> candidateMods, out bool archiveExists, out string modName)
     {
         // ... (Unchanged logic) ...
@@ -351,6 +377,10 @@ public class BSAHandler : ViewModel
         return false;
     }
 
+    /// <summary>Resolves the BSA archive readers for a mod: opening readers for un-cached BSAs, deferring those already present in the disk index, and caching the result in <see cref="OpenReaders"/>.</summary>
+    /// <param name="modKey">The mod whose BSAs to resolve.</param>
+    /// <param name="archiveReaders">Receives the set of opened readers (deferred BSAs are tracked separately and not included here).</param>
+    /// <returns><c>true</c> if the mod has at least one BSA (opened or deferred); otherwise <c>false</c>.</returns>
     public bool TryOpenCorrespondingArchiveReaders(ModKey modKey, out HashSet<IArchiveReader> archiveReaders)
     {
         archiveReaders = new HashSet<IArchiveReader>();
@@ -426,6 +456,10 @@ public class BSAHandler : ViewModel
         return false;
     }
 
+    /// <summary>Opens every applicable BSA for a plugin in a specific data directory, caching and indexing each, and returns the readers paired with their paths.</summary>
+    /// <param name="currentDataDir">Data directory to search for BSAs.</param>
+    /// <param name="currentPlugin">The plugin whose BSAs to open.</param>
+    /// <returns>The opened readers (empty if the plugin is null, the directory is missing, or no BSAs apply).</returns>
     public List<PathedArchiveReader> OpenBSAArchiveReaders(string currentDataDir, ModKey currentPlugin)
     {
         if (currentPlugin == null || currentPlugin.IsNull) { return new List<PathedArchiveReader>(); }
@@ -457,6 +491,10 @@ public class BSAHandler : ViewModel
         return readers;
     }
 
+    /// <summary>Extracts a single file from a BSA to a destination path, creating the target directory if needed.</summary>
+    /// <param name="file">The archive file to extract.</param>
+    /// <param name="destPath">Destination file path.</param>
+    /// <returns><c>true</c> if the file was written and exists afterward; <c>false</c> on any directory/stream error.</returns>
     public bool TryExtractFileFromBSA(IArchiveFile file, string destPath)
     {
         // ... (Includes the leak fixes applied previously) ...
@@ -496,6 +534,11 @@ public class BSAHandler : ViewModel
         return File.Exists(destPath);
     }
 
+    /// <summary>Looks up a file by sub-path within a single archive reader, using the cached file map when available.</summary>
+    /// <param name="subpath">The internal archive path to find (case-insensitive).</param>
+    /// <param name="bsaReader">The reader to search; may be null.</param>
+    /// <param name="file">Receives the matching archive file, or null.</param>
+    /// <returns><c>true</c> if found.</returns>
     public bool TryGetFile(string subpath, IArchiveReader bsaReader, out IArchiveFile file)
     {
         file = null;
@@ -568,6 +611,11 @@ public class BSAHandler : ViewModel
         return TryGetFile(subpath, reader, out file);
     }
 
+    /// <summary>Returns the first matching file for a sub-path across a set of already-opened readers.</summary>
+    /// <param name="subpath">The internal archive path to find.</param>
+    /// <param name="bsaReaders">Opened readers to search.</param>
+    /// <param name="archiveFile">Receives the matching archive file, or null.</param>
+    /// <returns><c>true</c> if any reader contains the file.</returns>
     public bool ReadersHaveFile(string subpath, HashSet<IArchiveReader> bsaReaders, out IArchiveFile archiveFile)
     {
         // Check opened readers first

@@ -7,6 +7,12 @@ using static System.Windows.Forms.AxHost;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Runs all pre-patch validation: verifies the external mods/tools required by each enabled feature
+    /// (EBD, RaceMenu, OBody/AutoBody, JContainers, SkyPatcher, PO3 for VR, …), validates the selected
+    /// asset packs and generated BodySlide/BodyGen data, checks attribute completeness, and rejects the
+    /// invalid asset/headpart mode combinations from the patcher's 16-case truth table.
+    /// </summary>
     public class PreRunValidation
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -14,6 +20,12 @@ namespace SynthEBD
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
         private readonly AssetPackValidator _assetPackValidator;
+        /// <summary>Creates the validator.</summary>
+        /// <param name="environmentProvider">Supplies the Skyrim version and environment.</param>
+        /// <param name="patcherState">The settings/state to validate.</param>
+        /// <param name="logger">Logger for surfacing validation errors.</param>
+        /// <param name="miscValidation">Per-dependency installation/data checks.</param>
+        /// <param name="assetPackValidator">Validator for individual asset packs.</param>
         public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, AssetPackValidator assetPackValidator)
         {
             _environmentProvider = environmentProvider;
@@ -23,6 +35,14 @@ namespace SynthEBD
             _assetPackValidator = assetPackValidator;
         }
 
+        /// <summary>Validates the entire patcher configuration before a run, logging every problem found.</summary>
+        /// <returns><c>true</c> if the configuration is valid (or validation is disabled); otherwise <c>false</c>, with errors logged.</returns>
+        /// <remarks>
+        /// Short-circuits to <c>true</c> when validation is disabled in settings. Otherwise checks, per enabled
+        /// feature: required runtime mods/tools, asset-pack validity, generated BodySlide/BodyGen <c>.tri</c>
+        /// files, unique BodySlide labels, and blank NPC attributes. Finally rejects the invalid asset/headpart
+        /// mode combinations from the 16-case truth table documented in <c>Patcher.cs</c>.
+        /// </remarks>
         public bool ValidatePatcherState()
         {
             bool valid = true;
