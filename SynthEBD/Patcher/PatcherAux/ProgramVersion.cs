@@ -8,11 +8,20 @@ namespace SynthEBD;
 /// </summary>
 public class ProgramVersion : IComparable<ProgramVersion>, IEquatable<ProgramVersion>
 {
+    /// <summary>First version component.</summary>
     public int Major { get; }
+    /// <summary>Second version component.</summary>
     public int Minor { get; }
+    /// <summary>Third version component.</summary>
     public int Build { get; }
+    /// <summary>Fourth version component.</summary>
     public int Patch { get; }
 
+    /// <summary>
+    /// Parses <paramref name="versionString"/> into the four numeric components. Empty/whitespace yields 0.0.0.0;
+    /// a strict "N.N.N.N" match is used when possible, otherwise it splits on '.' and parses what it can (missing or
+    /// non-numeric parts default to 0).
+    /// </summary>
     public ProgramVersion(string versionString)
     {
         if (string.IsNullOrWhiteSpace(versionString))
@@ -40,6 +49,10 @@ public class ProgramVersion : IComparable<ProgramVersion>, IEquatable<ProgramVer
         }
     }
 
+    /// <summary>
+    /// Orders versions component-by-component (Major, Minor, Build, Patch). A null <paramref name="other"/> sorts first
+    /// (this instance compares greater).
+    /// </summary>
     public int CompareTo(ProgramVersion? other)
     {
         if (other is null) return 1;
@@ -49,23 +62,33 @@ public class ProgramVersion : IComparable<ProgramVersion>, IEquatable<ProgramVer
         return Patch.CompareTo(other.Patch);
     }
 
+    /// <summary>Ordered "less than" comparison via <see cref="CompareTo"/>.</summary>
     public static bool operator <(ProgramVersion a, ProgramVersion b) => a.CompareTo(b) < 0;
+    /// <summary>Ordered "greater than" comparison via <see cref="CompareTo"/>.</summary>
     public static bool operator >(ProgramVersion a, ProgramVersion b) => a.CompareTo(b) > 0;
+    /// <summary>Ordered "less than or equal" comparison via <see cref="CompareTo"/>.</summary>
     public static bool operator <=(ProgramVersion a, ProgramVersion b) => a.CompareTo(b) <= 0;
+    /// <summary>Ordered "greater than or equal" comparison via <see cref="CompareTo"/>.</summary>
     public static bool operator >=(ProgramVersion a, ProgramVersion b) => a.CompareTo(b) >= 0;
+    /// <summary>Null-safe value equality (two nulls are equal).</summary>
     public static bool operator ==(ProgramVersion? a, ProgramVersion? b) => a is null ? b is null : a.Equals(b);
+    /// <summary>Negation of <see cref="op_Equality"/>.</summary>
     public static bool operator !=(ProgramVersion? a, ProgramVersion? b) => !(a == b);
 
     /// <summary>Allows writing: ProgramVersion v = "1.0.5.5";</summary>
     public static implicit operator ProgramVersion(string versionString) => new(versionString);
 
+    /// <summary>Value equality across all four version components.</summary>
     public bool Equals(ProgramVersion? other)
     {
         if (other is null) return false;
         return Major == other.Major && Minor == other.Minor && Build == other.Build && Patch == other.Patch;
     }
 
+    /// <summary>Value equality against any object that is also a <see cref="ProgramVersion"/>.</summary>
     public override bool Equals(object? obj) => obj is ProgramVersion other && Equals(other);
+    /// <summary>Hash combining the four version components, consistent with <see cref="Equals(ProgramVersion?)"/>.</summary>
     public override int GetHashCode() => HashCode.Combine(Major, Minor, Build, Patch);
+    /// <summary>Renders the version as "Major.Minor.Build.Patch".</summary>
     public override string ToString() => $"{Major}.{Minor}.{Build}.{Patch}";
 }

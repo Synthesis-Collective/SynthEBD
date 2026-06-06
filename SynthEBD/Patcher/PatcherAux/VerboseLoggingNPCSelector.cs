@@ -6,16 +6,27 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Decides, per NPC, whether the patcher should emit a detailed/verbose report, by testing the NPC against the
+    /// user's "Detailed Report Selector" rules (unique/non-unique, allowed/disallowed races, weight range, and
+    /// allowed/disallowed attributes). Consulted during per-NPC patching to gate verbose logging.
+    /// </summary>
     public class VerboseLoggingNPCSelector
     {
         private readonly PatcherState _patcherState;
         private readonly AttributeMatcher _attributeMatcher;
+        /// <summary>Creates the selector with the patcher state (holding the report-selection rules) and the attribute matcher.</summary>
         public VerboseLoggingNPCSelector(PatcherState patcherState, AttributeMatcher attributeMatcher)
         {
             _patcherState = patcherState;
             _attributeMatcher = attributeMatcher;
         }
 
+        /// <summary>
+        /// Returns true if verbose logging is enabled and <paramref name="npcInfo"/> passes every detailed-report rule
+        /// (uniqueness, allowed/disallowed races, weight range, allowed and disallowed attribute lists). Returns false if
+        /// detailed-report selection is disabled or any rule rejects the NPC.
+        /// </summary>
         public bool VerboseLoggingForCurrentNPC(NPCInfo npcInfo)
         {
             if (!_patcherState.GeneralSettings.bUseDetailedReportSelection)

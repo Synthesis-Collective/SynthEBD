@@ -8,6 +8,12 @@ using System.IO;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Emits the OBody/AutoBody/BodySlide runtime artifacts: the SKSE-based spell, magic effect, and loader
+/// quest records that apply BodySlide presets in-game, the supporting Papyrus scripts, and the assignment
+/// data (JSON dictionary, autoBody <c>morphs.ini</c>, or OBody native <c>OBody_presetDistributionConfig.json</c>)
+/// built from <see cref="Patcher.BodySlideTracker"/>. Runs near the end of the pipeline for body-shape output.
+/// </summary>
 public class OBodyWriter
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -17,6 +23,7 @@ public class OBodyWriter
     private readonly PatcherIO _patcherIO;
     private readonly Converters _converters;
     private HashSet<string> _loadOrderCaseSensitive = new(); // should match capitalization on the drive
+    /// <summary>Creates a writer with the environment, patcher state, paths, IO helper, and converters used to emit BodySlide records and data files.</summary>
     public OBodyWriter(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -27,6 +34,13 @@ public class OBodyWriter
         _converters = converters;
     }
 
+    /// <summary>
+    /// Creates the constant-effect spell + scripted magic effect (<c>SynthEBDBodySlideScript</c>) that applies a
+    /// BodySlide preset to its target NPC. Wires the TargetMod (OBody vs AutoBody) and verbose-mode globals into
+    /// the script properties. Side effect: adds new MGEF and SPEL records to <paramref name="outputMod"/>.
+    /// </summary>
+    /// <param name="gBodySlideVerboseMode">Global toggling verbose in-game logging for the BodySlide script.</param>
+    /// <returns>The created BodySlide-application spell.</returns>
     public Spell CreateOBodyAssignmentSpell(ISkyrimMod outputMod, GlobalShort gBodySlideVerboseMode)
     {
         // create MGEF first
@@ -79,6 +93,13 @@ public class OBodyWriter
         return SPELApplyBodySlide;
     }
 
+    /// <summary>
+    /// Creates the start-game-enabled, run-once loader quest (forced-referenced to the player) whose player-alias
+    /// script bootstraps the BodySlide system at game start. Side effects: adds a new Quest record to
+    /// <paramref name="outputMod"/> and copies the loader player-alias .pex script into the output Scripts folder.
+    /// </summary>
+    /// <param name="gEnableBodySlideScript">Global gating whether the BodySlide loader script runs.</param>
+    /// <param name="gBodySlideVerboseMode">Global toggling verbose in-game logging.</param>
     public void CreateBodySlideLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableBodySlideScript, GlobalShort gBodySlideVerboseMode)
     {
         Quest bsLoaderQuest = outputMod.Quests.AddNew();
@@ -131,6 +152,7 @@ public class OBodyWriter
         _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
     }
 
+    /// <summary>Copies the main <c>SynthEBDBodySlideScript.pex</c> from internal data into the output Scripts folder.</summary>
     public void CopyBodySlideScript()
     {
         string sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "BodySlideScripts", "SynthEBDBodySlideScript.pex");
@@ -155,6 +177,11 @@ public class OBodyWriter
     }
     */
 
+    /// <summary>
+    /// Writes the script-mode BodySlide assignments as <c>SynthEBD/BodySlideAssignments.json</c> (a JContainers-keyed
+    /// FormKey to preset-name map). No-ops with a log message when no BodySlides were assigned. Side effect: writes the
+    /// JSON file. Throws if called while OBody is in Native selection mode (which uses a different output path).
+    /// </summary>
     public void WriteAssignmentDictionaryScriptMode()
     {
         if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.OBody && _patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native)
@@ -189,6 +216,10 @@ public class OBodyWriter
         }
     }
 
+    /// <summary>
+    /// Writes the AutoBody BodySlide assignments as <c>autoBody/Config/morphs.ini</c> ("FormKey=preset" lines, first
+    /// preset per NPC). No-ops with a log message when nothing was assigned. Side effect: writes the ini file.
+    /// </summary>
     public void WriteAssignmentIni()
     {
         if (Patcher.BodySlideTracker.Count == 0)
@@ -222,6 +253,7 @@ public class OBodyWriter
         }
     }
 
+    /// <summary>Deletes stale ini-mode outputs (autoBody and BodyGenData <c>morphs.ini</c>) when running in JSON/script mode. Side effect: deletes files.</summary>
     public void ClearOutputForJsonMode()
     {
         HashSet<string> toClear = new HashSet<string>()
@@ -239,6 +271,7 @@ public class OBodyWriter
         }
     }
 
+    /// <summary>Deletes stale JSON/script-mode outputs (BodyGenData <c>morphs.ini</c> and <c>BodySlideAssignments.json</c>) when running in ini mode. Side effect: deletes files.</summary>
     public void ClearOutputForIniMode()
     {
         HashSet<string> toClear = new HashSet<string>()
@@ -265,6 +298,13 @@ public class OBodyWriter
         }
     }
 
+    /// <summary>
+    /// Writes assignments in OBody Native format by loading the existing <c>OBody_presetDistributionConfig.json</c>
+    /// template from the data folder, clearing and repopulating its <c>npcFormID</c> section (grouped by plugin,
+    /// keyed by FormID) from <see cref="Patcher.BodySlideTracker"/>, and saving it to the output. No-ops with a log
+    /// message when nothing was assigned. Side effects: reads the template, writes the output JSON; logs and returns
+    /// on load/parse failure or unresolvable FormKeys.
+    /// </summary>
     public void WriteNativeAssignmentDictionary()
     {
         if (Patcher.BodySlideTracker.Count == 0)

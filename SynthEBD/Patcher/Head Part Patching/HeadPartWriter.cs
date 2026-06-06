@@ -11,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Emits the head-part runtime artifacts: the SKSE spell/magic effect and loader quest that apply head-part
+    /// assignments in-game, the supporting Papyrus scripts, the script-mode <c>HeadPartAssignments.json</c>
+    /// dictionary, and (for Nif mode) direct head-part edits onto NPC or surrogate records. Runs as part of the
+    /// head-part stage of the patching pipeline.
+    /// </summary>
     public class HeadPartWriter
     {
         private readonly IOutputEnvironmentStateProvider _environmentProvider;
@@ -19,6 +25,7 @@ namespace SynthEBD
         private readonly SynthEBDPaths _paths;
         private readonly PatcherIO _patcherIO;
         private readonly SurrogateNPCProvider _surrogateNpcProvider;
+        /// <summary>Creates a writer with the output environment, patcher state, paths, IO helper, and surrogate-NPC provider used to emit head-part records and data files.</summary>
         public HeadPartWriter(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, PatcherIO patcherIO, SurrogateNPCProvider surrogateNpcProvider)
         {
             _environmentProvider = environmentProvider;
@@ -28,6 +35,13 @@ namespace SynthEBD
             _patcherIO = patcherIO;
             _surrogateNpcProvider = surrogateNpcProvider;
         }
+        /// <summary>
+        /// Creates the constant-effect spell + scripted magic effect (<c>SynthEBDHeadPartScript</c>) that applies head-part
+        /// assignments to its target NPC, wiring the verbose-mode global into the script. Side effect: adds new MGEF and
+        /// SPEL records to <paramref name="outputMod"/>.
+        /// </summary>
+        /// <param name="gHeadpartsVerboseMode">Global toggling verbose in-game logging for the head-part script.</param>
+        /// <returns>The created head-part-application spell.</returns>
         public static Spell CreateHeadPartAssignmentSpell(ISkyrimMod outputMod, GlobalShort gHeadpartsVerboseMode)
         {
             // create MGEF
@@ -74,6 +88,13 @@ namespace SynthEBD
             return SPELApplyHeadParts;
         }
 
+        /// <summary>
+        /// Creates the start-game-enabled, run-once loader quest (forced-referenced to the player) whose player-alias
+        /// script bootstraps the head-part system at game start. Side effects: adds a new Quest record to
+        /// <paramref name="outputMod"/> and copies the loader player-alias .pex script into the output Scripts folder.
+        /// </summary>
+        /// <param name="gEnableHeadParts">Global gating whether the head-part loader script runs.</param>
+        /// <param name="gHeadpartsVerboseMode">Global toggling verbose in-game logging.</param>
         public void CreateHeadPartLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableHeadParts, GlobalShort gHeadpartsVerboseMode)
         {
             Quest hpLoaderQuest = outputMod.Quests.AddNew();
@@ -118,6 +139,7 @@ namespace SynthEBD
             _patcherIO.TryCopyResourceFile(questAliasSourcePath, questAliasDestPath, _logger);
         }
 
+        /// <summary>Copies the main <c>SynthEBDHeadPartScript.pex</c> from internal data into the output Scripts folder.</summary>
         public void CopyHeadPartScript()
         {
             var sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "HeadPartScripts", "SynthEBDHeadPartScript.pex");
@@ -133,6 +155,12 @@ namespace SynthEBD
             Task.Run(() => PatcherIO.WriteTextFile(outputPath, str));
         }
         */
+        /// <summary>
+        /// Writes the script-mode head-part assignments as <c>SynthEBD/HeadPartAssignments.json</c>, a JContainers-keyed
+        /// map of NPC FormKey to a full per-type head-part set (missing types filled with null). No-ops with a log message
+        /// when nothing was assigned. Side effect: writes the JSON file; logs and returns on serialization failure.
+        /// </summary>
+        /// <param name="assignedHeadPartTransfers">Per-NPC assigned head parts to serialize.</param>
         public void WriteAssignmentDictionary(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers)
         {
             if (!assignedHeadPartTransfers.Any())
@@ -168,6 +196,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Expands a sparse set of <paramref name="assignments"/> into a full per-type dictionary covering every
+        /// <see cref="HeadPart.TypeEnum"/> slot, leaving unassigned types null (see <see cref="GetBlankHeadPartAssignment"/>).
+        /// </summary>
         public Dictionary<HeadPart.TypeEnum, FormKey?> GetFullHeadPartSet(
             Dictionary<HeadPart.TypeEnum, FormKey> assignments)
         {
@@ -183,6 +215,7 @@ namespace SynthEBD
             return output;
         }
         
+        /// <summary>Returns a fresh head-part dictionary with every supported <see cref="HeadPart.TypeEnum"/> slot present and set to null.</summary>
         public static Dictionary<HeadPart.TypeEnum, FormKey?> GetBlankHeadPartAssignment()
         {
             return new Dictionary<HeadPart.TypeEnum, FormKey?>()
@@ -197,6 +230,7 @@ namespace SynthEBD
             };
         }
         
+        /// <summary>Deletes stale head-part output files (those named <c>HeadPartDict*</c>) from the output SynthEBD folder. Side effect: deletes files.</summary>
         public void CleanPreviousOutputs()
         {
             var outputDir = Path.Combine(_paths.OutputDataFolder, "SynthEBD");

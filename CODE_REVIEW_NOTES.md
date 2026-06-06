@@ -973,6 +973,42 @@ struct so the predicate is always true (and the `.ToArray()` is needless). `.Whe
 `HeadPartAuxFunctions`, `BodyGenPreprocessing`; `PathTrimmer`/others are static-only helper classes not marked
 `static`. All minor.
 
+### `CombinationLog.LogStaticAssignments` references MixInFemale twice — 🐞 bug
+
+[CombinationLog.cs:85](SynthEBD/Patcher/PatcherAux/CombinationLog.cs#L85) ·
+`assetPacks.PrimaryMale.And(assetPacks.MixInFemale).And(assetPacks.PrimaryFemale).And(assetPacks.MixInFemale)`
+lists `MixInFemale` **twice** and never `MixInMale`, so male mix-in packs are omitted from the combination
+log/stats and female mix-ins are double-counted. The third `.And(...)` should be `assetPacks.MixInMale`.
+
+### `VerboseLoggingNPCSelector` allowed/disallowed AttributeGroups mismatch — 🐞 bug
+
+[VerboseLoggingNPCSelector.cs:77](SynthEBD/Patcher/PatcherAux/VerboseLoggingNPCSelector.cs#L77) · The
+*allowed*-attributes check passes `_patcherState.GeneralSettings.AttributeGroups`
+([:70](SynthEBD/Patcher/PatcherAux/VerboseLoggingNPCSelector.cs#L70)) but the *disallowed*-attributes check
+passes `_patcherState.OBodySettings.AttributeGroups` — a copy-paste slip; the disallowed check should use the
+same `GeneralSettings.AttributeGroups`, otherwise disallowed-attribute logging rules resolve their groups
+against the wrong (OBody) group set.
+
+### Patcher writers/parsers smaller items — 🐞 / 💭
+
+- `EasyNPCProfileParser` — `FormKey.TryFactory(str)` returns a non-nullable `FormKey`, so the `!= null` guard
+  is always true (the bool `out`-overload was likely intended; malformed input throws instead of being
+  skipped); `AppearanceDictionary.Add` throws on a duplicate NPC key (unlike `NPC2ProfileParser`'s
+  `ContainsKey` guard). 🐞
+- `CombinationLog.LogAssignedRecords` ([:224](SynthEBD/Patcher/PatcherAux/CombinationLog.cs#L224)) does
+  `Signature.Split(':')[1]` with no guard, unlike the guarded sibling at :177 — `IndexOutOfRange` if a
+  signature lacks ':'. 🐞
+- `OBodyWriter` script-mode `TryAdd(key, entry.Value.First())` throws when a tracker list is empty (the ini
+  path guards with `if (!entry.Value.Any()) continue;`). 🐞
+- `AssetReplacerHardcodedPaths` — the female right-gash `_11`/`_12` entries map to editor IDs ending
+  `...LeftGashR` while the male equivalents use `...RightGashR`; possible left/right mislabel — verify against
+  the RaceMenu head-part records. 🐞 verify
+- Pervasive empty `catch { }` that logs a generic message but discards the exception text (`OBodyWriter`,
+  `HeadPartWriter`, `NPC2ProfileParser`, `RaceMenuIniHandler`); `Task.Run` fire-and-forget writes
+  (`BodyGenWriter`, `CombinationLog`); `RaceMenuIniHandler.GetIniLine` matches by bare `StartsWith` (a setting
+  that is a prefix of another can match the wrong line); `OBodyWriter._loadOrderCaseSensitive` is assigned but
+  never read (dead). 💭
+
 <!-- ENTRIES:Patcher -->
 
 ---

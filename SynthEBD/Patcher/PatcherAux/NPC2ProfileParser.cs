@@ -4,11 +4,22 @@ using System.Text.Json.Serialization;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Parses the NPC_Token.json file produced by NPC Plugin Chooser 2 into maps of NPC FormKey to the chosen
+/// appearance plugin and to the NPC2 output/merge plugin, used to restrict patching to NPC2-selected sources.
+/// </summary>
 public class NPC2ProfileParser
 {
+    /// <summary>NPC FormKey to the NPC2-selected appearance plugin, populated by <see cref="Reinitialize"/>.</summary>
     public Dictionary<FormKey, ModKey> AppearanceDictionary { get; set; } = new();
+    /// <summary>NPC FormKey to the NPC2 output/merge plugin the appearance was written into, populated by <see cref="Reinitialize"/>.</summary>
     public Dictionary<FormKey, ModKey> MergeDictionary { get; set; } = new();
 
+    /// <summary>
+    /// Clears and repopulates <see cref="AppearanceDictionary"/> and <see cref="MergeDictionary"/> from the NPC2 token
+    /// JSON at <paramref name="filepath"/>. No-ops if the path is empty or missing. On any parse error both dictionaries
+    /// are left empty (the failure is swallowed).
+    /// </summary>
     public void Reinitialize(string filepath)
     {
         AppearanceDictionary.Clear();
@@ -62,6 +73,10 @@ public class NPC2ProfileParser
         }
     }
 
+    /// <summary>
+    /// Converts an NPC2 token key (already in "FormID:PluginName" form) to a <see cref="FormKey"/>.
+    /// Returns null for empty input or when the key is not a valid FormKey.
+    /// </summary>
     private FormKey? ConvertNPC2KeyToFormKey(string npc2Key)
     {
         // NPC2 format: "FormID:PluginName" e.g. "002910:3DNPC.esp"
@@ -76,6 +91,10 @@ public class NPC2ProfileParser
         return FormKey.TryFactory(npc2Key);
     }
 
+    /// <summary>
+    /// Looks up the NPC2 appearance source plugin for <paramref name="npcFormKey"/>. Returns true and sets
+    /// <paramref name="appearanceModKey"/> when present; otherwise returns false with a null out value.
+    /// </summary>
     public bool GetNPCSourcePlugin(FormKey npcFormKey, out ModKey? appearanceModKey)
     {
         if (AppearanceDictionary.ContainsKey(npcFormKey))
@@ -90,6 +109,10 @@ public class NPC2ProfileParser
         }
     }
     
+    /// <summary>
+    /// Looks up the NPC2 output/merge plugin for <paramref name="npcFormKey"/>. Returns true and sets
+    /// <paramref name="mergeModKey"/> when present; otherwise returns false with a null out value.
+    /// </summary>
     public bool GetNPCMergePlugin(FormKey npcFormKey, out ModKey? mergeModKey)
     {
         if (MergeDictionary.ContainsKey(npcFormKey))

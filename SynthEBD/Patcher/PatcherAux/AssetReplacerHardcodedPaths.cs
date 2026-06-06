@@ -2,8 +2,15 @@ using Mutagen.Bethesda.FormKeys.SkyrimSE;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Static lookup table of hardcoded record-replacer specifiers that map known vanilla face-detail (gash) texture paths,
+/// for both female and male humanoids, to the specific RaceMenu/Skyrim head-part FormKeys they belong to. Consulted
+/// during asset patching so that texture replacements targeting these vanilla paths are redirected onto the correct
+/// head-part records.
+/// </summary>
 public class AssetReplacerHardcodedPaths
 {
+    /// <summary>The hardcoded set of vanilla-path to head-part-destination replacer specifiers (female then male humanoid face gashes).</summary>
     public static HashSet<RecordReplacerSpecifier> ReplacersByPaths = new HashSet<RecordReplacerSpecifier>()
     {
         //humanoid female

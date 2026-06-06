@@ -6,6 +6,11 @@ using static SynthEBD.Patcher;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Accumulates which asset-pack subgroup combinations were assigned to which NPCs (primary, mix-in, and replacer
+/// categories) during patching, then formats and writes the human-readable "Generated Combinations.txt" assignment
+/// log. Records are logged per-NPC as assets are selected and flushed to file at the end of the run.
+/// </summary>
 public class CombinationLog
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -15,6 +20,7 @@ public class CombinationLog
     private readonly SynthEBDPaths _paths;
     private readonly Converters _converters;
 
+    /// <summary>Creates the log with the environment, patcher state, IO helper, paths, and converters, and initializes the three (empty) per-category combination dictionaries.</summary>
     public CombinationLog(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, PatcherIO patcherIO, SynthEBDPaths paths, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -28,10 +34,14 @@ public class CombinationLog
         AssignedMixInCombinations = new Dictionary<string, List<CombinationInfo>>();
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
     }
+    /// <summary>Assigned primary-asset-pack combinations, keyed by config-file/assignment name.</summary>
     public Dictionary<string, List<CombinationInfo>> AssignedPrimaryCombinations { get; set; }
+    /// <summary>Assigned mix-in combinations, keyed by config-file/assignment name.</summary>
     public Dictionary<string, List<CombinationInfo>> AssignedMixInCombinations { get; set; }
+    /// <summary>Assigned replacer combinations, keyed by config-file/assignment name.</summary>
     public Dictionary<string, List<CombinationInfo>> AssignedReplacerCombinations { get; set; }
 
+    /// <summary>Resets all three combination dictionaries to fresh empty instances, discarding any prior run's data.</summary>
     public void Reinitialize() 
     {
         AssignedPrimaryCombinations = new Dictionary<string, List<CombinationInfo>>();
@@ -39,6 +49,11 @@ public class CombinationLog
         AssignedReplacerCombinations = new Dictionary<string, List<CombinationInfo>>();
     }
 
+    /// <summary>
+    /// Builds and writes the "Generated Combinations.txt" log (assignment statistics plus primary, mix-in, and replacer
+    /// combination sections) into the run's timestamped log folder. No-ops when assignment logging is disabled.
+    /// Side effect: writes the text file asynchronously via <see cref="Task.Run(System.Action)"/>.
+    /// </summary>
     public void WriteToFile(CategorizedFlattenedAssetPacks assetPacks)
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
@@ -63,6 +78,7 @@ public class CombinationLog
         Task.Run(() => PatcherIO.WriteTextFile(outputFile, output, _logger));
     }
 
+    /// <summary>Formats per-subgroup assignment-count statistics across all categorized asset packs (primary and mix-in, male and female).</summary>
     public List<string> FormatAssetPackStats(CategorizedFlattenedAssetPacks assetPacks)
     {
         List<string> output = new();
@@ -73,6 +89,7 @@ public class CombinationLog
         return output;
     }
 
+    /// <summary>Formats one asset pack's group name and the assignment count for each of its subgroups as indented text lines.</summary>
     public List<string> FormatAssetPackStats(FlattenedAssetPack ap)
     {
         List<string> output = new();
@@ -88,6 +105,10 @@ public class CombinationLog
         return output;
     }
 
+    /// <summary>
+    /// Appends a formatted block for each config file's combinations to <paramref name="fileContents"/>: subgroup IDs,
+    /// deep names, the NPCs assigned, and the (recursively resolved) records belonging to each combination.
+    /// </summary>
     public void FormatCombinationInfoOutput(Dictionary<string, List<CombinationInfo>> combinationInfo, List<string> fileContents)
     {
         foreach (var entry in combinationInfo)
@@ -130,6 +151,10 @@ public class CombinationLog
         }
     }
 
+    /// <summary>
+    /// Recursively walks the form links contained in <paramref name="recordInfo"/>, resolving each via the link cache and
+    /// adding newly-seen sub-records to <paramref name="subRecords"/> (which doubles as the visited set to prevent cycles).
+    /// </summary>
     public void ResolveSubRecords(GeneratedRecordInfo recordInfo, HashSet<GeneratedRecordInfo> subRecords)
     {
         foreach (var containedFormLink in recordInfo.SubRecords)
@@ -147,6 +172,11 @@ public class CombinationLog
     }
 
     //public void LogAssignment(NPCInfo npcInfo, List<SubgroupCombination> combinations, List<FilePathReplacementParsed> assignedPaths)
+    /// <summary>
+    /// Records the subgroup combinations chosen for <paramref name="npcInfo"/> into the appropriate per-category dictionary,
+    /// creating a <see cref="CombinationInfo"/> per distinct subgroup-ID signature, adding the NPC to its assigned list, and
+    /// bumping assignment counts on the asset pack and its subgroups. No-ops when assignment logging is disabled.
+    /// </summary>
     public void LogCombinationSelections(NPCInfo npcInfo, List<SubgroupCombination> combinations)
     {
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
@@ -194,6 +224,10 @@ public class CombinationLog
         }
     }
 
+    /// <summary>
+    /// Attaches the generated records produced for <paramref name="npcInfo"/> to the matching previously-logged combination
+    /// (by signature within its category), de-duplicating by FormKey. Returns early if the combination was not already logged.
+    /// </summary>
     public void LogAssignedRecords(NPCInfo npcInfo, List<Patcher.SelectedAssetContainer> containers)
     {
         foreach (var container in containers)
@@ -246,8 +280,10 @@ public class CombinationLog
     }
 }
 
+/// <summary>One assigned subgroup combination: its subgroup-ID signature, deep names, the NPCs it was assigned to, and the records it generated.</summary>
 public class CombinationInfo
 {
+    /// <summary>The combination's subgroup-ID signature (the part after ':' in the combination signature).</summary>
     public string SubgroupIDs { get; set; } = "";
     public List<string> SubgroupDeepNames { get; set; } = new();
     public HashSet<GeneratedRecordInfo> AssignedRecords { get; set; } = new(new GeneratedRecordInfo.CombinationRecordComparer());
@@ -255,14 +291,17 @@ public class CombinationInfo
     public HashSet<string> AssignedFormKeys { get; set; } = new(); // same data as AssignedRecords but easier to check against
 }
 
+/// <summary>Lightweight record descriptor used by the combination log: FormKey string, EditorID, and the form links it contains.</summary>
 public class GeneratedRecordInfo
 {
     public string FormKey { get; set; }
     public string EditorID { get; set; }
     public HashSet<IFormLinkGetter> SubRecords { get; set; }
 
+    /// <summary>Equality comparer treating two records as equal when their FormKey strings match and their EditorIDs are both null or equal.</summary>
     public class CombinationRecordComparer : IEqualityComparer<GeneratedRecordInfo>
     {
+        /// <summary>Returns true when both records share a FormKey and have matching (or both-null) EditorIDs.</summary>
         public bool Equals(GeneratedRecordInfo x, GeneratedRecordInfo y)
         {
             if (x.FormKey == y.FormKey)
@@ -279,6 +318,7 @@ public class GeneratedRecordInfo
             return false;
         }
 
+        /// <summary>Hashes by FormKey string (EditorID intentionally excluded so it can vary within an equality bucket).</summary>
         public int GetHashCode([DisallowNull] GeneratedRecordInfo obj)
         {
             return obj.FormKey.GetHashCode();
