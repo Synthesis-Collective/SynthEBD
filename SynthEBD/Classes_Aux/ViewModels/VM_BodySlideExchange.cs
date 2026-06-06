@@ -11,9 +11,24 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the BodySlide import/export exchange window: exports the referenced BodySlide
+    /// annotations (plus the attribute groups, race groupings, and descriptors they reference) to a JSON
+    /// file, or imports such a file back into the OBody settings (with backup and annotation-count matching).
+    /// </summary>
     public class VM_BodySlideExchange
     {
+        /// <summary>Autofac factory delegate for constructing the exchange in import or export mode.</summary>
         public delegate VM_BodySlideExchange Factory(ExchangeMode mode, Window_BodySlideExchange window);
+        /// <summary>Creates the exchange VM in the given mode and wires the import/export action command.</summary>
+        /// <param name="mode">Whether the window imports or exports.</param>
+        /// <param name="window">The hosting window (closed on success).</param>
+        /// <param name="oBodyUI">The OBody settings VM (source/target of BodySlides).</param>
+        /// <param name="generalUI">General settings VM (race groupings).</param>
+        /// <param name="placeHolderFactory">Factory for BodySlide placeholder VMs.</param>
+        /// <param name="attributeGroupFactory">Factory for attribute-group VMs.</param>
+        /// <param name="raceGroupingFactory">Factory for race-grouping VMs.</param>
+        /// <param name="descriptorSelectionFactory">Factory for descriptor-selection menus.</param>
         public VM_BodySlideExchange(ExchangeMode mode, Window_BodySlideExchange window, VM_SettingsOBody oBodyUI, VM_Settings_General generalUI, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_AttributeGroup.Factory attributeGroupFactory, VM_RaceGrouping.Factory raceGroupingFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             Mode = mode;
@@ -62,6 +77,8 @@ namespace SynthEBD
 
         public RelayCommand ActionCommand { get; }
 
+        /// <summary>Exports the selected BodySlides plus their referenced attribute groups, race groupings, and descriptors to a chosen JSON file.</summary>
+        /// <returns><c>true</c> if the export completed and the window should close.</returns>
         public bool Export()
         {
             BodySlideExchange exchange = new();
@@ -110,6 +127,12 @@ namespace SynthEBD
             return closeWindow;
         }
 
+        /// <summary>Exports one gender's (non-hidden) BodySlides into the exchange, collecting the attribute groups, race groupings, and descriptors they reference (honoring the rules/notes toggles).</summary>
+        /// <param name="bodySlides">The source BodySlide placeholders.</param>
+        /// <param name="destinationList">The exchange list to append to.</param>
+        /// <param name="referencedAttributeGroups">Accumulates referenced attribute-group labels.</param>
+        /// <param name="referencedRaceGroupings">Accumulates referenced race-grouping labels.</param>
+        /// <param name="referencedDescriptors">Accumulates referenced descriptor signatures.</param>
         public void ExportGendered(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, List<BodySlideSetting> destinationList, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings, HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors)
         {
             foreach (var fullModel in bodySlides.Where(x => !x.IsHidden).Select(x => x.AssociatedModel).ToArray())
@@ -169,6 +192,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Walks the referenced descriptors' associated rules to collect any further attribute groups and race groupings they reference (so the export is self-contained).</summary>
+        /// <param name="referencedDescriptors">The descriptors whose rules are scanned.</param>
+        /// <param name="referencedAttributeGroups">Accumulates referenced attribute-group labels.</param>
+        /// <param name="referencedRaceGroupings">Accumulates referenced race-grouping labels.</param>
         public void CompileDescriptorAttributeAndRaceGroups(HashSet<BodyShapeDescriptor.LabelSignature> referencedDescriptors, HashSet<string> referencedAttributeGroups, HashSet<string> referencedRaceGroupings)
         {
             var referencedDescriptorStrings = referencedDescriptors.Select(x => x.ToString()).ToArray();
@@ -206,6 +233,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Imports a BodySlide exchange JSON file into the OBody settings, optionally backing up current settings first and warning on annotation-count mismatches.</summary>
+        /// <returns><c>true</c> if the import completed and the window should close.</returns>
         public bool Import()
         {
             if (!IO_Aux.SelectFile("", "Bodyslide files (*.json)|*.json", "Select Export File", out string loadPath))
@@ -284,6 +313,10 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>Matches one gender's imported annotations to existing BodySlides by referenced preset, cloning existing entries to match counts where unambiguous and warning on irreconcilable mismatches.</summary>
+        /// <param name="currentBodySlides">The user's current BodySlide placeholders.</param>
+        /// <param name="importedBodySlides">The imported annotations.</param>
+        /// <param name="multiplexWarnings">Accumulates (preset, existingCount, importedCount) tuples for unmatched groups.</param>
         public void ImportGendered(ObservableCollection<VM_BodySlidePlaceHolder> currentBodySlides, List<BodySlideSetting> importedBodySlides, List<(string, int, int)> multiplexWarnings)
         {
             var groupedAnnotations = importedBodySlides.GroupBy(x => x.ReferencedBodySlide).ToArray(); // group annotations by the bodyslide that they're referencing (remember that BodySlide annotation can be cloned)
@@ -321,6 +354,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Applies one imported annotation to a target BodySlide placeholder, honoring the rules/notes exchange toggles and refreshing its display.</summary>
+        /// <param name="bodySlides">The collection the placeholder belongs to.</param>
+        /// <param name="importedBS">The imported BodySlide annotation.</param>
+        /// <param name="targetPlaceHolder">The placeholder to update.</param>
         public void ImportBodySlide(ObservableCollection<VM_BodySlidePlaceHolder> bodySlides, BodySlideSetting importedBS, VM_BodySlidePlaceHolder targetPlaceHolder)
         {
             var notesBak = targetPlaceHolder.AssociatedModel.Notes;
@@ -352,9 +389,12 @@ namespace SynthEBD
         }
     }
 
+    /// <summary>Whether the exchange window is importing or exporting.</summary>
     public enum ExchangeMode
     {
+        /// <summary>Import a BodySlide exchange file.</summary>
         Import,
+        /// <summary>Export to a BodySlide exchange file.</summary>
         Export
     }
 }

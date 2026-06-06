@@ -542,6 +542,17 @@ a null-reference risk. Should be `&&`.
 name has a lowercase "to" (`DumpViewModeltoModel`) — inconsistent with the `DumpViewModelToModel`
 convention used everywhere else. Cosmetic rename.
 
+### `VM_FilePathReplacement` — 🔧 modernize (record-path strings triplicated)
+
+[VM_FilePathReplacement.cs:162](SynthEBD/Classes_Aux/ViewModels/VM_FilePathReplacement.cs#L162),
+[:343](SynthEBD/Classes_Aux/ViewModels/VM_FilePathReplacement.cs#L343),
+[:431](SynthEBD/Classes_Aux/ViewModels/VM_FilePathReplacement.cs#L431) · The full set of
+`WornArmor.Armature[...].SkinTexture.<sex>.<slot>.GivenPath` destination strings is written out three
+times in this one file — once in `DestinationDetailAbstractDictionary` (path→friendly), once in
+`DestinationOptions` (menu→friendly alias), once in `GetPathFromTypeString` (friendly→path) — and a
+fourth time in `FilePathDestinationMap`. Any change to a destination path means editing four hand-kept
+copies. A single bidirectional table (friendly-name ⇄ path) driving all four would remove the drift risk.
+
 <!-- ENTRIES:Classes_Aux_VM -->
 
 ---

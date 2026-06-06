@@ -14,6 +14,11 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the asset-distribution simulator: repeatedly runs the asset/body-shape selection
+    /// pipeline for one NPC to estimate how often each asset pack and subgroup would be assigned, and
+    /// produces a per-subgroup count report (with per-entry explanations drawn from the verbose log).
+    /// </summary>
     public class VM_AssetDistributionSimulator : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -27,7 +32,9 @@ namespace SynthEBD
         private readonly OBodyPreprocessing _obodyPreProcessing;
         private readonly NPCInfo.Factory _npcInfoFactory;
         private readonly VM_SettingsTexMesh _texMesh;
+        /// <summary>Autofac factory delegate for constructing the simulator.</summary>
         public delegate VM_AssetDistributionSimulator Factory();
+        /// <summary>Creates the simulator, snapshotting the OBody / BlockList / BodyGen settings and wiring the simulate and show-full-report commands.</summary>
         public VM_AssetDistributionSimulator(VM_SettingsTexMesh texMesh, VM_SettingsBodyGen bodyGen, VM_SettingsOBody oBody, VM_BlockListUI blockListUI, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, DictionaryMapper dictionaryMapper, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, OBodyPreprocessing oBodyPreprocessing, SettingsIO_OBody oBodyIO, NPCInfo.Factory npcInfoFactory)
         {
             _environmentProvider = environmentProvider;
@@ -97,6 +104,7 @@ namespace SynthEBD
         public RelayCommand ShowFullReport { get; set; }
         public bool ShowFullReportVisible { get; set; } = false;
 
+        /// <summary>Refreshes the snapshot of selected primary/mix-in asset packs and resets the NPC and report.</summary>
         public void Reinitialize()
         {
             PrimaryAPs = _texMesh.AssetPacks.Where(x => x.ConfigType == AssetPackType.Primary && x.IsSelected).Select(x => x.DumpViewModelToModel()).ToHashSet();
@@ -105,12 +113,15 @@ namespace SynthEBD
             Clear();
         }
 
+        /// <summary>Clears the current report state.</summary>
         private void Clear()
         {
             AssetReports.Clear();
             TextReport = string.Empty;
             ShowFullReportVisible = false;
         }
+        /// <summary>Runs primary-asset selection <see cref="Repetitions"/> times for the selected NPC (with consistency temporarily disabled), capturing a verbose report on the final pass, then builds the count report.</summary>
+        /// <returns><c>true</c> if the simulation ran; <c>false</c> with a notification on invalid input.</returns>
         public bool SimulatePrimaryDistribution()
         {
             Clear();
@@ -182,6 +193,10 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>Tallies how often each asset pack and subgroup appeared across the simulated combinations and builds the text and per-subgroup reports (coloring zero-count subgroups red).</summary>
+        /// <param name="combinations">The simulated subgroup combinations.</param>
+        /// <param name="available">The flattened asset packs that were eligible.</param>
+        /// <param name="npcInfo">The simulated NPC (source of the verbose log for explanations).</param>
         public void GenerateReport(HashSet<SubgroupCombination> combinations, HashSet<FlattenedAssetPack> available, NPCInfo npcInfo)
         {
             List<CountableString> assetPacks = new();
@@ -234,6 +249,8 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Shows the full verbose NPC report (formatted XML) in a copyable popup.</summary>
+        /// <param name="npcInfo">The NPC whose report to display.</param>
         public void DislpayFullReportPopup(NPCInfo npcInfo)
         {
             var fullReport = npcInfo.Report;
@@ -251,20 +268,25 @@ namespace SynthEBD
         }
 
 
+        /// <summary>One asset pack's section of the distribution report: a title and per-subgroup count rows.</summary>
         public class AssetReport
         {
             public string TitleString { get; set; } = "";
             public ObservableCollection<VM_ReportCountableStringWrapper> SubgroupStrings { get; set; } = new();
         }
 
+        /// <summary>A string paired with an occurrence count.</summary>
         public class CountableString
         {
             public string Str { get; set; }
             public int Count { get; set; } = 1;
         }
 
+        /// <summary>Wraps a <see cref="CountableString"/> for display with a color and an "explain" command that surfaces the relevant verbose-log excerpt.</summary>
         public class VM_ReportCountableStringWrapper
         {
+            /// <summary>Creates the wrapper and wires the explain command.</summary>
+            /// <param name="str">The countable string to wrap.</param>
             public VM_ReportCountableStringWrapper(CountableString str)
             {
                 ReferencedStr = str;
@@ -279,6 +301,10 @@ namespace SynthEBD
             public RelayCommand ExplainCommand { get; }
             public string ExplainStr { get; set; }
 
+            /// <summary>Extracts the verbose-log lines explaining this subgroup's filtering (for the given NPC and asset pack) into <see cref="ExplainStr"/>, matching whitespace-insensitively.</summary>
+            /// <param name="npcInfo">The simulated NPC (source of the report log).</param>
+            /// <param name="assetPackName">The asset pack whose log section is searched.</param>
+            /// <param name="reportIDstring">The subgroup identifier to find in the log.</param>
             public void GetExplainStringSubgroup(NPCInfo npcInfo, string assetPackName, string reportIDstring)
             {
                 var log = npcInfo.Report.RootElement.ToString();
@@ -299,7 +325,8 @@ namespace SynthEBD
 
             //https://stackoverflow.com/questions/6219454/efficient-way-to-remove-all-whitespace-from-string
             private static readonly Regex sWhitespace = new Regex(@"\s+");
-            public static string ReplaceWhitespace(string input, string replacement)
+                /// <summary>Replaces all whitespace runs in a string (used for tolerant log-line matching).</summary>
+        public static string ReplaceWhitespace(string input, string replacement)
             {
                 return sWhitespace.Replace(input, replacement);
             }

@@ -14,10 +14,18 @@ using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for a descriptor-selection menu: mirrors a creation menu's category shells as selectable
+/// rows (optionally with priority and match-mode), tracks an aggregate annotation state, supports an
+/// "opposite" menu that auto-deselects conflicting picks, and round-trips selections to/from descriptor
+/// signature sets (plain, prioritized, or annotated).
+/// </summary>
 public class VM_BodyShapeDescriptorSelectionMenu : VM
 {
     private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing a selection menu.</summary>
     public delegate VM_BodyShapeDescriptorSelectionMenu Factory(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, bool showPriority);
+    /// <summary>Creates the menu, building a selectable shell per tracked category, keeping it synced to the source menu, and recomputing the annotation state and header as selections change.</summary>
     public VM_BodyShapeDescriptorSelectionMenu(VM_BodyShapeDescriptorCreationMenu trackedMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IHasAttributeGroupMenu parentConfig, bool showMatchMode, DescriptorMatchMode matchMode, bool showPriority, VM_BodyShapeDescriptorCreator descriptorCreator, VM_BodyShapeDescriptorSelectionMenu.Factory selfFactory)
     {
         _selfFactory = selfFactory;
@@ -73,6 +81,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
     public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> PrioritizedBackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
     private VM_BodyShapeDescriptorSelectionMenu OppositeToggleMenu { get; set; } = null; // if this menu gets a selection, its opposite gets the same selection deselected
+    /// <summary>Creates a copy of this menu with the same selections (prioritized or plain, per <see cref="ShowPriority"/>).</summary>
+    /// <returns>The cloned menu.</returns>
     public VM_BodyShapeDescriptorSelectionMenu Clone()
     {
         VM_BodyShapeDescriptorSelectionMenu clone = _selfFactory(TrackedMenu, TrackedRaceGroupings, Parent, ShowMatchMode, MatchMode, ShowPriority);
@@ -89,6 +99,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return clone;
     }
 
+    /// <summary>Links an "opposite" menu so selecting a descriptor here deselects the matching one there (e.g. Allowed vs Disallowed are mutually exclusive).</summary>
+    /// <param name="opposite">The opposing selection menu.</param>
     public void SetOppositeToggleMenu(VM_BodyShapeDescriptorSelectionMenu opposite)
     {
         OppositeToggleMenu = opposite;
@@ -118,6 +130,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
+    /// <summary>Whether any descriptor in the menu is selected.</summary>
+    /// <returns><c>true</c> if at least one descriptor is selected.</returns>
     public bool IsAnnotated()
     {
         foreach (var shell in DescriptorShells)
@@ -133,6 +147,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return false;
     }
 
+    /// <summary>Syncs the selectable shells to the tracked menu's categories (adding new, removing deleted) and refreshes the opposite-toggle links.</summary>
     public void UpdateShellList()
     {
         // remove deleted shells
@@ -178,6 +193,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         }
     }
 
+    /// <summary>Selects the rows matching the given descriptor signatures (carrying over priority/annotation state), stashing any signature with no matching row so it survives the round-trip.</summary>
+    /// <typeparam name="T">A descriptor label-signature type.</typeparam>
+    /// <param name="bodyShapeDescriptors">The descriptor signatures to select.</param>
     public void CopyInFromHashSet<T>(HashSet<T> bodyShapeDescriptors)
         where T: BodyShapeDescriptor.LabelSignature
     {
@@ -217,6 +235,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         _initializing = false;
     }
 
+    /// <summary>Dumps the prioritized (priority &gt; 0) descriptor selections as prioritized signatures, plus the prioritized backup stash.</summary>
+    /// <returns>The prioritized descriptor signatures.</returns>
     public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> DumpToPrioritizedHashSet()
     {
         HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> output = new(PrioritizedBackupStash);
@@ -230,6 +250,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
+    /// <summary>Dumps the selected descriptors as plain signatures, plus the backup stash.</summary>
+    /// <returns>The selected descriptor signatures.</returns>
     public HashSet<BodyShapeDescriptor.LabelSignature> DumpToHashSet()
     {
         HashSet<BodyShapeDescriptor.LabelSignature> output = new(BackupStash);
@@ -243,6 +265,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
+    /// <summary>Dumps the selected descriptors as annotated signatures (carrying annotation state), as stored in OBody settings.</summary>
+    /// <returns>The annotated descriptor signatures.</returns>
     public HashSet<AnnotatedDescriptorSignature> DumpToOBodySettingsHashSet()
     {
         HashSet<AnnotatedDescriptorSignature> output = new(BackupStash.Select(x => new AnnotatedDescriptorSignature(x)));
@@ -256,6 +280,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
+    /// <summary>Rebuilds the pipe-joined <see cref="Header"/> summarizing the selected descriptors grouped by category.</summary>
     public void BuildHeader()
     {
         List<string> categories = new();
@@ -272,6 +297,9 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         Header = string.Join(" | ", categories);
     }
 
+    /// <summary>Formats one selector for the header — the value, or "value (priority)" in priority mode — or empty when not selected.</summary>
+    /// <param name="selection">The selector to format.</param>
+    /// <returns>The formatted string, or empty.</returns>
     private string FormatSelection(VM_BodyShapeDescriptorSelector selection)
     {
         if(selection.ParentMenu.ShowPriority)
@@ -288,6 +316,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return string.Empty;
     }
 
+    /// <summary>Deselects every descriptor in the menu.</summary>
     public void DeselectAll()
     {
         foreach (var shell in DescriptorShells)
@@ -353,9 +382,13 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     }
 }
 
+/// <summary>Selectable view of one descriptor category shell: its selectable descriptor rows plus an aggregate annotation state and text color.</summary>
 [DebuggerDisplay("{TrackedShell.Category} ({TrackedShell.Descriptors.Count})")]
 public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
 {
+    /// <summary>Creates the shell selector, building a selector per descriptor and recomputing the aggregate annotation state/color as selections change.</summary>
+    /// <param name="trackedShell">The category shell this mirrors.</param>
+    /// <param name="parentMenu">The owning selection menu.</param>
     public VM_BodyShapeDescriptorShellSelector(VM_BodyShapeDescriptorShell trackedShell, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
         TrackedShell = trackedShell;
@@ -390,6 +423,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
     public SolidColorBrush TextColor { get; set; } = CommonColors.White;
 
+    /// <summary>Syncs the descriptor selectors to the tracked shell's descriptors (adding new, removing deleted).</summary>
     void UpdateDescriptorList()
     {
         // remove deleted Descriptors
@@ -430,6 +464,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
         }
     }
 
+    /// <summary>Updates the text color from the annotation state (with explicit overrides for some states).</summary>
     private void UpdateTextColor(BodyShapeAnnotationState annotationState)
     {
         TextColor = VM_BodySlideSetting.AnnotationToColor[annotationState];
@@ -441,9 +476,13 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
     }
 }
 
+/// <summary>One selectable descriptor value: its selected state, optional priority, annotation state, and text color, tracking the underlying descriptor's value.</summary>
 [DebuggerDisplay("{Value} {IsSelected ? \"(x)\" : \"(_)\";} Priority: {Priority}")]
 public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
 {
+    /// <summary>Creates the selector, tracking the descriptor's value and updating annotation state/color on selection changes.</summary>
+    /// <param name="trackedDescriptor">The descriptor this selector represents.</param>
+    /// <param name="parentMenu">The owning selection menu.</param>
     public VM_BodyShapeDescriptorSelector(VM_BodyShapeDescriptor trackedDescriptor, VM_BodyShapeDescriptorSelectionMenu parentMenu)
     {
         TrackedDescriptor = trackedDescriptor;
@@ -463,6 +502,7 @@ public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
     public SolidColorBrush TextColor { get; set; } = CommonColors.White;
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
 
+    /// <summary>Updates the text color from the annotation state (with explicit overrides for some states).</summary>
     private void UpdateTextColor(BodyShapeAnnotationState annotationState)
     {
         TextColor = VM_BodySlideSetting.AnnotationToColor[annotationState];
@@ -474,21 +514,34 @@ public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
     }
 }
 
+/// <summary>Aggregate annotation state of a descriptor selection, used to color the UI.</summary>
 public enum BodyShapeAnnotationState
 {
+    /// <summary>Not annotated.</summary>
     None,
+    /// <summary>Manually selected by the user.</summary>
     Manual,
+    /// <summary>Applied by a rules-based pass.</summary>
     RulesBased,
+    /// <summary>A mix of manual and rules-based selections.</summary>
     Mix_Manual_RulesBased,
+    /// <summary>Imported from an annotation library.</summary>
     Library,
+    /// <summary>Assigned by the ML BodySlide classifier.</summary>
     Classifier,
+    /// <summary>A mix of multiple sources.</summary>
     Mixed
 }
 
+/// <summary>The source that produced a descriptor annotation (also its precedence for conflict resolution).</summary>
 public enum BodyShapeAnnotationSource
 {
+    /// <summary>User-entered.</summary>
     Manual,
+    /// <summary>From an annotation library.</summary>
     Library,
+    /// <summary>From a rules-based pass.</summary>
     RulesBased,
+    /// <summary>From the ML classifier.</summary>
     Classifier
 }

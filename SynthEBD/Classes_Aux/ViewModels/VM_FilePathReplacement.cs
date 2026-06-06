@@ -10,6 +10,11 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for a single source→destination file-path replacement row: a source asset path (with a
+/// file picker and validity coloring) and a destination record path (with record intellisense, a
+/// friendly "abstract" caption, and a menu of canned destinations), validated against a reference NPC.
+/// </summary>
 public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -20,8 +25,18 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     private readonly Logger _logger;
     private readonly Factory _selfFactory;
 
+    /// <summary>Autofac factory delegate for constructing a replacement row under a menu.</summary>
     public delegate VM_FilePathReplacement Factory(VM_FilePathReplacementMenu parentMenu);
-    
+
+    /// <summary>Creates the row, wiring the delete / find-path / set-destination / toggle-view commands, record intellisense, and source/destination validity refresh subscriptions.</summary>
+    /// <param name="parentMenu">The owning path-replacement menu.</param>
+    /// <param name="environmentProvider">Supplies the data-folder path and link cache.</param>
+    /// <param name="patcherState">Patcher state (trim-path settings).</param>
+    /// <param name="bsaHandler">BSA handler used to check source existence inside archives.</param>
+    /// <param name="recordIntellisense">Record-path intellisense provider.</param>
+    /// <param name="recordPathParser">Parser used to validate destination paths.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
+    /// <param name="selfFactory">Factory used by <see cref="Clone"/>.</param>
     public VM_FilePathReplacement(VM_FilePathReplacementMenu parentMenu, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, BSAHandler bsaHandler, RecordIntellisense recordIntellisense, RecordPathParser recordPathParser, Logger logger, Factory selfFactory)
     {
         _environmentProvider = environmentProvider;
@@ -125,6 +140,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         this.WhenAnyValue(x => x.ParentMenu.ReferenceNPCFK).Subscribe(x => RefreshReferenceNPC()).DisposeWith(this);
     }
 
+    /// <summary>Creates a copy of this row under a (possibly different) parent menu.</summary>
+    /// <param name="parentMenu">The parent menu for the clone.</param>
+    /// <returns>The cloned row.</returns>
     public VM_FilePathReplacement Clone(VM_FilePathReplacementMenu parentMenu)
     {
         VM_FilePathReplacement clone = _selfFactory(parentMenu);
@@ -217,12 +235,15 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath", "Tail Specular (Female)" },
     };
 
+    /// <summary>Populates this row's source and destination from a <see cref="FilePathReplacement"/> model.</summary>
+    /// <param name="model">The model to load.</param>
     public void CopyInViewModelFromModel(FilePathReplacement model)
     {
         Source = model.Source;
         IntellisensedPath = model.Destination;
     }
 
+    /// <summary>Updates the friendly "abstract" destination caption from the current intellisensed path (a known friendly name, or "Custom Path: …").</summary>
     private void RefreshAbstractView()
     {
         if (DestinationDetailAbstractDictionary.ContainsKey(IntellisensedPath))
@@ -235,6 +256,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Resolves the reference NPC against which the destination is validated — explicit, or by probing the asset pack's record templates for one where the path resolves — then refreshes the destination color (off the UI thread).</summary>
     public void RefreshReferenceNPC()
     {
         Task.Run(() =>
@@ -259,6 +281,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         });
     }
 
+    /// <summary>Sets the source validity color based on whether the source asset exists on disk or in an associated BSA.</summary>
     public void RefreshSourceColor()
     {
         var searchStr = Path.Combine(_environmentProvider.DataFolderPath, Source);
@@ -274,6 +297,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Sets the destination validity color based on whether the destination record path resolves to a string on the reference NPC.</summary>
     public void RefreshDestColor()
     {
         if (DestinationPathExists(IntellisensedPath, LinkCache, ReferenceNPCFormKey, _recordPathParser, _logger))
@@ -288,6 +312,13 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Determines whether a destination record path resolves to a string value on the given reference NPC.</summary>
+    /// <param name="destinationPath">The destination record path.</param>
+    /// <param name="linkCache">Link cache for resolution.</param>
+    /// <param name="referenceNPCFormKey">The reference NPC to resolve against.</param>
+    /// <param name="recordPathParser">Parser used to walk the path.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
+    /// <returns><c>true</c> if the path resolves to a string.</returns>
     public static bool DestinationPathExists(string destinationPath, ILinkCache linkCache, FormKey referenceNPCFormKey, RecordPathParser recordPathParser, Logger logger)
     {
         if (!destinationPath.IsNullOrWhitespace() && 
@@ -306,6 +337,13 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Determines whether a destination record path resolves on any of the given reference NPCs.</summary>
+    /// <param name="destinationPath">The destination record path.</param>
+    /// <param name="linkCache">Link cache for resolution.</param>
+    /// <param name="referenceNPCFormKeys">The reference NPCs to try.</param>
+    /// <param name="recordPathParser">Parser used to walk the path.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
+    /// <returns><c>true</c> if the path resolves on any reference NPC.</returns>
     public static bool DestinationPathExists(string destinationPath, ILinkCache linkCache, IEnumerable<FormKey> referenceNPCFormKeys, RecordPathParser recordPathParser, Logger logger)
     {
         foreach (var referenceFormKey in referenceNPCFormKeys)
@@ -318,6 +356,10 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         return false;
     }
 
+    /// <summary>Trims a configured known path prefix off a picked file path, if one matches by fragment and extension.</summary>
+    /// <param name="s">The full picked file path.</param>
+    /// <param name="trimmed">Receives the trimmed (Data-relative) path on success.</param>
+    /// <returns><c>true</c> if a known prefix matched and was trimmed.</returns>
     private bool TrimKnownPrefix(string s, out string trimmed)
     {
         trimmed = "";
@@ -332,6 +374,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         return false;
     }
 
+    /// <summary>Syncs the reference NPC from the parent menu (it can change via record templates without the user editing the menu directly).</summary>
     private void SyncReferenceWithParent()
     {
         if (ParentMenu != null)
@@ -340,6 +383,7 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Builds the hierarchical "Set Destination" context menu of canned head/body destination paths (per body part, slot, and sex), each wired to <c>SetDestinationPath</c>.</summary>
     public ObservableCollection<VM_MenuItem> DestinationOptions
     {
         get
@@ -428,6 +472,9 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
         }
     }
 
+    /// <summary>Maps a friendly destination name (e.g. "Torso Diffuse Male") to its record-path DSL string.</summary>
+    /// <param name="typeString">The friendly destination name.</param>
+    /// <returns>The record path, or "" if unrecognized.</returns>
     public static string GetPathFromTypeString(string typeString)
     {
         switch(typeString)

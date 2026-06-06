@@ -18,6 +18,10 @@ using DynamicData;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for one head-part type's list (e.g. Hair, Eyes): the head parts, gender filtering, the
+    /// type-level rules, and a 3D FaceGen preview that re-renders the selected part on a resolved preview NPC.
+    /// </summary>
     public class VM_HeadPartList : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -35,7 +39,9 @@ namespace SynthEBD
 
         private CancellationTokenSource? _previewCts;
 
+        /// <summary>Autofac factory delegate for constructing a head-part list for one type.</summary>
         public delegate VM_HeadPartList Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, HeadPart.TypeEnum type);
+        /// <summary>Creates the list, building the type rules and alphabetizer and wiring selection/gender/preview subscriptions and the delete-all command.</summary>
         public VM_HeadPartList(ObservableCollection<VM_RaceGrouping> raceGroupingVMs,
             HeadPart.TypeEnum type,
             VM_Settings_Headparts headPartMenuVM,
@@ -142,6 +148,7 @@ namespace SynthEBD
         public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
         private FormKey _lastLoadedNpc = FormKey.Null;
 
+        /// <summary>Rebuilds <see cref="DisplayedList"/> from <see cref="HeadPartList"/>, filtered by the current gender toggle.</summary>
         public void UpdateList()
         {
             DisplayedList.Clear();
@@ -154,6 +161,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Populates the head-part list and type rules from a settings model.</summary>
+        /// <param name="model">The head-part-type settings to load.</param>
+        /// <param name="raceGroupingVMs">Race groupings (passed through to rules).</param>
+        /// <param name="attributeGroupMenu">Attribute-group menu (passed through to rules).</param>
         public void CopyInFromModel(Settings_HeadPartType model, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_AttributeGroupMenu attributeGroupMenu)
         {
             foreach (var hp in model.HeadParts)
@@ -164,6 +175,8 @@ namespace SynthEBD
             TypeRuleSet.CopyInFromModel(model);
         }
 
+        /// <summary>Writes the head-part list and type rules back into a settings model.</summary>
+        /// <param name="model">The head-part-type settings to update.</param>
         public void DumpToModel(Settings_HeadPartType model)
         {
             TypeRuleSet.DumpToModel(model);
@@ -176,6 +189,7 @@ namespace SynthEBD
             model.HeadParts = HeadPartList.Select(x => x.AssociatedModel).ToList();
         }
 
+        /// <summary>Renders a preview of the selected head part on a resolved preview NPC — baking a temp FaceGen NIF with the part applied unless "See Original" is set — cancelling any in-flight preview first.</summary>
         private async Task RefreshPreviewAsync()
         {
             _previewCts?.Cancel();
@@ -250,6 +264,9 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Chooses a preview gender from the head part's allowed sexes, falling back to the gender toggle.</summary>
+        /// <param name="hp">The head part being previewed.</param>
+        /// <returns>The gender to preview as.</returns>
         private Gender ResolveGenderForHeadPart(VM_HeadPart hp)
         {
             if (hp.bAllowFemale && !hp.bAllowMale) return Gender.Female;
@@ -258,6 +275,10 @@ namespace SynthEBD
             return Gender.Female;
         }
 
+        /// <summary>Resolves a preview NPC for a head part by trying its effective allowed races, falling back to the default preview NPC for the gender.</summary>
+        /// <param name="hp">The head part being previewed.</param>
+        /// <param name="gender">The preview gender.</param>
+        /// <returns>A preview NPC FormKey, or the gender default.</returns>
         private FormKey ResolvePreviewNpc(VM_HeadPart hp, Gender gender)
         {
             var effectiveRaces = hp.GetEffectiveAllowedRaces(_patcherState.GeneralSettings.RaceGroupings);
@@ -273,10 +294,14 @@ namespace SynthEBD
         }
     }
 
+    /// <summary>Gender filter for a head-part list display.</summary>
     public enum DisplayGender
     {
+        /// <summary>Show parts allowed for either sex.</summary>
         Both,
+        /// <summary>Show only male-allowed parts.</summary>
         Male,
+        /// <summary>Show only female-allowed parts.</summary>
         Female
     }
 }
