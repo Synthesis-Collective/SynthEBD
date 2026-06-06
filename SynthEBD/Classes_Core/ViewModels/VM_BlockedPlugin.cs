@@ -9,10 +9,20 @@ using Mutagen.Bethesda.Plugins.Order;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Editor view model for a <see cref="BlockedPlugin"/> entry: which assignment axes (assets, height,
+/// body shape, head parts, vanilla body path) are blocked for every NPC sourced from a given plugin.
+/// </summary>
 public class VM_BlockedPlugin : VM
 {
     private IEnvironmentStateProvider _environmentProvider;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_BlockedPlugin"/>.</summary>
     public delegate VM_BlockedPlugin Factory(VM_BlockedPluginPlaceHolder associatedPlaceHolder);
+    /// <summary>
+    /// Links this editor to its placeholder, derives <see cref="DispName"/> from the chosen
+    /// <see cref="ModKey"/>, tracks the environment link cache and load order, and mirrors the
+    /// master HeadParts toggle onto every per-type head part block.
+    /// </summary>
     public VM_BlockedPlugin(VM_BlockedPluginPlaceHolder associatedPlaceHolder, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
@@ -66,6 +76,7 @@ public class VM_BlockedPlugin : VM
     public ILinkCache lk { get; private set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
 
+    /// <summary>Model → view model: builds an editor from the placeholder's associated <see cref="BlockedPlugin"/> model.</summary>
     public static VM_BlockedPlugin CreateViewModel(VM_BlockedPluginPlaceHolder placeHolder, VM_BlockedPlugin.Factory factory)
     {
         VM_BlockedPlugin viewModel = factory(placeHolder);
@@ -83,6 +94,7 @@ public class VM_BlockedPlugin : VM
         return viewModel;
     }
 
+    /// <summary>View model → model: serializes this editor's state into a new <see cref="BlockedPlugin"/>.</summary>
     public BlockedPlugin DumpViewModelToModel()
     {
         BlockedPlugin model = new BlockedPlugin();
@@ -100,8 +112,16 @@ public class VM_BlockedPlugin : VM
     }
 }
 
+/// <summary>
+/// Lightweight list-item view model for a <see cref="BlockedPlugin"/> in the blocked-plugins list.
+/// Holds the model and display name and lazily owns the heavyweight <see cref="VM_BlockedPlugin"/> editor.
+/// </summary>
 public class VM_BlockedPluginPlaceHolder : VM
 {
+    /// <summary>
+    /// Seeds the model, derives the initial display name from its ModKey, and keeps
+    /// <see cref="DispName"/> in sync with the editor view model when one is attached.
+    /// </summary>
     public VM_BlockedPluginPlaceHolder(BlockedPlugin associatedModel)
     {
         AssociatedModel = associatedModel;

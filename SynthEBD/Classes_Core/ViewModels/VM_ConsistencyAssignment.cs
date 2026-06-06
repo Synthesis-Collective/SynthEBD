@@ -11,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Editor view model of an <see cref="NPCAssignment"/> as stored in the consistency record: the
+/// previously assigned asset pack/subgroups, mix-in and replacer assignments, BodyGen morphs,
+/// BodySlide preset, height, and per-type head parts for one NPC. Drives a read-only character
+/// viewer that previews the consistency selections as they change.
+/// </summary>
 public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 {
     private readonly VM_SettingsTexMesh _texMeshUI;
@@ -18,7 +24,14 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     private readonly VM_SettingsBodyGen _bodyGenSettings;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_ConsistencyAssignment"/>.</summary>
     public delegate VM_ConsistencyAssignment Factory(NPCAssignment model);
+    /// <summary>
+    /// Seeds the model and the read-only character viewer, follows the environment link cache,
+    /// tracks the assigned flags, wires the delete-asset-pack/bodyslide/height commands, and
+    /// registers the throttled subscriptions that refresh the viewer's NPC, textures, BodySlide, and
+    /// height as the consistency selections change.
+    /// </summary>
     public VM_ConsistencyAssignment(
         NPCAssignment model,
         VM_SettingsTexMesh texMeshUI,
@@ -139,6 +152,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     public ILinkCache lk { get; private set; }
     public VM_CharacterViewer CharacterViewer { get; }
 
+    /// <summary>Resolves an asset pack name + subgroup ID to a human-readable "->"-joined name chain, or "Not Loaded" if unresolved.</summary>
     private string GetSubgroupNameChain(string assetPackName, string subgroupID)
     {
         string subgroupName = "Not Loaded";
@@ -152,6 +166,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         return subgroupName;
     }
 
+    /// <summary>Model → view model: loads all consistency selections (asset pack/subgroups, mix-ins, replacers, morphs, BodySlide, height, head parts, NPC identity) from an <see cref="NPCAssignment"/>.</summary>
     public void GetViewModelFromModel(NPCAssignment model)
     {
         AssetPackName = model.AssetPackName;
@@ -223,6 +238,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         Gender = VM_SpecificNPCAssignment.GetGender(NPCFormKey, _logger, _environmentProvider);
     }
 
+    /// <summary>View model → model: writes all consistency selections back into the associated <see cref="NPCAssignment"/>, parsing height and logging an error if it cannot be parsed.</summary>
     public void DumpViewModelToModel()
     {
         AssociatedModel.AssetPackName = AssetPackName;
@@ -271,6 +287,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     //  CHARACTER VIEWER REFRESH
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Loads the assigned NPC into the character viewer (applying any consistency head parts) and then refreshes textures, BodySlide, and BodyGen.</summary>
     private async Task RefreshViewerNpcAsync()
     {
         if (NPCFormKey.IsNull || lk == null)
@@ -296,6 +313,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         RefreshViewerBodyGen();
     }
 
+    /// <summary>Resolves the stored BodyGen morph names to their gendered template specs and applies them to the character viewer.</summary>
     private void RefreshViewerBodyGen()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0) return;
@@ -331,6 +349,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         CharacterViewer.ApplyBodyGen(resolved, sliderGroup, CharacterViewer.NpcWeight);
     }
 
+    /// <summary>Collects texture/mesh path overrides from the primary, mix-in, and replacer subgroup selections and applies them to the character viewer.</summary>
     private void RefreshViewerTextures()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0)
@@ -393,6 +412,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Applies the parsed height to the character viewer's height override, or clears it when height is blank/invalid.</summary>
     private void RefreshViewerHeight()
     {
         if (!string.IsNullOrWhiteSpace(Height) && float.TryParse(Height, out var h) && h > 0f)
@@ -405,6 +425,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         }
     }
 
+    /// <summary>Looks up the assigned BodySlide preset among the gendered available presets and applies it to the character viewer.</summary>
     private void RefreshViewerBodySlide()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0 || string.IsNullOrEmpty(BodySlidePreset))
@@ -430,8 +451,10 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         }
     }
 
+    /// <summary>View model for a single mix-in asset pack consistency assignment (its pack name, chosen subgroups, and declined flag) within a <see cref="VM_ConsistencyAssignment"/>.</summary>
     public class VM_MixInConsistencyAssignment
     {
+        /// <summary>Seeds the parent collection and wires the DeleteCommand to remove this mix-in from it.</summary>
         public VM_MixInConsistencyAssignment(ObservableCollection<VM_MixInConsistencyAssignment> parentCollection)
         {
             ParentCollection = parentCollection;
@@ -451,8 +474,10 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         public RelayCommand DeleteCommand { get; set; }
     }
 
+    /// <summary>View model for a single consistency subgroup selection: its subgroup ID plus a resolved display string.</summary>
     public class VM_ConsistencySubgroupAssignment
     {
+        /// <summary>Seeds the parent collection and wires the DeleteCommand to remove this entry from it.</summary>
         public VM_ConsistencySubgroupAssignment(ObservableCollection<VM_ConsistencySubgroupAssignment> parentCollection)
         {
             ParentCollection = parentCollection;

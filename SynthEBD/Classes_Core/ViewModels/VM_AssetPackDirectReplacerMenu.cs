@@ -8,12 +8,22 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for an asset pack's Direct Replacer menu: owns the collection of
+/// <see cref="VM_AssetReplacerGroup"/>s and drives selection of the displayed group, persisting the
+/// previously displayed group's subgroup and loading the newly selected group's first subgroup.
+/// </summary>
 public class VM_AssetPackDirectReplacerMenu : VM
 {
     private readonly VM_AssetReplacerGroup.Factory _assetReplaceGroupFactory;
 
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_AssetPackDirectReplacerMenu"/>.</summary>
     public delegate VM_AssetPackDirectReplacerMenu Factory(VM_AssetPack parent);
-    
+
+    /// <summary>
+    /// Wires the DisplayedGroup buffered-pair subscription (dumps the previous group's displayed
+    /// subgroup and loads the current group's first subgroup) and the AddGroup command.
+    /// </summary>
     public VM_AssetPackDirectReplacerMenu(VM_AssetPack parent, VM_AssetReplacerGroup.Factory assetReplaceGroupFactory, VM_Subgroup.Factory subgroupFactory)
     {
         _assetReplaceGroupFactory = assetReplaceGroupFactory;
@@ -52,6 +62,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
 
     public RelayCommand AddGroup { get; }
 
+    /// <summary>Models → view models: builds one <see cref="VM_AssetReplacerGroup"/> per model and appends them to <see cref="ReplacerGroups"/>.</summary>
     public void CopyInViewModelFromModels(List<AssetReplacerGroup> models)
     {
         foreach(var model in models)
@@ -62,6 +73,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
         }
     }
 
+    /// <summary>View models → models: serializes every group in <see cref="ReplacerGroups"/> into a list of <see cref="AssetReplacerGroup"/>.</summary>
     public static List<AssetReplacerGroup> DumpViewModelToModels(VM_AssetPackDirectReplacerMenu viewModel)
     {
         List<AssetReplacerGroup> models = new List<AssetReplacerGroup>();
@@ -73,6 +85,11 @@ public class VM_AssetPackDirectReplacerMenu : VM
     }
 }
 
+/// <summary>
+/// View model for a single <see cref="AssetReplacerGroup"/>: a named set of replacement subgroups
+/// applied relative to a template NPC. Manages the placeholder subgroup tree and the currently
+/// displayed/edited subgroup.
+/// </summary>
 public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -80,8 +97,15 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
     private readonly VM_Subgroup.Factory _subgroupFactory;
     private readonly VM_SubgroupPlaceHolder.Factory _subGroupPlaceHolderFactory;
 
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_AssetReplacerGroup"/>.</summary>
     public delegate VM_AssetReplacerGroup Factory(VM_AssetPackDirectReplacerMenu parent);
-    
+
+    /// <summary>
+    /// Follows the environment link cache, drives the SelectedPlaceHolder buffered-pair subscription
+    /// (dumps the previously selected subgroup and loads the newly selected one), keeps the displayed
+    /// subgroup's reference NPC in sync with <see cref="TemplateNPCFK"/>, and wires the Remove and
+    /// AddTopLevelSubgroup commands.
+    /// </summary>
     public VM_AssetReplacerGroup(VM_AssetPackDirectReplacerMenu parent, IEnvironmentStateProvider environmentProvider, VM_Settings_General generalSettingsVM, VM_Subgroup.Factory subgroupFactory, VM_SubgroupPlaceHolder.Factory subGroupPlaceHolderFactory)
     {
         _environmentProvider = environmentProvider;
@@ -143,6 +167,7 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
     public RelayCommand Remove { get; }
     public RelayCommand AddTopLevelSubgroup { get; }
 
+    /// <summary>Model → view model: loads the label, template NPC, and placeholder subgroup tree from an <see cref="AssetReplacerGroup"/>.</summary>
     public void CopyInViewModelFromModel(AssetReplacerGroup model)
     {
         Label = model.Label;
@@ -158,6 +183,7 @@ public class VM_AssetReplacerGroup : VM, IHasSubgroupViewModels
         }
     }
 
+    /// <summary>View model → model: serializes the label, template NPC, and (saved) subgroup tree into a new <see cref="AssetReplacerGroup"/>.</summary>
     public AssetReplacerGroup DumpViewModelToModel()
     {
         AssetReplacerGroup model = new AssetReplacerGroup();

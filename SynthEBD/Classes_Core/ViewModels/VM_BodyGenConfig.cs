@@ -9,9 +9,16 @@ using static SynthEBD.VM_BodyShapeDescriptor;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model of a <see cref="BodyGenConfig"/> (a gendered BodyGen morph database): aggregates the
+/// sub-menus for template morphs, group definitions and racial group mappings, body shape
+/// descriptors, attribute groups, race groupings, and misc settings, switching between them via the
+/// Click* commands. Supports saving and deleting the backing config file.
+/// </summary>
 [DebuggerDisplay("{Label}")]
 public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEditor
 {
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_BodyGenConfig"/>.</summary>
     public delegate VM_BodyGenConfig Factory(ObservableCollection<VM_BodyGenConfig> parentCollection);
 
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupMenuFactory;
@@ -25,6 +32,12 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
     private readonly VM_BodyGenTemplate.Factory _templateFactory;
     private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
 
+    /// <summary>
+    /// Builds the owned sub-menus (race grouping editor, groups, group mapping, descriptors,
+    /// templates, attribute groups, misc), cascades disposal of the template menu's shared character
+    /// viewer, selects the first template if present, and wires the Click* navigation commands plus
+    /// the Save and (file-deleting) ClickDelete commands.
+    /// </summary>
     public VM_BodyGenConfig(
         ObservableCollection<VM_BodyGenConfig> parentCollection,
         VM_Settings_General generalSettingsVM,
@@ -202,6 +215,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
 
     public bool IsLoadingFromViewModel { get; set; } = false;
 
+    /// <summary>Model → view model: loads this config's full state (groupings, group mappings, descriptors, templates, attribute groups) from a <see cref="BodyGenConfig"/>.</summary>
     public void CopyInViewModelFromModel(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> mainRaceGroupings)
     {
         IsLoadingFromViewModel = true;
@@ -266,6 +280,10 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         _logger.LogStartupEventEnd("Updating available partner lists for BodyGen Templates");
     }
 
+    /// <summary>
+    /// Propagates a descriptor rename (category and/or value) across every template morph and every
+    /// asset-pack subgroup's allowed/disallowed BodyGen descriptors so existing references stay valid.
+    /// </summary>
     public void UpdateState((string, string) previousDescriptor, (string, string) newDescriptor)
     {
         if (previousDescriptor.Item2.IsNullOrWhitespace())
@@ -290,6 +308,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         }
     }
 
+    /// <summary>Renames the matching category/value within a single collection of label-signature descriptors.</summary>
     private void UpdateDescriptors<T>(ICollection<T> descriptors, string oldCategory, string oldValue, string newCategory, string newValue)
         where T : BodyShapeDescriptor.LabelSignature
     {
@@ -307,6 +326,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         }
     }
 
+    /// <summary>After confirming, removes every descriptor in the given category from all template morphs and all asset-pack subgroups' BodyGen descriptors.</summary>
     public void OnDescriptorCategoryDeletion(string category)
     {
         if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + category + " Descriptors from all BodySlides and Config Files that reference it?"))
@@ -332,6 +352,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         }
     }
 
+    /// <summary>After confirming, removes the specified descriptor signature from all template morphs and all asset-pack subgroups' BodySlide descriptors.</summary>
     public void OnDescriptorValueDeletion(string decriptorSignature)
     {
         if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + decriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
@@ -358,6 +379,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         }
     }
 
+    /// <summary>View model → model: serializes this config's full state into a new <see cref="BodyGenConfig"/>.</summary>
     public BodyGenConfig DumpViewModelToModel()
     {
         BodyGenConfig model = new BodyGenConfig();
@@ -387,6 +409,11 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         return model;
     }
 
+    /// <summary>
+    /// Backfills race groupings referenced by the config's templates but missing locally, pulling
+    /// them from the supplied fallback set (used to migrate pre-v0.9 configs that stored groupings in
+    /// General Settings rather than per-config).
+    /// </summary>
     public void AddFallBackRaceGroupings(BodyGenConfig model, ObservableCollection<VM_RaceGrouping> existingGroupings, ObservableCollection<VM_RaceGrouping> fallBackGroupings)
     {
         HashSet<RaceGrouping> addedRaceGroups = new();

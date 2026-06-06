@@ -692,3 +692,75 @@ race loops use the redundant `Contains`-before-`Add` pattern flagged elsewhere. 
 <!-- ENTRIES:Classes_Core_Models -->
 
 ---
+
+## Classes_Core (view models)
+
+*The view models behind the asset-pack / BodyGen / consistency / blocklist editors. The user's main .NET
+learning ground, so most items are 🔧 modernizations; a few real bugs surfaced. (The newer OBody SubModels
+were already documented and were not re-reviewed here.)*
+
+### `VM_Subgroup.CopyInViewModelFromModel` — 🐞 possible bug (no-op on empty collection)
+
+[VM_Subgroup.cs:287](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L287) ·
+`foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }` runs *before*
+`DisallowedAttributes` is populated (the `_attributeCreator.CopyInFromModels(..., DisallowedAttributes, ...)`
+call is ~10 lines later at [:297](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L297)), so the loop
+iterates an empty collection and sets nothing. The sibling VMs (`VM_HeadPart`, `VM_HeadPartCategoryRules`)
+run the same line *after* populating — so disallowed attributes in a subgroup never get
+`DisplayForceIfOption = false` applied, unlike everywhere else.
+
+### `VM_AssetPackDirectReplacerMenu` ctor — 🐞 possible bug (subscription not disposed) / 🔧
+
+[VM_AssetPackDirectReplacerMenu.cs:32](SynthEBD/Classes_Core/ViewModels/VM_AssetPackDirectReplacerMenu.cs#L32) ·
+The functional `WhenAnyValue(DisplayedGroup).Buffer(2,1)...Subscribe(...)` (which dumps the previous group and
+loads the current one) is **not** `.DisposeWith(this)`'d — a subscription leak tied to the VM lifetime.
+Meanwhile a *second*, empty-bodied `WhenAnyValue(x => x.DisplayedGroup).Subscribe(x => { })`
+([:49](SynthEBD/Classes_Core/ViewModels/VM_AssetPackDirectReplacerMenu.cs#L49)) does nothing but *is*
+disposed. Looks like the `.DisposeWith` landed on the wrong subscription; the empty one is dead and can go.
+
+### `VM_BodyGenConfig` descriptor-deletion handlers — 🐞 possible bug (BodyGen vs BodySlide) + 💭
+
+[VM_BodyGenConfig.cs:330](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L330),
+[:356](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L356) · In this BodyGen-config editor,
+`OnDescriptorCategoryDeletion` strips each subgroup's **BodyGen** descriptors
+(`Allowed/DisallowedBodyGenDescriptors`), but `OnDescriptorValueDeletion` strips the **BodySlide**
+descriptors (`Allowed/Disallowed/PrioritizedBodySlideDescriptors`) instead. The two sibling handlers
+targeting different descriptor families on the same menu looks like a copy-paste from the OBody/BodySlide
+equivalent — verify the value-deletion path shouldn't be operating on BodyGen descriptors. Minor extras:
+the parameter is misspelled `decriptorSignature`, and `using System.Printing;`
+([:6](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L6)) is an unused import.
+
+### `VM_ConsistencyAssignment.CopyInViewModelFromModel` — 💭 (model mutation during load)
+
+[VM_ConsistencyAssignment.cs:227](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L227) · A
+model→VM load method **mutates its source model** — `if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }` —
+and only refreshes the VM (`HeadParts[headPartType] = ...GetViewModelFromModel(...)`) in the `else` branch,
+so a head-part type missing from the model gets a blank added to the model but the VM keeps its default
+(never loaded). Reads as an inverted/asymmetric branch; at minimum, loading shouldn't write back to the model.
+
+### `VM_HeadPart` dead members — 💭
+
+[VM_HeadPart.cs:143-144](SynthEBD/Classes_Core/ViewModels/VM_HeadPart.cs#L143-L144) · The `Clone` and
+`ToggleHide` `RelayCommand` properties are declared get-only but never assigned (always null), and a large
+commented-out `Clone` block sits just above them. Dead — wire up or remove.
+
+### View-model `.Where(pred).First()/.FirstOrDefault()` — 🔧 modernize
+
+Several round-trip helpers use `collection.Where(x => x.Prop == v).First()` (or `.FirstOrDefault()`), which
+should be `collection.First(pred)` / `FirstOrDefault(pred)`:
+[VM_BlockedNPC.cs:84](SynthEBD/Classes_Core/ViewModels/VM_BlockedNPC.cs#L84),
+[VM_BlockedPlugin.cs](SynthEBD/Classes_Core/ViewModels/VM_BlockedPlugin.cs),
+[VM_ConsistencyAssignment.cs:146](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L146),
+[VM_BodyGenConfig.cs](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs). The `.First()` variants also
+throw rather than degrade if the lookup key is absent.
+
+### `VM_HeightConfig` heights stored as strings — 🔧 / 💭
+
+[VM_HeightConfig.cs:177-204](SynthEBD/Classes_Core/ViewModels/VM_HeightConfig.cs#L177-L204) · The
+male/female base heights and ranges are held as UI `string`s and re-parsed with `float.TryParse` on every
+`DumpViewModelToModel`. This is locale-dependent and defers validation to save time; binding to typed
+`float` (or validating on edit) would be more robust.
+
+<!-- ENTRIES:Classes_Core_VM -->
+
+---

@@ -7,12 +7,22 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model of a <see cref="HeightConfig"/>: a named, savable collection of per-race
+/// <see cref="VM_HeightAssignment"/>s plus a global distribution mode.
+/// </summary>
 public class VM_HeightConfig : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly VM_HeightAssignment.Factory _assignmentFactory;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_HeightConfig"/>.</summary>
     public delegate VM_HeightConfig Factory();
+    /// <summary>
+    /// Wires the AddHeightAssignment command, the SetAllDistModes command (applies
+    /// <see cref="GlobalDistMode"/> to every assignment), and the Save command (serializes and
+    /// writes this config via <see cref="SettingsIO_Height"/> with a status notification).
+    /// </summary>
     public VM_HeightConfig(IEnvironmentStateProvider environmentProvider, Logger logger, SettingsIO_Height heightIO, VM_HeightAssignment.Factory assignmentFactory)
     {
         _environmentProvider = environmentProvider;
@@ -62,6 +72,7 @@ public class VM_HeightConfig : VM
     public RelayCommand SetAllDistModes { get; }
     public RelayCommand Save { get; }
 
+    /// <summary>Models → view models: clears and repopulates <paramref name="viewModels"/> from <paramref name="models"/>.</summary>
     public static void GetViewModelsFromModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, VM_HeightConfig.Factory configFactory, VM_HeightAssignment.Factory assignmentFactory, Logger logger)
     {
         viewModels.Clear();
@@ -79,6 +90,7 @@ public class VM_HeightConfig : VM
         }
     }
 
+    /// <summary>View models → models: clears and repopulates <paramref name="models"/> from <paramref name="viewModels"/>.</summary>
     public static void DumpViewModelsToModels(ObservableCollection<VM_HeightConfig> viewModels, List<HeightConfig> models, Logger logger)
     {
         models.Clear();
@@ -88,6 +100,7 @@ public class VM_HeightConfig : VM
         }
     }
 
+    /// <summary>View model → model: serializes this config (label, assignments, source path) into a new <see cref="HeightConfig"/>.</summary>
     public HeightConfig DumpViewModelToModel()
     {
         var model = new HeightConfig();
@@ -97,10 +110,16 @@ public class VM_HeightConfig : VM
         return model;
     }
 }
+/// <summary>
+/// View model of a <see cref="HeightAssignment"/>: a per-race-set height rule with male/female base
+/// heights and ranges (stored as editable strings) and a distribution mode.
+/// </summary>
 public class VM_HeightAssignment : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_HeightAssignment"/>.</summary>
     public delegate VM_HeightAssignment Factory(ObservableCollection<VM_HeightAssignment> parentCollection);
+    /// <summary>Wires the DeleteCommand (removes this assignment from its parent collection) and follows the environment link cache.</summary>
     public VM_HeightAssignment(ObservableCollection<VM_HeightAssignment> parentCollection, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
@@ -123,6 +142,7 @@ public class VM_HeightAssignment : VM
     public ILinkCache lk { get; private set; }
     public RelayCommand DeleteCommand { get; }
 
+    /// <summary>Models → view models: builds an observable collection of assignment view models from a set of <see cref="HeightAssignment"/> models.</summary>
     public static ObservableCollection<VM_HeightAssignment> GetViewModelsFromModels(HashSet<HeightAssignment> models, VM_HeightAssignment.Factory factory)
     {
         ObservableCollection<VM_HeightAssignment> viewModels = new ObservableCollection<VM_HeightAssignment>();
@@ -142,6 +162,10 @@ public class VM_HeightAssignment : VM
         return viewModels;
     }
 
+    /// <summary>
+    /// View models → models: appends each assignment view model to <paramref name="models"/>, parsing
+    /// the male/female height and range strings to floats and logging an error for any that fail.
+    /// </summary>
     public static HashSet<HeightAssignment> DumpViewModelsToModels(HashSet<HeightAssignment> models, ObservableCollection<VM_HeightAssignment> viewModels, Logger logger)
     {
         foreach (var vm in viewModels)

@@ -8,11 +8,21 @@ using System.Collections.ObjectModel;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Editor view model for a <see cref="BlockedNPC"/> entry: which assignment axes (assets, height,
+/// body shape, head parts, vanilla body path) are blocked for a single NPC selected by FormKey.
+/// </summary>
 public class VM_BlockedNPC : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Converters _converters;
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_BlockedNPC"/>.</summary>
     public delegate VM_BlockedNPC Factory(VM_BlockedNPCPlaceHolder associatedPlaceHolder);
+    /// <summary>
+    /// Links this editor to its placeholder, derives <see cref="DispName"/> from the chosen
+    /// <see cref="FormKey"/>, tracks the environment link cache, and mirrors the master HeadParts
+    /// toggle onto every per-type head part block.
+    /// </summary>
     public VM_BlockedNPC(VM_BlockedNPCPlaceHolder associatedPlaceHolder, IEnvironmentStateProvider environmentProvider, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -62,6 +72,7 @@ public class VM_BlockedNPC : VM
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> NPCFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
 
+    /// <summary>Model → view model: builds an editor from the placeholder's associated <see cref="BlockedNPC"/> model.</summary>
     public static VM_BlockedNPC CreateViewModel(VM_BlockedNPCPlaceHolder placeHolder, VM_BlockedNPC.Factory factory)
     {
         VM_BlockedNPC viewModel = factory(placeHolder);
@@ -75,6 +86,7 @@ public class VM_BlockedNPC : VM
         return viewModel;
     }
 
+    /// <summary>View model → model: serializes this editor's state into a new <see cref="BlockedNPC"/>.</summary>
     public BlockedNPC DumpViewModelToModel()
     {
         BlockedNPC model = new BlockedNPC();
@@ -89,9 +101,18 @@ public class VM_BlockedNPC : VM
     }
 }
 
+/// <summary>
+/// Lightweight list-item view model for a <see cref="BlockedNPC"/> in the blocked-NPCs list. Holds
+/// the model and display name and lazily owns the heavyweight <see cref="VM_BlockedNPC"/> editor.
+/// </summary>
 public class VM_BlockedNPCPlaceHolder: VM
 {
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_BlockedNPCPlaceHolder"/>.</summary>
     public delegate VM_BlockedNPCPlaceHolder Factory(BlockedNPC associatedModel);
+    /// <summary>
+    /// Seeds the model, derives the initial display name from its FormKey, and keeps
+    /// <see cref="DispName"/> in sync with the editor view model when one is attached.
+    /// </summary>
     public VM_BlockedNPCPlaceHolder(BlockedNPC associatedModel, Converters converters)
     {
         AssociatedModel = associatedModel;

@@ -13,6 +13,12 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the per-category distribution rules of a head part type (a
+    /// <see cref="Settings_HeadPartType"/>): gender/uniqueness gating, allowed/disallowed races,
+    /// race groupings, NPC attributes, weight range, distribution probability, and the
+    /// BodySlide/BodyGen descriptor filters that constrain which NPCs receive this head part type.
+    /// </summary>
     public class VM_HeadPartCategoryRules : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -20,7 +26,13 @@ namespace SynthEBD
         private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
         private readonly VM_NPCAttributeCreator _npcAttributeCreator;
         public VM_Settings_Headparts ParentMenu { get; set; } // needed for xaml binding
+        /// <summary>Autofac factory delegate for constructing a <see cref="VM_HeadPartCategoryRules"/>.</summary>
         public delegate VM_HeadPartCategoryRules Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+        /// <summary>
+        /// Builds the race-grouping checkbox lists and BodySlide descriptor selection menus, tracks
+        /// the male/female BodyGen configs to rebuild their descriptor menus, follows the environment
+        /// link cache, and wires the add-allowed/disallowed-attribute commands.
+        /// </summary>
         public VM_HeadPartCategoryRules(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentMenu, VM_SettingsOBody oBody, VM_NPCAttributeCreator creator, IEnvironmentStateProvider environmentProvider, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _environmentProvider = environmentProvider;
@@ -78,6 +90,7 @@ namespace SynthEBD
         public VM_BodyShapeDescriptorSelectionMenu AllowedBodyGenDescriptorsFemale { get; set; }
         public VM_BodyShapeDescriptorSelectionMenu DisallowedBodyGenDescriptorsFemale { get; set; }
 
+        /// <summary>Model → view model: loads this category's rules from a <see cref="Settings_HeadPartType"/>.</summary>
         public void CopyInFromModel(Settings_HeadPartType model)
         {
             bAllowFemale = model.bAllowFemale;
@@ -109,6 +122,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>View model → model: writes this category's rules into the supplied <see cref="Settings_HeadPartType"/>.</summary>
         public void DumpToModel(Settings_HeadPartType model)
         {
             model.bAllowFemale = bAllowFemale;
@@ -139,6 +153,7 @@ namespace SynthEBD
             model.DisallowedBodyGenDescriptorMatchModeFemale = DisallowedBodyGenDescriptorsFemale?.MatchMode ?? DescriptorMatchMode.Any;
         }
 
+        /// <summary>Rebuilds the male allowed/disallowed BodyGen descriptor menus from the tracked male BodyGen config, preserving the existing match modes.</summary>
         public void RefreshBodyGenDescriptorsMale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             DescriptorMatchMode allowedMode = DescriptorMatchMode.All;
@@ -161,6 +176,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Rebuilds the female allowed/disallowed BodyGen descriptor menus from the tracked female BodyGen config, preserving the existing match modes.</summary>
         public void RefreshBodyGenDescriptorsFemale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             DescriptorMatchMode allowedMode = DescriptorMatchMode.All;

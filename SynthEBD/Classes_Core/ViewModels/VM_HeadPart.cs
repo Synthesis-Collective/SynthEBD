@@ -14,13 +14,27 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Editor view model for a single <see cref="HeadPartSetting"/>: the FormKey of a head part plus
+    /// its full distribution rule set (gender/uniqueness gating, allowed/disallowed races and race
+    /// groupings, NPC attributes, probability weighting/modifiers, weight range, and BodySlide/BodyGen
+    /// descriptor filters). Validates the FormKey against the load order for the status border.
+    /// </summary>
     public class VM_HeadPart : VM
     {
         private IEnvironmentStateProvider _environmentProvider;
         private readonly VM_NPCAttributeCreator _attributeCreator;
         private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
         private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
+        /// <summary>Autofac factory delegate for constructing a <see cref="VM_HeadPart"/>.</summary>
         public delegate VM_HeadPart Factory(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig);
+        /// <summary>
+        /// Links this editor to its placeholder, seeds the FormKey and BodySlide descriptor menus,
+        /// tracks the male/female BodyGen configs to rebuild their descriptor menus, follows the
+        /// environment link cache, wires the Delete/AddAllowed/AddDisallowed-attribute and
+        /// AddProbabilityWeightModifier commands, and recolors the status border based on whether the
+        /// head part still resolves in the load order.
+        /// </summary>
         public VM_HeadPart(FormKey headPartFormKey, VM_HeadPartPlaceHolder associatedPlaceHolder, VM_BodyShapeDescriptorCreationMenu bodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_Settings_Headparts parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory)
         {
             _environmentProvider = environmentProvider;
@@ -132,6 +146,7 @@ namespace SynthEBD
         public SolidColorBrush BorderColor { get; set; } = CommonColors.Green;
         public string StatusString { get; set; } = string.Empty;
 
+        /// <summary>Model → view model: loads this head part's FormKey, label, and full rule set from a <see cref="HeadPartSetting"/>.</summary>
         public void CopyInFromModel(HeadPartSetting model)
         {
             FormKey = model.HeadPartFormKey;
@@ -169,6 +184,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>View model → model: serializes this head part's FormKey, label, and full rule set into a new <see cref="HeadPartSetting"/>.</summary>
         public HeadPartSetting DumpToModel()
         {
             return new HeadPartSetting()
@@ -230,6 +246,7 @@ namespace SynthEBD
             return allowed;
         }
 
+        /// <summary>Rebuilds the male allowed/disallowed BodyGen descriptor menus from the tracked male BodyGen config, preserving the existing match modes.</summary>
         public void RefreshBodyGenDescriptorsMale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             DescriptorMatchMode allowedMode = DescriptorMatchMode.All;
@@ -252,6 +269,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Rebuilds the female allowed/disallowed BodyGen descriptor menus from the tracked female BodyGen config, preserving the existing match modes.</summary>
         public void RefreshBodyGenDescriptorsFemale(ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
         {
             DescriptorMatchMode allowedMode = DescriptorMatchMode.All;

@@ -19,6 +19,12 @@ using System.Windows.Media;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Editor view model for an <see cref="AssetPack.Subgroup"/>: a node in an asset pack's subgroup tree
+/// carrying its ID/name, enable/distribution flags, race and attribute filters, required/excluded
+/// subgroup links, added keywords, file-path replacements, and BodyGen/BodySlide descriptor menus.
+/// Provides drag-drop reordering and bulk-rename support.
+/// </summary>
 [DebuggerDisplay("{ID}: {Name}")]
 public class VM_Subgroup : VM
 {
@@ -30,11 +36,19 @@ public class VM_Subgroup : VM
     private readonly VM_FilePathReplacement.Factory _filePathReplacementFactory;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
 
+    /// <summary>Autofac factory delegate for constructing a <see cref="VM_Subgroup"/>.</summary>
     public delegate VM_Subgroup Factory(
         VM_SubgroupPlaceHolder associatedPlaceHolder,
         VM_AssetPack parentAssetPack,
         bool setExplicitReferenceNPC);
 
+    /// <summary>
+    /// Links this editor to its placeholder, builds the required/excluded positional subgroup
+    /// collections, race-grouping checkbox lists, and BodySlide/prioritized descriptor menus,
+    /// follows the environment (or record-template) link cache for the paths menu, propagates ID
+    /// changes to sibling required/excluded references, and wires the auto-generate-ID,
+    /// attribute/keyword/path add, subgroup-linker, and bulk-rename commands.
+    /// </summary>
     public VM_Subgroup(
         VM_SubgroupPlaceHolder associatedPlaceHolder, 
         IEnvironmentStateProvider environmentProvider,
@@ -254,6 +268,7 @@ public class VM_Subgroup : VM
     public VM_SubgroupPlaceHolder ParentSubgroup { get; set; }
     public ObservableCollection<VM_RaceGrouping> SubscribedRaceGroupings { get; set; }
 
+    /// <summary>Model → view model: loads this subgroup's full state from the placeholder's associated <see cref="AssetPack.Subgroup"/> model.</summary>
     public void CopyInViewModelFromModel()
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
@@ -303,6 +318,7 @@ public class VM_Subgroup : VM
         PrioritizedBodySlideDescriptors.CopyInFromHashSet(model.PrioritizedBodySlideDescriptors);
     }
 
+    /// <summary>View model → model: serializes this subgroup's full state into a new <see cref="AssetPack.Subgroup"/>.</summary>
     public AssetPack.Subgroup DumpViewModelToModel()
     {
         var model = new AssetPack.Subgroup();
@@ -343,6 +359,7 @@ public class VM_Subgroup : VM
     }
 
 
+    /// <summary>gong-wpf-dragdrop handler: accepts a dragged <see cref="VM_SubgroupPlaceHolder"/> as a move with a highlight adorner.</summary>
     public void DragOver(IDropInfo dropInfo)
     {
         if (dropInfo.Data is VM_SubgroupPlaceHolder)
@@ -352,6 +369,7 @@ public class VM_Subgroup : VM
         }
     }
 
+    /// <summary>Rebuilds the allowed/disallowed BodyGen descriptor menus from the parent asset pack's tracked BodyGen config, preserving the existing match modes and re-linking the opposite-toggle menus.</summary>
     public void RefreshBodyGenDescriptors()
     {
         _logger.LogStartupEventStart("Refreshing BodyGen Descriptors for subgroup " + ID);
