@@ -6,13 +6,19 @@ using Mutagen.Bethesda.Plugins.Exceptions;
 
 namespace SynthEBD;
 
+/// <summary>File/directory IO helpers used across the patcher's output stage: ensuring directories exist, writing text files, writing the output plugin, and copying/deleting resource files.</summary>
 public class PatcherIO
 {
+    /// <summary>Whether a path refers to a file or a directory.</summary>
     public enum PathType
     {
+        /// <summary>The path is a file (its parent directory is created).</summary>
         File,
+        /// <summary>The path is a directory (created directly).</summary>
         Directory
     }
+    /// <summary>Ensures the directory for <paramref name="path"/> exists — the parent directory for a file path, or the directory itself — creating it if needed.</summary>
+    /// <returns>The <see cref="FileInfo"/> (for a file path) or <see cref="DirectoryInfo"/> (for a directory path).</returns>
     public static dynamic CreateDirectoryIfNeeded(string path, PathType type)
     {
         if (type == PathType.File)
@@ -29,6 +35,7 @@ public class PatcherIO
         }
     }
 
+    /// <summary>Writes text to a file (creating its directory first), logging an error via <paramref name="logger"/> on failure.</summary>
     public static async Task WriteTextFile(string path, string contents, Logger logger)
     {
         var file = CreateDirectoryIfNeeded(path, PathType.File);
@@ -42,11 +49,13 @@ public class PatcherIO
             logger.LogError("Could not create file at " + path + "because: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
         }
     }
+    /// <summary>Writes a list of lines (joined by newlines) to a file via the string overload.</summary>
     public static async Task WriteTextFile(string path, List<string> contents, Logger logger)
     {
         await WriteTextFile(path, string.Join(Environment.NewLine, contents), logger);
     }
 
+    /// <summary>Writes text to a file, surfacing any failure via a <see cref="MessageWindow"/> dialog (used where no logger is available).</summary>
     public static async Task WriteTextFileStatic(string path, string contents)
     {
         var file = CreateDirectoryIfNeeded(path, PathType.File);
@@ -62,6 +71,7 @@ public class PatcherIO
         }
     }
 
+    /// <summary>Writes the generated output plugin to disk (deleting any previous version first), honoring the load order. Surfaces a too-many-masters error with a SkyPatcher-mode hint; the commented-out block is a disabled multi-plugin split fallback.</summary>
     public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider environmentProvider)
     {
         string errStr = "";
@@ -136,10 +146,12 @@ public class PatcherIO
         }
     }
 
+    /// <summary>Copies a resource file to a destination (overwriting), returning whether it succeeded.</summary>
     public bool TryCopyResourceFile(string sourcePath, string destPath, Logger logger)
     {
         return TryCopyResourceFile(sourcePath, destPath, logger, out _);
     }
+    /// <summary>Copies a resource file to a destination (creating the directory, overwriting), reporting failure via <paramref name="errorStr"/> and the logger.</summary>
     public bool TryCopyResourceFile(string sourcePath, string destPath, Logger logger, out string errorStr)
     {
         if (!File.Exists(sourcePath))
@@ -164,6 +176,7 @@ public class PatcherIO
         }
     }
 
+    /// <summary>Deletes a file if it exists, returning false (and logging) on failure.</summary>
     public bool TryDeleteFile(string path, Logger logger)
     {
         if (File.Exists(path))
@@ -204,6 +217,7 @@ public class PatcherIO
         }
     }
 
+    /// <summary>Recursively deletes a directory if it exists, returning false (and logging) on failure.</summary>
     public bool TryDeleteDirectory(string path, Logger logger)
     {
         if (Directory.Exists(path))
