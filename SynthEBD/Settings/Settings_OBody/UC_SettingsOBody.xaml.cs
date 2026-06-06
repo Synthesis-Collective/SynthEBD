@@ -3,10 +3,11 @@
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for UC_SettingsOBody.xaml
+/// Code-behind for the OBody settings page.
 /// </summary>
 public partial class UC_SettingsOBody : UserControl
 {
+    /// <summary>Initializes the view's XAML components.</summary>
     public UC_SettingsOBody()
     {
         InitializeComponent();

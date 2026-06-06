@@ -1208,6 +1208,13 @@ heavy editor VM) while leaving `CurrentlyDisplayedAssignment` set, so a save in 
   deletion compares `x.ToLabelSignature().ToString()` for BodySlides but `x.ToString()` for subgroup
   descriptors — verify the two stringifications agree or the subgroup cleanup may miss entries. 🔧/💭
 
+### Settings views — 💭 (minor)
+
+`UC_Settings_General.xaml.cs` declares `private bool _isDragging;` with no handlers or usages (also flagged by
+the compiler) — dead field. A couple of Settings views also carried auto-generated `Interaction logic for
+X.xaml` summaries naming a *different* XAML file (`UC_SettingsTexMesh` said `UC_BodyGenSettings.xaml`) — a
+clone-from-sibling smell, now replaced with real summaries.
+
 <!-- ENTRIES:Settings -->
 
 ---
