@@ -649,3 +649,30 @@ that a few of these views were cloned from siblings.
 <!-- ENTRIES:Classes_Aux_VM -->
 
 ---
+
+## Classes_Core (models)
+
+*The core data models the patcher and the Core view models build on — settings POCOs, plus the
+zEBD-format backwards-compatibility loaders. Reviewed before the Core view models. The newer
+BodySlide/ML/measurement models (BodySlideGroupClassifier, MeasurementCacheStore, RegionVolumeEvaluator,
+RuleSynthesizers, …) were already thoroughly documented; this pass covered the older undocumented ones.*
+
+### `NPCAssignment` / `zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments` — 🐞 possible bug (null deref)
+
+[NPCAssignment.cs:11](SynthEBD/Classes_Core/Models/NPCAssignment.cs#L11),
+[:78](SynthEBD/Classes_Core/Models/NPCAssignment.cs#L78) · `NPCAssignment.SubgroupIDs` is initialized to
+`null` (not an empty list), but `ToSynthEBDNPCAssignments` does `s.SubgroupIDs.Add(zFS.id)` for every forced
+subgroup in a legacy assignment — so importing any zEBD assignment that has forced subgroups throws a
+`NullReferenceException`. Initialize `SubgroupIDs` to `new()` there (or default the property to a list).
+Also `s.BodyGenMorphNames = z.forcedBodyGenMorphs;` assigns the source list by reference.
+
+### `zEBDBodyGenConfig` conversion — 🔧 / 💭 (minor)
+
+[BodyGenConfig.cs:135](SynthEBD/Classes_Core/Models/BodyGenConfig.cs#L135) · `ToSynthEBDConfig` takes a
+`filePath` parameter that the body never uses — dead parameter. And `zEBDBodyGenRacialSettingsToSynthEBD`
+([:210](SynthEBD/Classes_Core/Models/BodyGenConfig.cs#L210)) guards `if (usedGroups.Contains(member) == false) usedGroups.Add(member)` —
+redundant, since `HashSet.Add` is already idempotent (same pattern flagged in General_Aux). Both cosmetic.
+
+<!-- ENTRIES:Classes_Core_Models -->
+
+---

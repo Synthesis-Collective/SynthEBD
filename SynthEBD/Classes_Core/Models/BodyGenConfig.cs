@@ -4,12 +4,18 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
+/// <summary>The loaded BodyGen configurations, partitioned by the sex they apply to.</summary>
 public class BodyGenConfigs
 {
     public HashSet<BodyGenConfig> Male { get; set; } = new();
     public HashSet<BodyGenConfig> Female { get; set; } = new();
 }
 
+/// <summary>
+/// A single BodyGen configuration (one config file for one sex): the morph <see cref="Templates"/>, the
+/// per-race template-group mapping, the template groups and shape descriptors, and the attribute groups /
+/// race groupings used to evaluate them.
+/// </summary>
 [DebuggerDisplay("{Label}")]
 public class BodyGenConfig
 {
@@ -28,6 +34,7 @@ public class BodyGenConfig
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
 
+    /// <summary>Maps a set of races (directly or via race groupings) to the weighted template-group combinations they may draw morphs from.</summary>
     public class RacialMapping
     {
         public string Label { get; set; } = "";
@@ -35,15 +42,18 @@ public class BodyGenConfig
         public HashSet<string> RaceGroupings { get; set; } = new();
         public List<BodyGenCombination> Combinations { get; set; } = new();
 
+        /// <summary>One weighted combination of template-group members eligible for the parent racial mapping.</summary>
         public class BodyGenCombination : IProbabilityWeighted
         {
             public List<string> Members { get; set; } = new();
             public double ProbabilityWeighting { get; set; } = 1;
             public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new(); // editing UI deferred; honored by the selector when authored
+            /// <summary>Newtonsoft conditional-serialization hook: only serialize the modifiers list when non-empty.</summary>
             public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         }
     }
 
+    /// <summary>A single BodyGen morph template: its morph spec string plus the allow/disallow race and attribute filters, weighting, weight range, and template-group membership that gate its selection.</summary>
     [DebuggerDisplay("{Label}")]
     public class BodyGenTemplate : IProbabilityWeighted
     {
@@ -63,18 +73,22 @@ public class BodyGenConfig
         public bool AllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
         public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        /// <summary>Newtonsoft conditional-serialization hook: only serialize <see cref="ProbabilityWeightModifiers"/> when non-empty.</summary>
         public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<string> RequiredTemplates { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
 
+        /// <summary>Runtime count of ForceIf attributes matched on the current NPC, used to rank candidates during selection (not serialized).</summary>
         [JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
 
+        /// <summary>Back-reference to the owning config, set at load time (not serialized).</summary>
         [JsonIgnore]
         public BodyGenConfig ParentConfig { get; set; }
     }
 }
 
+/// <summary>Result of converting a legacy zEBD BodyGen config: separate male/female <see cref="BodyGenConfig"/>s plus flags for which sex sections were present.</summary>
 public class zEBDSplitBodyGenConfig
 {
     public BodyGenConfig Male { get; set; } = new();
@@ -82,11 +96,13 @@ public class zEBDSplitBodyGenConfig
     public BodyGenConfig Female { get; set; } = new();
     public bool bFemaleInitialized { get; set; } = false;
 }
+/// <summary>Backwards-compatibility loader for old (single-file, both-sexes) zEBD BodyGen configs; converts them into a <see cref="zEBDSplitBodyGenConfig"/>.</summary>
 public class zEBDBodyGenConfig
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
     private readonly Converters _converters;
+    /// <summary>Captures the environment, logger, and zEBD converters used during conversion.</summary>
     public zEBDBodyGenConfig(IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -99,11 +115,13 @@ public class zEBDBodyGenConfig
     public HashSet<string> templateGroups { get; set; } = new();
     public HashSet<string> templateDescriptors { get; set; } = new();
 
+    /// <summary>Old zEBD per-race settings DTO (race EditorID plus its weighted template-group combinations).</summary>
     public class racialSettings
     {
         public string EDID { get; set; } = "";
         public List<BodyGenCombination> combinations { get; set; } = new();
 
+        /// <summary>Old zEBD template-group combination DTO.</summary>
         public class BodyGenCombination
         {
             public List<string> members { get; set; } = new();
@@ -111,6 +129,7 @@ public class zEBDBodyGenConfig
         }
     }
 
+    /// <summary>Old zEBD BodyGen template DTO (string-typed; attributes stored as string arrays).</summary>
     public class BodyGenTemplate
     {
         public string name { get; set; } = "";
@@ -132,6 +151,10 @@ public class zEBDBodyGenConfig
         public string[] weightRange { get; set; } = new string[] { null, null };
     }
 
+    /// <summary>Converts this legacy config into male/female SynthEBD <see cref="BodyGenConfig"/>s, collecting the descriptors and template groups actually referenced by each sex's templates.</summary>
+    /// <param name="raceGroupings">Race groupings used to resolve template race filters.</param>
+    /// <param name="filePath">Source path (currently unused by the body; see review notes).</param>
+    /// <returns>The split, converted config with per-sex initialization flags.</returns>
     public zEBDSplitBodyGenConfig ToSynthEBDConfig(List<RaceGrouping> raceGroupings, string filePath)
     {
         zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
@@ -191,6 +214,7 @@ public class zEBDBodyGenConfig
         return converted;
     }
 
+    /// <summary>Converts one legacy per-race settings entry into a SynthEBD <see cref="BodyGenConfig.RacialMapping"/>, accumulating referenced template-group names into <paramref name="usedGroups"/>.</summary>
     public BodyGenConfig.RacialMapping zEBDBodyGenRacialSettingsToSynthEBD(zEBDBodyGenConfig.racialSettings rs, HashSet<string> usedGroups)
     {
         BodyGenConfig.RacialMapping newRS = new BodyGenConfig.RacialMapping();
@@ -216,6 +240,7 @@ public class zEBDBodyGenConfig
         return newRS;
     }
 
+    /// <summary>Converts one legacy BodyGen template into a SynthEBD <see cref="BodyGenConfig.BodyGenTemplate"/>: parsing descriptors, resolving race EditorIDs/groupings, and importing the zEBD allowed/disallowed/forceIf attribute arrays. Accumulates referenced descriptors into <paramref name="usedDescriptors"/>.</summary>
     public BodyGenConfig.BodyGenTemplate ToSynthEBDTemplate(BodyGenTemplate zTemplate, List<RaceGrouping> raceGroupings, List<BodyShapeDescriptor.LabelSignature> usedDescriptors)
     {
         BodyGenConfig.BodyGenTemplate newTemplate = new BodyGenConfig.BodyGenTemplate();

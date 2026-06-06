@@ -8,6 +8,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Configuration for a single head part the patcher may assign: which sexes, races, race-groupings, and
+    /// NPC attributes it is allowed/disallowed for, its probability weighting and weight range, and the
+    /// BodySlide/BodyGen body-shape descriptor constraints that gate it. Implements
+    /// <see cref="IProbabilityWeighted"/>.
+    /// </summary>
     public class HeadPartSetting: IProbabilityWeighted
     {
         public FormKey HeadPartFormKey { get; set; }
@@ -25,6 +31,7 @@ namespace SynthEBD
         public bool bAllowRandom { get; set; } = true;
         public double ProbabilityWeighting { get; set; } = 1;
         public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        /// <summary>Newtonsoft conditional-serialization hook: only serialize <see cref="ProbabilityWeightModifiers"/> when it has entries.</summary>
         public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public NPCWeightRange WeightRange { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodySlideDescriptors { get; set; } = new();
@@ -40,10 +47,12 @@ namespace SynthEBD
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptorsFemale { get; set; } = new();
         public DescriptorMatchMode DisallowedBodyGenDescriptorMatchModeFemale { get; set; } = DescriptorMatchMode.Any;
 
+        /// <summary>Runtime count of ForceIf attributes matched on the current NPC, used to rank candidates during patching (not serialized).</summary>
         // used during patching
         [Newtonsoft.Json.JsonIgnore]
         public int MatchedForceIfCount { get; set; } = 0;
 
+        /// <summary>The head-part record resolved from <see cref="HeadPartFormKey"/>, cached during patching (not serialized).</summary>
         [Newtonsoft.Json.JsonIgnore]
         public IHeadPartGetter ResolvedHeadPart { get; set; } = null;
 

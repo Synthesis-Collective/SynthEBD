@@ -3,12 +3,14 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>The set of NPCs and plugins excluded (in whole or by individual axis) from patching.</summary>
 public class BlockList
 {
     public HashSet<BlockedNPC> NPCs { get; set; } = new();
     public HashSet<BlockedPlugin> Plugins { get; set; } = new();
 }
 
+/// <summary>Per-NPC block flags: which assignment axes (assets, vanilla body path, height, body shape, head parts and per-type) to skip for one NPC.</summary>
 public class BlockedNPC
 {
     public FormKey FormKey { get; set; } = new();
@@ -30,6 +32,7 @@ public class BlockedNPC
     };
 }
 
+/// <summary>Per-plugin block flags: like <see cref="BlockedNPC"/> but applied to every NPC originating from a plugin.</summary>
 public class BlockedPlugin
 {
     public ModKey ModKey { get; set; } = new();
@@ -50,10 +53,12 @@ public class BlockedPlugin
     };
 }
 
+/// <summary>Backwards-compatibility loader for old zEBD block lists; converts them to a SynthEBD <see cref="BlockList"/> via <see cref="ToSynthEBD"/>.</summary>
 public class zEBDBlockList
 {
     private IEnvironmentStateProvider _environmentProvider;
     private Converters _converters;
+    /// <summary>Captures the environment (for FormKey resolution) and the zEBD signature converter.</summary>
     public zEBDBlockList(IEnvironmentStateProvider environmentProvider, Converters converters)
     {
         _environmentProvider = environmentProvider;
@@ -62,6 +67,7 @@ public class zEBDBlockList
     public HashSet<zEBDBlockedNPC> blockedNPCs { get; set; } = new();
     public HashSet<zEBDBlockedPlugin> blockedPlugins { get; set; } = new();
 
+    /// <summary>Converts the loaded zEBD blocked NPCs/plugins into a SynthEBD <see cref="BlockList"/>, mapping only the assets/height/body-shape axes the old format supported.</summary>
     public BlockList ToSynthEBD()
     {
         BlockList sList = new BlockList();
@@ -90,6 +96,7 @@ public class zEBDBlockList
     }
 }
 
+/// <summary>Old zEBD blocked-NPC DTO.</summary>
 public class zEBDBlockedNPC
 {
     public string name { get; set; } = "";
@@ -102,6 +109,7 @@ public class zEBDBlockedNPC
     public bool bBlockBodyGen { get; set; } = false;
 }
 
+/// <summary>Old zEBD blocked-plugin DTO.</summary>
 public class zEBDBlockedPlugin
 {
     public string name { get; set; } = "";
