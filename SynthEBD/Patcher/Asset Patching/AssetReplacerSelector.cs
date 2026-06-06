@@ -9,6 +9,13 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Selects which asset-replacer groups of a chosen asset pack apply to a given NPC. A replacer group is
+    /// assigned only if the NPC actually possesses the records/paths the group targets (a specific head part,
+    /// a hardcoded special head-part texture, or a generic record path). For each valid group it builds a
+    /// virtual flattened asset pack and defers to <see cref="AssetSelector"/> to pick a concrete subgroup
+    /// combination. Part of the asset-selection stage of the patcher.
+    /// </summary>
     public class AssetReplacerSelector
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -28,6 +35,12 @@ namespace SynthEBD
             _recordPathParser = recordPathParser;
             _dictionaryMapper = dictionaryMapper;
         }
+        /// <summary>
+        /// Returns the set of subgroup combinations from the chosen asset pack's replacer groups that are valid
+        /// for the NPC. For each group it gathers the destination paths, determines the destination record type,
+        /// verifies the NPC has the required target(s), and (if so) assigns a virtual replacer combination,
+        /// recording consistency/linked-NPC data via <see cref="AssetSelector"/>.
+        /// </summary>
         public HashSet<SubgroupCombination> SelectAssetReplacers(FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides)
         {
             HashSet<SubgroupCombination> combinations = new HashSet<SubgroupCombination>();
@@ -93,6 +106,11 @@ namespace SynthEBD
             return combinations;
         }
 
+        /// <summary>
+        /// Maps a set of replacer destination paths to a hardcoded <see cref="SubgroupCombination.DestinationSpecifier"/>
+        /// (matching against <see cref="AssetReplacerHardcodedPaths.ReplacersByPaths"/>), outputting the target
+        /// head-part FormKey when the specifier is a head-part type. Returns Generic if no hardcoded match.
+        /// </summary>
         public static SubgroupCombination.DestinationSpecifier SelectRecordType(HashSet<string> targetPaths, out FormKey fkToMatch)
         {
             fkToMatch = new FormKey();
@@ -111,6 +129,11 @@ namespace SynthEBD
             return SubgroupCombination.DestinationSpecifier.Generic;
         }
 
+        /// <summary>
+        /// Checks whether the NPC has the special-marker head-part texture implied by the given hardcoded
+        /// <paramref name="specifier"/> (used for face gash overlays that have no distinguishing FormKey).
+        /// Returns false for unrecognized specifiers.
+        /// </summary>
         public static bool CheckIfReplacerTargetExists(SubgroupCombination.DestinationSpecifier specifier, INpcGetter npc, ILinkCache linkCache)
         {
             switch (specifier)
@@ -121,11 +144,18 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Returns true if the NPC wears the head part identified by <paramref name="specifierFK"/>.
+        /// </summary>
         public static bool CheckIfReplacerTargetExists(FormKey specifierFK, INpcGetter npc)
         {
             return npc.HeadParts.Where(x => x.FormKey == specifierFK).Any();
         }
 
+        /// <summary>
+        /// Returns true if any of the NPC's head parts uses a texture set whose diffuse path equals
+        /// <paramref name="diffusePath"/> (case-insensitive).
+        /// </summary>
         public static bool HasSpecialHeadPartTexture(INpcGetter npc, string diffusePath, ILinkCache linkCache)
         {
             foreach (var part in npc.HeadParts)

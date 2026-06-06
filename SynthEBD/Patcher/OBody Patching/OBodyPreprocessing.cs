@@ -2,6 +2,11 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Pre-pass for OBody/BodySlide body-shape patching: resolves race groupings into flat allowed/disallowed race
+/// lists on BodySlide presets and descriptor rules, and exposes the NPC eligibility check. Run once at the start
+/// of OBody patching.
+/// </summary>
 public class OBodyPreprocessing
 {
     private readonly PatcherState _patcherState;
@@ -9,6 +14,10 @@ public class OBodyPreprocessing
     {
         _patcherState = patcherState;
     }
+    /// <summary>
+    /// Resolves the allowed/disallowed race groupings on each male and female BodySlide preset into flat race
+    /// lists (merged with general-settings groupings). Mutates the settings.
+    /// </summary>
     public void CompilePresetRaces(Settings_OBody oBodySettings)
     {
         foreach (var preset in oBodySettings.BodySlidesMale)
@@ -23,6 +32,10 @@ public class OBodyPreprocessing
         }
     }
 
+    /// <summary>
+    /// Resolves the allowed/disallowed race groupings on each flattened template descriptor's associated rules
+    /// into flat race lists. Mutates the settings.
+    /// </summary>
     public void CompileRulesRaces(Settings_OBody oBodySettings)
     {
         foreach (var descriptor in oBodySettings.TemplateDescriptors.Flatten())
@@ -32,6 +45,10 @@ public class OBodyPreprocessing
         }
     }
 
+    /// <summary>
+    /// Returns false for NPCs that inherit traits from a template (their body shape comes from the template, so
+    /// a BodySlide should not be assigned); true otherwise.
+    /// </summary>
     public bool NPCIsEligibleForBodySlide(INpcGetter npc)
     {
         if (npc.Configuration.TemplateFlags.HasFlag(NpcConfiguration.TemplateFlag.Traits) && npc.Template != null && !npc.Template.FormKey.IsNull)

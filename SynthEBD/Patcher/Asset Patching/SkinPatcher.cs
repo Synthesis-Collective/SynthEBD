@@ -10,6 +10,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Patches an NPC's worn skin (the <c>WornArmor</c> ARMO and its ARMA armatures) so that any texture
+    /// sets that were swapped during asset selection are reflected on the skin records. Delegates the actual
+    /// alternate-texture edits to <see cref="ArmorPatcher"/>, and fixes up biped-object flags when new
+    /// armature is grafted onto an existing armor. Part of the asset-patching record output stage.
+    /// </summary>
     public class SkinPatcher
     {
         private readonly IEnvironmentStateProvider _environmentStateProvider;
@@ -22,6 +28,11 @@ namespace SynthEBD
             _armorPatcher = armorPatcher;
         }
 
+        /// <summary>
+        /// Resolves the NPC's winning worn armor and patches alternate textures on it and each of its
+        /// armatures using <paramref name="replacedRecords"/> (a map from original to replacement texture-set
+        /// FormKeys). Writes overrides into <paramref name="outputMod"/> as needed.
+        /// </summary>
         public void PatchAltTextures(NPCInfo npcInfo, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod)
         {
             if(_environmentStateProvider.LinkCache.TryResolve<INpcGetter>(npcInfo.NPC.FormKey, out var winningNPCGetter) && 
@@ -44,6 +55,12 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// When SynthEBD has grafted new armature onto an existing worn armor, ensures the armor's body
+        /// template biped-object flags include the flags of the newly added armature (otherwise the new
+        /// armature would not render). Writes an armor override into <paramref name="outputMod"/> only if a
+        /// flag mismatch is found.
+        /// </summary>
         public void ValidateArmorFlags(INpcGetter npcGetter, HashSet<IMajorRecord> recordsFromTemplate, ISkyrimMod outputMod) // in rare cases, SynthEBD can add new armature to an existing armor record. That record's armor needs to patched with the new armature's body flags
         {
             var formKeysFromTemplate = recordsFromTemplate.Select(x => x.FormKey).ToArray();
@@ -69,11 +86,17 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Returns true if <paramref name="toEnable"/> already has every flag set in <paramref name="enableThese"/>.
+        /// </summary>
         public static bool CheckMatchingBipedObjectFlags(BipedObjectFlag toEnable, BipedObjectFlag enableThese)
         {
             return (toEnable & enableThese) == enableThese;
         }
 
+        /// <summary>
+        /// Returns <paramref name="toEnable"/> with all flags from <paramref name="enableThese"/> OR'd in.
+        /// </summary>
         private static BipedObjectFlag EnableMatchingBipedObjectFlags(BipedObjectFlag toEnable, BipedObjectFlag enableThese)
         {
             return toEnable | enableThese;

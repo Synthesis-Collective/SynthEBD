@@ -5,6 +5,12 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Post-pass helpers for head-part assignment. The EBD Papyrus scripts require an NPC to have a head texture
+/// before head parts can be applied; this class ensures one exists (falling back to the race's default face
+/// texture, or hardcoded Khajiit/Argonian skins) and reverts head-part assignments for NPCs where no valid
+/// face texture is available or where applying head parts would create a neck seam (WNAM present).
+/// </summary>
 public class HeadPartAuxFunctions
 {
     private readonly PatcherState _patcherState;
@@ -18,6 +24,13 @@ public class HeadPartAuxFunctions
         _logger = logger;
     }
 
+    /// <summary>
+    /// For every NPC in <paramref name="assignedHeadPartTransfers"/> lacking a head texture, assigns the
+    /// race's default face texture (or hardcoded Khajiit/Argonian skin) by writing an NPC override into the
+    /// output mod. If no suitable texture exists, or the NPC has a WNAM (worn armor) that would cause a neck
+    /// seam, removes the entry from the dictionary so its head parts are not applied. Mutates both the output
+    /// mod and the passed dictionary; logs a message per reversion.
+    /// </summary>
     public void ApplyNeededFaceTextures(Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> assignedHeadPartTransfers) // The EBD Papyrus scripts require a head texture to be assigned in order to process headparts. If none was assigned by SynthEBD, assign the default head texture for the NPC's race
     {
         HashSet<FormKey> toRemove = new();
@@ -116,6 +129,11 @@ public class HeadPartAuxFunctions
         }
     }
 
+    /// <summary>
+    /// Logs that an NPC's head parts are being reverted because no face texture was assigned and the race has
+    /// no default; if the NPC has forced (Specific NPC Assignment) head parts, logs a warning that they are
+    /// respected instead.
+    /// </summary>
     public void ShowRemovalMessage(INpcGetter npcGetter)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
@@ -129,6 +147,10 @@ public class HeadPartAuxFunctions
         }
     }
 
+    /// <summary>
+    /// Logs that an NPC's head parts are being reverted because no face texture was assigned and the NPC has a
+    /// WNAM (worn armor) which would cause a neck seam; warns instead if forced head parts exist.
+    /// </summary>
     public void ShowRemovalMessage_WNAM(INpcGetter npcGetter)
     {
         var npcString = Logger.GetNPCLogReportingString(npcGetter);
@@ -143,6 +165,9 @@ public class HeadPartAuxFunctions
         }
     }
 
+    /// <summary>
+    /// Returns true if the NPC has a Specific NPC Assignment that forces at least one non-null head part.
+    /// </summary>
     private bool IsForced(INpcGetter npcGetter)
     {
         var specificAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npcGetter.FormKey).FirstOrDefault();

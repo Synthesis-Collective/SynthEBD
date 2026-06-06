@@ -944,6 +944,35 @@ legacy int-only code worth removing.
   "Union"/"Merge" names mislead.
 - `EBDScripts.cs` carries an unused `using System.Runtime.Intrinsics.X86;`.
 
+### `HeightPatcher` — 🐞 / 🔧 / 💭
+
+[HeightPatcher.cs:159](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L159) · `npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;`
+dereferences `ConsistencyNPCAssignment` under only a `bEnableConsistency` guard — if consistency is enabled
+but the assignment object is null this NREs (confirm it is always created when consistency is on). 🐞
+[:128](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L128) news up a `Random` per NPC inside the
+assignment loop (clock-seeded → correlated sequences for closely-timed calls; prefer a shared instance). 🔧
+`WriteAssignmentDictionaryScriptMode` ([:289](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L289)) is
+dead — an unconditional `return; // currently handled by SkyPatcher` at the top makes the whole body (and the
+`_scriptHeightAssignments` field) vestigial. Intentional but worth pruning. 💭
+
+### `AssetAssignmentJsonDictHandler` / `EBDCoreRecords` — 🐞 / 💭
+
+- `AssetAssignmentJsonDictHandler` — bare `catch { }` blocks swallow the exception entirely (only a generic
+  message is logged; the actual error text is lost), `Dictionary.Add` is used where a duplicate original-NPC
+  FormKey would throw (vs the indexer), and `MessageWindow.DisplayNotificationOK(...)` pops a UI dialog from
+  engine/IO code. 🐞/💭
+- `EBDCoreRecords` — a `FormKey.TryFactory` result for the player reference is ignored, so `SetTo(...)` runs
+  even if parsing failed (the sibling `FaceTextureScriptWriter` checks and logs); two code paths
+  (`CreateHeadPartKeyword` and the inline creation) can create the same EBD keyword EditorID. 💭
+
+### Patcher asset-helper LINQ/struct nits — 🔧
+
+`ArmorPatcher` filters `armorGetter.Armature.Where(x => x.FormKey != null)` — `FormKey` is a non-nullable
+struct so the predicate is always true (and the `.ToArray()` is needless). `.Where(pred).First()/.Any()` →
+`.First(pred)/.Any(pred)` recurs across `PathTrimmer`, `SkinPatcher`, `AssetReplacerSelector`,
+`HeadPartAuxFunctions`, `BodyGenPreprocessing`; `PathTrimmer`/others are static-only helper classes not marked
+`static`. All minor.
+
 <!-- ENTRIES:Patcher -->
 
 ---

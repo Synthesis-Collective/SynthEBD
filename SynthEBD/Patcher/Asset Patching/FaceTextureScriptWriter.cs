@@ -11,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Builds the Papyrus-script plumbing that applies SynthEBD face textures at runtime: the toggle/keyword
+/// records, the cloaking spell + magic effect carrying the <c>SynthEBDFaceTextureScript</c> (configured for
+/// the detected Skyrim/SKSE flavor), and copying the compiled .pex into the output. Part of the asset-patching
+/// script-output stage; used when running in script (non-NIF) mode.
+/// </summary>
 public class FaceTextureScriptWriter
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -27,6 +33,11 @@ public class FaceTextureScriptWriter
         _patcherIO = patcherIO;
     }
 
+    /// <summary>
+    /// Creates and returns the face-texture control records added to <paramref name="outputMod"/>: the
+    /// "SynthEBDProcessFace" keyword, a global enabling the script (off in legacy EBD mode), and a verbose-mode
+    /// global, all seeded from the texture/mesh settings.
+    /// </summary>
     public (Keyword, GlobalShort, GlobalShort) InitializeToggleRecords(ISkyrimMod outputMod)
     {
         Keyword synthEBDFaceKW = outputMod.Keywords.AddNew();
@@ -40,6 +51,13 @@ public class FaceTextureScriptWriter
         return (synthEBDFaceKW, gEnableFaceTextureScript, gFaceTextureVerboseMode);
     }
 
+    /// <summary>
+    /// Creates the constant-effect ability spell (and its script-archetype magic effect) that runs the face
+    /// texture script, wiring up the keyword, enable/verbose globals, player reference, and custom trigger event
+    /// names (capped at 128 due to the Papyrus array limit). The script's <c>ScriptEditorIdMode</c> property is
+    /// set per Skyrim release / SKSE / PO3 settings. Returns the created spell. Logs errors if the player
+    /// reference cannot be resolved or the trigger-event cap is exceeded.
+    /// </summary>
     public Spell CreateSynthEBDFaceTextureSpell(ISkyrimMod outputMod, Keyword kFaceTextureKeyword, GlobalShort gEnableFaceTextureScript, GlobalShort gFaceTextureVerboseMode, List<string> customEventNames)
     {
         // create MGEF first
@@ -140,6 +158,10 @@ public class FaceTextureScriptWriter
         return SPELFixFaceTexture;
     }
 
+    /// <summary>
+    /// Copies the compiled SynthEBDFaceTextureScript.pex from the internal data folder to the output's
+    /// Scripts directory.
+    /// </summary>
     public void CopyFaceTextureScript()
     {
         string sourcePath = Path.Combine(_environmentProvider.InternalDataPath, "EBD Code", "SynthEBD Face Texture", "SynthEBDFaceTextureScript.pex");

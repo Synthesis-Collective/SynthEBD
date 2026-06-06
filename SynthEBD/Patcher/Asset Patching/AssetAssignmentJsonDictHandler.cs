@@ -5,6 +5,11 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Accumulates per-NPC face- and skin-texture assignments during patching and emits them as JContainers-style
+/// JSON dictionaries (keyed by original NPC FormKey) for the EBD Papyrus scripts to consume at runtime. Also
+/// builds the texture-loader quest that drives those scripts. Part of the asset-patching script-output stage.
+/// </summary>
 public class AssetAssignmentJsonDictHandler
 {
     private readonly Converters _converters;
@@ -27,12 +32,20 @@ public class AssetAssignmentJsonDictHandler
         _patcherIO = patcherIO;
     }
 
+    /// <summary>
+    /// Clears the accumulated face- and skin-texture assignment dictionaries before a new patcher run.
+    /// </summary>
     public void Reinitialize()
     {
         _faceTextureAssignments.Clear();
         _skinTextureAssignments.Clear();
     }
 
+    /// <summary>
+    /// Records the NPC's head-texture and worn-armor assignments into the in-memory dictionaries, but only for
+    /// records newly created in the output mod (i.e. whose ModKey matches <paramref name="outputMod"/>), keyed
+    /// by the original NPC's JContainers-compatible FormKey string.
+    /// </summary>
     public void LogNPCAssignments(NPCInfo npcInfo, ISkyrimMod outputMod)
     {
         if (npcInfo.NPC is null)
@@ -53,6 +66,11 @@ public class AssetAssignmentJsonDictHandler
         }
     }
     
+    /// <summary>
+    /// Serializes the accumulated face- and skin-texture assignments to FaceTextureAssignments.json and
+    /// SkinTextureAssignments.json under the output data folder. Skips writing the skin dictionary when
+    /// SkyPatcher asset mode handles skins. Pops a message window on serialization failure and logs IO errors.
+    /// </summary>
     public void WriteAssignmentDictionaryScriptMode()
     {
         if (!_faceTextureAssignments.Any() && !_skinTextureAssignments.Any())
@@ -114,6 +132,11 @@ public class AssetAssignmentJsonDictHandler
         }
     }
     
+    /// <summary>
+    /// Creates the start-game-enabled, run-once "SynthEBDtexLoaderQuest" with a player alias whose attached
+    /// SynthEBDTextureLoaderPAScript loads the texture assignment dictionaries at runtime, wiring up the
+    /// enable/verbose globals, and copies the compiled .pex into the output Scripts folder.
+    /// </summary>
     public void CreateTextureLoaderQuest(ISkyrimMod outputMod, GlobalShort gEnableTextureLoaderScript, GlobalShort gTextureLoaderVerboseMode)
     {
         Quest texLoaderQuest = outputMod.Quests.AddNew();

@@ -6,6 +6,12 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Assigns NPC height (the height-multiplier axis) per race and gender using the active height config's
+/// distribution (uniform or bell curve), honoring specific/consistency/linked-unique assignments, and applies
+/// it either by NPC record override or via SkyPatcher. Also patches racial height defaults on RACE records.
+/// One of the four independent appearance axes in the patcher pipeline.
+/// </summary>
 public class HeightPatcher
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -27,11 +33,21 @@ public class HeightPatcher
         _skyPatcherInterface = skyPatcherInterface;
     }
 
+    /// <summary>
+    /// Clears the accumulated script-mode height assignments before a new patcher run.
+    /// </summary>
     public void Reinitialize()
     {
         _scriptHeightAssignments.Clear();
     }
-    
+
+    /// <summary>
+    /// Determines a height multiplier for the NPC and returns it (or null if height patching is skipped for this
+    /// NPC). Resolution order: specific assignment, then for randomized cases linked-secondary / linked-unique /
+    /// consistency, otherwise a fresh random draw (uniform or bell-curve, bounded by the race/gender range).
+    /// Side effects: writes the result back to consistency, link group, and unique-NPC tracking; emits report
+    /// log entries. Does not write the NPC record itself (see <see cref="ApplyHeight"/>).
+    /// </summary>
     public float? AssignNPCHeight(NPCInfo npcInfo, HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         float assignedHeight = 1;
@@ -158,6 +174,11 @@ public class HeightPatcher
         return assignedHeight;
     }
 
+    /// <summary>
+    /// Writes the assigned height to the game: via SkyPatcher (no record override) when
+    /// bApplyWithoutOverride is set, otherwise by adding the NPC as an override in <paramref name="outputMod"/>
+    /// and setting its Height.
+    /// </summary>
     public void ApplyHeight(NPCInfo npcInfo, float assignedHeight, ISkyrimMod outputMod)
     {
         if (_patcherState.HeightSettings.bApplyWithoutOverride)
@@ -172,6 +193,12 @@ public class HeightPatcher
         }
     }
 
+    /// <summary>
+    /// Patches default male/female height on RACE records (honoring race aliases and patchable-race settings)
+    /// to the values in the height config, skipping records whose values already match to avoid ITMs. Writes
+    /// race overrides into <paramref name="outputMod"/>. No-op when racial height patching is disabled or no
+    /// config is loaded.
+    /// </summary>
     public void AssignRacialHeight(HeightConfig heightConfig, ISkyrimMod outputMod)
     {
         Race patchedRace = null;
@@ -235,6 +262,10 @@ public class HeightPatcher
         }
     }
 
+    /// <summary>
+    /// Applies all previously assigned heights to the game by calling <see cref="ApplyHeight"/> for each entry,
+    /// updating the status bar progress (every 100 NPCs and at completion).
+    /// </summary>
     public void ApplySelectedHeights(Dictionary<FormKey, (NPCInfo NpcInfo, float Height)> assignedHeights, ISkyrimMod outputMod, VM_StatusBar statusBar)
     {
         statusBar.ProgressBarMax = assignedHeights.Count;
@@ -250,6 +281,11 @@ public class HeightPatcher
         }
     }
     
+    /// <summary>
+    /// Legacy: would serialize script-mode height assignments to HeightAssignments.json, but currently returns
+    /// immediately because height in apply-without-override mode is handled by SkyPatcher. The code below the
+    /// early return is therefore dead.
+    /// </summary>
     public void WriteAssignmentDictionaryScriptMode()
     {
         return; // This is currently handled by SkyPatcher

@@ -11,6 +11,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Applies texture-set swaps (collected during asset selection) to ARMO and ARMA records: outfit armor
+    /// alternate textures, armature skin textures, and armature alternate textures, split by NPC gender.
+    /// Writes overrides into the output mod only when an actual replacement is needed (to avoid ITMs).
+    /// Part of the asset-patching record output stage; driven by <see cref="SkinPatcher"/> and the outfit pass.
+    /// </summary>
     public class ArmorPatcher
     {
         private readonly IEnvironmentStateProvider _environmentStateProvider;
@@ -21,6 +27,11 @@ namespace SynthEBD
             _logger = logger;
         }
 
+        /// <summary>
+        /// Walks the NPC's default outfit armor (skipping base-game plugins) and patches alternate textures
+        /// on each armor plus skin/alternate textures on each of its armatures, using
+        /// <paramref name="replacedRecords"/> as the original-to-replacement texture-set map.
+        /// </summary>
         public void PatchArmorTextures(NPCInfo npcInfo, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod)
         {
             if (npcInfo.NPC.DefaultOutfit != null && !npcInfo.NPC.DefaultOutfit.IsNull && _environmentStateProvider.LinkCache.TryResolve<IOutfitGetter>(npcInfo.NPC.DefaultOutfit.FormKey, out var outfitGetter) && outfitGetter.Items != null)
@@ -51,6 +62,11 @@ namespace SynthEBD
             }
         }     
         
+        /// <summary>
+        /// Replaces gender-appropriate world-model alternate textures on a single armor record whose
+        /// NewTexture appears in <paramref name="replacedRecords"/>, adding the armor as an override into
+        /// <paramref name="outputMod"/> lazily on first replacement.
+        /// </summary>
         public void PatchArmorAltTextures(NPCInfo npcInfo, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod, IArmorGetter armorGetter)
         {
             Armor currentArmor = null; // don't initialize until necessary to avoid ITM
@@ -105,6 +121,10 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Replaces the gender-appropriate skin texture set on a single armature (ARMA) record when it appears
+        /// in <paramref name="replacedRecords"/>, writing the override into <paramref name="outputMod"/>.
+        /// </summary>
         public void PatchArmatureSkinTextures(NPCInfo npcInfo, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod, IArmorAddonGetter armaGetter)
         {
             switch (npcInfo.Gender)
@@ -135,6 +155,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Replaces gender-appropriate world-model alternate textures on a single armature (ARMA) record whose
+        /// NewTexture appears in <paramref name="replacedRecords"/>, adding the armature as an override into
+        /// <paramref name="outputMod"/> lazily on first replacement.
+        /// </summary>
         public void PatchArmatureAltTextures(NPCInfo npcInfo, Dictionary<FormKey, FormKey> replacedRecords, ISkyrimMod outputMod, IArmorAddonGetter armaGetter)
         {
             ArmorAddon currentArmature = null; // don't initialize until necessary to avoid ITM

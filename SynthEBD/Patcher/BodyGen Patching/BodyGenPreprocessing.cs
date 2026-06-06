@@ -2,6 +2,11 @@ using Mutagen.Bethesda.Synthesis;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Pre-pass that prepares BodyGen configs before assignment: resolves race groupings into flat allowed/disallowed
+/// race lists on templates and descriptor rules, and links each template back to its parent config. Run once at
+/// the start of BodyGen body-shape patching.
+/// </summary>
 public class BodyGenPreprocessing
 {
     private readonly PatcherState _patcherState;
@@ -42,6 +47,10 @@ public class BodyGenPreprocessing
         }
     }
 
+    /// <summary>
+    /// Resolves the allowed/disallowed race groupings on each flattened template descriptor's associated rules
+    /// into flat race lists, using the config's effective race groupings. Mutates the config.
+    /// </summary>
     private void CompileBodyGenDescriptorRaces(BodyGenConfig bodyGenConfig)
     {
         var raceGroupings = GetRaceGroupings(bodyGenConfig);
@@ -51,6 +60,11 @@ public class BodyGenPreprocessing
             descriptor.AssociatedRules.DisallowedRaces = RaceGrouping.MergeRaceAndGroupingList(descriptor.AssociatedRules.DisallowedRaceGroupings, raceGroupings, descriptor.AssociatedRules.DisallowedRaces);
         }
     }
+    /// <summary>
+    /// Computes the effective race groupings for a config: when OverwritePluginRaceGroups is set, same-labeled
+    /// groupings from general settings replace the config's own; then any remaining config-local groupings whose
+    /// labels are not already present are appended. Returns the merged list.
+    /// </summary>
     private List<RaceGrouping> GetRaceGroupings(BodyGenConfig config)
     {
         var output = new List<RaceGrouping>();
@@ -76,6 +90,9 @@ public class BodyGenPreprocessing
         return output;
     }
 
+    /// <summary>
+    /// Sets the ParentConfig back-reference on every template of every male and female BodyGen config.
+    /// </summary>
     public void LinkTemplatesToParentConfigs(BodyGenConfigs bodyGenConfigs)
     {
         foreach (var cfg in bodyGenConfigs.Male)
@@ -88,6 +105,9 @@ public class BodyGenPreprocessing
         }
     }
 
+    /// <summary>
+    /// Sets the ParentConfig back-reference on every template of a single BodyGen config.
+    /// </summary>
     private void LinkTemplatesToParentConfig(BodyGenConfig bodyGenConfig)
     {
         foreach (var template in bodyGenConfig.Templates)

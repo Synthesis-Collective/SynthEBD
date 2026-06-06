@@ -5,8 +5,20 @@ using Mutagen.Bethesda.Synthesis;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Static factory for the core "Everybody's Different Redone" runtime records that SynthEBD injects into the
+/// output mod: the process/script/headpart keywords, control globals, the EBDHelperScript magic effect, and the
+/// helper ability spell that attaches it. Also exposes helpers to create and apply the valid-head-part keyword.
+/// Part of the asset-patching record-output stage.
+/// </summary>
 public class EBDCoreRecords
 {
+    /// <summary>
+    /// Creates the EBD framework's core records in <paramref name="outputMod"/>: the EBDProcessFace /
+    /// EBDValidScriptRace / EBDValidHeadPartActor keywords, the head/combat/spells/script-enable globals (the
+    /// face-fix and helper-script globals seeded from <paramref name="enabled"/>), and the EBDHelperScript magic
+    /// effect wired (via 10 script properties) onto the returned constant-effect helper spell.
+    /// </summary>
     public static void CreateCoreRecords(ISkyrimMod outputMod, out Keyword EBDFaceKW, out Keyword EBDScriptKW, out Spell EBDHelperSpell, bool enabled)
     {
         EBDFaceKW = outputMod.Keywords.AddNew();
@@ -117,6 +129,9 @@ public class EBDCoreRecords
         EBDHelperSpell.Effects.Add(spellEffect);
     }
         
+    /// <summary>
+    /// Creates and returns a standalone "EBDValidHeadPartActor" keyword in the output mod.
+    /// </summary>
     public static Keyword CreateHeadPartKeyword(SkyrimMod outputMod)
     {
         var headPartKW = outputMod.Keywords.AddNew();
@@ -124,6 +139,10 @@ public class EBDCoreRecords
         return headPartKW;
     }
 
+    /// <summary>
+    /// Adds the given head-part keyword to every NPC in <paramref name="headPartNPCs"/> so the EBD runtime
+    /// will process their head parts.
+    /// </summary>
     public static void ApplyHeadPartKeyword(HashSet<Npc> headPartNPCs, Keyword headPartKeyword)
     {
         foreach (var Npc in headPartNPCs)
