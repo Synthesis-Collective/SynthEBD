@@ -673,6 +673,22 @@ Also `s.BodyGenMorphNames = z.forcedBodyGenMorphs;` assigns the source list by r
 ([:210](SynthEBD/Classes_Core/Models/BodyGenConfig.cs#L210)) guards `if (usedGroups.Contains(member) == false) usedGroups.Add(member)` —
 redundant, since `HashSet.Add` is already idempotent (same pattern flagged in General_Aux). Both cosmetic.
 
+### `ZEBDAssetPack` conversion — 💭 / 🔧 (UI coupling + dead param)
+
+[AssetPack.cs:448](SynthEBD/Classes_Core/Models/AssetPack.cs#L448),
+[:525](SynthEBD/Classes_Core/Models/AssetPack.cs#L525) · `ToSynthEBDAssetPack` pops a modal WPF dialog
+(`Window_LinkZEBDAssetPackToBodyGen.ShowDialog()`) from inside a model conversion method — UI driven from the
+model layer, which makes the conversion untestable headless. Also,
+`ZEBDSubgroup.ToSynthEBDSubgroup` ([:276](SynthEBD/Classes_Core/Models/AssetPack.cs#L276)) takes an
+`assetPackName` parameter the body never uses (only threaded through recursion), and its allowed/disallowed
+race loops use the redundant `Contains`-before-`Add` pattern flagged elsewhere. Cosmetic.
+
+### `AssetPackValidator.GetIDDuplicates` — 🔧 (minor)
+
+[AssetPackValidator.cs:378](SynthEBD/Classes_Core/Models/AssetPackValidator.cs#L378) · Tracks seen IDs in a
+`List<string>` with `searched.Contains(...)` (O(n) per lookup → O(n²) overall). A `HashSet<string>` for the
+"seen" set makes it O(n). Minor; subgroup counts are small.
+
 <!-- ENTRIES:Classes_Core_Models -->
 
 ---

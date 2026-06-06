@@ -4,6 +4,13 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Validates an <see cref="AssetPack"/> before patching: checks required fields, the associated BodyGen
+/// config, duplicate subgroup IDs, and — recursively per subgroup — ID/XML-tag validity, required/excluded
+/// subgroup references, body-shape descriptor validity, and that each source asset exists (loose or in a
+/// BSA) and each destination record path resolves to a string on a record template. Accumulates
+/// human-readable messages into a caller-supplied error list.
+/// </summary>
 public class AssetPackValidator
 {
     private readonly BSAHandler _bsaHandler;
@@ -11,6 +18,7 @@ public class AssetPackValidator
     private readonly PatcherState _patcherState;
     private readonly RecordPathParser _recordPathParser;
 
+    /// <summary>Captures the BSA handler, environment, patcher state, and record-path parser used during validation.</summary>
     public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, RecordPathParser recordPathParser)
     {
         _bsaHandler = bsaHandler;
@@ -19,6 +27,12 @@ public class AssetPackValidator
         _recordPathParser = recordPathParser;
     }
 
+    /// <summary>Validates an asset pack, appending any problems to <paramref name="errors"/>.</summary>
+    /// <param name="assetPack">The pack to validate.</param>
+    /// <param name="errors">Accumulates human-readable error messages (prefixed with the config name if any check fails).</param>
+    /// <param name="bodyGenConfigs">Available BodyGen configs, used to resolve the pack's associated config.</param>
+    /// <param name="oBodySettings">OBody/AutoBody settings, used to validate BodySlide descriptors.</param>
+    /// <returns><c>true</c> if the pack is valid.</returns>
     public bool Validate(AssetPack assetPack, List<string> errors, BodyGenConfigs bodyGenConfigs, Settings_OBody oBodySettings)
     {
         bool isValidated = true;
@@ -96,6 +110,7 @@ public class AssetPackValidator
         return isValidated;
     }
 
+    /// <summary>Validates each subgroup in a list (top-level position-aware), OR-ing the missing-descriptor flag across them.</summary>
     private bool ValidateSubgroups(List<AssetPack.Subgroup> subgroups, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, bool isReplacer, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorsError)
     {
         bool isValid = true;
@@ -115,6 +130,13 @@ public class AssetPackValidator
         return isValid;
     }
 
+    /// <summary>
+    /// Recursively validates a single subgroup: ID presence/XML-compatibility, name, required/excluded subgroup
+    /// references (must exist and not be in the same branch), body-shape descriptor validity for the active
+    /// selection mode, and each path's source existence + destination record path resolving to a string.
+    /// </summary>
+    /// <param name="topLevelIndex">Index of the owning top-level subgroup (used for branch checks and messages).</param>
+    /// <param name="hasMissingDescriptorsError">Set true if a referenced BodySlide descriptor is missing from the OBody settings.</param>
     private bool ValidateSubgroup(AssetPack.Subgroup subgroup, List<string> errors, IModelHasSubgroups parent, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, int topLevelIndex, bool isReplacer, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorsError)
     {
         hasMissingDescriptorsError = false;
@@ -307,11 +329,13 @@ public class AssetPackValidator
         return isValid;
     }
 
+    /// <summary>True if the ID is already XML-tag-compatible (unchanged by <see cref="MiscFunctions.MakeXMLtagCompatible"/>).</summary>
     private bool ValidateID(string id)
     {
         return id == MiscFunctions.MakeXMLtagCompatible(id);
     }
 
+    /// <summary>Validates a replacer group (non-empty label) and its subgroups.</summary>
     private bool ValidateReplacer(AssetReplacerGroup group, BodyGenConfig bodyGenConfig, Settings_OBody oBodySettings, List<string> errors, List<ModKey> associatedBSAmodKeys, out bool hasMissingDescriptorError)
     {
         bool isValid = true;
@@ -325,6 +349,7 @@ public class AssetPackValidator
         return isValid;
     }
 
+    /// <summary>Reports (and lists in <paramref name="errors"/>) any subgroup IDs duplicated anywhere within the model's subgroup tree.</summary>
     private bool HasDuplicateSubgroupIDs(IModelHasSubgroups model, List<string> errors)
     {
         List<string> ids = new List<string>();
@@ -349,6 +374,7 @@ public class AssetPackValidator
         }
     }
 
+    /// <summary>Recursively walks the subgroup tree, recording each ID into <paramref name="searched"/> and any repeat into <paramref name="duplicates"/>.</summary>
     private void GetIDDuplicates(IModelHasSubgroups model, List<string> searched, List<string> duplicates)
     {
         foreach (var subgroup in model.Subgroups)
@@ -369,6 +395,8 @@ public class AssetPackValidator
         }
     }
 
+    /// <summary>Finds the subgroup with the given ID within the specified top-level branches, reporting whether more than one matched.</summary>
+    /// <returns>The first matching subgroup, or null.</returns>
     private AssetPack.Subgroup GetSubgroupByID(string id, IModelHasSubgroups model, out bool foundMultiple, List<int> topLevelSubgroupsToSearch)
     {
         List<AssetPack.Subgroup> matched = new List<AssetPack.Subgroup>();
@@ -392,6 +420,7 @@ public class AssetPackValidator
         return matched.FirstOrDefault();
     }
 
+    /// <summary>Recursively collects every subgroup matching <paramref name="id"/> in the tree into <paramref name="matched"/>.</summary>
     private void GetSubgroupByID(string id, IModelHasSubgroups model, List<AssetPack.Subgroup> matched)
     {
         for (int i = 0; i < model.Subgroups.Count; i++)

@@ -8,15 +8,27 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Rules-based engine that auto-annotates BodySlide presets with body-shape descriptors by evaluating each
+/// preset's slider values against per-slider-group classification rules. Honors manual annotations (never
+/// overwriting them) and tracks each preset's annotation state (none / rules-based / manual / mixed).
+/// </summary>
 public class BodySlideAnnotator
 {
     private readonly Logger _logger;
     private readonly PatcherState _patcherState;
+    /// <summary>Captures the logger and patcher state used while annotating.</summary>
     public BodySlideAnnotator(Logger logger, PatcherState patcherState)
     {
         _logger = logger;
         _patcherState = patcherState;
     }
+    /// <summary>Annotates every preset in <paramref name="bodySlides"/> via <see cref="AnnotateBodySlide"/>.</summary>
+    /// <param name="bodySlides">Presets to annotate (mutated in place).</param>
+    /// <param name="bodySlideClassificationRules">Classification rules keyed by slider group.</param>
+    /// <param name="currentDescriptors">The descriptor universe in use; only categories/values present here are applied.</param>
+    /// <param name="overwriteExistingAutoAnnotations">When true, refreshes previously auto-applied descriptors.</param>
+    /// <param name="specifiedDescriptorCategory">When set, restricts annotation to a single descriptor category.</param>
     public void AnnotateBodySlides(List<BodySlideSetting> bodySlides, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, HashSet<BodyShapeDescriptor.LabelSignature> currentDescriptors, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory)
     {
         foreach (var bs in bodySlides)
@@ -25,6 +37,12 @@ public class BodySlideAnnotator
         }
     }
 
+    /// <summary>
+    /// Annotates a single preset: for each descriptor category whose rules match the preset's sliders, adds
+    /// the matching descriptor (or the category default) to every slot — skipping categories already manually
+    /// annotated, and optionally clearing prior auto-annotations first. Updates the preset's annotation state.
+    /// </summary>
+    /// <returns>The descriptors that were applied (empty if none/unclassifiable).</returns>
     public List<BodyShapeDescriptor.LabelSignature> AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, HashSet<BodyShapeDescriptor.LabelSignature> currentDescriptors, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory)
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
@@ -85,6 +103,7 @@ public class BodySlideAnnotator
         return annotatedDescriptors;
     }
 
+    /// <summary>Applies one category's rule set to a preset: adds the descriptor for each matching rule, or the category's default descriptor if no rule matched. Returns the applied descriptors.</summary>
     private List<BodyShapeDescriptor.LabelSignature> ApplyDescriptorCategoryRuleSet(BodySlideSetting bodySlide, DescriptorClassificationRuleSet ruleSet, HashSet<string> currentValues)
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
@@ -117,6 +136,7 @@ public class BodySlideAnnotator
         return annotatedDescriptors;
     }
 
+    /// <summary>OR-combines a descriptor value's rule groups — true if any AND-gated group passes.</summary>
     private bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList)
     {
         foreach (var ruleGroup in ruleList.RuleListORlogic)
@@ -129,6 +149,7 @@ public class BodySlideAnnotator
         return false;
     }
 
+    /// <summary>AND-combines a rule group — true only if every sub-rule passes (an empty group is false).</summary>
     private bool EvaluateAndGatedRuleList(BodySlideSetting bodySlide, AndGatedSliderRuleGroup ruleGroup)
     {
         if (!ruleGroup.RuleListANDlogic.Any())
@@ -147,6 +168,7 @@ public class BodySlideAnnotator
         return true;
     }
 
+    /// <summary>Evaluates a single slider rule against the preset's slider values, honoring the rule's slider type (Small / Big / Either).</summary>
     private bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule)
     {
         if (rule != null && rule.SliderName != null && bodySlide.SliderValues.ContainsKey(rule.SliderName))
@@ -163,6 +185,7 @@ public class BodySlideAnnotator
         return false;
     }
 
+    /// <summary>Compares a slider value against a threshold using the rule's comparator (=, !=, &lt;=, &gt;=, &lt;, &gt;).</summary>
     private bool EvaluateExpression(int sliderValue, int thresholdValue, string comparator)
     {
         switch (comparator)

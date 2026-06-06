@@ -6,6 +6,13 @@ using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
+/// <summary>
+/// The core asset configuration: one "config file" defining how a set of textures/meshes is distributed.
+/// Holds the tree of <see cref="Subgroup"/>s (each a selectable option with its own race/attribute filters
+/// and file paths), the asset-pack-wide <see cref="DistributionRules"/>, record-template assignments,
+/// replacer groups, and the associated BodyGen config / BSA keys. <see cref="ConfigType"/> distinguishes a
+/// primary pack from a mix-in.
+/// </summary>
 [DebuggerDisplay("{ShortName}: {GroupName}")]
 public class AssetPack : IModelHasSubgroups
 {
@@ -29,12 +36,14 @@ public class AssetPack : IModelHasSubgroups
     [Newtonsoft.Json.JsonIgnore]
     public string FilePath { get; set; }
 
+    /// <summary>Assigns and returns a fresh installation token (group name + timestamp) used to detect re-installation of the pack.</summary>
     public string GenerateInstallationToken() // assings and returns the installation token string
     {
         InstallationToken = GroupName + "|" + DateTime.Now.ToString("yyyy-MM-dd_HH:mm:ss:fff");
         return InstallationToken;
     }
 
+    /// <summary>The asset-pack-wide distribution rules: the allow/disallow race, attribute, and body-shape-descriptor filters (plus weighting and added keywords) inherited by every subgroup.</summary>
     public class ConfigDistributionRules : IProbabilityWeighted
     {
         public HashSet<FormKey> AllowedRaces { get; set; } = new();
@@ -49,6 +58,7 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
         public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        /// <summary>Newtonsoft conditional-serialization hook: only serialize the weight modifiers when non-empty.</summary>
         public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
         public DescriptorMatchMode AllowedBodyGenMatchMode { get; set; } = DescriptorMatchMode.All;
@@ -64,6 +74,7 @@ public class AssetPack : IModelHasSubgroups
         public static string SubgroupIDString = "ConfigDistributionRules";
         public static string SubgroupNameString = "Main Distribution Rules";
 
+        /// <summary>Wraps the asset-pack-wide rules in a synthetic top-level <see cref="Subgroup"/> so the selection logic can treat them as the inherited parent of every real subgroup.</summary>
         public static AssetPack.Subgroup CreateInheritanceParent(ConfigDistributionRules rules)
         {
             AssetPack.Subgroup subgroup = new AssetPack.Subgroup();
@@ -94,6 +105,12 @@ public class AssetPack : IModelHasSubgroups
         }
     }
 
+    /// <summary>
+    /// One selectable option within an asset pack (a node in the subgroup tree): its file-path replacements
+    /// plus the race/attribute/body-shape-descriptor filters, required/excluded-subgroup constraints,
+    /// weighting, and added keywords that govern when it may be selected. Subgroups nest via
+    /// <see cref="Subgroups"/>.
+    /// </summary>
     [DebuggerDisplay("{ID}: {Name}")]
     public class Subgroup : IProbabilityWeighted, IModelHasSubgroups
     {
@@ -115,6 +132,7 @@ public class AssetPack : IModelHasSubgroups
         public HashSet<string> AddKeywords { get; set; } = new();
         public double ProbabilityWeighting { get; set; } = 1;
         public List<AttributeWeightModifier> ProbabilityWeightModifiers { get; set; } = new();
+        /// <summary>Newtonsoft conditional-serialization hook: only serialize the weight modifiers when non-empty.</summary>
         public bool ShouldSerializeProbabilityWeightModifiers() => ProbabilityWeightModifiers.Count > 0;
         public HashSet<FilePathReplacement> Paths { get; set; } = new();
         public HashSet<BodyShapeDescriptor.LabelSignature> AllowedBodyGenDescriptors { get; set; } = new();
@@ -130,6 +148,7 @@ public class AssetPack : IModelHasSubgroups
         public List<Subgroup> Subgroups { get; set; } = new();
         public string TopLevelSubgroupID { get; set; } = "";
 
+        /// <summary>Recursively collects the race-grouping labels referenced by this subgroup and its descendants into <paramref name="labels"/>.</summary>
         public void GetContainedRaceGroupingLabels(HashSet<string> labels)
         {
             foreach (var groupLabel in AllowedRaceGroupings)
@@ -154,11 +173,15 @@ public class AssetPack : IModelHasSubgroups
     }
 }
 
+/// <summary>Whether an asset pack distributes as a primary appearance config or as an additive mix-in.</summary>
 public enum AssetPackType
 {
+    /// <summary>A primary asset pack (one is chosen per NPC).</summary>
     Primary,
+    /// <summary>An additive mix-in pack (applied on top of the primary).</summary>
     MixIn
 }
+/// <summary>A named group of replacer subgroups that swap assets on an already-assigned NPC, relative to a template NPC.</summary>
 public class AssetReplacerGroup : IModelHasSubgroups
 {
     public string Label { get; set; } = "";
@@ -166,6 +189,7 @@ public class AssetReplacerGroup : IModelHasSubgroups
     public FormKey TemplateNPCFormKey { get; set; } = new();
 }
 
+/// <summary>Identifies a record to be replaced: the source record paths, the destination FormKey, and the destination specifier.</summary>
 public class RecordReplacerSpecifier
 {
     public HashSet<string> Paths { get; set; } = new();
@@ -173,6 +197,7 @@ public class RecordReplacerSpecifier
     public SubgroupCombination.DestinationSpecifier DestSpecifier { get; set; }
 }
 
+/// <summary>Common contract for models that own a list of <see cref="AssetPack.Subgroup"/>s (asset packs and replacer groups).</summary>
 public interface IModelHasSubgroups
 {
     public List<AssetPack.Subgroup> Subgroups { get; set; }
@@ -205,6 +230,7 @@ public class TintColorSelector : IProbabilityWeighted
 } */
 
 // Backward compatibility classes for loading zEBD settings files and converting to synthEBD
+/// <summary>Backwards-compatibility DTO for loading old zEBD asset-config JSON, converted via <see cref="ToSynthEBDAssetPack"/>.</summary>
 class ZEBDAssetPack
 {
     public string groupName { get; set; } = "";
@@ -213,6 +239,7 @@ class ZEBDAssetPack
     public string userAlert { get; set; } = "";
     public HashSet<ZEBDSubgroup> subgroups { get; set; } = new();
 
+    /// <summary>Old zEBD subgroup DTO (string-typed; attributes as string arrays, paths as [source, destination] pairs).</summary>
     public class ZEBDSubgroup
     {
         public string id { get; set; } = "";
@@ -240,6 +267,12 @@ class ZEBDAssetPack
 
         public string hashKey { get; set; }
 
+        /// <summary>
+        /// Recursively converts this legacy subgroup into a SynthEBD <see cref="AssetPack.Subgroup"/>: importing
+        /// attributes, normalizing and converting the source→destination texture paths (via
+        /// <see cref="zEBDTexturePathConversionDict"/>), resolving race EditorIDs/groupings, and parsing descriptors.
+        /// Unrecognized destination paths are appended to <paramref name="conversionErrors"/>.
+        /// </summary>
         public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
         {
             AssetPack.Subgroup s = new AssetPack.Subgroup();
@@ -386,6 +419,7 @@ class ZEBDAssetPack
             return s;
         }
 
+        /// <summary>Maps legacy zEBD built-in race-grouping keys to their SynthEBD race-grouping labels.</summary>
         public static Dictionary<string, string> zEBDtoSynthEBDRaceGroupingNames = new Dictionary<string, string>()
         {
             {"humanoid", "Humanoid" },
@@ -404,6 +438,13 @@ class ZEBDAssetPack
         };
     }
 
+    /// <summary>
+    /// Converts this legacy zEBD asset pack into a SynthEBD <see cref="AssetPack"/>: converting every subgroup,
+    /// wiring up the default/beast-race record templates, and — if any subgroup references BodyGen — prompting
+    /// the user (via a dialog) to link an available BodyGen config. Conversion errors are written to a
+    /// per-config log and surfaced in a message box.
+    /// </summary>
+    /// <returns>The converted asset pack.</returns>
     public AssetPack ToSynthEBDAssetPack(List<RaceGrouping> raceGroupings, List<SkyrimMod> recordTemplatePlugins, BodyGenConfigs availableBodyGenConfigs, IEnvironmentStateProvider environmentProvider, Converters converters, Logger logger, SynthEBDPaths paths)
     {
         List<string> conversionErrors = new List<string>();
@@ -503,6 +544,7 @@ class ZEBDAssetPack
         return s;
     }
 
+    /// <summary>Record paths used to add beast-race "additional races" entries to converted record templates.</summary>
     private static HashSet<string> AdditionalRacesPathsBeastRaces = new HashSet<string>(){
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && PatchableRaces.Contains(Race)].AdditionalRaces",
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && PatchableRaces.Contains(Race)].AdditionalRaces",
@@ -510,6 +552,7 @@ class ZEBDAssetPack
         "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && PatchableRaces.Contains(Race)].AdditionalRaces"
     };
 
+    /// <summary>Finds the FormKey of the NPC with the given EditorID in a plugin (or a null FormKey if absent).</summary>
     private static FormKey GetNPCByEDID(SkyrimMod plugin, string edid)
     {
         foreach (var npc in plugin.Npcs)
@@ -522,6 +565,7 @@ class ZEBDAssetPack
         return new FormKey();
     }
 
+    /// <summary>Returns true if the subgroup (or any descendant) references a BodyGen descriptor, indicating the legacy config used BodyGen.</summary>
     private static bool zEBDConfigReferencesBodyGen(ZEBDSubgroup subgroup)
     {
         if (subgroup.allowedBodyGenDescriptors.Count > 0) { return true; }
@@ -533,6 +577,7 @@ class ZEBDAssetPack
         return false;
     }
         
+    /// <summary>Maps legacy zEBD destination texture filenames to their SynthEBD record-path equivalents, used by <see cref="ZEBDSubgroup.ToSynthEBDSubgroup"/>.</summary>
     private static Dictionary<string, string> zEBDTexturePathConversionDict = new Dictionary<string, string>()
     {            
         // common
