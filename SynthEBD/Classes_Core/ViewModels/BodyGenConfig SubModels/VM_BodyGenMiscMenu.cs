@@ -1,9 +1,14 @@
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the BodyGen config editor's miscellaneous menu. Exposes the command that
+/// configures RaceMenu's ini for BodyGen via <see cref="RaceMenuIniHandler"/>.
+/// </summary>
 public class VM_BodyGenMiscMenu
 {
     private readonly Logger _logger;
     private readonly RaceMenuIniHandler _raceMenuHandler;
+    /// <summary>Wires up the SetRaceMenuINI command, which sets RaceMenu's ini for BodyGen and reports success/failure via the status logger.</summary>
     public VM_BodyGenMiscMenu(Logger logger, RaceMenuIniHandler raceMenuHandler)
     {
         _logger = logger;

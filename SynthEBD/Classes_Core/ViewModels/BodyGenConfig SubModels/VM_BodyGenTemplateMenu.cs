@@ -14,13 +14,21 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the BodyGen config editor's template (morph) menu. Owns the list of template
+/// placeholders, the currently-displayed <see cref="VM_BodyGenTemplate"/>, and the shared
+/// read-only <see cref="VM_CharacterViewer"/> used for live morph preview. Supports importing
+/// templates from a zEBD Templates.ini.
+/// </summary>
 public class VM_BodyGenTemplateMenu : VM
 {
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_BodyGenTemplate.Factory _bodyGenTemplateFactory;
+    /// <summary>Autofac factory delegate for <see cref="VM_BodyGenTemplateMenu"/>.</summary>
     public delegate VM_BodyGenTemplateMenu Factory(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
 
+    /// <summary>Creates the shared character viewer, wires Add/Remove/Import template commands, sets up the alphabetizer, and on selection change dumps+disposes the previously displayed template and builds the newly selected one.</summary>
     public VM_BodyGenTemplateMenu(VM_BodyGenConfig parentConfig, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, SettingsIO_BodyGen bodyGenIO, VM_NPCAttributeCreator attributeCreator, VM_BodyGenTemplate.Factory bodyGenTemplateFactory, Func<VM_CharacterViewer> characterViewerFactory)
     {
         _bodyGenIO = bodyGenIO;
@@ -112,6 +120,7 @@ public class VM_BodyGenTemplateMenu : VM
 
     private VM_BodyGenTemplatePlaceHolder _stashedPlaceHolder;
 
+    /// <summary>Stashes the current selection and clears it, so the displayed morph is torn down (used before bulk operations); pair with <see cref="RestoreStashedMorph"/>.</summary>
     public void StashAndNullDisplayedMorph()
     {
         if (SelectedPlaceHolder != null)
@@ -121,6 +130,7 @@ public class VM_BodyGenTemplateMenu : VM
         }
     }
 
+    /// <summary>Re-selects the placeholder stashed by <see cref="StashAndNullDisplayedMorph"/>.</summary>
     public void RestoreStashedMorph()
     {
         if (_stashedPlaceHolder != null)
@@ -130,9 +140,15 @@ public class VM_BodyGenTemplateMenu : VM
     }
 }
 
+/// <summary>
+/// Lightweight list-node view model standing in for a <see cref="BodyGenConfig.BodyGenTemplate"/>
+/// in the template list. Holds the model plus display label/border color, and lazily references the
+/// heavyweight <see cref="VM_BodyGenTemplate"/> only while selected.
+/// </summary>
 [DebuggerDisplay("{Label}")]
 public class VM_BodyGenTemplatePlaceHolder : VM
 {
+    /// <summary>Seeds label and border color (red/yellow/green) from the model's group/descriptor completeness, and mirrors the associated VM's label and border color when one is present.</summary>
     public VM_BodyGenTemplatePlaceHolder(BodyGenConfig.BodyGenTemplate model, ObservableCollection<VM_BodyGenTemplatePlaceHolder> parentCollection)
     {
         AssociatedModel = model;
@@ -163,6 +179,11 @@ public class VM_BodyGenTemplatePlaceHolder : VM
 
 }
 
+/// <summary>
+/// Full editor view model of a <see cref="BodyGenConfig.BodyGenTemplate"/>: a named BodyGen morph with
+/// its spec string, group membership, body-shape descriptors, allowed/disallowed races and attributes,
+/// probability weighting, and required templates. Drives the template editor pane and the live morph preview.
+/// </summary>
 [DebuggerDisplay("{Label}")]
 public class VM_BodyGenTemplate : VM
 {
@@ -173,7 +194,9 @@ public class VM_BodyGenTemplate : VM
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _descriptorSelectionFactory;
     private readonly VM_SettingsBodyGen _bodyGenSettingsVM;
     private readonly PreviewNpcResolver _previewNpcResolver;
+    /// <summary>Autofac factory delegate for <see cref="VM_BodyGenTemplate"/>.</summary>
     public delegate VM_BodyGenTemplate Factory(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig);
+    /// <summary>Links back to its placeholder, builds the group/descriptor/race-grouping selection menus, wires the Add-attribute/weight/required-template and Delete commands, and sets up throttled live-preview subscriptions on the spec string and preview-weight slider.</summary>
     public VM_BodyGenTemplate(VM_BodyGenTemplatePlaceHolder associatedPlaceHolder, ObservableCollection<VM_CollectionMemberString> templateGroups, VM_BodyShapeDescriptorCreationMenu BodyShapeDescriptors, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenConfig parentConfig, IEnvironmentStateProvider environmentProvider, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, Logger logger, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_SettingsBodyGen bodyGenSettingsVM, PreviewNpcResolver previewNpcResolver)
     {
         _environmentProvider = environmentProvider;
@@ -300,6 +323,7 @@ public class VM_BodyGenTemplate : VM
     // selection churn (VM_BodyGenTemplate is rebuilt on every selection).
     public VM_CharacterViewer CharacterViewer => ParentConfig?.TemplateMorphUI?.CharacterViewer;
 
+    /// <summary>Populates this view model from its placeholder's associated model (labels, specs, group/descriptor selections, race and attribute lists, weighting) and fires an immediate preview refresh.</summary>
     public void CopyInViewModelFromModel(VM_BodyShapeDescriptorCreationMenu descriptorMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs)
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
@@ -408,6 +432,7 @@ public class VM_BodyGenTemplate : VM
         }
     }
 
+    /// <summary>Writes this view model's edited state back into its placeholder's associated model.</summary>
     public void DumpViewModelToModel()
     {
         var model = AssociatedPlaceHolder.AssociatedModel;
@@ -431,6 +456,7 @@ public class VM_BodyGenTemplate : VM
         model.WeightRange = WeightRange.Clone();
     }
 
+    /// <summary>Partitions the config's templates by whether they share a template group with this one: returns those that do, and stores the rest in <see cref="OtherGroupsTemplateCollection"/>. Skipped while the parent config is loading.</summary>
     public ObservableCollection<VM_BodyGenTemplatePlaceHolder> UpdateThisOtherGroupsTemplateCollection()
     {
         if (ParentConfig.IsLoadingFromViewModel)
@@ -446,6 +472,7 @@ public class VM_BodyGenTemplate : VM
         return new(sameGroups);
     }
 
+    /// <summary>Recomputes border color and status text: red if the template belongs to no group, yellow if it lacks descriptor annotations, green otherwise.</summary>
     public void UpdateStatusDisplay()
     {
         var belongsToGroup = false;

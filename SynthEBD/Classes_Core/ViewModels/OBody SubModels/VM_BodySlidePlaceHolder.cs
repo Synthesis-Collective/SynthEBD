@@ -11,6 +11,11 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Lightweight list-node view model for a <see cref="BodySlideSetting"/> in the OBody BodySlide list.
+    /// Holds display label/border color and visibility (hidden vs. shown), runs auto-annotation on load,
+    /// and lazily references the heavyweight <see cref="VM_BodySlideSetting"/> only while selected.
+    /// </summary>
     [DebuggerDisplay("{Label}")]
     public class VM_BodySlidePlaceHolder : VM
     {
@@ -18,8 +23,10 @@ namespace SynthEBD
         private readonly VM_SettingsOBody _obodyVM;
         private readonly BodySlideAnnotator _bodySlideAnnotator;
         private readonly AnnotationLibraryAnnotator _libraryAnnotator;
+        /// <summary>Autofac factory delegate for <see cref="VM_BodySlidePlaceHolder"/>.</summary>
         public delegate VM_BodySlidePlaceHolder Factory(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection);
 
+        /// <summary>Seeds label/border color, runs initial annotation, and subscribes to mirror the associated VM's label/color plus recompute visibility from the hidden flag and the menu's "show hidden" toggle.</summary>
         public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM, BodySlideAnnotator bodySlideAnnotator, AnnotationLibraryAnnotator libraryAnnotator)
         {
             _patcherState = patcherState;
@@ -65,6 +72,7 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
+        /// <summary>Marks the model as manually annotated if any manual descriptors exist, then (when auto-apply is enabled) runs the annotation-library and rule-based annotators in sequence.</summary>
         private void InitializeAnnotation()
         {
             bool hasAnnotations = AssociatedModel.EnumerateAllDescriptors().Any(x => x.Source == BodyShapeAnnotationSource.Manual);
@@ -83,6 +91,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Sets the border color: "missing" if the referenced BodySlide no longer exists, "hidden" if hidden in menu, otherwise the color for the model's annotation state. Mirrors VM_BodySlideSetting.UpdateStatusDisplay().</summary>
         public void InitializeBorderColor() // this should follow the same logic as VM_BodySlideSettings.UpdateStatusDisplay()
         {
             if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(AssociatedModel.ReferencedBodySlide))
@@ -99,6 +108,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Appends/bumps a trailing numeric suffix on this clone's label to make it unique among siblings referencing the same BodySlide, updating model and associated VM. Returns the parent-collection index of the last existing clone (a suggested insert position).</summary>
         public int RenameByIndex()
         {
             int cloneIndex = 0;
@@ -144,6 +154,7 @@ namespace SynthEBD
             return lastClonePosition;
         }
 
+        /// <summary>Parses the trailing run of digits at the end of <paramref name="input"/> into <paramref name="number"/>; returns false if there is no trailing integer.</summary>
         private static bool GetTrailingInt(string input, out int number)
         {
             number = 0;

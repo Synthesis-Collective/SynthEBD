@@ -8,10 +8,17 @@ using DynamicData.Binding;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the BodyGen config editor's race-to-template-group mapping menu. Holds the
+/// collection of <see cref="VM_BodyGenRacialMapping"/> entries that bind races (or race groupings)
+/// to template-group combinations.
+/// </summary>
 public class VM_BodyGenGroupMappingMenu : VM
 {
     private readonly VM_BodyGenRacialMapping.Factory _mappingFactory;
+    /// <summary>Autofac factory delegate for <see cref="VM_BodyGenGroupMappingMenu"/>.</summary>
     public delegate VM_BodyGenGroupMappingMenu Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    /// <summary>Wires up the Add/Remove mapping commands; AddMapping seeds a new mapping with one combination preloaded with the first available template group.</summary>
     public VM_BodyGenGroupMappingMenu(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory)
     {
         _mappingFactory = mappingFactory;
@@ -40,11 +47,18 @@ public class VM_BodyGenGroupMappingMenu : VM
     public RelayCommand RemoveMapping { get; }
 }
 
+/// <summary>
+/// View model of a <see cref="BodyGenConfig.RacialMapping"/>: maps a set of races / race groupings
+/// to one or more template-group <see cref="VM_BodyGenCombination"/>s. Backs a single mapping entry
+/// in the group mapping menu.
+/// </summary>
 public class VM_BodyGenRacialMapping : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    /// <summary>Autofac factory delegate for <see cref="VM_BodyGenRacialMapping"/>.</summary>
     public delegate VM_BodyGenRacialMapping Factory(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
+    /// <summary>Builds the race-grouping checkbox list, tracks the link cache, wires Add/Remove combination commands, and toggles <see cref="ShowAddNew"/> based on whether any combinations exist.</summary>
     public VM_BodyGenRacialMapping(VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, IEnvironmentStateProvider environmentProvider, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -99,6 +113,7 @@ public class VM_BodyGenRacialMapping : VM
     public RelayCommand RemoveCombination { get; }
     public bool ShowAddNew { get; set; }
 
+    /// <summary>Builds a <see cref="VM_BodyGenRacialMapping"/> from its persisted model.</summary>
     public static VM_BodyGenRacialMapping GetViewModelFromModel(BodyGenConfig.RacialMapping model, VM_BodyGenGroupsMenu groupsMenu, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodyGenRacialMapping.Factory mappingFactory, Logger logger)
     {
         VM_BodyGenRacialMapping viewModel = mappingFactory(groupsMenu, raceGroupingVMs);
@@ -113,6 +128,7 @@ public class VM_BodyGenRacialMapping : VM
         return viewModel;
     }
 
+    /// <summary>Serializes a <see cref="VM_BodyGenRacialMapping"/> back into its persisted model.</summary>
     public static BodyGenConfig.RacialMapping DumpViewModelToModel(VM_BodyGenRacialMapping viewModel)
     {
         BodyGenConfig.RacialMapping model = new BodyGenConfig.RacialMapping();
@@ -126,8 +142,13 @@ public class VM_BodyGenRacialMapping : VM
         return model;
     }
 }
+/// <summary>
+/// View model of a <see cref="BodyGenConfig.RacialMapping.BodyGenCombination"/>: a weighted set of
+/// template-group member strings drawn from the parent mapping. Self-removes from its parent when emptied.
+/// </summary>
 public class VM_BodyGenCombination : VM
 {
+    /// <summary>Subscribes to the available template groups, wires Add/Remove member commands, and auto-removes the combination when its member list becomes empty.</summary>
     public VM_BodyGenCombination(VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {
         MonitoredGroups = groupsMenu.TemplateGroups;
@@ -157,6 +178,7 @@ public class VM_BodyGenCombination : VM
 
     public RelayCommand AddMember { get; }
 
+    /// <summary>Builds a <see cref="VM_BodyGenCombination"/> from its persisted model.</summary>
     public static VM_BodyGenCombination GetViewModelFromModel(BodyGenConfig.RacialMapping.BodyGenCombination model, VM_BodyGenGroupsMenu groupsMenu, VM_BodyGenRacialMapping parent)
     {
         VM_BodyGenCombination viewModel = new VM_BodyGenCombination(groupsMenu, parent);
@@ -165,6 +187,7 @@ public class VM_BodyGenCombination : VM
         return viewModel;
     }
 
+    /// <summary>Serializes a <see cref="VM_BodyGenCombination"/> back into its persisted model.</summary>
     public static BodyGenConfig.RacialMapping.BodyGenCombination DumpViewModelToModel(VM_BodyGenCombination viewModel)
     {
         BodyGenConfig.RacialMapping.BodyGenCombination model = new BodyGenConfig.RacialMapping.BodyGenCombination();
@@ -173,6 +196,7 @@ public class VM_BodyGenCombination : VM
         return model;
     }
 
+    /// <summary>Removes this combination from its parent mapping if it has no members left.</summary>
     public void CheckForEmptyCombination()
     {
         if (Members.Count == 0)

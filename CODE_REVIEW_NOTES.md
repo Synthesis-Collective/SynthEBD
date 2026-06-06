@@ -796,6 +796,34 @@ error during cleanup would be indistinguishable from "no token file". 💭
   duplicate `GroupName` is processed twice (last wins); the `.Where(x => x.GroupName == ...).FirstOrDefault()`
   could be `.FirstOrDefault(pred)`.
 
+### `VM_BodySlidePlaceHolder.RenameByIndex` — 🐞 possible bug (TrimEnd by char-set)
+
+[VM_BodySlidePlaceHolder.cs:142](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodySlidePlaceHolder.cs#L142) ·
+`Label.TrimEnd(selectedCloneIndex.ToString().ToArray())` is intended to strip the old index *suffix* before
+appending the new one, but `string.TrimEnd(char[])` removes every trailing character in the set, not a
+suffix. So renaming clone "Body22" with index 2 trims both trailing '2's → "Body", and any label whose real
+text ends in a digit that overlaps the index gets corrupted. Should strip the exact suffix instead.
+
+### `VM_OBodyTrainerExporter` items — 🐞 / 💭
+
+- [VM_OBodyTrainerExporter.cs:286](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L286) ·
+  the model save path is built with a bare `DateTime.Now.ToString()` (no format/culture), which on most
+  locales produces `/` and `:` — invalid Windows path characters — and is culture-dependent. The sibling at
+  [:101](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L101) does it correctly
+  (`"yyyy-MM-dd-HH-mm"` + `InvariantCulture`); :286 should match. 🐞
+- The `TrainerExportDTO` class + its `ExportTrainingDTO` builder
+  ([:352](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L352)) appear unused
+  (only the *learning* DTO path is invoked) — verify and remove if dead. The save-dialog filter string
+  `"CSV files (.csv|*.csv"` ([:102](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L102))
+  has a typo'd description (missing `)`), though it still parses as a single valid filter pair. 💭
+
+### BodyGen-config submenu nits — 🔧 / 💭
+
+`VM_BodyGenGroupsMenu.RemoveTemplateGroup` is a get-only `RelayCommand` that appears never assigned (dead/
+unwired). Across `VM_BodyGenGroupMappingMenu` / `VM_BodyGenTemplateMenu` / `VM_BodySlideAnnotator`, the usual
+`.Where(pred).First()` / `.Where(pred).FirstOrDefault()` / `.Where(pred).Any()` → `.First(pred)` /
+`.FirstOrDefault(pred)` / `.Any(pred)` cleanups recur. All minor.
+
 <!-- ENTRIES:Classes_Core_VM -->
 
 ---

@@ -9,6 +9,12 @@ using System.Diagnostics;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the OBody BodySlide annotation-rules panel. Builds and edits per-body-type,
+/// per-descriptor slider-classification rules and applies them (via <see cref="BodySlideAnnotator"/>)
+/// to assign body-shape descriptors to the loaded BodySlide presets. Round-trips to
+/// <see cref="OBodySettings.BodySlideClassificationRules"/>.
+/// </summary>
 public class VM_BodySlideAnnotator : VM
 {
     private readonly PatcherState _patcherState;
@@ -17,7 +23,9 @@ public class VM_BodySlideAnnotator : VM
     private readonly BodySlideAnnotator _bodySlideAnnotator;
     private readonly Logger _logger;
 
+    /// <summary>Autofac factory delegate for <see cref="VM_BodySlideAnnotator"/>.</summary>
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
+    /// <summary>Wires up the ApplyAnnotations command.</summary>
     public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger)
     {
         _patcherState = patcherState;
@@ -40,6 +48,7 @@ public class VM_BodySlideAnnotator : VM
     private List<SliderClassificationRulesByBodyType> _stashedUnloadedBodyTypeRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
     public RelayCommand ApplyAnnotationsCommand { get; }
 
+    /// <summary>Scans all loaded male/female BodySlides to build the slider-name-by-group map, creates a rule-set VM per body-type group, and repopulates the menu's available slider groups.</summary>
     public void InitializeBodySlideInfo()
     {
         SliderNamesByGroup.Clear();
@@ -81,6 +90,7 @@ public class VM_BodySlideAnnotator : VM
         Noggog.ListExt.AddRange(_bodySlideMenu.AvailableSliderGroups, SliderNamesByGroup.Keys);
     }
 
+    /// <summary>Loads persisted classification rules into the rule-set VMs by body type; rules for body types not present in the current BodySlide set are stashed so they aren't lost on save.</summary>
     public void CopyInFromModel()
     {
         InitializeBodySlideInfo();
@@ -112,6 +122,7 @@ public class VM_BodySlideAnnotator : VM
         }
     }
 
+    /// <summary>Serializes the per-body-type rule-set VMs (plus any stashed unloaded rules) into the classification-rules dictionary, warning on duplicate body-type keys.</summary>
     public Dictionary<string, SliderClassificationRulesByBodyType> DumpToModel()
     {
         Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules = new();
@@ -140,6 +151,7 @@ public class VM_BodySlideAnnotator : VM
         return bodySlideClassificationRules;
     }
 
+    /// <summary>Runs the rule-based annotator over the loaded BodySlides (optionally filtered to one slider group and/or one descriptor category), refreshes border colors, and posts a status notification.</summary>
     public void ApplyAnnotations(string? specifiedSliderGroup, string? specifiedDescriptorCategory)
     {
         var targetVMs = _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale).ToList();
@@ -163,9 +175,14 @@ public class VM_BodySlideAnnotator : VM
     }
 }
 
+/// <summary>
+/// View model of a <see cref="SliderClassificationRulesByBodyType"/>: the full set of descriptor
+/// classification rule-sets for one body type (e.g. CBBE, HIMBO).
+/// </summary>
 [DebuggerDisplay("{SliderGroup}: Rule List for {DescriptorClassifiers.Count} Descriptors")]
 public class VM_SliderClassificationRulesByBodyType : VM // contains a list of rules for each descriptor
 {
+    /// <summary>Creates a per-descriptor rule-set VM for each descriptor shell in the subscribed menu and wires the ApplyAnnotations command scoped to this body type.</summary>
     public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM)
     {
         _subscribedDescriptorMenu = subscribedMenu;
@@ -189,6 +206,7 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
     public RelayCommand ApplyAnnotationsCommand { get; }
     private List<DescriptorClassificationRuleSet> _stashedUnloadedDescriptorRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
 
+    /// <summary>Loads each descriptor rule-set from the model into its matching child VM; rule-sets for descriptors not present in the UI are stashed to avoid loss on save.</summary>
     public void CopyInFromModel(SliderClassificationRulesByBodyType model)
     {
         _stashedUnloadedDescriptorRules.Clear();
@@ -207,6 +225,7 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         }
     }
 
+    /// <summary>Serializes the child descriptor rule-set VMs (plus stashed unloaded rules) into a <see cref="SliderClassificationRulesByBodyType"/> model.</summary>
     public SliderClassificationRulesByBodyType DumpToModel()
     {
         SliderClassificationRulesByBodyType model = new();
@@ -217,9 +236,14 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
     }
 }
 
+/// <summary>
+/// View model of a <see cref="DescriptorClassificationRuleSet"/>: the classification rules and default
+/// value for a single descriptor category (e.g. "Build") within one body type.
+/// </summary>
 [DebuggerDisplay("{DescriptorCategory}: {RuleList.Count} Rule Groups")]
 public class VM_DescriptorClassificationRuleSet : VM // rule set for a given descriptor
 {
+    /// <summary>Captures the descriptor category/values, refreshes the available default-value list, and wires the Add-rule-group and ApplyAnnotations (scoped to this category) commands.</summary>
     public VM_DescriptorClassificationRuleSet(VM_BodyShapeDescriptorShell subscribedDescriptorShell, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM, VM_SliderClassificationRulesByBodyType parentVM)
     {
         _subscribedDescriptorShell = subscribedDescriptorShell;
@@ -256,6 +280,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     public RelayCommand ApplyAnnotationsCommand { get; }
     public RelayCommand AddNewRuleGroup { get; }
 
+    /// <summary>Loads the default descriptor value and rebuilds the rule list from the model.</summary>
     public void CopyInFromModel(DescriptorClassificationRuleSet model)
     {
         DefaultDescriptorValue = _subscribedDescriptorShell.Descriptors.Where(x => x.Value == model.DefaultDescriptorValue).FirstOrDefault();
@@ -269,6 +294,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         }
     }
 
+    /// <summary>Serializes the category, default value, and rule list into a <see cref="DescriptorClassificationRuleSet"/> model.</summary>
     public DescriptorClassificationRuleSet DumpToModel()
     {
         DescriptorClassificationRuleSet model = new();
@@ -278,6 +304,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         return model;
     }
 
+    /// <summary>Syncs <see cref="AvailableDefaultDescriptors"/> with the subscribed descriptors, keeping a leading empty/dummy option and dropping entries no longer present.</summary>
     private void RefreshAvailableDefaults()
     {
         if (!AvailableDefaultDescriptors.Where(x => x.Value.IsNullOrEmpty()).Any())
@@ -309,14 +336,20 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         }
     }
 
+    /// <summary>Placeholder empty-value descriptor used as the "no default" option in the default-value dropdown.</summary>
     private class DummyDescriptor: IHasValueString
     {
         public string Value { get; set; } = string.Empty;
     }
 }
 
+/// <summary>
+/// View model of a <see cref="DescriptorAssignmentRuleSet"/>: one descriptor value plus the OR-list of
+/// AND-gated slider rule groups that, when matched, assign that value. Self-removes when its OR-list empties.
+/// </summary>
 public class VM_DescriptorAssignmentRuleSet : VM
 {
+    /// <summary>Captures the descriptor category/values, wires the Add-rule-set command, and auto-removes this rule-set from its parent when its OR-logic list becomes empty.</summary>
     public VM_DescriptorAssignmentRuleSet(VM_BodyShapeDescriptorShell subscribedDescriptorShell, ObservableCollection<string> availableSliderNames, ObservableCollection<VM_DescriptorAssignmentRuleSet> parentCollection)
     {
         DescriptorCategory = subscribedDescriptorShell.Category;
@@ -348,6 +381,7 @@ public class VM_DescriptorAssignmentRuleSet : VM
     public ObservableCollection<VM_AndGatedSliderRuleGroup> RuleListORlogic { get; set; } = new();
     public RelayCommand AddNewRuleSet { get; }
 
+    /// <summary>Loads the selected descriptor value and the OR-list of AND-gated rule groups from the model.</summary>
     public void CopyInFromModel(DescriptorAssignmentRuleSet model)
     {
         SelectedDescriptorValue = SubscribedDescriptorValues.Where(x => x.Value == model.SelectedDescriptorValue).FirstOrDefault();
@@ -359,6 +393,7 @@ public class VM_DescriptorAssignmentRuleSet : VM
         }
     }
 
+    /// <summary>Serializes the selected descriptor value and OR-list of rule groups into a <see cref="DescriptorAssignmentRuleSet"/> model.</summary>
     public DescriptorAssignmentRuleSet DumpToModel()
     {
         var model = new DescriptorAssignmentRuleSet();
@@ -368,9 +403,14 @@ public class VM_DescriptorAssignmentRuleSet : VM
     }
 }
 
+/// <summary>
+/// View model of an <see cref="AndGatedSliderRuleGroup"/>: a set of slider rules that must all match
+/// (AND logic) for the group to fire. Self-removes when its rule list empties.
+/// </summary>
 [DebuggerDisplay("AND-gated Rule List: Count = {RuleListANDlogic.Count}")]
 public class VM_AndGatedSliderRuleGroup : VM
 {
+    /// <summary>Wires the Add-rule command and auto-removes this group from its parent when its AND-logic rule list becomes empty.</summary>
     public VM_AndGatedSliderRuleGroup(ObservableCollection<string> availableSliderNames, ObservableCollection<VM_AndGatedSliderRuleGroup> parentCollection)
     {
         AvailableSliderNames = availableSliderNames;
@@ -391,8 +431,10 @@ public class VM_AndGatedSliderRuleGroup : VM
     public ObservableCollection<string> AvailableSliderNames { get; }
     public ObservableCollection<VM_SliderClassificationRule> RuleListANDlogic { get; set; } = new();
     public RelayCommand AddNewRule { get; }
+    /// <summary>True when this group has no rules, or none of its rules are non-empty.</summary>
     public bool IsEmpty => !RuleListANDlogic.Any() || !RuleListANDlogic.Where(x => !x.IsEmpty).Any();
 
+    /// <summary>Loads the AND-logic slider rules from the model.</summary>
     public void CopyInFromModel(AndGatedSliderRuleGroup model)
     {
         foreach (var andGatedRuleGroup in model.RuleListANDlogic)
@@ -401,6 +443,7 @@ public class VM_AndGatedSliderRuleGroup : VM
         }
     }
 
+    /// <summary>Serializes the AND-logic slider rules into an <see cref="AndGatedSliderRuleGroup"/> model.</summary>
     public AndGatedSliderRuleGroup DumpToModel()
     {
         var model = new AndGatedSliderRuleGroup();
@@ -410,9 +453,14 @@ public class VM_AndGatedSliderRuleGroup : VM
 }
 
 
+/// <summary>
+/// View model of a single <see cref="SliderClassificationRule"/>: one slider name, type (big/small),
+/// comparator, and threshold value — the atomic predicate of the annotation rule engine.
+/// </summary>
 [DebuggerDisplay("{SliderName} ({SliderType}) {Comparator} {Value}")]
 public class VM_SliderClassificationRule : VM
 {
+    /// <summary>Captures the available slider names and wires the Delete and Add-AND-rule commands.</summary>
     public VM_SliderClassificationRule(ObservableCollection<string> sliderNames, ObservableCollection<VM_SliderClassificationRule> parentCollection)
     {
         AvaliableSliderNames = sliderNames;
@@ -435,10 +483,12 @@ public class VM_SliderClassificationRule : VM
     public string Comparator { get; set; } = "=";
     public int Value { get; set; }
     public ObservableCollection<string> AvaliableSliderNames { get; set; }
+    /// <summary>True when no slider name has been chosen yet.</summary>
     public bool IsEmpty => SliderName.IsNullOrWhitespace();
     public RelayCommand DeleteMe { get; }
     public RelayCommand AddANDRule { get; }
 
+    /// <summary>Builds a <see cref="VM_SliderClassificationRule"/> from its model, adding the model's slider name to the available list if missing.</summary>
     public static VM_SliderClassificationRule CreateFromModel(SliderClassificationRule model, ObservableCollection<string> sliderNames, ObservableCollection<VM_SliderClassificationRule> parentCollection)
     {
         var sliderClassificationRule = new VM_SliderClassificationRule(sliderNames, parentCollection);
@@ -453,6 +503,7 @@ public class VM_SliderClassificationRule : VM
         return sliderClassificationRule;
     }
 
+    /// <summary>Serializes this rule into a <see cref="SliderClassificationRule"/> model.</summary>
     public SliderClassificationRule DumpToModel()
     {
         return new()

@@ -13,11 +13,17 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the OBody ML trainer/exporter. Lets the user pick BodySlide presets, slider groups, and
+/// sliders, then either trains an ML.NET classification model per descriptor category or exports the labeled
+/// training set as CSV.
+/// </summary>
 public class VM_OBodyTrainerExporter : VM
 {
     private readonly Func<VM_SettingsOBody> _parentVM;
     private readonly SynthEBDPaths _paths;
     private readonly IO_Aux _auxIO;
+    /// <summary>Wires the select/deselect group and slider commands, the Train-model command, and the Export-training-set (CSV) command.</summary>
     public VM_OBodyTrainerExporter(Func<VM_SettingsOBody> parentVM, SynthEBDPaths paths, IO_Aux auxIO)
     {
         _parentVM = parentVM;
@@ -129,6 +135,7 @@ public class VM_OBodyTrainerExporter : VM
     public RelayCommand TrainModel { get; }
     public RelayCommand ExportTrainingSet { get; }
 
+    /// <summary>Rebuilds the available-BodySlide list from the parent OBody VM, grouped and sorted by slider group, pre-selecting those matching the currently displayed annotation rule set, then refreshes slider names and descriptor categories.</summary>
     public void Reinitialize()
     {
         var parentVM = _parentVM();
@@ -162,6 +169,7 @@ public class VM_OBodyTrainerExporter : VM
         }
     }
 
+    /// <summary>Recomputes the available-sliders list to the union of sliders used by the currently selected BodySlides, sorted by name, with each entry's display text annotated with its usage count.</summary>
     public void RefreshAvaliableSliderNames()
     {
         HashSet<BodySlideSlider> availableSliders = AvailableBodySlides.Where(x => x.IsSelected)
@@ -196,6 +204,7 @@ public class VM_OBodyTrainerExporter : VM
         }
     }
 
+    /// <summary>Counts how many of the currently selected BodySlides use the named slider.</summary>
     public int GetSliderCount(string sliderName)
     {
         int count = 0;
@@ -209,6 +218,7 @@ public class VM_OBodyTrainerExporter : VM
         return count;
     }
 
+    /// <summary>Builds a slider-matrix <see cref="TrainerExportDTO"/> from the selected (or all) BodySlides and sliders, using the big/small slider type per the radio selection; null if neither type is chosen.</summary>
     private TrainerExportDTO? ExportTrainingDTO(bool selectedOnly)
     {
         var selectedBodySlides = (selectedOnly ? AvailableBodySlides.Where(x => x.IsSelected) : AvailableBodySlides)
@@ -224,6 +234,7 @@ public class VM_OBodyTrainerExporter : VM
         null;
     }
 
+    /// <summary>Builds a per-row labeled <see cref="TrainerExportLearningDTO"/> (classified by the given descriptor category) from the selected (or all) BodySlides and sliders; null if neither big nor small type is chosen.</summary>
     private TrainerExportLearningDTO? ExportTrainingLearningDTO(bool selectedOnly, string category)
     {
         var selectedBodySlides = (selectedOnly ? AvailableBodySlides.Where(x => x.IsSelected) : AvailableBodySlides)
@@ -240,6 +251,7 @@ public class VM_OBodyTrainerExporter : VM
     }
 
 
+    /// <summary>Trains an ML.NET pipeline on the full BodySlide set labeled by the selected descriptor category and saves the model under the OBody settings "Models" folder. No-ops if no descriptor is selected.</summary>
     private void CreateModel()
     {
         var currentDescriptor = AvailableDescriptors.Where(x => x.IsSelected).FirstOrDefault()?.Text ?? string.Empty;
@@ -281,8 +293,13 @@ public class VM_OBodyTrainerExporter : VM
     }
 }
 
+/// <summary>
+/// Selectable wrapper around a <see cref="VM_BodySlidePlaceHolder"/> for the trainer's checkbox list;
+/// toggling its selection triggers the parent exporter to refresh available slider names.
+/// </summary>
 public class VM_SelectableBodySlidePlaceHolder : VM
 {
+    /// <summary>Builds the "[group] label" display string and subscribes selection changes to the parent's slider-name refresh (unless refresh is paused).</summary>
     public VM_SelectableBodySlidePlaceHolder(VM_BodySlidePlaceHolder master, VM_OBodyTrainerExporter parent)
     {
         SubscribedBodySlide = master;
@@ -303,8 +320,10 @@ public class VM_SelectableBodySlidePlaceHolder : VM
     public bool IsSelected { get; set; }
 }
 
+/// <summary>Selectable wrapper around a <see cref="BodySlideSlider"/> for the trainer's slider checkbox list.</summary>
 public class VM_SelectableSlider : VM
 {
+    /// <summary>Captures the subscribed slider and seeds its display text from the slider name.</summary>
     public VM_SelectableSlider(BodySlideSlider slider)
     {
         SubscribedSlider = slider;
@@ -316,14 +335,20 @@ public class VM_SelectableSlider : VM
     public bool IsSelected { get; set; }
 }
 
+/// <summary>Simple selectable text item used for the trainer's slider-group and descriptor-category lists.</summary>
 public class VM_SelectableMenuString : VM
 {
     public string Text { get; set; }
     public bool IsSelected { get; set; }
 }
 
+/// <summary>
+/// Dense slider matrix export: a 2D grid of slider values (rows = BodySlides, columns = sliders) for the
+/// chosen big/small slider type, with missing sliders filled as zero.
+/// </summary>
 public class TrainerExportDTO
 {
+    /// <summary>Builds the column/row name arrays and fills the slider-value matrix from the selected BodySlides, using the big or small value per slider and 0 where absent.</summary>
     public TrainerExportDTO(IList<BodySlideSetting> SelectedBodySlides, IList<string> SelectedSliders, BodySliderType type)
     {
         ColumnNames = SelectedSliders.ToArray();
@@ -363,10 +388,15 @@ public class TrainerExportDTO
     public int[,] SliderValues { get; set; }
 }
 
+/// <summary>
+/// Labeled training-data export for ML: one <see cref="BodyslideData"/> row per BodySlide, each carrying its
+/// slider-value vector and a classification label drawn from the given descriptor category.
+/// </summary>
 public class TrainerExportLearningDTO
 {
     public List<BodyslideData> DataEntries { get; set; } = new();
     public List<string> SliderNames { get; set; } = new();
+    /// <summary>Builds one labeled data row per BodySlide: classification = its descriptor values in the target category joined by "|", and a slider vector (big/small value, 0 where absent) over the selected sliders.</summary>
     public TrainerExportLearningDTO(IList<BodySlideSetting> SelectedBodySlides, IList<string> SelectedSliders, BodySliderType type, string descriptorCategory)
     {
         DataEntries = new();
@@ -407,6 +437,7 @@ public class TrainerExportLearningDTO
     }
 }
 
+/// <summary>ML.NET feature row for a single BodySlide: name, classification label, and slider-value feature vector.</summary>
 public class BodyslideData
 {
     public string BodyslideName { get; set; }
