@@ -3,13 +3,23 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>An item that carries a relative probability weight for weighted random selection.</summary>
 public interface IProbabilityWeighted
 {
+    /// <summary>Relative weight of this item in a weighted random draw.</summary>
     double ProbabilityWeighting { get; set; }
 }
 
+/// <summary>
+/// Weighted random selection helpers plus computation of multiplicative probability-modifier factors
+/// from attribute-conditioned <see cref="AttributeWeightModifier"/> rules.
+/// </summary>
 public class ProbabilityWeighting
 {
+    /// <summary>
+    /// Selects one item from <paramref name="inputs"/> with probability proportional to each item's
+    /// <see cref="IProbabilityWeighted.ProbabilityWeighting"/>. Returns null when the sequence is empty.
+    /// </summary>
     public static IProbabilityWeighted SelectByProbability(IEnumerable<IProbabilityWeighted> inputs)
     {
         if (!inputs.Any()) { return null; }
@@ -43,6 +53,11 @@ public class ProbabilityWeighting
         return inputList[new Random().Next(weightedSet.Count)];
     }
     
+    /// <summary>
+    /// Generic weighted random selection: picks one element of <paramref name="inputs"/> with probability
+    /// proportional to <paramref name="weightSelector"/>. Returns <c>default(T)</c> for a null/empty sequence,
+    /// and falls back to the last element if rounding leaves none selected.
+    /// </summary>
     public static T SelectByProbability<T>(IEnumerable<T> inputs, Func<T, double> weightSelector)
     {
         if (inputs == null || !inputs.Any())

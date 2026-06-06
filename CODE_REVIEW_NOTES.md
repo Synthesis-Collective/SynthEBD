@@ -911,6 +911,39 @@ is reset at the start of each run (and made instance/scoped state if not).
   (`NPCInfo`) can use value equality directly. `output.Select(x => x.Label).Contains(...)` in a loop
   (`FlattenedAssetPack`) is O(n²) — a `HashSet` of seen labels is cleaner. All 🔧 minor.
 
+### `BlockListHandler` per-type head-part flags — 🐞 possible bug (not OR-aggregated)
+
+[BlockListHandler.cs:78](SynthEBD/Patcher/Data%20Mapping/BlockListHandler.cs#L78) · When merging the block
+flags contributed by each plugin in an NPC's context chain, the top-level flags (Assets, BodyShape, Height,
+…) are correctly OR-aggregated (`if (blockedPlugin.X) output.X = true;` — only ever set true). But the
+per-head-part-type loop does `if (blockedPlugin.HeadPartTypes[t]) output[t] = true; else output[t] = false;`
+— the `else` **overwrites** a block set by an earlier plugin, so a later plugin that blocks HeadParts but
+not a given type clears that type's block. Should set true with no else (or `|=`).
+
+### `ProbabilityWeighting` — 🔧 / 💭 (per-call Random + dead fallback)
+
+[ProbabilityWeighting.cs:28](SynthEBD/Patcher/Shared/ProbabilityWeighting.cs#L28),
+[:53](SynthEBD/Patcher/Shared/ProbabilityWeighting.cs#L53),
+[:69](SynthEBD/Patcher/Shared/ProbabilityWeighting.cs#L69) · This hot-path selector news up `Random` three
+separate times across the two overloads (same time-seeded-correlation issue as `BoolByProbability` — prefer
+`Random.Shared`). The first overload also has a fallback block after the weighted pick whose own comment says
+"function should always return by this point": it loops an `int` counter over a `double` ProbabilityWeighting
+(truncating) and indexes `inputList` by `new Random().Next(weightedSet.Count)` — looks like unreachable
+legacy int-only code worth removing.
+
+### Patcher data-mapping / shared smaller items — 🔧 / 💭
+
+- `PatcherSettingsSourceProvider` — stray double semicolon `AppendLine("Source Settings: ");;`;
+  `Path.GetDirectoryName(sourcePath)` (nullable) assigned to a non-null path field; and `Initialized` is read
+  from the source DTO then unconditionally overwritten to `true`, making the read dead.
+- `AllowedDisallowedCombiners.TrimDisallowedRacesFromAllowed` compares FormKeys via `.ToString()` rather than
+  value equality, and the `Trim*` methods mutate the caller's `allowed`/`required` value sets in place (a
+  side effect the names don't advertise).
+- `DictionaryMapper` — redundant `Contains`-before-`Add` on `HashSet`s (×3); `GetMorphDictionaryUnion` /
+  `MergeDictionaries` keep the first value on key collision (no real value-level union), so the
+  "Union"/"Merge" names mislead.
+- `EBDScripts.cs` carries an unused `using System.Runtime.Intrinsics.X86;`.
+
 <!-- ENTRIES:Patcher -->
 
 ---

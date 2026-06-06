@@ -5,8 +5,17 @@ using Mutagen.Bethesda.Skyrim;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Resolves the effective block status (which patcher axes are suppressed) for an NPC from the
+/// user's <see cref="BlockList"/>, both by direct NPC entry and by any plugin in the NPC's override
+/// chain that is plugin-level blocked.
+/// </summary>
 class BlockListHandler
 {
+    /// <summary>
+    /// Returns the <see cref="BlockedNPC"/> entry matching <paramref name="npcFormKey"/>, or a default
+    /// (nothing blocked) entry when the NPC is not present in the block list.
+    /// </summary>
     public static BlockedNPC GetCurrentNPCBlockStatus(BlockList blockList, FormKey npcFormKey)
     {
         var output = blockList.NPCs.Where(x => x.FormKey == npcFormKey).FirstOrDefault();
@@ -23,6 +32,13 @@ class BlockListHandler
     }
 
         
+    /// <summary>
+    /// Aggregates plugin-level block status for an NPC by walking every plugin in its override-context chain
+    /// and OR-ing the per-axis block flags (assets, vanilla body path, body shape, height, head parts and
+    /// per-head-part-type flags) of any matching <see cref="BlockedPlugin"/> entry.
+    /// </summary>
+    /// <param name="linkCache">Link cache used to resolve the NPC's override contexts across the load order.</param>
+    /// <returns>A combined <see cref="BlockedPlugin"/> describing which axes are blocked for this NPC.</returns>
     public static BlockedPlugin GetCurrentPluginBlockStatus(BlockList blockList, FormKey npcFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         var contexts = linkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin

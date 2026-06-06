@@ -7,12 +7,17 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Sets up SynthEBD's JContainers domain in the output folder: creates the <c>PSM_SynthEBD</c> domain
+/// directory (with a placeholder file so Vortex deploys it) and copies the domain Papyrus script.
+/// </summary>
 public class JContainersDomain
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherIO _patcherIO;
     private readonly SynthEBDPaths _paths;
     private readonly Logger _logger;
+    /// <summary>Initializes a new <see cref="JContainersDomain"/> with the environment, IO helper, paths, and logger.</summary>
     public JContainersDomain(IEnvironmentStateProvider environmentProvider, PatcherIO patcherIO, SynthEBDPaths paths, Logger logger)
     {
         _environmentProvider = environmentProvider;
@@ -20,6 +25,11 @@ public class JContainersDomain
         _paths = paths;
         _logger = logger;
     }
+    /// <summary>
+    /// Creates the JContainers domain folder under the output <c>SKSE/Plugins/JCData/Domains</c> path, writes a
+    /// placeholder text file into it (to force Vortex deployment), and copies the domain <c>.pex</c> script to
+    /// the output <c>Scripts</c> folder.
+    /// </summary>
     public void CreateSynthEBDDomain()
     {
         string domainPath = Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "JCData", "Domains", "PSM_SynthEBD");
