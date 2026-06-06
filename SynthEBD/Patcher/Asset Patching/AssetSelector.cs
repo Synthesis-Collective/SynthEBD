@@ -9,6 +9,12 @@ using static SynthEBD.AssetPack;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Core asset-assignment engine. For a given NPC it walks the flattened asset packs, filters subgroups by the NPC's
+/// race/attributes/body-shape/consistency rules, honors required/excluded subgroups, ForceIf weighting, linked-NPC and
+/// same-name uniqueness, and probability weighting, ultimately producing a <see cref="SubgroupCombination"/> that the
+/// <see cref="RecordGenerator"/> turns into record overrides. Invoked from the per-NPC assignment loop in the patcher.
+/// </summary>
 public class AssetSelector
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -17,6 +23,7 @@ public class AssetSelector
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
 
+    /// <summary>Resolves dependencies (environment/link cache, patcher state, logger, attribute matcher, unique-NPC tracker).</summary>
     public AssetSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
     {
         _environmentProvider = environmentProvider;
@@ -26,6 +33,11 @@ public class AssetSelector
         _uniqueNPCData = uniqueNPCData;
     }
 
+    /// <summary>
+    /// Which class of asset pack is being assigned. <see cref="Primary"/> is the NPC's main appearance config;
+    /// <see cref="MixIn"/> is an additional opt-in config layered on top; <see cref="ReplacerVirtual"/> is a virtual
+    /// asset-replacer group derived from an already-chosen primary asset pack.
+    /// </summary>
     public enum AssetPackAssignmentMode
     {
         Primary,
@@ -33,11 +45,24 @@ public class AssetSelector
         ReplacerVirtual
     }
 
+    /// <summary>Rebuilds the EasyNPC vanilla-skin EditorID set (each base skin name + "Patched") for the current run.</summary>
     public void Reinitialize()
     {
         _vanillaSkinsEasyNPC = _vanillaSkins.Select(x => x + "Patched").ToHashSet(); // EasyNPC transformation
     }
 
+    /// <summary>
+    /// Top-level entry point for assigning an asset-pack combination to a single NPC. Reuses a combination from a linked
+    /// NPC group or a same-name unique NPC when applicable; otherwise filters the available packs for the NPC and
+    /// iteratively generates a valid <see cref="SubgroupCombination"/>, relaxing the consistency filter if no combination
+    /// can be found. For Mix-In mode it may decline assignment by probability. Opens/closes report log subsections.
+    /// </summary>
+    /// <param name="mode">Primary, MixIn, or ReplacerVirtual.</param>
+    /// <param name="availableAssetPacks">Candidate flattened asset packs (for MixIn/Replacer there is exactly one).</param>
+    /// <param name="assignedBodyGen">BodyGen morphs already assigned to the NPC, used to filter descriptor-restricted subgroups.</param>
+    /// <param name="assignedBodySlides">BodySlide presets already assigned, used to filter descriptor-restricted subgroups.</param>
+    /// <param name="mixInDeclined">True if a Mix-In was declined (by probability or specific assignment) rather than assigned.</param>
+    /// <returns>The chosen combination, or null if none could be assigned or the Mix-In was declined.</returns>
     public SubgroupCombination AssignAssets(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, out bool mixInDeclined)
     {
         string subSectionLabel = string.Empty;
@@ -153,6 +178,10 @@ public class AssetSelector
         return chosenCombination;
     }
 
+    /// <summary>
+    /// Returns the combination assigned to the primary member of the NPC's linked group (for the given mode/asset pack),
+    /// or null if none exists. Logs whether the linked combination was compatible with this NPC's specific assignment.
+    /// </summary>
     public SubgroupCombination GetCombinationFromLinkedNPCGroup(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         SubgroupCombination linkedCombination = null;
@@ -184,6 +213,10 @@ public class AssetSelector
         return linkedCombination;
     }
 
+    /// <summary>
+    /// Returns the combination already assigned to another unique NPC sharing this NPC's name (for the given mode/asset
+    /// pack), or null. Used so identically-named uniques get matching assets. Logs specific-assignment compatibility.
+    /// </summary>
     public SubgroupCombination GetCombinationFromSameNameNPC(NPCInfo npcInfo, AssetPackAssignmentMode mode, HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         SubgroupCombination linkedCombination = null;
@@ -220,6 +253,13 @@ public class AssetSelector
         return linkedCombination;
     }
 
+    /// <summary>
+    /// Builds a single candidate combination from the current iteration state: chooses a seed subgroup (preferring the
+    /// most matched ForceIf attributes, else weighted-random), then fills each remaining position by probability,
+    /// conforming to required/excluded subgroup rules and backtracking when a position has no valid options. Records the
+    /// generated signature to avoid re-generating the same combination. Mutates <paramref name="iterationInfo"/> and logs.
+    /// </summary>
+    /// <returns>A complete combination, or null to signal the caller to retry (e.g. seed removed) or that none is possible.</returns>
     public SubgroupCombination GenerateCombination(NPCInfo npcInfo, AssignmentIteration iterationInfo, AssetPackAssignmentMode mode)
     {
         SubgroupCombination generatedCombination = new SubgroupCombination();
@@ -397,6 +437,7 @@ public class AssetSelector
         return generatedCombination;
     }
 
+    /// <summary>Drops the current seed from the available-seeds list and clears it, then returns null so the caller re-enters and picks a new seed.</summary>
     private static SubgroupCombination RemoveInvalidSeed(List<FlattenedSubgroup> seedSubgroups, AssignmentIteration iterationInfo)
     {
         seedSubgroups.Remove(iterationInfo.ChosenSeed);
@@ -404,6 +445,14 @@ public class AssetSelector
         return null;
     }
 
+    /// <summary>
+    /// Tests whether <paramref name="targetSubgroup"/> can be added to <paramref name="currentCombination"/> given the
+    /// required/excluded-subgroup rules of both the target and the already-assigned subgroups, and (if so) returns a copy
+    /// of the asset pack with the remaining per-position options trimmed to satisfy the target's rules. User-forced
+    /// (specific assignment) subgroups bypass the rule checks. Does not mutate the input pack on failure.
+    /// </summary>
+    /// <param name="filteredAssetPack">On success, the asset pack with subgroups trimmed by the target's required/excluded rules.</param>
+    /// <returns>True if the target is compatible and a valid trimmed pack was produced; false otherwise.</returns>
     private bool ConformRequiredExcludedSubgroups(SubgroupCombination currentCombination, FlattenedSubgroup targetSubgroup, FlattenedAssetPack chosenAssetPack, NPCInfo npcInfo, out FlattenedAssetPack filteredAssetPack)
     {
         filteredAssetPack = chosenAssetPack;
@@ -494,6 +543,7 @@ public class AssetSelector
         return true;
     }
 
+    /// <summary>Seeds the combination's <see cref="SubgroupCombination.ContainedSubgroups"/> list with one null placeholder per top-level subgroup position.</summary>
     private static void GenerateSubgroupPlaceHolders(SubgroupCombination generatedCombination, FlattenedAssetPack chosenAssetPack)
     {
         for (int i = 0; i < chosenAssetPack.Subgroups.Count; i++)
@@ -502,6 +552,7 @@ public class AssetSelector
         }
     }
 
+    /// <summary>Flattens every subgroup at every position across all the given asset packs into a single list (used to build the seed pool).</summary>
     public static List<FlattenedSubgroup> GetAllSubgroups(HashSet<FlattenedAssetPack> availableAssetPacks)
     {
         List<FlattenedSubgroup> subgroupSet = new List<FlattenedSubgroup>();
@@ -854,6 +905,12 @@ public class AssetSelector
         return filteredPacks.ToHashSet();
     }
 
+    /// <summary>
+    /// Second-pass subgroup filtering: removes any subgroup whose required subgroups are no longer available at the
+    /// expected position, or which excludes the only remaining subgroup at a position. Re-runs until a full pass makes no
+    /// removals (removals can post-hoc invalidate earlier-checked subgroups). Mutates <paramref name="assetPack"/>.
+    /// </summary>
+    /// <returns>False if the asset pack is invalid (a config-file error, or a position left with no subgroups); true otherwise.</returns>
     public bool RemoveInvalidLinkedSubgroups(FlattenedAssetPack assetPack, NPCInfo npcInfo)
     {
         bool allSubgroupsPassed = false;
@@ -1078,6 +1135,11 @@ public class AssetSelector
         return true;
     }
 
+    /// <summary>
+    /// For each top-level position, returns the subgroups whose ID chain contains one of the user-forced
+    /// <paramref name="forcedSubgroupIDs"/> (a nested list because forcing a non-bottom-level subgroup can match several
+    /// options at a position). Logs a warning for any forced ID not found in the asset pack.
+    /// </summary>
     private List<List<FlattenedSubgroup>> GetForcedSubgroupsAtIndex(FlattenedAssetPack input, List<string> forcedSubgroupIDs, NPCInfo npcInfo)
     {
         List<List<FlattenedSubgroup>> forcedOrEmpty = new List<List<FlattenedSubgroup>>();
@@ -1163,6 +1225,10 @@ public class AssetSelector
         return true;
     }
 
+    /// <summary>
+    /// Persists a Primary-mode assignment: writes the chosen asset pack + subgroup IDs into the NPC's consistency record,
+    /// stores the combination on the linked group if this NPC is the primary member, and seeds same-name unique-NPC data.
+    /// </summary>
     public void RecordPrimaryAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo) // Primary 
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
@@ -1181,6 +1247,10 @@ public class AssetSelector
         }
     }
 
+    /// <summary>
+    /// Persists a MixIn-mode assignment (or a probability-declined MixIn) into the NPC's consistency record, stores the
+    /// combination on the linked group if this NPC is the primary member, and seeds same-name unique-NPC MixIn data.
+    /// </summary>
     public void RecordMixInAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, string mixInName, bool declinedViaProbability) // MixIn 
     {
         bool addMixInAssignmentToConsistency = assignedCombination != null || declinedViaProbability;
@@ -1222,6 +1292,10 @@ public class AssetSelector
         }
     }
 
+    /// <summary>
+    /// Persists a Replacer-mode assignment into the NPC's consistency record (adding or updating the matching replacer
+    /// entry), mirrors it onto the linked group for the primary member, and seeds same-name unique-NPC replacer data.
+    /// </summary>
     public void RecordReplacerAssetConsistencyAndLinkedNPCs(SubgroupCombination assignedCombination, NPCInfo npcInfo, FlattenedReplacerGroup replacerGroup) // Replacer
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
@@ -1243,6 +1317,10 @@ public class AssetSelector
         }
     }
 
+    /// <summary>
+    /// Returns true if asset assignment should be skipped for this NPC because Texture/Mesh settings disallow patching
+    /// NPCs that already have a custom (non-base-game, non-EasyNPC-vanilla) face texture or worn-armor skin. Logs the reason.
+    /// </summary>
     public bool BlockAssetDistributionByExistingAssets(NPCInfo npcInfo)
     {
         if (!_patcherState.TexMeshSettings.bApplyToNPCsWithCustomFaces && 
@@ -1265,6 +1343,10 @@ public class AssetSelector
         return false;
     }
 
+    /// <summary>
+    /// In EasyNPC compatibility mode, returns true if the given worn-armor link resolves to an EditorID in the
+    /// EasyNPC vanilla-skin set (so it is treated as a vanilla skin rather than a custom one). Always false otherwise.
+    /// </summary>
     public bool IsEasyNPCVanillaSkin(IFormLinkNullableGetter<IArmorGetter> wnam)
     {
         if (!_patcherState.TexMeshSettings.bEasyNPCCompatibilityMode)
@@ -1282,6 +1364,11 @@ public class AssetSelector
         return false;
     }
 
+    /// <summary>
+    /// Decides whether to skip this Mix-In for the NPC, rolling against the pack's inclusion probability scaled by any
+    /// matched whole-config probability modifiers (clamped to 100). Logs when the Mix-In is randomly declined.
+    /// </summary>
+    /// <returns>True if the Mix-In should NOT be assigned.</returns>
     private bool SkipMixInByProbability(FlattenedAssetPack mixInPack, NPCInfo npcInfo)
     {
         // Scale the inclusion probability by any matched whole-config probability modifiers, clamped to 100.
@@ -1301,6 +1388,10 @@ public class AssetSelector
         }
     }
 
+    /// <summary>
+    /// Logs to the report the body-shape descriptor (allowed/disallowed) rules contributed by each subgroup in the
+    /// generated combination, for the active body-selection mode (BodyGen or BodySlide). No-op when body selection is off.
+    /// </summary>
     public void GenerateDescriptorLog(SubgroupCombination generatedCombination, NPCInfo npcInfo)
     {
         if (_patcherState.GeneralSettings.BodySelectionMode != BodyShapeSelectionMode.None)
@@ -1339,6 +1430,7 @@ public class AssetSelector
         }
     }
 
+    /// <summary>Appends one subgroup's formatted descriptor set (prefixed by <paramref name="adj"/>, e.g. "Allowed"/"Disallowed") to the per-subgroup descriptor log accumulator.</summary>
     private void GenerateDescriptorSubLog(Dictionary<string, string> descriptorLog, string subgroupID, string adj, Dictionary<string, HashSet<string>> desciptorSet)
     {
         string descriptorStr = Logger.GetBodyShapeDescriptorString(desciptorSet);
@@ -1355,11 +1447,13 @@ public class AssetSelector
         }
     }
 
+    /// <summary>Base-game skin EditorIDs treated as "vanilla" (naked / naked beast) for the custom-skin block check.</summary>
     private HashSet<string> _vanillaSkins = new() // may want to consider adding a UI element or Json file for this
     {
         "SkinNaked",
         "SkinNakedBeast"
     };
 
+    /// <summary>EasyNPC-transformed equivalents of <see cref="_vanillaSkins"/> (each name + "Patched"); rebuilt in <see cref="Reinitialize"/>.</summary>
     private HashSet<string> _vanillaSkinsEasyNPC = new();
 }

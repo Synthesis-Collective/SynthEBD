@@ -1077,6 +1077,36 @@ to cover both counts: `!SkyPatcher && (Count == 2 || Count == 1)`. Bracket it.
   `.ToString() ==` (line ~55), and `ArmatureHasVanillaPath` returns `true` ("assume vanilla / skip") on an
   unresolvable path — an inverted-return readability trap. 💭
 
+### `AssetSelector.CombinationAllowedBySpecificNPCAssignment` forced IDs not validated — 🐞 bug
+
+[AssetSelector.cs:1189](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1189),
+[:1203](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1203) · The Primary and MixIn cases loop
+`foreach (var id in specificAssignment.SubgroupIDs)` but the body —
+`if (!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any()) return false;` — never references
+`id`. `.Select(x => x.Id).Any()` is just `.Any()`, so the check only verifies the combination is *non-empty*,
+not that each forced subgroup ID is actually present (the Replacer case compares per index correctly). So a
+forced/specific NPC assignment's subgroup IDs aren't really enforced for Primary/MixIn packs.
+
+### `RecordGenerator` — 🔧 / 💭
+
+[RecordGenerator.cs:60-61](SynthEBD/Patcher/Asset%20Patching/RecordGenerator.cs#L60) · Double self-assignment
+`CachedObjectsByPathAndTemplate = CachedObjectsByPathAndTemplate = new ...` (and the same on the next line) —
+an accidental copy-paste; collapse to a single assignment. More broadly, `RecordGenerator` holds several
+**mutable `static` dictionaries** of cross-NPC dedup state (reset in `Reinitialize()`), so it is non-reentrant
+— a hazard if per-NPC processing is ever parallelized. `IncrementEditorID` keys the dedup dict on
+`EditorID ?? "NoEditorID"` but appends to the possibly-null `EditorID` (so `null + "0001"` loses the
+placeholder). 💭
+
+### `HardcodedRecordGenerator` (deprecated) — 🐞 / 💭
+
+The class header notes it is currently deprecated, and the `AssignSpecialCaseAssetReplacer` chain is dead
+(caller commented out) — but two issues stand out if it's ever revived:
+`AssignSkinTexture` keys its record cache on `npcInfo.NPC.HeadTexture.FormKey` (a **head** texture) for a
+**skin** texture record (likely copy-paste — head and skin caches collide on the same NPC key); and a failed-
+resolution `else` calls `OutputMod.Armors.Remove(newSkin)` with `newSkin` still null. Also several
+`AssignArmorAddon` return values are captured into unused locals, and FormKey membership is tested via
+`.Select(x => x.FormKey.ToString()).Contains(...)` (string compares). 💭
+
 <!-- ENTRIES:Patcher -->
 
 ---

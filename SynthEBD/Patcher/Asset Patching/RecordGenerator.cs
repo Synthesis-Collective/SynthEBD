@@ -8,6 +8,12 @@ using Mutagen.Bethesda.Plugins.Cache;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Turns a chosen <see cref="SubgroupCombination"/> into actual Skyrim record overrides on the output mod: resolves
+/// record paths via <see cref="RecordPathParser"/>, deep-copies/overrides WornArmor/Armature/HeadTexture/TextureSet
+/// (and head parts), assigns the asset file paths, deduplicates generated records, and emits SkyPatcher/keyword side
+/// effects. Runs after <see cref="AssetSelector"/> in the patching pipeline. Holds per-run static dedup caches.
+/// </summary>
 public class RecordGenerator
 {
     private readonly IOutputEnvironmentStateProvider _environmentProvider;
@@ -24,6 +30,7 @@ public class RecordGenerator
     private readonly HeadPartAuxFunctions _headPartAuxFunctions;
     private HashSet<FormKey> skinWNAMsToStrip;
     
+    /// <summary>Resolves the many collaborators used during record generation (output mod, path parser, hardcoded generator, head-part/armor/skin patchers, SkyPatcher interface, etc.).</summary>
     public RecordGenerator(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, SynthEBDPaths paths, HardcodedRecordGenerator hardcodedRecordGenerator, HeadPartSelector headPartSelector, RecordPathParser recordPathParser, SurrogateNPCProvider surrogateNpcProvider, ArmorPatcher armorPatcher, SkinPatcher skinPatcher, FacePartCompliance facePartComplianceMaintainer, SkyPatcherInterface skyPatcherInterface, HeadPartAuxFunctions headPartAuxFunctions)
     {
         _environmentProvider = environmentProvider;
@@ -41,6 +48,11 @@ public class RecordGenerator
         skinWNAMsToStrip = new();
     }
 
+    /// <summary>
+    /// Resets all per-run state: the static dedup dictionaries and EditorID counters, the face-part compliance maintainer,
+    /// and the set of worn-armor FormKeys whose skins should be stripped (resolved from the configured stripped-WNAM
+    /// EditorIDs, including "Patched" variants in EasyNPC compatibility mode).
+    /// </summary>
     public void Reinitialize()
     {
         ModifiedRecordCounts = new Dictionary<string, int>();
@@ -76,6 +88,13 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>
+    /// Top-level driver: iterates every NPC's selected assets and writes record overrides for each. Per NPC it obtains a
+    /// surrogate or direct NPC override, strips configured skin armor, converts the combination to records, adds EBD/face
+    /// keywords and custom keywords, patches armor/skin alt-textures, emits SkyPatcher SetSkin in script mode, logs JSON
+    /// assignments, and collects generated head parts (or warns when head-part patching is disabled). Mutates the output
+    /// mod, <paramref name="generatedHeadPartsDictionary"/>, the combination log, and the UI status bar.
+    /// </summary>
     public void ApplySelectedAssets(Dictionary<FormKey, (NPCInfo NpcInfo, List<Patcher.SelectedAssetContainer> Assets)> selectedAssets, HashSet<FlattenedAssetPack> flattenedAssetPacks, Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> generatedHeadPartsDictionary, CombinationLog combinationLog, Keyword EBDFaceKW, Keyword EBDScriptKW, Keyword synthEBDFaceKW, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, VM_StatusBar statusBar)
     {
         generatedHeadPartsDictionary.Clear();
@@ -225,6 +244,11 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>
+    /// Converts one NPC's asset assignments into records: categorizes the file paths into WornArmor/HeadTexture/generic
+    /// buckets, short-circuits if nothing is assignable (to avoid creating an ITM), assigns hardcoded records, then
+    /// assigns the remaining generic paths, and finally records the traversed records back onto the assignments for logging.
+    /// </summary>
     public void CombinationToRecords(List<Patcher.SelectedAssetContainer> assignments, HashSet<FlattenedAssetPack> flattenedAssetPacks, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts)
     {
         HashSet<FilePathReplacementParsed> wnamPaths = new HashSet<FilePathReplacementParsed>();
@@ -260,6 +284,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Pairs a deep-copied subrecord with the set of template NPCs (signature) it was derived from, so the generated object can later be cached by that signature.</summary>
     private class TemplateSignatureRecordPair
     {
         public HashSet<INpcGetter> TemplateSignature { get; set; }
@@ -267,6 +292,13 @@ public class RecordGenerator
     }
 
     // assignedPaths is for logging purposes only
+    /// <summary>
+    /// Walks every generic (non-hardcoded) destination path one segment at a time, grouping paths by shared prefix. At
+    /// each segment it locates or creates the object: assigns the source asset string at leaf segments; traverses
+    /// existing objects on the NPC setter/getter (deep-copying records to the patch as needed); or pulls objects from the
+    /// record templates (with caching). Head parts get special handling. Mutates the output mod and the various caches.
+    /// <paramref name="assignedPaths"/> is for logging only.
+    /// </summary>
     public void AssignGenericAssetPaths(NPCInfo npcInfo, List<FilePathReplacementParsed> nonHardcodedPaths, Npc rootNPC, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, int longestPath, bool canAssignFromTemplate, bool suppressMissingPathErrors, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, List<FilePathReplacementParsed> assignedPaths, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates)
     {
         HashSet<TemplateSignatureRecordPair> templateSubRecords = new HashSet<TemplateSignatureRecordPair>();
@@ -427,6 +459,12 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>
+    /// Resolves a record encountered along the NPC's own data into an editable copy on the output mod (reusing a prior
+    /// copy for the same path signature when available), assigns it via FormKey replacement on the parent (or routes head
+    /// parts to the head-part selector), records the dedup mapping, and outputs the copied record.
+    /// </summary>
+    /// <returns>False (and removes the path group) if the record could not be typed or copied; true on success.</returns>
     private bool TraverseRecordFromNpc(dynamic currentObj, ObjectInfo currentObjInfo, HashSet<string> pathSignature, IGrouping<string, FilePathReplacementParsed> group, dynamic rootObj, string currentSubPath, NPCInfo npcInfo, List<FilePathReplacementParsed> allPaths, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, out dynamic outputObj)
     {
         outputObj = currentObj;
@@ -475,6 +513,12 @@ public class RecordGenerator
         return true;
     }
 
+    /// <summary>
+    /// Deep-copies a record (and its subrecords) from a record template into the output mod, registers the subrecords
+    /// under the template signature for later caching, increments their EditorIDs, then assigns the new record via FormKey
+    /// replacement (or routes head parts to the head-part selector).
+    /// </summary>
+    /// <returns>False (and removes the path group) if no template subrecord could be obtained; true on success.</returns>
     private bool TraverseRecordFromTemplate(dynamic rootObj, string currentSubPath, dynamic recordToCopy, ObjectInfo recordObjectInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> group, HashSet<INpcGetter> templateSignature, HashSet<TemplateSignatureRecordPair> templateDerivedRecords, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, IMajorRecordGetter rootRecord, NPCInfo npcInfo, out dynamic currentObj)
     {
         IMajorRecord newRecord = null;
@@ -516,6 +560,7 @@ public class RecordGenerator
         return true;
     }
 
+    /// <summary>Returns the first object found at <paramref name="currentSubPath"/> across the candidate template NPCs (caching per-template lookups), or false if none have it.</summary>
     public dynamic GetObjectFromAvailableTemplates(string currentSubPath, FilePathReplacementParsed[] allPaths, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, bool suppressMissingPathErrors, out dynamic outputObj, out ObjectInfo outputObjInfo)
     {
         foreach (var templateNPC in allPaths.Select(x => x.TemplateNPC).Where(x => x is not null).ToHashSet())
@@ -536,11 +581,13 @@ public class RecordGenerator
         return false;
     }
 
+    /// <summary>Deep-copies a non-record object (via expression-tree cloning) so edits do not leak to other NPCs sharing it.</summary>
     public static dynamic CopyGenericObject(dynamic input) // expand later to make more performant
     {
         var copy = DeepCopyByExpressionTrees.DeepCopyByExpressionTree(input);
         return copy;
     }
+    /// <summary>Removes every path in the given group from the working path list (used to drop paths that can no longer be assigned).</summary>
     public static void RemovePathsFromList(List<FilePathReplacementParsed> allPaths, IGrouping<string, FilePathReplacementParsed> toRemove)
     {
         foreach (var path in toRemove)
@@ -549,6 +596,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Sets a (non-record) value on the parent object at the given subpath, handling both array-index and named-property destinations.</summary>
     public void SetSubObject(dynamic rootObj, string currentSubPath, dynamic value, IMajorRecordGetter rootRecord, ILinkCache linkCache)
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
@@ -564,11 +612,13 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Assigns <paramref name="value"/> into <paramref name="root"/> at the given array index.</summary>
     public void SetObjectInArray(dynamic root, int index, dynamic value)
     {
         root[index] = value;
     }
 
+    /// <summary>Points the parent's FormLink at the given record's FormKey, handling array destinations (set existing index or append) and single FormLink properties.</summary>
     public void SetViaFormKeyReplacement(IMajorRecord record, dynamic rootObj, string currentSubPath, IMajorRecordGetter rootRecord)
     {
         if (RecordPathParser.PathIsArray(currentSubPath))
@@ -588,17 +638,20 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Sets the FormLink at the given array index to point at <paramref name="value"/>'s FormKey.</summary>
     public static void SetRecordInArray(dynamic root, int index, IMajorRecord value)
     {
         root[index].SetTo(value.FormKey);
     }
 
+    /// <summary>Appends a FormLink to <paramref name="record"/> onto a FormLink list.</summary>
     public static void AddToFormLinkList<TMajor>(IList<IFormLinkGetter<TMajor>> list, IMajorRecord record)
         where TMajor : class, IMajorRecordGetter
     {
         list.Add(record.ToLink<TMajor>());
     }
 
+    /// <summary>Reassembles a split record path back into its dotted string form, omitting the dot before array-index segments.</summary>
     public static string BuildPath(List<string> splitPath)
     {
         string output = "";
@@ -613,6 +666,11 @@ public class RecordGenerator
         return output;
     }
 
+    /// <summary>
+    /// Duplicates a record into the destination mod and recursively deep-copies every FormLink that points within the
+    /// source mod, remapping the new record's links to the copies. Collects all copied records (root + subrecords) into
+    /// <paramref name="copiedSubRecords"/>.
+    /// </summary>
     public static IMajorRecord DeepCopyRecordToPatch(dynamic sourceRecordObj, ModKey sourceModKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> sourceLinkCache, ISkyrimMod destinationMod, HashSet<IMajorRecord> copiedSubRecords)
     {
         dynamic group = GetPatchRecordGroup(sourceRecordObj, destinationMod);
@@ -636,12 +694,14 @@ public class RecordGenerator
         return copiedRecord;
     }
 
+    /// <summary>Gets or adds the given record as an override in the correct top-level group of the output mod.</summary>
     public static dynamic GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, ISkyrimMod outputMod)
     {
         dynamic group = GetPatchRecordGroup(recordGetter, outputMod);
         return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
     }
 
+    /// <summary>Returns the output mod's top-level group matching the record getter's registered getter type.</summary>
     public static IGroup GetPatchRecordGroup(IMajorRecordGetter recordGetter, ISkyrimMod outputMod)
     {
         var getterType = LoquiRegistration.GetRegister(recordGetter.GetType()).GetterType;
@@ -653,6 +713,7 @@ public class RecordGenerator
         return outputMod.GetTopLevelGroup(loquiType);
     }
 
+    /// <summary>Stores a resolved object in the per-NPC object cache under the given path (creating the NPC's cache entry if needed); no-op if already cached.</summary>
     public static void CacheResolvedObject(string path, dynamic toCache, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, INpcGetter npcGetter)
     {
         if (!objectCaches.ContainsKey(npcGetter.FormKey))
@@ -667,6 +728,10 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>
+    /// Sets a unique EditorID on a generated record. Template-derived records get a global counter suffix; records copied
+    /// from an existing NPC record get a "_Patched" suffix plus a per-original-FormKey counter. Mutates static counters.
+    /// </summary>
     public static void AssignEditorID(IMajorRecord record, string templateFKstr, bool copiedFromTemplate)
     {
         if (copiedFromTemplate)
@@ -690,6 +755,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Appends a 4-digit occurrence counter to each record's EditorID to keep generated EditorIDs unique. Mutates the static <see cref="EdidCounts"/> map.</summary>
     public static void IncrementEditorID(HashSet<IMajorRecord> records)
     {
         foreach (var newRecord in records)
@@ -707,6 +773,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Returns a comma-joined list of the template NPC EditorIDs referenced by the path group (for error messages).</summary>
     public static string GetTemplateName(IGrouping<string, FilePathReplacementParsed> group)
     {
         List<string> templateNames = new List<string>();
@@ -720,6 +787,7 @@ public class RecordGenerator
         return string.Join(", ", templateNames);
     }
     
+    /// <summary>Returns true if the object is a record whose EditorID carries the surrogate-NPC suffix (i.e. it was merged in by the SkyPatcher surrogate provider).</summary>
     private bool IsImportedForSkyPatcher(dynamic currentObj) // determines if the given formkey is from a record merged-in from NpcProvider
     {
         var record = currentObj as IMajorRecord;
@@ -730,13 +798,17 @@ public class RecordGenerator
         return false;
     }
 
+    /// <summary>Per-EditorID occurrence counter used by <see cref="IncrementEditorID"/> to suffix duplicate EditorIDs uniquely.</summary>
     public static Dictionary<string, int> EdidCounts = new Dictionary<string, int>(); // tracks the number of times a given record template was assigned so that a newly copied record can have its editor ID incremented
 
+    /// <summary>Per-original-FormKey counter used by <see cref="AssignEditorID"/> to suffix "_Patched" EditorIDs uniquely.</summary>
     private static Dictionary<string, int> ModifiedRecordCounts = new Dictionary<string, int>(); // for modified Editor IDs only
 
     //Dictionary[SourcePaths.ToHashSet()][OriginalRecordGetter.FormKey.ToString()] = IMajorRecord Generated
+    /// <summary>Cache of overrides generated from existing records, keyed by source-path signature then original FormKey string. Enables reuse across NPCs sharing the same assets.</summary>
     private static Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>> ModifiedRecords = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key
 
+    /// <summary>Looks up a previously generated override for the given original FormKey under the given path signature in the static <see cref="ModifiedRecords"/> cache.</summary>
     public static bool TryGetModifiedRecord<T>(HashSet<string> pathSignature, FormKey originalFormKey, out T record) where T : class
     {
         string fkStr = originalFormKey.ToString();
@@ -753,6 +825,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Records a generated override keyed by path signature and original FormKey in the static <see cref="ModifiedRecords"/> cache (for cross-NPC reuse and dedup).</summary>
     public static void AddModifiedRecordToDictionary(HashSet<string> pathSignature, FormKey originalFormKey, IMajorRecord record)
     {
         string fkStr = originalFormKey.ToString();
@@ -771,8 +844,10 @@ public class RecordGenerator
     }
 
     //Dictionary[SourcePaths.ToHashSet()][RecordTemplate.FormKey.ToString()] = IMajorRecord Generated
+    /// <summary>Cache of records generated from record templates, keyed by source-path signature then template NPC FormKey string.</summary>
     public static Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>> GeneratedRecordsByTempateNPC = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer()); // https://stackoverflow.com/questions/5910137/how-do-i-use-hashsett-as-a-dictionary-key
 
+    /// <summary>Records a template-derived generated record keyed by path signature and template NPC FormKey in <see cref="GeneratedRecordsByTempateNPC"/> (no-op if already present).</summary>
     public static void AddGeneratedRecordToDictionary(HashSet<string> pathSignature, INpcGetter template, IMajorRecord record)
     {
         var templateFKstring = template.FormKey.ToString();
@@ -789,14 +864,17 @@ public class RecordGenerator
 
     //Dictionary[SourcePaths.ToHashSet()][SubPathStr][RecordTemplate.FormKey.ToString()] = Object Generated
 
+    /// <summary>Cache of generated sub-objects keyed by source-path signature, then path-relative-to-NPC, then template signature; lets deep traversals skip re-copying identical template-derived objects.</summary>
     private static Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>> CachedObjectsByPathAndTemplate = new Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>>(HashSet<string>.CreateSetComparer());
 
+    /// <summary>Cached generated object plus its index within the template's parent array (if it came from an array element).</summary>
     private class ObjectAtIndex
     {
         public dynamic generatedObj { get; set; } = null;
         public int? indexInTemplate { get; set; } = null;
     }
 
+    /// <summary>Retrieves a cached generated object for the (path signature, subpath, template signature) triple from <see cref="CachedObjectsByPathAndTemplate"/>, if present and non-null.</summary>
     private static bool TryGetCachedObject(HashSet<string> pathSignature, string pathRelativeToNPC, HashSet<INpcGetter> templateSignature, out dynamic storedObj, out int? indexIfInArray)
     {
         var templateSignatureStr = templateSignature.Select(x => x.FormKey.ToString()).ToHashSet();
@@ -811,6 +889,7 @@ public class RecordGenerator
         return false;
     }
 
+    /// <summary>Caches a generated object (and its array index) under the (path signature, subpath, template signature) triple in <see cref="CachedObjectsByPathAndTemplate"/>.</summary>
     private static void AddGeneratedObjectToDictionary(HashSet<string> pathSignature, string pathRelativeToNPC, HashSet<INpcGetter> templateSignature, dynamic storedObj, int? storedIndex)
     {
         var storedObjectAndIndex = new ObjectAtIndex() { generatedObj = storedObj, indexInTemplate = storedIndex };
@@ -832,6 +911,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Records a <see cref="GeneratedRecordInfo"/> for the record (and its same-mod subrecords) onto every path in the group, for the assignment report.</summary>
     public static void LogRecordAlongPaths(IGrouping<string, FilePathReplacementParsed> group, IMajorRecord record)
     {
         var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
@@ -842,6 +922,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Records a <see cref="GeneratedRecordInfo"/> for the record (and its same-mod subrecords) onto every path in the sequence, for the assignment report.</summary>
     public static void LogRecordAlongPaths(IEnumerable<FilePathReplacementParsed> paths, IMajorRecord record)
     {
         var recordEntry = new GeneratedRecordInfo() { FormKey = record.FormKey.ToString(), EditorID = record.EditorID ?? "NoEditorID", SubRecords = record.EnumerateFormLinks().Where(x => x.FormKey.ModKey == record.FormKey.ModKey).ToHashSet() };
@@ -852,8 +933,10 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>Cache of keyword records created for custom keyword strings, so the same keyword is reused rather than re-created.</summary>
     private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
 
+    /// <summary>Adds every non-blank custom keyword declared by the assigned asset entries to the NPC (creating keyword records as needed).</summary>
     public static void AddCustomKeywordsToNPC(List<Patcher.SelectedAssetContainer> assignedAssetEntries, Npc npc, ISkyrimMod outputMod)
     {
         foreach (var entry in assignedAssetEntries)
@@ -867,6 +950,7 @@ public class RecordGenerator
             }
         }
     }
+    /// <summary>Adds the named keyword to the NPC, reusing a previously generated keyword record or creating a new one in the output mod and caching it in <see cref="GeneratedKeywords"/>.</summary>
     private static void AddKeywordToNPC(Npc npc, string keyword, ISkyrimMod outputMod)
     {
         if (GeneratedKeywords.ContainsKey(keyword))
@@ -882,6 +966,7 @@ public class RecordGenerator
         }
     }
 
+    /// <summary>If the NPC's worn armor is in the configured strip set, returns an override with WornArmor cleared; otherwise returns the input unchanged.</summary>
     public INpcGetter StripSpecifiedSkinArmor(INpcGetter npcGetter, ILinkCache linkCache, ISkyrimMod outputMod)
     {
         if (npcGetter.WornArmor != null && skinWNAMsToStrip.Contains(npcGetter.WornArmor.FormKey))

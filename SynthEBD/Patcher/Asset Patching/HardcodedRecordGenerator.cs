@@ -19,6 +19,7 @@ public class HardcodedRecordGenerator
     private readonly PatcherState _patcherState;
     private readonly Logger _logger;
     private readonly HeadPartSelector _headPartSelector;
+    /// <summary>Resolves dependencies (output environment/link cache, patcher state, logger, head-part selector).</summary>
     public HardcodedRecordGenerator(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, HeadPartSelector headPartSelector)
     {
         _environmentProvider = environmentProvider;
@@ -27,6 +28,12 @@ public class HardcodedRecordGenerator
         _headPartSelector = headPartSelector;
     }
 
+    /// <summary>
+    /// Parses each assignment's file paths and sorts them into output buckets: WornArmor (<paramref name="wnamPaths"/>),
+    /// HeadTexture (<paramref name="headtexPaths"/>), or generic (<paramref name="nonHardcodedPaths"/>). Skips texture or
+    /// mesh paths disabled in settings. When <paramref name="doNotHardCode"/> is true (the current default), every path
+    /// goes to the generic bucket. Outputs the longest generic destination length for the path-walking loop.
+    /// </summary>
     public void CategorizePaths(List<Patcher.SelectedAssetContainer> assignments, HashSet<FlattenedAssetPack> flattenedAssetPacks, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, List<FilePathReplacementParsed> nonHardcodedPaths, out int longestPathLength, bool doNotHardCode)
     {
         longestPathLength = 0;
@@ -67,6 +74,7 @@ public class HardcodedRecordGenerator
 
     // All code below this point is deprecated in favor of generic record parsing. This code may be updated in the future if demand arises but it was deprecated prior to full debugging. Expect bugs if re-implementing.
 
+    /// <summary>Returns the maximum destination-segment count across the given paths (the iteration depth for path walking).</summary>
     public static int GetLongestPath(IEnumerable<FilePathReplacementParsed> paths)
     {
         int longestPath = 0;
@@ -80,6 +88,7 @@ public class HardcodedRecordGenerator
         return longestPath;
     }
 
+    /// <summary>Dispatches the hardcoded HeadTexture and WornArmor path buckets to their dedicated assignment methods (deprecated path; normally both buckets are empty).</summary>
     public void AssignHardcodedRecords(HashSet<FilePathReplacementParsed> wnamPaths, HashSet<FilePathReplacementParsed> headtexPaths, NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, RecordGenerator recordGenerator)
     {
         if (headtexPaths.Any())
@@ -92,6 +101,7 @@ public class HardcodedRecordGenerator
         }
     }
 
+    /// <summary>Picks the template NPC to source a hardcoded record from: prefers a path whose destination is in <paramref name="preferredPaths"/>, else the first whose destination starts with <paramref name="fallBackStartStr"/>.</summary>
     public static INpcGetter GetTemplateForHardcodedAssignments(HashSet<FilePathReplacementParsed> paths, HashSet<string> preferredPaths, string fallBackStartStr)
     {
         INpcGetter template = null;
@@ -108,6 +118,12 @@ public class HardcodedRecordGenerator
 
         return template;
     }
+    /// <summary>
+    /// Resolves or creates a TextureSet for the NPC's head texture (reusing a cached/generated copy, deep-copying the
+    /// existing or template head texture as needed), assigns the hardcoded head texture sub-paths (diffuse/normal/etc.),
+    /// routes any remaining paths to generic assignment, links it onto the NPC, and logs. Mutates the output mod.
+    /// </summary>
+    /// <returns>The assigned TextureSet, or null if none could be resolved.</returns>
     public IMajorRecord AssignHeadTexture(NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, RecordGenerator recordGenerator)
     {
         var patchedNPC = _environmentProvider.OutputMod.Npcs.GetOrAddAsOverride(npcInfo.NPC);
@@ -177,6 +193,13 @@ public class HardcodedRecordGenerator
         return headTex;
     }
 
+    /// <summary>
+    /// Resolves or creates the NPC's worn-armor (skin) record, then assigns its body/hands/feet/tail armor-addon textures:
+    /// sorts paths into hardcoded vs generic per body slot, copies/assigns each armor addon, and routes remaining paths to
+    /// generic assignment. For a previously generated skin it instead ensures the NPC's race is in each addon's additional
+    /// races. Links the skin onto the NPC. Mutates the output mod.
+    /// </summary>
+    /// <returns>The assigned Armor, or null if none could be resolved.</returns>
     private Armor AssignBodyTextures(NPCInfo npcInfo, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, RecordGenerator recordGenerator)
     {
         Armor newSkin = null;
@@ -320,6 +343,7 @@ public class HardcodedRecordGenerator
         return newSkin;
     }
 
+    /// <summary>The body slot an armor addon corresponds to (used to filter candidate armatures by biped flag).</summary>
     private enum ArmorAddonType
     {
         Torso,
@@ -328,6 +352,12 @@ public class HardcodedRecordGenerator
         Tail
     }
 
+    /// <summary>
+    /// Resolves or creates the armor addon of the given slot for the NPC: chooses a candidate armature (matching biped
+    /// flag and race) from the parent armor or the template, deep-copies it, assigns its skin texture, swaps it into the
+    /// parent armor's armature list (or appends it), and routes any extra generic paths to generic assignment.
+    /// </summary>
+    /// <returns>The new armor addon, or null if no suitable armature could be resolved.</returns>
     private ArmorAddon AssignArmorAddon(Npc targetNPC, Armor parentArmorRecord, NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> hardcodedPaths, List<FilePathReplacementParsed> additionalGenericPaths, ArmorAddonType type, string subPath, HashSet<string> currentRaceIDstrs, bool parentAssignedFromTemplate, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, RecordGenerator recordGenerator)
     {
         ArmorAddon newArmorAddon = null;
@@ -404,6 +434,7 @@ public class HardcodedRecordGenerator
         return newArmorAddon;
     }
 
+    /// <summary>Resolves the parent armor's armature entries to their armor-addon getters, trying the main and/or template link caches per the flags.</summary>
     private HashSet<IArmorAddonGetter> GetAvailableArmature(IArmorGetter parentArmor, ILinkCache mainLinkCache, ILinkCache templateLinkCache, bool checkMainLinkCache, bool checkTemplateLinkCache)
     {
         HashSet<IArmorAddonGetter> candidateAAs = new HashSet<IArmorAddonGetter>();
@@ -421,6 +452,12 @@ public class HardcodedRecordGenerator
         return candidateAAs;
     }
 
+    /// <summary>
+    /// Resolves or creates the gender-appropriate skin TextureSet for an armor addon (reusing a cached/generated copy or
+    /// deep-copying the existing one), assigns its diffuse/normal/specular/detail file paths, and links it back onto the
+    /// armor addon's gendered skin texture slot. Mutates the output mod.
+    /// </summary>
+    /// <returns>The assigned skin TextureSet, or null if none could be resolved.</returns>
     private TextureSet AssignSkinTexture(ArmorAddon parentArmorAddonRecord, bool parentAssignedFromTemplate, NPCInfo npcInfo, ISkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> mainLinkCache, ILinkCache<ISkyrimMod, ISkyrimModGetter> templateLinkCache, HashSet<FilePathReplacementParsed> paths, string subPath, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches)
     {
         INpcGetter templateNPC = GetTemplateForHardcodedAssignments(paths, WornArmorPaths, subPath);
@@ -494,6 +531,7 @@ public class HardcodedRecordGenerator
         return newSkinTexture;
     }
 
+    /// <summary>Selects the candidate armor addon whose biped flag matches <paramref name="type"/> and whose race is in <paramref name="requiredRaceFKstrs"/>, or null if none qualify.</summary>
     private static IArmorAddonGetter ChooseArmature(HashSet<IArmorAddonGetter> candidates, ArmorAddonType type, HashSet<string> requiredRaceFKstrs)
     {
         IEnumerable<IArmorAddonGetter> filteredFlags = null;
@@ -508,6 +546,7 @@ public class HardcodedRecordGenerator
         return filteredFlags.Where(x => requiredRaceFKstrs.Contains(x.Race.FormKey.ToString())).FirstOrDefault();
     }
 
+    /// <summary>The fixed set of destination strings recognized as hardcoded torso body-texture paths (male/female diffuse/normal/subsurface/specular).</summary>
     private static HashSet<string> TorsoArmorAddonPaths = new HashSet<string>()
     {
         FilePathDestinationMap.Dest_TorsoMaleDiffuse,
@@ -520,6 +559,7 @@ public class HardcodedRecordGenerator
         FilePathDestinationMap.Dest_TorsoFemaleSpecular
     };
 
+    /// <summary>The fixed set of destination strings recognized as hardcoded hands body-texture paths.</summary>
     private static HashSet<string> HandsArmorAddonPaths = new HashSet<string>()
     {
         FilePathDestinationMap.Dest_HandsMaleDiffuse,
@@ -532,6 +572,7 @@ public class HardcodedRecordGenerator
         FilePathDestinationMap.Dest_HandsFemaleSpecular
     };
 
+    /// <summary>The fixed set of destination strings recognized as hardcoded feet body-texture paths.</summary>
     private static HashSet<string> FeetArmorAddonPaths = new HashSet<string>()
     {
         FilePathDestinationMap.Dest_FeetMaleDiffuse,
@@ -544,6 +585,7 @@ public class HardcodedRecordGenerator
         FilePathDestinationMap.Dest_FeetFemaleSpecular
     };
 
+    /// <summary>The fixed set of destination strings recognized as hardcoded tail body-texture paths.</summary>
     private static HashSet<string> TailArmorAddonPaths = new HashSet<string>()
     {
         FilePathDestinationMap.Dest_TailMaleDiffuse,
@@ -556,8 +598,10 @@ public class HardcodedRecordGenerator
         FilePathDestinationMap.Dest_TailFemaleSpecular
     };
 
+    /// <summary>Union of all hardcoded worn-armor body-texture destination strings (torso + hands + feet + tail).</summary>
     private static HashSet<string> WornArmorPaths = new HashSet<string>().Concat(TorsoArmorAddonPaths).Concat(HandsArmorAddonPaths).Concat(FeetArmorAddonPaths).Concat(TailArmorAddonPaths).ToHashSet();
 
+    /// <summary>The fixed set of destination strings recognized as hardcoded head-texture paths (diffuse/normal/subsurface/specular/detail).</summary>
     private static HashSet<string> HeadTexturePaths = new HashSet<string>()
     {
         FilePathDestinationMap.Dest_HeadDiffuse,
@@ -567,6 +611,7 @@ public class HardcodedRecordGenerator
         FilePathDestinationMap.Dest_HeadDetail
     };
 
+    /// <summary>Looks up a record previously generated from the given template NPC under the given path signature in <see cref="RecordGenerator.GeneratedRecordsByTempateNPC"/>.</summary>
     private static bool TryGetGeneratedRecord<T>(HashSet<string> pathSignature, INpcGetter template, out T record) where T : class
     {
         if (RecordGenerator.GeneratedRecordsByTempateNPC.ContainsKey(pathSignature) && RecordGenerator.GeneratedRecordsByTempateNPC[pathSignature].ContainsKey(template.FormKey.ToString()))
@@ -581,6 +626,11 @@ public class HardcodedRecordGenerator
         }
     }
 
+    /// <summary>
+    /// Applies an asset-replacer combination based on its destination type: a known head-part FormKey replacement, generic
+    /// record-path assignment, or (the commented-out) special-case replacer. Mutates the output mod for the head-part and
+    /// generic cases.
+    /// </summary>
     public void ReplacerCombinationToRecords(SubgroupCombination combination, NPCInfo npcInfo, SkyrimMod outputMod, ILinkCache<ISkyrimMod, ISkyrimModGetter> recordTemplateLinkCache, Dictionary<string, dynamic> npcObjectMap, Dictionary<FormKey, Dictionary<string, dynamic>> objectCaches, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, Dictionary<FormKey, FormKey> replacedRecords, HashSet<IMajorRecord> recordsFromTemplates, RecordGenerator recordGenerator)
     {
         if (combination.DestinationType == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
@@ -616,6 +666,11 @@ public class HardcodedRecordGenerator
             //AssignSpecialCaseAssetReplacer(combination, npcInfo.NPC, outputMod, generatedHeadParts, npcInfo, _headPartSelector, _environmentProvider);
         }
     }
+    /// <summary>
+    /// For a replacer targeting a specific head-part FormKey on the NPC, deep-copies that head part and its texture set,
+    /// applies the replacer's diffuse/normal file paths, gives them signature-derived EditorIDs, and records the copy in
+    /// the modified-records cache. Mutates the output mod.
+    /// </summary>
     private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
@@ -675,6 +730,7 @@ public class HardcodedRecordGenerator
         }
     }
 
+    /// <summary>Dispatches certain special-case replacer destination specifiers (e.g. specific female face gash marks) to <see cref="AssignHeadPartByDiffusePath"/>. Currently unused (caller commented out).</summary>
     private void AssignSpecialCaseAssetReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
@@ -686,6 +742,11 @@ public class HardcodedRecordGenerator
         }
     }
 
+    /// <summary>
+    /// Finds the NPC head part whose texture set has the given diffuse path, deep-copies it and its texture set, applies
+    /// the replacer's file paths and signature-derived EditorIDs, caches the copy, and registers it with the head-part
+    /// selector. Mutates the output mod.
+    /// </summary>
     private void AssignHeadPartByDiffusePath(SubgroupCombination subgroupCombination, Npc npc, string diffusePath, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var pathSignature = new HashSet<string>();
