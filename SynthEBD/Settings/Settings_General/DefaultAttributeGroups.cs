@@ -462,7 +462,7 @@ public class DefaultAttributeGroups
 
     public static AttributeGroup MatureFace = new()
     {
-        Label = "Can Get Mildly Older Face",
+        Label = "Can Get Mildy Older Face",
         Attributes = new()
         {
             new NPCAttribute()

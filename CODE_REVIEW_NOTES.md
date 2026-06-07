@@ -46,6 +46,57 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   "as an XXX" placeholder → "as an array/list (IReadOnlyList<dynamic>)".
 - *Verification:* Release build 0 errors; `SynthEBD.Tests` 124 passed / 1 skipped /
   0 failed. Purely cosmetic — no new automated test applicable.
+- ⚠️ **Carve-out:** the "Mildy"→"Mildly" rename was reverted out of this batch — it is
+  not a cosmetic change (see **M1**). The other E4 typos stand.
+
+---
+
+## 🆕 Added during remediation (not in the original catalogue)
+
+### M1 — `MatureFace` label rename + backward-compat migration — 🐞 compat (BLOCKER for v1.0.7.0)
+
+The "Mildy"→"Mildly" typo fix renames the default `MatureFace` AttributeGroup **Label**.
+AttributeGroups are referenced **by Label string** — `NPCAttributeGroup.SelectedLabels`
+([NPCAttribute.cs:1130](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L1130)), "resolved by
+label at match time" — so renaming the default silently desyncs every reference. Surfaces:
+- `GeneralSettings.AttributeGroups[].Label`
+- each `AssetPack.AttributeGroups[].Label` ([AssetPack.cs:31](SynthEBD/Classes_Core/Models/AssetPack.cs#L31))
+- every `NPCAttributeGroup.SelectedLabels` entry referencing the old label, anywhere
+  NPCAttributes appear: config + subgroup `Allowed/Disallowed/ForceIfAttributes` (recursively),
+  plus OBody / HeadPart rules.
+
+**Matched pair — must ship together, gated on `PatcherState.Version` (currently "1.0.6.9"):**
+1. Re-apply the rename in `DefaultAttributeGroups.MatureFace`.
+2. Add `UpdateV1070AttributeGroupRename()` to `UpdateHandler` (cumulative
+   `if (appliedVersion < "1.0.7.0")`), modeled on `UpdateV1032AttributeGroups`, rewriting
+   old→new across settings + all loaded configs. Bump `PatcherState.Version` to "1.0.7.0".
+3. Config-install trigger: when importing a config (`ConfigInstaller` / AssetPack load-merge),
+   rewrite incoming old→new references. Implement via a reusable `{oldLabel → newLabel}` alias
+   map so future renames are one-liners.
+4. Demo settings `SynthEBD.Tests/TestData/DemoSettings/Settings/GeneralSettings.json:1024`
+   still carries the old label — keep it old to serve as the migration **test fixture**.
+5. Test: run a settings tree + a config that reference the old label through the migration;
+   assert the group Label and all `SelectedLabels` references are rewritten and still resolve.
+
+*Status:* rename was reverted out of `d098cac0` so the branch isn't half-migrated; the rename
+will land **with** this migration.
+
+### B47 — `ProbabilityWeightModifier` under-applies — 🐞 (found via integration tests)
+
+A `ProbabilityWeightModifier` with `Factor=20` raises the matching subgroup's selection share to
+only ~0.81 instead of ~0.95 (20/21); plain `ProbabilityWeighting` ratios are exact (3:1→0.75).
+The factor appears to compose at the wrong granularity during combination generation rather than
+on the final per-leaf weight. *Repro:* `ProbabilityWeightingTests.cs:84-90` currently asserts only
+`> 0.70` with a comment rationalizing 0.79 — the fix tightens it to ~0.95.
+
+### B48 — Whole-config grouping rules are a silent no-op — 🐞 (Important; found via integration tests)
+
+`AssetPack.DistributionRules` resolves `Allowed/DisallowedRaceGroupings` **labels** against the
+pack's own `RaceGroupings` (usually empty) instead of `GeneralSettings.RaceGroupings` that
+subgroups use — so a config-level `AllowedRaceGroupings={"Nord"}` resolves to nothing and the
+whole config distributes to all races. Explicit race FormKeys still work. Same family as the
+General_Aux/Patcher "wrong-settings-source" bugs. *Repro:* `ConfigRulesAndInheritanceTests.cs:43-48`
+sidesteps it with explicit `AllowedRaces`; the fix lets the grouping path be tested directly.
 
 ---
 
