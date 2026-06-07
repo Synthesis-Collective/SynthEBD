@@ -5,8 +5,15 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Wizard page that collects the external dependency archives required by the chosen install options. Presents one
+/// <see cref="VM_DownloadInfo"/> row per <see cref="Manifest.DownloadInfoContainer"/> with its source URL and a
+/// local-file picker. On OK it verifies every archive path exists before marking the install complete; offers a
+/// folder-scan helper to auto-match archives by expected file name.
+/// </summary>
 public class VM_DownloadCoordinator : VM
 {
+    /// <summary>Builds a download row per manifest entry and wires the Cancel, OK (validate-all), and SelectFromFolder commands.</summary>
     public VM_DownloadCoordinator(HashSet<Manifest.DownloadInfoContainer> downloadInfo, VM_ConfigInstaller parentVM)
     {
         foreach (var di in downloadInfo)
@@ -75,6 +82,8 @@ public class VM_DownloadCoordinator : VM
     public RelayCommand SelectFromFolder { get; }
     public bool SelectFromFolderRecursive { get; set; }
 
+    /// <summary>Fills in still-empty download paths by matching each entry's expected file name against
+    /// <paramref name="folderPath"/>; recurses into subfolders when <paramref name="recursive"/> is set.</summary>
     public static void PopulateDownloadInfo(string folderPath, ObservableCollection<VM_DownloadInfo> DownloadInfo, bool recursive)
     {
         foreach (var DI in DownloadInfo.Where(x => x.Path.IsNullOrWhitespace()).ToArray())
@@ -96,8 +105,11 @@ public class VM_DownloadCoordinator : VM
         }
     }
 
+    /// <summary>Row VM for a single required dependency archive: display/source metadata, the user-supplied local
+    /// <see cref="Path"/>, and commands to browse for the file or copy the download URL.</summary>
     public class VM_DownloadInfo : VM
     {
+        /// <summary>Wires the FindPath (file picker) and CopyURL (clipboard) commands.</summary>
         public VM_DownloadInfo()
         {
             FindPath = new RelayCommand(
@@ -131,6 +143,7 @@ public class VM_DownloadCoordinator : VM
         public RelayCommand FindPath { get; set; }
         public RelayCommand CopyURL { get; set; }
 
+        /// <summary>Projects a manifest <see cref="Manifest.DownloadInfoContainer"/> into a display row VM.</summary>
         public static VM_DownloadInfo GetViewModelFromModel(Manifest.DownloadInfoContainer downloadInfo)
         {
             VM_DownloadInfo viewModel = new VM_DownloadInfo();

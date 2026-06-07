@@ -15,9 +15,17 @@ using System.Windows.Media;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Final wizard page (used only when a mod manager is configured): lets the user name the destination mod folder
+/// into which installed files are placed. Validates the name as a directory and warns when asset paths would exceed
+/// the mod manager's file-path length limit (informational only — the installer auto-renames). Writes the chosen
+/// name back onto the <see cref="Manifest.DestinationModFolder"/> on finalize.
+/// </summary>
 public class VM_DestinationFolderSelector : VM
 {
+    /// <summary>Autofac factory binding the active <paramref name="manifest"/> and owning <see cref="VM_ConfigInstaller"/>.</summary>
     public delegate VM_DestinationFolderSelector Factory(Manifest manifest, VM_ConfigInstaller parentVM);
+    /// <summary>Subscribes to folder-name changes to refresh the warning, and wires the Finalize/Cancel commands.</summary>
     public VM_DestinationFolderSelector(Manifest manifest, VM_ConfigInstaller parentVM, PatcherState patcherState, SettingsIO_AssetPack assetPackIO, ConfigInstaller configInstaller, VM_SettingsModManager modManagerVM) 
     {
         _parentVM = parentVM;
@@ -63,12 +71,15 @@ public class VM_DestinationFolderSelector : VM
     public RelayCommand Cancel { get; }
     private Manifest _loadedManifest { get; set; }
 
+    /// <summary>Seeds the default folder name and refreshes the warning when this page first becomes visible.</summary>
     public void InitializeDisplay()
     {
         SetDestinationFolder(_loadedManifest);
         UpdateWarningMessage(_loadedManifest);
     }
 
+    /// <summary>Derives an initial destination folder name from the manifest's destination/config name (stripping a
+    /// leading "SynthEBD" token), falling back to the installer's default.</summary>
     private void SetDestinationFolder(Manifest manifest)
     {
         if (!manifest.DestinationModFolder.IsNullOrWhitespace())
@@ -93,6 +104,9 @@ public class VM_DestinationFolderSelector : VM
         }
     }
 
+    /// <summary>Validates the folder name and, by load-testing each asset pack against the path-length limit, sets a
+    /// red error (invalid name), a yellow informational notice (some files will be auto-renamed), or clears the warning.
+    /// Side effect: loads asset packs and mutates <see cref="Manifest.DestinationModFolder"/> during the length check.</summary>
     public void UpdateWarningMessage(Manifest manifest)
     {
         if (!MiscFunctions.IsValidPath(DestinationFolderName))

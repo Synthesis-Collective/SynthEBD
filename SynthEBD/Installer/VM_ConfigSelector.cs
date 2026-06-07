@@ -5,8 +5,16 @@ using Noggog;
 
 namespace SynthEBD;
 
+/// <summary>
+/// First wizard page: walks the user through the manifest's option chains. Each top-level <see cref="Manifest.Options"/>
+/// entry is a sequential selection step; choosing an option may reveal nested sub-options before advancing. Tracks the
+/// running selection chain, supports backtracking, and on OK unions the selected options' resources into the
+/// <see cref="Manifest"/> and hands off to the <see cref="VM_DownloadCoordinator"/> page.
+/// </summary>
 public class VM_ConfigSelector : VM
 {
+    /// <summary>Migrates a legacy manifest, initializes the option chains, and wires the Back/Cancel/OK commands plus
+    /// the selected-option subscription that drives chain progression.</summary>
     public VM_ConfigSelector(Manifest manifest, Window_ConfigInstaller window, VM_ConfigInstaller parentVM)
     {
         Manifest = manifest;
@@ -80,6 +88,8 @@ public class VM_ConfigSelector : VM
 
     public Window_ConfigInstaller AssociatedWindow { get; set; }
 
+    /// <summary>Migrates a Version 0 (pre-0.8.3) manifest into the current format by folding its top-level legacy
+    /// fields into a single synthesized root <see cref="Manifest.Option"/> that wraps the existing options.</summary>
     private void UpgradeVersion0()
     {
         if (Manifest.Version == 0)
@@ -97,6 +107,7 @@ public class VM_ConfigSelector : VM
             Manifest.Options.Add(rootOption);
         }
     }
+    /// <summary>Creates one empty selection chain per top-level option and selects the first option to start the wizard.</summary>
     private void InitializeOptions(Manifest manifest)
     {
         if (manifest.Options.Any())
@@ -106,6 +117,9 @@ public class VM_ConfigSelector : VM
             SelectedOption = new VM_ConfigSelectorOption(manifest.Options.First(), null, this);
         }
     }
+    /// <summary>Reacts to a new <see cref="SelectedOption"/> (unless backtracking): records it in the current chain,
+    /// then either reveals its sub-options, advances to the next chain, or exposes OK when the last step is reached.
+    /// Also toggles Back-button visibility.</summary>
     private void SelectionMade()
     {
         if (SelectedOption is not null && BackFlag == false)
@@ -144,6 +158,9 @@ public class VM_ConfigSelector : VM
         }
     }
     
+    /// <summary>Steps one selection backward: pops the current chain (or moves to the previous chain), clears the
+    /// undone sub-selections, and restores the displayed options. The <see cref="BackFlag"/> suppresses
+    /// <see cref="SelectionMade"/>'s forward logic while reselecting.</summary>
     private void BackTrack()
     {
         BackFlag = true;
@@ -183,6 +200,9 @@ public class VM_ConfigSelector : VM
         BackFlag = false;
     }
 
+    /// <summary>Commits the selection: unions every chosen option's resources (asset packs, templates, BodyGen,
+    /// downloads, races, ignored files, file-extension map, destination folder) into the <see cref="Manifest"/>, then
+    /// constructs the <see cref="VM_DownloadCoordinator"/> and navigates to it. Mutates the shared manifest.</summary>
     private void Finalize(VM_ConfigInstaller parentVM)
     {
         foreach (var selection in CurrentSelectionChain)
@@ -213,8 +233,12 @@ public class VM_ConfigSelector : VM
         parentVM.DisplayedViewModel = parentVM.DownloadMenu;
     }
 }
+/// <summary>View model wrapping a single <see cref="Manifest.Option"/> as a selectable item in the
+/// <see cref="VM_ConfigSelector"/> wizard, recursively materializing its sub-options. Retains the
+/// <see cref="AssociatedModel"/> so the underlying resources can be unioned on finalize.</summary>
 public class VM_ConfigSelectorOption : VM
 {
+    /// <summary>Copies the option's display fields and recursively builds child option VMs.</summary>
     public VM_ConfigSelectorOption(Manifest.Option option, VM_ConfigSelectorOption parent, VM_ConfigSelector installer)
     {
         Name = option.Name;

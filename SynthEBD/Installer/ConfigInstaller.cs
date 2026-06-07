@@ -14,6 +14,14 @@ using SharpCompress.Readers;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Engine that installs a shareable config "pack" from an archive. <see cref="InstallConfigFile"/> orchestrates the
+/// whole flow: pick and extract the archive to a temp folder, parse and validate its Manifest.json, drive the
+/// install wizard (<see cref="VM_ConfigInstaller"/>) for option/dependency/destination selection, then load and
+/// resave the asset packs (handling Windows path-length limits via remapping), move BodyGen configs and record
+/// templates, extract and copy dependency files into the data/mod folder, register installation tokens, and offer
+/// to add referenced patchable races. Performs heavy file I/O and pops user-facing message windows throughout.
+/// </summary>
 public class ConfigInstaller
 {
     private readonly Logger _logger;
@@ -24,7 +32,9 @@ public class ConfigInstaller
     private readonly PatcherState _patcherState;
     private readonly VM_7ZipInterface _7ZipInterfaceVM;
     private readonly VM_ConfigInstaller.Factory _installerVMFactory;
+    /// <summary>Fallback mod-folder name used when the manifest omits a destination.</summary>
     public readonly string DefaultDestinationFolderName = "New SynthEBD Config";
+    /// <summary>Captures the IO handlers, paths, patcher state, 7-Zip interface, and installer-VM factory used during installation.</summary>
     public ConfigInstaller(Logger logger, SynthEBDPaths synthEBDPaths, SettingsIO_AssetPack assetPackIO, SettingsIO_BodyGen bodyGenIO, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_7ZipInterface sevenZipInterfaceVM, VM_ConfigInstaller.Factory installerVMFactory)
     {
         _logger = logger;
@@ -36,6 +46,10 @@ public class ConfigInstaller
         _7ZipInterfaceVM = sevenZipInterfaceVM;
         _installerVMFactory = installerVMFactory;
     }
+    /// <summary>Runs the full archive install workflow (see the class summary). Heavy side effects: file picker, archive
+    /// extraction, asset-pack save, file moves/copies, token writes, patchable-race edits, and message windows.</summary>
+    /// <returns>Tuple of (names of installed asset packs, whether the general-settings VM needs a refresh because
+    /// patchable races were added).</returns>
     public async Task<(List<string>, bool)> InstallConfigFile()
     {
         var installedConfigs = new List<string>();
@@ -475,6 +489,7 @@ public class ConfigInstaller
         return (installedConfigs, triggerGeneralVMRefresh);
     }
 
+    /// <summary>Verifies the manifest has the required <see cref="Manifest.ConfigPrefix"/>; shows an error and returns false if not.</summary>
     public bool ValidateManifest(Manifest manifest)
     {
         if (manifest.ConfigPrefix == null || string.IsNullOrWhiteSpace(manifest.ConfigPrefix))
@@ -485,6 +500,9 @@ public class ConfigInstaller
         return true;
     }
 
+    /// <summary>Writes the installation-token file into each prefix directory actually used by the installed packs.
+    /// With no mod manager, scans the data folder's prefix subdirectories; with a mod manager, writes into the
+    /// destination mod folder. Lets a SynthEBD-managed config be identified/uninstalled later. Performs file writes.</summary>
     public void RegisterInstalledAssets(Manifest manifest, List<string> installationTokens, HashSet<AssetPack> installedAssetPacks)
     {
         string tokenPath = "";
@@ -517,8 +535,11 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>File name of the installation-token marker written into installed prefix directories.</summary>
     public const string SynthEBDInstallationTokenFileName = "SynthEBD_Tokens.json";
 
+    /// <summary>From the source paths of the installed packs, returns the (data-subfolder, prefix) pairs that actually
+    /// occur among <paramref name="availablePrefixes"/>, so tokens are only written where files were placed.</summary>
     public HashSet<(string,string)> GetUsedPrefixes(List<string> availablePrefixes, HashSet<AssetPack> installedAssetPacks) // returns (data subfolder, prefix)
     {
         HashSet<(string, string)> prefixes = new();
@@ -550,6 +571,7 @@ public class ConfigInstaller
         return prefixes;
     }
 
+    /// <summary>Recursively collects every source path referenced by a subgroup and its descendants.</summary>
     public static List<string> GetSubgroupPaths(AssetPack.Subgroup subgroup)
     {
         List<string> subgroupPaths = subgroup.Paths.Select(x => x.Source).ToList();
@@ -560,6 +582,8 @@ public class ConfigInstaller
         return subgroupPaths;
     }
 
+    /// <summary>Synchronously extracts a .7z/.rar/.zip archive to <paramref name="destinationPath"/> via SharpCompress,
+    /// auto-detecting the format. Returns false (with an error window) for unsupported formats. Sets the wait cursor.</summary>
     private bool ExtractArchive(string archivePath, string destinationPath)
     {
         Cursor.Current = Cursors.WaitCursor;
@@ -608,6 +632,7 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Returns every source file path referenced by the asset pack's main and replacer subgroup trees.</summary>
     public HashSet<string> GetAssetPackSourcePaths(AssetPack assetPack)
     {
         // get paths in main subgroups
@@ -621,6 +646,7 @@ public class ConfigInstaller
         return referencedPaths;
     }
 
+    /// <summary>Recursively accumulates source paths from a subgroup list and its nested subgroups into <paramref name="collectedPaths"/>.</summary>
     public HashSet<string> GetSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, HashSet<string> collectedPaths)
     { 
         foreach (var subgroup in subgroups)
@@ -631,6 +657,10 @@ public class ConfigInstaller
         return collectedPaths;
     }
 
+    /// <summary>If any installed path would exceed the active mod manager's path-length limit, remaps directory/file
+    /// names to shorten them and rewrites the asset pack's paths in place. Notifies the user of the result.</summary>
+    /// <param name="pathMap">Outputs the old→new path remapping applied (empty if none needed).</param>
+    /// <returns>False only if paths remain too long even after remapping (install of this pack should be skipped).</returns>
     public bool HandleLongFilePaths(AssetPack assetPack, Manifest manifest, out Dictionary<string, string> pathMap)
     {
         pathMap = new Dictionary<string, string>();
@@ -683,6 +713,9 @@ public class ConfigInstaller
         return true;
     }
 
+    /// <summary>Computes the longest fully-resolved install path among the pack's referenced files (ignoring plugin-name
+    /// paths), as it would appear on disk after prefix/extension routing.</summary>
+    /// <param name="longestPath">Outputs that resolved longest path.</param>
     public int GetLongestPathLength(AssetPack assetPack, Manifest manifest, out string longestPath)
     {
         longestPath = "";
@@ -704,6 +737,8 @@ public class ConfigInstaller
         return longestPath.Length;
     }
 
+    /// <summary>Deprecated/unused: attempts to shorten the destination mod-folder name by one trailing character if the
+    /// trimmed name does not already exist. Retained as a future consideration.</summary>
     public bool TryTrimModFolder(Manifest manifest) // currently deprectated - I don't think this is an intuitive functionality but leaving for now as a future consideration.
     {
         if (!manifest.DestinationModFolder.Any())
@@ -724,6 +759,8 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Builds the absolute on-disk destination for a prefix-stripped sub-path by joining the data folder (no
+    /// mod manager) or the destination mod folder with the extension-routed folder and prefix.</summary>
     public string GenerateInstalledPath(string extractedSubPath, Manifest manifest, string selectedPrefix)
     {
         if (GetExpectedDataFolderFromExtension(extractedSubPath, manifest, out string extensionFolder))
@@ -750,6 +787,9 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Strips the routed extension folder and detected install prefix from a config-file path, yielding the
+    /// path relative to that prefix.</summary>
+    /// <param name="detectedPrefix">Outputs the prefix that was found and removed (empty if none).</param>
     public string GetPathWithoutSynthEBDPrefix(string path, Manifest manifest, out string detectedPrefix) // expects path straight from Config file, e.g. textures\\foo\\textures\\blah.dds --> textures\\blah.dds
     {
         detectedPrefix = "";
@@ -772,6 +812,8 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Returns the install prefix present in <paramref name="path"/> — first checking dependency extraction
+    /// sub-paths, then the manifest's <see cref="Manifest.ConfigPrefix"/> — or empty string if none matches.</summary>
     public string FindPathPrefix(string path, Manifest manifest)
     {
         foreach (var additionalPrefix in manifest.DownloadInfo.Select(x => x.ExtractionSubPath).Where(x => !x.IsNullOrWhitespace()))
@@ -796,6 +838,10 @@ public class ConfigInstaller
         return "";
     }
 
+    /// <summary>Resolves the top-level data folder a file should install into based on its extension, using the
+    /// manifest's <see cref="Manifest.FileExtensionMap"/> first, then the patcher's TexMesh trim-path settings.</summary>
+    /// <param name="extensionFolder">Outputs the mapped folder (e.g. "textures"); empty when unmapped.</param>
+    /// <returns>True if a mapping was found; false means the file installs directly to the data/mod root.</returns>
     public bool GetExpectedDataFolderFromExtension(string path, Manifest manifest, out string extensionFolder)
     {
         string extension = Path.GetExtension(path).TrimStart('.');
@@ -817,6 +863,9 @@ public class ConfigInstaller
         return false;
     }
 
+    /// <summary>Builds an old→new path map for every referenced file whose resolved install path exceeds
+    /// <paramref name="pathLengthLimit"/>, replacing each over-long path with a short numbered name under its
+    /// extension folder/prefix. Skips plugin-name and unmapped-extension paths.</summary>
     public Dictionary<string, string> RemapDirectoryNames(AssetPack extractedPack, Manifest manifest, int pathLengthLimit)
     {
         Dictionary<string, string> pathMap = new Dictionary<string, string>();
@@ -852,6 +901,7 @@ public class ConfigInstaller
         return pathMap;
     }
 
+    /// <summary>Applies <paramref name="pathMap"/> to rewrite source paths across the pack's main and replacer subgroups in place.</summary>
     public void RemapAssetPackPaths(AssetPack assetPack, Dictionary<string, string> pathMap)
     {
         // remap paths in main subgroups
@@ -864,6 +914,7 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Recursively rewrites each subgroup path that appears in <paramref name="pathMap"/> to its remapped value.</summary>
     public void RemapSubgroupListPaths(IEnumerable<AssetPack.Subgroup> subgroups, Dictionary<string, string> pathMap)
     {
         foreach (var subgroup in subgroups)
@@ -879,6 +930,8 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Constructs a shortened replacement path of the form extensionFolder\prefix\folderName\index.ext for an
+    /// over-long source path; returns the original path unchanged if its extension is unmapped.</summary>
     public string GenerateRemappedPath(string path, Manifest manifest, string folderName, int fileName)
     {
         string currentPrefix = FindPathPrefix(path, manifest);
@@ -893,6 +946,8 @@ public class ConfigInstaller
         }
     }
 
+    /// <summary>Categorizes how a path was shortened during install: <see cref="None"/>, <see cref="TrimmedModFolder"/>,
+    /// or <see cref="TrimmedSubFolders"/>.</summary>
     public enum PathModifications
     {
         None,
@@ -900,6 +955,8 @@ public class ConfigInstaller
         TrimmedSubFolders
     }
 
+    /// <summary>True when the path's first segment is a plugin file name (.esp/.esm/.esl), i.e. a record-relative path
+    /// that should not be treated as a loose asset file to copy.</summary>
     public bool PathStartsWithModName(string path)
     {
         string[] split = path.Split(Path.DirectorySeparatorChar);
@@ -922,6 +979,9 @@ public class ConfigInstaller
         return false;
     }
 
+    /// <summary>Recursively collects the races referenced by a subgroup (directly via AllowedRaces and via race
+    /// groupings), excluding those already patchable, partitioning them into resolvable <paramref name="races"/> and
+    /// unresolved <paramref name="missingRaces"/> for the caller to offer adding to the Patchable Races list.</summary>
     public void GetPatchableRaces(HashSet<IRaceGetter> races, HashSet<FormKey> missingRaces, AssetPack.Subgroup subgroup, AssetPack parent)
     {
         foreach (var raceFK in subgroup.AllowedRaces)

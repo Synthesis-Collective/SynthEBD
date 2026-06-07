@@ -6,8 +6,13 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Packager-side editor row for one external dependency archive entry under a <see cref="VM_PackagerOption"/>.
+    /// Round-trips to/from <see cref="Manifest.DownloadInfoContainer"/> and supports self-removal from its parent.
+    /// </summary>
     public class VM_DownloadInfoContainer : VM
     {
+        /// <summary>Stores the owning option and wires the Delete command (removes this row from the parent).</summary>
         public VM_DownloadInfoContainer(VM_PackagerOption parent)
         {
             Parent = parent;
@@ -21,6 +26,7 @@ namespace SynthEBD
         public VM_PackagerOption Parent { get; set; }
         public RelayCommand DeleteCommand { get; set; }
 
+        /// <summary>Builds an editor row VM from a persisted <see cref="Manifest.DownloadInfoContainer"/>.</summary>
         public static VM_DownloadInfoContainer GetViewModelFromModel(Manifest.DownloadInfoContainer model, VM_PackagerOption parent)
         {
             var viewModel = new VM_DownloadInfoContainer(parent);
@@ -31,6 +37,7 @@ namespace SynthEBD
             viewModel.ExtractionSubPath = model.ExtractionSubPath;
             return viewModel;
         }
+        /// <summary>Serializes this editor row back into a <see cref="Manifest.DownloadInfoContainer"/> model.</summary>
         public Manifest.DownloadInfoContainer DumpViewModelToModel()
         {
             Manifest.DownloadInfoContainer model = new();

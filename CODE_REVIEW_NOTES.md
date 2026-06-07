@@ -1300,3 +1300,38 @@ inserting a non-expander row before row 4 (or reordering expanders) would silent
 <!-- ENTRIES:GUI_Aux -->
 
 ---
+
+## Installer
+
+*Downloads, installs, and packages shareable asset-pack config bundles (the ConfigInstaller engine, the
+installer-wizard VMs, and the Packager tooling).*
+
+### `ConfigInstaller.InstallConfigFile` extraction-failure falls through — 🐞 possible bug
+
+[ConfigInstaller.cs](SynthEBD/Installer/ConfigInstaller.cs) · The `try { ExtractArchive(...) } catch (Exception ex)`
+around archive extraction logs/shows the error but does **not** `return` (every other failure branch in the
+method returns the empty result tuple). So after an extraction exception, execution falls through to the
+`Manifest.json` lookup in the empty/partial temp folder, and the user sees "Could not find Manifest.json …"
+instead of an extraction-failed message. Add a `return` in that catch.
+
+### `ConfigInstaller` long-path mapping overwritten per pack — 🐞 verify
+
+The `assetPathMapping` `out` value is reassigned on each asset-pack iteration of the install loop, so only the
+**last** pack's path-length remapping survives — yet it is consumed downstream as if global. Multi-pack
+manifests that need long-path remapping may mis-map files belonging to earlier packs. Worth verifying against a
+multi-pack bundle.
+
+### Installer smaller items — 💭 / 🔧
+
+- `VM_PackagerOption` strips the manifest root via `path.Replace(ParentManifest.RootDirectory, "")` — a
+  substring replace anywhere in the path, so a root-dir name recurring deeper would be wrongly stripped; use
+  `Path.GetRelativePath`. 💭
+- `VM_DestinationFolderSelector.UpdateWarningMessage` mutates `manifest.DestinationModFolder` as a side effect
+  of a display-refresh method (surprising). `VM_DownloadCoordinator.PopulateDownloadInfo` recurses
+  `Directory.GetDirectories` with no try/catch (an inaccessible subdir aborts the whole scan). 💭
+- `ConfigInstaller` uses culture-sensitive `ToLower()` on a file extension (vs the file's usual
+  `OrdinalIgnoreCase`), has a dead post-increment (`newFileNameIndex++`), and a "charactersl" status typo. 🔧
+
+<!-- ENTRIES:Installer -->
+
+---

@@ -10,11 +10,19 @@ using System.Xml.Linq;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Root view model for the packager tool that authors a shareable config <see cref="Manifest"/>. Holds the config
+    /// metadata and a tree of <see cref="VM_PackagerOption"/> nodes, and provides import/export of Manifest.json plus
+    /// root-directory selection (used to validate referenced file paths). Round-trips to/from the <see cref="Manifest"/>
+    /// model, migrating legacy (Version 0) manifests into the current node tree on import.
+    /// </summary>
     public class VM_Manifest : VM
     {
         private readonly Logger _logger;
         private readonly IEnvironmentStateProvider _environmentStateProvider;
+        /// <summary>Autofac factory for a fresh packager session.</summary>
         public delegate VM_Manifest Factory(); 
+        /// <summary>Seeds an initial root node and wires the Import/Export/AddRootNode/SetRootDirectory/selection commands.</summary>
         public VM_Manifest(Logger logger, IEnvironmentStateProvider environmentStateProvider)
         {
             _logger = logger;
@@ -105,6 +113,9 @@ namespace SynthEBD
         public VM_PackagerOption SelectedNode { get; set; }
         public RelayCommand AddRootNode { get; set; }
 
+        /// <summary>Loads a parsed <see cref="Manifest"/> into this VM. For legacy (Version 0) manifests, folds the
+        /// top-level fields into a synthesized "Root" node (with default file-extension mappings if none supplied);
+        /// otherwise materializes the option tree directly. Selects the first node.</summary>
         public void GetViewModelFromModel(Manifest model)
         {
             ConfigName = model.ConfigName;
@@ -148,6 +159,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Converts a serialized extension→folder dictionary into the editable [key, value] pair collection.</summary>
         public static ObservableCollection<string[]> GetFileExtensionMapFromModel(Dictionary<string, string> model)
         {
             ObservableCollection<string[]> map = new();
@@ -159,6 +171,7 @@ namespace SynthEBD
             return map;
         }
 
+        /// <summary>Serializes the packager state into a current-format (Version 1) <see cref="Manifest"/> model.</summary>
         public Manifest DumpViewModelToModel()
         {
             Manifest model = new();
