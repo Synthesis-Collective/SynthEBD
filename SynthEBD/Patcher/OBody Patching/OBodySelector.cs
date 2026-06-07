@@ -60,8 +60,6 @@ public class OBodySelector
             return null;
         }
 
-        AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
-
         List<BodySlideSetting> selectedPresets = new();
 
         #region Specific NPC Assignments

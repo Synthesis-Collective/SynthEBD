@@ -366,12 +366,4 @@ public class AssetAndBodyShapeSelector
         MatchesConsistency = 2, // all selected morphs are present in consistency
         ConsistencyMorphIsInvalid = 4 // the consistency morph is no longer valid because its rule set no longer permits this NPC
     }
-
-    /// <summary>Clears the given status flags. Note: operates on the by-value parameter, so it does not affect the caller's variable.</summary>
-    public static void ClearStatusFlags(BodyShapeSelectorStatusFlag flags)
-    {
-        flags = ~BodyShapeSelectorStatusFlag.NoneValidForNPC;
-        flags = ~BodyShapeSelectorStatusFlag.MatchesConsistency;
-        flags = ~BodyShapeSelectorStatusFlag.ConsistencyMorphIsInvalid;
-    }
 }

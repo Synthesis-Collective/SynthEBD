@@ -152,6 +152,12 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   (Replacer's exact per-index match was already correct). *Test:* new `AssetSelectorTests` (4 cases) — all
   forced ids present → true, a missing forced id → false (the regression), no forced ids → true, forced id
   vs empty combination → false. Suite 147 / 1 skipped / 0 failed.
+- **B8 — `AssetAndBodyShapeSelector.ClearStatusFlags` removed (redundant no-op, not a behavior bug).** The
+  method was a complete no-op (by-value param + `flags = ~X` overwrites), but tracing its only two callers
+  (OBodySelector / BodyGenSelector) showed each sets `statusFlags = new BodyShapeSelectorStatusFlag()` (= 0)
+  on the line *before* the call and then ORs flags in afterward — so even a working version would only set
+  0→0. Removed the method and both call sites (behavior-preserving dead-code removal). No test applies;
+  suite 147 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1191,7 +1197,7 @@ against the wrong (OBody) group set.
   that is a prefix of another can match the wrong line); `OBodyWriter._loadOrderCaseSensitive` is assigned but
   never read (dead). 💭
 
-### `AssetAndBodyShapeSelector.ClearStatusFlags` — 🐞 bug (complete no-op)
+### ✅ `AssetAndBodyShapeSelector.ClearStatusFlags` — 🐞 RESOLVED (no-op + redundant; removed) — see Resolved §B8
 
 [AssetAndBodyShapeSelector.cs:371](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L371) · This method
 does nothing: (1) `flags` is a **by-value** parameter, so reassigning it never reaches the caller; and (2)

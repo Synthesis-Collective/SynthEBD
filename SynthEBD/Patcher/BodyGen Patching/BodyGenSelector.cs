@@ -75,7 +75,6 @@ public class BodyGenSelector
             return new List<BodyGenConfig.BodyGenTemplate>();
         }
 
-        AssetAndBodyShapeSelector.ClearStatusFlags(statusFlags);
         List<BodyGenConfig.BodyGenTemplate> chosenMorphs = new List<BodyGenConfig.BodyGenTemplate>();
 
         var availableTemplatesGlobal = InitializeMorphList(currentBodyGenConfig.Templates, npcInfo, ValidationIgnore.None, assignedAssetCombinations, currentBodyGenConfig);
