@@ -158,6 +158,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   on the line *before* the call and then ORs flags in afterward — so even a working version would only set
   0→0. Removed the method and both call sites (behavior-preserving dead-code removal). No test applies;
   suite 147 / 1 skipped / 0 failed (no regression).
+- **B9 — `HeadPartSelector` duplicate condition + dead FormKey null compares (fixed).**
+  - *B9a:* the `else if` at :199 repeated the preceding `if`'s condition, so the warning "Specific NPC
+    Assignment … calls for {FormKey} but this head part does not currently exist in the load order" never
+    fired. Changed the `else if` to `ResolvedHeadPart == null` (diagnostic-only; the branch only logs).
+  - *B9b:* `ResolveConflictWithAssetAssignment` compared `FormKey` (a struct) to `null` (always false/true),
+    so the "one source assigned, the other didn't" early-outs were dead — when one source assigned a real
+    head part and the other an explicit `FormKey.Null`, the conflict-winner switch could return the null and
+    drop the real assignment. Extracted a pure static `ResolveHeadPartConflict(assetFK, menuFK, winner)` using
+    `.IsNull` (a real assignment beats a null one regardless of the winner); the instance method passes
+    `SourceConflictWinners[type]`. *Test:* new `HeadPartSelectorTests` (6 cases) — asset-real/menu-null →
+    asset and menu-real/asset-null → menu (both regardless of winner; the regression), plus both-real
+    honoring each winner. Suite 153 / 1 skipped / 0 failed.
 
 ---
 
@@ -1224,7 +1236,7 @@ Any caller relying on it to reset status flags is silently getting nothing.
   sub-attribute per NPC (hot-path cost across the load order); `dynamic ==` string comparisons could be
   `string.Equals`. All 🔧/💭, not correctness bugs.
 
-### `HeadPartSelector` duplicate condition — 🐞 bug (unreachable warning)
+### ✅ `HeadPartSelector` duplicate condition — 🐞 RESOLVED (unreachable warning + dead FormKey null checks) — see Resolved §B9
 
 [HeadPartSelector.cs:199](SynthEBD/Patcher/Head%20Part%20Patching/HeadPartSelector.cs#L199) · The `else if`
 repeats the **exact** condition of the preceding `if` at

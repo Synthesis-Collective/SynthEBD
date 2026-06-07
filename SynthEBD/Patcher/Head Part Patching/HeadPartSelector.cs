@@ -196,7 +196,7 @@ namespace SynthEBD
                     _logger.LogReport("Assigning " + type + ": " + (specificAssignment.EditorID ?? specificAssignment.FormKey.ToString()) + " via Specific NPC Assignment", false, npcInfo);
                     return specificAssignment;
                 }
-                else if (specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart != null)
+                else if (specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart == null)
                 {
                     _logger.LogReport("Specific NPC Assignment for " + type + " calls for " + npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.ToString() + " but this head part does not currently exist in the load order. Assigning a different head part.", true, npcInfo);
                 }
@@ -705,16 +705,26 @@ namespace SynthEBD
         /// <returns>The winning FormKey.</returns>
         public FormKey ResolveConflictWithAssetAssignment(FormKey assetAssignment, FormKey headPartAssignment, HeadPart.TypeEnum type)
         {
-            if (headPartAssignment == null && assetAssignment != null) { return assetAssignment; }
-            else if (headPartAssignment != null && assetAssignment == null) { return headPartAssignment; }
+            return ResolveHeadPartConflict(assetAssignment, headPartAssignment, _patcherState.HeadPartSettings.SourceConflictWinners[type]);
+        }
 
-            var conflictWinner = _patcherState.HeadPartSettings.SourceConflictWinners[type];
-            switch (conflictWinner)
+        /// <summary>
+        /// Picks the winning head-part FormKey between an asset-pack assignment and a head-part-menu assignment.
+        /// A real (non-null) assignment always beats an unassigned (null) one from the other source; when both are
+        /// real (or both null), the user-configured <paramref name="conflictWinner"/> decides. Pure helper extracted
+        /// for testability.
+        /// </summary>
+        public static FormKey ResolveHeadPartConflict(FormKey assetAssignment, FormKey headPartAssignment, HeadPartSourceCandidate conflictWinner)
+        {
+            if (headPartAssignment.IsNull && !assetAssignment.IsNull) { return assetAssignment; }
+            if (!headPartAssignment.IsNull && assetAssignment.IsNull) { return headPartAssignment; }
+
+            return conflictWinner switch
             {
-                case HeadPartSourceCandidate.AssetPack: return assetAssignment; 
-                case HeadPartSourceCandidate.HeadPartsMenu: return headPartAssignment;
-                default: return headPartAssignment;
-            }
+                HeadPartSourceCandidate.AssetPack => assetAssignment,
+                HeadPartSourceCandidate.HeadPartsMenu => headPartAssignment,
+                _ => headPartAssignment,
+            };
         }
         
         /// <summary>
