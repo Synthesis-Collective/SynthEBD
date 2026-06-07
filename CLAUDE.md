@@ -49,6 +49,19 @@ Tests cover the BodySlide group classifier (ML.NET-based), form-key replacement 
 
 **Settings model + persistence.** Each feature has a POCO model in `Settings/Settings_*/Settings_*.cs`, a view model (`VM_*`), and an IO handler in `Settings/SettingsIO/SettingsIO_*.cs` that serializes via `JSONhandler<T>` to JSON on disk. The flow is **VM ⇄ Model**: load JSON → model → VM at startup ([SaveLoader.cs](SynthEBD/SaveLoader.cs)), and `DumpViewModelToModel()` → save JSON on persist. `PatcherState` is the central runtime state container.
 
+**Attribute groups & race groupings — local-vs-General resolution (key modularity design).** Distribution rules throughout the app — asset-pack subgroups, whole-config rules, BodyGen/OBody/HeadPart rules, and the verbose-logging NPC selector — gate NPCs by **NPC attributes** (`NPCAttribute`) and **race groupings**. An attribute may reference a named **attribute group** by label (`NPCAttributeGroup.SelectedLabels`); a rule references named **race groupings** by label (`Allowed/DisallowedRaceGroupings`, a `HashSet<string>`). These named definitions deliberately exist at **two scopes**:
+
+- **Main / General** — `GeneralSettings.AttributeGroups` and `GeneralSettings.RaceGroupings`: the centralized, user-managed set.
+- **Local / plugin** — every shareable config carries its *own* copies so a downloaded config can ship newly-defined groups it relies on: `AssetPack.AttributeGroups` / `AssetPack.RaceGroupings`, `BodyGenConfig.AttributeGroups`, `OBodySettings.AttributeGroups`.
+
+This duality is the backbone of the design's modularity: **local** definitions let users *share config files and distribution rules* that reference attributes/race-groups the recipient hasn't defined, while the **General** set enables *centralized management*. Two toggles pick precedence (both default **on**): `GeneralSettings.OverwritePluginAttGroups` and `OverwritePluginRaceGroups` — when on, a General definition **supersedes** a local one of the same label; when off, the local/plugin definition is used.
+
+Attribute-group resolution is centralized in `NPCAttribute.GetAttributeGroupByLabel(label, localSet, patcherState, logger)`: if `OverwritePluginAttGroups`, return the matching `GeneralSettings.AttributeGroups` entry; otherwise fall back to the caller's `localSet`. At **load**, the SettingsIO handlers (`SettingsIO_AssetPack`/`_BodyGen`/`_OBody`) also copy each General group into a config's local set for any label it lacks (local-wins on collision), so the local set is a superset fallback.
+
+**Convention when wiring an attribute-gated feature:** pass the feature's *own local set* to `AttributeMatcher.MatchNPCtoAttributeList` as the group source — `subgroup.ParentAssetPack.Source.AttributeGroups` (AssetSelector), `bodyGenConfig.AttributeGroups` (BodyGenSelector), `OBodySettings.AttributeGroups` (OBodySelector), etc. For a **General-level** feature (e.g. the verbose-logging NPC selector) pass `GeneralSettings.AttributeGroups`. **Always use the same group set for a rule's Allowed *and* Disallowed checks** — a mismatch there was bug **B5**.
+
+**Known asymmetry (race groupings).** Race groupings have the parallel toggle (`OverwritePluginRaceGroups`) and per-config local lists, but — unlike attribute groups — currently lack an analogous `GetRaceGroupingByLabel` resolver *and* the load-time General→local merge. So race-grouping label resolution does **not** yet honor this local/General/toggle design symmetrically (tracked as **B48** in [CODE_REVIEW_NOTES.md](CODE_REVIEW_NOTES.md)).
+
 **The patching pipeline.** [Patcher/Patcher.cs](SynthEBD/Patcher/Patcher.cs) `RunPatcher()` is the orchestrator. It runs the assignment axes per-NPC and then generates output. Key stages and their classes:
 - Asset selection: `Patcher/Asset Patching/AssetSelector.cs`, `AssetAndBodyShapeSelector`
 - Body shape: `Patcher/BodyGen Patching/BodyGenSelector.cs`, `Patcher/OBody Patching/OBodySelector.cs`
