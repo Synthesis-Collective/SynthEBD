@@ -142,6 +142,16 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
 - *Verification (B6):* Release build 0 errors; suite 143 / 1 skipped / 0 failed (no regression). Fix-only +
   manual-verify (deep in the selectors; the harness is assets-only) — confirm via the patcher report, which
   logs the imposed descriptor priorities and the chosen morphs.
+- **B7 — `AssetSelector.CombinationAllowedBySpecificNPCAssignment` now enforces forced subgroup IDs (fixed).**
+  The Primary and MixIn cases looped over the forced ids but the body
+  (`!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any()`) ignored each `id` and only checked the
+  combination was non-empty — so a pre-determined (consistency / linked-group) combination was accepted even
+  when it lacked a forced subgroup, and a user's explicit "force this NPC to wear X" lost to a stale
+  consistency/linked combo. Extracted a pure `CombinationContainsForcedSubgroups(combinationIds, forcedIds)`
+  (forced ids are a subset that must all be present; null/empty = no constraint), used in Primary + MixIn
+  (Replacer's exact per-index match was already correct). *Test:* new `AssetSelectorTests` (4 cases) — all
+  forced ids present → true, a missing forced id → false (the regression), no forced ids → true, forced id
+  vs empty combination → false. Suite 147 / 1 skipped / 0 failed.
 
 ---
 
@@ -1249,7 +1259,7 @@ to cover both counts: `!SkyPatcher && (Count == 2 || Count == 1)`. Bracket it.
   `.ToString() ==` (line ~55), and `ArmatureHasVanillaPath` returns `true` ("assume vanilla / skip") on an
   unresolvable path — an inverted-return readability trap. 💭
 
-### `AssetSelector.CombinationAllowedBySpecificNPCAssignment` forced IDs not validated — 🐞 bug
+### ✅ `AssetSelector.CombinationAllowedBySpecificNPCAssignment` forced IDs not validated — 🐞 RESOLVED — see Resolved §B7
 
 [AssetSelector.cs:1189](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1189),
 [:1203](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1203) · The Primary and MixIn cases loop

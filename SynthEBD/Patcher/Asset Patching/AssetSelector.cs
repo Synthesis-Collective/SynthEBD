@@ -1184,12 +1184,9 @@ public class AssetSelector
                 else
                 {
                     if (specificAssignment.AssetPackName != selectedCombination.AssignmentName) { return false; }
-                    foreach (var id in specificAssignment.SubgroupIDs)
+                    if (!CombinationContainsForcedSubgroups(selectedCombination.ContainedSubgroups.Select(x => x.Id), specificAssignment.SubgroupIDs))
                     {
-                        if (!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any())
-                        {
-                            return false;
-                        }
+                        return false;
                     }
                 }
                 break;
@@ -1198,12 +1195,9 @@ public class AssetSelector
                 var forcedMixIn = specificAssignment.MixInAssignments.Where(x => x.AssetPackName == selectedCombination.AssignmentName).FirstOrDefault();
                 if (forcedMixIn != null)
                 {
-                    foreach (var id in forcedMixIn.SubgroupIDs)
+                    if (!CombinationContainsForcedSubgroups(selectedCombination.ContainedSubgroups.Select(x => x.Id), forcedMixIn.SubgroupIDs))
                     {
-                        if (!selectedCombination.ContainedSubgroups.Select(x => x.Id).Any())
-                        {
-                            return false;
-                        }
+                        return false;
                     }
                 }
                 break;
@@ -1223,6 +1217,19 @@ public class AssetSelector
                 break;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="combinationSubgroupIds"/> contains every id in
+    /// <paramref name="forcedSubgroupIds"/>. A Specific NPC Assignment's forced subgroup IDs (for Primary and
+    /// MixIn packs) are a subset that must all be present in the combination — unlike a Replacer assignment,
+    /// which requires an exact, ordered match. A null/empty forced set imposes no constraint. Extracted for testability.
+    /// </summary>
+    public static bool CombinationContainsForcedSubgroups(IEnumerable<string> combinationSubgroupIds, IEnumerable<string> forcedSubgroupIds)
+    {
+        if (forcedSubgroupIds == null) { return true; }
+        var present = combinationSubgroupIds.ToHashSet();
+        return forcedSubgroupIds.All(present.Contains);
     }
 
     /// <summary>
