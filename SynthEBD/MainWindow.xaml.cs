@@ -4,10 +4,12 @@ using Autofac;
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for MainWindow.xaml
+/// Main application window (a MahApps MetroWindow). Its DataContext is set to the
+/// <see cref="MainWindow_ViewModel"/> by the active <see cref="App"/> startup path.
 /// </summary>
 public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
 {
+    /// <summary>Initializes the window and sizes it relative to the primary screen.</summary>
     public MainWindow()
     {
         InitializeComponent();

@@ -5,8 +5,24 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Autofac module that wires up the SynthEBD object graph: backend singletons (logging, IO
+/// handlers, <see cref="PatcherState"/>, <see cref="SaveLoader"/>, <see cref="Patcher"/>,
+/// path/update/validation helpers), the singleton main-UI view models plus transient
+/// per-item view models, CharacterViewer host adapters bound behind the viewer's neutral
+/// interfaces, and the patcher-stage components. Mode-specific providers (settings/environment
+/// source, environment state) are registered by the individual <see cref="App"/> startup paths
+/// rather than here.
+/// </summary>
 public class MainModule : Autofac.Module
 {
+    /// <summary>
+    /// Registers all SynthEBD types with the container. Most backend and main-UI types are
+    /// <c>SingleInstance</c>; per-item/DTO view models are transient. Also configures the
+    /// <see cref="SynthEbdViewerHostStateRegistry"/> via a build callback that stores lazy
+    /// resolver lambdas (so the not-yet-constructible environment provider is resolved on
+    /// first viewer use rather than at container-build time).
+    /// </summary>
     protected override void Load(ContainerBuilder builder)
     {
         // Singletons

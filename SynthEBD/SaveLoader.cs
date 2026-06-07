@@ -7,6 +7,13 @@ using static SynthEBD.VM_NPCAttribute;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Settings persistence coordinator. Loads JSON settings/plugin files into the
+/// <see cref="PatcherState"/> models (via the per-feature <c>SettingsIO_*</c> handlers) at
+/// startup, and serializes those models back to disk on save. Registered as a singleton in
+/// <see cref="MainModule"/>; consumed by <see cref="ViewModelLoader"/> and the <see cref="App"/>
+/// startup paths.
+/// </summary>
 public class SaveLoader
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -28,6 +35,8 @@ public class SaveLoader
     private readonly SettingsIO_ModManager _modManagerIO;
     private readonly SettingsIO_SpecificNPCAssignments _specificNPCassignmentsIO;
 
+    /// <summary>Injects the environment/source providers, the target <see cref="PatcherState"/>,
+    /// logger, paths, race resolver, and the per-feature settings IO handlers.</summary>
     public SaveLoader(
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -66,6 +75,10 @@ public class SaveLoader
         _modManagerIO = modManagerIO;
     }
 
+    /// <summary>
+    /// Loads everything into <see cref="PatcherState"/> in dependency order: initial settings,
+    /// then plugin data, then meta settings (specific assignments and consistency).
+    /// </summary>
     public void LoadAllSettings()
     {
         LoadInitialSettings();
@@ -73,6 +86,11 @@ public class SaveLoader
         LoadMetaSettings();
     }
 
+    /// <summary>
+    /// Loads the per-feature settings models (general, texmesh, BodyGen, OBody, head parts,
+    /// height, block list, mod manager, update log). Resolves patchable races and seeds the
+    /// BodySlide classifier from slider catalogs before importing BodySlide presets.
+    /// </summary>
     public void LoadInitialSettings()
     {
         _generalIO.LoadGeneralSettings(out var loadSuccess); // Load general settings                                                           
@@ -92,6 +110,11 @@ public class SaveLoader
         _patcherState.UpdateLog = _miscIO.LoadUpdateLog(out loadSuccess); // load Update Log
     }
 
+    /// <summary>
+    /// Loads plugin-level data into <see cref="PatcherState"/>: BodyGen configs (before asset
+    /// packs, which depend on them), record templates and their link cache, asset packs, and
+    /// height configs.
+    /// </summary>
     public void LoadPlugins()
     {
         // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
@@ -102,12 +125,23 @@ public class SaveLoader
         _patcherState.HeightConfigs = _heightIO.LoadHeightConfigs(out loadSuccess); // load heights
     }
 
+    /// <summary>
+    /// Loads meta settings that depend on the loaded plugins: specific NPC assignments and the
+    /// consistency dictionary.
+    /// </summary>
     public void LoadMetaSettings()
     {
         _patcherState.SpecificNPCAssignments = _specificNPCassignmentsIO.LoadAssignments(out var loadSuccess);
         _patcherState.Consistency = _miscIO.LoadConsistency(out loadSuccess);
     }
 
+    /// <summary>
+    /// Serializes every <see cref="PatcherState"/> model back to its JSON file on disk
+    /// (general, texmesh, asset packs, height settings/configs, BodyGen settings/configs, OBody,
+    /// head parts, consistency, update log, specific assignments, block list, mod manager, and
+    /// the settings source). In standalone mode also persists the environment source. Logs each
+    /// failure and shows a consolidated error dialog if any save failed.
+    /// </summary>
     public void SaveStateToDrive()
     {
         bool saveSuccess;
@@ -251,6 +285,7 @@ public class SaveLoader
         }
     }
 
+    /// <summary>Persists only the consistency dictionary to disk, ignoring the success flag.</summary>
     public void SaveConsistency()
     {
         _miscIO.SaveConsistency(_patcherState.Consistency, out _);

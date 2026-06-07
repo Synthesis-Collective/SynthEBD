@@ -2,6 +2,12 @@ using System.Windows.Input;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Backs the left-hand navigation panel. Each <c>Click*</c> command swaps the shared
+/// <see cref="DisplayedItemVm.DisplayedViewModel"/> to the corresponding settings view model
+/// (General, TexMesh, BodyGen, OBody, Height, HeadParts, Specific Assignments, Consistency,
+/// Block List, Log, Mod Manager). Registered as a singleton in <see cref="MainModule"/>.
+/// </summary>
 public class VM_NavPanel : VM
 {
     public ICommand ClickSG { get; }
@@ -16,11 +22,16 @@ public class VM_NavPanel : VM
     public ICommand ClickLog { get; }
     public ICommand ClickMM { get; }
 
+    /// <summary>SynthEBD version string shown in the nav panel (from <see cref="PatcherState.Version"/>).</summary>
     public string Version { get; }
 
     private readonly VM_Settings_General _settingsGeneral;
     private readonly DisplayedItemVm _displayedItemVM;
 
+    /// <summary>
+    /// Captures the target settings view models and builds the navigation
+    /// <see cref="RelayCommand"/>s, each of which sets the shared display slot to its VM.
+    /// </summary>
     public VM_NavPanel(
         DisplayedItemVm displayedItemVm,
         VM_Settings_General settingsGeneral,
@@ -87,6 +98,7 @@ public class VM_NavPanel : VM
         );
     }
 
+    /// <summary>Navigates to the General Settings view (the main menu).</summary>
     public void GoToMainMenu()
     {
         _displayedItemVM.DisplayedViewModel = _settingsGeneral;

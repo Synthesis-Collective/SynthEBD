@@ -13,7 +13,12 @@ using Mutagen.Bethesda;
 namespace SynthEBD;
 
 /// <summary>
-/// Interaction logic for App.xaml
+/// WPF application entry point. Registers the SynthEBD callbacks with the Mutagen
+/// <see cref="SynthesisPipeline"/> and routes startup into one of three paths:
+/// standalone UI (<see cref="StandaloneOpen"/>), settings UI launched from Synthesis
+/// (<see cref="OpenForSettings"/>), and the patch run (<see cref="RunPatch"/>), plus a
+/// runnability check (<see cref="CanRunPatch"/>). Each path builds its own Autofac
+/// container from <see cref="MainModule"/> with a mode-specific environment provider.
 /// </summary>
 public partial class App : Application
 {
@@ -23,6 +28,11 @@ public partial class App : Application
     private PatcherState _patcherState;
     private Logger _logger;
 
+    /// <summary>
+    /// Wires the Synthesis pipeline callbacks (settings/runnability/patch/standalone),
+    /// switches it to WPF mode, and runs it against the process arguments, blocking
+    /// until it completes.
+    /// </summary>
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -37,6 +47,13 @@ public partial class App : Application
             .Wait();
     }
 
+    /// <summary>
+    /// Standalone startup path: builds the container with a
+    /// <see cref="StandaloneRunEnvironmentStateProvider"/>, resolves settings/environment
+    /// source providers (rooted under the install directory), the <see cref="PatcherState"/>,
+    /// the <see cref="MainWindow_ViewModel"/>, and shows the main window on the main menu.
+    /// </summary>
+    /// <returns>0 to signal success to the Synthesis pipeline.</returns>
     public int StandaloneOpen()
     {
         var window = new MainWindow();
@@ -69,6 +86,14 @@ public partial class App : Application
         return 0;
     }
 
+    /// <summary>
+    /// Synthesis "open for settings" path: builds the container with an
+    /// <see cref="OpenForSettingsWrapper"/> over <paramref name="state"/>, sources settings
+    /// from the Synthesis ExtraSettingsDataPath, and shows the settings UI. The environment
+    /// source provider is resolved only to satisfy <see cref="SaveLoader"/>.
+    /// </summary>
+    /// <param name="state">Synthesis-supplied settings-state context.</param>
+    /// <returns>0 to signal success to the Synthesis pipeline.</returns>
     public int OpenForSettings(IOpenForSettingsState state)
     {
         var window = new MainWindow();
@@ -94,6 +119,14 @@ public partial class App : Application
         return 0;
     }
 
+    /// <summary>
+    /// Synthesis runnability check: builds a throwaway container with a
+    /// <see cref="RunnabilitySettingsWrapper"/>, loads all settings via
+    /// <see cref="SaveLoader.LoadAllSettings"/>, and runs <see cref="PreRunValidation"/>.
+    /// Throws if validation fails so Synthesis reports the patcher as not runnable.
+    /// </summary>
+    /// <param name="state">Synthesis-supplied runnability context.</param>
+    /// <exception cref="Exception">Thrown when patcher-state validation fails.</exception>
     private static void CanRunPatch(IRunnabilityState state)
     {
         var builder = new ContainerBuilder();
@@ -115,6 +148,13 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Synthesis patch-run path: builds the container with a <see cref="PatcherStateWrapper"/>,
+    /// loads all settings, runs body-shape annotation validation (BodySlide or BodyGen) and
+    /// returns early if it fails, sets the output data folder from settings when valid, then
+    /// invokes <see cref="Patcher.RunPatcher"/>.
+    /// </summary>
+    /// <param name="state">Synthesis-supplied patcher state (load order, link cache, paths).</param>
     private async Task RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
         var builder = new ContainerBuilder();
@@ -164,6 +204,12 @@ public partial class App : Application
         await patcher.RunPatcher();
     }
 
+    /// <summary>
+    /// Global WPF unhandled-exception handler. Composes a detailed crash report (exception
+    /// stack, version, run mode, settings/environment creation logs, patcher state, and the
+    /// current NPC's override order and saved report), writes it to a timestamped crash log,
+    /// shows it to the user, marks the exception handled, and closes the main window.
+    /// </summary>
     private async void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         StringBuilder sb = new();

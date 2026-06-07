@@ -10,6 +10,13 @@ using static System.Windows.Forms.AxHost;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Performs one-time first-run setup: shows a welcome message and seeds default resources
+    /// (the default height config and the bundled record-template plugin) into the user's
+    /// settings directories, then loads them into state. In Synthesis mode it also points the
+    /// mod-manager temp-extraction folder at the run's ExtraSettingsDataPath. Registered as a
+    /// singleton in <see cref="MainModule"/>.
+    /// </summary>
     public class FirstLaunch
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -21,6 +28,7 @@ namespace SynthEBD
         private readonly VM_SettingsModManager _modManager;
         private readonly SettingsIO_AssetPack _assetIO;
         private readonly PatcherState _patcherState;
+        /// <summary>Injects the environment, paths, logger, height/mod-manager view models, asset IO, state, and height VM factories.</summary>
         public FirstLaunch(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, Logger logger, VM_SettingsHeight heightSettingsVM, VM_SettingsModManager modManager, SettingsIO_AssetPack assetIO, PatcherState patcherState, VM_HeightConfig.Factory heightConfigFactory, VM_HeightAssignment.Factory heightAssignmentFactory)
         {
             _environmentProvider = environmentProvider;
@@ -34,6 +42,11 @@ namespace SynthEBD
             _heightAssignmentFactory = heightAssignmentFactory;
         }
 
+        /// <summary>
+        /// Runs the first-launch flow: welcome message, copy + load the default height config and
+        /// record templates if not already present, select a default height config, and (in
+        /// Synthesis mode) set the temp-extraction folder.
+        /// </summary>
         public void OnFirstLaunch()
         {
             ShowFirstRunMessage();
@@ -87,6 +100,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Displays the one-time welcome dialog pointing users at mod-manager and output-folder setup.</summary>
         private void ShowFirstRunMessage()
         {
             string message = @"Welcome to SynthEBD

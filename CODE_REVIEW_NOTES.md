@@ -1342,3 +1342,46 @@ share the same triplicated tree-select helper flagged in the Classes_Core views.
 <!-- ENTRIES:Installer -->
 
 ---
+
+## App composition / root
+
+*The entry point, Autofac wiring, central state, persistence, and shell view models.*
+
+### `App.xaml.cs` crash-handler / startup nits — 🐞 / 💭
+
+[App.xaml.cs:232](SynthEBD/App.xaml.cs#L232) · `"Installation Location: " + Assembly.GetEntryAssembly()?.Location ?? "Failed to locate."`
+— `+` binds tighter than `??`, so the left operand of `??` is the already-concatenated (non-null) string and
+the `"Failed to locate."` fallback is dead; a null `Location` prints an empty location. Wrap the
+`?.Location ?? "…"` in parens. Also: the crash handler dereferences `_settingsSourceProvider` with no null
+guard (unlike the adjacent `_logger`/`_patcherState` guards), so a crash before that field resolves makes the
+crash handler itself NRE and lose the report; and a `Task.Run(...).Wait()` inside an `async void` handler
+blocks the UI thread. 🐞/💭
+
+### `SaveLoader` null/guard items — 🐞
+
+`LoadPlugins` dereferences `_patcherState.GeneralSettings.RaceGroupings` with no null check — if the
+general-settings load failed, this NREs. `LoadInitialSettings` discards every loader's `out loadSuccess`
+(aggregate failure is ignored), and both BodyGen save calls share the caption "Error saving BodyGen configs"
+so a failure can't be attributed to male vs female. 🐞/🔧
+
+### `MainModule` duplicate registration — 🔧
+
+[MainModule.cs:222](SynthEBD/MainModule.cs#L222), [:274](SynthEBD/MainModule.cs#L274) ·
+`builder.RegisterType<VM_SpecificNPCAssignment>().AsSelf();` is registered **twice** — redundant (the second
+wins). Also `RegisterBuildCallback` configures a *static* `SynthEbdViewerHostStateRegistry` from the container,
+which re-runs each time a startup path builds a fresh container (static global config across containers).
+
+### Root composition smaller items — 💭
+
+- `PatcherState.Version` is a mutable `public static string` (should be `const`/`static readonly`).
+- `ViewModelLoader` injects several never-used factory/field dependencies (dead ctor deps), and its
+  `Observable.CombineLatest` subscription fires `Reinitialize()` *during construction* (CombineLatest emits
+  immediately) — a full settings+VM load as a constructor side effect.
+- `VM_RunButton` takes the same `PatcherState` singleton via two params (`_patcherState` and `_state`);
+  `MainWindow_ViewModel` exposes a `public readonly _paths` field specifically for crash logging (leaky).
+- `FirstLaunch` carries an accidental `using static System.Windows.Forms.AxHost;` and uses
+  `File.Exists`+`File.Copy(...,false)` (TOCTOU). 💭
+
+<!-- ENTRIES:Root -->
+
+---

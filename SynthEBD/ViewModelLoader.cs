@@ -13,6 +13,13 @@ using static System.Resources.ResXFileRef;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Bridges loaded <see cref="PatcherState"/> models and the top-level settings view models.
+    /// Coordinates the multi-stage VM load (initial settings VMs, then plugin VMs, then
+    /// final/dependent VMs), and the reverse dump from VMs back to models prior to saving via
+    /// <see cref="SaveLoader"/>. Re-runs the full load whenever the portable-settings source
+    /// changes. Registered as a singleton in <see cref="MainModule"/>.
+    /// </summary>
     public class ViewModelLoader : VM
     {
         private readonly IEnvironmentStateProvider _environmentProvider;
@@ -51,6 +58,11 @@ namespace SynthEBD
         private readonly VM_NPCAttributeCreator _attributeCreator;
         private readonly UpdateHandler _updateHandler;
 
+        /// <summary>
+        /// Injects the environment/state providers, target view models and their Autofac
+        /// factories, and subscribes to portable-settings-source changes so that flipping the
+        /// source triggers a full <see cref="Reinitialize"/>.
+        /// </summary>
         public ViewModelLoader(
             IEnvironmentStateProvider environmentProvider, 
             PatcherSettingsSourceProvider patcherSettingsSourceProvider, 
@@ -131,6 +143,10 @@ namespace SynthEBD
             }).DisposeWith(this);
         }
 
+        /// <summary>
+        /// Dumps the plugin view models to models, reloads plugin data from disk, and rebuilds
+        /// the plugin view models. Shows a wait cursor for the duration.
+        /// </summary>
         public void SaveAndRefreshPlugins()
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
@@ -140,6 +156,11 @@ namespace SynthEBD
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         }
 
+        /// <summary>
+        /// Full reload: reloads all settings from disk, validates them, rebuilds the three VM
+        /// stages (initial, plugin, final), checks backward compatibility, and writes the
+        /// startup log. Invoked on construction and whenever the portable-settings source changes.
+        /// </summary>
         public void Reinitialize()
         {
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.WaitCursor;
@@ -153,6 +174,10 @@ namespace SynthEBD
             System.Windows.Forms.Cursor.Current = System.Windows.Forms.Cursors.Default;
         }
 
+        /// <summary>
+        /// Copies the general, texmesh, block-list, and mod-manager models into their view
+        /// models. These must load before the plugin VMs (which depend on them).
+        /// </summary>
         public void LoadInitialSettingsViewModels() // view models that should be loaded before plugin VMs
         {
             // Load general settings
@@ -162,6 +187,10 @@ namespace SynthEBD
             _settingsModManager.CopyInViewModelFromModel(_patcherState.ModManagerSettings);
         }
 
+        /// <summary>
+        /// Builds the plugin-dependent view models in order: BodyGen/OBody, then asset packs
+        /// (which depend on BodyGen/BodySlide), then height configs and the height settings VM.
+        /// </summary>
         public void LoadPluginViewModels()
         {
             _bodyGenSettingsVM.CopyInViewModelFromModel(_patcherState.BodyGenConfigs, _patcherState.BodyGenSettings, _bodyGenConfigFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings);
@@ -174,6 +203,10 @@ namespace SynthEBD
             _heightSettingsVM.CopyInFromModel(_patcherState.HeightSettings); /// must do after populating configs
         }
 
+        /// <summary>
+        /// Loads the view models that depend on already-loaded plugin VMs: asset ordering, head
+        /// parts, and specific NPC assignments. (Consistency VMs are no longer loaded here.)
+        /// </summary>
         public void LoadFinalSettingsViewModels() // view models that should be loaded after plugin VMs because they depend on the loaded plugins
         {
             _texMeshSettingsVM.AssetOrderingMenu.CopyInFromModel(_patcherState.TexMeshSettings?.AssetOrder ?? null);
@@ -187,6 +220,10 @@ namespace SynthEBD
             //VM_ConsistencyUI.GetViewModelsFromModels(_patcherState.Consistency, _consistencyUi.Assignments, _texMeshSettingsVM.AssetPacks, _headPartSettingsVM, _logger);
         }
 
+        /// <summary>
+        /// Dumps the asset-pack, height-config, and BodyGen-config view models back into their
+        /// <see cref="PatcherState"/> models.
+        /// </summary>
         public void SavePluginViewModels()
         {
             VM_AssetPack.DumpViewModelsToModels(_texMeshSettingsVM.AssetPacks, _patcherState.AssetPacks);
@@ -194,6 +231,12 @@ namespace SynthEBD
             _patcherState.BodyGenConfigs = _bodyGenSettingsVM.DumpBodyGenConfigsToModels();
         }
 
+        /// <summary>
+        /// Dumps every top-level settings view model back into its <see cref="PatcherState"/>
+        /// model (general, texmesh, height, BodyGen, OBody, head parts, specific assignments,
+        /// block list, consistency, mod manager) and the plugin VMs via
+        /// <see cref="SavePluginViewModels"/>.
+        /// </summary>
         public void DumpViewModelsToModels()
         {
             _patcherState.GeneralSettings = _generalSettingsVM.DumpViewModelToModel();
@@ -209,6 +252,10 @@ namespace SynthEBD
             SavePluginViewModels();
         }
 
+        /// <summary>
+        /// Dumps all view models to models and persists the entire state to disk via
+        /// <see cref="SaveLoader.SaveStateToDrive"/>. Called on application shutdown.
+        /// </summary>
         public void SaveViewModelsToDrive()
         {
             DumpViewModelsToModels();

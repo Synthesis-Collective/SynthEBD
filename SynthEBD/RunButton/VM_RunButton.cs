@@ -4,6 +4,12 @@ using System.Windows.Media;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Backs the standalone-mode "Run" button. <see cref="ClickRun"/> switches to the log view,
+/// dumps view models to models, runs pre-run and body-shape annotation validation, refreshes
+/// the output environment on repeat runs, and invokes <see cref="Patcher.RunPatcher"/> on a
+/// background task. Registered as a singleton in <see cref="MainModule"/>.
+/// </summary>
 public class VM_RunButton : VM
 {
     private readonly StandaloneRunEnvironmentStateProvider _environmentProvider;
@@ -14,6 +20,11 @@ public class VM_RunButton : VM
     private readonly MiscValidation _miscValidation;
     private readonly Logger _logger;
 
+    /// <summary>
+    /// Captures the environment/state/validation dependencies and builds the asynchronous
+    /// <see cref="ClickRun"/> command. (A commented-out synchronous variant is retained for
+    /// debugging.)
+    /// </summary>
     public VM_RunButton(
         StandaloneRunEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -78,7 +89,10 @@ public class VM_RunButton : VM
                 HasBeenRun = true;
             });
     }
+    /// <summary>Button background brush (defaults to green).</summary>
     public SolidColorBrush BackgroundColor { get; set; } = new(Colors.Green);
+    /// <summary>True once the patcher has run at least once this session; gates environment refresh.</summary>
     public bool HasBeenRun { get; set; } = false;
+    /// <summary>Command that runs the patcher (see <see cref="VM_RunButton"/> summary).</summary>
     public ReactiveUI.IReactiveCommand ClickRun { get; }
 }

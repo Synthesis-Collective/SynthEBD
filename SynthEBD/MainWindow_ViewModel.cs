@@ -5,6 +5,12 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Shell view model for the main window. Owns the displayed-content host
+/// (<see cref="DisplayedItemVm"/>), nav panel, status bar, and (in standalone mode) the run
+/// button, and starts the UI on the General Settings view. Wires application shutdown to save
+/// the view models to disk.
+/// </summary>
 public class MainWindow_ViewModel : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -20,7 +26,12 @@ public class MainWindow_ViewModel : VM
     public VM_RunButton RunButtonVM { get; }
     public VM_NavPanel NavViewModel { get; }
     public VM_StatusBar StatusBarVM { get; }
+    /// <summary>Process-wide guard so the evaluation-mode message is shown at most once.</summary>
     public static bool EvalMessageTriggered {get; set;} = false;
+    /// <summary>
+    /// Wires up the child VMs; in standalone mode resolves the run button via its factory,
+    /// otherwise sets the Synthesis startup log string. Starts on the General Settings VM.
+    /// </summary>
     public MainWindow_ViewModel(
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -59,11 +70,16 @@ public class MainWindow_ViewModel : VM
         Display.DisplayedViewModel = _settingsGeneral;
     }
 
+    /// <summary>Registers the application Exit handler that persists state on shutdown.</summary>
     public void Init()
     {
         Application.Current.Exit += MainWindow_Closing;
     }
 
+    /// <summary>
+    /// Application-exit handler: disposes the FaceGen preview service (logging but swallowing
+    /// any failure) and saves all view models to disk.
+    /// </summary>
     void MainWindow_Closing(object sender, ExitEventArgs e)
     {
         try

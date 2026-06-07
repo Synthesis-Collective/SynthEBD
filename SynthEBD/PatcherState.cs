@@ -4,9 +4,17 @@ using System.Windows.Forms;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Central runtime state container holding all loaded settings models (general, asset/texmesh,
+/// BodyGen, OBody/BodySlide, height, head parts, mod manager), the loaded plugin data (asset
+/// packs, height/BodyGen configs, consistency, block list, specific NPC assignments, record
+/// templates), and derived caches. Populated by <see cref="SaveLoader"/> and consumed by the
+/// patcher and view models. Registered as a singleton in <see cref="MainModule"/>.
+/// </summary>
 public class PatcherState
 {
     // Version
+    /// <summary>Static SynthEBD version string, surfaced in the UI and crash/startup logs.</summary>
     public static string Version = "1.0.6.9";
     // Settings
     public Settings_General GeneralSettings { get; set; }
@@ -31,6 +39,12 @@ public class PatcherState
     public List<SkyrimMod> RecordTemplatePlugins { get; set; }
     public HashSet<NPCAssignment> SpecificNPCAssignments { get; set; }
 
+    /// <summary>
+    /// Builds a human-readable, null-safe summary of the current patcher state (active settings
+    /// modes, selected/available config files, BodyGen and BodySlide counts, head part counts,
+    /// mod-manager paths). Used in startup logging and crash reports.
+    /// </summary>
+    /// <returns>A multi-line diagnostic string describing the loaded state.</returns>
     public string GetStateLogStr()
     {
         System.Text.StringBuilder sb = new();
