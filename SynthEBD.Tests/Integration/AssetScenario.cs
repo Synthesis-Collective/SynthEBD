@@ -82,6 +82,22 @@ public static class AssetScenario
         };
     }
 
+    /// <summary>
+    /// Builds the same set of leaves as both a Male and a Female pack, so a scenario covers NPCs of both
+    /// genders in one run. Leaf ids are identical across the two packs; combination-log queries match by id
+    /// across all configs, so assignments aggregate naturally.
+    /// </summary>
+    public static IReadOnlyList<AssetPack> BuildBothGenders(string baseName, IEnumerable<Leaf> leaves,
+        Leaf? parentRules = null)
+    {
+        var leafList = leaves.ToList();
+        return new[]
+        {
+            BuildPack(baseName + " (F)", Gender.Female, leafList, parentRules),
+            BuildPack(baseName + " (M)", Gender.Male, leafList, parentRules),
+        };
+    }
+
     private static AssetPack.Subgroup ToSubgroup(Leaf leaf)
     {
         var sg = new AssetPack.Subgroup
