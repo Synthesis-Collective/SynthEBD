@@ -118,6 +118,15 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   → `.And(assetPacks.MixInMale)`. No unit test by agreement: a real regression test needs heavy
   `FlattenedAssetPack`/`PatcherState` construction, and a concat-extract test would be theater (the bug is
   in the call-site arguments). Manual-verify via the combination log. Suite 143 / 1 skipped / 0 failed (no regression).
+- **B5 — `VerboseLoggingNPCSelector` disallowed-attributes group source fixed (logging-only).** The
+  verbose-logging NPC selector resolved its *allowed*-attributes group labels against
+  `GeneralSettings.AttributeGroups` but its *disallowed* check used `OBodySettings.AttributeGroups`
+  (copy-pasted from `OBodySelector`). Verbose logging is a General-settings feature, so both must use the
+  General set; changed line 77 → `GeneralSettings.AttributeGroups`. Per the local-vs-General resolution
+  architecture (now documented in CLAUDE.md), this usually resolved correctly anyway via the load-merge +
+  the default-on `OverwritePluginAttGroups` toggle, but diverged when the toggle was off and OBody locally
+  redefined a referenced group label. Fix-only (a real test is integration-level; the bug is a call-site
+  argument). Suite 143 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1128,7 +1137,7 @@ struct so the predicate is always true (and the `.ToArray()` is needless). `.Whe
 lists `MixInFemale` **twice** and never `MixInMale`, so male mix-in packs are omitted from the combination
 log/stats and female mix-ins are double-counted. The third `.And(...)` should be `assetPacks.MixInMale`.
 
-### `VerboseLoggingNPCSelector` allowed/disallowed AttributeGroups mismatch — 🐞 bug
+### ✅ `VerboseLoggingNPCSelector` allowed/disallowed AttributeGroups mismatch — 🐞 RESOLVED — see Resolved §B5
 
 [VerboseLoggingNPCSelector.cs:77](SynthEBD/Patcher/PatcherAux/VerboseLoggingNPCSelector.cs#L77) · The
 *allowed*-attributes check passes `_patcherState.GeneralSettings.AttributeGroups`

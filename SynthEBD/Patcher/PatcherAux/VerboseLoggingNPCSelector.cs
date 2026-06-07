@@ -74,7 +74,10 @@ namespace SynthEBD
             }
 
             // Disallowed Attributes
-            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.DisallowedAttributes, npcInfo.NPC, null, _patcherState.OBodySettings.AttributeGroups, false, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
+            // Verbose-logging rules are a General-settings feature, so resolve their attribute-group labels
+            // against GeneralSettings.AttributeGroups — matching the Allowed check above. (Previously this
+            // passed OBodySettings.AttributeGroups, copy-pasted from OBodySelector.)
+            _attributeMatcher.MatchNPCtoAttributeList(loggingRules.DisallowedAttributes, npcInfo.NPC, null, _patcherState.GeneralSettings.AttributeGroups, false, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int _, out string _, out string _, out string _, null);
             if (hasAttributeRestrictions && matchesAttributeRestrictions)
             {
                 return false;
