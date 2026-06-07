@@ -1,0 +1,87 @@
+{
+  "SchemaVersion": 0,
+  "DefaultWeightSlots": [ 0, 25, 50, 75, 100 ],
+  "BodySlidesMale": [
+    {
+      "Label": "Demo Athletic Body",
+      "ReferencedBodySlide": "Demo Athletic Body",
+      "Notes": "Curated demo male BodySlide preset for integration tests.",
+      "BodyShapeDescriptorsByWeight": {
+        "0": [], "25": [], "50": [], "75": [], "100": []
+      },
+      "RemovedDefaultWeightSlots": [],
+      "AllowedRaces": [],
+      "DisallowedRaces": [],
+      "AllowedRaceGroupings": [],
+      "DisallowedRaceGroupings": [],
+      "AllowedAttributes": [],
+      "DisallowedAttributes": [],
+      "AllowUnique": true,
+      "AllowNonUnique": true,
+      "AllowRandom": true,
+      "ProbabilityWeighting": 1.0,
+      "WeightRange": { "Lower": 0, "Upper": 100 },
+      "HideInMenu": false
+    }
+  ],
+  "BodySlidesFemale": [
+    {
+      "Label": "Demo Curvy Body",
+      "ReferencedBodySlide": "Demo Curvy Body",
+      "Notes": "Curated demo female BodySlide preset for integration tests.",
+      "BodyShapeDescriptorsByWeight": {
+        "0": [], "25": [], "50": [], "75": [], "100": []
+      },
+      "RemovedDefaultWeightSlots": [],
+      "AllowedRaces": [],
+      "DisallowedRaces": [],
+      "AllowedRaceGroupings": [],
+      "DisallowedRaceGroupings": [],
+      "AllowedAttributes": [],
+      "DisallowedAttributes": [],
+      "AllowUnique": true,
+      "AllowNonUnique": true,
+      "AllowRandom": true,
+      "ProbabilityWeighting": 1.0,
+      "WeightRange": { "Lower": 0, "Upper": 100 },
+      "HideInMenu": false
+    }
+  ],
+  "TemplateDescriptors": [
+    {
+      "Category": "Build",
+      "CategoryDescription": "Overall body mass and proportions.",
+      "Descriptors": [
+        {
+          "ID": { "Category": "Build", "Value": "Medium" },
+          "AssociatedRules": {
+            "AllowedRaces": [],
+            "DisallowedRaces": [],
+            "AllowedRaceGroupings": [],
+            "DisallowedRaceGroupings": [],
+            "AllowedAttributes": [],
+            "DisallowedAttributes": [],
+            "AllowUnique": true,
+            "AllowNonUnique": true,
+            "AllowRandom": true,
+            "ProbabilityWeighting": 1.0,
+            "WeightRange": { "Lower": 0, "Upper": 100 }
+          },
+          "Label": null,
+          "ValueDescription": "Average build with mild curves."
+        }
+      ]
+    }
+  ],
+  "AttributeGroups": [],
+  "SliderCatalogOverridePaths": {},
+  "BodyTypeFamilyCompatibility": {},
+  "BodyTypeRegistry": [],
+  "BodyTypeProfiles": [],
+  "bUseVerboseScripts": false,
+  "OBodySelectionMode": "Script",
+  "AutoBodySelectionMode": "INI",
+  "BodySlideClassificationRules": {},
+  "AutoApplyMissingAnnotations": false,
+  "OBodyEnableMultipleAssignments": false
+}

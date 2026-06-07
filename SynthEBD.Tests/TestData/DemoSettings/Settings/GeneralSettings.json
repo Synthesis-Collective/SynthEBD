@@ -1,0 +1,1549 @@
+{
+  "bShowToolTips": true,
+  "bChangeMeshesOrTextures": true,
+  "BodySelectionMode": "BodyGen",
+  "BSSelectionMode": "OBody",
+  "bChangeHeight": true,
+  "bChangeHeadParts": true,
+  "bHeadPartsExcludeCustomHeads": true,
+  "OutputDataFolder": "",
+  "AppearanceMergerType": "None",
+  "EasyNPCprofilePath": "",
+  "NPC2TokenPath": "",
+  "bEnableConsistency": true,
+  "ExcludePlayerCharacter": true,
+  "ExcludePresets": true,
+  "bLinkNPCsWithSameName": true,
+  "Close7ZipWhenFinished": true,
+  "bFirstRun": false,
+  "LinkedNPCNameExclusions": [
+    "soldier",
+    "headsman",
+    "victim",
+    "nobleman",
+    "werebear",
+    "bandit",
+    "warrior",
+    "bard",
+    "khajiit",
+    "argonian",
+    "citizen",
+    "servant",
+    "pirate",
+    "karita",
+    "East Empire Dockworker",
+    "Savos Aren",
+    "Skooma addict",
+    "Courier",
+    "The Guardian",
+    "Imperial Champion",
+    "Stormcloak Champion",
+    "Redoran Guard",
+    "Reclamation Priest",
+    "Imperial Soldier",
+    "Enthralled Wizard",
+    "Nord",
+    "Torture Victim"
+  ],
+  "LinkedNPCGroups": [
+    {
+      "GroupName": "Legate Rikke",
+      "NPCFormKeys": [
+        "0132A1:Skyrim.esm",
+        "0D0573:Skyrim.esm",
+        "0EA583:Skyrim.esm"
+      ],
+      "Primary": "0132A1:Skyrim.esm"
+    },
+    {
+      "GroupName": "Ulfric Stormcloak",
+      "NPCFormKeys": [
+        "01414D:Skyrim.esm",
+        "0D0575:Skyrim.esm",
+        "0EA581:Skyrim.esm"
+      ],
+      "Primary": "01414D:Skyrim.esm"
+    },
+    {
+      "GroupName": "Galmar Stone-Fist",
+      "NPCFormKeys": [
+        "014128:Skyrim.esm",
+        "0D0570:Skyrim.esm",
+        "0EA582:Skyrim.esm"
+      ],
+      "Primary": "014128:Skyrim.esm"
+    },
+    {
+      "GroupName": "General Tullius",
+      "NPCFormKeys": [
+        "01327E:Skyrim.esm",
+        "0D0577:Skyrim.esm"
+      ],
+      "Primary": "01327E:Skyrim.esm"
+    },
+    {
+      "GroupName": "Froki Whetted-Blade",
+      "NPCFormKeys": [
+        "0185F6:Skyrim.esm",
+        "0EA57E:Skyrim.esm"
+      ],
+      "Primary": "0185F6:Skyrim.esm"
+    },
+    {
+      "GroupName": "Svaknir",
+      "NPCFormKeys": [
+        "0EA57A:Skyrim.esm",
+        "016C87:Skyrim.esm"
+      ],
+      "Primary": "016C87:Skyrim.esm"
+    },
+    {
+      "GroupName": "Kodlak Whitemane",
+      "NPCFormKeys": [
+        "01A68E:Skyrim.esm",
+        "09700E:Skyrim.esm",
+        "0AD3A5:Skyrim.esm",
+        "0DCCC0:Skyrim.esm",
+        "01720B:Skyrim.esm"
+      ],
+      "Primary": "01A68E:Skyrim.esm"
+    },
+    {
+      "GroupName": "Eydis",
+      "NPCFormKeys": [
+        "013B77:Skyrim.esm",
+        "03B540:Dragonborn.esm"
+      ],
+      "Primary": "013B77:Skyrim.esm"
+    }
+  ],
+  "PatchFileName": "SynthEBDTest",
+  "bVerboseModeAssetsNoncompliant": false,
+  "bVerboseModeAssetsAll": false,
+  "VerboseModeNPClist": [
+    "01325F:Skyrim.esm"
+  ],
+  "VerboseModeDetailedAttributes": false,
+  "PatchableRaces": [
+    "013746:Skyrim.esm",
+    "013741:Skyrim.esm",
+    "013742:Skyrim.esm",
+    "013743:Skyrim.esm",
+    "013744:Skyrim.esm",
+    "013747:Skyrim.esm",
+    "013748:Skyrim.esm",
+    "013749:Skyrim.esm",
+    "067CD8:Skyrim.esm",
+    "088794:Skyrim.esm",
+    "08883C:Skyrim.esm",
+    "08883D:Skyrim.esm",
+    "088840:Skyrim.esm",
+    "088844:Skyrim.esm",
+    "0A82B9:Skyrim.esm",
+    "088846:Skyrim.esm",
+    "088884:Skyrim.esm",
+    "0A82BA:Skyrim.esm",
+    "07EAF3:Skyrim.esm",
+    "097A3D:Skyrim.esm",
+    "00377D:Dawnguard.esm",
+    "00E88A:Dawnguard.esm",
+    "013745:Skyrim.esm",
+    "088845:Skyrim.esm",
+    "013740:Skyrim.esm",
+    "08883A:Skyrim.esm"
+  ],
+  "RaceAliases": [
+    {
+      "Race": "097A3D:Skyrim.esm",
+      "AliasRace": "013741:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": false,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "005734:COR_AllRace.esp",
+      "AliasRace": "013741:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "005735:COR_AllRace.esp",
+      "AliasRace": "08883C:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A198:COR_AllRace.esp",
+      "AliasRace": "013742:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A199:COR_AllRace.esp",
+      "AliasRace": "08883D:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1A2:COR_AllRace.esp",
+      "AliasRace": "013743:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1A3:COR_AllRace.esp",
+      "AliasRace": "088840:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A179:COR_AllRace.esp",
+      "AliasRace": "013744:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A179:COR_AllRace.esp",
+      "AliasRace": "013744:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A184:COR_AllRace.esp",
+      "AliasRace": "013746:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A185:COR_AllRace.esp",
+      "AliasRace": "088794:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1B0:COR_AllRace.esp",
+      "AliasRace": "013747:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1B1:COR_AllRace.esp",
+      "AliasRace": "0A82B9:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A18E:COR_AllRace.esp",
+      "AliasRace": "013748:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A18F:COR_AllRace.esp",
+      "AliasRace": "088846:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1AC:COR_AllRace.esp",
+      "AliasRace": "013749:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    },
+    {
+      "Race": "05A1AD:COR_AllRace.esp",
+      "AliasRace": "088884:Skyrim.esm",
+      "bMale": true,
+      "bFemale": true,
+      "bApplyToAssets": true,
+      "bApplyToBodyGen": true,
+      "bApplyToHeight": true,
+      "bApplyToHeadParts": true
+    }
+  ],
+  "RaceGroupings": [
+    {
+      "Label": "Humanoid",
+      "Races": [
+        "013746:Skyrim.esm",
+        "013741:Skyrim.esm",
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013744:Skyrim.esm",
+        "013747:Skyrim.esm",
+        "013748:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "067CD8:Skyrim.esm",
+        "088794:Skyrim.esm",
+        "08883C:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088844:Skyrim.esm",
+        "0A82B9:Skyrim.esm",
+        "088846:Skyrim.esm",
+        "088884:Skyrim.esm",
+        "0A82BA:Skyrim.esm",
+        "07EAF3:Skyrim.esm",
+        "097A3D:Skyrim.esm",
+        "00377D:Dawnguard.esm",
+        "00E88A:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Playable",
+      "Races": [
+        "013746:Skyrim.esm",
+        "013741:Skyrim.esm",
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013744:Skyrim.esm",
+        "013747:Skyrim.esm",
+        "013748:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "088794:Skyrim.esm",
+        "08883C:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088844:Skyrim.esm",
+        "0A82B9:Skyrim.esm",
+        "088846:Skyrim.esm",
+        "088884:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Non-Vampire",
+      "Races": [
+        "013746:Skyrim.esm",
+        "013741:Skyrim.esm",
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013744:Skyrim.esm",
+        "013747:Skyrim.esm",
+        "013748:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "067CD8:Skyrim.esm",
+        "07EAF3:Skyrim.esm",
+        "097A3D:Skyrim.esm",
+        "00377D:Dawnguard.esm",
+        "00E88A:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Vampire",
+      "Races": [
+        "088794:Skyrim.esm",
+        "08883C:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088844:Skyrim.esm",
+        "0A82B9:Skyrim.esm",
+        "088846:Skyrim.esm",
+        "088884:Skyrim.esm",
+        "0A82BA:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Young",
+      "Races": [
+        "013746:Skyrim.esm",
+        "013741:Skyrim.esm",
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013744:Skyrim.esm",
+        "013747:Skyrim.esm",
+        "013748:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "088794:Skyrim.esm",
+        "08883C:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088844:Skyrim.esm",
+        "0A82B9:Skyrim.esm",
+        "088846:Skyrim.esm",
+        "088884:Skyrim.esm",
+        "07EAF3:Skyrim.esm",
+        "097A3D:Skyrim.esm",
+        "00377D:Dawnguard.esm",
+        "00E88A:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Young Non-Vampire",
+      "Races": [
+        "013746:Skyrim.esm",
+        "013741:Skyrim.esm",
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013744:Skyrim.esm",
+        "013747:Skyrim.esm",
+        "013748:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "07EAF3:Skyrim.esm",
+        "097A3D:Skyrim.esm",
+        "00377D:Dawnguard.esm",
+        "00E88A:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Humanoid Young Vampire",
+      "Races": [
+        "088794:Skyrim.esm",
+        "08883C:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088844:Skyrim.esm",
+        "0A82B9:Skyrim.esm",
+        "088846:Skyrim.esm",
+        "088884:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Elven",
+      "Races": [
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088884:Skyrim.esm",
+        "00377D:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Elven Non-Vampire",
+      "Races": [
+        "013742:Skyrim.esm",
+        "013743:Skyrim.esm",
+        "013749:Skyrim.esm",
+        "00377D:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Elven Vampire",
+      "Races": [
+        "08883D:Skyrim.esm",
+        "088840:Skyrim.esm",
+        "088884:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Breton",
+      "Races": [
+        "013741:Skyrim.esm",
+        "08883C:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Dark Elf",
+      "Races": [
+        "013742:Skyrim.esm",
+        "08883D:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "High Elf",
+      "Races": [
+        "013743:Skyrim.esm",
+        "088840:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Imperial",
+      "Races": [
+        "013744:Skyrim.esm",
+        "088844:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Nord",
+      "Races": [
+        "013746:Skyrim.esm",
+        "088794:Skyrim.esm",
+        "00E88A:Dawnguard.esm"
+      ]
+    },
+    {
+      "Label": "Orc",
+      "Races": [
+        "013747:Skyrim.esm",
+        "0A82B9:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Redguard",
+      "Races": [
+        "013748:Skyrim.esm",
+        "088846:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Wood Elf",
+      "Races": [
+        "013749:Skyrim.esm",
+        "088884:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Elder",
+      "Races": [
+        "067CD8:Skyrim.esm",
+        "0A82BA:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Khajiit",
+      "Races": [
+        "013745:Skyrim.esm",
+        "088845:Skyrim.esm"
+      ]
+    },
+    {
+      "Label": "Argonian",
+      "Races": [
+        "013740:Skyrim.esm",
+        "08883A:Skyrim.esm"
+      ]
+    }
+  ],
+  "OverwritePluginRaceGroups": true,
+  "AttributeGroups": [
+    {
+      "Label": "Cannot Have Definition",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "06479E:Skyrim.esm",
+                "09CC97:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01325D:Skyrim.esm",
+                "01327B:Skyrim.esm",
+                "013270:Skyrim.esm",
+                "013258:Skyrim.esm",
+                "01325B:Skyrim.esm",
+                "01325A:Skyrim.esm",
+                "013256:Skyrim.esm",
+                "01326B:Skyrim.esm",
+                "013276:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must be Fit",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01317F:Skyrim.esm",
+                "013182:Skyrim.esm",
+                "01317B:Skyrim.esm",
+                "01317C:Skyrim.esm",
+                "013180:Skyrim.esm",
+                "01317D:Skyrim.esm",
+                "013177:Skyrim.esm",
+                "01317E:Skyrim.esm",
+                "013176:Skyrim.esm",
+                "01CE15:Skyrim.esm",
+                "06766B:Skyrim.esm",
+                "06766C:Skyrim.esm",
+                "06766D:Skyrim.esm",
+                "10B1D8:Skyrim.esm",
+                "07289D:Skyrim.esm",
+                "072891:Skyrim.esm",
+                "072887:Skyrim.esm",
+                "01326D:Skyrim.esm",
+                "01327F:Skyrim.esm",
+                "013280:Skyrim.esm",
+                "0B8340:Skyrim.esm",
+                "0E3A6B:Skyrim.esm",
+                "10FC39:Skyrim.esm",
+                "042DC2:Skyrim.esm",
+                "0E3A5E:Skyrim.esm",
+                "0C6FB6:Skyrim.esm",
+                "0AEDD2:Skyrim.esm",
+                "0E3A6D:Skyrim.esm",
+                "0E3A6C:Skyrim.esm",
+                "013259:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must be Athletic",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01317F:Skyrim.esm",
+                "0FB0DA:Skyrim.esm",
+                "013181:Skyrim.esm",
+                "013180:Skyrim.esm",
+                "07289D:Skyrim.esm",
+                "02A477:Skyrim.esm",
+                "10E714:Skyrim.esm",
+                "01326E:Skyrim.esm",
+                "01326D:Skyrim.esm",
+                "01327F:Skyrim.esm",
+                "013280:Skyrim.esm",
+                "042DC7:Skyrim.esm",
+                "0E3A60:Skyrim.esm",
+                "0E3A61:Skyrim.esm",
+                "0E3A65:Skyrim.esm",
+                "0E3A66:Skyrim.esm",
+                "042DC3:Skyrim.esm",
+                "0E3A62:Skyrim.esm",
+                "0E3A5F:Skyrim.esm",
+                "0E3A63:Skyrim.esm",
+                "042DC5:Skyrim.esm",
+                "10BFEF:Skyrim.esm",
+                "10BFF0:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "02584B:Skyrim.esm",
+                "0FF234:Skyrim.esm",
+                "010EC1:Dawnguard.esm",
+                "003375:Dawnguard.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must be Muscular",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "021A74:Skyrim.esm",
+                "07D98D:Skyrim.esm",
+                "02A477:Skyrim.esm",
+                "10E714:Skyrim.esm",
+                "01326E:Skyrim.esm",
+                "0B5FB4:Skyrim.esm",
+                "0E7F45:Skyrim.esm",
+                "0E3A68:Skyrim.esm",
+                "0B5FB5:Skyrim.esm",
+                "042DC1:Skyrim.esm",
+                "042DC4:Skyrim.esm",
+                "013257:Skyrim.esm",
+                "10BFEF:Skyrim.esm",
+                "10BFF0:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01A696:Skyrim.esm",
+                "01A692:Skyrim.esm",
+                "0B9981:Skyrim.esm",
+                "019959:Skyrim.esm",
+                "01338A:Skyrim.esm",
+                "01414D:Skyrim.esm",
+                "014128:Skyrim.esm",
+                "01336B:Skyrim.esm",
+                "0918E2:Skyrim.esm",
+                "044236:Skyrim.esm",
+                "00336A:Dawnguard.esm",
+                "0285C3:Dragonborn.esm",
+                "017934:Dragonborn.esm",
+                "017F7D:Dragonborn.esm"
+              ],
+              "Type": "NPC",
+              "ForceMode": "Restrict",
+              "Weighting": 10,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "02584B:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Cannot Have Scars",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01325D:Skyrim.esm",
+                "013270:Skyrim.esm",
+                "013258:Skyrim.esm",
+                "01325B:Skyrim.esm",
+                "01325A:Skyrim.esm",
+                "013256:Skyrim.esm",
+                "01326B:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "06479E:Skyrim.esm",
+                "102D60:Skyrim.esm",
+                "050922:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Can Be Dirty",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01CE17:Skyrim.esm",
+                "015BE7:Skyrim.esm",
+                "039D30:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Be Dirty",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01327B:Skyrim.esm",
+                "01326D:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Can Get Chubby Morph",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "015BE7:Skyrim.esm",
+                "039D30:Skyrim.esm",
+                "013270:Skyrim.esm",
+                "013258:Skyrim.esm",
+                "01325B:Skyrim.esm",
+                "01325A:Skyrim.esm",
+                "013256:Skyrim.esm",
+                "0253F2:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01326B:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            },
+            {
+              "Unique": "IsNot",
+              "Essential": "Ignore",
+              "Protected": "Ignore",
+              "Summonable": "Ignore",
+              "Ghost": "Ignore",
+              "Invulnerable": "Ignore",
+              "EvalMood": false,
+              "Mood": "Neutral",
+              "EvalAggression": false,
+              "Aggression": "Unaggressive",
+              "EvalGender": false,
+              "NPCGender": "Female",
+              "Type": "Misc",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "06479E:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Young Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "013AD1:Skyrim.esm",
+                "013ADC:Skyrim.esm"
+              ],
+              "Type": "VoiceType",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "052FE7:3DNPC.esp"
+              ],
+              "Type": "NPC",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01325D:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            },
+            {
+              "FormKeys": [
+                "083D99:Skyrim.esm"
+              ],
+              "Type": "NPC",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": true
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "053514:Skyrim.esm",
+                "0CF8F9:Skyrim.esm",
+                "0DEE93:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            },
+            {
+              "FormKeys": [
+                "083D99:Skyrim.esm"
+              ],
+              "Type": "NPC",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Can Get Mildy Older Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "05091B:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            },
+            {
+              "FormKeys": [
+                "0DEE93:Skyrim.esm"
+              ],
+              "RankMin": -1,
+              "RankMax": 100,
+              "Type": "Faction",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": true
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "013AE3:Skyrim.esm",
+                "013AD8:Skyrim.esm",
+                "0E5003:Skyrim.esm",
+                "013AD4:Skyrim.esm",
+                "09844F:Skyrim.esm",
+                "01B55F:Skyrim.esm",
+                "013ADA:Skyrim.esm",
+                "01B560:Skyrim.esm"
+              ],
+              "Type": "VoiceType",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "Unique": "IsNot",
+              "Essential": "Ignore",
+              "Protected": "Ignore",
+              "Summonable": "Ignore",
+              "Ghost": "Ignore",
+              "Invulnerable": "Ignore",
+              "EvalMood": false,
+              "Mood": "Neutral",
+              "EvalAggression": false,
+              "Aggression": "Unaggressive",
+              "EvalGender": false,
+              "NPCGender": "Female",
+              "Type": "Misc",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Can Get Haggard Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "01327B:Skyrim.esm",
+                "01CE17:Skyrim.esm",
+                "015BE7:Skyrim.esm",
+                "039D30:Skyrim.esm",
+                "01326D:Skyrim.esm"
+              ],
+              "Type": "Class",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        },
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "013AD4:Skyrim.esm",
+                "013AE3:Skyrim.esm",
+                "013AD8:Skyrim.esm"
+              ],
+              "Type": "VoiceType",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Age40 Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0F2058:Skyrim.esm",
+                "0F205C:Skyrim.esm",
+                "0F2060:Skyrim.esm",
+                "0F2064:Skyrim.esm",
+                "0EAFA3:Skyrim.esm",
+                "0F2068:Skyrim.esm",
+                "0F206C:Skyrim.esm",
+                "0F2070:Skyrim.esm",
+                "0D0721:Skyrim.esm",
+                "0F204F:Skyrim.esm",
+                "0F204B:Skyrim.esm",
+                "0D0725:Skyrim.esm",
+                "0D071D:Skyrim.esm",
+                "0D072E:Skyrim.esm",
+                "0D0729:Skyrim.esm",
+                "0F2054:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Age40 Rough Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0D0722:Skyrim.esm",
+                "0F204E:Skyrim.esm",
+                "0F2049:Skyrim.esm",
+                "0D0726:Skyrim.esm",
+                "0D071E:Skyrim.esm",
+                "0D072F:Skyrim.esm",
+                "0D072A:Skyrim.esm",
+                "0F2053:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Age50 Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0F2059:Skyrim.esm",
+                "0F205D:Skyrim.esm",
+                "0F2061:Skyrim.esm",
+                "0F2065:Skyrim.esm",
+                "0645DB:Skyrim.esm",
+                "0F2069:Skyrim.esm",
+                "0F206D:Skyrim.esm",
+                "0F2071:Skyrim.esm",
+                "0D0731:Skyrim.esm",
+                "0F2050:Skyrim.esm",
+                "0F204A:Skyrim.esm",
+                "09F0CD:Skyrim.esm",
+                "07325B:Skyrim.esm",
+                "0D0730:Skyrim.esm",
+                "0D072B:Skyrim.esm",
+                "0F2055:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Face Freckles",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0F205A:Skyrim.esm",
+                "0F205E:Skyrim.esm",
+                "0F2062:Skyrim.esm",
+                "0F2066:Skyrim.esm",
+                "0EAFA5:Skyrim.esm",
+                "0F206A:Skyrim.esm",
+                "0F206E:Skyrim.esm",
+                "0F2072:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Rough01 Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0F2057:Skyrim.esm",
+                "0F205B:Skyrim.esm",
+                "0F205F:Skyrim.esm",
+                "0F2063:Skyrim.esm",
+                "0EAFA4:Skyrim.esm",
+                "0F2067:Skyrim.esm",
+                "0F206B:Skyrim.esm",
+                "0F206F:Skyrim.esm",
+                "0D071F:Skyrim.esm",
+                "0F204C:Skyrim.esm",
+                "0F2047:Skyrim.esm",
+                "0D0723:Skyrim.esm",
+                "073259:Skyrim.esm",
+                "0D072C:Skyrim.esm",
+                "0D0727:Skyrim.esm",
+                "0F2051:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Must Get Rough02 Face",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "FormKeys": [
+                "0D0720:Skyrim.esm",
+                "0F204D:Skyrim.esm",
+                "0F2048:Skyrim.esm",
+                "0D0724:Skyrim.esm",
+                "07325A:Skyrim.esm",
+                "0D072D:Skyrim.esm",
+                "0D0728:Skyrim.esm",
+                "0F2052:Skyrim.esm"
+              ],
+              "Type": "FaceTexture",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Label": "Has CotR Head",
+      "Attributes": [
+        {
+          "SubAttributes": [
+            {
+              "ModKeys": [
+                "Refined Volkihars.esp",
+                "Refined Auri.esp",
+                "BjornRefined.esp",
+                "KaidanRefined.esp",
+                "GorrRefined.esp",
+                "GoreRefined.esp",
+                "LucienRefined.esp",
+                "SofiaRefined.esp",
+                "RemielRefined.esp",
+                "SeranaRefined.esp",
+                "0SkeeverRefined.esp",
+                "GeneralTulliusRefined.esp",
+                "MarcurioRefined.esp",
+                "MarcusTheKnightRefined.esp",
+                "Vigilant NPCs Refined.esp",
+                "Glenmoril NPCs Refined.esp",
+                "KW_UnslaadNPCsRefined.esp",
+                "MOSRefined.esp",
+                "MOSRefinedDawnguard.esp",
+                "MOSRefinedDragonborn.esp",
+                "MOSUniqueNPC.esp",
+                "TSOSRefined.esp",
+                "TSOSRefinedDawnguard.esp",
+                "TSOSRefinedDragonborn.esp",
+                "TSOSRefinedHearthfire.esp",
+                "TSOSRefinedStenvar.esp",
+                "TSOSMFMiraak.esp",
+                "0TSOSRefinedDwarfofSkyrim.esp",
+                "TSOS_Apachii_Store_Patch.esp",
+                "TSOS_Aesir_Weaponry_Patch.esp",
+                "TDOSRefined.esp",
+                "Karura's Companions Refined.esp",
+                "Karura's Dark Brotherhood Refined.esp",
+                "Karura's Cicero Refined.esp",
+                "Karura's Brynjolf Refined.esp",
+                "Karura's Thieves Guild Refined.esp",
+                "Karura's Daedric Princes Refined.esp",
+                "Karura's Ordinary People Refined.esp",
+                "Karura's Ordinary People Refined BUVARP Patch.esp",
+                "Mythos Followers Refined.esp",
+                "TaliesinReplacer.esp",
+                "LucienReplacer.esp",
+                "0SeranaReplacer.esp",
+                "0LordHarkonandValericaReplacer.esp",
+                "0BrynjolfReplacer.esp",
+                "0KaidanReplacer.esp",
+                "0AuriReplacer.esp",
+                "Gentle Auri.esp"
+              ],
+              "ModActionType": "PatchedBy",
+              "Type": "Mod",
+              "ForceMode": "Restrict",
+              "Weighting": 1,
+              "Not": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "OverwritePluginAttGroups": true,
+  "bDisableValidation": true,
+  "bUseDetailedReportSelection": false,
+  "DetailedReportSelector": {
+    "AllowedRaces": [],
+    "AllowedRaceGroupings": [],
+    "DisallowedRaces": [],
+    "DisallowedRaceGroupings": [],
+    "AllowedAttributes": [],
+    "DisallowedAttributes": [],
+    "AllowUnique": true,
+    "AllowNonUnique": true,
+    "WeightRange": {
+      "Lower": 0,
+      "Upper": 100
+    }
+  },
+  "bFilterNPCsByArmature": true,
+  "bShowTroubleshootingSettings": true,
+  "bTroubleShootingWarningDisplayed": true,
+  "bHeadPartWarningDisplayed": false,
+  "bUIopened": true,
+  "bShow3DPreview": true,
+  "SpecificNPCPreviewerWidth": 525.0,
+  "ConsistencyPreviewerWidth": 525.0,
+  "CharacterViewerLightingLayout": "",
+  "CharacterViewerLightingColorScheme": "",
+  "UserLightingLayouts": [],
+  "UserLightingColorSchemes": [],
+  "CharacterViewerVerboseLog": false,
+  "TextureLoadStrategy": "BmpStream",
+  "PreviewNpcs": {
+    "RacePreviewNpcs": [
+      {
+        "Race": "013746:Skyrim.esm",
+        "MaleNpc": "000ABF:ccKRTSSE001_Altar.esl",
+        "FemaleNpc": "000A6C:ccKRTSSE001_Altar.esl"
+      },
+      {
+        "Race": "013741:Skyrim.esm",
+        "MaleNpc": "000845:ccBGSSSE013-Dawnfang.esl",
+        "FemaleNpc": "000840:ccBGSSSE013-Dawnfang.esl"
+      },
+      {
+        "Race": "013742:Skyrim.esm",
+        "MaleNpc": "000A94:ccKRTSSE001_Altar.esl",
+        "FemaleNpc": "000875:ccKRTSSE001_Altar.esl"
+      },
+      {
+        "Race": "013743:Skyrim.esm",
+        "MaleNpc": "000AB9:ccKRTSSE001_Altar.esl",
+        "FemaleNpc": "000E3F:ccEDHSSE003-Redguard.esl"
+      },
+      {
+        "Race": "013744:Skyrim.esm",
+        "MaleNpc": "000CE3:ccRMSSSE001-NecroHouse.esl",
+        "FemaleNpc": "000882:ccVSVSSE004-BeAFarmer.esl"
+      },
+      {
+        "Race": "013747:Skyrim.esm",
+        "MaleNpc": "000809:ccKRTSSE001_Altar.esl",
+        "FemaleNpc": "00081C:ccBGSSSE054-BA_Orcish.esl"
+      },
+      {
+        "Race": "013748:Skyrim.esm",
+        "MaleNpc": "00081E:ccEDHSSE003-Redguard.esl",
+        "FemaleNpc": "00081C:ccEDHSSE003-Redguard.esl"
+      },
+      {
+        "Race": "013749:Skyrim.esm",
+        "MaleNpc": "00081D:ccBGSSSE053-BA_Leather.esl",
+        "FemaleNpc": "00081D:ccPEWSSE002-ArmsOfChaos.esl"
+      },
+      {
+        "Race": "067CD8:Skyrim.esm",
+        "MaleNpc": "000D94:ccBGSSSE013-Dawnfang.esl",
+        "FemaleNpc": "008D7A:Dawnguard.esm"
+      },
+      {
+        "Race": "088794:Skyrim.esm",
+        "MaleNpc": "00095F:ccMTYSSE002-VE.esl",
+        "FemaleNpc": "0B7B36:ccEEJSSE005-Cave.esm"
+      },
+      {
+        "Race": "08883C:Skyrim.esm",
+        "MaleNpc": "046283:Skyrim.esm",
+        "FemaleNpc": "107A9B:Skyrim.esm"
+      },
+      {
+        "Race": "08883D:Skyrim.esm",
+        "MaleNpc": "02EABF:Skyrim.esm",
+        "FemaleNpc": "00082E:ccVSVSSE002-Pets.esl"
+      },
+      {
+        "Race": "088840:Skyrim.esm",
+        "MaleNpc": "02EAC0:Skyrim.esm",
+        "FemaleNpc": "00CADF:Dawnguard.esm"
+      },
+      {
+        "Race": "088844:Skyrim.esm",
+        "MaleNpc": "0D1095:ccEEJSSE005-Cave.esm",
+        "FemaleNpc": "107A9E:Skyrim.esm"
+      },
+      {
+        "Race": "0A82B9:Skyrim.esm",
+        "MaleNpc": "003D7B:Dawnguard.esm",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "088846:Skyrim.esm",
+        "MaleNpc": "011E5D:Dawnguard.esm",
+        "FemaleNpc": "07B77E:Skyrim.esm"
+      },
+      {
+        "Race": "088884:Skyrim.esm",
+        "MaleNpc": "0B7B27:ccEEJSSE005-Cave.esm",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "0A82BA:Skyrim.esm",
+        "MaleNpc": "05B830:Skyrim.esm",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "07EAF3:Skyrim.esm",
+        "MaleNpc": "Null",
+        "FemaleNpc": "04D6D0:Skyrim.esm"
+      },
+      {
+        "Race": "097A3D:Skyrim.esm",
+        "MaleNpc": "0BEDE5:Skyrim.esm",
+        "FemaleNpc": "064AC9:Skyrim.esm"
+      },
+      {
+        "Race": "00377D:Dawnguard.esm",
+        "MaleNpc": "002B44:Dawnguard.esm",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "00E88A:Dawnguard.esm",
+        "MaleNpc": "Null",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "013745:Skyrim.esm",
+        "MaleNpc": "00086C:ccBGSSSE059-BA_Dragonplate.esl",
+        "FemaleNpc": "10D3CA:Skyrim.esm"
+      },
+      {
+        "Race": "088845:Skyrim.esm",
+        "MaleNpc": "Null",
+        "FemaleNpc": "Null"
+      },
+      {
+        "Race": "013740:Skyrim.esm",
+        "MaleNpc": "00081C:ccBGSSSE052-BA_Iron.esl",
+        "FemaleNpc": "000EAA:ccKRTSSE001_Altar.esl"
+      },
+      {
+        "Race": "08883A:Skyrim.esm",
+        "MaleNpc": "Null",
+        "FemaleNpc": "Null"
+      }
+    ],
+    "DefaultNpcs": {
+      "MaleNpc": "000ABF:ccKRTSSE001_Altar.esl",
+      "FemaleNpc": "000A6C:ccKRTSSE001_Altar.esl"
+    }
+  },
+  "BlockedModsFromImport": [
+    "Skyrim.esm",
+    "Dawnguard.esm",
+    "Dragonborn.esm",
+    "Hearthfires.esm"
+  ]
+}

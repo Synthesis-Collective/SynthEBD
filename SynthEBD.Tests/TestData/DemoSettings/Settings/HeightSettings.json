@@ -1,0 +1,7 @@
+{
+  "bChangeNPCHeight": true,
+  "bChangeRaceHeight": true,
+  "bOverwriteNonDefaultNPCHeights": true,
+  "bApplyWithoutOverride": false,
+  "SelectedHeightConfig": "Default Config"
+}

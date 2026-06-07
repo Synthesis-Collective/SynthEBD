@@ -1,0 +1,37 @@
+{
+  "FacePatchingMode": "Script",
+  "bChangeNPCTextures": true,
+  "bChangeNPCMeshes": true,
+  "bChangeNPCHeadParts": true,
+  "bApplyToNPCsWithCustomSkins": true,
+  "bApplyToNPCsWithCustomFaces": true,
+  "bForceVanillaBodyMeshPath": false,
+  "bEnableAssetReplacers": true,
+  "bDisplayPopupAlerts": false,
+  "bGenerateAssignmentLog": true,
+  "bShowPreviewImages": false,
+  "PreviewMode": "Image",
+  "MaxPreviewImageSize": 1024,
+  "SelectedAssetPacks": [
+    "Demo CBBE Asset Pack",
+    "Demo Male Asset Pack"
+  ],
+  "StrippedSkinWNAMs": [],
+  "bEasyNPCCompatibilityMode": true,
+  "bApplyFixedScripts": false,
+  "bFixedScriptsOldSKSEversion": false,
+  "bCacheRecords": true,
+  "bLegacyEBDMode": false,
+  "bNewEBDModeVerbose": false,
+  "bPO3ModeForVR": true,
+  "TrimPaths": [
+    { "Extension": "dds", "PathToTrim": "textures" },
+    { "Extension": "nif", "PathToTrim": "meshes" },
+    { "Extension": "tri", "PathToTrim": "meshes" }
+  ],
+  "AssetOrder": [ "Primary & Body Shape" ],
+  "TriggerEvents": [],
+  "bPatchArmors": true,
+  "bPatchSkinAltTextures": true,
+  "bSkyPatcherModeAssets": false
+}

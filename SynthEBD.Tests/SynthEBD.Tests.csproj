@@ -23,4 +23,13 @@
       <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
     </ItemGroup>
 
+    <!-- Demo settings/config fixtures consumed by the integration harness. Copied next to the
+         test assembly so PatcherTestHarness can clone them into a temp working directory. -->
+    <ItemGroup>
+      <None Include="TestData\**\*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <Link>TestData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      </None>
+    </ItemGroup>
+
 </Project>

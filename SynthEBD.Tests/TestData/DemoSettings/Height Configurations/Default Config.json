@@ -1,0 +1,161 @@
+{
+  "Label": "Default Config",
+  "HeightAssignments": [
+    {
+      "Label": "Breton",
+      "Races": [
+        "013741:Skyrim.esm",
+        "08883C:Skyrim.esm"
+      ],
+      "HeightMale": 1.0,
+      "HeightFemale": 0.95,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "DarkElf",
+      "Races": [
+        "013742:Skyrim.esm",
+        "08883D:Skyrim.esm"
+      ],
+      "HeightMale": 1.0,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "HighElf",
+      "Races": [
+        "013743:Skyrim.esm",
+        "088840:Skyrim.esm"
+      ],
+      "HeightMale": 1.08,
+      "HeightFemale": 1.08,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Imperial",
+      "Races": [
+        "013744:Skyrim.esm",
+        "088844:Skyrim.esm"
+      ],
+      "HeightMale": 1.0,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Nord",
+      "Races": [
+        "013746:Skyrim.esm",
+        "088794:Skyrim.esm",
+        "07EAF3:Skyrim.esm",
+        "00E88A:Dawnguard.esm"
+      ],
+      "HeightMale": 1.03,
+      "HeightFemale": 1.03,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Orc",
+      "Races": [
+        "013747:Skyrim.esm",
+        "0A82B9:Skyrim.esm"
+      ],
+      "HeightMale": 1.045,
+      "HeightFemale": 1.045,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Redguard",
+      "Races": [
+        "013748:Skyrim.esm",
+        "088846:Skyrim.esm"
+      ],
+      "HeightMale": 1.005,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "WoodElf",
+      "Races": [
+        "013749:Skyrim.esm",
+        "088884:Skyrim.esm"
+      ],
+      "HeightMale": 0.98,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Elder",
+      "Races": [
+        "067CD8:Skyrim.esm",
+        "0A82BA:Skyrim.esm"
+      ],
+      "HeightMale": 1.0,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Argonian",
+      "Races": [
+        "013740:Skyrim.esm",
+        "08883A:Skyrim.esm"
+      ],
+      "HeightMale": 1.01,
+      "HeightFemale": 1.0,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Khajiit",
+      "Races": [
+        "013745:Skyrim.esm",
+        "088845:Skyrim.esm"
+      ],
+      "HeightMale": 1.01,
+      "HeightFemale": 0.95,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "SnowElf",
+      "Races": [
+        "00377D:Dawnguard.esm"
+      ],
+      "HeightMale": 1.08,
+      "HeightFemale": 1.08,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    },
+    {
+      "Label": "Afflicted",
+      "Races": [
+        "097A3D:Skyrim.esm"
+      ],
+      "HeightMale": 1.0,
+      "HeightFemale": 0.95,
+      "HeightMaleRange": 0.02,
+      "HeightFemaleRange": 0.02,
+      "DistributionMode": "uniform"
+    }
+  ]
+}

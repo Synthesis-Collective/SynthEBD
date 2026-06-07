@@ -1,0 +1,16 @@
+{
+  "ModManagerType": "None",
+  "MO2Settings": {
+    "ExecutablePath": "",
+    "ModFolderPath": "",
+    "FilePathLimit": 220
+  },
+  "VortexSettings": {
+    "StagingFolderPath": "",
+    "FilePathLimit": 220
+  },
+  "DefaultInstallationFolder": null,
+  "CurrentInstallationFolder": "",
+  "TempExtractionFolder": "",
+  "FilePathLimit": 260
+}

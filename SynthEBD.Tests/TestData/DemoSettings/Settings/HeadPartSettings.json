@@ -1,0 +1,16 @@
+{
+  "PatchingMode": "Script",
+  "bUseVerboseScripts": false,
+  "bSkyPatcherModeHeadparts": false,
+  "AssociatedBodyGenConfigNameMale": "",
+  "AssociatedBodyGenConfigNameFemale": "",
+  "Types": {
+    "Eyebrows": { "HeadParts": [] },
+    "Eyes": { "HeadParts": [] },
+    "Face": { "HeadParts": [] },
+    "FacialHair": { "HeadParts": [] },
+    "Hair": { "HeadParts": [] },
+    "Misc": { "HeadParts": [] },
+    "Scars": { "HeadParts": [] }
+  }
+}

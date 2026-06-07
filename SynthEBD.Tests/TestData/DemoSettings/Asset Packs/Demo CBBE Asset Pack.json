@@ -1,0 +1,88 @@
+{
+  "GroupName": "Demo CBBE Asset Pack",
+  "ShortName": "DemoCBBE",
+  "ConfigType": "Primary",
+  "Gender": "Female",
+  "DisplayAlerts": false,
+  "UserAlert": "",
+  "DefaultRecordTemplate": "000801:Record Templates.esp",
+  "AdditionalRecordTemplateAssignments": [],
+  "AssociatedBodyGenConfigName": "",
+  "ReplacerGroups": [],
+  "DefaultRecordTemplateAdditionalRacesPaths": [],
+  "AttributeGroups": [],
+  "RaceGroupings": [],
+  "Subgroups": [
+    {
+      "ID": "HD",
+      "Name": "Head Diffuse",
+      "Enabled": true,
+      "DistributionEnabled": true,
+      "Paths": [],
+      "Subgroups": [
+        {
+          "ID": "HD.Default",
+          "Name": "Head Diffuse - Default",
+          "Enabled": true,
+          "DistributionEnabled": true,
+          "AllowUnique": true,
+          "AllowNonUnique": true,
+          "ProbabilityWeighting": 1.0,
+          "Paths": [
+            {
+              "Source": "textures\\SynthEBDDemo\\head_default.dds",
+              "Destination": "HeadTexture.Diffuse.GivenPath"
+            }
+          ],
+          "Subgroups": []
+        },
+        {
+          "ID": "HD.Nord",
+          "Name": "Head Diffuse - Nord Only",
+          "Enabled": true,
+          "DistributionEnabled": true,
+          "AllowUnique": true,
+          "AllowNonUnique": true,
+          "ProbabilityWeighting": 1.0,
+          "AllowedRaces": [
+            "013746:Skyrim.esm",
+            "088794:Skyrim.esm"
+          ],
+          "Paths": [
+            {
+              "Source": "textures\\SynthEBDDemo\\head_nord.dds",
+              "Destination": "HeadTexture.Diffuse.GivenPath"
+            }
+          ],
+          "Subgroups": []
+        }
+      ]
+    },
+    {
+      "ID": "BD",
+      "Name": "Body Diffuse",
+      "Enabled": true,
+      "DistributionEnabled": true,
+      "Paths": [],
+      "Subgroups": [
+        {
+          "ID": "BD.Default",
+          "Name": "Body Diffuse - Default",
+          "Enabled": true,
+          "DistributionEnabled": true,
+          "AllowUnique": true,
+          "AllowNonUnique": true,
+          "ProbabilityWeighting": 1.0,
+          "Paths": [
+            {
+              "Source": "textures\\SynthEBDDemo\\body_default.dds",
+              "Destination": "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath"
+            }
+          ],
+          "Subgroups": []
+        }
+      ]
+    }
+  ],
+  "DistributionRules": {}
+}

@@ -1,0 +1,68 @@
+{
+  "GroupName": "Demo Male Asset Pack",
+  "ShortName": "DemoMale",
+  "ConfigType": "Primary",
+  "Gender": "Male",
+  "DisplayAlerts": false,
+  "UserAlert": "",
+  "DefaultRecordTemplate": "000800:Record Templates - The New Gentleman.esp",
+  "AdditionalRecordTemplateAssignments": [],
+  "AssociatedBodyGenConfigName": "",
+  "ReplacerGroups": [],
+  "DefaultRecordTemplateAdditionalRacesPaths": [],
+  "AttributeGroups": [],
+  "RaceGroupings": [],
+  "Subgroups": [
+    {
+      "ID": "HD",
+      "Name": "Head Diffuse",
+      "Enabled": true,
+      "DistributionEnabled": true,
+      "Paths": [],
+      "Subgroups": [
+        {
+          "ID": "HD.Default",
+          "Name": "Head Diffuse - Default",
+          "Enabled": true,
+          "DistributionEnabled": true,
+          "AllowUnique": true,
+          "AllowNonUnique": true,
+          "ProbabilityWeighting": 1.0,
+          "Paths": [
+            {
+              "Source": "textures\\SynthEBDDemo\\male_head_default.dds",
+              "Destination": "HeadTexture.Diffuse.GivenPath"
+            }
+          ],
+          "Subgroups": []
+        }
+      ]
+    },
+    {
+      "ID": "BD",
+      "Name": "Body Diffuse",
+      "Enabled": true,
+      "DistributionEnabled": true,
+      "Paths": [],
+      "Subgroups": [
+        {
+          "ID": "BD.Default",
+          "Name": "Body Diffuse - Default",
+          "Enabled": true,
+          "DistributionEnabled": true,
+          "AllowUnique": true,
+          "AllowNonUnique": true,
+          "ProbabilityWeighting": 1.0,
+          "Paths": [
+            {
+              "Source": "textures\\SynthEBDDemo\\male_body_default.dds",
+              "Destination": "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath"
+            }
+          ],
+          "Subgroups": []
+        }
+      ]
+    }
+  ],
+  "DistributionRules": {}
+}
