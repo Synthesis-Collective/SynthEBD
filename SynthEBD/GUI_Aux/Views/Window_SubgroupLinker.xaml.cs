@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_SubgroupLinker.xaml
+    /// Code-behind for the Subgroup Linker window.
     /// </summary>
     public partial class Window_SubgroupLinker : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_SubgroupLinker()
         {
             InitializeComponent();

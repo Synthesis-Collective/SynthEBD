@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_ConfigRemapperPathSubstitutions.xaml
+    /// Code-behind for the path-substitutions sub-panel of the Config Path Remapper.
     /// </summary>
     public partial class UC_ConfigRemapperPathSubstitutions : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_ConfigRemapperPathSubstitutions()
         {
             InitializeComponent();

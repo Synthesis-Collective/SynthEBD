@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_ConfigRemapperTextureComparer.xaml
+    /// Code-behind for the Config Remapper texture-comparer window.
     /// </summary>
     public partial class Window_ConfigRemapperTextureComparer : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_ConfigRemapperTextureComparer()
         {
             InitializeComponent();

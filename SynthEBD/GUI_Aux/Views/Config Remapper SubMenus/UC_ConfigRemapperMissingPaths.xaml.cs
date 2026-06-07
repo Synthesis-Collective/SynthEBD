@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_ConfigRemapperMissingPaths.xaml
+    /// Code-behind for the missing-paths sub-panel of the Config Path Remapper.
     /// </summary>
     public partial class UC_ConfigRemapperMissingPaths : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_ConfigRemapperMissingPaths()
         {
             InitializeComponent();

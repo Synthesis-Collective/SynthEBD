@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_ConfigRemapperFailedRemappings.xaml
+    /// Code-behind for the failed-remappings sub-panel of the Config Path Remapper.
     /// </summary>
     public partial class UC_ConfigRemapperFailedRemappings : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_ConfigRemapperFailedRemappings()
         {
             InitializeComponent();

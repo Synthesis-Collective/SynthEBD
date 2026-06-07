@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_ConfigRemapperAssetComparer.xaml
+    /// Code-behind for the asset-comparer sub-panel of the Config Path Remapper.
     /// </summary>
     public partial class UC_ConfigRemapperAssetComparer : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_ConfigRemapperAssetComparer()
         {
             InitializeComponent();

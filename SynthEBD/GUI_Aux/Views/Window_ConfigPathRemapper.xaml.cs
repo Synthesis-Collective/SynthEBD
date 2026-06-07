@@ -15,25 +15,32 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_ConfigPathRemapper.xaml
+    /// Code-behind for the Config Path Remapper window.
     /// </summary>
     public partial class Window_ConfigPathRemapper : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_ConfigPathRemapper()
         {
             InitializeComponent();
         }
 
+        /// <summary>Recomputes the main grid's row heights when an expander is expanded.</summary>
         private void Expander_Expanded(object sender, RoutedEventArgs e)
         {
             UpdateRowHeights();
         }
 
+        /// <summary>Recomputes the main grid's row heights when an expander is collapsed.</summary>
         private void Expander_Collapsed(object sender, RoutedEventArgs e)
         {
             UpdateRowHeights();
         }
 
+        /// <summary>
+        /// Sizes each expander's grid row: zero height when hidden, star height when
+        /// expanded, and auto height when collapsed.
+        /// </summary>
         private void UpdateRowHeights()
         {
             int row = 4;

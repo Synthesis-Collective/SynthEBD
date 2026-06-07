@@ -1291,6 +1291,12 @@ like an oversight. Verify.
 - `VM_SubgroupLinker` — `if (!GetTopLevelIndex()) { }` has an empty body (a stray `///`), so failure to locate
   the target subgroup is silently ignored (leaves `_topLevelIndex == -1`). 💭
 
+### GUI_Aux views — 💭 (minor)
+
+`Window_ConfigPathRemapper.UpdateRowHeights` hardcodes the starting grid row index as `4` and then walks the
+grid's `Expander` children incrementing the row — coupling the code-behind to the exact XAML row layout, so
+inserting a non-expander row before row 4 (or reordering expanders) would silently misalign the resize logic.
+
 <!-- ENTRIES:GUI_Aux -->
 
 ---

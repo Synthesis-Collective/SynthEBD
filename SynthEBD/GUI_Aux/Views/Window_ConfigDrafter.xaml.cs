@@ -15,10 +15,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for Window_ConfigDrafter.xaml
+    /// Code-behind for the Config Drafter window.
     /// </summary>
     public partial class Window_ConfigDrafter : Window
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public Window_ConfigDrafter()
         {
             InitializeComponent();
