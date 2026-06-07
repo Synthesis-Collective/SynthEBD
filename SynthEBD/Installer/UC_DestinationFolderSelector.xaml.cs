@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_DestinationFolderSelector.xaml
+    /// Code-behind for the destination-folder selection wizard page of the config installer.
     /// </summary>
     public partial class UC_DestinationFolderSelector : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_DestinationFolderSelector()
         {
             InitializeComponent();

@@ -16,10 +16,11 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Interaction logic for UC_PackagerOption.xaml
+    /// Code-behind for a packager option-tree node user control.
     /// </summary>
     public partial class UC_PackagerOption : UserControl
     {
+        /// <summary>Initializes the view's XAML components.</summary>
         public UC_PackagerOption()
         {
             InitializeComponent();

@@ -1332,6 +1332,13 @@ multi-pack bundle.
 - `ConfigInstaller` uses culture-sensitive `ToLower()` on a file extension (vs the file's usual
   `OrdinalIgnoreCase`), has a dead post-increment (`newFileNameIndex++`), and a "charactersl" status typo. 🔧
 
+### Installer views — 💭 (minor)
+
+`UC_DownloadCoordinator.Hyperlink_RequestNavigate` passes the raw `NavigateUri` straight into an `explorer.exe`
+argument with no scheme validation — fine for the hardcoded http(s) links in use, but a data-driven URI
+(local path / file scheme) would also be opened. `Window_ConfigPackager.HandleSelectPreviewMouseDown/Up`
+share the same triplicated tree-select helper flagged in the Classes_Core views.
+
 <!-- ENTRIES:Installer -->
 
 ---
