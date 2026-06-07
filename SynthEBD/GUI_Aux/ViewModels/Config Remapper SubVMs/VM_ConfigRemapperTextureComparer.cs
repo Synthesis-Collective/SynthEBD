@@ -11,8 +11,13 @@ using System.Windows.Media.Imaging;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Config Path Remapper sub-panel that previews two DDS textures side by side and reports, via MD5 hash,
+/// whether they are identical, different, or missing.
+/// </summary>
 public class VM_ConfigRemapperTextureComparer : VM
 {
+    /// <summary>Stores the two texture paths, kicks off async image loads for each, and sets the status text/color from an existence check and MD5 comparison.</summary>
     public VM_ConfigRemapperTextureComparer(string texture1Path, string texture2Path)
     {
         Texture1Path = texture1Path;
@@ -55,6 +60,7 @@ public class VM_ConfigRemapperTextureComparer : VM
     public string DisplayText { get; set; } = string.Empty;
     public SolidColorBrush DisplayTextColor { get; set; } = new(Colors.White);
 
+    /// <summary>Asynchronously decodes a DDS file via Pfim, resizes it, and assigns it to <see cref="Image1"/> or <see cref="Image2"/> per <paramref name="whichTexture"/>. Skips non-DDS or missing files.</summary>
     private async void InitializeImage(string path, TexIndexToggle whichTexture)
     {
         if (!File.Exists(path)) { return; }
@@ -74,6 +80,7 @@ public class VM_ConfigRemapperTextureComparer : VM
         }
     }
 
+    /// <summary>Builds a solid white <paramref name="x"/>-by-<paramref name="y"/> bitmap as a placeholder image.</summary>
     private BitmapSource DrawFilledRectangle(int x, int y)
     {
         Bitmap bmp = new Bitmap(x, y);
@@ -85,6 +92,7 @@ public class VM_ConfigRemapperTextureComparer : VM
         return Convert(bmp);
     }
 
+    /// <summary>Converts a GDI+ <see cref="System.Drawing.Bitmap"/> into a WPF <see cref="BitmapSource"/> (BGR24).</summary>
     public static BitmapSource Convert(System.Drawing.Bitmap bitmap)
     {
         var bitmapData = bitmap.LockBits(
@@ -102,6 +110,7 @@ public class VM_ConfigRemapperTextureComparer : VM
         return bitmapSource;
     }
 
+    /// <summary>Identifies which of the two compared textures an operation targets.</summary>
     private enum TexIndexToggle
     {
         Texture1,

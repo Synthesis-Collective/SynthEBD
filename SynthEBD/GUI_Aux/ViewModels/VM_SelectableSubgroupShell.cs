@@ -6,8 +6,13 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Backs a checkable subgroup row, wrapping a <see cref="VM_SubgroupPlaceHolder"/> with a selection flag
+    /// and a display label whose format is chosen via <see cref="SubgroupLabelFormat"/>.
+    /// </summary>
     public class VM_SelectableSubgroupShell
     {
+        /// <summary>Stores the subgroup and default selection, then builds <see cref="Label"/> per the requested <paramref name="labelFormat"/>.</summary>
         public VM_SelectableSubgroupShell(VM_SubgroupPlaceHolder subgroup, bool defaultSelectedStatus, SubgroupLabelFormat labelFormat)
         {
             if (subgroup == null)
@@ -32,6 +37,7 @@ namespace SynthEBD
         public string Label { get; set; }
     }
 
+    /// <summary>Selects how a subgroup's display label is composed (ID, name, or its parent name chain).</summary>
     public enum SubgroupLabelFormat
     {
         ID,

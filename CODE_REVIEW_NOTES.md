@@ -1248,6 +1248,22 @@ it). The net result is correct, but the inverted name + dead block are a readabi
   resize failures never reach the log. `LongPathHandler` defines `MAX_PATH = 200` (misleading name; real limit
   is 260) and splits paths on `'\'` only (mixed/forward separators break the walk). 💭
 
+### `VM_SelectableSubgroupShell` — 🐞 / 💭
+
+[VM_SelectableSubgroupShell.cs:20](SynthEBD/GUI_Aux/ViewModels/VM_SelectableSubgroupShell.cs#L20) · The
+null-`subgroup` branch does `defaultSelectedStatus = false;` — a dead write to the *parameter* immediately
+before `return`; it almost certainly meant `IsSelected = false;`. Separately, this class (unlike its sibling
+VMs) does **not** inherit `VM`/implement `INotifyPropertyChanged`, so `IsSelected` may not raise change
+notifications for a two-way checkbox binding (PropertyChanged.Fody only weaves INPC types).
+
+### GUI_Aux small-VM smaller items — 💭
+
+- `VM_LogDisplay` sets a malformed save filter `"Text files (.txt|*.txt"` (missing `)`), rebuilds the entire
+  `DispString` by re-joining the whole log on every append (O(n) per event), and swallows clipboard/file
+  exceptions. `VM_ConfigRemapperMissingPaths.DisplayedSubgroups` is never populated or read (dead member).
+  `VM_ConfigRemapperTextureComparer` calls an `async void InitializeImage` from its constructor (unobservable
+  exceptions, load races binding) and has a dead `DrawFilledRectangle`. All 💭.
+
 <!-- ENTRIES:GUI_Aux -->
 
 ---

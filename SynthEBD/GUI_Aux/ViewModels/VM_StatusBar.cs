@@ -5,10 +5,15 @@ using System.Windows.Media;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Backs the bottom status bar: mirrors the <see cref="Logger"/>'s status string and color, and exposes
+/// progress-bar state used while patching.
+/// </summary>
 public class VM_StatusBar : VM
 {
     private readonly Logger _logger;
 
+    /// <summary>Subscribes to the logger's status string and color so the status bar reflects them live.</summary>
     public VM_StatusBar(Logger logger)
     {
         _logger = logger;

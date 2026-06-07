@@ -11,8 +11,15 @@ using System.Windows.Media;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Config Path Remapper sub-panel that compares two arbitrary files by MD5 hash and reports whether they are identical.
+/// </summary>
 public class VM_ConfigRemapperAssetComparer : VM, IConfigRemapperSubVM
 {
+    /// <summary>
+    /// Wires a subscription gating evaluation on both paths existing, plus the SetPath1/SetPath2 file pickers and the
+    /// ComparePaths command that hashes and compares the two files.
+    /// </summary>
     public VM_ConfigRemapperAssetComparer()
     {
         this.WhenAnyValue(x => x.Path1, x => x.Path2).Subscribe(paths =>
@@ -77,6 +84,7 @@ public class VM_ConfigRemapperAssetComparer : VM, IConfigRemapperSubVM
     public RelayCommand SetPath2 { get; }
     public RelayCommand ComparePaths { get; }
 
+    /// <summary>No-op; this comparer has no searchable list, so it ignores the filter parameters.</summary>
     public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
     {
         return;

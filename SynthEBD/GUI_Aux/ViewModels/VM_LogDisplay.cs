@@ -9,6 +9,11 @@ using ReactiveUI;
 
 namespace SynthEBD;
 
+/// <summary>
+/// Backs the log panel: mirrors the <see cref="Logger"/>'s accumulated events into a display string and
+/// exposes commands to clear, copy, save, dump environment state, and open the log folder. Switches the
+/// active view to itself whenever an error is logged.
+/// </summary>
 public class VM_LogDisplay : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -23,6 +28,9 @@ public class VM_LogDisplay : VM
     public RelayCommand ShowEnvironment { get; set; }
     public RelayCommand OpenLogFolder { get; set; }
 
+    /// <summary>
+    /// Wires the live log subscription, the auto-switch-on-error subscription, and the Clear/Copy/Save/ShowEnvironment/OpenLogFolder commands.
+    /// </summary>
     public VM_LogDisplay(
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
@@ -101,6 +109,7 @@ public class VM_LogDisplay : VM
         );
     }
 
+    /// <summary>Logs the current patcher mode, patcher state, environment paths, game release, and full load order.</summary>
     public void PrintState()
     {
         _logger.LogMessage("Patcher Mode: " + GetPatcherModeString());
@@ -128,6 +137,7 @@ public class VM_LogDisplay : VM
         }
     }
 
+    /// <summary>Maps the environment's run mode to a display string ("Standalone", "Synthesis", or "Unknown").</summary>
     private string GetPatcherModeString()
     {
         switch (_environmentProvider.RunMode) {
@@ -137,6 +147,7 @@ public class VM_LogDisplay : VM
         }
     }
 
+    /// <summary>Makes this log panel the displayed view model.</summary>
     public void SwitchViewToLogDisplay()
     {
         _displayedItemVm.DisplayedViewModel = this;
