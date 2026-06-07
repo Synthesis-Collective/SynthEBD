@@ -7,6 +7,8 @@ using System.Windows.Media;
 
 namespace SynthEBD
 {
+    /// <summary>Shared palette of named <see cref="SolidColorBrush"/> instances reused across the UI
+    /// (e.g. validation/status coloring) to avoid allocating a new brush per binding.</summary>
     public class CommonColors
     {
         public static SolidColorBrush Yellow = new SolidColorBrush(Colors.Yellow);

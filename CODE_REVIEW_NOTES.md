@@ -1218,3 +1218,36 @@ clone-from-sibling smell, now replaced with real summaries.
 <!-- ENTRIES:Settings -->
 
 ---
+
+## GUI_Aux
+
+*WPF/UI infrastructure: value converters, markup extensions, attached behaviors, small helpers, the
+record-path intellisense support, image-preview handling, path resolution, and the Config Drafter /
+Config Path Remapper tooling. Reviewed leaf-first (helpers/converters first).*
+
+### `AnnotationStateComputer.IsAnnotated` is misnamed / redundant — 💭
+
+[AnnotationStateComputer.cs:43](SynthEBD/GUI_Aux/AnnotationStateComputer.cs#L43) · `IsAnnotated` actually
+returns whether any substate is **None** (i.e. *un*-annotated) — the opposite of its name. In
+`ComputeAnnotationState` the `if (!IsAnnotated(...)) state = None;` block is then both confusingly named and
+redundant (the default `state` is already `None`, and the `hasManual`/`hasRulesBased` blocks below override
+it). The net result is correct, but the inverted name + dead block are a readability trap.
+
+### GUI_Aux converter/helper smaller items — 💭 / 🔧
+
+- `VisibilityConverters` — the enum-driven converters' `ConvertBack` returns a **bool**, not the original
+  enum (`BodyShapeSelectionMode`/`DrafterTextureSource`/`ExchangeMode`); harmless while one-way, wrong if ever
+  two-way bound. `MaxHeightConverter.Convert` casts `(double)value` unconditionally (throws on a non-double
+  source). 💭
+- `RecordIntellisense.RefreshPathSuggestions` dereferences `parent.IntellisensedPath` *before* its
+  `if (parent is null …) return;` guard, so the null-parent guard is dead. 💭
+- `Converters` — `zEBDSignatureToFormKey`'s `default`/error branch logs `fkString` while it is still empty
+  (the offending value is omitted); `RaceEDID2FormKey` case-folds with culture-sensitive `.ToLower()` per
+  iteration (use `OrdinalIgnoreCase`). 🔧
+- `ImagePreviewHandler.ResizeImage` swallows exceptions to `Console.WriteLine` (not the app `Logger`), so
+  resize failures never reach the log. `LongPathHandler` defines `MAX_PATH = 200` (misleading name; real limit
+  is 260) and splits paths on `'\'` only (mixed/forward separators break the walk). 💭
+
+<!-- ENTRIES:GUI_Aux -->
+
+---

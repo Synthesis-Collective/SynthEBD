@@ -3,8 +3,12 @@ using System.Text;
 
 namespace SynthEBD;
 
+/// <summary>Helpers for working with file paths that may exceed the classic <c>MAX_PATH</c> limit,
+/// where <see cref="File.Exists"/> and the standard open dialog misbehave.</summary>
 public class LongPathHandler
 {
+    /// <summary>Creates an <see cref="System.Windows.Forms.OpenFileDialog"/> with <c>ValidateNames</c>
+    /// disabled so it tolerates paths longer than 260 characters.</summary>
     public static System.Windows.Forms.OpenFileDialog CreateLongPathOpenFileDialog()
     {
         System.Windows.Forms.OpenFileDialog dialog = new System.Windows.Forms.OpenFileDialog
@@ -18,6 +22,9 @@ public class LongPathHandler
 
     // https://stackoverflow.com/a/11212007
     private const int MAX_PATH = 200;
+    /// <summary>Returns whether the file at <paramref name="path"/> exists, walking the directory tree
+    /// segment-by-segment via <see cref="checkFile_LongPath"/> when the path is at/over <c>MAX_PATH</c>;
+    /// otherwise defers to <see cref="File.Exists"/>.</summary>
     public static bool PathExists(string path)
     {
         if (path.Length >= MAX_PATH)
@@ -34,6 +41,9 @@ public class LongPathHandler
         }
     }
 
+    /// <summary>Existence check for over-long paths: builds the longest sub-path under <c>MAX_PATH</c>,
+    /// then enumerates directories/files one level at a time (avoiding the path-length error you get from
+    /// passing the full path to <c>GetDirectories</c>/<c>GetFiles</c>) until the file is found or absent.</summary>
     private static bool checkFile_LongPath(string path)
     {
         string[] subpaths = path.Split('\\');

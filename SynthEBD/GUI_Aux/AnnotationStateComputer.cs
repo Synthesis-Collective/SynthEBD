@@ -7,8 +7,13 @@ using System.Windows.Annotations.Storage;
 
 namespace SynthEBD;
 
+/// <summary>Aggregates the annotation states of a set of body-shape descriptor sub-items into a single
+/// rolled-up <see cref="BodyShapeAnnotationState"/> (None / Manual / RulesBased / a mix) for display.</summary>
 public class AnnotationStateComputer
 {
+    /// <summary>Rolls up the child <paramref name="subStates"/> into one state: <c>Manual</c> or
+    /// <c>RulesBased</c> if only that kind is present, <c>Mix_Manual_RulesBased</c> if both, otherwise
+    /// <c>None</c>.</summary>
     public static BodyShapeAnnotationState ComputeAnnotationState(ICollection<IHasAnnotationState> subStates)
     {
         BodyShapeAnnotationState state = new();
@@ -34,21 +39,27 @@ public class AnnotationStateComputer
         return state;
     }
 
+    /// <summary>Returns whether any substate has the <c>None</c> annotation state.</summary>
     private static bool IsAnnotated(ICollection<IHasAnnotationState> subStates)
     {
         return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.None).Any();
     }
+    /// <summary>Returns whether any substate has a <c>Manual</c> annotation state.</summary>
     private static bool HasManualDescriptors(ICollection<IHasAnnotationState> subStates)
     {
         return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
     }
+    /// <summary>Returns whether any substate has a <c>RulesBased</c> annotation state.</summary>
     private static bool HasRulesBasedDescriptors(ICollection<IHasAnnotationState> subStates)
     {
         return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
     }
 }
 
+/// <summary>Implemented by items that carry a <see cref="BodyShapeAnnotationState"/> and can be rolled
+/// up by <see cref="AnnotationStateComputer"/>.</summary>
 public interface IHasAnnotationState
 {
+    /// <summary>This item's annotation state.</summary>
     public BodyShapeAnnotationState AnnotationState { get; set; }
 }

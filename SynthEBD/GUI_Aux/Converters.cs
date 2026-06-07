@@ -7,6 +7,9 @@ using System.Text.RegularExpressions;
 
 namespace SynthEBD;
 
+/// <summary>Conversion helpers between Mutagen <see cref="FormKey"/>s, xEdit/zEBD FormID strings, and
+/// legacy zEBD config structures. Despite the name these are data/model converters, not WPF
+/// <c>IValueConverter</c>s; most resolve against the current load order via the environment provider.</summary>
 public class Converters
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -18,6 +21,8 @@ public class Converters
         _logger = logger;
         _patcherState = patcherState;
     }
+    /// <summary>Finds the race whose EditorID matches <paramref name="EDID"/> (case-insensitive) by
+    /// scanning every plugin's races in load order. Returns a null <see cref="FormKey"/> if not found.</summary>
     public static FormKey RaceEDID2FormKey(string EDID, IEnvironmentStateProvider environmentProvider)
     {
         foreach (var plugin in environmentProvider.LoadOrder.ListedOrder)
@@ -37,6 +42,9 @@ public class Converters
         return new FormKey();
     }
 
+    /// <summary>Builds a display string <c>"&lt;Name or EditorID&gt; (&lt;FormKey&gt;)"</c> for an NPC
+    /// resolved from <paramref name="NPCFormKey"/>. Logs an error and returns empty string if it cannot
+    /// be resolved in the current load order.</summary>
     public string CreateNPCDispNameFromFormKey(FormKey NPCFormKey)
     {
         var npcFormLink = new FormLink<INpcGetter>(NPCFormKey);
@@ -59,6 +67,12 @@ public class Converters
         return "";
     }
 
+    /// <summary>Converts zEBD-format attribute rows (each a <c>[type, value]</c> string array) into
+    /// SynthEBD <see cref="NPCAttribute"/>s. FormID-style values are resolved directly; name/EDID-style
+    /// types are matched by scanning winning context overrides. Same-type entries are grouped into one
+    /// attribute per type (Class, FaceTexture, Faction, NPC, Race, VoiceType).</summary>
+    /// <param name="arrList">The list of zEBD attribute rows.</param>
+    /// <returns>The set of converted attributes.</returns>
     public HashSet<NPCAttribute> zEBDStringArraysToAttributes(List<string[]> arrList)
     {
         HashSet<NPCAttribute> h = new HashSet<NPCAttribute>();
@@ -209,6 +223,9 @@ public class Converters
         return h;
     }
 
+    /// <summary>Parses an xEdit-style record string (e.g. <c>Beggar "Beggar" [CLAS:0001327B]</c>),
+    /// extracting the bracketed FormID and resolving its mod-index byte against the load order to build a
+    /// <see cref="FormKey"/>. Logs an error and returns a null FormKey on any parse/lookup failure.</summary>
     public FormKey GetFormKeyFromxEditFormIDString(string str)
     {
         FormKey output = new FormKey();
@@ -269,6 +286,10 @@ public class Converters
         return output;
     }
 
+    /// <summary>Builds a <see cref="FormKey"/> from a zEBD signature: looks up <paramref name="rootPlugin"/>
+    /// in the load order and combines its file name with the 6-digit record portion of
+    /// <paramref name="formID"/> (accepting 6- or 8-char IDs). Logs an error and returns a null FormKey on
+    /// failure.</summary>
     public FormKey zEBDSignatureToFormKey(string rootPlugin, string formID, IEnvironmentStateProvider environmentProvider)
     {
         string fkString = "";
@@ -301,6 +322,8 @@ public class Converters
         return output;
     }
 
+    /// <summary>Converts a zEBD <c>[lower, upper]</c> string pair into an <see cref="NPCWeightRange"/>,
+    /// defaulting the lower bound to 0 and the upper bound to 100 when blank/unparseable.</summary>
     public static NPCWeightRange StringArrayToWeightRange(string[] arr)
     {
         var weightRange = new NPCWeightRange();
@@ -357,6 +380,8 @@ public class Converters
         }
     }
 
+    /// <summary>Converts a Mutagen FormKey string (<c>"RRRRRR:Plugin.esp"</c>) to an 8-hex-digit FormID
+    /// string, or empty string if conversion fails. See <see cref="TryFormKeyStringToFormIDString"/>.</summary>
     public string FormKeyStringToFormIDString(string formKeyString)
     {
         if (TryFormKeyStringToFormIDString(formKeyString, out string formIDstr))
@@ -366,6 +391,12 @@ public class Converters
         return String.Empty;
     }
 
+    /// <summary>Tries to build a runtime FormID string from a FormKey string by prefixing the record id
+    /// with the plugin's load-order index (the generated patch is assumed last in the load order). The
+    /// mod-index byte is zero-padded to two hex digits.</summary>
+    /// <param name="formKeyString">FormKey string in <c>"RRRRRR:Plugin.esp"</c> form.</param>
+    /// <param name="formIDstr">Receives the resulting FormID string, or empty on failure.</param>
+    /// <returns><c>true</c> on success; <c>false</c> if the input is malformed or the plugin is not found.</returns>
     public bool TryFormKeyStringToFormIDString(string formKeyString, out string formIDstr)
     {
         formIDstr = string.Empty;

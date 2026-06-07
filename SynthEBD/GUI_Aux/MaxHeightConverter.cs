@@ -8,8 +8,13 @@ using System.Windows.Data;
 
 namespace SynthEBD
 {
+    /// <summary>One-way converter that multiplies a bound <see cref="double"/> (typically an element's
+    /// available height) by a fractional factor supplied as the <c>ConverterParameter</c>, yielding a
+    /// <c>MaxHeight</c>. A missing or unparseable parameter falls back to a factor of 1 (fails silently).</summary>
     public class MaxHeightConverter : IValueConverter
     {
+        /// <summary>Returns <c>value * factor</c>, where <c>factor</c> is parsed from <paramref name="parameter"/>
+        /// (double, then int) or defaults to 1.</summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             double fracHeight = 1;
@@ -34,6 +39,7 @@ namespace SynthEBD
             return ((double)value * fracHeight);
         }
 
+        /// <summary>Not supported; one-way converter. Throws <see cref="NotImplementedException"/>.</summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();

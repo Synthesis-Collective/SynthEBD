@@ -9,9 +9,12 @@ using System.Threading.Tasks;
 
 namespace SynthEBD
 {
+    /// <summary>Helper for launching Windows Explorer at a given directory from the UI.</summary>
     public class WinExplorerOpener
     {
         //https://www.codeproject.com/Questions/852563/How-to-open-file-explorer-at-given-location-in-csh
+        /// <summary>Opens Windows Explorer at <paramref name="folderPath"/>. Shows an OK dialog if the
+        /// directory does not exist or if Explorer fails to launch.</summary>
         public static void OpenFolder(string folderPath)
         {
             if (Directory.Exists(folderPath))

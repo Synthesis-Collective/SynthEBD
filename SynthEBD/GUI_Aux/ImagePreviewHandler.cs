@@ -6,10 +6,17 @@ using System.Windows.Media.Imaging;
 
 namespace SynthEBD;
 
+/// <summary>Helpers for decoding and resizing asset preview images (notably Pfim-decoded DDS textures)
+/// into WPF/GDI bitmaps, and a small model pairing an image path with the subgroup(s) it came from.</summary>
 public class ImagePreviewHandler
 {
+    /// <summary>Associates an image file path with the <see cref="VM_SubgroupPlaceHolder"/> that
+    /// references it (its <see cref="PrimarySource"/>) plus the full ancestor chain of subgroups,
+    /// so the preview UI can attribute an image to every subgroup that contributes it.</summary>
     public class ImagePathWithSource
     {
+        /// <summary>Captures the image <paramref name="path"/> and its <paramref name="source"/> subgroup,
+        /// seeding <see cref="SourceChain"/> with the source and all of its parents.</summary>
         public ImagePathWithSource(string path, VM_SubgroupPlaceHolder source)
         {
             Path = path;
@@ -17,15 +24,21 @@ public class ImagePreviewHandler
             SourceChain.Add(PrimarySource);
             AddParentToChain(source, SourceChain);
         }
+        /// <summary>The image file path.</summary>
         public string Path { get; set; }
+        /// <summary>The primary source subgroup plus all of its ancestors.</summary>
         public HashSet<VM_SubgroupPlaceHolder> SourceChain { get; set; } = new();
+        /// <summary>The subgroup that directly references this image.</summary>
         public VM_SubgroupPlaceHolder PrimarySource { get; set; }
 
+        /// <summary>Returns a new instance with the same path and primary source (chain rebuilt).</summary>
         public ImagePathWithSource Clone()
         {
             return new ImagePathWithSource(Path, PrimarySource);
         }
 
+        /// <summary>Recursively walks <paramref name="subgroup"/>'s parents, adding each to
+        /// <paramref name="sourceChain"/>.</summary>
         public void AddParentToChain(VM_SubgroupPlaceHolder subgroup, HashSet<VM_SubgroupPlaceHolder> sourceChain)
         {
             if (subgroup.ParentSubgroup is not null)
@@ -36,6 +49,9 @@ public class ImagePreviewHandler
         }
     }
 
+    /// <summary>Converts a Pfim <see cref="IImage"/> to a GDI <see cref="System.Drawing.Bitmap"/>,
+    /// downscaling so its largest dimension is at most <paramref name="targetDimension"/> (preserving
+    /// aspect ratio). Images already within the limit are converted without resizing.</summary>
     public static System.Drawing.Bitmap ResizeIImageAsBitMap(IImage image, int targetDimension)
     {
         BitmapSource bsource = BitmapSource.Create(
@@ -66,6 +82,9 @@ public class ImagePreviewHandler
         }
     }
 
+    /// <summary>Creates a WPF <see cref="BitmapSource"/> (BGRA32) from a GDI
+    /// <see cref="System.Drawing.Bitmap"/>. Throws <see cref="ArgumentNullException"/> if
+    /// <paramref name="bitmap"/> is null.</summary>
     public static BitmapSource CreateBitmapSourceFromGdiBitmap(System.Drawing.Bitmap bitmap)
     {
         if (bitmap == null)
@@ -101,6 +120,8 @@ public class ImagePreviewHandler
 
     //https://stackoverflow.com/questions/10839358/resize-bitmap-image
     
+    /// <summary>Draws <paramref name="bmSource"/> into a new GDI bitmap of <paramref name="outputSize"/>.
+    /// On failure logs to the console and returns the unscaled source bitmap.</summary>
     public static System.Drawing.Bitmap ResizeImage(BitmapSource bmSource, System.Drawing.Size outputSize, System.Drawing.Imaging.PixelFormat pixelFormat)
     {
         var bitMap = BitmapSourceToBitmap2(bmSource, pixelFormat);
@@ -122,6 +143,9 @@ public class ImagePreviewHandler
     }
 
     //https://stackoverflow.com/questions/5689674/c-sharp-convert-wpf-image-source-to-a-system-drawing-bitmap
+    /// <summary>Copies the pixels of a WPF <see cref="ImageSource"/> into a GDI
+    /// <see cref="System.Drawing.Bitmap"/> via an intermediate unmanaged buffer (which is freed before
+    /// returning a managed clone).</summary>
     public static System.Drawing.Bitmap BitmapSourceToBitmap2(ImageSource imageSource, System.Drawing.Imaging.PixelFormat pixelFormat)
     {
         BitmapSource srs = (BitmapSource)imageSource;
@@ -147,6 +171,8 @@ public class ImagePreviewHandler
         }
     }
 
+    /// <summary>Maps a Pfim <see cref="ImageFormat"/> to the equivalent GDI
+    /// <see cref="System.Drawing.Imaging.PixelFormat"/>. Throws for unsupported formats.</summary>
     private static System.Drawing.Imaging.PixelFormat DrawingPixelFormat(IImage image)
     {
         switch (image.Format)
@@ -167,6 +193,8 @@ public class ImagePreviewHandler
         }
     }
 
+    /// <summary>Maps a Pfim <see cref="ImageFormat"/> to the equivalent WPF
+    /// <see cref="PixelFormat"/>. Throws for unsupported formats.</summary>
     private static PixelFormat PixelFormat(IImage image)
     {
         switch (image.Format)

@@ -16,6 +16,8 @@ namespace SynthEBD;
 /// so enums without attributes still render harmlessly.</summary>
 public sealed class EnumDescriptionConverter : IValueConverter
 {
+    /// <summary>Maps an enum value to its <see cref="DescriptionAttribute"/> text, falling back to the
+    /// enum name or <c>ToString()</c>; returns empty string for null.</summary>
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value == null) return string.Empty;
@@ -30,6 +32,7 @@ public sealed class EnumDescriptionConverter : IValueConverter
         return attr?.Description ?? name;
     }
 
+    /// <summary>Not supported; one-way converter. Throws <see cref="NotSupportedException"/>.</summary>
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -40,6 +43,8 @@ public sealed class EnumDescriptionConverter : IValueConverter
 /// (Description). Falls back to ToString() so enums without the attribute still render harmlessly.</summary>
 public sealed class EnumShortLabelConverter : IValueConverter
 {
+    /// <summary>Maps an enum value to its <see cref="ShortLabelAttribute"/> label, falling back to the
+    /// enum name or <c>ToString()</c>; returns empty string for null.</summary>
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value == null) return string.Empty;
@@ -54,6 +59,7 @@ public sealed class EnumShortLabelConverter : IValueConverter
         return attr?.Label ?? name;
     }
 
+    /// <summary>Not supported; one-way converter. Throws <see cref="NotSupportedException"/>.</summary>
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
