@@ -10,7 +10,7 @@ namespace SynthEBD;
 /// user's <see cref="BlockList"/>, both by direct NPC entry and by any plugin in the NPC's override
 /// chain that is plugin-level blocked.
 /// </summary>
-class BlockListHandler
+public class BlockListHandler
 {
     /// <summary>
     /// Returns the <see cref="BlockedNPC"/> entry matching <paramref name="npcFormKey"/>, or a default
@@ -43,44 +43,61 @@ class BlockListHandler
     {
         var contexts = linkCache.ResolveAllContexts<INpc, INpcGetter>(npcFormKey).ToList(); // [0] is winning override. [Last] is source plugin
 
+        // Match each context-chain plugin to its block-list entry (null where the plugin isn't blocked),
+        // preserving order, then merge. The merge OR-aggregates every flag, so order does not affect the result.
+        var contributingPlugins = contexts.Select(context => blockList.Plugins.FirstOrDefault(x => x.ModKey == context.ModKey));
+        return MergeBlockedPlugins(contributingPlugins);
+    }
+
+    /// <summary>
+    /// Combines the block flags contributed by the block-list plugins matching an NPC's context chain into a
+    /// single <see cref="BlockedPlugin"/>. Every flag — including each per-head-part-type flag — is
+    /// OR-aggregated: an axis is blocked for the NPC if <em>any</em> contributing plugin blocks it, so a later
+    /// plugin in the chain never clears a block contributed by an earlier one. Null slots (context plugins not
+    /// in the block list) are skipped. Pure helper extracted from <see cref="GetCurrentPluginBlockStatus"/> for testability.
+    /// </summary>
+    /// <param name="contributingPlugins">Block-list entries matching the NPC's context-chain plugins (null per slot where unblocked).</param>
+    public static BlockedPlugin MergeBlockedPlugins(IEnumerable<BlockedPlugin?> contributingPlugins)
+    {
         var output = new BlockedPlugin();
         output.Assets = false;
         output.BodyShape = false;
         output.Height = false;
 
-        foreach (var modKey in contexts.Select(x => x.ModKey).ToArray())
+        foreach (var blockedPlugin in contributingPlugins)
         {
-            var blockedPlugin = blockList.Plugins.Where(x => x.ModKey == modKey).FirstOrDefault();
-            if (blockedPlugin != null)
+            if (blockedPlugin == null)
             {
-                if (blockedPlugin.Assets)
+                continue;
+            }
+            if (blockedPlugin.Assets)
+            {
+                output.Assets = true;
+            }
+            if (blockedPlugin.VanillaBodyPath)
+            {
+                output.VanillaBodyPath = true;
+            }
+            if (blockedPlugin.BodyShape)
+            {
+                output.BodyShape = true;
+            }
+            if (blockedPlugin.Height)
+            {
+                output.Height = true;
+            }
+            if (blockedPlugin.HeadParts)
+            {
+                output.HeadParts = true;
+                foreach (var headPartType in Enum.GetValues(typeof(HeadPart.TypeEnum)).Cast<HeadPart.TypeEnum>())
                 {
-                    output.Assets = true;
-                }
-                if (blockedPlugin.VanillaBodyPath)
-                {
-                    output.VanillaBodyPath = true;
-                }
-                if (blockedPlugin.BodyShape)
-                {
-                    output.BodyShape = true;
-                }
-                if (blockedPlugin.Height)
-                {
-                    output.Height = true;
-                }
-                if (blockedPlugin.HeadParts)
-                {
-                    output.HeadParts = true;
-                    foreach (var headPartType in Enum.GetValues(typeof(HeadPart.TypeEnum)).Cast<HeadPart.TypeEnum>())
-                    {
-                        if (blockedPlugin.HeadPartTypes[headPartType]) { output.HeadPartTypes[headPartType] = true; }
-                        else { output.HeadPartTypes[headPartType] = false; }
-                    }
+                    // OR-aggregate per type (matching every other flag): only ever set true, never clear a
+                    // block contributed by an earlier plugin in the chain.
+                    if (blockedPlugin.HeadPartTypes[headPartType]) { output.HeadPartTypes[headPartType] = true; }
                 }
             }
         }
-           
+
         return output;
     }
         

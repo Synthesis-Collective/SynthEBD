@@ -100,6 +100,17 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   *Test:* new `FlattenedAssetPackTests` (7 cases) — valid indices format "ID: Name" / " (ID: Name)";
   `index == Count`, out-of-range, negative, and null/empty list all return "" without throwing.
   Suite 138 passed / 1 skipped / 0 failed.
+- **B3 — `BlockListHandler` per-head-part-type flags now OR-aggregate (fixed).** The context-chain merge
+  OR-aggregated every top-level flag but the per-head-part-type loop had an `else { output[t] = false; }`
+  that let a later plugin in the chain clear a per-type block set by an earlier one — so blocking e.g.
+  "Eyes" for an NPC could silently stop working when another block-listed plugin in its override chain
+  blocked Head Parts but not Eyes (failing *open*). Extracted a pure static
+  `MergeBlockedPlugins(IEnumerable<BlockedPlugin?>)` (the resolver maps the chain → entries → calls it) and
+  dropped the `else` so per-type flags OR-aggregate like the rest. Made `BlockListHandler` public for
+  testing (matching the codebase's existing public test targets; no `InternalsVisibleTo` is configured).
+  *Test:* new `BlockListHandlerTests` (5 cases) — later plugin doesn't clear an earlier per-type block,
+  per-type OR across plugins, top-level OR, single-plugin pass-through, empty/null → nothing blocked.
+  Suite 143 passed / 1 skipped / 0 failed.
 
 ---
 
@@ -1041,7 +1052,7 @@ is reset at the start of each run (and made instance/scoped state if not).
   (`NPCInfo`) can use value equality directly. `output.Select(x => x.Label).Contains(...)` in a loop
   (`FlattenedAssetPack`) is O(n²) — a `HashSet` of seen labels is cleaner. All 🔧 minor.
 
-### `BlockListHandler` per-type head-part flags — 🐞 possible bug (not OR-aggregated)
+### ✅ `BlockListHandler` per-type head-part flags — 🐞 RESOLVED (not OR-aggregated) — see Resolved §B3
 
 [BlockListHandler.cs:78](SynthEBD/Patcher/Data%20Mapping/BlockListHandler.cs#L78) · When merging the block
 flags contributed by each plugin in an NPC's context chain, the top-level flags (Assets, BodyShape, Height,
