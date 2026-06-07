@@ -90,6 +90,16 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   *Test:* new `BoolByProbabilityTests` (7 cases) — 0% never true, 99% not always true (old high-end
   off-by-one), 100% always true, 50/25/75/33.5% rates within tolerance over 200k trials.
   Suite 131 passed / 1 skipped / 0 failed.
+- **B2 — `FlattenedAssetPack.GetSubgroupPositionString` off-by-one guard (fixed; was latent).** The guard
+  `Source.Subgroups.Count >= index` admitted `index == Count`, then threw `ArgumentOutOfRangeException`
+  indexing the list (valid range 0..Count-1; it also didn't guard negatives). Extracted a pure static
+  `FormatSubgroupPosition(IReadOnlyList<AssetPack.Subgroup>, index, includeFormatting)` with correct bounds
+  (`index >= 0 && index < Count`); the instance method delegates. The sole caller
+  ([AssetSelector.cs:992](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L992), a log line) passes
+  flattened-position indices that stay in range, so the throw was unreached — defensive correctness.
+  *Test:* new `FlattenedAssetPackTests` (7 cases) — valid indices format "ID: Name" / " (ID: Name)";
+  `index == Count`, out-of-range, negative, and null/empty list all return "" without throwing.
+  Suite 138 passed / 1 skipped / 0 failed.
 
 ---
 
@@ -1008,7 +1018,7 @@ yields 0–99 but the test is `prob <= trueProbability`, so for an integer proba
 `T+1` of the 100 buckets (e.g. `T=50` → 51% true) — a ~1% upward bias, and `T=0` still returns true ~1% of
 the time. Use `prob < trueProbability` (with `Next(100)`), or `Next(1,101)`/a `[0,1)` double comparison.
 
-### `FlattenedAssetPack` subgroup-index guard — 🐞 possible bug (off-by-one)
+### ✅ `FlattenedAssetPack` subgroup-index guard — 🐞 RESOLVED (off-by-one) — see Resolved §B2
 
 [FlattenedAssetPack.cs:218](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L218) ·
 `Source.Subgroups.Count >= index && Source.Subgroups[index] != null` — valid indices are `0..Count-1`, so the

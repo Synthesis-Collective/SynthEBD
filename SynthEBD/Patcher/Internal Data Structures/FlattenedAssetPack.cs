@@ -213,24 +213,26 @@ public class FlattenedAssetPack
     /// <param name="includeFormatting">When true, wraps the result in " (" and ")".</param>
     public string GetSubgroupPositionString(int index, bool includeFormatting = true)
     {
-        string output = string.Empty;
+        return Source is null ? string.Empty : FormatSubgroupPosition(Source.Subgroups, index, includeFormatting);
+    }
 
-        if (Source is not null && Source.Subgroups.Count >= index && Source.Subgroups[index] != null)
+    /// <summary>
+    /// Formats the subgroup at <paramref name="index"/> in <paramref name="subgroups"/> as "ID: Name"
+    /// (optionally wrapped in " (" and ")"), or an empty string when <paramref name="index"/> is out of range
+    /// or the entry is null. Pure helper extracted from <see cref="GetSubgroupPositionString"/> for testability.
+    /// </summary>
+    /// <param name="subgroups">Top-level subgroup list.</param>
+    /// <param name="index">Position within <paramref name="subgroups"/>; the valid range is 0..Count-1.</param>
+    /// <param name="includeFormatting">When true, wraps the result in " (" and ")".</param>
+    public static string FormatSubgroupPosition(IReadOnlyList<AssetPack.Subgroup> subgroups, int index, bool includeFormatting = true)
+    {
+        if (subgroups is null || index < 0 || index >= subgroups.Count || subgroups[index] is null)
         {
-            var sg = Source.Subgroups[index];
-            if (includeFormatting)
-            {
-                output += " (";
-            }
-
-            output += sg.ID + ": " + sg.Name;
-
-            if (includeFormatting)
-            {
-                output += ")";
-            }
+            return string.Empty;
         }
 
-        return output;
+        var sg = subgroups[index];
+        var inner = sg.ID + ": " + sg.Name;
+        return includeFormatting ? " (" + inner + ")" : inner;
     }
 }
