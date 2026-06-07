@@ -82,7 +82,7 @@ public class CombinationLog
     public List<string> FormatAssetPackStats(CategorizedFlattenedAssetPacks assetPacks)
     {
         List<string> output = new();
-        foreach (var ap in assetPacks.PrimaryMale.And(assetPacks.MixInFemale).And(assetPacks.PrimaryFemale).And(assetPacks.MixInFemale))
+        foreach (var ap in assetPacks.PrimaryMale.And(assetPacks.MixInFemale).And(assetPacks.PrimaryFemale).And(assetPacks.MixInMale))
         {
             output.AddRange(FormatAssetPackStats(ap));
         }

@@ -111,6 +111,13 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   *Test:* new `BlockListHandlerTests` (5 cases) — later plugin doesn't clear an earlier per-type block,
   per-type OR across plugins, top-level OR, single-plugin pass-through, empty/null → nothing blocked.
   Suite 143 passed / 1 skipped / 0 failed.
+- **B4 — `CombinationLog.FormatAssetPackStats` category list fixed (logging-only).** The four-category
+  enumeration listed `MixInFemale` twice and `MixInMale` never, so the combination/assignment log's
+  "Assignment Statistics" section omitted every male Mix-In pack and double-listed female Mix-In packs
+  (NPC assignments unaffected — this only formats counts). Changed the last `.And(assetPacks.MixInFemale)`
+  → `.And(assetPacks.MixInMale)`. No unit test by agreement: a real regression test needs heavy
+  `FlattenedAssetPack`/`PatcherState` construction, and a concat-extract test would be theater (the bug is
+  in the call-site arguments). Manual-verify via the combination log. Suite 143 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1114,7 +1121,7 @@ struct so the predicate is always true (and the `.ToArray()` is needless). `.Whe
 `HeadPartAuxFunctions`, `BodyGenPreprocessing`; `PathTrimmer`/others are static-only helper classes not marked
 `static`. All minor.
 
-### `CombinationLog.LogStaticAssignments` references MixInFemale twice — 🐞 bug
+### ✅ `CombinationLog.LogStaticAssignments` references MixInFemale twice — 🐞 RESOLVED — see Resolved §B4
 
 [CombinationLog.cs:85](SynthEBD/Patcher/PatcherAux/CombinationLog.cs#L85) ·
 `assetPacks.PrimaryMale.And(assetPacks.MixInFemale).And(assetPacks.PrimaryFemale).And(assetPacks.MixInFemale)`
