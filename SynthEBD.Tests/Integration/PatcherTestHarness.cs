@@ -1,5 +1,6 @@
 using System.IO;
 using Autofac;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 
@@ -139,6 +140,70 @@ public sealed class PatcherTestHarness : IDisposable
 
     /// <summary>Runs the full patcher pipeline.</summary>
     public Task RunAsync() => Patcher.RunPatcher();
+
+    /// <summary>
+    /// Configures an assets-only run over the supplied in-memory scenario packs: enables asset patching,
+    /// disables the body-shape/height/head-part axes (for isolation and speed), pins the primary asset
+    /// order, selects the scenario packs, and enables the assignment log. Call before <see cref="RunAsync"/>.
+    /// </summary>
+    /// <param name="packs">Scenario asset packs (see <see cref="AssetScenario"/>).</param>
+    /// <param name="faceMode">Face patching mode; Script (default) avoids FaceGen NIF baking, NifEdit writes
+    /// the HeadTexture record for record-position assertions.</param>
+    public void UseAssetScenario(IReadOnlyList<AssetPack> packs,
+        FacePatchingMode faceMode = FacePatchingMode.Script)
+    {
+        var g = PatcherState.GeneralSettings;
+        g.bChangeMeshesOrTextures = true;
+        g.BodySelectionMode = BodyShapeSelectionMode.None;
+        g.bChangeHeight = false;
+        g.bChangeHeadParts = false;
+
+        var t = PatcherState.TexMeshSettings;
+        t.FacePatchingMode = faceMode;
+        t.AssetOrder = new List<string> { VM_AssetOrderingMenu.PrimaryLabel };
+        t.SelectedAssetPacks = packs.Select(p => p.GroupName).ToHashSet();
+        t.bGenerateAssignmentLog = true;
+        t.bSkyPatcherModeAssets = false;
+
+        PatcherState.AssetPacks = packs.ToList();
+    }
+
+    /// <summary>
+    /// Returns the winning NPC getters that were assigned a primary combination containing the given leaf
+    /// subgroup id, read from the combination log the patcher populated. Subgroup ids are matched exactly
+    /// against the '|'-separated signature, so "P.A" does not match "P.A2".
+    /// </summary>
+    public IReadOnlyList<INpcGetter> NpcsAssignedSubgroup(string subgroupId)
+    {
+        var result = new List<INpcGetter>();
+        foreach (var combos in CombinationLog.AssignedPrimaryCombinations.Values)
+        {
+            foreach (var combo in combos)
+            {
+                if (!combo.SubgroupIDs.Split('|').Contains(subgroupId)) { continue; }
+                foreach (var logId in combo.NPCsAssignedTo)
+                {
+                    if (TryResolveNpc(logId, out var npc)) { result.Add(npc); }
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Total number of NPCs assigned the given leaf subgroup across all scenario packs.</summary>
+    public int AssignmentCount(string subgroupId) => NpcsAssignedSubgroup(subgroupId).Count;
+
+    /// <summary>Resolves the winning NPC getter from a combination-log id ("Name | EditorID | FormKey").</summary>
+    public bool TryResolveNpc(string logId, out INpcGetter npc)
+    {
+        npc = null!;
+        var lastSegment = logId.Split('|').LastOrDefault()?.Trim();
+        if (string.IsNullOrEmpty(lastSegment) || !FormKey.TryFactory(lastSegment, out var formKey))
+        {
+            return false;
+        }
+        return EnvironmentProvider.LinkCache.TryResolve<INpcGetter>(formKey, out npc!);
+    }
 
     /// <summary>The in-memory output plugin the patcher writes records into.</summary>
     public ISkyrimMod OutputMod => EnvironmentProvider.OutputMod;
