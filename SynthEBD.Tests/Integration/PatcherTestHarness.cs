@@ -157,6 +157,12 @@ public sealed class PatcherTestHarness : IDisposable
         g.BodySelectionMode = BodyShapeSelectionMode.None;
         g.bChangeHeight = false;
         g.bChangeHeadParts = false;
+        // Evaluate every NPC independently so gating assertions reflect each NPC's own rule evaluation
+        // rather than assignments propagated to it: disable same-name linking, explicit linked-NPC groups
+        // (whose secondary members inherit the primary's assignment), and consistency.
+        g.bLinkNPCsWithSameName = false;
+        g.bEnableConsistency = false;
+        g.LinkedNPCGroups = new();
 
         var t = PatcherState.TexMeshSettings;
         t.FacePatchingMode = faceMode;

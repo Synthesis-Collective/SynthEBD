@@ -83,6 +83,49 @@ public static class AssetScenario
     }
 
     /// <summary>
+    /// Builds a pack with multiple independent top-level positions, each holding its own list of leaves.
+    /// Because the engine selects one subgroup per position, putting one gated leaf (plus a fallback) in its
+    /// own position lets every position's rule be tested without the leaves competing with each other.
+    /// </summary>
+    public static AssetPack BuildPackMulti(string groupName, Gender gender,
+        IReadOnlyList<(string positionId, IReadOnlyList<Leaf> leaves)> positions)
+    {
+        var subgroups = positions.Select(p =>
+        {
+            var pos = new AssetPack.Subgroup
+            {
+                ID = p.positionId,
+                Name = p.positionId,
+                Paths = new HashSet<FilePathReplacement>(),
+                Subgroups = p.leaves.Select(ToSubgroup).ToList(),
+            };
+            return pos;
+        }).ToList();
+
+        return new AssetPack
+        {
+            GroupName = groupName,
+            ShortName = groupName,
+            ConfigType = AssetPackType.Primary,
+            Gender = gender,
+            DisplayAlerts = false,
+            DefaultRecordTemplate = gender == Gender.Female ? FemaleRecordTemplate : MaleRecordTemplate,
+            Subgroups = subgroups,
+        };
+    }
+
+    /// <summary>Multi-position counterpart of <see cref="BuildBothGenders"/>.</summary>
+    public static IReadOnlyList<AssetPack> BuildBothGendersMulti(string baseName,
+        IReadOnlyList<(string positionId, IReadOnlyList<Leaf> leaves)> positions)
+    {
+        return new[]
+        {
+            BuildPackMulti(baseName + " (F)", Gender.Female, positions),
+            BuildPackMulti(baseName + " (M)", Gender.Male, positions),
+        };
+    }
+
+    /// <summary>
     /// Builds the same set of leaves as both a Male and a Female pack, so a scenario covers NPCs of both
     /// genders in one run. Leaf ids are identical across the two packs; combination-log queries match by id
     /// across all configs, so assignments aggregate naturally.
