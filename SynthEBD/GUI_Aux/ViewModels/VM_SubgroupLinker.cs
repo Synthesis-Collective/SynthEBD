@@ -12,8 +12,18 @@ using static SynthEBD.VM_Subgroup;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// View model for the Subgroup Linker window. Lets the user match other subgroups in an asset
+    /// pack by ID/name and bulk-create or remove required-subgroup links between the target subgroup
+    /// and the matches (one-directional, reciprocal, whole-group, or as linked alternatives).
+    /// </summary>
     public class VM_SubgroupLinker : VM
     {
+        /// <summary>
+        /// Records the top-level index of the target subgroup, subscribes the match criteria to
+        /// re-collect candidate subgroups on change, and wires every link/unlink RelayCommand (each
+        /// of which performs its mutation and then closes the window).
+        /// </summary>
         public VM_SubgroupLinker(VM_AssetPack assetPack, VM_Subgroup subgroup, Window_SubgroupLinker window)
         {
             _targetAssetPack = assetPack;
@@ -151,6 +161,7 @@ namespace SynthEBD
         public bool AddAsLinkedAlternativeExcludeNeighbors { get; set; }
         public RelayCommand Close { get; }
 
+        /// <summary>Rebuilds <see cref="CollectedSubgroups"/> by scanning every top-level branch except the target's own for subgroups matching the current ID/name criteria.</summary>
         private void CollectMatchingSubgroups()
         {
             CollectedSubgroups.Clear();
@@ -168,6 +179,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Recursively walks a subgroup tree; adds the first matching subgroup on each branch to <see cref="CollectedSubgroups"/> (stopping descent once a branch matches).</summary>
         private void CollectMatchingSubgroups(VM_SubgroupPlaceHolder subgroup)
         {
             if (bSubgroupMatches(subgroup.AssociatedModel))
@@ -181,6 +193,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Evaluates whether a subgroup model satisfies the ID and/or name criteria (honoring case-sensitivity, partial-match, and the And/Or combination selector).</summary>
         private bool bSubgroupMatches(AssetPack.Subgroup subgroup)
         {
             bool matchID = !IdToMatch.IsNullOrWhitespace();
@@ -225,6 +238,7 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>Finds and stores the top-level branch index containing the target subgroup; returns false if it cannot be located.</summary>
         private bool GetTopLevelIndex()
         {
             for (int i = 0; i < _targetAssetPack.Subgroups.Count; i++)
@@ -238,6 +252,7 @@ namespace SynthEBD
             }
             return false;
         }
+        /// <summary>Recursively checks whether the target subgroup's ID exists anywhere within the given subgroup collection.</summary>
         private bool IndexContainsThisSubgroup(IEnumerable<VM_SubgroupPlaceHolder> subgroups)
         {
             if (subgroups.Select(x => x.ID).Contains(_targetSubgroup.ID))
@@ -254,6 +269,7 @@ namespace SynthEBD
             return false;
         }
         
+        /// <summary>Adds each selected match to the target subgroup's required-subgroups (target requires the matches).</summary>
         private void LinkThisToFn()
         {
             foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
@@ -265,6 +281,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Adds the target subgroup's ID to each selected match's required-subgroups (the matches require the target).</summary>
         private void LinkToThisFn()
         {
             foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
@@ -276,6 +293,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Mutually links the target and all selected matches: every member requires every other
+        /// member, except members sharing the same top-level index. Operates in VM space for the
+        /// target subgroup and model space for the rest.
+        /// </summary>
         private void LinkWholeGroupFn()
         {
             var wholeSet = new List<VM_SubgroupPlaceHolder>();
@@ -310,6 +332,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Removes each selected match from the target subgroup's required-subgroups (inverse of <see cref="LinkThisToFn"/>).</summary>
         private void UnlinkThisFromFn()
         {
             foreach (var subgroupShell in CollectedSubgroups.Where(y => y.IsSelected))
@@ -318,6 +341,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Removes the target subgroup's ID from each selected match's required-subgroups (inverse of <see cref="LinkToThisFn"/>).</summary>
         private void UnlinkFromThisFn()
         {
             foreach (var sg in CollectedSubgroups.Where(x => x.IsSelected).ToArray())
@@ -326,6 +350,7 @@ namespace SynthEBD
             }
         }
         
+        /// <summary>Removes all reciprocal required-subgroup links among the target and selected matches (inverse of <see cref="LinkWholeGroupFn"/>).</summary>
         private void UnlinkWholeGroupFn()
         {
             var wholeSet = new List<VM_SubgroupPlaceHolder>();
@@ -355,6 +380,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Removes the target subgroup's ID from the required-subgroups of every subgroup in the whole asset pack.</summary>
         private void UnlinkAllFromThisFn()
         {
             var allSubgroups = _targetAssetPack.GetAllSubgroups();
@@ -367,6 +393,14 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Registers <paramref name="currentSubgroup"/> as an alternative wherever its top-level
+        /// index is already required: for every subgroup that requires something at the same index
+        /// (and is neither a descendant of the subgroup's required chain nor, optionally, a
+        /// neighbor), adds this subgroup to its requirements. When <paramref name="recursive"/>,
+        /// repeats for each subgroup in this one's required chain, tracking processed nodes to avoid
+        /// cycles. Operates in VM space for the open subgroup and model space otherwise.
+        /// </summary>
         private static void AddAsAlternative(VM_SubgroupPlaceHolder currentSubgroup, VM_AssetPack assetPack, VM_Subgroup currentlyOpenSubgroupVM, bool recursive, bool excludeNeighbors, HashSet<VM_SubgroupPlaceHolder> alreadyProcessed)
         {
             var allSubgroups = assetPack.GetAllSubgroups();
@@ -447,6 +481,7 @@ namespace SynthEBD
         }
     }
 
+    /// <summary>How the ID and name match criteria are combined when collecting candidate subgroups.</summary>
     public enum AndOr
     {
         And,

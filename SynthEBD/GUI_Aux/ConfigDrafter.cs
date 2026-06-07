@@ -19,6 +19,13 @@ using static SynthEBD.FilePathDestinationMap;
 
 namespace SynthEBD
 {
+    /// <summary>
+    /// Engine that auto-drafts an asset pack config from a folder tree of texture/mesh files. It
+    /// scans for .dds files, categorizes them by known Skyrim texture names, builds a subgroup tree
+    /// mirroring the directory structure, infers record destination paths, applies race/attribute
+    /// naming rules, links subgroups by name, and emits the result into a <see cref="VM_AssetPack"/>.
+    /// Backs the Config Drafter tool (via <see cref="VM_ConfigDrafter"/>).
+    /// </summary>
     public class ConfigDrafter
     {
         private readonly IEnvironmentStateProvider _environmentStateProvider;
@@ -30,10 +37,12 @@ namespace SynthEBD
             _subgroupPlaceHolderFactory = subgroupPlaceHolderFactory;
         }
 
+        /// <summary>Sentinel returned by <see cref="DraftConfigFromTextures"/> on success; any other return value is an error message.</summary>
         public string SuccessString = "Success";
 
         private const string DefaultSubgroupName = "Main";
 
+        /// <summary>Recursively returns all .dds file paths found under the given root folders.</summary>
         // returns all .dds file paths within rootFolderPaths
         public List<string> GetDDSFiles(List<string> rootFolderPaths)
         {
@@ -46,6 +55,11 @@ namespace SynthEBD
             return allFiles;
         }
 
+        /// <summary>
+        /// Splits texture paths into (categorized, uncategorized): a file is categorized if its name
+        /// matches a known Skyrim texture name for any <see cref="TextureType"/>; the rest are returned
+        /// as uncategorized.
+        /// </summary>
         public (List<string>, List<string>) CategorizeFiles(List<string> allTexturePaths)
         {
             List<string> categorizedFiles = new();
@@ -61,6 +75,15 @@ namespace SynthEBD
             return (categorizedFiles, unCategorizedFiles);
         }
 
+        /// <summary>
+        /// Top-level drafting pipeline. Filters out ignored paths, detects TNG/Etc textures and the
+        /// config gender, optionally validates root-path prefixes, then for each texture type builds
+        /// the subgroup tree (<see cref="CreateSubgroupsByType"/>). Adds TNG mesh subgroups, links
+        /// subgroups by name, and applies multiplet replacement, all gated by the corresponding flags.
+        /// Mutates <paramref name="config"/> and returns <see cref="SuccessString"/> on success or an
+        /// error string. <paramref name="hasTNGTextures"/>/<paramref name="hasEtcTextures"/> report
+        /// whether such textures were present.
+        /// </summary>
         public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<Multiplet> multiplets, MultipletHandlingMode multipletHandling, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
         {
             var validCategorizedTexturePaths = categorizedTexturePaths.Where(cPath => !ignoredTexturePaths.Where(iPath => cPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)).Any()).ToList();
@@ -138,6 +161,13 @@ namespace SynthEBD
             return SuccessString;
         }
 
+        /// <summary>
+        /// Builds the subgroup subtree for a single texture type: ensures the top-level container
+        /// subgroup exists, generates nested subgroups from the directory structure, collapses
+        /// redundant levels, then applies the type-specific transforms (custom naming, race/attribute
+        /// rules, Wood Elf normals, body->feet/tail replication, secondary Etc textures, Nord-name
+        /// fixups, Nord/Vampire flattening, female complexion nesting fix) and sorts the result.
+        /// </summary>
         public void CreateSubgroupsByType(VM_AssetPack config, TextureType textureType, List<string> texturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules)
         {
             var subGroupLabels = TypeToSubgroupLabels[textureType];
@@ -189,6 +219,13 @@ namespace SynthEBD
             SortSubgroupsRecursive(topLevelPlaceHolder);
         }
 
+        /// <summary>
+        /// Constructs a nested subgroup tree under <paramref name="topLevelPlaceHolder"/> mirroring the
+        /// directory structure shared by <paramref name="paths"/>. Walks each path depth stage,
+        /// grouping by common prefix, creating intermediate subgroups where folders diverge and leaf
+        /// subgroups for individual files (with destinations inferred from the file-name map). The
+        /// single-file case is handled specially by adding the path directly to the top level.
+        /// </summary>
         public void CreateSubgroupsFromPaths(List<string> paths, List<string> rootFolderPaths, bool rootPathsHavePrefix, VM_SubgroupPlaceHolder topLevelPlaceHolder, VM_AssetPack config)
         {
             // special handling if there's only one matching texture
@@ -274,6 +311,11 @@ namespace SynthEBD
         private Dictionary<string, VM_SubgroupPlaceHolder> LastParentPlaceHolders { get; set; } = new();
         private Dictionary<string, IGrouping<string, string>> LastParentGroupings { get; set; } = new();
 
+        /// <summary>
+        /// Strips the matching root folder prefix from <paramref name="path"/> so it becomes a
+        /// game-relative path; when <paramref name="trimPrefix"/> is set, also drops the trailing
+        /// <c>textures\Prefix</c> segments from the root before removal.
+        /// </summary>
         public string RemoveRootFolder(string path, List<string> rootFolders, bool trimPrefix)
         {
             if (GetMatchingRootFolder(rootFolders, path, trimPrefix, out string rootFolderPath))
@@ -282,6 +324,7 @@ namespace SynthEBD
             }
             return path;
         }
+        /// <summary>Finds the root folder that <paramref name="path"/> starts with, returning it (or its prefix-trimmed form) via <paramref name="match"/>; false if none match.</summary>
         private bool GetMatchingRootFolder(List<string> rootFolders, string path, bool trimPrefix, out string match)
         {
             foreach (var candidate in rootFolders)
@@ -304,6 +347,12 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>
+        /// Recursively collapses single-child "bridging" subgroups into their parent: bottom-level
+        /// subgroups have their textures pulled up, while intermediate subgroups have their children
+        /// promoted (renaming where a child name matches its file). Returns true when the current
+        /// subgroup was flattened and should be removed by the caller.
+        /// </summary>
         private static bool CleanRedundantSubgroups(VM_SubgroupPlaceHolder currentSubgroup)
         {
             for (int i = 0; i < currentSubgroup.Subgroups.Count; i++)
@@ -348,6 +397,7 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>Returns the largest number of path segments across all paths (the deepest directory nesting).</summary>
         private int GetLongestDirectoryStructure(List<string> paths)
         {
             int longestPath = 0;
@@ -362,6 +412,7 @@ namespace SynthEBD
             return longestPath;
         }
 
+        /// <summary>Decides whether a new subgroup is warranted at this stage: true if the group is new or its membership count differs from the previous grouping for the same files (i.e. the directory branched here).</summary>
         private bool ShouldCreateNewSubgroup(IGrouping<string, string> pathGroup, int currentPathStage)
         {
             var firstPath = pathGroup.First();
@@ -373,6 +424,7 @@ namespace SynthEBD
             return pathGroup.Count() != LastParentGroupings[firstPath].Count();
         }
 
+        /// <summary>Creates a bare <see cref="AssetPack.Subgroup"/> model with the given ID and name.</summary>
         private AssetPack.Subgroup CreateSubgroupModel(string id, string name)
         {
             var subgroup = new AssetPack.Subgroup();
@@ -381,6 +433,7 @@ namespace SynthEBD
             return subgroup;
         }
 
+        /// <summary>Sets a subgroup's name on both VM and model, regenerates its ID, and cascades the ID update to its descendants.</summary>
         private void UpdateSubgroupName(VM_SubgroupPlaceHolder subgroup, string name)
         {
             subgroup.AssociatedModel.Name = name;
@@ -390,6 +443,11 @@ namespace SynthEBD
             UpdateSubgroupIDsRecursive(subgroup);
         }
 
+        /// <summary>
+        /// Recursively renames subgroups based on the texture they hold: applies head-normal folder
+        /// rules and file-name-to-subgroup-name mapping for single-texture leaves, strips redundant
+        /// "male"/"female" qualifiers, and renames bare "Male"/"Female" to "Nord" (their usual default).
+        /// </summary>
         private void ReplaceTextureNamesRecursive(VM_SubgroupPlaceHolder subgroup, TextureType type, VM_AssetPack config)
         {
             if (subgroup.AssociatedModel.Paths.Count == 1)
@@ -436,6 +494,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Renames a head-normal subgroup and assigns allowed races/race-groupings based on the
+        /// containing folder name (and, for generic male/female folders, the specific file name),
+        /// covering elder, per-race, vampire, and Astrid cases. No-op if the subgroup was already renamed.
+        /// </summary>
         private void ReplaceHeadNormalName(string folder, string fileName, VM_SubgroupPlaceHolder subgroup)
         {
             if (folder != null)
@@ -559,6 +622,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>If the mod provides High Elf head normals but no Wood Elf ones, adds Wood Elf to the allowed races of the High Elf normal subgroups (vanilla reuses the High Elf normal for Wood Elves).</summary>
         private void AddNecessaryWoodElfNormals(VM_SubgroupPlaceHolder topLevelHeadNormals) // this is a weird one. Texture Set SkinHeadFemaleWoodElf (03D2AC:Skyrim.esm) points to HighElfFemale\FemaleHead_msn.dds. If no wood elf normal is provided by the texture mod, the allowed races on High Elf should be modified to include wood elves.
         {
             var allNormals = topLevelHeadNormals.GetChildren();
@@ -578,6 +642,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Renames a subgroup from the <see cref="TextureToSubgroupName"/> map when its name still equals
+        /// the raw file name, and attaches the appropriate age/roughness/freckles attribute group for
+        /// recognized head-detail complexion files.
+        /// </summary>
         private void ReplaceSubgroupNameByFile(string fileName, VM_SubgroupPlaceHolder subgroup, VM_AssetPack config)
         {
             foreach (var entry in TextureToSubgroupName)
@@ -646,6 +715,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Applies <see cref="AddRulesBySubgroupName"/> to a subgroup and all its descendants.</summary>
         private void AddRulesBySubgroupNameRecursive(VM_SubgroupPlaceHolder subgroup)
         {
             AddRulesBySubgroupName(subgroup);
@@ -655,6 +725,13 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Infers allowed-race and race-grouping rules from a subgroup's name: maps racial names to
+        /// allowed races (adding the elder/vampire counterparts where relevant), handles "Vampire"
+        /// subgroups by deriving the parent-implied race's vampire analogue and excluding it from
+        /// sibling subgroups, assigns the playable-non-vampire grouping to "Main", and adds Elder races
+        /// for "maleold"/"femaleold" source textures. Mutates the subgroup's model.
+        /// </summary>
         private void AddRulesBySubgroupName(VM_SubgroupPlaceHolder subgroup)
         {
             var raceFormKey = GetRaceFormKeyFromName(subgroup.AssociatedModel.Name);
@@ -728,6 +805,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Recursively accumulates all ancestor subgroups of <paramref name="subgroup"/> into <paramref name="parents"/>.</summary>
         private void GetParentSubgroups(VM_SubgroupPlaceHolder subgroup, List<VM_SubgroupPlaceHolder> parents)
         {
             if (subgroup.ParentSubgroup is not null)
@@ -737,6 +815,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Recursively collects all texture-bearing (bottom-level) subgroups under <paramref name="root"/> except <paramref name="subgroupToExclude"/>.</summary>
         private void GetOtherBottomSubgroups(VM_SubgroupPlaceHolder root, VM_SubgroupPlaceHolder subgroupToExclude, List<VM_SubgroupPlaceHolder> otherBottomLevelSubgroups)
         {
             foreach (var subgroup in root.Subgroups)
@@ -750,6 +829,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Returns the race FormKey implied by a subgroup name via <see cref="RaceFormKeyToRaceString"/>, or null; guards the "Old"/"Older" ambiguity with a whole-word check.</summary>
         private FormKey? GetRaceFormKeyFromName(string subgroupName)
         {
             foreach (var entry in RaceFormKeyToRaceString)
@@ -771,6 +851,7 @@ namespace SynthEBD
             return null;
         }
 
+        /// <summary>Returns true if <paramref name="matchStr"/> appears as a whole space-delimited word in <paramref name="text"/> (optionally case-insensitively).</summary>
         private bool ContainsWholeWord(string text, string matchStr, bool caseInvariant)
         {
             var words = text.Split(' ');
@@ -795,6 +876,7 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>Adds an allowed NPC attribute to a subgroup that force-restricts membership to the given attribute group.</summary>
         private void AddAttributeGroup(VM_SubgroupPlaceHolder subgroup, VM_AttributeGroup group)
         {
             var attribute = new NPCAttribute();
@@ -806,6 +888,7 @@ namespace SynthEBD
             subgroup.AssociatedModel.AllowedAttributes.Add(attribute);
         }
 
+        /// <summary>Maps each texture type to the (ID, display name) of its top-level container subgroup.</summary>
         private static readonly Dictionary<TextureType, (string, string)> TypeToSubgroupLabels = new()
         {
             { TextureType.HeadDiffuse, ("HD", "Head Diffuse")},
@@ -840,6 +923,7 @@ namespace SynthEBD
             { TextureType.UnknownComplexion, ("UC", "Unknown Complexion") }
         };
 
+        /// <summary>Maps each texture type to the set of known vanilla source file names used to categorize files of that type.</summary>
         private static readonly Dictionary<TextureType, HashSet<string>> TypeToFileNames = new()
         {
             { TextureType.HeadDiffuse, new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseMale, Source_HeadDiffuseVampireMale, Source_HeadDiffuseAfflictedMale, Source_HeadDiffuseSnowElfMale, Source_HeadDiffuseKhajiitMale, Source_HeadDiffuseArgonianMale, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadDiffuseVampireFemale, Source_HeadDiffuseAfflictedFemale, Source_HeadDiffuseAstrid, Source_HeadDiffuseArgonianFemale } },
@@ -874,6 +958,7 @@ namespace SynthEBD
             { TextureType.UnknownComplexion, new() }
         };
 
+        /// <summary>Maps a friendly subgroup name (e.g. "Vampire", "Khajiit") to the set of source file names that should adopt that name.</summary>
         private static readonly Dictionary<string, HashSet<string>> TextureToSubgroupName = new(StringComparer.OrdinalIgnoreCase)
         {
             { DefaultSubgroupName, new(StringComparer.OrdinalIgnoreCase) { Source_HeadDiffuseMale, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadSubsurfaceMale, Source_HeadSubsurfaceFemaleAndKhajiitF, Source_HeadSpecularMale, Source_HeadSpecularFemaleAndKhajiitF, Source_HeadDetailDefault, Source_TorsoDiffuseMale, Source_TorsoDiffuseFemale, Source_TorsoNormalMale, Source_TorsoNormalFemale, Source_TorsoSpecularMale, Source_TorsoSpecularFemale, Source_TorsoSubsurfaceMale, Source_TorsoSubsurfaceFemale, Source_HandsDiffuseMale, Source_HandsDiffuseFemale, Source_HandsNormalMale, Source_HandsNormalFemale, Source_HandsSubsurfaceMale, Source_HandsSubsurfaceFemale, Source_HandsSpecularMale, Source_HandsSpecularFemale, Source_FeetDiffuseMale, Source_FeetDiffuseFemale, Source_FeetNormalMale, Source_FeetNormalFemale, Source_FeetSubsurfaceMale, Source_FeetSubsurfaceFemale, Source_FeetSpecularMale, Source_FeetSpecularFemale } },
@@ -894,6 +979,7 @@ namespace SynthEBD
             { "Freckles", new(StringComparer.OrdinalIgnoreCase) { Source_HeadDetailFrecklesFemale } }
         };
 
+        /// <summary>Maps each race FormKey to the set of name aliases used to detect that race from subgroup/folder names.</summary>
         private static readonly Dictionary<FormKey, HashSet<string>> RaceFormKeyToRaceString = new()
         {
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Argonian" } },
@@ -912,6 +998,11 @@ namespace SynthEBD
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey, new(StringComparer.OrdinalIgnoreCase) { "Old", "Elder" } }
         };
 
+        /// <summary>
+        /// Among duplicate candidates, deselects (marks as keeper) the most generic one: prefers paths
+        /// whose directory contains no race-specific name and, among those, the shortest path; falls back
+        /// to the overall shortest path if none are race-neutral.
+        /// </summary>
         public void ChooseLeastSpecificPath(IEnumerable<VM_FileDuplicateContainer.VM_FileMultiplet> candidates) // try to select the most generic directory path
         {
             var acceptablePaths = new List<VM_FileDuplicateContainer.VM_FileMultiplet>();
@@ -956,6 +1047,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Maps each base race FormKey to its vampire-variant race FormKey.</summary>
         private static readonly Dictionary<FormKey, FormKey> CorrespondingVampireRaces = new()
         {
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ArgonianRaceVampire.FormKey },
@@ -970,12 +1062,14 @@ namespace SynthEBD
             { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRace.FormKey, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.WoodElfRaceVampire.FormKey }
         };
 
+        /// <summary>Maps each gender to the set of vanilla source file names exclusive to that gender, used to infer the config's gender.</summary>
         private static readonly Dictionary<Gender, HashSet<string>> ExpectedFilesByGender = new()
         {
             {Gender.Male, new(StringComparer.OrdinalIgnoreCase) { Source_BodyDiffuseSnowElfMale, Source_FeetDiffuseAfflictedMale, Source_FeetDiffuseArgonianMale, Source_FeetDiffuseKhajiitMale, Source_FeetDiffuseSnowElfMale, Source_FeetNormalMale, Source_FeetSpecularArgonianMale, Source_FeetSpecularKhajiitMale, Source_FeetSpecularMale, Source_FeetSubsurfaceArgonianMale, Source_FeetSubsurfaceKhajiitMale, Source_FeetSubsurfaceMale, Source_HandsDiffuseAfflictedMale, Source_HandsDiffuseArgonianMale, Source_HandsDiffuseKhajiitMale, Source_HandsDiffuseMale, Source_HandsDiffuseSnowElfMale, Source_HandsNormalArgonianMale, Source_HandsNormalKhajiitMale, Source_HandsNormalMale, Source_HandsSpecularArgonianMale, Source_HandsSpecularKhajiitMale, Source_HandsSpecularMale, Source_HandsSubsurfaceMale, Source_HeadDetailAge40Male, Source_HeadDetailAge40RoughMale, Source_HeadDetailAge50Male, Source_HeadDetailArgonianOldMale, Source_HeadDetailKhajiitOldMale, Source_HeadDetailRough01Male, Source_HeadDetailRough02Male, Source_HeadDiffuseAfflictedMale, Source_HeadDiffuseArgonianMale, Source_HeadDiffuseKhajiitMale, Source_HeadDiffuseMale, Source_HeadDiffuseSnowElfMale, Source_HeadDiffuseVampireMale, Source_HeadNormalArgonianMale, Source_HeadNormalKhajiitMale, Source_HeadNormalMale, Source_HeadNormalOrcMale, Source_HeadNormalVampireMale, Source_HeadSpecularArgonianMale, Source_HeadSpecularKhajiitMale, Source_HeadSpecularMale, Source_HeadSubsurfaceMale, Source_TNGMaleDiffuse, Source_TNGMaleDiffuseAfflicted, Source_TNGMaleDiffuseArgonian, Source_TNGMaleDiffuseKhajiit, Source_TNGMaleDiffuseSnowElf, Source_TNGMaleNormal, Source_TNGMaleNormalArgonian, Source_TNGMaleNormalElder, Source_TNGMaleNormalKhajiit, Source_TNGMaleSpecular, Source_TNGMaleSpecularArgonian, Source_TNGMaleSpecularKhajiit, Source_TNGMaleSubsurface, Source_TorsoDiffuseAfflictedMale, Source_TorsoDiffuseArgonianMale, Source_TorsoDiffuseKhajiitMale, Source_TorsoDiffuseMale, Source_TorsoNormalArgonianMale, Source_TorsoNormalKhajiitMale, Source_TorsoNormalMale, Source_TorsoSpecularArgonianMale, Source_TorsoSpecularKhajiitMale, Source_TorsoSpecularMale, Source_TorsoSubsurfaceArgonianMale, Source_TorsoSubsurfaceKhajiitMale, Source_TorsoSubsurfaceMale } },
             {Gender.Female, new(StringComparer.OrdinalIgnoreCase) { Source_BodyDiffuseAstrid, Source_BodyNormalAstrid, Source_BodySpecularAstrid, Source_EtcFemaleDiffuse, Source_EtcFemaleNormal, Source_EtcFemaleSpecular, Source_EtcFemaleSubsurface, Source_FeetDiffuseAfflictedFemale, Source_FeetDiffuseFemale, Source_FeetNormalFemale, Source_FeetSpecularFemale, Source_FeetSubsurfaceFemale, Source_HandsDiffuseAfflictedFemale, Source_HandsDiffuseArgonianFemale, Source_HandsDiffuseFemale, Source_HandsDiffuseKhajiitFemale, Source_HandsNormalArgonianFemale, Source_HandsNormalAstrid, Source_HandsNormalFemale, Source_HandsNormalKhajiitFemale, Source_HandsSpecularArgonianFemale, Source_HandsSpecularAstrid, Source_HandsSpecularFemale, Source_HandsSpecularKhajiitFemale, Source_HandsSubsurfaceFemale, Source_HeadDetailAge40Female, Source_HeadDetailAge40RoughFemale, Source_HeadDetailAge50Female, Source_HeadDetailArgonianOldFemale, Source_HeadDetailFrecklesFemale, Source_HeadDetailRoughFemale, Source_HeadDiffuseAfflictedFemale, Source_HeadDiffuseArgonianFemale, Source_HeadDiffuseAstrid, Source_HeadDiffuseFemaleAndKhajiitF, Source_HeadDiffuseVampireFemale, Source_HeadNormalArgonianFemale, Source_HeadNormalAstrid, Source_HeadNormalFemaleAndKhajiitF, Source_HeadNormalOrcFemale, Source_HeadNormalVampireFemale, Source_HeadSpecularArgonianFemale, Source_HeadSpecularAstrid, Source_HeadSpecularFemaleAndKhajiitF, Source_HeadSpecularVampireFemale, Source_HeadSubsurfaceFemaleAndKhajiitF, Source_HeadSubsurfaceVampireFemale, Source_TorsoDiffuseAfflictedFemale, Source_TorsoDiffuseArgonianFemale, Source_TorsoDiffuseFemale, Source_TorsoDiffuseKhajiitFemale, Source_TorsoNormalArgonianFemale, Source_TorsoNormalFemale, Source_TorsoNormalKhajiitFemale, Source_TorsoSpecularArgonianFemale, Source_TorsoSpecularFemale, Source_TorsoSpecularKhajiitFemale, Source_TorsoSubsurfaceFemale} }
         };
 
+        /// <summary>Returns the subset of <paramref name="files"/> whose file name is in <paramref name="fileNamesToMatch"/> (case-insensitive).</summary>
         private static List<string> GetMatchingFiles(IEnumerable<string> files, HashSet<string> fileNamesToMatch)
         {
             List<string> matchingFilePaths = new List<string>();
@@ -992,6 +1086,11 @@ namespace SynthEBD
             return matchingFilePaths;
         }
 
+        /// <summary>
+        /// Buckets already-uncategorized files into Unknown texture types by suffix/keyword convention
+        /// (<c>_msn</c>=normal, <c>_sk</c>=subsurface, <c>_s</c>=specular, "HeadDetail"=complexion,
+        /// otherwise diffuse).
+        /// </summary>
         private static Dictionary<TextureType, List<string>> GetMatchingUnknownFiles(IEnumerable<string> unknownFiles) // expects a list of files which have already been pre-sorted as uncategorized
         {
             Dictionary<TextureType, List<string>> unknownsCategorized = new()
@@ -1029,6 +1128,7 @@ namespace SynthEBD
             return unknownsCategorized;
         }
 
+        /// <summary>Capitalizes the first letter of each space-delimited word while leaving the remaining letters untouched.</summary>
         private static string CapitalizeWordsPreserveCapitalized(string input)
         {
             TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
@@ -1049,6 +1149,7 @@ namespace SynthEBD
             return string.Join(" ", words);
         }
 
+        /// <summary>Derives the asset pack short name from the first <c>textures\Prefix\...</c> segment found among the files and assigns it to the config; returns false if none found.</summary>
         private bool GetPrefix(VM_AssetPack config, string[] filesInDir, string rootPath)
         {
             var firstSubPath = filesInDir.Select(x => x.Replace(rootPath, "").TrimStart(Path.DirectorySeparatorChar)).Where(x => x.StartsWith("textures", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
@@ -1064,6 +1165,11 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>
+        /// Adds required-subgroup links between same-named subgroups across different top-level
+        /// branches (skipping race/Main/Vampire names handled by allowed-races), so e.g. matching
+        /// diffuse and normal variants stay coupled. Must run after all IDs are finalized.
+        /// </summary>
         private void LinkSubgroupsByName(VM_AssetPack config) // must be called after all IDs have been finalized.
         {
             foreach (var topLevelSubgroup in config.Subgroups)
@@ -1089,6 +1195,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Returns true for names that should not drive name-based linkage (race names, "Main", "Vampire") because they are governed by allowed-races instead.</summary>
         private bool IgnoreForSubgroupLinkage(string name)
         {
             foreach (var racialSubgroupIDs in RaceFormKeyToRaceString.Values) // these should already be restricted via Allowed Races, and trying to add required subgroups can inadvertently lead to promiscuous linkage with other nested subgroups of the same name.
@@ -1106,6 +1213,11 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>
+        /// Recursively duplicates each single-path body texture into the matching feet destination
+        /// (and, for beast-race textures, the tail destination too), so one body texture also covers
+        /// feet/tail slots. Mutates the subgroups' models.
+        /// </summary>
         private void ReplicateBodyToFeetAndTail(VM_SubgroupPlaceHolder subgroup)
         {
             foreach (var sg in subgroup.Subgroups)
@@ -1171,6 +1283,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Removes top-level subgroups whose entire subtree contains no texture paths, preventing stray empty containers in the drafted config.</summary>
         private void ClearEmptyTopLevels(VM_AssetPack config)
         {
             for (int i = 0; i < config.Subgroups.Count; i++)
@@ -1185,6 +1298,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Validates that a non-mod-manager texture path lives under <c>Data\Textures</c> and in a
+        /// subfolder of it (not directly in Textures). Returns false with an explanatory
+        /// <paramref name="errorStr"/> on failure.
+        /// </summary>
         public bool CheckRootPathPrefix(string path, out string errorStr)
         {
             var texturesDir = Path.Combine(_environmentStateProvider.DataFolderPath, "Textures");
@@ -1205,6 +1323,7 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>For each texture-bearing Etc subgroup, adds a second path pointing the same source at the corresponding secondary Etc destination.</summary>
         public void AddSecondaryEtcTexture(VM_SubgroupPlaceHolder topLevel, TextureType type)
         {
             var withFiles = topLevel.GetChildren().And(topLevel).Where(x => x.AssociatedModel.Paths.Any()).ToList();
@@ -1223,6 +1342,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Sorts a subgroup's children alphabetically by name and recurses into each.</summary>
         public void SortSubgroupsRecursive(VM_SubgroupPlaceHolder subgroup)
         {
             subgroup.Subgroups.Sort(x => x.AssociatedModel.Name, false);
@@ -1232,6 +1352,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Recursively reverts "Nord" subgroups back to "Main" (dropping the Nord allowed race) when
+        /// they have no race-specific sibling subgroups, since a "male"/"female" path can mean either
+        /// "Nord specifically" or "all humanoids" depending on context.
+        /// </summary>
         public void CheckNordNamesRecursive(VM_SubgroupPlaceHolder subgroup) // "male" and "female" is a confusing path because in some cases it's supposed to apply specifically to Nords, while in other cases it's for all humanoid races. Thanks Bethesda. This function checks if a subgroup has neighbors with other races, and if not reverts the name back to DefaultSubgroupName
         {
             if(subgroup.AssociatedModel.Name == "Nord" && subgroup.ParentSubgroup != null)
@@ -1270,6 +1395,7 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>Regenerates a subgroup's ID (syncing model and VM) and recurses through all descendants, e.g. after a move or rename.</summary>
         public void UpdateSubgroupIDsRecursive(VM_SubgroupPlaceHolder subgroup)
         {
             subgroup.AutoGenerateID(false, 0);
@@ -1280,6 +1406,11 @@ namespace SynthEBD
             }
         }
 
+        /// <summary>
+        /// Returns false if any ancestor subgroup's allowed/disallowed races or race-groupings would
+        /// exclude <paramref name="raceFormKey"/>, i.e. whether assigning that race to this subgroup is
+        /// consistent with its parents' restrictions.
+        /// </summary>
         private bool ParentSubgroupsPermitRace(VM_SubgroupPlaceHolder subgroup, FormKey raceFormKey)
         {
             var parents = subgroup.GetParents();
@@ -1328,6 +1459,11 @@ namespace SynthEBD
             return true;
         }
 
+        /// <summary>
+        /// Flattens the common "Nord" wrapper containing exactly a "Main" (real Nords) and a "Vampire"
+        /// child: fixes their allowed races/groupings, promotes both into the grandparent, and removes
+        /// the now-empty wrapper. Recurses through the tree; returns true if the current subgroup was removed.
+        /// </summary>
         public bool PopNordAndVampireSubgroupsUp(VM_SubgroupPlaceHolder subgroup) // A frequent pattern of the auto-naming algorithm is creating "Nord" subgroups containing a DefaultSubgroupName subgroup for actual nords and a Vampire subgroup for vampires. This function flattens them into their parent
         {
             bool currentSubgroupRemoved = false;
@@ -1379,6 +1515,7 @@ namespace SynthEBD
             return currentSubgroupRemoved;
         }
 
+        /// <summary>Returns true if any ancestor subgroup name indicates Elder/Old, used to choose between the elder-inclusive and young vampire race groupings.</summary>
         private bool HasElderParentSubgroups(VM_SubgroupPlaceHolder subgroup)
         {
             var parents = subgroup.GetParents();
@@ -1392,6 +1529,12 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>
+        /// Corrects mis-nesting of female head-complexion subgroups caused by the shared
+        /// "blankdetailmap" living in the male directory: promotes children of a "Main" subgroup up to
+        /// its parent where no name collision exists. Recurses; returns true if the subgroup became empty
+        /// and should be removed.
+        /// </summary>
         public bool FixFemaleHeadComplexionNesting(VM_SubgroupPlaceHolder subgroup) // only to be called on complexion texture types for female NPCs (issue caused by blankdetailmap being in "male" directory while other textures are in the "female" directory)
         {
             for (int i = 0; i < subgroup.Subgroups.Count; i++)
@@ -1424,6 +1567,7 @@ namespace SynthEBD
             return false;
         }
 
+        /// <summary>Reparents a subgroup under <paramref name="newParentSubgroup"/> (updating both collections and the parent reference) and regenerates its subtree's IDs.</summary>
         private void MoveSubgroupTo(VM_SubgroupPlaceHolder subgroup, VM_SubgroupPlaceHolder newParentSubgroup)
         {
             if (subgroup.ParentSubgroup != null)
@@ -1436,6 +1580,11 @@ namespace SynthEBD
             UpdateSubgroupIDsRecursive(subgroup); // make sure all IDs are renamed to reflect the new parent
         }
 
+        /// <summary>
+        /// Adds a "TNG Schlong Mesh" top-level subgroup with the three standard genital mesh variants
+        /// (VectorPlexus Regular/Muscular, Smurf Average), each routed to the male worn-armor world
+        /// model, with the muscular variant restricted to the "must be muscular" attribute group.
+        /// </summary>
         private void AddTNGmeshSubgroups(VM_AssetPack config)
         {
             VM_SubgroupPlaceHolder topLevelTNG = _subgroupPlaceHolderFactory(CreateSubgroupModel("SM", "TNG Schlong Mesh"), null, config, config.Subgroups);
@@ -1478,6 +1627,11 @@ namespace SynthEBD
             });
         }
 
+        /// <summary>
+        /// Recursively replaces any subgroup path whose source is a duplicate replicate with the
+        /// multiplet's primary path, appending a one-time note recording the original duplicate source.
+        /// Mutates the subgroups' models.
+        /// </summary>
         private void ReplaceSubgroupMultipletTextures(VM_SubgroupPlaceHolder subgroup, List<Multiplet> multiplets)
         {
             foreach (var path in subgroup.AssociatedModel.Paths)
@@ -1504,6 +1658,7 @@ namespace SynthEBD
         }
     }
 
+    /// <summary>The kinds of NPC textures the drafter recognizes and categorizes (per body region and map channel, plus TNG and Unknown buckets).</summary>
     public enum TextureType
     {
         HeadDiffuse,
@@ -1538,12 +1693,14 @@ namespace SynthEBD
         UnknownComplexion
     }
 
+    /// <summary>How the drafter treats detected duplicate textures: ignore the non-primary copies, or replace them all with the primary path.</summary>
     public enum MultipletHandlingMode
     {
         Ignore,
         Replace
     }
 
+    /// <summary>A set of byte-identical duplicate textures: one primary path that all <see cref="ReplicatePaths"/> should be replaced with.</summary>
     public class Multiplet
     {
         public string PrimaryPath { get; set; } = string.Empty;

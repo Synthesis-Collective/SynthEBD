@@ -20,6 +20,11 @@ using static SynthEBD.VM_CollectionMemberStringCheckboxList;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Config Drafter window. Drives folder/archive selection, duplicate
+/// detection, and running the <see cref="ConfigDrafter"/> engine to auto-generate an asset
+/// pack config from a set of texture/mesh files, then previewing/finalizing the result.
+/// </summary>
 public class VM_ConfigDrafter : VM
 {
     private readonly ConfigDrafter _configDrafter;
@@ -28,6 +33,13 @@ public class VM_ConfigDrafter : VM
     private readonly VM_DrafterArchiveContainer.Factory _archiveContainerFactory;
     private readonly VM_7ZipInterface.Factory _7ZipInterfaceVM;
 
+    /// <summary>
+    /// Wires up all RelayCommands/ReactiveCommands (select/deselect unmatched textures,
+    /// check/remove duplicates, draft config, extract archives, add directory/archive), the
+    /// <c>_categorizePaths</c> action that scans the selected folders and splits textures into
+    /// categorized/uncategorized buckets, the multiplet-handling-mode subscription, and the
+    /// hashing-progress reporter.
+    /// </summary>
     public VM_ConfigDrafter(ConfigDrafter configDrafter, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_DrafterArchiveContainer.Factory archiveContainerFactory, VM_7ZipInterface.Factory sevenZipInterfaceVM)
     {
         _configDrafter = configDrafter;
@@ -289,6 +301,7 @@ public class VM_ConfigDrafter : VM
             });
     }
 
+    /// <summary>The asset pack being drafted/upgraded; populated by <see cref="InitializeTo"/>.</summary>
     public VM_AssetPack CurrentConfig { get; set; }
 
     public string GeneratedModName { get; set; }
@@ -344,6 +357,13 @@ public class VM_ConfigDrafter : VM
     private List<string> _existingFilePaths { get; set; } = new(); // for upgrading config
     private List<VM_SubgroupPlaceHolder> _existingSubgroups { get; set; } = new(); // for upgrading config
     public bool IsUpgrade { get; set; } = false;
+    /// <summary>
+    /// Seeds the drafter for a given asset pack: detects whether a mod manager is configured,
+    /// locks/unlocks the generated mod name, ensures at least one archive/folder entry exists,
+    /// resets all run state, and records the config's existing subgroups/file paths so a re-draft
+    /// can be treated as an upgrade (<see cref="IsUpgrade"/>). Triggers a path scan if folders
+    /// are already present.
+    /// </summary>
     public void InitializeTo(VM_AssetPack config)
     {
         CurrentConfig = config;
@@ -402,6 +422,7 @@ public class VM_ConfigDrafter : VM
         IsUpgrade = _existingFilePaths.Any();
     }
 
+    /// <summary>Returns true only if every selected texture folder passes <see cref="ValidateExistingDirectory"/>; pops an error otherwise.</summary>
     private bool ValidateExistingDirectories()
     {
         foreach (var selection in SelectedTextureFolders)
@@ -413,6 +434,10 @@ public class VM_ConfigDrafter : VM
         }
         return true;
     }
+    /// <summary>
+    /// Validates that a directory exists and, when a mod manager is in use, that it contains a
+    /// non-empty <c>Textures\*</c> subtree. Pops a notification and returns false on failure.
+    /// </summary>
     public bool ValidateExistingDirectory(string directory)
     {
         if (!Directory.Exists(directory))
@@ -438,6 +463,12 @@ public class VM_ConfigDrafter : VM
         return true;
     }
 
+    /// <summary>
+    /// Validates the selected archives before extraction: requires a mod name, rejects duplicate
+    /// archive selections, missing files, blank prefixes, and archives that produce no contents or
+    /// overlapping file paths under the same prefix. Reads each archive's contents via 7-Zip.
+    /// Returns false (with a popup) on any failure.
+    /// </summary>
     public async Task<bool> ValidateContainers()
     {
         if (!SelectedFileArchives.Any())
@@ -500,6 +531,11 @@ public class VM_ConfigDrafter : VM
         return true;
     }
 
+    /// <summary>
+    /// Extracts each selected archive to a <c>Textures\Prefix</c> folder (under the Data folder or
+    /// the mod manager's install folder for the generated mod) via 7-Zip, and returns the list of
+    /// distinct destination directories written.
+    /// </summary>
     public async Task<List<string>> ExtractArchives()
     {
         List<string> destinationDirs = new();
@@ -523,7 +559,13 @@ public class VM_ConfigDrafter : VM
         }
         return destinationDirs;
     }
-    // 
+    //
+    /// <summary>
+    /// Groups texture paths by file name, then within each group by MD5 hash, and builds a
+    /// <see cref="VM_FileDuplicateContainer"/> for every set of byte-identical duplicates. Reports
+    /// progress per file-name group and preselects the least-specific path as the keeper. Runs on a
+    /// background thread (filesystem-hashing).
+    /// </summary>
     public static async Task<ObservableCollection<VM_FileDuplicateContainer>> ComputeFileDuplicates(List<string> texturePaths, IProgress<(int, int,string)> progress, List<string> selectedTextureFolders, bool isUsingModManager, ConfigDrafter configDrafter)
     {
         ObservableCollection<VM_FileDuplicateContainer> multipletTextureGroups = new();
@@ -567,6 +609,11 @@ public class VM_ConfigDrafter : VM
         return multipletTextureGroups;
     }
 
+    /// <summary>
+    /// In Replace mode, verifies that every duplicate group has exactly one unchecked entry to
+    /// serve as the source/primary. Returns false and a human-readable list of offending group
+    /// names via <paramref name="failureNames"/> when any group fails the check.
+    /// </summary>
     private bool PreVerifyMultiplets(IEnumerable<VM_FileDuplicateContainer> multiples, out string failureNames)
     {
         var failedChecks = multiples.Where(multiplet => multiplet.FilePaths.Where(texture => !texture.IsSelected).Count() != 1).ToList();
@@ -580,11 +627,16 @@ public class VM_ConfigDrafter : VM
     }
 }
 
+/// <summary>
+/// Represents one group of byte-identical duplicate texture files (same name + MD5) surfaced by
+/// the drafter's duplicate check, holding each occurrence as a selectable <see cref="VM_FileMultiplet"/>.
+/// </summary>
 public class VM_FileDuplicateContainer : VM
 {
     public string FileName { get; set; }
     public ObservableCollection<VM_FileMultiplet> FilePaths { get; set; } = new();
 
+    /// <summary>A single occurrence of a duplicated file, with its full and display-trimmed paths and a keep/remove selection flag.</summary>
     public class VM_FileMultiplet : VM
     {
         public VM_FileMultiplet(string fullPath, ObservableCollection<VM_FileMultiplet> parentCollection, List<string> rootPaths, bool trimPrefix, ConfigDrafter configDrafter)
@@ -603,6 +655,10 @@ public class VM_FileDuplicateContainer : VM
         public RelayCommand DeleteCommand { get; }
     }
 
+    /// <summary>
+    /// Builds a <see cref="Multiplet"/> DTO from this group, using the single deselected entry as the
+    /// primary and all others as replicates. Caller must have verified exactly one entry is deselected.
+    /// </summary>
     public Multiplet ToMultiplet() // checking for single deselected option must come from caller
     {
         var primary = FilePaths.Where(x => !x.IsSelected).First();
@@ -613,6 +669,7 @@ public class VM_FileDuplicateContainer : VM
         };
     }
 
+    /// <summary>Adds every still-selected (non-keeper) path in this group to <paramref name="ignoredPaths"/> so the drafter skips them.</summary>
     public void ToIgnoreList(List<string> ignoredPaths) // can accomodate multiple or no de-selected options
     {
         foreach (var pathVM in FilePaths.Where(x => x.IsSelected).ToArray())
@@ -621,6 +678,7 @@ public class VM_FileDuplicateContainer : VM
         }
     }
     
+    /// <summary>Removes every selected entry from <see cref="FilePaths"/>, leaving only the unselected keeper(s).</summary>
     public void RemoveSelected()
     {
         for (int i = 0; i < FilePaths.Count; i++)
@@ -634,10 +692,13 @@ public class VM_FileDuplicateContainer : VM
     }
 }
 
+/// <summary>One row in the Config Drafter's archive list: a selected archive file plus the texture prefix to extract it under.</summary>
 public class VM_DrafterArchiveContainer : VM
 {
+    /// <summary>Autofac factory delegate for creating a new archive-container row.</summary>
     public delegate VM_DrafterArchiveContainer Factory();
     private readonly VM_ConfigDrafter _configDrafter;
+    /// <summary>Wires the browse-for-archive (file picker) and remove-self commands.</summary>
     public VM_DrafterArchiveContainer(VM_ConfigDrafter drafter)
     {
         _configDrafter = drafter;
@@ -665,8 +726,10 @@ public class VM_DrafterArchiveContainer : VM
     public RelayCommand DeleteMe { get; }
 }
 
+/// <summary>One row in the Config Drafter's texture-folder list; browsing or removing a folder re-runs the path categorization callback.</summary>
 public class VM_SelectableDirectoryWrapper : VM
 {
+    /// <summary>Wires the browse-for-folder and remove-self commands, each of which re-invokes <paramref name="categorizePaths"/>.</summary>
     public VM_SelectableDirectoryWrapper(ObservableCollection<VM_SelectableDirectoryWrapper> parentCollection, Action categorizePaths)
     {
         _parentCollection = parentCollection;
@@ -697,18 +760,21 @@ public class VM_SelectableDirectoryWrapper : VM
     private ObservableCollection<VM_SelectableDirectoryWrapper> _parentCollection { get; }
 }
 
+/// <summary>Whether the drafter sources its textures from 7-Zip archives or from already-extracted directories.</summary>
 public enum DrafterTextureSource
 {
     Archives,
     Directories
 }
 
+/// <summary>Body texture-set family the drafted config targets.</summary>
 public enum DrafterBodyType
 {
     CBBE_3BA,
     BHUNP
 }
 
+/// <summary>WPF one-way value converter mapping a bool to one of two configurable <see cref="SolidColorBrush"/>es.</summary>
 public class BoolToSolidColorBrushConverter : IValueConverter
 {
     public SolidColorBrush TrueColor { get; set; }

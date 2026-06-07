@@ -1264,6 +1264,33 @@ notifications for a two-way checkbox binding (PropertyChanged.Fody only weaves I
   `VM_ConfigRemapperTextureComparer` calls an `async void InitializeImage` from its constructor (unobservable
   exceptions, load races binding) and has a dead `DrawFilledRectangle`. All 💭.
 
+### `VM_ConfigPathRemapper.GetMatchingDirCount` wrong null-fallback — 🐞 bug (minor)
+
+[VM_ConfigPathRemapper.cs:606](SynthEBD/GUI_Aux/ViewModels/VM_ConfigPathRemapper.cs#L606) · `split2` is built
+from `(Path.GetDirectoryName(path2) ?? path1)` — the null fallback uses **path1**, not path2 (copy-paste from
+the line above). When path2 has no directory component, the similarity score is computed against path1's own
+segments instead, skewing the path-similarity tiebreak. Should be `?? path2`. (The `new HashSet<string>(cmp) { array }`
+initializer is fine — it binds to Noggog's `Add(IEnumerable)` extension and unions the segments.)
+
+### `ConfigDrafter.CleanRedundantSubgroups` non-decremented index — 🐞 possible bug
+
+[ConfigDrafter.cs:309](SynthEBD/GUI_Aux/ConfigDrafter.cs#L309) · The recursion removes
+`currentSubgroup.Subgroups[i]` when the child collapses but does **not** decrement `i`, so the element after a
+removed one is skipped — two adjacent collapsible children won't both be cleaned. Notably the same file uses
+the `i--`-after-remove pattern elsewhere (e.g. the body→feet/tail and multiplet loops), so this omission looks
+like an oversight. Verify.
+
+### GUI_Aux config-tooling smaller items — 🔧 / 💭
+
+- `VM_ConfigDrafter` — dead `unmatchedTextures` locals; the archive-extraction result (`succes`, also
+  misspelled) is ignored so extraction failures are swallowed; `ComputeFileDuplicates` MD5-hashes every file
+  with no try/catch (a locked file throws out of the background task). 🔧/💭
+- `ConfigDrafter` — `public string SuccessString = "Success";` is a mutable public field used for value
+  comparison (should be `const`); many `StartsWith`/`Contains`/`Replace` calls omit `StringComparison`
+  (culture-sensitive); `new CultureInfo("en-US")` is constructed per call in `CapitalizeWordsPreserveCapitalized`. 🔧
+- `VM_SubgroupLinker` — `if (!GetTopLevelIndex()) { }` has an empty body (a stray `///`), so failure to locate
+  the target subgroup is silently ignored (leaves `_topLevelIndex == -1`). 💭
+
 <!-- ENTRIES:GUI_Aux -->
 
 ---

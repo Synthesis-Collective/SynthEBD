@@ -15,14 +15,28 @@ using System.Reactive.Linq;
 
 namespace SynthEBD;
 
+/// <summary>
+/// View model for the Config Path Remapper tool. Remaps an existing asset pack's referenced
+/// asset paths onto a new/renamed file set by matching first on MD5 hash, then on path
+/// similarity, surfacing missing source files, unmatched new files, and deprecated paths into
+/// separate sub-menus so the user can confirm/adjust before the changes are written back.
+/// </summary>
 public class VM_ConfigPathRemapper : VM
 {
+    /// <summary>Autofac factory delegate creating a remapper bound to a parent asset pack and its window.</summary>
     public delegate VM_ConfigPathRemapper Factory(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window);
     private readonly IEnvironmentStateProvider _environmentStateProvider;
     private readonly VM_SettingsModManager _modManagerSettings;
     private readonly VM_SubgroupPlaceHolder.Factory _subgroupFactory;
     private readonly RemappedPath.Factory _remappedPathFactory;
 
+    /// <summary>
+    /// Builds the five result sub-menu VMs plus the asset comparer, wires the Display* navigation
+    /// commands and the new-asset-directory picker, sets up the throttled search-text subscription
+    /// that re-filters the active sub-menu, the hashing-progress reporter, and the main RemapPaths
+    /// command that runs the full hash/prediction pipeline. On window unload, applies the accepted
+    /// remappings and creates any requested new subgroups.
+    /// </summary>
     public VM_ConfigPathRemapper(VM_AssetPack parentAssetPack, Window_ConfigPathRemapper window, IEnvironmentStateProvider environmentStateProvider, VM_SubgroupPlaceHolder.Factory subgroupFactory, VM_SettingsModManager modManagerSettings, RemappedPath.Factory remappedPathFactory)
     {
         _parentAssetPack = parentAssetPack;
@@ -248,6 +262,7 @@ public class VM_ConfigPathRemapper : VM
 
     public ObservableCollection<MultimappedSubgroup> MultimappedSubgroups { get; set; } = new();
     
+    /// <summary>Collects the distinct file extensions referenced by the config so later scans of the new mod can ignore unrelated files (xml, previews, etc.).</summary>
     private void GetCurrentFileExtensions()
     {
         var allSubgroups = _parentAssetPack.GetAllSubgroups();
@@ -264,6 +279,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>Scans the new asset directory (filtered to the config's extensions) and indexes the relative paths by file name into <see cref="NewPathsByFileName"/>.</summary>
     private void SortFilesByName()
     {
         if (!_allFiles_New.Any()) // in case execution order changes later
@@ -280,11 +296,18 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>Returns new-mod file paths whose length exceeds the configured file-path limit (which would break processing).</summary>
     private List<string> CheckNewPathLengths()
     {
         return _allFiles_New.Where(y => y.Length > _modManagerSettings.FilePathLimit).ToList();
     }
 
+    /// <summary>
+    /// Computes MD5 hashes for every currently-referenced config file and every file in the new
+    /// asset directory (in parallel), populating the current/new hash dictionaries. Records any
+    /// referenced files that no longer exist on disk into <c>_missingCurrentPaths</c>. Reports
+    /// progress and drives the progress bar. Touches the filesystem heavily.
+    /// </summary>
     private async Task ComputePathHashes(IProgress<int> progress)
     {
         ShowProgressBar = true;
@@ -332,6 +355,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
     
+    /// <summary>Builds <see cref="MissingPathSubgroups"/> entries for every subgroup that references one of the <paramref name="missingPaths"/> (source files absent from the Data folder).</summary>
     private void CreateMissingPathsObjects(List<string> missingPaths)
     {
         var subgroups = _parentAssetPack.GetAllSubgroups();
@@ -355,6 +379,12 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// First pass: for each subgroup path whose current file hash matches a file in the new mod
+    /// (optionally constrained to the same file name), records a 100%-confidence remapping into
+    /// <see cref="SubgroupsRemappedByHash"/> and tracks the matched paths; anything without a hash
+    /// match is collected as an unmatched current path for the similarity pass.
+    /// </summary>
     private void RemapPathsByHash()
     {
         var subgroups = _parentAssetPack.GetAllSubgroups();
@@ -408,6 +438,10 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// Picks the best new path among several hash-identical candidates per <see cref="HashMatchMode"/>:
+    /// shallowest directory (Shortest) or the one sharing the most directory names with the original (Similar).
+    /// </summary>
     private string ChooseBestHashMatch(List<string> matches, string origPath)
     {
         switch(HashMatchMode)
@@ -421,6 +455,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>Returns the number of path segments in the file's parent directory, or -1 if it has none.</summary>
     private int GetDirectoryNestingCount(string filePath)
     {
         var parentDir = Directory.GetParent(filePath)?.FullName ?? string.Empty;
@@ -434,6 +469,11 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// Second pass: runs the path-similarity prediction over new files not matched by hash, then
+    /// re-runs it once over any paths ejected because a better candidate displaced them; whatever
+    /// still has no prediction is recorded as an unmatched new file.
+    /// </summary>
     private void PredictUpdatesByPathSimilarity()
     {
         var allFiles_New_RelativePaths = _allFiles_New.Select(x => Path.GetRelativePath(NewAssetDirectory, x)).ToList();
@@ -456,6 +496,14 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// For each candidate new path, finds existing config paths with the same file name, picks the
+    /// one sharing the most directory names (requiring more than one shared folder), and records a
+    /// predicted remapping in <see cref="SubgroupsRemappedByPathPrediction"/>. If a new path is a
+    /// better match than one already assigned to a subgroup, the previously assigned path is
+    /// appended to <paramref name="ejectedPaths"/> for re-circulation. Paths with no prediction are
+    /// added to <see cref="NewFilesUnmatched"/>, flagged when likely a character texture.
+    /// </summary>
     private void PredictUpdatesByPathSimilarity(List<string> candidatePaths, List<string> ejectedPaths)
     {
         var subgroups = _parentAssetPack.GetAllSubgroups();
@@ -535,6 +583,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>Returns true if the given subgroup path was already remapped in the hash pass (so the similarity pass should skip it).</summary>
     private bool PathWasRemappedByHash(VM_SubgroupPlaceHolder subgroup, FilePathReplacement pathToUpdate)
     {
         var matchingSubgroup = SubgroupsRemappedByHash.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
@@ -550,6 +599,7 @@ public class VM_ConfigPathRemapper : VM
         return false;
     }
 
+    /// <summary>Returns how many directory-name segments the two paths' parent folders have in common (case-insensitive).</summary>
     private int GetMatchingDirCount(string path1, string path2)
     {
         var split1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path1) ?? path1).Split(Path.DirectorySeparatorChar) };
@@ -558,6 +608,10 @@ public class VM_ConfigPathRemapper : VM
         return split1.Intersect(split2).Count();
     }
 
+    /// <summary>
+    /// Commits the user-accepted remappings: rewrites each subgroup model path's <c>Source</c> from
+    /// old to new for every hash and prediction entry whose <c>AcceptRenaming</c> flag is set. Mutates the config.
+    /// </summary>
     private void RemapSelectedPaths()
     {
         foreach (var subgroupEntry in SubgroupsRemappedByHash)
@@ -583,6 +637,11 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// For predicted/unmatched paths the user flagged with "create subgroup", adds an "Additional
+    /// Assets" top-level subgroup populated with a child subgroup per new file (with destination
+    /// inferred from <see cref="FilePathDestinationMap"/>), then regenerates IDs. Mutates the config.
+    /// </summary>
     private void CreateRequestedSubgroups()
     {
         var requestedSubgroups = SubgroupsRemappedByPathPrediction.SelectMany(x => x.Paths).Where(path => path.CreateSubgroupFrom).ToList();
@@ -632,6 +691,11 @@ public class VM_ConfigPathRemapper : VM
         }    
     }
 
+    /// <summary>
+    /// Collects config paths that received no hash match, no prediction, and are not a missing
+    /// path nor present verbatim in the new mod, into <see cref="DeprecatedPathSubgroups"/> so the
+    /// user can manually pick a replacement (seeded with same-named candidates where available).
+    /// </summary>
     public void GetUnUpdatedPaths()
     {
         var subgroups = _parentAssetPack.GetAllSubgroups();
@@ -671,17 +735,20 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>A subgroup whose original texture was mapped to multiple conflicting new paths (used by the disabled conflict check).</summary>
     public class MultimappedSubgroup : VM
     {
         public VM_SubgroupPlaceHolder SourceSubgroup { get; set; }
         public ObservableCollection<MultimappedTexture> MultimappedTextures { get; set; } = new();
     }
 
+    /// <summary>An original texture path together with the several new paths it was mapped to.</summary>
     public class MultimappedTexture : VM
     {
         public string OrigPath { get; set; }
         public ObservableCollection<string> NewPaths { get; set; } = new();
     }
+    /// <summary>Detects cases where the same original path is mapped to differing new paths across hash and prediction results. Currently unused (disabled in the pipeline).</summary>
     private void CheckTexturePathConflicts()
     {
         var allReplacements = SubgroupsRemappedByHash.And(SubgroupsRemappedByPathPrediction).ToList();
@@ -731,6 +798,7 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>Pairs a source subgroup with the set of its path remappings; the unit displayed in the remapper result lists.</summary>
     public class RemappedSubgroup : VM
     {
         public RemappedSubgroup(VM_SubgroupPlaceHolder subgroup)
@@ -741,6 +809,7 @@ public class VM_ConfigPathRemapper : VM
         public ObservableCollection<RemappedPath> Paths { get; set; } = new();
         public bool IsVisible { get; set; } = true;
 
+        /// <summary>Returns true if this subgroup's extended name and/or any of its old/new paths satisfy the active subgroup and path search filters.</summary>
         public bool SearchMatches(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive)
         {
             bool subgroupNeedsSearch = !subgroupSearchStr.IsNullOrEmpty();
@@ -771,9 +840,19 @@ public class VM_ConfigPathRemapper : VM
         }
     }
 
+    /// <summary>
+    /// A single old-path -> new-path remapping row with the user toggles (accept rename / create
+    /// subgroup), candidate alternatives, and a command to launch the texture comparison window.
+    /// </summary>
     public class RemappedPath : VM
     {
+        /// <summary>Autofac factory delegate creating a remapped-path row bound to the parent remapper VM.</summary>
         public delegate RemappedPath Factory(VM_ConfigPathRemapper parentVM);
+        /// <summary>
+        /// Wires mutually-exclusive subscriptions between <c>AcceptRenaming</c> and <c>CreateSubgroupFrom</c>,
+        /// enables the comparison only for .dds paths, and sets up the ShowComparison command that opens
+        /// the texture comparer dialog for the old vs. new files.
+        /// </summary>
         public RemappedPath(IEnvironmentStateProvider environmentStateProvider, VM_ConfigPathRemapper parentVM)
         {
             this.WhenAnyValue(x => x.CreateSubgroupFrom).Subscribe(x =>
@@ -828,12 +907,14 @@ public class VM_ConfigPathRemapper : VM
         public bool CanShowComparison { get; set; } = false;
     }
 
+    /// <summary>A new-mod file that could not be matched to any existing path, with an opt-in flag to create a subgroup from it and a search-visibility helper.</summary>
     public class SelectableFilePath : VM
     {
         public string File { get; set; } = string.Empty;
         public bool CreateSubgroupFromFile { get; set; } = false;
 
         public bool IsVisible { get; set; } = true;
+        /// <summary>Sets <see cref="IsVisible"/> based on whether the file name matches the current search string.</summary>
         public void Refresh(string searchStr, bool caseSensitive)
         {
             bool needsSearch = !searchStr.IsNullOrEmpty();
@@ -851,12 +932,14 @@ public class VM_ConfigPathRemapper : VM
     }
 }
 
+/// <summary>Strategy for selecting among several hash-identical candidate paths: shallowest directory vs. most similar to the original.</summary>
 public enum PathMatchModeHash 
 {
     Shortest,
     Similar
 }
 
+/// <summary>Contract for the remapper's result sub-menu VMs, allowing the host to re-filter them against the current subgroup/path search terms.</summary>
 public interface IConfigRemapperSubVM
 {
     public void Refresh(string subgroupSearchStr, bool subgroupCaseSensitive, string pathSearchStr, bool pathCaseSensitive);
