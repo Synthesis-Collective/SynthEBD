@@ -127,6 +127,21 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   the default-on `OverwritePluginAttGroups` toggle, but diverged when the toggle was off and OBody locally
   redefined a referenced group label. Fix-only (a real test is integration-level; the bug is a call-site
   argument). Suite 143 / 1 skipped / 0 failed (no regression).
+- **B6a — `OBodySelector.FilterPresetsByPreferredDescriptors` descriptor priority now applied (fixed).**
+  `priorities.OrderBy(x => x.Priority)` discarded its result, so the lexicographic narrowing of candidate
+  BodySlide presets ran in arbitrary collection order and ignored asset-imposed descriptor priorities (on a
+  conflict a weaker preference could override a stronger one). Now
+  `priorities = priorities.OrderByDescending(x => x.Priority).ToList()` so the highest-priority descriptor
+  narrows first.
+- **B6b — `BodyGenSelector.ChooseMorphs` ForceIf priority now applied + a single combination (fixed).** The
+  loop walked every ForceIf tier and selected from the full `availableCombinations` set each pass, so the
+  ForceIf-matched tier was never preferred *and* an NPC with mixed ForceIf matches got morphs stacked from
+  multiple combinations (one per tier). Now it selects ONE combination from the top tier
+  (`prioritizedCombinations.First()`) and drops the outer loop. (When nothing ForceIf-matches, the single
+  tier-0 group is the full set, so unaffected NPCs behave as before.)
+- *Verification (B6):* Release build 0 errors; suite 143 / 1 skipped / 0 failed (no regression). Fix-only +
+  manual-verify (deep in the selectors; the harness is assets-only) — confirm via the patcher report, which
+  logs the imposed descriptor priorities and the chosen morphs.
 
 ---
 
@@ -1213,7 +1228,7 @@ resolution early-outs are dead (use `.IsNull`).
 SkyPatcher mode — the trailing comment ("base mod and output mod only") implies the SkyPatcher guard was meant
 to cover both counts: `!SkyPatcher && (Count == 2 || Count == 1)`. Bracket it.
 
-### `BodyGenSelector` / `OBodySelector` priority not applied — 🐞 possible bug
+### ✅ `BodyGenSelector` / `OBodySelector` priority not applied — 🐞 RESOLVED — see Resolved §B6
 
 - `BodyGenSelector.ChooseMorphs` computes a ForceIf-prioritized grouping of combinations, but the actual
   `ProbabilityWeighting.SelectByProbability(...)` is run over the **full** available-combination set rather

@@ -222,25 +222,27 @@ public class BodyGenSelector
             //_logger.LogReport("Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => x.MatchedForceIfCount).Select(x => x.Label + " (" + x.MatchedForceIfCount + ")")), false, npcInfo);
         }
 
+        // Prefer the combinations with the highest ForceIf-match count, then pick ONE combination from that
+        // top tier (when nothing ForceIf-matches, every combination shares tier 0, so this is the full set).
+        // Previously this looped over EVERY tier and selected from the full availableCombinations set, which
+        // ignored the ForceIf priority and stacked morphs from multiple combinations onto the NPC.
         var prioritizedCombinations = availableCombinations.GroupBy(x => x.MaxMatchedForceIfAttributes).OrderByDescending(x => x.Key);
+        var topPriorityCombinations = prioritizedCombinations.First();
 
-        foreach (var combinationList in prioritizedCombinations)
+        var currentCombination = ProbabilityWeighting.SelectByProbability(topPriorityCombinations,
+            c => c.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                c.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                c.Templates.FirstOrDefault(g => g.Any())?.First().ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
+                _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, null));
+
+        foreach (var availableMorphsAtPosition in currentCombination.Templates)
         {
-            var currentCombination = ProbabilityWeighting.SelectByProbability(availableCombinations,
-                c => c.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
-                    c.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
-                    c.Templates.FirstOrDefault(g => g.Any())?.First().ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
-                    _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, null));
-
-            foreach (var availableMorphsAtPosition in currentCombination.Templates)
-            {
-                var candidateMorph = ProbabilityWeighting.SelectByProbability(availableMorphsAtPosition,
-                    t => t.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
-                        t.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
-                        t.ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
-                        _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, t.Label));
-                chosenMorphs.Add(candidateMorph);
-            }
+            var candidateMorph = ProbabilityWeighting.SelectByProbability(availableMorphsAtPosition,
+                t => t.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+                    t.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.BodyShapeRace,
+                    t.ParentConfig?.AttributeGroups ?? _patcherState.GeneralSettings.AttributeGroups,
+                    _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, t.Label));
+            chosenMorphs.Add(candidateMorph);
         }
 
         return chosenMorphs;
