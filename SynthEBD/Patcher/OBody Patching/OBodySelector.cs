@@ -462,7 +462,9 @@ public class OBodySelector
                 }
             }
 
-            priorities.OrderBy(x => x.Priority);
+            // Highest-priority descriptor first: the loop below narrows lexicographically, so the strongest
+            // preference must be applied before weaker ones. (OrderBy is non-mutating — must assign the result.)
+            priorities = priorities.OrderByDescending(x => x.Priority).ToList();
             while(priorities.Any())
             {
                 var currentSignature = priorities.First();
