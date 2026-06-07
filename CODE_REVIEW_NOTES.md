@@ -77,6 +77,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   (it rebuilt the env *without* the mod-listing transform and discarded the result).
 - *Verification:* Release build 0 errors; `SynthEBD.Tests` 124 passed / 1 skipped / 0 failed.
 
+### Bucket 2 · logical bugs
+
+- **B1 — `BoolByProbability.Decide` off-by-one bias (fixed).** Replaced
+  `new Random().Next(100) <= trueProbability` (`Next(100)` is 0–99, so for probability T it returned
+  true for T+1 of 100 buckets → +1% per bucket: 0% was true ~1% of the time, 99% was always true; the
+  integer draw also truncated fractional probabilities) with
+  `Random.Shared.NextDouble() * 100.0 < trueProbability` — 0% never, 100% always, exact T% for
+  integer/fractional T, thread-safe, no per-call allocation. Gates head-part randomization %
+  ([HeadPartSelector.cs:307](SynthEBD/Patcher/Head%20Part%20Patching/HeadPartSelector.cs#L307)) and
+  Mix-In inclusion probability ([AssetSelector.cs:1380](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1380)).
+  *Test:* new `BoolByProbabilityTests` (7 cases) — 0% never true, 99% not always true (old high-end
+  off-by-one), 100% always true, 50/25/75/33.5% rates within tolerance over 200k trials.
+  Suite 131 passed / 1 skipped / 0 failed.
+
 ---
 
 ## 🆕 Added during remediation (not in the original catalogue)
@@ -985,7 +999,7 @@ Reviewed leaf-first. The newer files here (FaceGenPatcher, TriFileParser, the So
 already documented; this pass covers the older undocumented engine code. Started with the internal data
 structures and small aux helpers.*
 
-### `BoolByProbability.Decide` — 🐞 possible bug (per-call Random + off-by-one)
+### ✅ `BoolByProbability.Decide` — 🐞 RESOLVED (per-call Random + off-by-one) — see Resolved §B1
 
 [BoolByProbability.cs:21](SynthEBD/Patcher/PatcherAux/BoolByProbability.cs#L21) · Two issues in five lines:
 (1) `new Random()` is constructed on **every** call — in a tight per-NPC loop the time-seeded instances
