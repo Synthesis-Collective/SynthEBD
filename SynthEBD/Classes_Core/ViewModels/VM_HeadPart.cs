@@ -93,19 +93,6 @@ namespace SynthEBD
                     StatusString = "This head part is no longer present in your load order";
                 }
             }).DisposeWith(this);
-
-            /*
-            Clone = new RelayCommand(
-                canExecute: _ => true,
-                execute: _ => {
-                    var cloneModel = VM_HeadPart.DumpViewModelToModel(this);
-                    var cloneViewModel = new VM_BodySlideSetting(BodyShapeDescriptors, raceGroupingVMs, ParentCollection, ParentConfig);
-                    VM_BodySlideSetting.GetViewModelFromModel(cloneModel, cloneViewModel, BodyShapeDescriptors, raceGroupingVMs, ParentConfig);
-                    var index = parentCollection.IndexOf(this);
-                    parentCollection.Insert(index, cloneViewModel);
-                }
-            );
-            */
         }
 
         public FormKey FormKey { get; set; }
@@ -140,8 +127,6 @@ namespace SynthEBD
         public RelayCommand AddAllowedAttribute { get; }
         public RelayCommand AddDisallowedAttribute { get; }
         public RelayCommand AddProbabilityWeightModifier { get; }
-        public RelayCommand Clone { get; }
-        public RelayCommand ToggleHide { get; }
         public VM_Settings_Headparts ParentMenu { get; set; }
         public SolidColorBrush BorderColor { get; set; } = CommonColors.Green;
         public string StatusString { get; set; } = string.Empty;

@@ -93,7 +93,7 @@ public class VM_BodyShapeDescriptor : VM, IHasValueString
 
     /// <summary>Projects this VM back into a <see cref="BodyShapeDescriptor"/> model (Category comes from the parent shell; CategoryDescription now lives on the shell).</summary>
     /// <returns>The populated model.</returns>
-    public BodyShapeDescriptor DumpViewModeltoModel()
+    public BodyShapeDescriptor DumpViewModelToModel()
     {
         // CategoryDescription is no longer written here — it lives on the owning
         // BodyShapeDescriptorShell now. The shell-aware dump in

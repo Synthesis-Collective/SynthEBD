@@ -285,7 +285,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
         var dialog = new Microsoft.Win32.OpenFileDialog();
         dialog.FileName = "ForceNPCList"; // Default file name
         dialog.DefaultExt = ".json"; // Default file extension
-        dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+        dialog.Filter = "JSON files (*.json)|*.json"; // Filter files by extension
 
         // Show open file dialog box
         bool? result = dialog.ShowDialog();

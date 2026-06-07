@@ -81,7 +81,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             };
             foreach (var descriptor in categoryVM.Descriptors)
             {
-                shell.Descriptors.Add(descriptor.DumpViewModeltoModel());
+                shell.Descriptors.Add(descriptor.DumpViewModelToModel());
             }
             models.Add(shell);
         }
@@ -112,7 +112,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                         CategoryDescription = categoryVM.CategoryDescription,
                     };
                 }
-                shell.Descriptors.Add(descriptor.DumpViewModeltoModel());
+                shell.Descriptors.Add(descriptor.DumpViewModelToModel());
             }
             if (shell != null) models.Add(shell);
         }

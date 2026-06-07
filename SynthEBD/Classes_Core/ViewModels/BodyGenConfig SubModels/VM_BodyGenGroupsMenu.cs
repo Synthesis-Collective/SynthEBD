@@ -23,5 +23,4 @@ public class VM_BodyGenGroupsMenu : VM
     public VM_BodyGenConfig ParentMenu { get; set; }
 
     public RelayCommand AddTemplateGroup { get; }
-    public RelayCommand RemoveTemplateGroup { get; }
 }

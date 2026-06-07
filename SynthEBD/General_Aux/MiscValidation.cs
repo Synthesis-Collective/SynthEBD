@@ -118,7 +118,7 @@ public class MiscValidation
 
     /// <summary>Verifies that OBody's preset-distribution config JSON exists in the Data folder.</summary>
     /// <returns><c>true</c> if the config JSON is present.</returns>
-    public bool VerifyOBodyTemplateJsonExits()
+    public bool VerifyOBodyTemplateJsonExists()
     {
         bool verified = true;
 

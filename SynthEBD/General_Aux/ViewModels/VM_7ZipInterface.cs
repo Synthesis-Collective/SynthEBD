@@ -50,7 +50,6 @@ namespace SynthEBD
         Subject<string> consoleUpdates { get; set; } = new();
         /// <summary>Callback handed to <see cref="_7ZipInterface"/> to append a line of console output (pushes into <see cref="consoleUpdates"/>).</summary>
         public Action<string> AddToScreen { get; }
-        public RelayCommand StartExtraction { get; }
         private Window_7ZipInterface _window { get; set; }
 
         /// <summary>Creates the progress window, binds it to this VM, and shows it.</summary>

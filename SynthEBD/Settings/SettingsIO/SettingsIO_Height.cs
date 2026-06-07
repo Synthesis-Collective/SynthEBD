@@ -235,7 +235,7 @@ public class SettingsIO_Height
                 // Configure save file dialog box
                 var dialog = new Microsoft.Win32.SaveFileDialog();
                 dialog.DefaultExt = ".json"; // Default file extension
-                dialog.Filter = "JSON files (.json|*.json"; // Filter files by extension
+                dialog.Filter = "JSON files (*.json)|*.json"; // Filter files by extension
 
                 if (Directory.Exists(_paths.HeightConfigDirPath))
                 {

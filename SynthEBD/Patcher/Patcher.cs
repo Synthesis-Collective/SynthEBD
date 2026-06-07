@@ -1213,10 +1213,6 @@ public class Patcher
             if (_patcherState.GeneralSettings.bChangeHeadParts && !blockHeadParts && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.HeadPartsRace))
             {
                 var headPartAssignments = _headPartSelector.AssignHeadParts(currentNPCInfo, headPartSettings, assignedBodySlides, assignedMorphs);
-                if (currentNPCInfo.Name.StartsWith("Uthgerd"))
-                {
-                    int n = 0;
-                }
                 if (headPartAssignments.Any())
                 {
                     var hpFk = currentNPCInfo.NPC.FormKey;

@@ -307,7 +307,7 @@ public class SettingsIO_AssetPack
                     initialDir = Path.GetFullPath(_paths.GetFallBackPath(_paths.AssetPackDirPath));
                 }
 
-                if (IO_Aux.SelectFileSave(initialDir, "JSON files (.json|*.json", ".json", "Save Asset Config File", out string savePath, IO_Aux.MakeValidFileName(assetPack.GroupName)))
+                if (IO_Aux.SelectFileSave(initialDir, "JSON files (*.json)|*.json", ".json", "Save Asset Config File", out string savePath, IO_Aux.MakeValidFileName(assetPack.GroupName)))
                 {
                     JSONhandler<AssetPack>.SaveJSONFile(assetPack, savePath, out success, out string exceptionStr);
                     if (!success)

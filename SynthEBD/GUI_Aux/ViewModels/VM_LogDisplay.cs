@@ -78,7 +78,7 @@ public class VM_LogDisplay : VM
             {
                 var dialog = new Microsoft.Win32.SaveFileDialog();
                 dialog.DefaultExt = ".txt"; // Default file extension
-                dialog.Filter = "Text files (.txt|*.txt"; // Filter files by extension
+                dialog.Filter = "Text files (*.txt)|*.txt"; // Filter files by extension
 
                 // Show open file dialog box
                 bool? result = dialog.ShowDialog();

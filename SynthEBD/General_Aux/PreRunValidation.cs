@@ -112,7 +112,7 @@ namespace SynthEBD
                             valid = false;
                         }
 
-                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExits())
+                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExists())
                         {
                             valid = false;
                         }

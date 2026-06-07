@@ -99,7 +99,7 @@ public class VM_OBodyTrainerExporter : VM
                     return;
                 }
                 var fileName = "TrainingSet_" + currentDescriptor + "_" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture);
-                if (IO_Aux.SelectFileSave("", "CSV files (.csv|*.csv", ".csv", "Save Data Set", out string savePath, fileName))
+                if (IO_Aux.SelectFileSave("", "CSV files (*.csv)|*.csv", ".csv", "Save Data Set", out string savePath, fileName))
                 {
                     List<string> output = new();
                     var data = ExportTrainingLearningDTO(true, currentDescriptor);

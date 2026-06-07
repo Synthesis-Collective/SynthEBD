@@ -110,7 +110,7 @@ namespace SynthEBD
             }
 
             bool closeWindow = true;
-            if (IO_Aux.SelectFileSave("", "Bodyslide files (.json|*.json", ".json", "Save Asset Config File", out string savePath, "ExportedBodySlides.json"))
+            if (IO_Aux.SelectFileSave("", "Bodyslide files (*.json)|*.json", ".json", "Save Asset Config File", out string savePath, "ExportedBodySlides.json"))
             {
                 JSONhandler<BodySlideExchange>.SaveJSONFile(exchange, savePath, out bool success, out string exception);
                 if (!success)
@@ -252,7 +252,7 @@ namespace SynthEBD
             if (MessageWindow.DisplayNotificationYesNo("Settings Backup", "Back up your current BodySlide settings before importing?"))
             {
                 var currentSettings = _oBodyUI.DumpViewModelToModel();
-                if (currentSettings != null && IO_Aux.SelectFileSave("", "Bodyslide Settings files (.json|*.json", ".json", "Save BodySlide Settings", out string savePath, "OBodySettings.json"))
+                if (currentSettings != null && IO_Aux.SelectFileSave("", "Bodyslide Settings files (*.json)|*.json", ".json", "Save BodySlide Settings", out string savePath, "OBodySettings.json"))
                 {
                     JSONhandler<Settings_OBody>.SaveJSONFile(currentSettings, savePath, out bool succes, out string saveException);
                     if (!succes)
