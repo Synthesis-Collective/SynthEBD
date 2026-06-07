@@ -49,6 +49,34 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
 - ⚠️ **Carve-out:** the "Mildy"→"Mildly" rename was reverted out of this batch — it is
   not a cosmetic change (see **M1**). The other E4 typos stand.
 
+### Bucket 1 · E5–E12
+
+**Behavior-neutral (cosmetic / dead code / renames):**
+- **E5 — malformed save-dialog filter labels (9 sites; notes said 4):** `"… files (.ext|*.ext"`
+  → `"… files (*.ext)|*.ext"` in VM_BodySlideExchange (×2), VM_OBodyTrainerExporter,
+  VM_LogDisplay, SettingsIO_AssetPack/BodyGen/Height, VM_BlockListUI,
+  VM_SpecificNPCAssignmentsUI. (Dialogs already filtered correctly; only the label was wrong.)
+- **E6 — dead never-assigned RelayCommands removed:** `VM_HeadPart.Clone`/`ToggleHide`
+  (+ the abandoned commented-out Clone block), `VM_7ZipInterface.StartExtraction`,
+  `VM_BodyGenGroupsMenu.RemoveTemplateGroup`. None were XAML-bound.
+- **E10 — `MainModule` duplicate `VM_SpecificNPCAssignment` registration removed** (kept one).
+- **E11 — `Patcher` `Uthgerd` debug stub removed.**
+- **E12 — method-name typos renamed (+ call sites):** `DumpViewModeltoModel`→`DumpViewModelToModel`
+  (VM_BodyShapeDescriptor + 2 callers), `VerifyOBodyTemplateJsonExits`→`…Exists`
+  (MiscValidation + PreRunValidation).
+
+**Behavior-changing (obviously-correct; not unit-testable — WPF VMs, manual-verify):**
+- **E7 — `VM_AssetPresenter.UpdatePreviewImages` `&`→`&&`:** the bitwise `&` evaluated
+  `!SourceChain.Contains(...)` even when `SourceChain` was null → NRE risk; now short-circuits.
+- **E8 — `VM_AssetPack` dead FormKey null-checks → `.IsNull`:** dropped always-false
+  `DefaultTemplateFK == null` at the gender check (`.IsNull` already covered it); changed
+  always-true `DefaultTemplateFK != null` → `!DefaultTemplateFK.IsNull` in
+  `CandidateTargetPathExists` (downstream `TryResolve` already guarded null, so benign).
+- **E9 — `VM_CustomEnvironment`:** removed the dead hand-declared `PropertyChanged` that
+  shadowed the Fody-woven base `VM` INPC; removed the redundant second `builder.Build()`
+  (it rebuilt the env *without* the mod-listing transform and discarded the result).
+- *Verification:* Release build 0 errors; `SynthEBD.Tests` 124 passed / 1 skipped / 0 failed.
+
 ---
 
 ## 🆕 Added during remediation (not in the original catalogue)

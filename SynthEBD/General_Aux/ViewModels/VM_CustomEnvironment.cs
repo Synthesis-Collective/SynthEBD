@@ -126,8 +126,6 @@ namespace SynthEBD
         public IGameEnvironment<ISkyrimMod, ISkyrimModGetter> TrialEnvironment { get; set; }
         public ObservableCollection<string> LoadOrderMods { get; set; } = new();
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
         /// <summary>
         /// Builds a trial Mutagen game environment from the chosen data folder and release, validates it, and
         /// updates the status text/colour and load-order preview — surfacing a detailed error (with an
@@ -149,7 +147,6 @@ namespace SynthEBD
                 TrialEnvironment = builder
                     .TransformModListings(x => x.OnlyEnabledAndExisting()) // ignore output mod here. This is solely a trial environment to see if the user's settings are valid. Environment provider will then update and add patch mod
                     .Build();
-                builder.Build();
                 Validate();
             }
             catch (Exception ex)

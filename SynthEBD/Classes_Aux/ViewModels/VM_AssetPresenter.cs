@@ -221,7 +221,7 @@ namespace SynthEBD
                 {
                     var availableRAM = new Microsoft.VisualBasic.Devices.ComputerInfo().AvailablePhysicalMemory;
                     if (availableRAM <= ByteLimit) { continue; }
-                    if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null & !sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
+                    if (AssetPack.DisplayedSubgroup != null && sourcedImagePath.SourceChain != null && !sourcedImagePath.SourceChain.Contains(AssetPack.SelectedPlaceHolder)) { continue; } // stop loading images from a previous subgroup if a different one is selected
 
                     try
                     {

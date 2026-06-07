@@ -866,7 +866,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         if (RecordTemplateLinkCache.TryResolve<INpcGetter>(defaultTemplateEditorID, out var defaultMaleRec))
         {
-            if (DefaultTemplateFK == null || DefaultTemplateFK.IsNull || (RecordTemplateLinkCache.TryResolve<INpcGetter>(DefaultTemplateFK, out var defaultTemplate) && NPCInfo.GetGender(defaultTemplate) != gender))
+            if (DefaultTemplateFK.IsNull || (RecordTemplateLinkCache.TryResolve<INpcGetter>(DefaultTemplateFK, out var defaultTemplate) && NPCInfo.GetGender(defaultTemplate) != gender))
             {
                 DefaultTemplateFK = defaultMaleRec.FormKey;
             }
@@ -1142,7 +1142,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     public bool CandidateTargetPathExists(string candidate)
     {
         List<FormKey> candidateRecordTemplates = new();
-        if (DefaultTemplateFK != null)
+        if (!DefaultTemplateFK.IsNull)
         {
             candidateRecordTemplates.Add(DefaultTemplateFK);
         }
