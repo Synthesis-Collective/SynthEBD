@@ -170,6 +170,15 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
     `SourceConflictWinners[type]`. *Test:* new `HeadPartSelectorTests` (6 cases) — asset-real/menu-null →
     asset and menu-real/asset-null → menu (both regardless of winner; the regression), plus both-real
     honoring each winner. Suite 153 / 1 skipped / 0 failed.
+- **B10 — `VanillaBodyPathSetter` `&&`/`||` precedence — verified NOT a bug (false positive).** The condition
+  gates a *diagnostic warning only* (no behavior) that fires when an NPC has no appearance-override mods yet is
+  getting the vanilla/race body. "No override mods" == base master (+ SynthEBD's own output override, which is
+  added only in non-SkyPatcher mode via `GetOrAddAsOverride`; SkyPatcher uses `ApplySkin`/ini and adds none),
+  so no-override == Count 2 (non-SkyPatcher) or Count 1 (SkyPatcher). The current
+  `(!SkyPatcher && Count==2) || Count==1` is correct in all six (mode × count) cases and warns in both modes;
+  the notes' suggested bracket `!SkyPatcher && (Count==2 || Count==1)` would have *suppressed* the warning for
+  every no-override NPC in SkyPatcher mode. Left the logic unchanged and documented it in-code so it isn't
+  re-flagged. No behavior change.
 
 ---
 
@@ -1248,7 +1257,7 @@ the load order" — never fires. The intended condition was `ResolvedHeadPart ==
 `assetAssignment == null` compare `FormKey` (a struct) to null — always false/true — so those conflict-
 resolution early-outs are dead (use `.IsNull`).
 
-### `VanillaBodyPathSetter` `&&`/`||` precedence — 🐞 bug
+### ✔️ `VanillaBodyPathSetter` `&&`/`||` precedence — VERIFIED NOT A BUG (intentional; documented in-code) — see Resolved §B10
 
 [VanillaBodyPathSetter.cs:216](SynthEBD/Patcher/Asset%20Patching/VanillaBodyPathSetter.cs#L216) ·
 `if (!bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1)` parses as

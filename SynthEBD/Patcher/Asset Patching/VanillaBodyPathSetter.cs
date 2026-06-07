@@ -212,7 +212,17 @@ public class VanillaBodyPathSetter
             var registration = LoquiRegistration.StaticRegister.GetRegister(npcGetter.GetType());
             var contexts = _environmentStateProvider.LinkCache?.ResolveAllContexts(npcGetter.FormKey, registration.GetterType).ToList() ?? new(); // note: ResolveAllContexts directly off npcGetter returns only the context from SynthEBD.esp
 
-            if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1) // base mod and output mod only
+            // Diagnostic warning only (no behavior change): fire when this NPC has NO appearance-override mods
+            // yet is getting the vanilla/race body, so the user can check whether it should be blocked.
+            // "No override mods" == the context chain is just the base master, plus SynthEBD's own output
+            // override which is added ONLY in non-SkyPatcher mode (via GetOrAddAsOverride above; SkyPatcher mode
+            // uses ApplySkin/ini and adds NO override record). Hence no-override == Count 2 in non-SkyPatcher mode
+            // and Count 1 in SkyPatcher mode. The operator precedence below is INTENTIONAL, not a bug:
+            // (!SkyPatcher && Count==2) || Count==1 warns for exactly those no-override cases in BOTH modes and
+            // correctly excludes SkyPatcher Count==2 (= base + a real override mod). Do NOT rewrite this as
+            // !SkyPatcher && (Count==2 || Count==1): that suppresses the warning for every no-override NPC in
+            // SkyPatcher mode, where Count==1 is the normal case.
+            if (!_patcherState.TexMeshSettings.bSkyPatcherModeAssets && contexts.Count == 2 || contexts.Count == 1)
             {
                 string raceName = "No Race";
                 if (npcGetter.Race != null && _environmentStateProvider.LinkCache.TryResolve(npcGetter.Race, out var raceGetter))
