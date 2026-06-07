@@ -579,7 +579,7 @@ public class Patcher
         _patchedNpcCount = 0;
         _statusBar.ProgressBarMax = allNPCs.Count();
         _statusBar.ProgressBarCurrent = 0;
-        _statusBar.ProgressBarDisp = "Made seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
+        _statusBar.ProgressBarDisp = "Made selections for " + _statusBar.ProgressBarCurrent + " NPCs";
         
         // Selection: This section can be paralellized
         
@@ -592,7 +592,7 @@ public class Patcher
         _logger.LogMessage($"Variant selection completed in {assignmentStopWatch.Elapsed:mm\\:ss}");
         
         _statusBar.ProgressBarCurrent = 0;
-        _statusBar.ProgressBarDisp = "Applied seleections for " + _statusBar.ProgressBarCurrent + " NPCs";
+        _statusBar.ProgressBarDisp = "Applied selections for " + _statusBar.ProgressBarCurrent + " NPCs";
         // Application: This section must be serial 
         var recordGenStopWatch = System.Diagnostics.Stopwatch.StartNew();
         _recordGenerator.ApplySelectedAssets(_assetAssignmentTransfers, flattenedAssetPacks,

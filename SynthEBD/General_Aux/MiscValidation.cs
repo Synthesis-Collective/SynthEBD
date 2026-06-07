@@ -271,10 +271,8 @@ public class MiscValidation
     public bool VerifyBodyGenAnnotations(List<AssetPack> assetPacks, BodyGenConfigs bodyGenConfigs)
     {
         bool valid = true;
-        List<string> missingBodyGenMessage = new List<string>();
 
         List<string> message = new List<string>();
-        List<string> messages = new List<string>();
         HashSet<string> examinedConfigs = new HashSet<string>();
 
         foreach (var assetPack in assetPacks)
@@ -363,7 +361,7 @@ public class MiscValidation
 
                 if (subGroupIDs.Any())
                 {
-                    itemsWithBlankAttributes.Add(assetPack.GroupName + ": Subgroups [" + String.Join(", ", subGroupIDs));
+                    itemsWithBlankAttributes.Add(assetPack.GroupName + ": Subgroups [" + String.Join(", ", subGroupIDs) + "]");
                 }
             }
         }

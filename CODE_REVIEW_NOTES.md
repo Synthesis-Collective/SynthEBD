@@ -22,6 +22,33 @@ clickable.
 
 ---
 
+## ✅ Resolved (remediation pass)
+
+Progress tracker for the behavior-fix pass that follows this catalogue (branch
+`CodeReview`). Items are grouped by the commit that closed them.
+
+### Bucket 1 · E1–E4 — cosmetic cleanup (no behavior change)
+
+- **E1 — stray unused `using`s removed (7):** `PreRunValidation` & `FirstLaunch`
+  (`static …AxHost`), `BodyShapeDescriptor` (`Synthesis.Bethesda.Execution.DotNet`),
+  `VM_BodyGenConfig` (`System.Printing`), `FlattenedSubgroup` & `VanillaBodyPathSetter`
+  (`DirectoryServices.ActiveDirectory`), `EBDScripts` (`Intrinsics.X86`).
+- **E2 — dead statement:** `VM_SpecificNPCAssignment` `break; ;` → `break;`.
+  *(The `Logger:230` / `PatcherSettingsSourceProvider` `;;` flagged in the notes were
+  already clean — no `;;` remains anywhere in the repo.)*
+- **E3 — dead writes removed:** `EnvironmentStateProvider` `OutputMod = null;` before
+  `new`; `RecordGenerator` double self-assignment ×2; `MiscValidation.VerifyBodyGenAnnotations`
+  unused `missingBodyGenMessage`/`messages` locals; `VM_SettingsModManager`
+  always-true `if (this != null)` wrapper; `UC_Settings_General` unused `_isDragging`.
+- **E4 — user-facing typos:** `EnvironmentStateProvider` "patha"→"path";
+  `MiscValidation.VerifyBlankAttributes` unclosed `[` → `[…]`; `DefaultAttributeGroups`
+  "Mildy"→"Mildly"; `Patcher` "seleections"→"selections" ×2; `RecordPathParser`
+  "as an XXX" placeholder → "as an array/list (IReadOnlyList<dynamic>)".
+- *Verification:* Release build 0 errors; `SynthEBD.Tests` 124 passed / 1 skipped /
+  0 failed. Purely cosmetic — no new automated test applicable.
+
+---
+
 ## General_Aux (utility / helper layer)
 
 *The lowest-level helpers — extension methods, comparers, logging, path parsing,

@@ -487,7 +487,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                 {
                     ForcedBodyGenMorphs.Add(morph);
                     morphFound = true;
-                    break; ;
+                    break;
                 }
             }
             if (morphFound == false)

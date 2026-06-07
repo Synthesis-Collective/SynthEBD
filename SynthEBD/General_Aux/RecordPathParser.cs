@@ -433,7 +433,7 @@ public class RecordPathParser
         var collectionObj = currentObj as IReadOnlyList<dynamic>;
         if (collectionObj == null)
         {
-            _logger.LogError("Could not cast " + currentObj.GetType() + "as an XXX");
+            _logger.LogError("Could not cast " + currentObj.GetType() + " as an array/list (IReadOnlyList<dynamic>)");
             return false;
         }
 

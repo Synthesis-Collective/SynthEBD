@@ -3,7 +3,6 @@ using Noggog;
 using Noggog.WPF;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Printing;
 using System.Windows.Input;
 using static SynthEBD.VM_BodyShapeDescriptor;
 

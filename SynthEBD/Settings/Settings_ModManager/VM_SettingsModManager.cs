@@ -80,10 +80,7 @@ public class VM_SettingsModManager : VM
     /// <summary>Dumps the current VM state into <see cref="PatcherState.ModManagerSettings"/> to keep runtime state synced.</summary>
     public void UpdatePatcherSettings()
     {
-        if (this != null)
-        {
-            _patcherState.ModManagerSettings = DumpViewModelToModel();
-        }
+        _patcherState.ModManagerSettings = DumpViewModelToModel();
     }
 
     /// <summary>Sets <see cref="FilePathLimit"/> from the active mod manager's configured limit.</summary>

@@ -171,7 +171,6 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
 
         LogEnvironmentEvent("Skyrim Version: " + SkyrimVersion.ToString());
 
-        OutputMod = null;
         OutputMod = new SkyrimMod(ModKey.FromName(OutputModName, ModType.Plugin), SkyrimVersion);
         LogEnvironmentEvent("Output mod: " + OutputMod.ModKey.ToString());
 
@@ -189,7 +188,7 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
             
             if (!_environment.LoadOrderFilePath.Exists)
             {
-                throw new Exception("Load order file patha at " + _environment.LoadOrderFilePath.Path + " does not exist"); // prevent successful initialization in the wrong mode.
+                throw new Exception("Load order file path at " + _environment.LoadOrderFilePath.Path + " does not exist"); // prevent successful initialization in the wrong mode.
             }
 
             built = true;
