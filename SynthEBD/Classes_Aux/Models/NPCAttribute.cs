@@ -411,7 +411,7 @@ public class NPCAttributeCustom : ITypedNPCAttribute
             ValueStr.GetHashCode() ^
             NPCAttribute.OrderIndependentHash(ValueFKs) ^
             CustomType.GetHashCode() ^
-            Comparator.GetHashCode() ^
+            (Comparator?.GetHashCode() ?? 0) ^
             Type.GetHashCode() ^
             ForceMode.GetHashCode() ^
             Weighting.GetHashCode() ^ 
