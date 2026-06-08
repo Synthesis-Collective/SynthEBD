@@ -41,7 +41,7 @@ public class VM_TexMeshBatchActions : VM
             canExecute: _ => true,
             execute: async _ =>
             {
-                foreach (var assetPack in AssetPacks)
+                foreach (var assetPack in AssetPacks.Where(x => x.IsSelected))
                 {
                     var clonedAttribute = DisplayedAttribute.CloneInto(assetPack.WrappedAssetPack.DistributionRules.AllowedAttributes, assetPack.WrappedAssetPack.AttributeGroupMenu.Groups);
                     assetPack.WrappedAssetPack.DistributionRules.AllowedAttributes.Add(clonedAttribute);
@@ -56,7 +56,7 @@ public class VM_TexMeshBatchActions : VM
                 DisplayedAttribute.DisplayForceIfOption = false;
                 DisplayedAttribute.DisplayForceIfWeight = false;
 
-                foreach (var assetPack in AssetPacks)
+                foreach (var assetPack in AssetPacks.Where(x => x.IsSelected))
                 {
                     var clonedAttribute = DisplayedAttribute.CloneInto(assetPack.WrappedAssetPack.DistributionRules.DisallowedAttributes, assetPack.WrappedAssetPack.AttributeGroupMenu.Groups);
                     assetPack.WrappedAssetPack.DistributionRules.DisallowedAttributes.Add(clonedAttribute);

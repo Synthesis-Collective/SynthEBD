@@ -333,6 +333,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   source `Race` FormKeys are unique (catches the duplicate), and Imperial Vampire is present specifically. The
   migration itself is manual-verify (needs the heavy `VM_Settings_General`); the root-cause static data is the
   tested part. Suite 169 / 1 skipped / 0 failed.
+- **B21 — TexMesh Batch Actions "Add as Allowed/Disallowed Attribute" ignored the checkbox selection (fixed).**
+  Both apply commands iterated `foreach (var assetPack in AssetPacks)` and wrote the cloned attribute rule into
+  *every* asset pack's `Allowed`/`DisallowedAttributes`, never reading `assetPack.IsSelected`. Confirmed against
+  the view ([Window_TexMeshBatchActions.xaml](SynthEBD/Settings/Settings_TexMesh/TexMeshBatchActions/Window_TexMeshBatchActions.xaml)):
+  the left-panel checkboxes bind `IsChecked={Binding IsSelected}` and the Select/Deselect-All buttons toggle the
+  same flag — so the entire selection UI (per-pack checkboxes + Select/Deselect All) was inert; the only reader of
+  `IsSelected` was the post-apply cleanup that unchecks everything. Symptom: a user checking 4 of 9 packs and
+  clicking "Add as Disallowed" silently wrote the rule into all 9 configs, corrupting the 5 they never selected.
+  Fixed by scoping both loops to `AssetPacks.Where(x => x.IsSelected)`; applying with nothing checked is now a
+  no-op instead of writing to all. Fix-only + manual-verify: the apply logic is inline `RelayCommand` lambdas in
+  the constructor bound to heavy collaborators (`_attributeCreator`, `VM_AssetPack.DistributionRules`,
+  `VM_NPCAttribute.CloneInto`); there's no pure seam, and a VM/wrapper-mock test would exercise framework plumbing
+  rather than the one-line selection bug. Verified via the Batch Actions window. Suite 169 / 1 skipped / 0 failed
+  (no regression). (The sibling `VM_SelectableSubgroupShell` INPC/IsSelected concern is tracked separately as B31.)
 
 ---
 
@@ -1544,7 +1558,7 @@ the CotR Imperial-Vampire race is left un-aliased by default.
   ("Mildly" misspelled). `Settings_General.BlockedModsFromImport`'s trailing comment implies the base-master
   block is SkyPatcher-mode-only, but the default list is unconditional — confirm the consumer scopes it. 💭
 
-### `VM_TexMeshBatchActions` batch-apply ignores the selection — 🐞 bug
+### ✅ `VM_TexMeshBatchActions` batch-apply ignores the selection — 🐞 RESOLVED (both apply loops filter on IsSelected) — see Resolved §B21
 
 [VM_TexMeshBatchActions.cs:40](SynthEBD/Settings/Settings_TexMesh/TexMeshBatchActions/VM_TexMeshBatchActions.cs#L40) ·
 `ApplyAsAllowedAttribute` and `ApplyAsDisallowedAttribute` do `foreach (var assetPack in AssetPacks)` and add
