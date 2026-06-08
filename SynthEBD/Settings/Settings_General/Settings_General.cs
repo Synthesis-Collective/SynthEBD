@@ -217,7 +217,7 @@ public class Settings_General
         DefaultRaceAliases.RaceAliasCotR_HighElf,
         DefaultRaceAliases.RaceAliasCotR_HighElfVampire,
         DefaultRaceAliases.RaceAliasCotR_Imperial,
-        DefaultRaceAliases.RaceAliasCotR_Imperial,
+        DefaultRaceAliases.RaceAliasCotR_ImperialVampire,
         DefaultRaceAliases.RaceAliasCotR_Nord,
         DefaultRaceAliases.RaceAliasCotR_NordVampire,
         DefaultRaceAliases.RaceAliasCotR_Orc,

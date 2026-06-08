@@ -86,6 +86,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         if (appliedVersion < "1.0.5.3") UpdateV1053CotrAttributes();
         if (appliedVersion < "1.0.5.5") UpdateV1055CotrAttributes();
         if (appliedVersion < "1.0.6.8") UpdateV1068();
+        if (appliedVersion < "1.0.7.0") UpdateV1070RaceAliases();
 
         _patcherState.UpdateLog.LastAppliedVersion = PatcherState.Version;
     }
@@ -379,7 +380,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
             DefaultRaceAliases.RaceAliasCotR_HighElf,
             DefaultRaceAliases.RaceAliasCotR_HighElfVampire,
             DefaultRaceAliases.RaceAliasCotR_Imperial,
-            DefaultRaceAliases.RaceAliasCotR_Imperial,
+            DefaultRaceAliases.RaceAliasCotR_ImperialVampire,
             DefaultRaceAliases.RaceAliasCotR_Nord,
             DefaultRaceAliases.RaceAliasCotR_NordVampire,
             DefaultRaceAliases.RaceAliasCotR_Orc,
@@ -490,6 +491,44 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
             3) Eval has been replaced in the SynthEBD code. No more mandatory monthly updates! Now SynthEBD will update only when I have new content or bug fixes to share.
             """);
+    }
+
+    /// <summary>v1.0.7.0: silently repairs the Charmers of the Reach Imperial Vampire race alias, which the
+    /// defaults (and the 1.0.4.8 backfill set) omitted in favor of a duplicate Imperial entry. For users who
+    /// already use the CotR Imperial alias, drops the redundant duplicate and adds the missing Imperial Vampire
+    /// alias. Skips users without the CotR Imperial alias so CotR support a user removed is not reintroduced.</summary>
+    private void UpdateV1070RaceAliases()
+    {
+        var aliasVMs = _generalVM.raceAliases;
+        FormKey imperialSourceRace = DefaultRaceAliases.RaceAliasCotR_Imperial.Race;
+        RaceAlias imperialVampire = DefaultRaceAliases.RaceAliasCotR_ImperialVampire;
+
+        // Only repair settings that actually use the CotR Imperial alias; don't reintroduce CotR support a user removed.
+        if (!aliasVMs.Any(x => x.Race.Equals(imperialSourceRace)))
+        {
+            return;
+        }
+
+        bool changed = false;
+
+        // The defaults listed the CotR Imperial alias twice; drop any redundant copies, keeping the first.
+        foreach (var duplicate in aliasVMs.Where(x => x.Race.Equals(imperialSourceRace)).Skip(1).ToList())
+        {
+            aliasVMs.Remove(duplicate);
+            changed = true;
+        }
+
+        // Add the CotR Imperial Vampire alias the duplicate had displaced, if the user lacks it.
+        if (!aliasVMs.Any(x => x.Race.Equals(imperialVampire.Race)))
+        {
+            aliasVMs.Add(new VM_RaceAlias(imperialVampire, _generalVM, _environmentProvider));
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _logger.LogMessage("Update 1.0.7.0: restored the Charmers of the Reach Imperial Vampire race alias.");
+        }
     }
 
     /// <summary>v1.0.5.5: adds a set of additional CotR-related mod keys (MOS/Refined plugins) to the CotR-heads attribute group's Mod-type attributes. Mutates settings (no prompt).</summary>

@@ -313,6 +313,26 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `exists` predicate — no disk) — primary exists → primary; primary missing + fallback exists → fallback; neither
   → null; both exist → primary. The `Load*` methods stay I/O-bound (real `_paths`/JSONhandler), but the
   path-selection where the bug lived is now pure and covered. Suite 166 / 1 skipped / 0 failed.
+- **B20 — default race aliases duplicated CotR Imperial and omitted CotR Imperial Vampire (fixed; + migration).**
+  Two default-data lists — `Settings_General.RaceAliases` (fresh-install defaults) and `UpdateHandler`'s
+  `cotrRaceAliases` (the 1.0.4.8 CotR backfill set) — listed `DefaultRaceAliases.RaceAliasCotR_Imperial` twice
+  and never `RaceAliasCotR_ImperialVampire` (distinct: source `05A17A:COR_AllRace.esp` → `ImperialRaceVampire`,
+  vs Imperial's `05A179` → `ImperialRace`). Every other CotR race pairs a base + `_Vampire` alias; only the
+  Imperial pair was broken. Effect (real distribution): NPCs of the CotR Imperial Vampire race were never aliased
+  to vanilla `ImperialRaceVampire`, so the patcher skipped them (no appearance randomization) while every other
+  CotR variant was handled. The 1.0.4.8 backfill couldn't add it either — `05A17A` is in its `cotrRaceStrs` but
+  the lookup into `cotrRaceAliases` returned null (the set lacked Imperial Vampire). Fixed both lists (the second
+  Imperial → Imperial Vampire, which also restores alphabetical order). **Migration:** added a version-gated
+  `UpdateV1070RaceAliases` (dispatched `if (appliedVersion < "1.0.7.0")`) that silently repairs existing settings
+  files — for users who have the CotR Imperial alias (so CotR support a user removed isn't reintroduced), it drops
+  redundant duplicate Imperial entries and adds the missing Imperial Vampire alias to `_generalVM.raceAliases`
+  (mirroring the 1.0.4.8 VM-based pattern). Idempotent. **Version not bumped** (currently 1.0.6.9) per the
+  release convention — the bump to 1.0.7.0 is the release commit, at which point the migration fires for all
+  pre-1.0.7.0 users. *Test:* new `DefaultRaceAliasesTests` (3 cases) — reflect every `RaceAliasCotR_*` field and
+  assert all appear in `new Settings_General().RaceAliases` (catches the omission + future ones), the default
+  source `Race` FormKeys are unique (catches the duplicate), and Imperial Vampire is present specifically. The
+  migration itself is manual-verify (needs the heavy `VM_Settings_General`); the root-cause static data is the
+  tested part. Suite 169 / 1 skipped / 0 failed.
 
 ---
 
@@ -1506,7 +1526,7 @@ from the consistency loader above). The matching error toast also names `Consist
   (`OnLoadValidator`); and the `AttributeGroups.Select(x => x.Label).Contains(...)` linear merge repeated
   across the AssetPack/BodyGen/OBody loaders (a `HashSet` of labels would be O(1)). 💭/🔧
 
-### `Settings_General` default race aliases duplicate Imperial — 🐞 bug
+### ✅ `Settings_General` default race aliases duplicate Imperial — 🐞 RESOLVED (both lists fixed + 1.0.7.0 migration for existing settings) — see Resolved §B20
 
 [Settings_General.cs:219-220](SynthEBD/Settings/Settings_General/Settings_General.cs#L219) · The default
 `RaceAliases` list contains `DefaultRaceAliases.RaceAliasCotR_Imperial` **twice** and never
