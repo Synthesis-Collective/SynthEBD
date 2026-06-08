@@ -444,6 +444,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   is set. Fix-only + manual-verify: `Evaluate()` is a VM method bound to the environment/matcher/link cache with no
   pure seam (the defect is a missing control-flow `return`); reproducing needs the full VM graph plus a live link
   cache. Suite 190 / 1 skipped / 0 failed.
+- **B29 — `VM_AssetPack.ApplyBeastTemplate` built additional-race-path VMs with the wrong owner collection (fixed).**
+  Applying a custom record-template preset (3BA/BHUNP/TNG) seeds the Khajiit/Argonian beast templates' default
+  additional-race armature paths. The new `VM_CollectionMemberString` was **added to**
+  `currentBeastTemplate.AdditionalRacesPaths` but given `DefaultRecordTemplateAdditionalRacesPaths` (the
+  asset-pack-level default-template collection) as its owner. Since `VM_CollectionMemberString.DeleteCommand` does
+  `ParentCollection.Remove(this)`, the row's delete-X tried to remove the item from a collection it wasn't in -> a
+  silent no-op, so those auto-added beast additional-race paths couldn't be deleted in the UI. (The non-beast
+  sibling at [:891](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L891) passes the same collection as both
+  target and owner.) Fixed by passing `currentBeastTemplate.AdditionalRacesPaths` as the owner. Fix-only +
+  manual-verify: reaching `ApplyBeastTemplate` needs the full `VM_AssetPack` graph and the defect is a
+  wrong-collection argument; a `VM_CollectionMemberString` unit test would only re-assert the (already-correct)
+  `DeleteCommand`/`ParentCollection` invariant. Suite 190 / 1 skipped / 0 failed.
 
 ---
 
@@ -1219,7 +1231,7 @@ male/female base heights and ranges are held as UI `string`s and re-parsed with 
 `DumpViewModelToModel`. This is locale-dependent and defers validation to save time; binding to typed
 `float` (or validating on edit) would be more robust.
 
-### `VM_AssetPack` beast-template additional-races path — 🐞 possible bug (wrong owner collection)
+### ✅ `VM_AssetPack` beast-template additional-races path — 🐞 RESOLVED (owner set to the beast template's own collection) — see Resolved §B29
 
 [VM_AssetPack.cs:1716](SynthEBD/Classes_Core/ViewModels/VM_AssetPack.cs#L1716) · When adding a beast-race
 additional-races path, the new `VM_CollectionMemberString` is constructed with

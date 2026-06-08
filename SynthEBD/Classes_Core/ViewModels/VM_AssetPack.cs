@@ -1713,7 +1713,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             if (!currentBeastTemplate.AdditionalRacesPaths.Select(x => x.Content).Contains(additionalArmaStr))
             {
-                currentBeastTemplate.AdditionalRacesPaths.Add(new(additionalArmaStr, DefaultRecordTemplateAdditionalRacesPaths));
+                currentBeastTemplate.AdditionalRacesPaths.Add(new(additionalArmaStr, currentBeastTemplate.AdditionalRacesPaths));
             }
         }
     }
