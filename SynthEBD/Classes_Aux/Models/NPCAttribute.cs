@@ -325,13 +325,14 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
-    /// <summary>Returns a copy of the given attribute (for safe duplication in the UI). See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation), safe for duplication in the UI.</summary>
     public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
         var output = new NPCAttributeClass();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -443,6 +444,9 @@ public class NPCAttributeCustom : ITypedNPCAttribute
             output.ValueStr = input.ValueStr;
         }
         output.Comparator = input.Comparator;
+        output.Not = input.Not;
+        output.ReferenceNPCFK = input.ReferenceNPCFK;
+        output.SelectedFormKeyType = input.SelectedFormKeyType;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -519,13 +523,14 @@ public class NPCAttributeFactions : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeFactions CloneAsNew(NPCAttributeFactions input)
     {
         var output = new NPCAttributeFactions();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.RankMin = input.RankMin;
         output.RankMax = input.RankMax;
         output.Weighting = input.Weighting;
@@ -597,13 +602,14 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
         var output = new NPCAttributeFaceTexture();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -673,13 +679,14 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeKeyword CloneAsNew(NPCAttributeKeyword input)
     {
         var output = new NPCAttributeKeyword();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -748,13 +755,14 @@ public class NPCAttributeRace : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
         var output = new NPCAttributeRace();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -863,7 +871,7 @@ public class NPCAttributeMisc : ITypedNPCAttribute
             Not.GetHashCode();
 }
 
-    /// <summary>Returns a copy of the given attribute. Note: several fields (Mood, Aggression, gender, Not) are not copied — see review notes.</summary>
+    /// <summary>Returns a copy of the given attribute, including every evaluated flag/value (mood, aggression, gender) and the Not negation.</summary>
     public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)
     {
         var output = new NPCAttributeMisc();
@@ -874,10 +882,15 @@ public class NPCAttributeMisc : ITypedNPCAttribute
         output.Ghost = input.Ghost;
         output.Invulnerable = input.Invulnerable;
         output.EvalMood = input.EvalMood;
+        output.Mood = input.Mood;
         output.EvalAggression = input.EvalAggression;
+        output.Aggression = input.Aggression;
+        output.EvalGender = input.EvalGender;
+        output.NPCGender = input.NPCGender;
 
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -950,13 +963,14 @@ public class NPCAttributeMod : ITypedNPCAttribute
     {
         return !ModKeys.Any();
     }
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeMod CloneAsNew(NPCAttributeMod input)
     {
         var output = new NPCAttributeMod();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.ModKeys = input.ModKeys;
+        output.ModKeys = new HashSet<ModKey>(input.ModKeys);
+        output.Not = input.Not;
         output.ModActionType = input.ModActionType;
         output.Weighting = input.Weighting;
         return output;
@@ -1018,13 +1032,14 @@ public class NPCAttributeNPC : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
         var output = new NPCAttributeNPC();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -1093,13 +1108,14 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
     {
         return !FormKeys.Any();
     }
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
         var output = new NPCAttributeVoiceType();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.FormKeys = input.FormKeys;
+        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }
@@ -1195,13 +1211,14 @@ public class NPCAttributeGroup : ITypedNPCAttribute
     {
         return !SelectedLabels.Any();
     }
-    /// <summary>Returns a copy of the given attribute. See review notes regarding shared collection references and uncopied fields.</summary>
+    /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeGroup CloneAsNew(NPCAttributeGroup input)
     {
         var output = new NPCAttributeGroup();
         output.ForceMode = input.ForceMode;
         output.Type = input.Type;
-        output.SelectedLabels = input.SelectedLabels;
+        output.SelectedLabels = new HashSet<string>(input.SelectedLabels);
+        output.Not = input.Not;
         output.Weighting = input.Weighting;
         return output;
     }

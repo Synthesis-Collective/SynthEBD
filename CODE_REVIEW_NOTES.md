@@ -347,6 +347,26 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `VM_NPCAttribute.CloneInto`); there's no pure seam, and a VM/wrapper-mock test would exercise framework plumbing
   rather than the one-line selection bug. Verified via the Batch Actions window. Suite 169 / 1 skipped / 0 failed
   (no regression). (The sibling `VM_SelectableSubgroupShell` INPC/IsSelected concern is tracked separately as B31.)
+- **B22 — `NPCAttribute*.CloneAsNew` dropped `Not`, shared collections by reference, Misc dropped mood/aggression/gender (fixed).**
+  All 11 typed `CloneAsNew` factories failed to copy the `Not` negation (part of every type's `Equals`/`GetHashCode`
+  and the `ITypedNPCAttribute` contract); 9 of them assigned the `FormKeys`/`ModKeys`/`SelectedLabels` collection
+  *by reference* (`output.FormKeys = input.FormKeys`), so the "clone" aliased the source set; and
+  `NPCAttributeMisc.CloneAsNew` copied `EvalMood`/`EvalAggression` but not the `Mood`/`Aggression` values, nor
+  `EvalGender`/`NPCGender`. These clones run in the **patcher** path — `AttributeWeightModifier.CloneAsNew` →
+  `NPCAttribute.CloneAsNew`, invoked during subgroup flattening of probability-weight modifiers
+  ([FlattenedSubgroup.cs:42](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedSubgroup.cs#L42),
+  [BodyGenSelector.cs:710](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L710),
+  [AssetPack.cs:94](SynthEBD/Classes_Core/Models/AssetPack.cs#L94)). Effect: a weight modifier with a negated
+  attribute (e.g. "weight ×0.1 if NOT Nord") flattened to the **opposite** population ("if Nord"); a Misc-based
+  modifier ("if Mood = Angry" / "if Female") lost its value (reset to `Neutral` / gender check dropped); and the
+  flattened clone's collection aliased the source subgroup's. Fixed all 11: copy `Not`, deep-copy every
+  collection (`new HashSet<…>(input.…)`), and in Misc copy `Mood`/`Aggression`/`EvalGender`/`NPCGender` (plus
+  `ReferenceNPCFK`/`SelectedFormKeyType` in Custom for UI-state fidelity); refreshed the now-stale per-method doc
+  comments. *Test:* new `NPCAttributeCloneTests` (7 cases) — `Not` preserved for every type via the dispatcher;
+  FormKey/ModKey/label-set independence (mutate clone, original unchanged); Custom Record `ValueFKs`
+  independence; Misc copies mood/aggression/gender (non-default members chosen reflectively); and the
+  `CloneAsNew(NPCAttribute)` dispatcher preserves a negated sub-attribute. Suite 176 / 1 skipped / 0 failed.
+  (The broader generic-base dedup for the `NPCAttribute*` family remains a separate 🔧 R-item.)
 
 ---
 
@@ -836,7 +856,7 @@ methods (and `Equals`) use `obj is X` followed by `obj as X` — pattern matchin
 Synthesis.Bethesda.Execution.DotNet;` ([:2](SynthEBD/Classes_Aux/Models/BodyShapeDescriptor.cs#L2)) looks
 like a stray import (nothing uses it), and `GetHashCode` could use `HashCode.Combine`. All cosmetic.
 
-### `NPCAttribute*.CloneAsNew` — 🐞 possible bug (shallow copy + dropped fields)
+### ✅ `NPCAttribute*.CloneAsNew` — 🐞 RESOLVED (copies Not, deep-copies collections, Misc copies mood/aggression/gender) — see Resolved §B22
 
 [NPCAttribute.cs:263](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L263) (and the other 10) · Most
 `CloneAsNew` factories assign the collection by reference — `output.FormKeys = input.FormKeys;` — so
