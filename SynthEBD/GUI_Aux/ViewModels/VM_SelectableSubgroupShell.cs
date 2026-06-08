@@ -8,16 +8,18 @@ namespace SynthEBD
 {
     /// <summary>
     /// Backs a checkable subgroup row, wrapping a <see cref="VM_SubgroupPlaceHolder"/> with a selection flag
-    /// and a display label whose format is chosen via <see cref="SubgroupLabelFormat"/>.
+    /// and a display label whose format is chosen via <see cref="SubgroupLabelFormat"/>. Inherits <see cref="VM"/>
+    /// so PropertyChanged.Fody weaves INotifyPropertyChanged onto <see cref="IsSelected"/>, keeping the two-way
+    /// checkbox binding correct if the selection is ever set programmatically (e.g. a future Select-All button).
     /// </summary>
-    public class VM_SelectableSubgroupShell
+    public class VM_SelectableSubgroupShell : VM
     {
         /// <summary>Stores the subgroup and default selection, then builds <see cref="Label"/> per the requested <paramref name="labelFormat"/>.</summary>
         public VM_SelectableSubgroupShell(VM_SubgroupPlaceHolder subgroup, bool defaultSelectedStatus, SubgroupLabelFormat labelFormat)
         {
             if (subgroup == null)
             {
-                defaultSelectedStatus = false;
+                IsSelected = false;
                 return;
             }
 

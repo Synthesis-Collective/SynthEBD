@@ -468,6 +468,27 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   kept firing on stale VMs as the user navigated between configs. Fix-only + manual-verify: disposal-lifecycle
   tests need the full VM graph and would be brittle; correctness is by inspection against the line-138 sibling.
   Suite 190 / 1 skipped / 0 failed.
+- **B31 — `VM_SelectableSubgroupShell` missing INPC + dead null-branch write (hardening; verified no live symptom).**
+  Two flagged defects, both verified to have **no current user-facing symptom**, fixed as hardening (cf. B26). (1) The
+  null-`subgroup` guard did `defaultSelectedStatus = false;` — a dead write to the by-value parameter (the author
+  meant `IsSelected = false`); but the sole construction site
+  ([VM_SubgroupLinker.cs:187](SynthEBD/GUI_Aux/ViewModels/VM_SubgroupLinker.cs#L187)) only runs after
+  `bSubgroupMatches(subgroup.AssociatedModel)` dereferences `subgroup`, so the branch is unreachable, and even the
+  intended `IsSelected = false` is a no-op (a `bool` defaults false). (2) The class was a plain `class`, not `: VM`, so
+  PropertyChanged.Fody wove no `INotifyPropertyChanged` — the `IsChecked="{Binding IsSelected}"` checkbox
+  ([UC_SelectableSubgroupShell.xaml:17](SynthEBD/GUI_Aux/Views/UC_SelectableSubgroupShell.xaml#L17)) is TwoWay, but only
+  the **View->VM** direction is exercised (user toggles -> setter -> `CollectedSubgroups.Where(x => x.IsSelected)` in the
+  Link/Unlink commands), which works without INPC, and nothing sets `IsSelected` programmatically
+  ([Window_SubgroupLinker.xaml](SynthEBD/GUI_Aux/Views/Window_SubgroupLinker.xaml) has no Select-All; matches are a bare
+  `ItemsControl` and `CollectMatchingSubgroups` rebuilds the whole collection). So the missing **VM->View**
+  notification is a latent footgun only — but the *same* row pattern in two sibling windows (Config Drafter
+  `SelectAllUncategorizedButton` [VM_ConfigDrafter.cs:90](SynthEBD/GUI_Aux/ViewModels/VM_ConfigDrafter.cs#L90); TexMesh
+  Batch Actions, B21) *does* drive `IsSelected` programmatically, so adding a Select-All here would silently break the
+  checkboxes. Fixed by making `VM_SelectableSubgroupShell : VM` (Fody now weaves INPC; matches every sibling row-VM) and
+  correcting the dead write to `IsSelected = false;`. *Test:* new `VM_SelectableSubgroupShellTests` (2 cases) —
+  `IsSelected` raises `PropertyChanged` (the event did not exist before the fix); null-subgroup construction is safe and
+  yields `IsSelected == false` (the corrected guard). Both run headless with a null subgroup (no `VM_SubgroupPlaceHolder`
+  graph; the guard returns first). Suite 192 / 1 skipped / 0 failed.
 
 ---
 
@@ -1732,7 +1753,7 @@ it). The net result is correct, but the inverted name + dead block are a readabi
   resize failures never reach the log. `LongPathHandler` defines `MAX_PATH = 200` (misleading name; real limit
   is 260) and splits paths on `'\'` only (mixed/forward separators break the walk). 💭
 
-### `VM_SelectableSubgroupShell` — 🐞 / 💭
+### ✅ `VM_SelectableSubgroupShell` — 🐞 / 💭 RESOLVED (hardening; verified no live symptom) — see Resolved §B31
 
 [VM_SelectableSubgroupShell.cs:20](SynthEBD/GUI_Aux/ViewModels/VM_SelectableSubgroupShell.cs#L20) · The
 null-`subgroup` branch does `defaultSelectedStatus = false;` — a dead write to the *parameter* immediately
