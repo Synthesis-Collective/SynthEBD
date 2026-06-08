@@ -60,17 +60,20 @@ namespace SynthEBD
                     // Capture the standard output
                     StringBuilder standardOutputCapture = new StringBuilder();
 
-                    // Asynchronously read the standard output
-                    process.OutputDataReceived += (sender, e) =>
+                    // Asynchronously read the standard output (only valid when stdout was redirected, i.e. a callback was supplied)
+                    if (mirrorUIstr != null)
                     {
-                        if (e.Data != null)
+                        process.OutputDataReceived += (sender, e) =>
                         {
-                            mirrorUIstr(e.Data);
-                            standardOutputCapture.AppendLine(e.Data); // Capture in buffer
-                        }
-                    };
+                            if (e.Data != null)
+                            {
+                                mirrorUIstr(e.Data);
+                                standardOutputCapture.AppendLine(e.Data); // Capture in buffer
+                            }
+                        };
 
-                    process.BeginOutputReadLine();
+                        process.BeginOutputReadLine();
+                    }
 
                     // Wait for the process to exit
                     await process.WaitForExitAsync();
@@ -131,28 +134,28 @@ namespace SynthEBD
                 {
                     process.Start();
 
-                    // Capture the standard output
-                    StringBuilder standardOutputCapture = new StringBuilder();
-
-                    // Asynchronously read the standard output
-                    process.OutputDataReceived += (sender, e) =>
+                    // Asynchronously read the standard output (only valid when stdout was redirected, i.e. a callback was supplied)
+                    if (mirrorUIstr != null)
                     {
-                        if (e.Data != null)
+                        process.OutputDataReceived += (sender, e) =>
                         {
-                            mirrorUIstr(e.Data);
-                            outputLines.Add(e.Data);
-                        }
-                    };
+                            if (e.Data != null)
+                            {
+                                mirrorUIstr(e.Data);
+                                outputLines.Add(e.Data);
+                            }
+                        };
 
-                    process.BeginOutputReadLine();
+                        process.BeginOutputReadLine();
+                    }
 
                     // Wait for the process to exit
                     await process.WaitForExitAsync();
 
-                    // Do something with the captured standard output
-                    var  outputStr = standardOutputCapture.ToString();
-                    if (outputStr.Contains("Can't open as archive"))
+                    // Check the captured stdout (outputLines, where the handler actually wrote) for a corrupt-archive error
+                    if (outputLines.Any(x => x.Contains("Can't open as archive")))
                     {
+                        var outputStr = string.Join(Environment.NewLine, outputLines);
                         MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
                         return new();
                     }

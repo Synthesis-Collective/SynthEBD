@@ -230,6 +230,24 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   collapsed site builds (`"_1.Contains(_0)"` over `[FormKey, HashSet<FormKey>]`): member present → true, absent
   → false, negated → false. This proves DynamicExpresso still resolves `HashSet<FormKey>.Contains(FormKey)` and
   that FormKey equality holds through the interpreter after the type change. Suite 157 / 1 skipped / 0 failed.
+- **B15 — `_7ZipInterface` dead corrupt-archive check (live) + unconditional `BeginOutputReadLine` (latent) (both fixed).**
+  Two defects in the 7-Zip wrapper. **(1, live):** `GetArchiveContents` declared a `StringBuilder
+  standardOutputCapture` but its `OutputDataReceived` handler appended each stdout line to `outputLines`
+  instead, so `outputStr = standardOutputCapture.ToString()` was always `""` and the
+  `Contains("Can't open as archive")` corrupt-archive check was unreachable — listing a truncated/corrupt
+  archive in the Config Drafter ([VM_ConfigDrafter.cs:511](SynthEBD/GUI_Aux/ViewModels/VM_ConfigDrafter.cs#L511))
+  silently returned an empty content list instead of raising the "File Extraction Error" dialog. Fixed by
+  reading the lines actually captured (`outputLines.Any(x => x.Contains("Can't open as archive"))`) and
+  dropping the never-populated `standardOutputCapture` from that method. **(2, latent):** `ExtractArchive`
+  set `RedirectStandardOutput` only when `mirrorUIstr != null` but called `process.BeginOutputReadLine()`
+  unconditionally, so a null callback would throw `InvalidOperationException: StandardOut has not been
+  redirected` → caught → misleading "extraction failed" dialog (and the handler's `mirrorUIstr(e.Data)` would
+  NRE). No current caller passes null — both routes go through `VM_7ZipInterface` (non-null `AddToScreen`)
+  and the no-callback overload passes `(_) => {}` — so this is defensive hardening: the handler subscription
+  and `BeginOutputReadLine()` are now gated on `mirrorUIstr != null`, mirroring the existing redirection guard.
+  No unit test: the class shells out to the bundled `7z.exe` and parses its stdout, so a real test needs the
+  binary plus a corrupt-archive fixture (integration-level) and a mocked `Process` would be theater. Manual-verify.
+  Suite 157 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -422,7 +440,7 @@ that's easy to confuse.
 - `Utf8StringWriter` ([Logger.cs:380](SynthEBD/General_Aux/Logger.cs#L380)) appears unused within the
   class — verify references before keeping.
 
-### `_7ZipInterface.GetArchiveContents` — 🐞 possible bug (dead error check)
+### ✅ `_7ZipInterface.GetArchiveContents` — 🐞 RESOLVED (corrupt-archive check now reads the captured lines) — see Resolved §B15
 
 [7ZipInterface.cs:113](SynthEBD/General_Aux/7ZipInterface.cs#L113) · A `StringBuilder standardOutputCapture`
 is declared, but the `OutputDataReceived` handler appends each line to `outputLines`, never to
@@ -430,7 +448,7 @@ is declared, but the `OutputDataReceived` handler appends each line to `outputLi
 `Contains("Can't open as archive")` failure check can never fire here — corrupt-archive failures slip
 through as an empty content list. (The sibling `ExtractArchive` appends correctly.)
 
-### `_7ZipInterface.ExtractArchive` — 🐞 possible bug (null callback)
+### ✅ `_7ZipInterface.ExtractArchive` — 🐞 RESOLVED (BeginOutputReadLine now gated on redirection; latent) — see Resolved §B15
 
 [7ZipInterface.cs:24](SynthEBD/General_Aux/7ZipInterface.cs#L24) · `RedirectStandardOutput` is only set
 when `mirrorUIstr != null`, but `process.BeginOutputReadLine()` is called unconditionally and the
