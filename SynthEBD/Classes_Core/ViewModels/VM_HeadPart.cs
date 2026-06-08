@@ -144,7 +144,6 @@ namespace SynthEBD
             DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, ParentMenu.RaceGroupings);
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenu.AttributeGroupMenu.Groups, true, null);
             _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenu.AttributeGroupMenu.Groups, false, null);
-            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             ProbabilityWeightModifiers.Clear();
             foreach (var m in model.ProbabilityWeightModifiers)
             {

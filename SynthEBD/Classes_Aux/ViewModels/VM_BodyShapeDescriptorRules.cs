@@ -105,7 +105,6 @@ public class VM_BodyShapeDescriptorRules : VM
 
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         bAllowUnique = model.AllowUnique;
         bAllowNonUnique = model.AllowNonUnique;
         bAllowRandom = model.AllowRandom;
@@ -157,7 +156,6 @@ public class VM_BodyShapeDescriptorRules : VM
 
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
 
         if (bAllowUnique == false || model.AllowUnique == false) { bAllowUnique = false; }
         else { bAllowUnique = true; }

@@ -357,7 +357,6 @@ public class VM_BodyGenTemplate : VM
 
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentConfig.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentConfig.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         ProbabilityWeightModifiers.Clear();
         foreach (var m in model.ProbabilityWeightModifiers)
         {

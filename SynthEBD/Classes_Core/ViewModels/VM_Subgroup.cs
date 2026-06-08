@@ -284,7 +284,6 @@ public class VM_Subgroup : VM
         Notes = model.Notes;
         AllowedRaces.AddRange(model.AllowedRaces);
         DisallowedRaces.AddRange(model.DisallowedRaces);
-        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         AllowUnique = model.AllowUnique;
         AllowNonUnique = model.AllowNonUnique;
         RequiredSubgroups.InitializeFromCollection(model.RequiredSubgroups);

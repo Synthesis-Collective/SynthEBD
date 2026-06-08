@@ -152,7 +152,6 @@ public class VM_ConfigDistributionRules : VM, IProbabilityWeighted
             DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, raceGroupingVMs);
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, true, null);
             _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, parentAssetPack.AttributeGroupMenu.Groups, false, null);
-            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             ProbabilityWeightModifiers.Clear();
             foreach (var m in model.ProbabilityWeightModifiers)
             {

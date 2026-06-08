@@ -406,6 +406,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   list). *Test:* new `NPCAssignmentTests` — `new NPCAssignment().SubgroupIDs` is non-null and `.Add(...)` doesn't
   throw (the full converter needs a live `Converters`/env; the POCO invariant is where the bug lived). Suite 185 /
   1 skipped / 0 failed.
+- **B26 — `VM_Subgroup` `DisplayForceIfOption` loop: verified NOT a bug; deleted as dead code from all 9 sites.**
+  The flagged loop `foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }` ran *before*
+  `DisallowedAttributes` was populated, so it iterated an empty collection — but it has **no user-facing symptom**.
+  Both ways a disallowed attribute is created already set `DisplayForceIfOption = false` from the same `false`
+  argument: load-from-model via `CopyInFromModels(..., false, null)` → `GetViewModelFromModel`
+  ([VM_NPCAttribute.cs:224](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L224)), and create-new via the
+  "Add Disallowed Attribute" command → `CreateNewFromUI(..., false, …)`
+  ([:183](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L183), and the shell at [:177](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L177)).
+  So the loop was redundant in every path — the misplaced ones (`VM_Subgroup`, `VM_DetailedReportNPCSelector`)
+  as no-ops, and the 7 correctly-placed ones (`VM_BodyShapeDescriptorRules` ×2, `VM_ConfigDistributionRules`,
+  `VM_BodyGenTemplateMenu`, `VM_BodySlideSetting`, `VM_HeadPart`, `VM_HeadPartCategoryRules`) as re-setting what
+  `CopyInFromModels(false)` already set. Per the user's call, deleted all 9 redundant loops across 8 files. No
+  behavior change (verified: `DisplayForceIfOption` ends up `false` for disallowed attributes regardless, in both
+  load and create paths). No test (dead-code deletion). Suite 185 / 1 skipped / 0 failed.
 
 ---
 
@@ -1119,7 +1133,7 @@ race loops use the redundant `Contains`-before-`Add` pattern flagged elsewhere. 
 learning ground, so most items are 🔧 modernizations; a few real bugs surfaced. (The newer OBody SubModels
 were already documented and were not re-reviewed here.)*
 
-### `VM_Subgroup.CopyInViewModelFromModel` — 🐞 possible bug (no-op on empty collection)
+### ✔️ `VM_Subgroup.CopyInViewModelFromModel` — 🐞 NOT A BUG (no symptom); dead loop deleted from all 9 sites — see Resolved §B26
 
 [VM_Subgroup.cs:287](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L287) ·
 `foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }` runs *before*

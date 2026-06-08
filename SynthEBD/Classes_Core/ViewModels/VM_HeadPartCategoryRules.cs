@@ -102,7 +102,6 @@ namespace SynthEBD
             DisallowedRaceGroupings.CopyInRaceGroupingsByLabel(model.DisallowedRaceGroupings, _raceGroupingVMs);
             _npcAttributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenu.AttributeGroupMenu.Groups, true, null);
             _npcAttributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenu.AttributeGroupMenu.Groups, false, null);
-            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             bAllowUnique = model.bAllowUnique;
             bAllowNonUnique = model.bAllowNonUnique;
             bAllowRandom = model.bAllowRandom;

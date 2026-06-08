@@ -81,7 +81,6 @@ namespace SynthEBD
         {
             AllowedRaces.AddRange(model.AllowedRaces);
             DisallowedRaces.AddRange(model.DisallowedRaces);
-            foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
             AllowUnique = model.AllowUnique;
             AllowNonUnique = model.AllowNonUnique;
             _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, _generalSettingsAttGroupMenu.Groups, false, null);

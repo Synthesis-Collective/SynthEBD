@@ -757,7 +757,6 @@ public class VM_BodySlideSetting : VM
 
         _attributeCreator.CopyInFromModels(model.AllowedAttributes, AllowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, true, null);
         _attributeCreator.CopyInFromModels(model.DisallowedAttributes, DisallowedAttributes, ParentMenuVM.AttributeGroupMenu.Groups, false, null);
-        foreach (var x in DisallowedAttributes) { x.DisplayForceIfOption = false; }
         ProbabilityWeightModifiers.Clear();
         foreach (var m in model.ProbabilityWeightModifiers)
         {
