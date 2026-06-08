@@ -798,6 +798,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
             {
                 EvalResult = "Error: can't resolve reference NPC.";
                 StatusFontColor = CommonColors.Red;
+                return;
             }
             bool matched = _attributeMatcher.EvaluateCustomAttribute(refNPC, DumpViewModelToModel(this, VM_NPCAttributeShell.AttributeAllowStr), LinkCache, out string dispMessage);
             if (matched)

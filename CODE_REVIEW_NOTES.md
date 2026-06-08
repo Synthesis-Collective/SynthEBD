@@ -432,6 +432,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   the prior if/else (no trailing digits → append). *Test:* new `BodySlidePlaceHolderTests` (5 cases) —
   `"Body007"+8→"Body8"` (the fix), `"CBBE Outfit 007"+2→"CBBE Outfit 2"`, `"Body22"+23→"Body23"` (normal suffix
   regression-guard), `"Body"+2→"Body2"` (append), `"Body2"+3→"Body3"`. Suite 190 / 1 skipped / 0 failed.
+- **B28 — `VM_NPCAttributeCustom.Evaluate` fell through with a null reference NPC → NRE (fixed).** In the Custom
+  attribute editor's live "Test Attribute" evaluation, the resolve-failure check
+  `if (!LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC))` set
+  `EvalResult = "Error: can't resolve reference NPC."` but — unlike the sibling `else if` branches — lacked a
+  `return`, since it's nested in the final `else`. So it fell through to `EvaluateCustomAttribute(refNPC, …)` with
+  `refNPC == null`, which immediately calls `_logger.GetNPCLogNameString(npc)` -> `npc.FormKey.ToString()`
+  ([Logger.cs:745](SynthEBD/General_Aux/Logger.cs#L745)) -> `NullReferenceException`, thrown inside the reactive
+  re-eval subscription. Repro: set the Reference (Test) NPC to a FormKey that doesn't resolve in the current load
+  order (e.g. from an inactive plugin) and trigger a re-eval. Fixed by adding the missing `return;` after the error
+  is set. Fix-only + manual-verify: `Evaluate()` is a VM method bound to the environment/matcher/link cache with no
+  pure seam (the defect is a missing control-flow `return`); reproducing needs the full VM graph plus a live link
+  cache. Suite 190 / 1 skipped / 0 failed.
 
 ---
 
@@ -1022,7 +1034,7 @@ times in this one file — once in `DestinationDetailAbstractDictionary` (path�
 fourth time in `FilePathDestinationMap`. Any change to a destination path means editing four hand-kept
 copies. A single bidirectional table (friendly-name ⇄ path) driving all four would remove the drift risk.
 
-### `VM_NPCAttributeCustom.Evaluate` — 🐞 possible bug (missing `return` → null reference NPC)
+### ✅ `VM_NPCAttributeCustom.Evaluate` — 🐞 RESOLVED (added early return on resolve failure) — see Resolved §B28
 
 [VM_NPCAttribute.cs:797](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L797) · When
 `_environmentProvider.LinkCache.TryResolve<INpcGetter>(ReferenceNPCFormKey, out var refNPC)` fails, the
