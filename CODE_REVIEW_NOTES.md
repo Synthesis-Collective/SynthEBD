@@ -264,6 +264,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   (2 cases) — known line appends the colon-form locator; empty line returns the message unchanged. (The full
   methods aren't unit-testable as-is: they read a real ini via `_raceMenuHandler` and log; the I/O isn't where
   the bug lived.) Suite 159 / 1 skipped / 0 failed.
+- **B17 — `BSAHandler.ReferencedPathExists` (candidate-mods overload) never set `modName` (fixed; log-only).**
+  The overload initialized `modName = ""` and never reassigned it, so callers got an empty mod name even on a
+  hit — unlike the single-path overload, which sets it. The only consumer is
+  [AssetPackValidator.cs:252-262](SynthEBD/Classes_Core/Models/AssetPackValidator.cs#L252): when an asset path
+  isn't on disk and isn't in a path-prefixed mod's BSA but *is* covered by a subgroup's `AssociatedBsaModKeys`
+  BSA that lacks the file, the validation error appended `"… or any BSA archives corresponding to " +
+  specifiedModName` — a trailing blank instead of the mod name. Diagnostic-only (the boolean result and patch
+  behavior are unaffected; the other caller discards the out-param). Fixed by accumulating the candidate mods
+  whose BSA was opened and assigning `modName` = the matched mod on a hit, else the comma-joined list of
+  candidates that had a BSA (matching what `specifiedArchiveExists` reports). No unit test: the overload does
+  real BSA I/O (`TryOpenCorrespondingArchiveReaders` → `Archive.GetApplicableArchivePaths` against a live Data
+  folder + `ReadersOrDeferredHaveFile`) with no pure seam to extract, and a mocked-BSA test would assert the
+  mock; an integration test is disproportionate for a diagnostic-string fix. Manual-verify. Suite 159 / 1
+  skipped / 0 failed (no regression).
 
 ---
 
@@ -532,7 +546,7 @@ triplication.
 - The `IEnvironmentStateProvider` members mix `public` and bare modifiers; `public` on an interface
   member is redundant. 💭
 
-### `BSAHandler` — 🐞 possible bug (out param never set)
+### ✅ `BSAHandler` — 🐞 RESOLVED (candidate-mods overload now sets modName) — see Resolved §B17
 
 [BSAHandler.cs:324](SynthEBD/General_Aux/BSAHandler.cs#L324) · The `candidateMods` overload of
 `ReferencedPathExists` initializes `modName = ""` and never assigns the matched mod, so callers always

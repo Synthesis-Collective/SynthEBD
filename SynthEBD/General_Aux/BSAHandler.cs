@@ -345,14 +345,14 @@ public class BSAHandler : ViewModel
     /// <param name="expectedFilePath">The path inside the BSA to look for.</param>
     /// <param name="candidateMods">Enabled mods to search, in order.</param>
     /// <param name="archiveExists">Receives whether any candidate mod had a BSA.</param>
-    /// <param name="modName">Receives the owning mod name — note: this overload leaves it empty (see review notes).</param>
+    /// <param name="modName">On a hit, the owning mod name; otherwise the comma-joined names of the candidate mods that had a BSA (empty when none did).</param>
     /// <returns><c>true</c> if the file was found in any candidate mod's archives.</returns>
     public bool ReferencedPathExists(string expectedFilePath, IEnumerable<ModKey> candidateMods, out bool archiveExists, out string modName)
     {
-        // ... (Unchanged logic) ...
         archiveExists = false;
         modName = "";
 
+        var archiveMods = new List<string>();
         foreach (var candidateMod in candidateMods)
         {
             if (!_enabledMods.Contains(candidateMod))
@@ -367,13 +367,16 @@ public class BSAHandler : ViewModel
             else
             {
                 archiveExists = true;
+                archiveMods.Add(candidateMod.FileName);
             }
 
             if (ReadersOrDeferredHaveFile(expectedFilePath, candidateMod, archiveReaders, out _))
             {
+                modName = candidateMod.FileName;
                 return true;
             }
         }
+        modName = string.Join(", ", archiveMods);
         return false;
     }
 
