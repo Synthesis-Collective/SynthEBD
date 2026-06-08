@@ -31,17 +31,10 @@ public class SettingsIO_Misc
 
         loadSuccess = true;
 
-        if (File.Exists(_paths.ConsistencyPath))
+        var path = SelectExistingPath(_paths.ConsistencyPath, _paths.GetFallBackPath(_paths.ConsistencyPath), File.Exists);
+        if (path != null)
         {
-            loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(_paths.ConsistencyPath, out loadSuccess, out string exceptionStr);
-            if (!loadSuccess)
-            {
-                _logger.LogError("Could not load Consistency File. Error: " + exceptionStr);
-            }
-        }
-        else if (File.Exists(_paths.GetFallBackPath(_paths.ConsistencyPath)))
-        {
-            loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(_paths.GetFallBackPath(_paths.ConsistencyPath), out loadSuccess, out string exceptionStr);
+            loaded = JSONhandler<Dictionary<string, NPCAssignment>>.LoadJSONFile(path, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
                 _logger.LogError("Could not load Consistency File. Error: " + exceptionStr);
@@ -83,17 +76,10 @@ public class SettingsIO_Misc
 
         loadSuccess = true;
 
-        if (File.Exists(_paths.UpdateLogPath))
+        var path = SelectExistingPath(_paths.UpdateLogPath, _paths.GetFallBackPath(_paths.UpdateLogPath), File.Exists);
+        if (path != null)
         {
-            loaded = JSONhandler<UpdateLog>.LoadJSONFile(_paths.UpdateLogPath, out loadSuccess, out string exceptionStr);
-            if (!loadSuccess)
-            {
-                _logger.LogError("Could not load Update Log. Error: " + exceptionStr);
-            }
-        }
-        else if (File.Exists(_paths.GetFallBackPath(_paths.ConsistencyPath)))
-        {
-            loaded = JSONhandler<UpdateLog>.LoadJSONFile(_paths.GetFallBackPath(_paths.UpdateLogPath), out loadSuccess, out string exceptionStr);
+            loaded = JSONhandler<UpdateLog>.LoadJSONFile(path, out loadSuccess, out string exceptionStr);
             if (!loadSuccess)
             {
                 _logger.LogError("Could not load Update Log. Error: " + exceptionStr);
@@ -117,7 +103,20 @@ public class SettingsIO_Misc
         if (!saveSuccess)
         {
             _logger.LogError("Could not save Update Log. Error: " + exceptionStr);
-            _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Update Log to " + _paths.ConsistencyPath, ErrorType.Error, 5);
+            _logger.CallTimedLogErrorWithStatusUpdateAsync("Could not save Update Log to " + _paths.UpdateLogPath, ErrorType.Error, 5);
         }
+    }
+
+    /// <summary>Returns <paramref name="primaryPath"/> if it exists, else <paramref name="fallbackPath"/> if it exists, else null.</summary>
+    /// <param name="primaryPath">The preferred path to load from.</param>
+    /// <param name="fallbackPath">The fallback path used when the primary is absent.</param>
+    /// <param name="exists">Existence predicate (e.g. <see cref="File.Exists(string)"/>; injectable for testing).</param>
+    /// <returns>The first existing path, or null when neither exists.</returns>
+    /// <remarks>Ties the existence check and the returned path to the same arguments, so a caller cannot check one file and load another (the B19 defect).</remarks>
+    public static string? SelectExistingPath(string primaryPath, string fallbackPath, Func<string, bool> exists)
+    {
+        if (exists(primaryPath)) { return primaryPath; }
+        if (exists(fallbackPath)) { return fallbackPath; }
+        return null;
     }
 }

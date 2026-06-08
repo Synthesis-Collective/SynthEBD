@@ -296,6 +296,23 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   disk + needs `PatcherState`/logger — but the I/O isn't where the bug lived.) Note: the same 3-line merge
   appears in `SettingsIO_AssetPack`/`_OBody` (each a single, correct loop) — a future R-item could dedup all
   three onto this helper. Suite 162 / 1 skipped / 0 failed.
+- **B19 — `SettingsIO_Misc.LoadUpdateLog` fallback checked the consistency backup, not the update-log backup (fixed).**
+  The update-log fallback branch's guard tested `File.Exists(_paths.GetFallBackPath(_paths.ConsistencyPath))`
+  while its body loaded `_paths.GetFallBackPath(_paths.UpdateLogPath)` — it checked one file and loaded another
+  (copy-paste from `LoadConsistency`). So the update-log fallback fired based on whether the *consistency* backup
+  existed: when a user upgrading had an update-log backup but no consistency backup, the existing update-log
+  fallback was never loaded → `LoadUpdateLog` returned an empty `UpdateLog` → `UpdateHandler` believed no
+  migrations had run and could re-apply already-applied version migrations (the M1 double-migration hazard);
+  conversely, when only the consistency backup existed, it attempted to load a missing update-log fallback and
+  logged a spurious "Could not load Update Log." Extracted the primary/fallback selection into a pure
+  `public static string? SelectExistingPath(string primary, string fallback, Func<string,bool> exists)` that
+  ties the existence check and the returned path to the same arguments, and routed **both** `LoadUpdateLog` and
+  `LoadConsistency` through it (the consistency loader was already correct; this protects it too and dedups the
+  near-identical dance). Also fixed an adjacent cosmetic copy-paste: `SaveUpdateLog`'s failure status message
+  named `_paths.ConsistencyPath` instead of `UpdateLogPath`. *Test:* new `SettingsIO_MiscTests` (4 cases, injected
+  `exists` predicate — no disk) — primary exists → primary; primary missing + fallback exists → fallback; neither
+  → null; both exist → primary. The `Load*` methods stay I/O-bound (real `_paths`/JSONhandler), but the
+  path-selection where the bug lived is now pure and covered. Suite 166 / 1 skipped / 0 failed.
 
 ---
 
@@ -1469,7 +1486,7 @@ the "female" loop is `foreach (var femaleConfig in loadedPacks.Male)` — it ite
 general-settings attribute groups are never merged into the female BodyGen configs, and the male configs are
 processed twice. Should be `loadedPacks.Female`.
 
-### `SettingsIO_Misc` update-log fallback gated on the wrong file — 🐞 bug
+### ✅ `SettingsIO_Misc` update-log fallback gated on the wrong file — 🐞 RESOLVED (both loaders route through SelectExistingPath) — see Resolved §B19
 
 [SettingsIO_Misc.cs:94](SynthEBD/Settings/SettingsIO/SettingsIO_Misc.cs#L94) · The update-log fallback branch
 is `else if (File.Exists(_paths.GetFallBackPath(_paths.ConsistencyPath)))` but its body loads
