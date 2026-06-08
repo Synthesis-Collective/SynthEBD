@@ -191,29 +191,27 @@ public class SettingsIO_BodyGen
             _logger.LogStartupEventEnd("Loading BodyGen Config from disk at " + s);
         }
 
-        foreach (var maleConfig in loadedPacks.Male)
+        // Seed each config's local attribute groups with any General-settings groups it lacks (both genders).
+        foreach (var config in loadedPacks.Male.Concat(loadedPacks.Female))
         {
-            foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
-            {
-                if (!maleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
-                {
-                    maleConfig.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
-                }
-            }
-        }
-
-        foreach (var femaleConfig in loadedPacks.Male)
-        {
-            foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
-            {
-                if (!femaleConfig.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
-                {
-                    femaleConfig.AttributeGroups.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
-                }
-            }
+            AddMissingAttributeGroups(config.AttributeGroups, _patcherState.GeneralSettings.AttributeGroups);
         }
 
         return loadedPacks;
+    }
+
+    /// <summary>Copies each General attribute group whose label <paramref name="target"/> does not already define into <paramref name="target"/> (local-wins on label collision), so the local set acts as a superset fallback for label resolution.</summary>
+    /// <param name="target">The config's own attribute-group list, mutated in place.</param>
+    /// <param name="generalGroups">The General-settings attribute groups to merge in.</param>
+    public static void AddMissingAttributeGroups(ICollection<AttributeGroup> target, IEnumerable<AttributeGroup> generalGroups)
+    {
+        foreach (var attributeGroup in generalGroups)
+        {
+            if (!target.Select(x => x.Label).Contains(attributeGroup.Label))
+            {
+                target.Add(new AttributeGroup() { Label = attributeGroup.Label, Attributes = new HashSet<NPCAttribute>(attributeGroup.Attributes) });
+            }
+        }
     }
 
     /// <summary>

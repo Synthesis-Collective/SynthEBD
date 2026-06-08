@@ -278,6 +278,24 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   folder + `ReadersOrDeferredHaveFile`) with no pure seam to extract, and a mocked-BSA test would assert the
   mock; an integration test is disproportionate for a diagnostic-string fix. Manual-verify. Suite 159 / 1
   skipped / 0 failed (no regression).
+- **B18 — `SettingsIO_BodyGen` female attribute-group merge iterated `Male` (fixed; real distribution bug).**
+  The load-time General→local attribute-group merge ran as two loops (BodyGen configs are gender-split), but the
+  "female" loop read `foreach (var femaleConfig in loadedPacks.Male)` — iterating `Male` again. So male configs
+  were merged twice (idempotent via the `Contains(label)` guard) and **female** configs never got General
+  attribute groups seeded into their local set. Per the local-vs-General resolution design (CLAUDE.md), with
+  `OverwritePluginAttGroups` **off**, a female BodyGen morph rule referencing a General-only attribute-group
+  label (e.g. "Vampires" defined in General but not in the config file) resolves against the config's local
+  `AttributeGroups` via `GetAttributeGroupByLabel` → not found → the rule mis-gates and the female NPC gets the
+  wrong/default morph. (Masked when the default-on toggle is on, which returns the General entry directly.)
+  Extracted the merge body into a pure `public static AddMissingAttributeGroups(ICollection<AttributeGroup>
+  target, IEnumerable<AttributeGroup> generalGroups)` and ran it over `loadedPacks.Male.Concat(loadedPacks.Female)`
+  in one loop, so there is no second collection to mis-name. *Test:* new `SettingsIO_BodyGenTests` (3 cases) —
+  a missing label is added as an independent copy (new group + new `Attributes` set, so local edits can't mutate
+  General); an existing label is not duplicated and the local instance is preserved (local-wins); an empty
+  General set leaves the target unchanged. (`LoadBodyGenConfigs` itself isn't unit-testable — reads JSON from
+  disk + needs `PatcherState`/logger — but the I/O isn't where the bug lived.) Note: the same 3-line merge
+  appears in `SettingsIO_AssetPack`/`_OBody` (each a single, correct loop) — a future R-item could dedup all
+  three onto this helper. Suite 162 / 1 skipped / 0 failed.
 
 ---
 
@@ -1443,7 +1461,7 @@ dictionary here, but semantically it should use identity hashing). Adapted third
 *The settings persistence layer (JSON load/save handlers, validators, source DTOs) and the settings models /
 view models / views. Reviewed leaf-first, starting with the SettingsIO handlers.*
 
-### `SettingsIO_BodyGen` female loop iterates Male — 🐞 bug
+### ✅ `SettingsIO_BodyGen` female loop iterates Male — 🐞 RESOLVED (single Male.Concat(Female) loop via AddMissingAttributeGroups) — see Resolved §B18
 
 [SettingsIO_BodyGen.cs:205](SynthEBD/Settings/SettingsIO/SettingsIO_BodyGen.cs#L205) · After the male loop
 `foreach (var maleConfig in loadedPacks.Male)` ([:194](SynthEBD/Settings/SettingsIO/SettingsIO_BodyGen.cs#L194)),
