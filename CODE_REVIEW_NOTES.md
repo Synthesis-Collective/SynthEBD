@@ -248,6 +248,22 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   No unit test: the class shells out to the bundled `7z.exe` and parses its stdout, so a real test needs the
   binary plus a corrupt-archive fixture (integration-level) and a mocked `Process` would be theater. Manual-verify.
   Suite 157 / 1 skipped / 0 failed (no regression).
+- **B16 — `MiscValidation` ini-parse error gated its line locator on the wrong out-variable (fixed; log-only).**
+  In `VerifyRaceMenuIniForBodyGen` / `VerifyRaceMenuIniForBodySlide`, the "Could not parse X" branches for
+  `bEnableBodyGen` and `iScaleMode` appended the "( in line …)" locator only `if (morphLine.Any())` while
+  printing `genLine` / `scaleLine` — the guard was copy-pasted from the morph block. Diagnostic-only (`valid`
+  is set false regardless), but the locator's presence was coupled to an unrelated setting: a malformed
+  `bEnableBodyGen=` whose hint we *know* was suppressed when `bEnableBodyMorph` was absent, and a blank
+  "( in line: )" was emitted when `bEnableBodyGen` was absent but `bEnableBodyMorph` present. Surfaces in
+  pre-run validation messages ([PreRunValidation.cs:92-96](SynthEBD/General_Aux/PreRunValidation.cs#L92)) for a
+  user troubleshooting why BodyGen/BodySlide won't run. Rather than swap the three guards, extracted a pure
+  `public static string AppendIniLineReference(string message, string line)` that takes the gated value as one
+  parameter so the guard and appended text cannot diverge, and routed all five sites (the two correct morph
+  branches included) through it — structurally killing the mismatch bug class. Per request, the locator now
+  reads "( in line: <text>)" (added a colon so a blank/odd line stands out). *Test:* new `MiscValidationTests`
+  (2 cases) — known line appends the colon-form locator; empty line returns the message unchanged. (The full
+  methods aren't unit-testable as-is: they read a real ini via `_raceMenuHandler` and log; the I/O isn't where
+  the bug lived.) Suite 159 / 1 skipped / 0 failed.
 
 ---
 
@@ -635,7 +651,7 @@ suite around `SplitPath`, `ArrayPathCondition` parsing, and the bounds/paren bug
   checks could be expressed as a list of `(condition, validationFunc)` steps to cut the repetition. The
   truth-table section at the end is well-commented and worth keeping as-is. Low priority. 🔧
 
-### `MiscValidation` ini parsers — 🐞 possible bug (wrong guard)
+### ✅ `MiscValidation` ini parsers — 🐞 RESOLVED (line-ref centralized in AppendIniLineReference; guard/value can't diverge) — see Resolved §B16
 
 [MiscValidation.cs:577](SynthEBD/General_Aux/MiscValidation.cs#L577),
 [:594](SynthEBD/General_Aux/MiscValidation.cs#L594),

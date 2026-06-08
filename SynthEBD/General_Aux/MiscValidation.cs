@@ -610,6 +610,16 @@ public class MiscValidation
         }
     }
 
+    /// <summary>Appends a "( in line: &lt;text&gt;)" locator to an ini-parse error message when the offending line text is known.</summary>
+    /// <param name="message">The base error message.</param>
+    /// <param name="line">The raw ini line the error refers to (empty when the setting was absent).</param>
+    /// <returns>The message with the line reference appended, or the message unchanged when <paramref name="line"/> is empty.</returns>
+    /// <remarks>Taking the gated value as a single parameter keeps the guard and the appended text in lockstep, so they cannot reference different lines (the B16 defect).</remarks>
+    public static string AppendIniLineReference(string message, string line)
+    {
+        return line.Any() ? message + "( in line: " + line + ")" : message;
+    }
+
     /// <summary>Verifies the RaceMenu ini settings required for BodyGen: body morph and BodyGen enabled, and a non-zero scale mode (warning on the problematic mode 2).</summary>
     /// <returns><c>true</c> if the ini is configured correctly for BodyGen.</returns>
     public bool VerifyRaceMenuIniForBodyGen()
@@ -624,11 +634,7 @@ public class MiscValidation
         if (!morphParsed)
         {
             valid = false;
-            message = "Could not parse bEnableBodyMorph in " + iniFileName;
-            if (morphLine.Any())
-            {
-                message += "( in line " + morphLine + ")";
-            }
+            message = AppendIniLineReference("Could not parse bEnableBodyMorph in " + iniFileName, morphLine);
             _logger.LogMessage(message);
         }
         else if (!morphEnabled)
@@ -641,11 +647,7 @@ public class MiscValidation
         if (!bodyGenParsed)
         {
             valid = false;
-            message = "Could not parse bEnableBodyGen in " + iniFileName;
-            if (morphLine.Any())
-            {
-                message += "( in line " + genLine + ")";
-            }
+            message = AppendIniLineReference("Could not parse bEnableBodyGen in " + iniFileName, genLine);
             _logger.LogMessage(message);
         }
         else if (!bodygenEnabled)
@@ -658,11 +660,7 @@ public class MiscValidation
         if (!scaleModeParsed)
         {
             valid = false;
-            message = "Could not parse iScaleMode in " + iniFileName;
-            if (morphLine.Any())
-            {
-                message += "( in line " + scaleLine + ")";
-            }
+            message = AppendIniLineReference("Could not parse iScaleMode in " + iniFileName, scaleLine);
             _logger.LogMessage(message);
         }
         else if (scaleMode == 0)
@@ -692,11 +690,7 @@ public class MiscValidation
         if (!morphParsed)
         {
             valid = false;
-            message = "Could not parse bEnableBodyMorph in " + iniFileName;
-            if (morphLine.Any())
-            {
-                message += "( in line " + morphLine + ")";
-            }
+            message = AppendIniLineReference("Could not parse bEnableBodyMorph in " + iniFileName, morphLine);
             _logger.LogMessage(message);
         }
         else if (!morphEnabled)
@@ -709,11 +703,7 @@ public class MiscValidation
         if (!bodyGenParsed)
         {
             valid = false;
-            message = "Could not parse bEnableBodyGen in " + iniFileName;
-            if (morphLine.Any())
-            {
-                message += "( in line " + genLine + ")";
-            }
+            message = AppendIniLineReference("Could not parse bEnableBodyGen in " + iniFileName, genLine);
             _logger.LogMessage(message);
         }
         else if (bodygenEnabled)
