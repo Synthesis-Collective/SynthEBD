@@ -44,12 +44,7 @@ public class VM_AssetPackDirectReplacerMenu : VM
                   t.Current.DisplayedSubgroup.PathsMenu.ReferenceNPCFK = t.Current.TemplateNPCFK;
                   t.Current.DisplayedSubgroup.CopyInViewModelFromModel();
               }
-          });
-
-        this.WhenAnyValue(x => x.DisplayedGroup).Subscribe(x =>
-        {
-            
-        }).DisposeWith(this);
+          }).DisposeWith(this);
 
         AddGroup = new RelayCommand(
             canExecute: _ => true,

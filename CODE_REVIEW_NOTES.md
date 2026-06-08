@@ -456,6 +456,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   manual-verify: reaching `ApplyBeastTemplate` needs the full `VM_AssetPack` graph and the defect is a
   wrong-collection argument; a `VM_CollectionMemberString` unit test would only re-assert the (already-correct)
   `DeleteCommand`/`ParentCollection` invariant. Suite 190 / 1 skipped / 0 failed.
+- **B30 — `VM_AssetPackDirectReplacerMenu` ctor: functional subscription leaked; a dead empty one was disposed (fixed).**
+  The functional `WhenAnyValue(DisplayedGroup).Buffer(2,1)...Subscribe(...)` (dumps the previous group's displayed
+  subgroup to its model, initializes the newly-selected group's) was not `.DisposeWith(this)`'d -> a subscription
+  leak tied to the VM lifetime; meanwhile a separate `WhenAnyValue(DisplayedGroup).Subscribe(x => { })` with an
+  empty body *was* disposed (dead code). The file's sibling group VM
+  ([:121-138](SynthEBD/Classes_Core/ViewModels/VM_AssetPackDirectReplacerMenu.cs#L121)) has the identical
+  `Buffer(2,1)` correctly `.DisposeWith(this)`'d, confirming the intended pattern. Fixed by adding
+  `.DisposeWith(this)` to the real subscription and deleting the empty one. Each `VM_AssetPackDirectReplacerMenu`
+  constructed (opening a direct-replacer/Mix-In editor) previously leaked its `DisplayedGroup` subscription, which
+  kept firing on stale VMs as the user navigated between configs. Fix-only + manual-verify: disposal-lifecycle
+  tests need the full VM graph and would be brittle; correctness is by inspection against the line-138 sibling.
+  Suite 190 / 1 skipped / 0 failed.
 
 ---
 
@@ -1179,7 +1191,7 @@ iterates an empty collection and sets nothing. The sibling VMs (`VM_HeadPart`, `
 run the same line *after* populating — so disallowed attributes in a subgroup never get
 `DisplayForceIfOption = false` applied, unlike everywhere else.
 
-### `VM_AssetPackDirectReplacerMenu` ctor — 🐞 possible bug (subscription not disposed) / 🔧
+### ✅ `VM_AssetPackDirectReplacerMenu` ctor — 🐞 RESOLVED (disposed the real subscription; dropped the dead empty one) — see Resolved §B30
 
 [VM_AssetPackDirectReplacerMenu.cs:32](SynthEBD/Classes_Core/ViewModels/VM_AssetPackDirectReplacerMenu.cs#L32) ·
 The functional `WhenAnyValue(DisplayedGroup).Buffer(2,1)...Subscribe(...)` (which dumps the previous group and
