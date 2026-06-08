@@ -34,21 +34,24 @@ public class NPCAttribute
     /// <summary>Determines whether two NPCAttributes have the same set of sub-attributes.</summary>
     /// <param name="other">The attribute to compare against.</param>
     /// <returns><c>true</c> if the sub-attribute sets match.</returns>
-    /// <remarks>Compares the sub-attributes positionally after <c>ToArray()</c>; because <see cref="SubAttributes"/> is an unordered <see cref="HashSet{T}"/>, this can report inequality for equal sets in different enumeration order — see review notes.</remarks>
+    /// <remarks>Order-independent: uses <see cref="HashSet{T}.SetEquals"/>, which relies on each sub-attribute's value <c>Equals</c>/<c>GetHashCode</c>.</remarks>
     public bool Equals(NPCAttribute other)
     {
-        var thisArray = this.SubAttributes.ToArray();
-        var otherArray = other.SubAttributes.ToArray();
-        if (thisArray.Length != otherArray.Length) { return false; }
-        else
+        return other != null && this.SubAttributes.SetEquals(other.SubAttributes);
+    }
+
+    /// <summary>Order-independent hash for a set (XOR-fold of element hashes), consistent with <see cref="HashSet{T}.SetEquals"/>.</summary>
+    /// <typeparam name="T">Element type.</typeparam>
+    /// <param name="items">The elements to hash.</param>
+    /// <returns>A hash identical for any two collections holding the same set of items.</returns>
+    public static int OrderIndependentHash<T>(IEnumerable<T> items)
+    {
+        int hash = 0;
+        foreach (var item in items)
         {
-            for (int i = 0; i < thisArray.Length; i++)
-            {
-                if (thisArray[i].Type != otherArray[i].Type) { return false; }
-                if (!thisArray[i].Equals(otherArray[i])) { return false; }
-            }
+            hash ^= item?.GetHashCode() ?? 0;
         }
-        return true;
+        return hash;
     }
 
     /// <summary>Order-independent hash over the sub-attributes (consistent with <see cref="Equals(NPCAttribute)"/>).</summary>
@@ -306,17 +309,22 @@ public class NPCAttributeClass : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeClass)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeClass otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeClass other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode() ^
             Not.GetHashCode();
     }
 
@@ -383,26 +391,25 @@ public class NPCAttributeCustom : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeCustom)other;
-        if (otherTyped.CustomType != this.CustomType) { return false; }
-        if (otherTyped.Path != this.Path) { return false; }
-        if (this.CustomType == CustomAttributeType.Record && !FormKeyHashSetComparer.Equals(this.ValueFKs, otherTyped.ValueFKs))
-        {
-            return false;
-        }
-        else if (this.ValueStr != otherTyped.ValueStr)
-        {
-            return false;
-        }
-        if (this.Not != otherTyped.Not) { return false; }
-        return true;
+        return other is NPCAttributeCustom otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.CustomType == otherTyped.CustomType
+            && this.Path == otherTyped.Path
+            && this.Comparator == otherTyped.Comparator
+            && this.ValueStr == otherTyped.ValueStr
+            && this.ValueFKs.SetEquals(otherTyped.ValueFKs);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeCustom other && Equals(other);
 
     public override int GetHashCode()
     {
         return Path.GetHashCode() ^
             ValueStr.GetHashCode() ^
-            FormKeyHashSetComparer.ComparableSetHashCode(ValueFKs) ^
+            NPCAttribute.OrderIndependentHash(ValueFKs) ^
             CustomType.GetHashCode() ^
             Comparator.GetHashCode() ^
             Type.GetHashCode() ^
@@ -501,15 +508,21 @@ public class NPCAttributeFactions : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeFactions)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys) && this.RankMin == otherTyped.RankMin && this.RankMax == otherTyped.RankMax) { return true; }
-
-        return false;
+        return other is NPCAttributeFactions otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.RankMin == otherTyped.RankMin
+            && this.RankMax == otherTyped.RankMax
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeFactions other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
             RankMin.GetHashCode() ^
             RankMax.GetHashCode() ^
             Type.GetHashCode() ^ 
@@ -583,14 +596,19 @@ public class NPCAttributeFaceTexture : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeFaceTexture)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeFaceTexture otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeFaceTexture other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
             Weighting.GetHashCode() ^ 
@@ -660,14 +678,19 @@ public class NPCAttributeKeyword : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeKeyword)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeKeyword otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeKeyword other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^
             Type.GetHashCode() ^
             ForceMode.GetHashCode() ^
             Weighting.GetHashCode() ^
@@ -737,14 +760,19 @@ public class NPCAttributeRace : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeRace)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeRace otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeRace other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
             Weighting.GetHashCode() ^ 
@@ -835,20 +863,26 @@ public class NPCAttributeMisc : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeMisc)other;
-        if (this.Type != other.Type) { return false; }
-
-        if (this.Unique != otherTyped.Unique) { return false; }
-        if (this.Essential != otherTyped.Essential) { return false; }
-        if (this.Protected != otherTyped.Protected) { return false; }
-        if (this.Summonable != otherTyped.Summonable) { return false; }
-        if (this.Ghost != otherTyped.Ghost) { return false; }
-        if (this.Invulnerable != otherTyped.Invulnerable) { return false; }
-        if (EvalMood && this.Mood != otherTyped.Mood) { return false; }
-        if (EvalAggression && this.Aggression != otherTyped.Aggression) { return false; }
-        if (this.Not != otherTyped.Not) { return false; }
-        return true;
+        return other is NPCAttributeMisc otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.Unique == otherTyped.Unique
+            && this.Essential == otherTyped.Essential
+            && this.Protected == otherTyped.Protected
+            && this.Summonable == otherTyped.Summonable
+            && this.Ghost == otherTyped.Ghost
+            && this.Invulnerable == otherTyped.Invulnerable
+            && this.EvalMood == otherTyped.EvalMood
+            && this.Mood == otherTyped.Mood
+            && this.EvalAggression == otherTyped.EvalAggression
+            && this.Aggression == otherTyped.Aggression
+            && this.EvalGender == otherTyped.EvalGender
+            && this.NPCGender == otherTyped.NPCGender;
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeMisc other && Equals(other);
 
     public override int GetHashCode()
     {
@@ -944,14 +978,20 @@ public class NPCAttributeMod : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeMod)other;
-        if (this.Type == other.Type && this.Not == other.Not && ModKeyHashSetComparer.Equals(this.ModKeys, otherTyped.ModKeys)) { return true; }
-        return false;
+        return other is NPCAttributeMod otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.ModActionType == otherTyped.ModActionType
+            && this.ModKeys.SetEquals(otherTyped.ModKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeMod other && Equals(other);
 
     public override int GetHashCode()
     {
-        return ModKeyHashSetComparer.ComparableSetHashCode(ModKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(ModKeys) ^
             ModActionType.GetHashCode() ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
@@ -1014,14 +1054,19 @@ public class NPCAttributeNPC : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeNPC)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeNPC otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeNPC other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
             Weighting.GetHashCode() ^ 
@@ -1090,14 +1135,19 @@ public class NPCAttributeVoiceType : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        var otherTyped = (NPCAttributeVoiceType)other;
-        if (this.Type == other.Type && this.Not == other.Not && FormKeyHashSetComparer.Equals(this.FormKeys, otherTyped.FormKeys)) { return true; }
-        return false;
+        return other is NPCAttributeVoiceType otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeVoiceType other && Equals(other);
 
     public override int GetHashCode()
     {
-        return FormKeyHashSetComparer.ComparableSetHashCode(FormKeys) ^ 
+        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
             Type.GetHashCode() ^ 
             ForceMode.GetHashCode() ^ 
             Weighting.GetHashCode() ^ 
@@ -1167,44 +1217,23 @@ public class NPCAttributeGroup : ITypedNPCAttribute
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        if (this.Type == other.Type && this.Not == other.Not)
-        {
-            var otherGroup = other as NPCAttributeGroup;
-            return otherGroup != null && SelectedLabels.SetEquals(otherGroup.SelectedLabels);
-        }
-            
-        return false;
+        return other is NPCAttributeGroup otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.SelectedLabels.SetEquals(otherTyped.SelectedLabels);
     }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeGroup other && Equals(other);
 
     public override int GetHashCode()
     {
-        return ComparableSetHashCode(SelectedLabels) ^ 
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
+        return NPCAttribute.OrderIndependentHash(SelectedLabels) ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode() ^
             Not.GetHashCode();
-    }
-
-    /// <summary>Order-independent hash for a set of group labels.</summary>
-    /// <param name="e">The labels to hash.</param>
-    /// <returns>A hash identical for any two collections with the same label set.</returns>
-    public static int ComparableSetHashCode(IEnumerable<string> e)
-    {
-        bool first = true;
-        int hashCode = 0;
-        foreach (var item in e)
-        {
-            if (first)
-            {
-                first = false;
-                hashCode = item.GetHashCode();
-            }
-            else
-            {
-                hashCode ^= item.GetHashCode();
-            }
-        }
-        return hashCode;
     }
 
     public bool IsBlank()
