@@ -661,17 +661,39 @@ public class RecordPathParser
             return true;
         }
 
-        /// <summary>Strips fully-enclosing paired parentheses from a string, repeatedly.</summary>
-        /// <param name="str">The string to unwrap.</param>
-        /// <returns>The string without redundant outer parentheses.</returns>
-        /// <remarks>Naive: it only checks the first/last characters, so non-enclosing parens such as <c>(a) &amp;&amp; (b)</c> can be mis-stripped — see review notes.</remarks>
+        /// <summary>Strips redundant parentheses that enclose the entire string (e.g. <c>(a == b)</c> -> <c>a == b</c>), repeatedly.</summary>
+        /// <param name="str">The condition term to unwrap.</param>
+        /// <returns>The string without redundant enclosing parentheses.</returns>
+        /// <remarks>Depth- and quote-aware: the outer pair is removed only when the leading <c>(</c> closes at the
+        /// final character, so non-enclosing parens such as <c>(a).Foo(b)</c> are left intact (unlike a naive
+        /// first/last-character check).</remarks>
         private static string RemovePairedParens(string str)
         {
-            while (str.StartsWith('(') && str.EndsWith(')'))
+            while (str.Length >= 2 && str.StartsWith('(') && str.EndsWith(')') && OuterParensEncloseWholeString(str))
             {
                 str = str.Substring(1, str.Length - 2);
             }
             return str;
+        }
+
+        /// <summary>Returns whether the leading <c>(</c> of <paramref name="str"/> is closed only by its final character — i.e. the outer parentheses enclose the entire string. Quote-aware (parens inside <c>"</c>-delimited literals are ignored).</summary>
+        private static bool OuterParensEncloseWholeString(string str)
+        {
+            bool capture = true;
+            int depth = 0;
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
+                if (capture && c == '"') { capture = false; }
+                else if (!capture && c == '"') { capture = true; }
+                else if (capture && c == '(') { depth++; }
+                else if (capture && c == ')')
+                {
+                    depth--;
+                    if (depth == 0) { return i == str.Length - 1; } // leading '(' closed here; encloses all iff it is the last char
+                }
+            }
+            return false;
         }
 
         /// <summary>Removes a single unmatched leading or trailing parenthesis, using quote- and depth-aware scanning so genuinely paired parentheses are preserved.</summary>

@@ -187,6 +187,17 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   returning false). Changed both to `iIndex >= 0 && iIndex < collectionObj.Count()`. *Test:* added
   `NumericArrayIndex_OutOfRange_FailsGracefully` to `SetViaFormKeyReplacementTests` — `[-1]` and `[5]`
   (out-of-range) return false without throwing, `[0]` still resolves. Suite 154 / 1 skipped / 0 failed.
+- **B12 — `RecordPathParser.RemovePairedParens` made depth-aware (hardening; the notes' active example was a
+  false positive).** The helper strips redundant enclosing parens from one array-condition term before the
+  comparator is split out. It naively stripped first/last chars whenever `StartsWith('(') && EndsWith(')')`,
+  ignoring whether they were a matched pair. *Verify finding:* the notes' `(a) && (b)` never reaches it —
+  `GetConditionsFromString` pre-splits on every `&`/`|` char (`input.Split({'|','&'})`), so terms arrive as
+  `(a) ` / ` (b)`. So the corruption was latent (only an unusual single term like `(x).Foo(y)` could trigger
+  it). `TrimParens` (the depth-aware sibling) does NOT replace it — it removes a *stray unmatched* paren, not
+  a redundant *enclosing* pair — so the helper was hardened rather than removed: it now strips the outer pair
+  only when the leading `(` closes at the final char (quote-aware, matching `TrimParens`). Fix-only (a real
+  test means a heavy public-API condition path; the method is private inside a private nested class).
+  Suite 154 / 1 skipped / 0 failed.
 
 ---
 
@@ -532,7 +543,7 @@ plain `Dictionary`s mutated via read-then-add. `_lambdaCache` sits on the hot pa
 conditions across NPCs in parallel, concurrent `Dictionary` writes can corrupt internal state or
 throw. Worth confirming the concurrency model; if parallel, switch to `ConcurrentDictionary` or lock.
 
-### `RecordPathParser.RemovePairedParens` — 🐞 possible bug
+### ✅ `RecordPathParser.RemovePairedParens` — 🐞 RESOLVED (hardened depth-aware; notes' active example was latent) — see Resolved §B12
 
 [RecordPathParser.cs:541](SynthEBD/General_Aux/RecordPathParser.cs#L541) · It strips outer parens
 whenever the string merely *starts* with `(` and *ends* with `)`, regardless of pairing. For
