@@ -31,12 +31,10 @@ namespace SynthEBD
             _logger = logger;
         }
         
-        /// <summary>The resolved set of patchable races as form-link getters (populated by <see cref="ResolvePatchableRaces"/>).</summary>
-        public HashSet<IFormLinkGetter<IRaceGetter>> PatchableRaces { get; set; } = new();
         /// <summary>The FormKeys of the resolved patchable races (populated by <see cref="ResolvePatchableRaces"/>).</summary>
         public HashSet<FormKey> PatchableRaceFormKeys { get; set; } = new();
-        /// <summary>Resolves the full set of patchable races (explicit + groupings + aliases + default) into <see cref="PatchableRaces"/> / <see cref="PatchableRaceFormKeys"/>.</summary>
-        /// <remarks>Logs an error and leaves the results unchanged when the link cache is unavailable.</remarks>
+        /// <summary>Resolves the full set of patchable races (explicit + groupings + aliases + default) into <see cref="PatchableRaceFormKeys"/>.</summary>
+        /// <remarks>Logs an error and leaves the results unchanged when the link cache is unavailable. Reassigns the set wholesale so repeated calls cannot accumulate stale FormKeys.</remarks>
         public void ResolvePatchableRaces()
         {
             _logger.LogStartupEventStart("Compiling patchable races");
@@ -46,12 +44,9 @@ namespace SynthEBD
             }
             else
             {
-                PatchableRaces = new();
-                foreach (var race in CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true))
-                {
-                    PatchableRaces.Add(race.ToLinkGetter());
-                    PatchableRaceFormKeys.Add(race.FormKey);
-                }
+                PatchableRaceFormKeys = CompilePatchableRaces(_environmentProvider.LinkCache, _patcherState, true, true, true)
+                    .Select(race => race.FormKey)
+                    .ToHashSet();
             }
             _logger.LogStartupEventEnd("Compiling patchable races");
         }
@@ -65,26 +60,13 @@ namespace SynthEBD
         /// <returns>The resolved race records (unresolvable FormKeys are skipped).</returns>
         public static HashSet<IRaceGetter> CompilePatchableRaces(ILinkCache linkCache, PatcherState patcherState, bool includeGroupings, bool includeAliases, bool includeDefault) // combines explicit patchable races, race groupings, and aliases
         {
-            HashSet<FormKey> raceFKs = new();
-            foreach (var pr in patcherState.GeneralSettings.PatchableRaces)
-            {
-                if (!raceFKs.Contains(pr))
-                {
-                    raceFKs.Add(pr);
-                }
-            }
+            HashSet<FormKey> raceFKs = new(patcherState.GeneralSettings.PatchableRaces); // HashSet.Add/UnionWith are idempotent, so no Contains guards are needed
 
             if (includeGroupings)
             {
                 foreach (var grouping in patcherState.GeneralSettings.RaceGroupings)
                 {
-                    foreach (var member in grouping.Races)
-                    {
-                        if (!raceFKs.Contains(member))
-                        {
-                            raceFKs.Add(member);
-                        }
-                    }
+                    raceFKs.UnionWith(grouping.Races);
                 }
             }
 
@@ -92,10 +74,7 @@ namespace SynthEBD
             {
                 foreach (var alias in patcherState.GeneralSettings.RaceAliases)
                 {
-                    if (!raceFKs.Contains(alias.Race))
-                    {
-                        raceFKs.Add(alias.Race);
-                    }
+                    raceFKs.Add(alias.Race);
                 }
             }
 

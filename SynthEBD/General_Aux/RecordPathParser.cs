@@ -74,7 +74,7 @@ public class RecordPathParser
     /// <param name="parameters">The actual parameter values, in order.</param>
     /// <returns>The boolean result of evaluating the expression.</returns>
     /// <remarks>Lambdas are cached by expression text plus parameter type signature. The cache is a plain dictionary — see review notes on thread-safety.</remarks>
-    private static bool EvalBoolExpression(string expression, List<dynamic> parameters)
+    public static bool EvalBoolExpression(string expression, List<dynamic> parameters)
     {
         var dynParams = new Parameter[parameters.Count];
         for (int i = 0; i < parameters.Count; i++)
@@ -1005,7 +1005,7 @@ public class RecordPathParser
                     matchConditionStr = matchConditionStr.Replace("PatchableRaces", "_" + patchableRaceArgIndex);
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
-                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
+                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey;
                 }
             }
             if (skipToNext) { continue; }
@@ -1013,7 +1013,7 @@ public class RecordPathParser
             // reference PatchableRaces if necessary
             if (addPatchableRaceArg)
             {
-                evalParameters.Add(_raceResolver.PatchableRaces);
+                evalParameters.Add(_raceResolver.PatchableRaceFormKeys);
             }
 
             try
@@ -1111,7 +1111,7 @@ public class RecordPathParser
                     matchConditionStr = matchConditionStr.Replace("PatchableRaces", "_" + patchableRaceArgIndex);
                     addPatchableRaceArg = true;
                     var raceGetter = (IFormKeyGetter)evalParameters[evalParameters.Count - 1];
-                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey.ToLinkGetter<IRaceGetter>();
+                    evalParameters[evalParameters.Count - 1] = raceGetter.FormKey;
                 }
             }
             if (skipToNext) { continue; }
@@ -1119,7 +1119,7 @@ public class RecordPathParser
             // reference PatchableRaces if necessary
             if (addPatchableRaceArg)
             {
-                evalParameters.Add(_raceResolver.PatchableRaces);
+                evalParameters.Add(_raceResolver.PatchableRaceFormKeys);
             }
 
             try

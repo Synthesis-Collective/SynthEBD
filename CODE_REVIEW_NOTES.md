@@ -207,6 +207,29 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `new HashSet<string>(targetPaths, StringComparer.OrdinalIgnoreCase).SetEquals(specifier.Paths)` (sound, O(n),
   same result for clean path sets). No unit test (the inlined BCL `SetEquals` is trusted; the custom helper is
   gone). Suite 154 / 1 skipped / 0 failed (no regression).
+- **B14 — `PatchableRaceResolver` dual collections collapsed to one (fixed; was a real drift bug).** The
+  resolver held the patchable races as two hand-synced collections — `PatchableRaces`
+  (`HashSet<IFormLinkGetter<IRaceGetter>>`) and `PatchableRaceFormKeys` (`HashSet<FormKey>`).
+  `ResolvePatchableRaces` reset `PatchableRaces = new()` each call but only ever **added** to
+  `PatchableRaceFormKeys`, so on any 2nd+ call (it runs at [SaveLoader.cs:97](SynthEBD/SaveLoader.cs#L97) at
+  load *and* at the top of every [Patcher.cs:279](SynthEBD/Patcher/Patcher.cs#L279) `RunPatcher`) stale
+  FormKeys accumulated while the form-link set rebuilt fresh — the two drifted. Symptom: de-select a race in
+  General Settings, then run; `PatchableRaceFormKeys` (a stale superset) still gates asset/body/height/headpart
+  assignment ([Patcher.cs:1032…1213](SynthEBD/Patcher/Patcher.cs#L1032)) so the de-selected race keeps getting
+  patched, while `VanillaBodyPathSetter` (using the fresh form-link set) treats it as not-patchable — the two
+  halves of the pipeline disagree on the same NPC. **Per the user's call, collapsed to a single
+  `HashSet<FormKey>`** (the form-link representation was load-bearing nowhere): `ResolvePatchableRaces` now
+  assigns it wholesale (`CompilePatchableRaces(...).Select(r => r.FormKey).ToHashSet()`) so drift is impossible
+  by construction; `CompilePatchableRaces` modernized (seed the set from the explicit list, `UnionWith` the
+  groupings, drop the redundant `Contains`-before-`Add` guards). Consumers updated: `VanillaBodyPathSetter`
+  (line 63 → `.FormKey`; `InitializeDefaultMeshPaths` iterates FormKeys, compares `armaGetter.Race.FormKey`),
+  and the two `RecordPathParser` `PatchableRaces.Contains(...)` evaluator sites (convert the comparison object
+  to `.FormKey` instead of `.ToLinkGetter<IRaceGetter>()`, feed `PatchableRaceFormKeys`). `CompilePatchableRaces`
+  still returns `HashSet<IRaceGetter>` for `ApplyRacialSpell` (needs the records). *Test:* new
+  `RecordPathParserEvalTests` (3 cases) — made `EvalBoolExpression` public and pinned the exact expression the
+  collapsed site builds (`"_1.Contains(_0)"` over `[FormKey, HashSet<FormKey>]`): member present → true, absent
+  → false, negated → false. This proves DynamicExpresso still resolves `HashSet<FormKey>.Contains(FormKey)` and
+  that FormKey equality holds through the interpreter after the type change. Suite 157 / 1 skipped / 0 failed.
 
 ---
 
@@ -444,7 +467,7 @@ both the perf and the correctness edge.
   divisor `stdDev`, but it's only the standard deviation when the input was already mean-centered —
   the name bakes in an unstated precondition. 💭
 
-### `PatchableRaceResolver` — 🐞 possible bug + 🔧 modernize
+### ✅ `PatchableRaceResolver` — 🐞 RESOLVED (collapsed to a single HashSet<FormKey>; drift impossible by construction) — see Resolved §B14
 
 [PatchableRaceResolver.cs:28](SynthEBD/General_Aux/PatchableRaceResolver.cs#L28) ·
 `ResolvePatchableRaces` resets `PatchableRaces = new()` but never clears `PatchableRaceFormKeys`

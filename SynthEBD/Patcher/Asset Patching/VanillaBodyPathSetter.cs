@@ -60,7 +60,7 @@ public class VanillaBodyPathSetter
             _statusBar.ProgressBarCurrent++;
             var npc = npcArray[i];
 
-            if (!_raceResolver.PatchableRaces.Contains(npc.Race))
+            if (!_raceResolver.PatchableRaceFormKeys.Contains(npc.Race.FormKey))
             {
                 continue;
             }
@@ -528,31 +528,31 @@ public class VanillaBodyPathSetter
     /// </summary>
     private void InitializeDefaultMeshPaths()
     {
-        foreach (var race in _raceResolver.PatchableRaces)
+        foreach (var raceFK in _raceResolver.PatchableRaceFormKeys)
         {
-            PathsByRaceGender.Add(race.FormKey, new Dictionary<Gender, Dictionary<BipedObjectFlag, string>>());
-            PathsByRaceGender[race.FormKey].Add(Gender.Male, new Dictionary<BipedObjectFlag, string>());
-            PathsByRaceGender[race.FormKey].Add(Gender.Female, new Dictionary<BipedObjectFlag, string>());
-            
-            if (_environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(race.FormKey, out var raceGetter) && raceGetter.Skin != null && !raceGetter.Skin.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var skinGetter) && skinGetter.Armature != null)
+            PathsByRaceGender.Add(raceFK, new Dictionary<Gender, Dictionary<BipedObjectFlag, string>>());
+            PathsByRaceGender[raceFK].Add(Gender.Male, new Dictionary<BipedObjectFlag, string>());
+            PathsByRaceGender[raceFK].Add(Gender.Female, new Dictionary<BipedObjectFlag, string>());
+
+            if (_environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter) && raceGetter.Skin != null && !raceGetter.Skin.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var skinGetter) && skinGetter.Armature != null)
             {
                 foreach (var armaLink in skinGetter.Armature)
                 {
-                    if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter) 
-                        && armaGetter.BodyTemplate != null 
-                        && (armaGetter.Race != null && armaGetter.Race.Equals(race) || armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(raceGetter)))
+                    if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter)
+                        && armaGetter.BodyTemplate != null
+                        && (armaGetter.Race != null && armaGetter.Race.FormKey.Equals(raceFK) || armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(raceGetter)))
                     {
                         foreach (var bodyFlag in BodyFlags)
                         {
                             if (armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(bodyFlag))
                             {
-                                if (!PathsByRaceGender[race.FormKey][Gender.Male].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Male != null && armaGetter.WorldModel.Male.File != null)
+                                if (!PathsByRaceGender[raceFK][Gender.Male].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Male != null && armaGetter.WorldModel.Male.File != null)
                                 {
-                                    PathsByRaceGender[race.FormKey][Gender.Male].Add(bodyFlag, armaGetter.WorldModel.Male.File);
+                                    PathsByRaceGender[raceFK][Gender.Male].Add(bodyFlag, armaGetter.WorldModel.Male.File);
                                 }
-                                if (!PathsByRaceGender[race.FormKey][Gender.Female].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Female != null && armaGetter.WorldModel.Female.File != null)
+                                if (!PathsByRaceGender[raceFK][Gender.Female].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Female != null && armaGetter.WorldModel.Female.File != null)
                                 {
-                                    PathsByRaceGender[race.FormKey][Gender.Female].Add(bodyFlag, armaGetter.WorldModel.Female.File);
+                                    PathsByRaceGender[raceFK][Gender.Female].Add(bodyFlag, armaGetter.WorldModel.Female.File);
                                 }
                             }
                         }
