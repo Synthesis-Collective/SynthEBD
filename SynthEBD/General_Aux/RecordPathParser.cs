@@ -440,7 +440,7 @@ public class RecordPathParser
         //if array index is numeric
         if (int.TryParse(arrIndex, out int iIndex))
         {
-            if (iIndex < 0 || iIndex < collectionObj.Count())
+            if (iIndex >= 0 && iIndex < collectionObj.Count())
             {
                 outputObj = collectionObj.ElementAt(iIndex);
                 indexInParent = iIndex;
@@ -494,7 +494,7 @@ public class RecordPathParser
         //if array index is numeric
         if (int.TryParse(arrIndex, out int iIndex))
         {
-            if (iIndex < 0 || iIndex < collectionObj.Count())
+            if (iIndex >= 0 && iIndex < collectionObj.Count())
             {
                 outputObjectCollection.Add(collectionObj.ElementAt(iIndex));
                 return true;

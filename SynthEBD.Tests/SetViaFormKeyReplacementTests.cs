@@ -22,6 +22,30 @@ public class SetViaFormKeyReplacementTests
         return new RecordGenerator(env, null!, null!, null!, null!, null!, pathParser, null!, null!, null!, null!, null!, null!);
     }
 
+    private static RecordPathParser BuildPathParser(SkyrimMod mod)
+    {
+        return new RecordPathParser(new TestEnvironmentStateProvider(mod.ToImmutableLinkCache()), null!, null!);
+    }
+
+    // B11: a numeric array index in a record path must be bounds-checked. A negative or out-of-range index
+    // should fail gracefully (return false), not throw ArgumentOutOfRangeException. Pre-fix the guard
+    // `iIndex < 0 || iIndex < Count` let a negative index fall into the ElementAt(iIndex) arm and throw.
+    [Fact]
+    public void NumericArrayIndex_OutOfRange_FailsGracefully()
+    {
+        var mod = new SkyrimMod(ModKey.Null, SkyrimRelease.SkyrimSE);
+        var arm = mod.Armors.AddNew();
+        arm.Armature.Add(mod.ArmorAddons.AddNew()); // single element -> the only valid index is [0]
+        var parser = BuildPathParser(mod);
+        var lk = mod.ToImmutableLinkCache();
+        var cache = new Dictionary<string, dynamic>();
+
+        // suppressMissingPathErrors = true so the (null) logger is never touched on the graceful-failure path.
+        parser.GetObjectAtPath(arm, arm, "Armature[-1]", cache, lk, true, "test", out dynamic neg).Should().BeFalse();
+        parser.GetObjectAtPath(arm, arm, "Armature[5]", cache, lk, true, "test", out dynamic oob).Should().BeFalse();
+        parser.GetObjectAtPath(arm, arm, "Armature[0]", cache, lk, true, "test", out dynamic valid).Should().BeTrue();
+    }
+
     [Fact]
     public void ArrayDynamic()
     {

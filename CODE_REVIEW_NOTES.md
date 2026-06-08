@@ -179,6 +179,14 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   the notes' suggested bracket `!SkyPatcher && (Count==2 || Count==1)` would have *suppressed* the warning for
   every no-override NPC in SkyPatcher mode. Left the logic unchanged and documented it in-code so it isn't
   re-flagged. No behavior change.
+- **B11 — `RecordPathParser` numeric array-index bounds guard ×2 (fixed).** In `GetArrayObjectAtIndex` and
+  `GetArrayObjectCollectionAtIndex`, the guard `iIndex < 0 || iIndex < collectionObj.Count()` gates the
+  `ElementAt(iIndex)` fetch arm (vs the graceful "no element at this index" else arm). A **negative** index
+  made `iIndex < 0` true → fell into the fetch arm → `ElementAt(negative)` threw an unhandled
+  `ArgumentOutOfRangeException` (a record path like `Armature[-1]` aborts the run/UI op instead of logging and
+  returning false). Changed both to `iIndex >= 0 && iIndex < collectionObj.Count()`. *Test:* added
+  `NumericArrayIndex_OutOfRange_FailsGracefully` to `SetViaFormKeyReplacementTests` — `[-1]` and `[5]`
+  (out-of-range) return false without throwing, `[0]` still resolves. Suite 154 / 1 skipped / 0 failed.
 
 ---
 
@@ -505,7 +513,7 @@ and the drift risk.
 duplicate entries already in the master map, so the maps can silently drift. A single source-of-truth
 table tagged by body-part/sex/variant would be more maintainable. Low priority (data, not logic).
 
-### `RecordPathParser` array-index bounds guard — 🐞 possible bug (×2)
+### ✅ `RecordPathParser` array-index bounds guard — 🐞 RESOLVED (×2) — see Resolved §B11
 
 [RecordPathParser.cs:352](SynthEBD/General_Aux/RecordPathParser.cs#L352) and
 [:397](SynthEBD/General_Aux/RecordPathParser.cs#L397) · Both numeric-index branches guard with
