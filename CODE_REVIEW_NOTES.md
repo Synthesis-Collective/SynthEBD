@@ -367,6 +367,33 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   independence; Misc copies mood/aggression/gender (non-default members chosen reflectively); and the
   `CloneAsNew(NPCAttribute)` dispatcher preserves a negated sub-attribute. Suite 176 / 1 skipped / 0 failed.
   (The broader generic-base dedup for the `NPCAttribute*` family remains a separate 🔧 R-item.)
+- **B23 — `NPCAttribute` equality order-dependent + family `Equals`/`GetHashCode` inconsistency (fixed; + comparer removal).**
+  `NPCAttribute.Equals` compared the `SubAttributes` `HashSet` **positionally** (`ToArray()` then index-by-index),
+  so two equal attributes whose sub-attributes enumerated in different orders compared unequal — making
+  attribute dedup/containment in `AllowedAttributes`/`DisallowedAttributes` sets unreliable. Deeper: each typed
+  `Equals` ignored fields its `GetHashCode` *included*, so the two disagreed. Tracing every ignored field through
+  `AttributeMatcher` split them: **`ForceMode`/`Weighting`** are distribution modifiers (applied after a match —
+  not match criteria), so ignoring them in `Equals` was defensible; but **`Comparator`** (Custom — `==` vs `!=`
+  match opposite NPCs), **`ModActionType`** (Mod — CreatedBy vs PatchedBy), and **`EvalGender`/`NPCGender`** (Misc)
+  *are* match criteria, so `Equals` wrongly reporting them equal was a latent bug (masked only because the
+  over-inclusive hash kept genuinely-different attributes in different `HashSet` buckets). Per the user's call,
+  did the **all-fields audit**: each typed `Equals` now compares exactly what its hash includes (the safe
+  direction — bringing `Equals` *up* to the hash, not stripping the hash down to the buggy `Equals`, which would
+  have activated the bug and risked dedup data loss). Added `object.Equals(object)` overrides to all 11 typed
+  classes (so the family has consistent value equality and `HashSet<ITypedNPCAttribute>` dedups by value), and
+  reimplemented `NPCAttribute.Equals` via `SubAttributes.SetEquals`. Folded in the **deletion of
+  `FormKeyHashSetComparer`/`ModKeyHashSetComparer`** (user goal): `Equals`→`SetEquals`, the duplicated
+  `ComparableSetHashCode`→one generic `NPCAttribute.OrderIndependentHash<T>` (value-identical), and the 12
+  `Contains` callers→BCL `HashSet.Contains`. *Test:* new `NPCAttributeEqualityTests` (7 cases) — the
+  `{Race[Nord,Orc],Keyword[Vampire]}` example equal across outer+inner reordering with equal hash; sub-attribute
+  inequality; Comparator/ModActionType/gender now distinguished; `HashSet` value-dedup via `object.Equals`;
+  different-type inequality. Split across commits: B23 audit, then comparer removal. Suite 184 / 1 skipped / 0 failed.
+- **B24 — `NPCAttributeCustom.GetHashCode` NRE on null `Comparator` (fixed).** `Comparator` has no initializer
+  (defaults null, unlike the other `= ""` string fields), but `GetHashCode` called `Comparator.GetHashCode()`
+  unguarded — so hashing a freshly-constructed Custom attribute (new in the UI before a comparator is picked, or
+  deserialized from older JSON) threw an NRE when added to a `HashSet`/`Dictionary`. Changed to
+  `(Comparator?.GetHashCode() ?? 0)`. *Test:* new `NPCAttributeCustomTests` — `GetHashCode` on a default Custom
+  attribute does not throw. Suite 184 / 1 skipped / 0 failed.
 
 ---
 
@@ -446,28 +473,12 @@ passed instance (it's "default" only if the caller hands in a default-constructe
 Also returns `dynamic` (a heavier `object` would usually do) and reflects on every call with no
 caching. Worth renaming (e.g. `GetPropertyValue`) and reconsidering the `dynamic` return.
 
-### `FormKeyHashSetComparer.Equals` / `ModKeyHashSetComparer.Equals` — 🔧 modernize
+### ✅ `FormKeyHashSetComparer` / `ModKeyHashSetComparer` (whole file) — 🔧🐞 RESOLVED (deleted; callers use BCL) — see Resolved §B23
 
-[FormKeyHashSetComparer.cs:7](SynthEBD/General_Aux/FormKeyHashSetComparer.cs#L7) · Hand-rolled
-O(n²) nested-loop set equality. `HashSet<T>.SetEquals` is built-in, O(n), and clearer. The two
-classes are otherwise identical — a single generic `KeyHashSetComparer<T>` (or just calling
-`SetEquals` at the call sites) would remove the duplication entirely.
-
-### `FormKeyHashSetComparer.Contains` / `ModKeyHashSetComparer.Contains` — 🐞 footgun / 🔧 modernize
-
-[FormKeyHashSetComparer.cs:27](SynthEBD/General_Aux/FormKeyHashSetComparer.cs#L27) · The body
-calls `Equals(formkey, toMatch)` with two `FormKey`s, but the only `Equals` defined here takes
-`(HashSet<FormKey>, HashSet<FormKey>)`. So this silently binds to `object.Equals(object, object)`,
-not the intended method. It happens to be correct (FormKey is a value-equal struct), which makes it
-the most correct *and* the most confusing line in the file. The whole method is equivalent to
-`collection.Contains(toMatch)`. Recommend deleting it in favor of `HashSet<T>.Contains`.
-
-### `ComparableSetHashCode` (both comparers) — 🔧 modernize
-
-[FormKeyHashSetComparer.cs:39](SynthEBD/General_Aux/FormKeyHashSetComparer.cs#L39) · XOR is
-commutative, so the `OrderBy(x => x.ToString())` does no work toward order-independence (and the
-`ToString()` sort is the expensive part). The `first`-flag special case is also unnecessary since
-`0 ^ x == x`. Reduces to `e.Aggregate(0, (h, k) => h ^ k.GetHashCode())`.
+Both classes were deleted entirely. `Equals(a,b)` → `a.SetEquals(b)` (in the typed `NPCAttribute` `Equals`);
+`Contains(coll,key)` → `coll.Contains(key)` (12 callers in AttributeMatcher/BodyGenSelector/Patcher); and
+`ComparableSetHashCode` → the single generic `NPCAttribute.OrderIndependentHash<T>` (value-identical XOR-fold).
+Covered the original three modernize/footgun items (`Equals`, `Contains`, `ComparableSetHashCode`) in one removal.
 
 ### `ExceptionLogger.GetExceptionStack` — 🔧 modernize (minor)
 
@@ -866,7 +877,7 @@ fields**: every type omits `Not`, and `NPCAttributeMisc.CloneAsNew`
 ([:789](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L789)) omits `Mood`, `Aggression`, `EvalGender`,
 and `NPCGender`. If these are used for UI "duplicate" actions, the duplicate silently diverges.
 
-### `NPCAttribute.Equals(NPCAttribute)` — 🐞 possible bug (order-dependent set compare)
+### ✅ `NPCAttribute.Equals(NPCAttribute)` — 🐞 RESOLVED (SetEquals + family equality audit + object.Equals overrides) — see Resolved §B23
 
 [NPCAttribute.cs:28](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L28) · Compares `SubAttributes` by
 `ToArray()` then index-by-index, but `SubAttributes` is an unordered `HashSet`. Two attributes with the
@@ -874,7 +885,7 @@ same sub-attributes enumerated in different order would compare unequal (and, pa
 `GetHashCode`, could land in a set inconsistently). Use `SetEquals`, or order both sides the same way
 the hash does.
 
-### `NPCAttributeCustom.GetHashCode` — 🐞 possible NRE
+### ✅ `NPCAttributeCustom.GetHashCode` — 🐞 RESOLVED (null-safe Comparator) — see Resolved §B24
 
 [NPCAttribute.cs:333](SynthEBD/Classes_Aux/Models/NPCAttribute.cs#L333) · Calls
 `Comparator.GetHashCode()`, but `Comparator` has no default and can be null (unlike the other string
