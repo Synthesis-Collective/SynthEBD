@@ -420,6 +420,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `CopyInFromModels(false)` already set. Per the user's call, deleted all 9 redundant loops across 8 files. No
   behavior change (verified: `DisplayForceIfOption` ends up `false` for disallowed attributes regardless, in both
   load and create paths). No test (dead-code deletion). Suite 185 / 1 skipped / 0 failed.
+- **B27 — `VM_BodySlidePlaceHolder.RenameByIndex` `TrimEnd(charSet)` under-stripped zero-padded suffixes (fixed; catalogue example corrected).**
+  The catalogue's `"Body22"→"Body"` example was inaccurate — it doesn't reproduce, because `GetTrailingInt`
+  collects the *maximal* trailing digit run, so `TrimEnd` always stops at the non-digit base (`"Body22"` →
+  `"Body23"` correctly). The actual defect: `Label.TrimEnd(selectedCloneIndex.ToString().ToArray())` builds the
+  char set from the *parsed int*, which has dropped leading zeros, so a zero-padded suffix is under-stripped —
+  `"Body007"` → set `{'7'}` → `TrimEnd` leaves `"Body00"` → renames to `"Body008"` instead of `"Body8"` (UI repro:
+  clone a BodySlide preset whose name ends in a zero-padded number). Fixed by extracting a pure
+  `public static string ReplaceTrailingNumber(string label, int newIndex)` that strips the exact trailing digit
+  run by length (matching `GetTrailingInt`'s `char.IsNumber` definition) and appends the new index, also unifying
+  the prior if/else (no trailing digits → append). *Test:* new `BodySlidePlaceHolderTests` (5 cases) —
+  `"Body007"+8→"Body8"` (the fix), `"CBBE Outfit 007"+2→"CBBE Outfit 2"`, `"Body22"+23→"Body23"` (normal suffix
+  regression-guard), `"Body"+2→"Body2"` (append), `"Body2"+3→"Body3"`. Suite 190 / 1 skipped / 0 failed.
 
 ---
 
@@ -1230,13 +1242,15 @@ error during cleanup would be indistinguishable from "no token file". 💭
   duplicate `GroupName` is processed twice (last wins); the `.Where(x => x.GroupName == ...).FirstOrDefault()`
   could be `.FirstOrDefault(pred)`.
 
-### `VM_BodySlidePlaceHolder.RenameByIndex` — 🐞 possible bug (TrimEnd by char-set)
+### ✅ `VM_BodySlidePlaceHolder.RenameByIndex` — 🐞 RESOLVED (strip exact digit run; note the catalogue example was inaccurate) — see Resolved §B27
 
 [VM_BodySlidePlaceHolder.cs:142](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodySlidePlaceHolder.cs#L142) ·
-`Label.TrimEnd(selectedCloneIndex.ToString().ToArray())` is intended to strip the old index *suffix* before
-appending the new one, but `string.TrimEnd(char[])` removes every trailing character in the set, not a
-suffix. So renaming clone "Body22" with index 2 trims both trailing '2's → "Body", and any label whose real
-text ends in a digit that overlaps the index gets corrupted. Should strip the exact suffix instead.
+**Correction:** the original `"Body22"→"Body"` example does *not* reproduce — `GetTrailingInt` collects the
+*maximal* trailing digit run, so the char before it is always a non-digit and `TrimEnd` stops at the base
+(`"Body22"` correctly becomes `"Body23"`). The real defect is the opposite direction: the char set comes from
+the *parsed int* (`selectedCloneIndex.ToString()`), which has dropped leading zeros, so a zero-padded suffix is
+*under*-stripped — `"Body007"` → set `{'7'}` → `TrimEnd` leaves `"Body00"` → `"Body008"`. Fixed by stripping the
+exact trailing digit run by length.
 
 ### `VM_OBodyTrainerExporter` items — 🐞 / 💭
 

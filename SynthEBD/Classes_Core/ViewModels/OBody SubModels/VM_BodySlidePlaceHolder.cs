@@ -137,14 +137,7 @@ namespace SynthEBD
                 cloneIndex++;
             }
 
-            if (GetTrailingInt(Label, out int selectedCloneIndex))
-            {
-                Label = Label.TrimEnd(selectedCloneIndex.ToString().ToArray()) + cloneIndex.ToString();
-            }
-            else
-            {
-                Label += cloneIndex;
-            }
+            Label = ReplaceTrailingNumber(Label, cloneIndex);
 
             AssociatedModel.Label = Label;
             if (AssociatedViewModel != null)
@@ -152,6 +145,20 @@ namespace SynthEBD
                 AssociatedViewModel.Label = Label;
             }
             return lastClonePosition;
+        }
+
+        /// <summary>Replaces the trailing run of digits on <paramref name="label"/> with <paramref name="newIndex"/> (appends when there is no trailing number). Strips the exact digit run by length, so zero-padded suffixes (e.g. "Body007") are fully replaced rather than leaving stray leading zeros.</summary>
+        /// <param name="label">The label whose trailing number is being replaced.</param>
+        /// <param name="newIndex">The replacement index to append.</param>
+        /// <returns>The label with its trailing number replaced by <paramref name="newIndex"/>.</returns>
+        public static string ReplaceTrailingNumber(string label, int newIndex)
+        {
+            int digitStart = label.Length;
+            while (digitStart > 0 && char.IsNumber(label[digitStart - 1]))
+            {
+                digitStart--;
+            }
+            return label.Substring(0, digitStart) + newIndex.ToString();
         }
 
         /// <summary>Parses the trailing run of digits at the end of <paramref name="input"/> into <paramref name="number"/>; returns false if there is no trailing integer.</summary>
