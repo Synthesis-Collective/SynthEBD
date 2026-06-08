@@ -198,6 +198,15 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   only when the leading `(` closes at the final char (quote-aware, matching `TrimParens`). Fix-only (a real
   test means a heavy public-API condition path; the method is private inside a private nested class).
   Suite 154 / 1 skipped / 0 failed.
+- **B13 — `MiscFunctions.StringHashSetsEqualCaseInvariant` deleted; caller inlined a sound comparison.** The
+  helper mixed a case-sensitive count check with case-insensitive (LINQ, O(n²)) membership, so case-variant
+  duplicate entries could compare equal to a differently-populated set. The sole caller — `SelectRecordType`
+  ([AssetReplacerSelector.cs:119](SynthEBD/Patcher/Asset%20Patching/AssetReplacerSelector.cs#L119)), matching a
+  replacer's target file-path set against the hardcoded `ReplacersByPaths` specifiers — legitimately wants
+  case-insensitive matching (Windows paths). Per request, removed the helper and inlined
+  `new HashSet<string>(targetPaths, StringComparer.OrdinalIgnoreCase).SetEquals(specifier.Paths)` (sound, O(n),
+  same result for clean path sets). No unit test (the inlined BCL `SetEquals` is trusted; the custom helper is
+  gone). Suite 154 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -415,7 +424,7 @@ takes the 7-Zip arguments. Also, this low-level helper pops `MessageWindow.Displ
 dialogs directly; returning a result/error to the caller and letting the UI layer decide would
 decouple it.
 
-### `MiscFunctions.StringHashSetsEqualCaseInvariant` — 🐞 edge case + 🔧 modernize
+### ✅ `MiscFunctions.StringHashSetsEqualCaseInvariant` — 🐞 RESOLVED (deleted; caller inlined OrdinalIgnoreCase SetEquals) — see Resolved §B13
 
 [MiscFunctions.cs:10](SynthEBD/General_Aux/MiscFunctions.cs#L10) · `b.Contains(s, StringComparer.OrdinalIgnoreCase)`
 is the LINQ overload — O(n) per call, so O(n²) overall. More importantly, comparing case-sensitive

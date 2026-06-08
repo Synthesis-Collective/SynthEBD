@@ -8,24 +8,6 @@ namespace SynthEBD;
 /// <summary>Assorted stateless string, path, hashing, and matrix-preprocessing helpers.</summary>
 public class MiscFunctions
 {
-    /// <summary>Determines whether two string sets contain the same values, ignoring case.</summary>
-    /// <param name="a">First set.</param>
-    /// <param name="b">Second set.</param>
-    /// <returns><c>true</c> if the sets have equal counts and every member of <paramref name="a"/> is present in <paramref name="b"/> case-insensitively.</returns>
-    /// <remarks>Because the inputs are case-sensitive <see cref="HashSet{T}"/>s, sets containing case-variant duplicates (e.g. "X" and "x") can compare equal to a differently-populated set; see review notes.</remarks>
-    public static bool StringHashSetsEqualCaseInvariant(HashSet<string> a, HashSet<string> b)
-    {
-        if (a.Count != b.Count) return false;
-        foreach (var s in a)
-        {
-            if (!b.Contains(s, StringComparer.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     //https://stackoverflow.com/a/14826068
     /// <summary>Replaces the last occurrence of a substring within a string.</summary>
     /// <param name="Source">The string to search.</param>

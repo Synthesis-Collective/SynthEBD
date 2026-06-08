@@ -116,7 +116,7 @@ namespace SynthEBD
             fkToMatch = new FormKey();
             foreach (var specifier in AssetReplacerHardcodedPaths.ReplacersByPaths)
             {
-                if (MiscFunctions.StringHashSetsEqualCaseInvariant(targetPaths, specifier.Paths))
+                if (new HashSet<string>(targetPaths, StringComparer.OrdinalIgnoreCase).SetEquals(specifier.Paths))
                 {
                     if (specifier.DestSpecifier == SubgroupCombination.DestinationSpecifier.HeadPartFormKey)
                     {
