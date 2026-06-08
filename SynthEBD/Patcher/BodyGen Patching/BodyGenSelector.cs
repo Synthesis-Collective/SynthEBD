@@ -590,7 +590,7 @@ public class BodyGenSelector
         {
             bool candidateMatched = false;
             // first try to get grouping by Race
-            if (FormKeyHashSetComparer.Contains(candidate.Races, npcInfo.BodyShapeRace))
+            if (candidate.Races.Contains(npcInfo.BodyShapeRace))
             {
                 foreach (var stringCombination in candidate.Combinations)
                 {
@@ -609,7 +609,7 @@ public class BodyGenSelector
             {
                 var collection = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == raceGrouping).FirstOrDefault();
                 if (collection == null) { continue; }
-                if (FormKeyHashSetComparer.Contains(collection.Races, npcInfo.BodyShapeRace))
+                if (collection.Races.Contains(npcInfo.BodyShapeRace))
                 {
                     foreach (var stringCombination in candidate.Combinations)
                     {

@@ -1249,7 +1249,7 @@ public class Patcher
         foreach (var assetPack in assetPacks)
         {
             var exclusions = assetPack.AdditionalRecordTemplateAssignments.SelectMany(x => x.Races).ToHashSet(); // don't include races that get their own record template in the default template's patching
-            var racesToAdd = _patcherState.GeneralSettings.PatchableRaces.Where(x => !FormKeyHashSetComparer.Contains(exclusions, x)).ToHashSet();
+            var racesToAdd = _patcherState.GeneralSettings.PatchableRaces.Where(x => !exclusions.Contains(x)).ToHashSet();
             SetRecordTemplateAdditionalRaces(assetPack.DefaultRecordTemplateAdditionalRacesPaths, assetPack.DefaultRecordTemplate, racesToAdd, patchedTemplates, recordTemplateLinkCache, recordTemplatePlugins);
 
             foreach (var additionalTemplateEntry in assetPack.AdditionalRecordTemplateAssignments)
