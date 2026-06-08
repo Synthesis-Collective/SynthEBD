@@ -17,7 +17,7 @@ public class NPCAssignment
     /// <summary>Forced asset pack name (empty = none).</summary>
     public string AssetPackName { get; set; } = "";
     /// <summary>Forced subgroup IDs within the asset pack; order matters.</summary>
-    public List<string> SubgroupIDs { get; set; } = null; // order matters
+    public List<string> SubgroupIDs { get; set; } = new(); // order matters
     /// <summary>Forced height multiplier (null = not forced).</summary>
     public float? Height { get; set; } = null;
     /// <summary>Forced BodyGen morph names; order matters.</summary>
@@ -89,7 +89,7 @@ public class zEBDSpecificNPCAssignment
     /// <param name="converters">Helper for converting zEBD plugin/formID signatures to FormKeys.</param>
     /// <param name="environmentProvider">Supplies the load order used for FormKey resolution.</param>
     /// <returns>The converted SynthEBD assignments.</returns>
-    /// <remarks><see cref="NPCAssignment.SubgroupIDs"/> defaults to null, so the forced-subgroup copy loop dereferences null when a legacy entry has forced subgroups — see review notes.</remarks>
+    /// <remarks>Copies each forced subgroup id into the new assignment's <see cref="NPCAssignment.SubgroupIDs"/> (a fresh list) and deep-copies the BodyGen morph names so the converted assignment shares no references with the imported zEBD DTO.</remarks>
     public static HashSet<NPCAssignment> ToSynthEBDNPCAssignments(HashSet<zEBDSpecificNPCAssignment> inputSet, Logger logger, Converters converters, IEnvironmentStateProvider environmentProvider)
     {
         var outputSet = new HashSet<NPCAssignment>();
@@ -113,7 +113,7 @@ public class zEBDSpecificNPCAssignment
                 logger.LogError("Error in zEBD Specific NPC Assignment: Cannot interpret height" + z.forcedHeight);
             }
 
-            s.BodyGenMorphNames = z.forcedBodyGenMorphs;
+            s.BodyGenMorphNames = z.forcedBodyGenMorphs != null ? new List<string>(z.forcedBodyGenMorphs) : null;
             outputSet.Add(s);
         }
         return outputSet;

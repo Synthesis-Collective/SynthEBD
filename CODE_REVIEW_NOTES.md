@@ -394,6 +394,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   deserialized from older JSON) threw an NRE when added to a `HashSet`/`Dictionary`. Changed to
   `(Comparator?.GetHashCode() ?? 0)`. *Test:* new `NPCAttributeCustomTests` — `GetHashCode` on a default Custom
   attribute does not throw. Suite 184 / 1 skipped / 0 failed.
+- **B25 — `NPCAssignment.SubgroupIDs` defaulted null → NRE importing zEBD assignments with forced subgroups (fixed).**
+  `SubgroupIDs` defaulted to `null` (unlike the sibling `AssetReplacerAssignment`/`MixInAssignment` lists, which
+  default `new()`), but `ToSynthEBDNPCAssignments` does `new NPCAssignment()` then `s.SubgroupIDs.Add(zFS.id)` for
+  every forced subgroup — so importing any legacy zEBD specific-NPC assignment that forced subgroups threw a
+  `NullReferenceException` and aborted the import. The same null default was a latent NRE at
+  [AssetSelector.cs:927](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L927), which dereferences
+  `SubgroupIDs.Contains(...)` unguarded — confirming the intended invariant is a non-null list (no code uses
+  `null` as a sentinel). Changed the default to `new()`, fixing both the converter and the latent deref. Also
+  deep-copied `BodyGenMorphNames` in the converter (was a by-reference assignment of the transient zEBD DTO's
+  list). *Test:* new `NPCAssignmentTests` — `new NPCAssignment().SubgroupIDs` is non-null and `.Add(...)` doesn't
+  throw (the full converter needs a live `Converters`/env; the POCO invariant is where the bug lived). Suite 185 /
+  1 skipped / 0 failed.
 
 ---
 
@@ -1065,7 +1077,7 @@ zEBD-format backwards-compatibility loaders. Reviewed before the Core view model
 BodySlide/ML/measurement models (BodySlideGroupClassifier, MeasurementCacheStore, RegionVolumeEvaluator,
 RuleSynthesizers, …) were already thoroughly documented; this pass covered the older undocumented ones.*
 
-### `NPCAssignment` / `zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments` — 🐞 possible bug (null deref)
+### ✅ `NPCAssignment` / `zEBDSpecificNPCAssignment.ToSynthEBDNPCAssignments` — 🐞 RESOLVED (SubgroupIDs defaults to a list; BodyGen morphs deep-copied) — see Resolved §B25
 
 [NPCAssignment.cs:11](SynthEBD/Classes_Core/Models/NPCAssignment.cs#L11),
 [:78](SynthEBD/Classes_Core/Models/NPCAssignment.cs#L78) · `NPCAssignment.SubgroupIDs` is initialized to
