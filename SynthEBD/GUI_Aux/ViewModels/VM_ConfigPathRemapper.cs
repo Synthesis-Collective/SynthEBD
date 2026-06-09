@@ -599,11 +599,11 @@ public class VM_ConfigPathRemapper : VM
         return false;
     }
 
-    /// <summary>Returns how many directory-name segments the two paths' parent folders have in common (case-insensitive).</summary>
-    private int GetMatchingDirCount(string path1, string path2)
+    /// <summary>Returns how many directory-name segments the two paths' parent folders have in common (case-insensitive). Each path falls back to itself when it has no parent directory (root/null).</summary>
+    public static int GetMatchingDirCount(string path1, string path2)
     {
         var split1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path1) ?? path1).Split(Path.DirectorySeparatorChar) };
-        var split2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path2) ?? path1).Split(Path.DirectorySeparatorChar) };
+        var split2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (Path.GetDirectoryName(path2) ?? path2).Split(Path.DirectorySeparatorChar) };
 
         return split1.Intersect(split2).Count();
     }

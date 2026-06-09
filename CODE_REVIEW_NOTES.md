@@ -489,6 +489,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `IsSelected` raises `PropertyChanged` (the event did not exist before the fix); null-subgroup construction is safe and
   yields `IsSelected == false` (the corrected guard). Both run headless with a null subgroup (no `VM_SubgroupPlaceHolder`
   graph; the guard returns first). Suite 192 / 1 skipped / 0 failed.
+- **B32 — `VM_ConfigPathRemapper.GetMatchingDirCount` split2 null-fallback used `path1` (fixed; latent).**
+  The path-similarity tiebreak counts directory-name segments shared by two paths' parent folders. `split2` was built
+  from `(Path.GetDirectoryName(path2) ?? path1)` — the null fallback referenced **path1** (copy-paste from the `split1`
+  line), so when `path2` has no parent directory (a drive root / null, where `GetDirectoryName` returns null) `split2`
+  derived from path1 and the method compared path1 to itself, returning an inflated shared-segment count that skews the
+  remapper's best-match ranking ([:452](SynthEBD/GUI_Aux/ViewModels/VM_ConfigPathRemapper.cs#L452) /
+  [:531](SynthEBD/GUI_Aux/ViewModels/VM_ConfigPathRemapper.cs#L531) /
+  [:557](SynthEBD/GUI_Aux/ViewModels/VM_ConfigPathRemapper.cs#L557)). Latent in practice: the tool's `path2` is always a
+  relative texture path (`textures\...\foo.dds`) with a directory component, so the null fallback is never reached (a
+  bare filename yields `""`, not null) — a dormant copy-paste defect, not a live symptom. Fixed to `?? path2`; made the
+  method `public static` for testing (pure function of its two args; the 4 internal callers still resolve it, no
+  call-site change; class already `public`). *Test:* new `VM_ConfigPathRemapperTests` (4 cases) — a drive-root `path2`
+  shares 0 directories with a `Z:` path (the bug returned path1's full depth, 3); identical parent dirs -> 3; partial
+  overlap -> 1; disjoint trees -> 0. Suite 196 / 1 skipped / 0 failed.
 
 ---
 
@@ -1769,7 +1783,7 @@ notifications for a two-way checkbox binding (PropertyChanged.Fody only weaves I
   `VM_ConfigRemapperTextureComparer` calls an `async void InitializeImage` from its constructor (unobservable
   exceptions, load races binding) and has a dead `DrawFilledRectangle`. All 💭.
 
-### `VM_ConfigPathRemapper.GetMatchingDirCount` wrong null-fallback — 🐞 bug (minor)
+### ✅ `VM_ConfigPathRemapper.GetMatchingDirCount` wrong null-fallback — 🐞 bug (minor) RESOLVED (fixed; latent) — see Resolved §B32
 
 [VM_ConfigPathRemapper.cs:606](SynthEBD/GUI_Aux/ViewModels/VM_ConfigPathRemapper.cs#L606) · `split2` is built
 from `(Path.GetDirectoryName(path2) ?? path1)` — the null fallback uses **path1**, not path2 (copy-paste from
