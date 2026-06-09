@@ -18,6 +18,7 @@ public partial class UC_SpecificNPCAssignment : UserControl
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     /// <summary>On load, locates the parent <see cref="VM_SpecificNPCAssignmentsUI"/>, restores
@@ -41,12 +42,23 @@ public partial class UC_SpecificNPCAssignment : UserControl
             // Apply initial visibility
             ApplyPreviewVisibility(_parentVM.Show3DPreview);
 
-            // Subscribe to Show3DPreview changes
+            // Subscribe to Show3DPreview changes (idempotent in case Loaded is raised more than once)
+            _parentVM.PropertyChanged -= OnParentVMPropertyChanged;
             _parentVM.PropertyChanged += OnParentVMPropertyChanged;
         }
 
         // Listen for splitter drag to persist width
         PreviewerColumn.NotifyDragDelta(this, OnSplitterDragCompleted);
+    }
+
+    /// <summary>Detaches the parent-VM PropertyChanged listener when this control leaves the visual tree, so
+    /// the long-lived menu VM does not keep this control (and its 3D previewer) alive across navigation.</summary>
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_parentVM != null)
+        {
+            _parentVM.PropertyChanged -= OnParentVMPropertyChanged;
+        }
     }
 
     /// <summary>Re-applies preview-column visibility whenever the parent VM's Show3DPreview changes.</summary>

@@ -617,6 +617,18 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   (Height null); present-but-null overwrites with a fresh assignment (the corrupted-file fix). (The sibling HeightPatcher
   :128 per-NPC `Random` and :289 dead `WriteAssignmentDictionaryScriptMode` items under that heading remain open.) Suite
   208 / 1 skipped / 0 failed.
+- **B41 — assignment previewer code-behinds leaked a parent-VM `PropertyChanged` handler (fixed).**
+  `UC_SpecificNPCAssignment` and `UC_ConsistencyAssignment` subscribe `_parentVM.PropertyChanged +=
+  OnParentVMPropertyChanged` in `OnLoaded` (to react to the Show3DPreview toggle) but had no `Unloaded` unsubscribe.
+  `_parentVM` is the long-lived menu container VM (`VM_SpecificNPCAssignmentsUI` / `VM_ConsistencyUI`); the UC is
+  short-lived (created/destroyed as the navigation DataTemplate swaps). So (1) the long-lived VM's PropertyChanged
+  invocation list pinned each dead UC -- and the `VM_CharacterViewer` GL-backed previewer subtree under it -- preventing
+  GC; and (2) re-showing the view (or WPF re-raising Loaded) re-subscribed, so one Show3DPreview toggle fired the handler
+  once per accumulated stale UC. Fixed by adding `Unloaded += OnUnloaded` (which detaches the handler) to both ctors, and
+  making the `OnLoaded` subscribe idempotent (`-=` before `+=`) to survive repeated Loaded on one instance. (The
+  `NotifyDragDelta` self-handler re-add is harmless redundancy -- not a cross-object leak -- and was left as-is.) Fix-only
+  + manual-verify: WPF code-behind (Loaded/Unloaded, visual tree, GridSplitter) with no pure seam; a test needs an STA
+  visual-tree + navigation simulation (cf. B30). Suite 208 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1468,7 +1480,7 @@ meaningful class summary + ctor doc was added, replacing the auto-generated "Int
 The dozen-odd with real logic — numeric-input filters, the asset-pack subgroup-tree drag/drop, and the
 assignment previewers — were documented in full.*
 
-### Assignment previewer code-behinds leak a PropertyChanged handler — 🐞 possible bug
+### ✅ Assignment previewer code-behinds leak a PropertyChanged handler — 🐞 possible bug RESOLVED (Unloaded unsubscribe) — see Resolved §B41
 
 [UC_SpecificNPCAssignment.xaml.cs:45](SynthEBD/Classes_Core/Views/UC_SpecificNPCAssignment.xaml.cs#L45),
 [UC_ConsistencyAssignment.xaml.cs:41](SynthEBD/Classes_Core/Views/UC_ConsistencyAssignment.xaml.cs#L41) ·
