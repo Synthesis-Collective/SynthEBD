@@ -582,6 +582,21 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   the placeholder's `AssociatedModel` is already current (dumped at free-time) so the foreach still collects it. Fix-only
   + manual-verify: heavy UI VM (factories/logger/settings VMs/GL viewer), the defect is a null-guard on a chain of heavy
   VM props with no pure seam (cf. B28-B30). Suite 204 / 1 skipped / 0 failed (no regression).
+- **B39 — `FilePathDestinationMap` routed Argonian-female head specular to the body slot (fixed).**
+  `FileNameToDestMap` maps a vanilla texture filename to its destination record path. The entry
+  `{ Source_HeadSpecularArgonianFemale ("argonianfemalehead_s.dds"), Dest_TorsoFemaleSpecular }` sent a **head** specular
+  to `Dest_TorsoFemaleSpecular` = `WornArmor.Armature[...Body...].SkinTexture.Female.BacklightMaskOrSpecular` (the
+  body/worn-armor skin slot) instead of `Dest_HeadSpecular` = `HeadTexture.BacklightMaskOrSpecular`. The Argonian **male**
+  head specular ([:320](SynthEBD/General_Aux/FilePathDestinationMap.cs#L320)) and every other head specular map to the
+  head, and the Argonian-female *torso* specular already has its own correct entry
+  ([:385](SynthEBD/General_Aux/FilePathDestinationMap.cs#L385)) -- so this was a redundant head->torso copy-paste slip.
+  The map drives Config Drafter auto-assign, the path remapper, asset-pack destination auto-fill, and IntelliSense, so a
+  custom `argonianfemalehead_s.dds` for an Argonian female got its destination set to the body specular slot: the head
+  specular map was written onto her torso skin while her HeadTexture specular slot got nothing. Fixed line 381 ->
+  `Dest_HeadSpecular`; also made the class `public` (was `internal`) so the test can reach it. *Test:* new
+  `FilePathDestinationMapTests` -- a reflection invariant asserting every `public const Source_HeadSpecular*` present in
+  the map routes to `Dest_HeadSpecular` (catches this slip and guards all head-specular siblings). Suite 205 / 1 skipped /
+  0 failed.
 
 ---
 
@@ -866,7 +881,7 @@ then `.Any()`/`.First()` materializes the whole match set just to take the first
 (with a null check) is one pass and no allocation. Also `OpenReaders` is a `public` mutable field;
 exposing it as a read-only view would tighten encapsulation. 💭
 
-### `FilePathDestinationMap.FileNameToDestMap` — 🐞 possible bug (wrong destination)
+### ✅ `FilePathDestinationMap.FileNameToDestMap` — 🐞 possible bug (wrong destination) RESOLVED (head specular -> head slot) — see Resolved §B39
 
 [FilePathDestinationMap.cs:374](SynthEBD/General_Aux/FilePathDestinationMap.cs#L374) ·
 `{ Source_HeadSpecularArgonianFemale, Dest_TorsoFemaleSpecular }` maps a **head** specular source to a

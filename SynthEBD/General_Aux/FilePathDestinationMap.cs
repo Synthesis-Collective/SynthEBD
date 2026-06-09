@@ -13,7 +13,7 @@ namespace SynthEBD
     /// race), plus helpers for detecting TNG or "etc" body textures within a set of paths. The
     /// destination strings are a custom record-path DSL consumed by <see cref="RecordPathParser"/>.
     /// </summary>
-    internal static class FilePathDestinationMap
+    public static class FilePathDestinationMap
     {
         /// <summary>
         /// Destination Paths
@@ -378,7 +378,7 @@ namespace SynthEBD
             //female argonian
             { Source_HeadDiffuseArgonianFemale, Dest_HeadDiffuse },
             { Source_HeadNormalArgonianFemale, Dest_HeadNormal },
-            { Source_HeadSpecularArgonianFemale, Dest_TorsoFemaleSpecular },
+            { Source_HeadSpecularArgonianFemale, Dest_HeadSpecular },
             { Source_HeadDetailArgonianOldFemale, Dest_HeadDetail },
             { Source_TorsoDiffuseArgonianFemale, Dest_TorsoFemaleDiffuse },
             { Source_TorsoNormalArgonianFemale, Dest_TorsoFemaleNormal },
