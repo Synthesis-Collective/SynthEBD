@@ -124,17 +124,22 @@ public class FlattenedAssetPack
             output = new FlattenedAssetPack(source, AssetPackType.Primary, dictionaryMapper, patcherState);
         }
 
+        // B48: flatten subgroups/replacers against the pack's full effective race groupings (General union the config's
+        // local RaceGroupings, toggle-resolved) -- the SAME set the whole-config DistributionRules use -- so a subgroup or
+        // replacer rule referencing a grouping the user lacks in General still falls back to the config's local definition
+        // (matching the config-level path). Identical to GeneralSettings.RaceGroupings when the config has no local groupings.
+        var effectiveRaceGroupings = output.GetRaceGroupings();
         for (int i = 0; i < source.Subgroups.Count; i++)
         {
             var flattenedSubgroups = new List<FlattenedSubgroup>();
-            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, patcherState.GeneralSettings.RaceGroupings, output.GroupName, i,  source.Subgroups, output, dictionaryMapper, patcherState);
+            FlattenedSubgroup.FlattenSubgroups(source.Subgroups[i], null, flattenedSubgroups, effectiveRaceGroupings, output.GroupName, i,  source.Subgroups, output, dictionaryMapper, patcherState);
             output.Subgroups.Add(flattenedSubgroups);
         }
 
 
         for (int i = 0; i < source.ReplacerGroups.Count; i++)
         {
-            output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], patcherState.GeneralSettings.RaceGroupings, output, dictionaryMapper, patcherState));
+            output.AssetReplacerGroups.Add(FlattenedReplacerGroup.FlattenReplacerGroup(source.ReplacerGroups[i], effectiveRaceGroupings, output, dictionaryMapper, patcherState));
         }
 
         return output;

@@ -81,4 +81,38 @@ public class ConfigRulesAndInheritanceTests
             }
         });
     }
+
+    [Fact]
+    public async Task SubgroupRule_ResolvesAgainstConfigLocalRaceGrouping()
+    {
+        await _wpf.RunOnStaAsync(async () =>
+        {
+            var harness = PatcherTestHarness.TryCreate(out var skipReason);
+            if (harness is null) { _output.WriteLine("SKIPPED: " + skipReason); return; }
+
+            using (harness)
+            {
+                var nordMembers = harness.PatcherState.GeneralSettings.RaceGroupings.First(g => g.Label == "Nord").Races.ToHashSet();
+
+                // B48 (Option B): a config ships a LOCAL race grouping the user lacks in General (the share scenario --
+                // user A defined it, it was auto-imported into the config, user B does not have it), and a subgroup rule
+                // references it by label. Subgroup/replacer flattening now resolves grouping labels against the config's
+                // local RaceGroupings too (not only General), so the rule restricts to the local grouping's races instead
+                // of silently matching everything. (Pre-B48 the subgroup path used General only -> "B48LocalOnly"
+                // resolved to nothing -> no restriction -> assigned to all races.)
+                var pack = AssetScenario.BuildPack("Local Grouping", Gender.Female,
+                    new[] { new AssetScenario.Leaf { Id = "LOC.leaf", AllowedRaceGroupings = new() { "B48LocalOnly" } } });
+                pack.RaceGroupings.Add(new RaceGrouping { Label = "B48LocalOnly", Races = nordMembers.ToHashSet() });
+
+                harness.UseAssetScenario(new[] { pack });
+                await harness.RunAsync();
+
+                var loc = harness.NpcsAssignedSubgroup("LOC.leaf");
+                loc.Should().NotBeEmpty("the subgroup should assign to the config-local grouping's races");
+                loc.Should().OnlyContain(npc => nordMembers.Contains(npc.Race.FormKey),
+                    "a subgroup rule referencing a config-LOCAL grouping (absent from General) must restrict to that grouping's races, not match all");
+                _output.WriteLine($"Local-grouping subgroup assigned to {loc.Count} NPCs (all within the local grouping's races).");
+            }
+        });
+    }
 }

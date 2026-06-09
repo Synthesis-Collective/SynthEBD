@@ -755,7 +755,20 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   real, SE installed). **Surfaced (separate):** the subgroup/replacer flatten path
   ([:130](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L130)/[:137](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L137))
   still uses `GeneralSettings.RaceGroupings` only and does NOT fall back to the config's local groupings -- a parallel gap
-  (Option B), pending a decision. Suite 216 / 1 skipped / 0 failed.
+  (Option B), fixed as B48b. Suite 216 / 1 skipped / 0 failed.
+- **B48b — subgroup/replacer flattening now falls back to the config's local race groupings (Option B; fixed).**
+  Companion to B48: the subgroup and replacer flatten paths
+  ([FlattenedAssetPack.cs:130](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L130)/[:137](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L137))
+  resolved grouping labels against `GeneralSettings.RaceGroupings` **only**, never the config's local `RaceGroupings` -- so
+  the common share scenario broke at the subgroup level: a config shipping a local grouping the recipient lacks in General
+  (User A defined "CustomGroup", it was auto-imported into the config, User B doesn't have it) had its subgroup/replacer
+  rules referencing that grouping resolve to nothing and silently match every race. Routed both flatten loops through
+  `output.GetRaceGroupings()` (the full effective General-union-local set the whole-config rules already use, post-B48), so
+  subgroup/replacer rules fall back to the config's local definition exactly like config-level rules. Behavior-identical
+  when the config has no local groupings (the merged set == General). *Test:* new
+  `ConfigRulesAndInheritanceTests.SubgroupRule_ResolvesAgainstConfigLocalRaceGrouping` -- a pack with a local-only grouping
+  ("B48LocalOnly", absent from General) referenced by a subgroup; the subgroup must restrict to that grouping's races
+  rather than match all (fails pre-Option-B). Passes for real (SE installed). Suite 217 / 1 skipped / 0 failed.
 
 ---
 
@@ -797,7 +810,7 @@ The factor appears to compose at the wrong granularity during combination genera
 on the final per-leaf weight. *Repro:* `ProbabilityWeightingTests.cs:84-90` currently asserts only
 `> 0.70` with a comment rationalizing 0.79 — the fix tightens it to ~0.95.
 
-### ✅ B48 — Whole-config grouping rules are a silent no-op — 🐞 RESOLVED (GetRaceGroupings General fallback; subgroup path Option B pending) — see Resolved §B48
+### ✅ B48 — Whole-config grouping rules are a silent no-op — 🐞 RESOLVED (B48 config-level General fallback + B48b subgroup/replacer local fallback) — see Resolved §B48, §B48b
 
 `AssetPack.DistributionRules` resolves `Allowed/DisallowedRaceGroupings` **labels** against the
 pack's own `RaceGroupings` (usually empty) instead of `GeneralSettings.RaceGroupings` that
