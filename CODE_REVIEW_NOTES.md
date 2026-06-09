@@ -597,6 +597,26 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `FilePathDestinationMapTests` -- a reflection invariant asserting every `public const Source_HeadSpecular*` present in
   the map routes to `Dest_HeadSpecular` (catches this slip and guards all head-specular siblings). Suite 205 / 1 skipped /
   0 failed.
+- **B40 — `NPCInfo` consistency assignment hardened against a null dict value (root fix for HeightPatcher:159 + all consistency write sites).**
+  HeightPatcher:159 (and ~20 sibling consistency read/write sites) deref `npcInfo.ConsistencyNPCAssignment` under only a
+  `bEnableConsistency` guard. The `NPCInfo` ctor *almost* guaranteed non-null (loads the entry or creates a fresh one),
+  so the flagged NRE is **not live in normal operation** -- but the ctor checked `Consistency.ContainsKey` and not the
+  value, so a consistency file with a key mapped to a literal `null` (corrupted/hand-edited) left
+  `ConsistencyNPCAssignment = null` and NRE'd at every unguarded deref. **Verified (per request) that null is not a
+  meaningful sentinel for any consistency type:** the canonical "no consistency yet" state is a fresh `new
+  NPCAssignment()` (exactly what every first-run/missing-key NPC already gets), and the read-side sentinels are the
+  *field* defaults -- `Height = null`, `BodyGenMorphNames = null`, `BodySlidePreset = ""`, `AssetPackName = ""`,
+  `SubgroupIDs`/`MixInAssignments`/`AssetReplacerAssignments = new()`, `HeadParts = new()`. Every read site either guards
+  `!= null` (treating a null object the same as a fresh/empty assignment) or derefs unguarded (currently NREs on the null
+  entry); none distinguishes a null *object* from a fresh one. So routing null -> fresh is behavior-preserving (the NPC
+  behaves like first-run) and fixes the latent NRE everywhere at once. Extracted
+  `public static NPCAssignment ResolveConsistencyAssignment(Dictionary<string,NPCAssignment>, FormKey, string)`
+  (TryGetValue + non-null -> return existing; else create fresh seeded with FormKey/DispName and store via the *indexer*
+  so a present-null entry is overwritten rather than `Add`-thrown); the ctor calls it. *Test:* new
+  `NPCInfoConsistencyTests` (3 cases) -- present-non-null returns existing; missing key creates+stores a fresh assignment
+  (Height null); present-but-null overwrites with a fresh assignment (the corrupted-file fix). (The sibling HeightPatcher
+  :128 per-NPC `Random` and :289 dead `WriteAssignmentDictionaryScriptMode` items under that heading remain open.) Suite
+  208 / 1 skipped / 0 failed.
 
 ---
 
@@ -1559,7 +1579,7 @@ legacy int-only code worth removing.
 
 ### `HeightPatcher` — 🐞 / 🔧 / 💭
 
-[HeightPatcher.cs:159](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L159) · `npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;`
+✅ RESOLVED (root fix in NPCInfo; see Resolved §B40) — [HeightPatcher.cs:159](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L159) · `npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;`
 dereferences `ConsistencyNPCAssignment` under only a `bEnableConsistency` guard — if consistency is enabled
 but the assignment object is null this NREs (confirm it is always created when consistency is on). 🐞
 [:128](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L128) news up a `Random` per NPC inside the

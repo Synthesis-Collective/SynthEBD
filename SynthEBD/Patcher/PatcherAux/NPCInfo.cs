@@ -75,17 +75,7 @@ public class NPCInfo : IEquatable<NPCInfo>
 
         SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
 
-        if (_patcherState.Consistency.ContainsKey(NPC.FormKey.ToString()))
-        {
-            ConsistencyNPCAssignment = _patcherState.Consistency[NPC.FormKey.ToString()];
-        }
-        else
-        {
-            ConsistencyNPCAssignment = new NPCAssignment();
-            ConsistencyNPCAssignment.NPCFormKey = NPC.FormKey;
-            ConsistencyNPCAssignment.DispName = LogIDstring;
-            _patcherState.Consistency.Add(NPC.FormKey.ToString(), ConsistencyNPCAssignment);
-        }
+        ConsistencyNPCAssignment = ResolveConsistencyAssignment(_patcherState.Consistency, NPC.FormKey, LogIDstring);
 
         if (_patcherState.GeneralSettings.bChangeHeadParts)
         {
@@ -132,6 +122,32 @@ public class NPCInfo : IEquatable<NPCInfo>
     public NPCAssignment SpecificNPCAssignment { get; set; }
     /// <summary>The NPC's consistency record (previous-run assignments), created if not already present.</summary>
     public NPCAssignment ConsistencyNPCAssignment { get; set; }
+
+    /// <summary>
+    /// Resolves (and guarantees non-null) the consistency assignment for an NPC: returns the existing entry when one
+    /// is present and non-null, otherwise creates a fresh assignment seeded with the NPC's FormKey/display name and
+    /// stores it. A present-but-null entry (e.g. a corrupted/hand-edited consistency file) is treated as "no
+    /// consistency" and overwritten via the indexer, so every consistency write site can deref this without a null
+    /// guard. A fresh assignment is the canonical "no consistency yet" state — identical to a first-run NPC — so this
+    /// is behavior-preserving; its field defaults (Height null, BodySlidePreset "", etc.) are the read-side sentinels.
+    /// </summary>
+    public static NPCAssignment ResolveConsistencyAssignment(Dictionary<string, NPCAssignment> consistency, FormKey npcFormKey, string dispName)
+    {
+        var key = npcFormKey.ToString();
+        if (consistency.TryGetValue(key, out var existing) && existing != null)
+        {
+            return existing;
+        }
+
+        var assignment = new NPCAssignment
+        {
+            NPCFormKey = npcFormKey,
+            DispName = dispName,
+        };
+        consistency[key] = assignment; // indexer (not Add) so a present-but-null entry is overwritten rather than throwing
+        return assignment;
+    }
+
     /// <summary>Per-NPC report accumulator for logging assignment decisions.</summary>
     public Logger.NPCReport Report { get; set; }
     /// <summary>The NPC's currently assigned head parts, resolved from the link cache (only populated when head-part patching is enabled).</summary>
