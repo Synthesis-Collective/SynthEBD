@@ -28,19 +28,22 @@ public class AssignmentIteration
     /// and <see cref="ChosenSeed"/>; both remain null if no asset pack could be selected.
     /// </summary>
     /// <param name="availableSeeds">Candidate seed subgroups across all available asset packs.</param>
+    /// <param name="packWeightSelector">Weight of a candidate asset pack for the current NPC (DistributionRules
+    /// ProbabilityWeighting times any matching config-level ProbabilityWeightModifier factors), so a config-level modifier
+    /// is honored when choosing the seed pack.</param>
     /// <param name="seedWeightSelector">Weight of a seed subgroup for the current NPC (base ProbabilityWeighting times any
     /// matching ProbabilityWeightModifier factors). Supplied by the caller, which has the NPC/attribute context; this is
     /// the SAME weight the per-position walk uses, so the modifier is applied consistently at the seed stage.</param>
-    public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds, Func<FlattenedSubgroup, double> seedWeightSelector)
+    public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds, Func<FlattenedAssetPack, double> packWeightSelector, Func<FlattenedSubgroup, double> seedWeightSelector)
     {
         // 1. Collect all unique ParentAssetPack members from availableSeeds.
         var uniqueAssetPacks = availableSeeds
             .Select(seed => seed.ParentAssetPack)
             .Distinct();
 
-        // 2. Use the probability selector to pick a parent asset pack based on its probability weighting.
-        //    Since FlattenedAssetPack implements IProbabilityWeighted, this works as expected.
-        ChosenAssetPack = ProbabilityWeighting.SelectByProbability(uniqueAssetPacks, assetPack => assetPack.DistributionRules.ProbabilityWeighting);
+        // 2. Select a parent asset pack weighted by the caller-supplied selector (DistributionRules weight times any
+        //    matching config-level modifier factor), so a config-level modifier biases the seed-pack choice.
+        ChosenAssetPack = ProbabilityWeighting.SelectByProbability(uniqueAssetPacks, packWeightSelector);
         if (ChosenAssetPack == null)
         {
             return;

@@ -730,6 +730,15 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   to `BeInRange(0.90, 0.99)` (~20/21); it now passes for real (SE installed, ~16s run). The parallel pack-level seed
   under-application ([AssignmentIteration.cs:40](SynthEBD/Patcher/Asset%20Patching/AssignmentIteration.cs#L40)) is fixed
   next as B47b. Suite 216 / 1 skipped / 0 failed.
+- **B47b — pack-level (config) ProbabilityWeightModifier honored at seed-pack selection (fixed).**
+  The seed stage's *asset-pack* selection ([AssignmentIteration.cs:40](SynthEBD/Patcher/Asset%20Patching/AssignmentIteration.cs#L40))
+  weighted packs by `DistributionRules.ProbabilityWeighting` only, ignoring config-level `ProbabilityWeightModifiers` -- the
+  same class of under-application as B47a but at whole-pack granularity (the MixIn path already scales pack probability by
+  the modifier, [AssetSelector.cs:1382](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L1382)). Extracted
+  `AssetSelector.GetAssetPackSelectionWeight(pack, npcInfo)` and threaded it into `ChooseSeedSubgroup` as a second selector
+  so the seed-pack choice applies the config modifier. Fix-only + manual-verify: the integration harness (`AssetScenario`)
+  only models leaf-level modifiers, so a config-level test would need disproportionate harness changes; the fix mirrors the
+  verified B47a and the existing MixIn pack-modifier formula. Suite 216 / 1 skipped / 0 failed.
 
 ---
 
@@ -763,7 +772,7 @@ label at match time" — so renaming the default silently desyncs every referenc
 *Status:* rename was reverted out of `d098cac0` so the branch isn't half-migrated; the rename
 will land **with** this migration.
 
-### 🔄 B47 — `ProbabilityWeightModifier` under-applies — 🐞 (found via integration tests) — subgroup-seed fixed (B47a); pack-level seed next (B47b) — see Resolved §B47a
+### ✅ B47 — `ProbabilityWeightModifier` under-applies — 🐞 RESOLVED (B47a subgroup-seed + B47b pack-level seed) — see Resolved §B47a, §B47b
 
 A `ProbabilityWeightModifier` with `Factor=20` raises the matching subgroup's selection share to
 only ~0.81 instead of ~0.95 (20/21); plain `ProbabilityWeighting` ratios are exact (3:1→0.75).

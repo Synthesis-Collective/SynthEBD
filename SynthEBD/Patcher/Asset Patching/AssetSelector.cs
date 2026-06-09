@@ -264,6 +264,18 @@ public class AssetSelector
             _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id);
     }
 
+    /// <summary>The weighted-selection weight of a whole asset pack for this NPC: its DistributionRules
+    /// ProbabilityWeighting times the product of any matching config-level ProbabilityWeightModifier factors. Used when
+    /// choosing the seed pack so a config-level modifier is honored there too (it matches how the MixIn path scales pack
+    /// probability; the seed-pack selection previously ignored it).</summary>
+    private double GetAssetPackSelectionWeight(FlattenedAssetPack pack, NPCInfo npcInfo)
+    {
+        return pack.DistributionRules.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+            pack.DistributionRules.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
+            pack.Source.AttributeGroups, _attributeMatcher,
+            _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, pack.GroupName);
+    }
+
     /// <summary>
     /// Builds a single candidate combination from the current iteration state: chooses a seed subgroup (preferring the
     /// most matched ForceIf attributes, else weighted-random), then fills each remaining position by probability,
@@ -299,13 +311,13 @@ public class AssetSelector
                 var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
                     x.ForceIfMatchCount == matchedForceIfCount);
 
-                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, x => GetSubgroupSelectionWeight(x, npcInfo));
+                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
                 
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
-                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, x => GetSubgroupSelectionWeight(x, npcInfo));
+                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
                 
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
