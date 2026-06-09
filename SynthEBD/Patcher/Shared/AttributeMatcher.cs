@@ -369,7 +369,7 @@ public class AttributeMatcher
                         break;
                 }
 
-                subAttributeMatchedWithNot = (subAttributeMatched && !subAttribute.Not) || (!subAttributeMatched && subAttribute.Not);
+                subAttributeMatchedWithNot = subAttributeMatched ^ subAttribute.Not;
 
                 if (!subAttributeMatchedWithNot)
                 {

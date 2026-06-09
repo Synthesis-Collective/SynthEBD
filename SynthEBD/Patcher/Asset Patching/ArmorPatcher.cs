@@ -48,7 +48,7 @@ namespace SynthEBD
                         // check armature
                         if (armorGetter.Armature != null) 
                         {
-                            foreach (var armaLink in armorGetter.Armature.Where(x => x.FormKey != null).ToArray())
+                            foreach (var armaLink in armorGetter.Armature.ToArray())
                             {
                                 if (_environmentStateProvider.LinkCache.TryResolve<IArmorAddonGetter>(armaLink.FormKey, out var armaGetter))
                                 {

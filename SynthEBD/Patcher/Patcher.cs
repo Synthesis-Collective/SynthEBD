@@ -881,12 +881,6 @@ public class Patcher
         _statusBar.IsPatching = false;
     }
 
-    /// <summary>Timer callback that resets the status line to "Finished Patching". Currently unused.</summary>
-    private void timer_Tick(object sender, EventArgs e)
-    {
-        _logger.UpdateStatus("Finished Patching", false);
-    }
-
     /// <summary>Buckets the flattened asset packs by gender and Primary/MixIn type so the assignment loop can grab the relevant subset per NPC.</summary>
     public class CategorizedFlattenedAssetPacks
     {

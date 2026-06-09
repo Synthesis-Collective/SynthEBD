@@ -42,10 +42,9 @@ public class PatcherSettingsSourceProvider : VM
                 out string exceptionStr);
             if (loadSuccess)
             {
-                SettingsLog.AppendLine("Source Settings: "); ;
+                SettingsLog.AppendLine("Source Settings: ");
                 SettingsLog.AppendLine("Load Settings from Portable Folder: " + source.UsePortableSettings);
                 SettingsLog.AppendLine("Portable Settings Folder Location: " + source.PortableSettingsFolder);
-                Initialized = source.Initialized;
                 UsePortableSettings = source.UsePortableSettings;
                 if (PortableSettingsFolderValid(source.PortableSettingsFolder))
                 {

@@ -916,7 +916,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   `LastOrDefault`), so `.Where(...).Select(...).First()`-style chains are left untouched (the greedy grep over-counted
   213; the real safe count was 204). Behavior-identical for every case. Diff is 202/202 pure content lines (line
   endings/BOM preserved). Transformer script was deleted after the run. Build 0 errors; suite 222/1/0.
-- [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
+- [x] **C5a Patcher behavior-neutral nits -- DONE.** AttributeMatcher `(m && !Not)||(!m && Not)` -> `m ^ Not`;
+  DictionaryMapper 2 redundant HashSet Contains-before-Add dropped (the ContainsKey-on-Dictionary guards kept);
+  ArmorPatcher dropped the always-true `.Where(x => x.FormKey != null)` (non-nullable struct); removed the dead
+  `timer_Tick` (no subscribers); PatcherSettingsSourceProvider stray `; ;` removed (space-separated -- E2 missed it)
+  + dead `Initialized = source.Initialized` read dropped (overwritten unconditionally). Left
+  `HeightPatcher.WriteAssignmentDictionaryScriptMode` (intentional documented dead placeholder). Suite 222/1/0.
+- [ ] **C5b Patcher behavior-CHANGING nits (each presented individually):** HeightPatcher `new Random()` per-NPC ->
+  `Random.Shared` (changes RNG sequence; fixes time-seed correlation); `UniqueNPCData` exclusion set ->
+  `OrdinalIgnoreCase` + plain `.Contains` (current LINQ `CurrentCultureIgnoreCase` is case-insensitive but the set is
+  case-sensitive ordinal -- naive HashSet.Contains would flip to case-sensitive; the fix preserves case-insensitivity,
+  switches culture->ordinal, O(1)).
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
 
 ### D. Recommend SKIP (churn >> value) -- not doing unless asked

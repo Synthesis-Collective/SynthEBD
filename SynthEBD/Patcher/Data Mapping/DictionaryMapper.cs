@@ -97,10 +97,7 @@ public class DictionaryMapper
             {
                 dict.Add(m.Category, new HashSet<string>());
             }
-            if (!dict[m.Category].Contains(m.Value))
-            {
-                dict[m.Category].Add(m.Value);
-            }
+            dict[m.Category].Add(m.Value);
         }
         return dict;
     }
@@ -186,10 +183,7 @@ public class DictionaryMapper
                     dict.Add(position, new HashSet<string>());
                 }
             }
-            if (!dict[position].Contains(s))
-            {
-                dict[position].Add(s);
-            }
+            dict[position].Add(s);
         }
 
         return dict;
