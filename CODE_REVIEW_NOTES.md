@@ -810,6 +810,91 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
 
 ---
 
+## 🗂 Bucket 3 worklist (planned -- mostly refactors; persisted for cross-session resume)
+
+A re-verification pass swept the entire catalogue body below against CURRENT source (line numbers had
+drifted). Roughly twenty inline items were found **already fixed** by Buckets 1-2 / M1 and need only a
+notes-housekeeping tick (listed under "Already fixed" at the end). The rest is the Bucket 3 work, grouped
+by handling. **Workflow per item:** state the issue (+ concrete trigger example if it is a program-side
+bug) -> wait for user "correct" -> fix + tests + full suite green -> commit -> append a Resolved entry and
+tick the box here. Ordering: notes housekeeping (this section) -> trivial-neutral bundles (C) -> structural
+refactors (R) -> re-classified bugs (A) -> the big behavior-sensitive R10-R12 last.
+
+Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed / 1 skipped / 0 failed.
+
+### A. Re-classified bugs (separate commits; concrete example required)
+
+- [ ] **B49 (LIVE) -- `Logger.TimedNotifyStatusUpdate` UI freeze.** [Logger.cs:607-618](SynthEBD/General_Aux/Logger.cs#L607)
+  sync `Task.Factory.StartNew(() => Task.Delay(n).Wait())` then `.Wait()` blocks the caller for the full
+  duration. Live caller [VM_Subgroup.cs:210](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L210) (a
+  RelayCommand -> UI thread) freezes the app. Fix: delegate to the async path / await. Highest-value item.
+- [ ] **B50 (LIVE, report-only) -- OBodySelector log prints type name.** [OBodySelector.cs:97,112](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L97)
+  concatenates a `List<BodySlideSetting>` directly, printing `System.Collections.Generic.List`1[...]`
+  instead of preset labels. Bundle with the "desecriptor"/"Presests" log typos.
+- [ ] **B51 (latent) -- `VM_LinkedNPCGroup.DumpViewModelsToModels` fragile parse.** [:108](SynthEBD/Classes_Aux/ViewModels/VM_LinkedNPCGroup.cs#L108)
+  `vm.Primary.Split('|')[2]` assumes a 3-field display string -> `IndexOutOfRange` on a `|` in a name.
+- [ ] **B52 (latent) -- `ConfigInstaller` long-path mapping overwritten per pack.** [ConfigInstaller.cs:158,183](SynthEBD/Installer/ConfigInstaller.cs#L158)
+  `assetPathMapping` reassigned each asset-pack iteration; only the last pack survives but it is consumed
+  as global. Multi-pack bundles mis-map earlier packs. TRACE before touching.
+- [ ] **B53 (latent) -- model-mutation-on-load, two sites.** [VM_ConsistencyAssignment.cs:229](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L229)
+  + [VM_SpecificNPCAssignment.cs:518](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L518):
+  load mutates the source model and only refreshes the VM in the `else`, so a head-part type missing from
+  the model keeps the VM default (never loaded).
+- [ ] **B54 (latent) -- `AssetAssignmentJsonDictHandler` / `EBDCoreRecords`.** `Dictionary.Add` throws on a
+  duplicate original-NPC FormKey (vs indexer); bare `catch {}` discards error text; `EBDCoreRecords`
+  ignores the `FormKey.TryFactory` result before `SetTo`.
+- [ ] **B55 (latent) -- `Link*ToForcedAssignment` no `break`.** [VM_SpecificNPCAssignment.cs](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs)
+  duplicate `GroupName` processed twice (last wins).
+- [ ] **B56 (latent; re-verify exact lines) -- `RecordIntellisense.RefreshPathSuggestions` deref-before-null-guard
+  (dead guard / possible NRE); `IO_Aux.SelectFileSave` populates `out path` even on Cancel.** GUI/Settings
+  agent was uncertain on exact lines -- confirm against source first.
+
+### B. Structural refactors (separate commits; behavior-preserving)
+
+- [ ] **R1 -- `MiscValidation.Verify*Installed` dedup** -> one `VerifyDataFile(relPath, sourceMod, silent)`. High-value; new pure seam -> testable.
+- [ ] **R2 -- `NumericOnly` attached behavior** -- replace the identical handler across ~11 views (5 Classes_Aux + ~6 Core) with one `NumericInputBehavior`.
+- [ ] **R3 -- `VM_FilePathReplacement` destination-string table** -- collapse the 4 hand-kept copies (3 here + `FilePathDestinationMap`) into one bidirectional table.
+- [ ] **R4 -- `ProbabilityWeighting`** -- `Random.Shared` sweep + remove the unreachable int-only fallback. (RNG sequence changes, distribution does not.)
+- [ ] **R5 -- `NifTextureLoader.DecodeToBgra`** -- extract the duplicated Pfim decode switch (LoadDdsTextureViaPfim + LoadDdsPixels).
+- [ ] **R6 -- view code-behind dup** -- shared `HandleSelectPreviewMouseDown/Up` + previewer-column base (525 magic number) across UC_AssetPack / UC_AssetPackSubGroupTreePresenter / UC_AssetReplacerGroup / UC_SpecificNPCAssignment / UC_ConsistencyAssignment.
+- [ ] **R7 -- `_7ZipInterface`** -- collapse ExtractArchive/GetArchiveContents process-launch boilerplate.
+- [ ] **R8 -- Synthesis env wrappers** -- dedup OpenForSettings/Runnability/PatcherState wrappers in `EnvironmentStateProvider`.
+- [ ] **R9 -- `AnnotationStateComputer`** -- rename inverted `IsAnnotated` + drop redundant block.
+- [ ] **R10 (BEHAVIOR-SENSITIVE, big) -- `NPCAttribute` generic base** (`NPCAttributeFormKeyBase<TGetter>`). Equality/clone reworked in B22/B23/B24; must keep NPCAttributeClone/Equality tests green. LAST.
+- [ ] **R11 (BEHAVIOR-SENSITIVE, big) -- `VM_NPCAttribute` generic base.** Parallels R10. LAST.
+- [ ] **R12 -- `Logger` god-object split** (LogFormatting / NpcReportBuilder / status VM). Large churn, low urgency. LAST.
+
+### C. Trivial-neutral bundles (batch commits by subsystem)
+
+- [ ] **C1 General_Aux helpers:** mark NameHandler/EditorIDHandler `static class`; ExceptionLogger `is`-pattern; DictionarySplitter `.Chunk`; EditorIDHandler `??` form; ExtendedTreeView identifier rename; MiscFunctions `MakeAlphanumeric` LINQ. (ExtensionMethods.GetDefaultValue rename + `dynamic` return is STRUCTURAL -- route to its own commit, callers grep-checked.)
+- [ ] **C2 Logger nits:** string-build loops -> `new string('\t',n)`; async-without-await collapse; GetRaceLogString -> dictionary; col-0 indent; remove unused `Utf8StringWriter`; LogStartupEvent indent-drift guard.
+- [ ] **C3 Models/VMs:** BodyShapeDescriptor pattern-match + `HashCode.Combine`; NPCAttribute hash `OrderBy` removal + col-0 brace; VM_RaceGrouping `SetEquals`; drop dead `displayForceIfWeight`/`selfFactory` params; zEBD-conversion dead params + Contains-before-Add; AssetPackValidator `HashSet`; NifTextureLoader CreateTextureModelViaBmp rename.
+- [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
+- [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
+- [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
+
+### D. Recommend SKIP (churn >> value) -- not doing unless asked
+
+- Project-wide namespace -> file-scoped normalization; global unused-`using` cleanup (huge diff noise, no behavior value).
+- `HardcodedRecordGenerator` fixes -- class is deprecated/dead (caller commented out).
+
+### Already fixed by Buckets 1-2 / M1 (notes-housekeeping only -- tick the inline catalogue headings)
+
+Confirmed gone in current source: BodyShapeDescriptor stray `using` (E1); VM_BodyShapeDescriptor `DumpViewModeltoModel`
+typo (E12); VM_HeadPart Clone/ToggleHide dead commands (E6); VM_AssetPack FormKey `== null` checks (E8);
+VM_SpecificNPCAssignment `break; ;` (E2); VM_OBodyTrainerExporter DateTime path (B36) + CSV filter label (E5);
+VM_BodyGenGroupsMenu.RemoveTemplateGroup (E6); FlattenedSubgroup / EBDScripts / VanillaBodyPathSetter
+`DirectoryServices.ActiveDirectory` + `Intrinsics.X86` usings (E1); RecordGenerator double self-assignment (E3);
+PathTrimmer already `static`; Patcher Uthgerd stub (E11) + "seleections" typo (E4) + FormatEntry int-division (B35);
+HeightPatcher:159 NRE (B40); MiscValidation `VerifyOBodyTemplateJsonExists` rename (E12) + dead locals (E3) +
+unclosed `[` (E4); DefaultAttributeGroups "Mildly" (M1); MainModule duplicate VM_SpecificNPCAssignment (E10);
+App.xaml.cs install-location parens (B42); FirstLaunch AxHost using (E1); Settings JSON dialog filters (E5);
+VM_SettingsModManager `if(this!=null)` (E3); UC_Settings_General `_isDragging` (E3); PreRunValidation AxHost
+using (E1); EnvironmentStateProvider `OutputMod=null` dead write (E3) + "patha" typo (E4); BSAHandler narration
+comments. (Each inline heading gets a "-- already fixed in Bucket N" tick when its bundle is committed.)
+
+---
+
 ## 🆕 Added during remediation (not in the original catalogue)
 
 ### ✅ M1 — `MatureFace` label rename + backward-compat migration — 🐞 compat RESOLVED (rename + dormant 1.0.7.0 migration + config-install rewrite; version NOT bumped) — see Resolved §M1
