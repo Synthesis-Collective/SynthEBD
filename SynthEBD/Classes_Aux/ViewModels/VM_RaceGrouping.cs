@@ -76,35 +76,6 @@ public class VM_RaceGrouping : VM
     {
         return _selfFactory(DumpViewModelToModel(), destination);
     }
-
-    /// <summary>Returns the groupings whose race set exactly equals the given race collection.</summary>
-    /// <param name="collection">The race FormKeys to match.</param>
-    /// <param name="groupings">The groupings to test.</param>
-    /// <returns>The matching groupings (empty when none match exactly).</returns>
-    /// <remarks>The inline comment ("returns true if…") predates the change to returning the matched set. Uses an O(n²) nested-loop comparison; see review notes.</remarks>
-    public static HashSet<VM_RaceGrouping> CollectionMatchesRaceGrouping(IEnumerable<FormKey> collection, IEnumerable<VM_RaceGrouping> groupings) // returns the groupings whose race set exactly equals the given collection
-    {
-        HashSet<VM_RaceGrouping> matchedGroupings = new();
-        foreach (var group in groupings)
-        {
-            if (collection.Count() != group.Races.Count()) {  continue; }
-            bool allRacesFound = true;
-            foreach (var collectionRace in collection)
-            {
-                bool raceFound = false;
-                foreach (var groupRace in group.Races)
-                {
-                    if (groupRace.Equals(collectionRace)) { raceFound = true; break; }
-                }
-                if (!raceFound) { allRacesFound = false; break; }
-            }
-            if (allRacesFound)
-            {
-                matchedGroupings.Add(group);
-            }
-        }
-        return matchedGroupings;
-    }
 }
 
 /// <summary>Implemented by view models that own an editable collection of race groupings.</summary>

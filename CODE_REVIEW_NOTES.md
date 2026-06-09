@@ -899,8 +899,11 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **C3b Models/VMs dead-param signature removals:** `VM_NPCAttributeShell.Factory` dead `displayForceIfWeight`
   (ctor never takes it; 3 call sites pass it) + `VM_NPCAttribute` ctor unused `selfFactory`; zEBD-conversion dead params
   (`ToSynthEBDConfig` filePath, `ZEBDSubgroup.ToSynthEBDSubgroup` assetPackName) + Contains-before-Add dedup. Trace call sites.
-- [ ] **C3c (deferred from C3a) -- `VM_RaceGrouping.CollectionMatchesRaceGrouping` O(n^2) -> SetEquals.** Carved out:
-  `SetEquals` diverges from the current count+all-found logic on a duplicate-laden input collection. Revisit (see discussion).
+- [x] **C3c -- DONE.** Sole caller (`VM_HeadPartImport`) passes a HashSet, so the dup-collection divergence is moot.
+  Per the user, inlined pure `raceGroupingVMs.Where(g => g.Races.ToHashSet().SetEquals(races))...` at the caller and
+  **deleted** the `VM_RaceGrouping.CollectionMatchesRaceGrouping` method. Pure SetEquals diverges from the old
+  count+all-found logic only if a group held a duplicate FormKey (then it now matches the distinct set -- a fix).
+  Suite 222/1/0.
 - [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
 - [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
@@ -1477,7 +1480,7 @@ Nearly every `VM_*` follows the same shape: an Autofac `Factory` delegate, a con
 rolled loops where LINQ/`SetEquals` would be terser (the user's noted pre-LINQ habit). Individual items
 below; not re-flagged per file.
 
-### `VM_RaceGrouping.CollectionMatchesRaceGrouping` — 🔧 modernize + 💭 (stale comment fixed C3a; O(n^2)->SetEquals deferred C3c -- dup-collection edge case)
+### ✅ `VM_RaceGrouping.CollectionMatchesRaceGrouping` — 🔧 RESOLVED (method deleted; inlined pure SetEquals at the sole caller) — see Bucket 3 §C3c
 
 [VM_RaceGrouping.cs:63](SynthEBD/Classes_Aux/ViewModels/VM_RaceGrouping.cs#L63) · O(n²) nested-loop set
 comparison (→ `group.Races.ToHashSet().SetEquals(collection)`), and the trailing inline comment still

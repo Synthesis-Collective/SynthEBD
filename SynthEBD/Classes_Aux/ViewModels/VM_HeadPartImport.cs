@@ -262,7 +262,7 @@ namespace SynthEBD
             if (parentConfig.ImportMenu.bRespectHeadPartRaces && _environmentProvider.LinkCache.TryResolve<IFormListGetter>(headPart.ValidRaces.FormKey, out var raceFormList) && raceFormList.Items.Any())
             {
                 var races = raceFormList.Items.Select(x => x.FormKey).ToHashSet();
-                var matchedGroupings = VM_RaceGrouping.CollectionMatchesRaceGrouping(races, raceGroupingVMs).Select(x => x.Label).ToHashSet();
+                var matchedGroupings = raceGroupingVMs.Where(g => g.Races.ToHashSet().SetEquals(races)).Select(x => x.Label).ToHashSet();
                 if (matchedGroupings.Any())
                 {
                     imported.AllowedRaceGroupings = matchedGroupings;
