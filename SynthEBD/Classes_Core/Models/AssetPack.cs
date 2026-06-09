@@ -273,7 +273,7 @@ class ZEBDAssetPack
         /// <see cref="zEBDTexturePathConversionDict"/>), resolving race EditorIDs/groupings, and parsing descriptors.
         /// Unrecognized destination paths are appended to <paramref name="conversionErrors"/>.
         /// </summary>
-        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, string assetPackName, List<string> conversionErrors, IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
+        public AssetPack.Subgroup ToSynthEBDSubgroup(List<RaceGrouping> raceGroupings, string topLevelSubgroupID, List<string> conversionErrors, IEnvironmentStateProvider environmentProvider, Logger logger, Converters converters)
         {
             AssetPack.Subgroup s = new AssetPack.Subgroup();
 
@@ -413,7 +413,7 @@ class ZEBDAssetPack
 
             foreach (var sg in subgroups)
             {
-                s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, s.TopLevelSubgroupID, assetPackName, conversionErrors, environmentProvider, logger, converters));
+                s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, s.TopLevelSubgroupID, conversionErrors, environmentProvider, logger, converters));
             }
 
             return s;
@@ -455,7 +455,7 @@ class ZEBDAssetPack
         s.UserAlert = userAlert;
         foreach (ZEBDSubgroup sg in subgroups)
         {
-            s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, "", groupName, conversionErrors, environmentProvider, logger, converters));
+            s.Subgroups.Add(sg.ToSynthEBDSubgroup(raceGroupings, "", conversionErrors, environmentProvider, logger, converters));
         }
 
         // Apply default record templates

@@ -43,8 +43,7 @@ public class VM_NPCAttribute : VM
     /// <param name="attributeMatcher">Matcher used by the attribute-validator dialog.</param>
     /// <param name="environmentProvider">Supplies the link cache/load order consumed by the validator.</param>
     /// <param name="patcherState">Patcher state consumed by the validator.</param>
-    /// <param name="selfFactory">Injected self factory; currently unused by the constructor body (see review notes).</param>
-    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_NPCAttribute.Factory selfFactory)
+    public VM_NPCAttribute(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, AttributeMatcher attributeMatcher, IEnvironmentStateProvider environmentProvider, PatcherState patcherState)
     {
         _creator = creator;
         _subscribedAttributeGroups = attributeGroups;
@@ -174,7 +173,7 @@ public class VM_NPCAttribute : VM
         public VM_NPCAttribute CreateNewFromUI(ObservableCollection<VM_NPCAttribute> parentCollection, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
             var newAtt = _attributeFactory(parentCollection, attributeGroups);
-            VM_NPCAttributeShell startingShell = _shellFactory(newAtt, displayForceIfOption, displayForceIfWeight, attributeGroups);
+            VM_NPCAttributeShell startingShell = _shellFactory(newAtt, displayForceIfOption, attributeGroups);
             VM_NPCAttributeClass startingAttributeGroup = _classFactory(newAtt, startingShell);
             startingShell.Type = NPCAttributeType.Class;
             startingShell.Attribute = startingAttributeGroup;
@@ -185,9 +184,9 @@ public class VM_NPCAttribute : VM
             return newAtt;
         }
         /// <summary>Creates a single sub-attribute shell (defaulting to a Class attribute) parented to <paramref name="parentVM"/>.</summary>
-        public VM_NPCAttributeShell CreateNewShell(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups)
+        public VM_NPCAttributeShell CreateNewShell(VM_NPCAttribute parentVM, bool displayForceIfOption, ObservableCollection<VM_AttributeGroup> attributeGroups)
         {
-            return _shellFactory(parentVM, displayForceIfOption, displayForceIfWeight, attributeGroups);
+            return _shellFactory(parentVM, displayForceIfOption, attributeGroups);
         }
 
         /// <summary>Adds VMs for every model not already represented in <paramref name="viewModelCollection"/> (deduplicated by round-tripping the existing VMs back to models).</summary>
@@ -225,7 +224,7 @@ public class VM_NPCAttribute : VM
             viewModel.DisplayForceIfWeight = displayForceIfWeight;
             foreach (var attributeShellModel in model.SubAttributes)
             {
-                var shellVM = CreateNewShell(viewModel, displayForceIfOption, displayForceIfWeight, attributeGroups);
+                var shellVM = CreateNewShell(viewModel, displayForceIfOption, attributeGroups);
                 shellVM.Type = attributeShellModel.Type;
                 switch (attributeShellModel.Type)
                 {
@@ -308,7 +307,7 @@ public class VM_NPCAttribute : VM
 public class VM_NPCAttributeShell : VM
 {
     /// <summary>Autofac factory delegate for constructing a shell parented to a condition VM.</summary>
-    public delegate VM_NPCAttributeShell Factory(VM_NPCAttribute parentVM, bool displayForceIfOption, bool? displayForceIfWeight, ObservableCollection<VM_AttributeGroup> attributeGroups);
+    public delegate VM_NPCAttributeShell Factory(VM_NPCAttribute parentVM, bool displayForceIfOption, ObservableCollection<VM_AttributeGroup> attributeGroups);
     private readonly Factory _selfFactory;
     private readonly VM_NPCAttributeClass.Factory _classFactory;
     private readonly VM_NPCAttributeCustom.Factory _customFactory;
@@ -329,8 +328,7 @@ public class VM_NPCAttributeShell : VM
     /// <param name="displayForceIfOption">Whether forcing options are offered for this shell.</param>
     /// <param name="attributeGroups">Attribute groups available when the shell is switched to the Group type.</param>
     /// <param name="selfFactory">Factory used to add a sibling shell to the parent condition.</param>
-    /// <remarks>The <see cref="Factory"/> delegate also carries a <c>displayForceIfWeight</c> parameter that this constructor does not consume (see review notes).</remarks>
-    public VM_NPCAttributeShell(VM_NPCAttribute parentVM, 
+    public VM_NPCAttributeShell(VM_NPCAttribute parentVM,
         bool displayForceIfOption, 
         ObservableCollection<VM_AttributeGroup> attributeGroups, 
         Factory selfFactory,
@@ -378,7 +376,7 @@ public class VM_NPCAttributeShell : VM
 
         AddAdditionalSubAttributeToParent = new RelayCommand(
             canExecute: _ => true,
-            execute: _ => parentVM.GroupedSubAttributes.Add(_selfFactory(parentVM, DisplayForceIfOption, DisplayForceIfWeight, attributeGroups))
+            execute: _ => parentVM.GroupedSubAttributes.Add(_selfFactory(parentVM, DisplayForceIfOption, attributeGroups))
         );
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(this));

@@ -127,7 +127,7 @@ public class SettingsIO_BodyGen
                     continue;
                 }
 
-                var convertedPair = zEBDconfig.ToSynthEBDConfig(raceGroupings, s);
+                var convertedPair = zEBDconfig.ToSynthEBDConfig(raceGroupings);
                 if (convertedPair.bMaleInitialized)
                 {
                     loadedPacks.Male.Add(convertedPair.Male);

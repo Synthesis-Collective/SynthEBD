@@ -153,9 +153,8 @@ public class zEBDBodyGenConfig
 
     /// <summary>Converts this legacy config into male/female SynthEBD <see cref="BodyGenConfig"/>s, collecting the descriptors and template groups actually referenced by each sex's templates.</summary>
     /// <param name="raceGroupings">Race groupings used to resolve template race filters.</param>
-    /// <param name="filePath">Source path (currently unused by the body; see review notes).</param>
     /// <returns>The split, converted config with per-sex initialization flags.</returns>
-    public zEBDSplitBodyGenConfig ToSynthEBDConfig(List<RaceGrouping> raceGroupings, string filePath)
+    public zEBDSplitBodyGenConfig ToSynthEBDConfig(List<RaceGrouping> raceGroupings)
     {
         zEBDSplitBodyGenConfig converted = new zEBDSplitBodyGenConfig();
 
@@ -231,10 +230,7 @@ public class zEBDBodyGenConfig
 
             foreach (var member in combo.members)
             {
-                if (usedGroups.Contains(member) == false)
-                {
-                    usedGroups.Add(member);
-                }
+                usedGroups.Add(member);
             }
         }
         return newRS;

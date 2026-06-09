@@ -896,9 +896,15 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   `AssetPackValidator.GetIDDuplicates` `searched` List -> HashSet (`!Add` dedup; identical detection); fixed
   `VM_RaceGrouping.CollectionMatchesRaceGrouping` stale comment. Left `LabelSignature.GetHashCode` XOR (HashCode.Combine
   would change the hash value -> HashSet ordering risk). Suite 222/1/0.
-- [ ] **C3b Models/VMs dead-param signature removals:** `VM_NPCAttributeShell.Factory` dead `displayForceIfWeight`
-  (ctor never takes it; 3 call sites pass it) + `VM_NPCAttribute` ctor unused `selfFactory`; zEBD-conversion dead params
-  (`ToSynthEBDConfig` filePath, `ZEBDSubgroup.ToSynthEBDSubgroup` assetPackName) + Contains-before-Add dedup. Trace call sites.
+- [x] **C3b Models/VMs dead-param signature removals -- DONE.** Removed the dead `displayForceIfWeight` from the
+  `VM_NPCAttributeShell.Factory` delegate and its 3 invocation sites (`_shellFactory` x2, `_selfFactory`) + the
+  `CreateNewShell` wrapper (its sole caller at GetViewModelFromModel updated); `CreateNewFromUI`/`GetViewModelFromModel`
+  keep their own `displayForceIfWeight` (used to set the attribute VM property -- the shell derives it reactively from
+  `ForceModeStr`, so the factory arg was always Autofac-discarded). Removed the unused `selfFactory` from the base
+  `VM_NPCAttribute` ctor; the dead `filePath` from `ToSynthEBDConfig` (sole caller updated); the dead `assetPackName`
+  from `ToSynthEBDSubgroup` (recursion + caller updated); and the redundant Contains-before-Add at BodyGenConfig:234
+  (`usedGroups` is a HashSet). (ToSynthEBDSubgroup race loops add to HashSets directly -- no Contains-before-Add there.)
+  Suite 222/1/0.
 - [x] **C3c -- DONE.** Sole caller (`VM_HeadPartImport`) passes a HashSet, so the dup-collection divergence is moot.
   Per the user, inlined pure `raceGroupingVMs.Where(g => g.Races.ToHashSet().SetEquals(races))...` at the caller and
   **deleted** the `VM_RaceGrouping.CollectionMatchesRaceGrouping` method. Pure SetEquals diverges from the old
@@ -1540,7 +1546,7 @@ models) would collapse most of the file. *(Following the model-family precedent,
 `ISubAttributeViewModel` contract once plus each class summary, constructor, and round-trip helper, rather
 than ~33 redundant per-member copies.)*
 
-### `VM_NPCAttributeShell` Factory drops `displayForceIfWeight` — 💭 / 🔧 (dead factory parameter)
+### ✅ `VM_NPCAttributeShell` Factory drops `displayForceIfWeight` — 💭/🔧 RESOLVED (removed from delegate + all call sites) — see Bucket 3 §C3b
 
 [VM_NPCAttribute.cs:311](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L311) · The `Factory` delegate
 declares `bool? displayForceIfWeight`, and callers (`CreateNewFromUI`, `CreateNewShell`,
@@ -1550,7 +1556,7 @@ delegate factory silently discards the argument. `DisplayForceIfWeight` is inste
 `ForceModeStr`, so behaviour is unaffected, but the unused delegate parameter is misleading and threads a
 value through three call sites that goes nowhere. Drop it, or have the ctor consume it.
 
-### `VM_NPCAttribute` constructor `selfFactory` unused — 🔧 (minor)
+### ✅ `VM_NPCAttribute` constructor `selfFactory` unused — 🔧 RESOLVED (removed from ctor) — see Bucket 3 §C3b
 
 [VM_NPCAttribute.cs:47](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L47) · The injected
 `VM_NPCAttribute.Factory selfFactory` is never referenced (new conditions are created through
@@ -1608,14 +1614,14 @@ subgroup in a legacy assignment — so importing any zEBD assignment that has fo
 `NullReferenceException`. Initialize `SubgroupIDs` to `new()` there (or default the property to a list).
 Also `s.BodyGenMorphNames = z.forcedBodyGenMorphs;` assigns the source list by reference.
 
-### `zEBDBodyGenConfig` conversion — 🔧 / 💭 (minor)
+### ✅ `zEBDBodyGenConfig` conversion — 🔧 RESOLVED (dead filePath param removed; Contains-before-Add dropped) — see Bucket 3 §C3b
 
 [BodyGenConfig.cs:135](SynthEBD/Classes_Core/Models/BodyGenConfig.cs#L135) · `ToSynthEBDConfig` takes a
 `filePath` parameter that the body never uses — dead parameter. And `zEBDBodyGenRacialSettingsToSynthEBD`
 ([:210](SynthEBD/Classes_Core/Models/BodyGenConfig.cs#L210)) guards `if (usedGroups.Contains(member) == false) usedGroups.Add(member)` —
 redundant, since `HashSet.Add` is already idempotent (same pattern flagged in General_Aux). Both cosmetic.
 
-### `ZEBDAssetPack` conversion — 💭 / 🔧 (UI coupling + dead param)
+### `ZEBDAssetPack` conversion — 💭 / 🔧 (dead assetPackName param removed C3b; modal-dialog UI-coupling in ToSynthEBDAssetPack still open -- 💭)
 
 [AssetPack.cs:448](SynthEBD/Classes_Core/Models/AssetPack.cs#L448),
 [:525](SynthEBD/Classes_Core/Models/AssetPack.cs#L525) · `ToSynthEBDAssetPack` pops a modal WPF dialog
