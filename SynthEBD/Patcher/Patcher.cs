@@ -1465,10 +1465,16 @@ public class Patcher
         {
             string raceDispStr = GetRaceDisplayString(raceLink);
 
-            string percentage = "0";
-            if (assignablePairing.Assignable > 0) { percentage = (assignablePairing.Assigned * 100 / assignablePairing.Assignable).ToString("N2"); }
+            string percentage = FormatAssignedPercentage(assignablePairing.Assigned, assignablePairing.Assignable);
 
             return raceDispStr + " " + gender.ToString() + ": " + assignablePairing.Assigned + " of " + assignablePairing.Assignable + " (" + percentage + "%)";
+        }
+
+        /// <summary>Formats the assigned/assignable ratio as a percentage string ("N2"); returns "0" when nothing is assignable. Uses double arithmetic so fractional percentages are not truncated by integer division.</summary>
+        public static string FormatAssignedPercentage(int assigned, int assignable)
+        {
+            if (assignable <= 0) { return "0"; }
+            return (assigned * 100.0 / assignable).ToString("N2");
         }
 
         /// <summary>Resolves a race link to a human-readable label, preferring a cleaned EditorID over the raw FormKey.</summary>

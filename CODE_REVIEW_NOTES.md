@@ -527,6 +527,16 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `return (installedConfigs, triggerGeneralVMRefresh);` in the catch. Fix-only + manual-verify: `InstallConfigFile` is a
   heavy async orchestrator (file-picker, 7z.exe shell-out, MessageWindow UI, PatcherState) and the defect is a missing
   control-flow `return` with no pure seam (cf. B15/B17). Suite 196 / 1 skipped / 0 failed (no regression).
+- **B35 — `Patcher.AssetStatsTracker.FormatEntry` integer-division percentage (fixed; report-only).**
+  The end-of-run asset-coverage report rendered each gender/race line's percentage as
+  `(Assigned * 100 / Assignable).ToString("N2")` -- both `Assigned`/`Assignable` are `int`, so the division truncated to a
+  whole number before `"N2"` formatted it, making the two decimals always `.00` (a bucket of 1 assigned of 3 assignable
+  printed `33.00%` instead of `33.33%`; 2 of 7 -> `28.00%`, not `28.57%`). Report-only -- no assignment behavior depends
+  on it -- but it misrepresents partial-coverage buckets to a user reading the patcher report. Fixed by extracting a pure
+  `public static string FormatAssignedPercentage(int assigned, int assignable)` on `AssetStatsTracker` that promotes to
+  double (`assigned * 100.0 / assignable`) and returns `"0"` when nothing is assignable; `FormatEntry` delegates. *Test:*
+  new `AssetStatsTrackerTests` (5 cases) -- 1/3 -> "33.33" (the fix), 2/7 -> "28.57", 5/5 -> "100.00", 0/4 -> "0.00",
+  0/0 -> "0" (sentinel, no division). (`"N2"` is current-culture; the suite/CI run en-US.) Suite 201 / 1 skipped / 0 failed.
 
 ---
 
@@ -1652,7 +1662,7 @@ resolution `else` calls `OutputMod.Armors.Remove(newSkin)` with `newSkin` still 
 
 ### `Patcher` orchestrator items — 🐞 / 💭
 
-- [Patcher.cs:1473](SynthEBD/Patcher/Patcher.cs#L1473) · `FormatEntry` computes
+- ✅ RESOLVED (see Resolved §B35) — [Patcher.cs:1473](SynthEBD/Patcher/Patcher.cs#L1473) · `FormatEntry` computes
   `(assignablePairing.Assigned * 100 / assignablePairing.Assignable).ToString("N2")` — `Assigned`/`Assignable`
   are ints, so this is **integer** division and the `"N2"` decimals are always `.00` (e.g. 1 of 3 prints
   `33.00%`, not `33.33%`). Cast to `double` before dividing. 🐞
