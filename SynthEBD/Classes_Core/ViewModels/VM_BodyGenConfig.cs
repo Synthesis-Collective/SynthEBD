@@ -351,30 +351,34 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
         }
     }
 
-    /// <summary>After confirming, removes the specified descriptor signature from all template morphs and all asset-pack subgroups' BodySlide descriptors.</summary>
-    public void OnDescriptorValueDeletion(string decriptorSignature)
+    /// <summary>After confirming, removes the specified descriptor signature from all template morphs and all asset-pack subgroups' BodyGen descriptors (this is the BodyGen-config editor; cf. the BodySlide-stripping equivalent in VM_SettingsOBody).</summary>
+    public void OnDescriptorValueDeletion(string descriptorSignature)
     {
-        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + decriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
+        if (MessageWindow.DisplayNotificationYesNo("", "Would you like to delete all " + descriptorSignature + " Descriptors from all BodySlides and Config Files that reference it?"))
         {
             TemplateMorphUI.StashAndNullDisplayedMorph();
 
             foreach (var morph in TemplateMorphUI.Templates)
             {
-                morph.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
+                morph.AssociatedModel.BodyShapeDescriptors.RemoveWhere(x => x.ToString() == descriptorSignature);
             }
 
             foreach (var ap in _texMeshSettings().AssetPacks)
             {
-                var subgroups = ap.GetAllSubgroups();
-                foreach (var sg in subgroups)
-                {
-                    sg.AssociatedModel.AllowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
-                    sg.AssociatedModel.DisallowedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
-                    sg.AssociatedModel.PrioritizedBodySlideDescriptors.RemoveWhere(x => x.ToString() == decriptorSignature);
-                }
+                RemoveBodyGenDescriptorFromSubgroups(ap.GetAllSubgroups().Select(sg => sg.AssociatedModel), descriptorSignature);
             }
 
             TemplateMorphUI.RestoreStashedMorph();
+        }
+    }
+
+    /// <summary>Removes the descriptor with the given signature from each subgroup's Allowed/Disallowed BodyGen descriptor sets. (BodyGen subgroups have no Prioritized set, unlike BodySlide.)</summary>
+    public static void RemoveBodyGenDescriptorFromSubgroups(IEnumerable<AssetPack.Subgroup> subgroups, string descriptorSignature)
+    {
+        foreach (var sg in subgroups)
+        {
+            sg.AllowedBodyGenDescriptors.RemoveWhere(x => x.ToString() == descriptorSignature);
+            sg.DisallowedBodyGenDescriptors.RemoveWhere(x => x.ToString() == descriptorSignature);
         }
     }
 

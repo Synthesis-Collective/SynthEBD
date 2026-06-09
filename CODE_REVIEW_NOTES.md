@@ -550,6 +550,23 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `OBodyTrainerExporterTests` (2 cases) -- `BuildModelFileName("Hips", 2026-06-08 13:55)` -> "Hips_2026-06-08-13-55", and
   the result contains none of `/ \ :` (the chars the old bare `.ToString()` injected). (Trainer-export is an advanced path
   that regenerates the shipped model, but it is real code that threw.) Suite 203 / 1 skipped / 0 failed.
+- **B37 — `VM_BodyGenConfig.OnDescriptorValueDeletion` stripped BodySlide instead of BodyGen descriptors (fixed).**
+  In the BodyGen-config editor, the single-value descriptor-deletion handler was a verbatim copy of
+  `VM_SettingsOBody.OnDescriptorValueDeletion` -- it stripped each subgroup's
+  `Allowed/Disallowed/PrioritizedBodySlideDescriptors` (the last has no BodyGen counterpart) instead of its
+  `Allowed/DisallowedBodyGenDescriptors`. Its own category-deletion sibling
+  ([:329](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L329)) correctly strips BodyGen, and both OBody handlers
+  correctly strip BodySlide -- confirming the value handler was the odd one out. Effect: deleting a single BodyGen
+  descriptor value (e.g. "Build: Athletic") from the editor (a) deleted that descriptor from unrelated subgroups'
+  BodySlide distribution rules the user never meant to touch, and (b) left subgroups' BodyGen rules referencing the
+  now-deleted descriptor (the dangling refs it should have cleaned). Fixed by extracting
+  `public static void RemoveBodyGenDescriptorFromSubgroups(IEnumerable<AssetPack.Subgroup>, string)` (strips the two
+  BodyGen sets) and calling it from the handler; also renamed the misspelled `decriptorSignature` -> `descriptorSignature`
+  (BodyGen file only; the same typo remains in VM_SettingsOBody, left untouched to keep scope). (The note's
+  `using System.Printing;` was already removed in E1.) *Test:* new `VM_BodyGenConfigTests` -- a POCO subgroup with
+  "Build: Athletic" in its Allowed/Disallowed BodyGen sets and its Allowed BodySlide set; after the helper the BodyGen
+  sets lose it (Allowed keeps "Build: Muscular", Disallowed empties) while the BodySlide set is untouched. Suite 204 / 1
+  skipped / 0 failed.
 
 ---
 
@@ -1282,7 +1299,7 @@ Meanwhile a *second*, empty-bodied `WhenAnyValue(x => x.DisplayedGroup).Subscrib
 ([:49](SynthEBD/Classes_Core/ViewModels/VM_AssetPackDirectReplacerMenu.cs#L49)) does nothing but *is*
 disposed. Looks like the `.DisposeWith` landed on the wrong subscription; the empty one is dead and can go.
 
-### `VM_BodyGenConfig` descriptor-deletion handlers — 🐞 possible bug (BodyGen vs BodySlide) + 💭
+### ✅ `VM_BodyGenConfig` descriptor-deletion handlers — 🐞 possible bug (BodyGen vs BodySlide) + 💭 RESOLVED (value handler now strips BodyGen) — see Resolved §B37
 
 [VM_BodyGenConfig.cs:330](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L330),
 [:356](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L356) · In this BodyGen-config editor,
