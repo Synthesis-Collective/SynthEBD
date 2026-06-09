@@ -199,7 +199,9 @@ public static class PatcherExt
                 dup.EditorID = newEdid;
                 mapping[rec.Record.FormKey] = dup.FormKey;
 
-                if (recordsToDuplicate.Contains(dup))
+                // record the remap only for the original top-level inputs, not the transitively-pulled sub-records
+                // (the previous `Contains(dup)` tested the freshly-created duplicate against the source list, so it was always false)
+                if (recordsToDuplicate.Any(r => r.FormKey.Equals(rec.Record.FormKey)))
                 {
                     topLevelRemaps.Add(rec.Record.FormKey, dup.FormKey);
                 }

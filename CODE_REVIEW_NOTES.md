@@ -702,6 +702,19 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   the BodyGen/BodySlide/AssetStats/CombinationLog accumulators, `BSAHandler.OpenReaders` (concurrent dict but extraction
   may need serialization), and the RecordGenerator generation-phase boundary. Fix-only + manual-verify for the resets
   (private statics populated only via heavy construction); signposts are comments. Suite 216 / 1 skipped / 0 failed.
+- **B46 — two unrelated defects: PatcherExt dead guard (fixed) + UpdateHandler migration NRE (fixed).**
+  - **B46-1 `PatcherExt.cs:202` (fixed; was dead-code):** `if (recordsToDuplicate.Contains(dup))` tested the freshly-created
+    duplicate against the source list, so it was always false and `topLevelRemaps` was never populated in that branch. No
+    live symptom -- it is the `onlyAppearance=false` branch, and the sole caller (`SurrogateNPCProvider:147`) always passes
+    `onlyAppearance: true`, which populates `topLevelRemaps` correctly at [:107](SynthEBD/Patcher/PatcherAux/PatcherExt.cs#L107).
+    Fixed the unreachable branch anyway for correctness (aligning it with :107): the guard now tests whether the record being
+    duplicated was one of the original top-level inputs -- `recordsToDuplicate.Any(r => r.FormKey.Equals(rec.Record.FormKey))`.
+  - **B46-2 `UpdateHandler.cs:330` (fixed; real NRE):** `UpdateV1048RaceAliases` (a v1.0.4.8 startup migration) did
+    `attGroup.Attributes.FirstOrDefault(...).GroupedSubAttributes.First()...` with no null check on the `FirstOrDefault`, so a
+    user whose "Charmers of the Reach Heads" attribute group exists but has no Mod sub-attribute (unexpected settings shape)
+    would NRE mid-migration, breaking startup. Split into a null-safe `cotrAttribute?.GroupedSubAttributes.First()...`; the
+    downstream `if (cotrMods != null)` already handles null gracefully, so this is exactly the intended behavior.
+  Both fix-only + manual-verify (heavy Mutagen-record / VM-graph contexts, no pure seam). Suite 216 / 1 skipped / 0 failed.
 
 ---
 
@@ -1738,10 +1751,10 @@ Any caller relying on it to reset status flags is silently getting nothing.
 
 ### Patcher core-logic items — 🐞 / 🔧 / 💭
 
-- `UpdateHandler` [:331](SynthEBD/Patcher/PatcherAux/UpdateHandler.cs#L331) — a migration does
+- ✅ RESOLVED (see Resolved §B46) — `UpdateHandler` [:331](SynthEBD/Patcher/PatcherAux/UpdateHandler.cs#L331) — a migration does
   `...FirstOrDefault(...).GroupedSubAttributes.First().Attribute as VM_NPCAttributeMod` with no null check on
   the `FirstOrDefault`, so an unexpected settings shape NREs mid-migration. 🐞
-- `PatcherExt` [:202](SynthEBD/Patcher/PatcherAux/PatcherExt.cs#L202) — `recordsToDuplicate.Contains(dup)`
+- ✅ RESOLVED (see Resolved §B46) — `PatcherExt` [:202](SynthEBD/Patcher/PatcherAux/PatcherExt.cs#L202) — `recordsToDuplicate.Contains(dup)`
   tests the freshly-created duplicate `Npc` against the original source enumerable by reference, so it is
   ~always false and the guarded branch never fires (dead/ineffective condition). 🐞
 - `UniqueNPCData` [:97](SynthEBD/Patcher/PatcherAux/UniqueNPCData.cs#L97) —

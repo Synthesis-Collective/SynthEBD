@@ -327,9 +327,10 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
             .FirstOrDefault(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label);
         if (attGroup != null)
         {
-            var cotrMods = attGroup.Attributes.FirstOrDefault((x => x.GroupedSubAttributes.FirstOrDefault() != null
-                && x.GroupedSubAttributes.FirstOrDefault().Attribute as VM_NPCAttributeMod != null)
-                ).GroupedSubAttributes.First().Attribute as VM_NPCAttributeMod;
+            // null-safe: FirstOrDefault can return null when the group has no Mod sub-attribute (unexpected settings shape);
+            // the downstream `if (cotrMods != null)` handles that, so do not deref the FirstOrDefault result directly.
+            var cotrAttribute = attGroup.Attributes.FirstOrDefault(x => x.GroupedSubAttributes.FirstOrDefault()?.Attribute is VM_NPCAttributeMod);
+            var cotrMods = cotrAttribute?.GroupedSubAttributes.First().Attribute as VM_NPCAttributeMod;
 
             if (cotrMods != null)
             {
