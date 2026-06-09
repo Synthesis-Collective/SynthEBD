@@ -516,6 +516,17 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   and is defensive if the single-child collapse invariant ever loosens. No test (nothing observable changes; a real test
   needs heavy `VM_SubgroupPlaceHolder` trees and would only re-assert unchanged behavior -- cf. B8/B26). Suite 196 / 1
   skipped / 0 failed (unchanged).
+- **B34 — `ConfigInstaller.InstallConfigFile` extraction-exception fell through to a misleading manifest error (fixed).**
+  The `try { ExtractArchive(...) } catch` around archive extraction showed the correct "Archive extraction failed" dialog
+  but did **not** `return` (unlike every other failure branch, and unlike the adjacent `ExtractArchive`-returns-false path
+  at [:85](SynthEBD/Installer/ConfigInstaller.cs#L85)). So after an extraction *exception* the method fell through to the
+  `Manifest.json` lookup in the empty/partial temp folder, and the user got a second, contradictory dialog "Could not find
+  Manifest.json in <temp>. Installation aborted." -- implying a malformed pack -- on top of the real extraction-failed
+  message. Repro: install a config archive whose extracted paths exceed Windows MAX_PATH with a deep Temp Extraction
+  Folder (the exact case the dialog warns about); `ExtractArchive` throws. Fixed by adding the missing
+  `return (installedConfigs, triggerGeneralVMRefresh);` in the catch. Fix-only + manual-verify: `InstallConfigFile` is a
+  heavy async orchestrator (file-picker, 7z.exe shell-out, MessageWindow UI, PatcherState) and the defect is a missing
+  control-flow `return` with no pure seam (cf. B15/B17). Suite 196 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1838,7 +1849,7 @@ inserting a non-expander row before row 4 (or reordering expanders) would silent
 *Downloads, installs, and packages shareable asset-pack config bundles (the ConfigInstaller engine, the
 installer-wizard VMs, and the Packager tooling).*
 
-### `ConfigInstaller.InstallConfigFile` extraction-failure falls through — 🐞 possible bug
+### ✅ `ConfigInstaller.InstallConfigFile` extraction-failure falls through — 🐞 possible bug RESOLVED (added return) — see Resolved §B34
 
 [ConfigInstaller.cs](SynthEBD/Installer/ConfigInstaller.cs) · The `try { ExtractArchive(...) } catch (Exception ex)`
 around archive extraction logs/shows the error but does **not** `return` (every other failure branch in the

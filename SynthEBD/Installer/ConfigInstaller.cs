@@ -88,6 +88,7 @@ public class ConfigInstaller
         catch (Exception ex)
         {
             MessageWindow.DisplayNotificationOK("Installation failed", "Archive extraction failed. This may be because the resulting file paths were too long. Try moving your Temp Folder in Mod Manager Integration to a short path such as your desktop. Installation aborted. Exception Message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(ex));
+            return (installedConfigs, triggerGeneralVMRefresh); // abort here so we don't fall through to a misleading "Could not find Manifest.json" dialog
         }
 
         string manifestPath = Path.Combine(tempFolderPath, "Manifest.json");
