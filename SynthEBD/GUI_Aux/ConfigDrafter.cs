@@ -360,6 +360,7 @@ namespace SynthEBD
                 if (CleanRedundantSubgroups(currentSubgroup.Subgroups[i]))
                 {
                     currentSubgroup.Subgroups.RemoveAt(i);
+                    i--; // step back after RemoveAt, matching the promote loop below; behavior-neutral today (a collapse only ever removes a lone child) but defensive if that invariant loosens
                 }
             }
 

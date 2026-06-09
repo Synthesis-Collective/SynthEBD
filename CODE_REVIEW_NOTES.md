@@ -503,6 +503,19 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   call-site change; class already `public`). *Test:* new `VM_ConfigPathRemapperTests` (4 cases) — a drive-root `path2`
   shares 0 directories with a `Z:` path (the bug returned path1's full depth, 3); identical parent dirs -> 3; partial
   overlap -> 1; disjoint trees -> 0. Suite 196 / 1 skipped / 0 failed.
+- **B33 — `ConfigDrafter.CleanRedundantSubgroups` missing `i--` after `RemoveAt` (verified behavior-neutral; `i--` added for convention).**
+  The recursion's child loop did `Subgroups.RemoveAt(i)` (when a child collapsed) without the `i--`-after-remove the rest
+  of the file uses (the promote loop at [:377-378](SynthEBD/GUI_Aux/ConfigDrafter.cs#L377)), flagged as a skip-next
+  bug. **Verified it cannot change the output:** a child returns true (gets removed) only when its parent has exactly one
+  child ([:367](SynthEBD/GUI_Aux/ConfigDrafter.cs#L367)), so two adjacent children never both collapse; and the only
+  branch that appends to the iterated collection ("promote") fires only when the collapsing child kept >=2 of its own
+  children (a 1-child node collapses into it during its own loop first, emptying it onto the texture-pull `else` branch),
+  so promote always moves >=2 grandchildren up, leaving the parent with >=2 children -- the skipped grandchild thus always
+  has a multi-child parent (not a collapse candidate) and was already cleaned in the child's loop. So the missing `i--`
+  was a latent smell, not a live defect. Added the `i--` anyway: behavior-neutral today, matches the file's convention,
+  and is defensive if the single-child collapse invariant ever loosens. No test (nothing observable changes; a real test
+  needs heavy `VM_SubgroupPlaceHolder` trees and would only re-assert unchanged behavior -- cf. B8/B26). Suite 196 / 1
+  skipped / 0 failed (unchanged).
 
 ---
 
@@ -1791,7 +1804,7 @@ the line above). When path2 has no directory component, the similarity score is 
 segments instead, skewing the path-similarity tiebreak. Should be `?? path2`. (The `new HashSet<string>(cmp) { array }`
 initializer is fine — it binds to Noggog's `Add(IEnumerable)` extension and unions the segments.)
 
-### `ConfigDrafter.CleanRedundantSubgroups` non-decremented index — 🐞 possible bug
+### ✅ `ConfigDrafter.CleanRedundantSubgroups` non-decremented index — 🐞 possible bug RESOLVED (verified behavior-neutral; i-- added for convention) — see Resolved §B33
 
 [ConfigDrafter.cs:309](SynthEBD/GUI_Aux/ConfigDrafter.cs#L309) · The recursion removes
 `currentSubgroup.Subgroups[i]` when the child collapses but does **not** decrement `i`, so the element after a
