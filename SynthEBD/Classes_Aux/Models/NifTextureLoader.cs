@@ -676,7 +676,7 @@ public class NifTextureLoader
             case TextureLoadStrategy.BmpStream:
             default:
             {
-                return CreateTextureModelViaBmp(pixelData, width, height, label);
+                return CreateTextureModelViaPng(pixelData, width, height, label);
             }
         }
     }
@@ -687,7 +687,7 @@ public class NifTextureLoader
     /// BI_RGB compression), which is essential for hair/brow transparency. This routes
     /// through HelixToolkit's WIC decoder path (TextureLoader.FromMemoryAsShaderResource).
     /// </summary>
-    private TextureModel CreateTextureModelViaBmp(byte[] pixelData, int width, int height, string label)
+    private TextureModel CreateTextureModelViaPng(byte[] pixelData, int width, int height, string label)
     {
         int stride = width * 4;
         var source = System.Windows.Media.Imaging.BitmapSource.Create(

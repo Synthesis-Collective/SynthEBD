@@ -82,7 +82,7 @@ public class VM_RaceGrouping : VM
     /// <param name="groupings">The groupings to test.</param>
     /// <returns>The matching groupings (empty when none match exactly).</returns>
     /// <remarks>The inline comment ("returns true if…") predates the change to returning the matched set. Uses an O(n²) nested-loop comparison; see review notes.</remarks>
-    public static HashSet<VM_RaceGrouping> CollectionMatchesRaceGrouping(IEnumerable<FormKey> collection, IEnumerable<VM_RaceGrouping> groupings) // returns true if a collection of Race formkeys is identical to an existing race grouping
+    public static HashSet<VM_RaceGrouping> CollectionMatchesRaceGrouping(IEnumerable<FormKey> collection, IEnumerable<VM_RaceGrouping> groupings) // returns the groupings whose race set exactly equals the given collection
     {
         HashSet<VM_RaceGrouping> matchedGroupings = new();
         foreach (var group in groupings)

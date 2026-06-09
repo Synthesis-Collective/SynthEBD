@@ -890,7 +890,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   async-without-await status-dance collapse -> handled WITH B49 (it changes the VM-mutation thread, not neutral);
   `GetRaceLogString` -> dictionary -> blocked on **B57** (the existing `fk.Equals(formLink)` special-case checks
   compare a FormKey to a FormLink -- need to confirm whether they ever fire before changing them). Suite 222/1/0.
-- [ ] **C3 Models/VMs:** BodyShapeDescriptor pattern-match + `HashCode.Combine`; NPCAttribute hash `OrderBy` removal + col-0 brace; VM_RaceGrouping `SetEquals`; drop dead `displayForceIfWeight`/`selfFactory` params; zEBD-conversion dead params + Contains-before-Add; AssetPackValidator `HashSet`; NifTextureLoader CreateTextureModelViaBmp rename.
+- [x] **C3a Models/VMs local cosmetics -- DONE.** BodyShapeDescriptor `is`-pattern (MapsTo x2 + LabelSignature.Equals);
+  `NPCAttribute.GetHashCode` manual fold -> `OrderIndependentHash(SubAttributes)` (value-identical XOR); fixed
+  `NPCAttributeMisc.GetHashCode` col-0 brace; `NifTextureLoader.CreateTextureModelViaBmp` -> `...ViaPng` (encodes PNG);
+  `AssetPackValidator.GetIDDuplicates` `searched` List -> HashSet (`!Add` dedup; identical detection); fixed
+  `VM_RaceGrouping.CollectionMatchesRaceGrouping` stale comment. Left `LabelSignature.GetHashCode` XOR (HashCode.Combine
+  would change the hash value -> HashSet ordering risk). Suite 222/1/0.
+- [ ] **C3b Models/VMs dead-param signature removals:** `VM_NPCAttributeShell.Factory` dead `displayForceIfWeight`
+  (ctor never takes it; 3 call sites pass it) + `VM_NPCAttribute` ctor unused `selfFactory`; zEBD-conversion dead params
+  (`ToSynthEBDConfig` filePath, `ZEBDSubgroup.ToSynthEBDSubgroup` assetPackName) + Contains-before-Add dedup. Trace call sites.
+- [ ] **C3c (deferred from C3a) -- `VM_RaceGrouping.CollectionMatchesRaceGrouping` O(n^2) -> SetEquals.** Carved out:
+  `SetEquals` diverges from the current count+all-found logic on a duplicate-laden input collection. Revisit (see discussion).
 - [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
 - [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
@@ -1379,7 +1389,7 @@ a readability trap — worth either renaming or returning the count explicitly. 
 BodyShapeDescriptorShell, NifPreviewNpcSettings — are already thoroughly documented and cleanly written;
 this pass only filled a few gaps.)*
 
-### `BodyShapeDescriptor` — 🔧 modernize (minor)
+### ✅ `BodyShapeDescriptor` — 🔧 RESOLVED (is-pattern in MapsTo x2 + Equals; stray using gone E1; GetHashCode left as XOR -- Combine would change hash value) — see Bucket 3 §C3a
 
 [BodyShapeDescriptor.cs:38](SynthEBD/Classes_Aux/Models/BodyShapeDescriptor.cs#L38) · The two `MapsTo`
 methods (and `Equals`) use `obj is X` followed by `obj as X` — pattern matching
@@ -1467,7 +1477,7 @@ Nearly every `VM_*` follows the same shape: an Autofac `Factory` delegate, a con
 rolled loops where LINQ/`SetEquals` would be terser (the user's noted pre-LINQ habit). Individual items
 below; not re-flagged per file.
 
-### `VM_RaceGrouping.CollectionMatchesRaceGrouping` — 🔧 modernize + 💭
+### `VM_RaceGrouping.CollectionMatchesRaceGrouping` — 🔧 modernize + 💭 (stale comment fixed C3a; O(n^2)->SetEquals deferred C3c -- dup-collection edge case)
 
 [VM_RaceGrouping.cs:63](SynthEBD/Classes_Aux/ViewModels/VM_RaceGrouping.cs#L63) · O(n²) nested-loop set
 comparison (→ `group.Races.ToHashSet().SetEquals(collection)`), and the trailing inline comment still
@@ -1612,7 +1622,7 @@ model layer, which makes the conversion untestable headless. Also,
 `assetPackName` parameter the body never uses (only threaded through recursion), and its allowed/disallowed
 race loops use the redundant `Contains`-before-`Add` pattern flagged elsewhere. Cosmetic.
 
-### `AssetPackValidator.GetIDDuplicates` — 🔧 (minor)
+### ✅ `AssetPackValidator.GetIDDuplicates` — 🔧 RESOLVED (seen-set List -> HashSet; `!Add` dedup) — see Bucket 3 §C3a
 
 [AssetPackValidator.cs:378](SynthEBD/Classes_Core/Models/AssetPackValidator.cs#L378) · Tracks seen IDs in a
 `List<string>` with `searched.Contains(...)` (O(n) per lookup → O(n²) overall). A `HashSet<string>` for the

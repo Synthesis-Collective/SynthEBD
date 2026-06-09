@@ -352,7 +352,7 @@ public class AssetPackValidator
     /// <summary>Reports (and lists in <paramref name="errors"/>) any subgroup IDs duplicated anywhere within the model's subgroup tree.</summary>
     private bool HasDuplicateSubgroupIDs(IModelHasSubgroups model, List<string> errors)
     {
-        List<string> ids = new List<string>();
+        HashSet<string> ids = new();
         List<string> duplicates = new List<string>();
         foreach (var subgroup in model.Subgroups)
         {
@@ -375,15 +375,11 @@ public class AssetPackValidator
     }
 
     /// <summary>Recursively walks the subgroup tree, recording each ID into <paramref name="searched"/> and any repeat into <paramref name="duplicates"/>.</summary>
-    private void GetIDDuplicates(IModelHasSubgroups model, List<string> searched, List<string> duplicates)
+    private void GetIDDuplicates(IModelHasSubgroups model, HashSet<string> searched, List<string> duplicates)
     {
         foreach (var subgroup in model.Subgroups)
         {
-            if (!searched.Contains(subgroup.ID))
-            {
-                searched.Add(subgroup.ID);
-            }
-            else
+            if (!searched.Add(subgroup.ID))
             {
                 duplicates.Add(subgroup.ID);
             }

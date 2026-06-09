@@ -57,21 +57,7 @@ public class NPCAttribute
     /// <summary>Order-independent hash over the sub-attributes (consistent with <see cref="Equals(NPCAttribute)"/>).</summary>
     public override int GetHashCode()
     {
-        bool first = true;
-        int hashCode = 0;
-        foreach (var item in SubAttributes.OrderBy(x => x.ToString()).ToArray())
-        {
-            if (first)
-            {
-                first = false;
-                hashCode = item.GetHashCode();
-            }
-            else
-            {
-                hashCode ^= item.GetHashCode();
-            }
-        }
-        return hashCode;
+        return OrderIndependentHash(SubAttributes);
     }
 
     /// <summary>Resolves an attribute group by label, preferring the main settings' groups (when override is enabled) and falling back to plugin-supplied definitions.</summary>
@@ -901,9 +887,9 @@ public class NPCAttributeMisc : ITypedNPCAttribute
             NPCGender.GetHashCode() ^
             Type.GetHashCode() ^
             ForceMode.GetHashCode() ^
-            Weighting.GetHashCode() ^ 
+            Weighting.GetHashCode() ^
             Not.GetHashCode();
-}
+    }
 
     /// <summary>Returns a copy of the given attribute, including every evaluated flag/value (mood, aggression, gender) and the Not negation.</summary>
     public static NPCAttributeMisc CloneAsNew(NPCAttributeMisc input)

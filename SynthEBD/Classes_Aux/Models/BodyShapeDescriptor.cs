@@ -51,15 +51,13 @@ public class BodyShapeDescriptor : IHasLabel
     public bool MapsTo(Object obj)
     {
         if (obj == null) return false;
-        if (obj is BodyShapeDescriptor)
+        if (obj is BodyShapeDescriptor other)
         {
-            var other = obj as BodyShapeDescriptor;
             return this.ID.MapsTo(other.ID);
         }
-        else if (obj is LabelSignature)
+        else if (obj is LabelSignature otherSig)
         {
-            var other = obj as LabelSignature;
-            return other.Category == ID.Category && other.Value == ID.Value;
+            return otherSig.Category == ID.Category && otherSig.Value == ID.Value;
         }
         else
         {
@@ -91,15 +89,13 @@ public class BodyShapeDescriptor : IHasLabel
         public bool MapsTo(Object obj)
         {
             if (obj == null) return false;
-            if (obj is BodyShapeDescriptor)
+            if (obj is BodyShapeDescriptor other)
             {
-                var other = obj as BodyShapeDescriptor;
                 return this.MapsTo(other.ID);
             }
-            else if (obj is LabelSignature)
+            else if (obj is LabelSignature otherSig)
             {
-                var other = obj as LabelSignature;
-                return other.Category == Category && other.Value == Value;
+                return otherSig.Category == Category && otherSig.Value == Value;
             }
             else
             {
@@ -179,8 +175,7 @@ public class BodyShapeDescriptor : IHasLabel
         /// <summary>Value equality by Category and Value.</summary>
         public override bool Equals(object? obj)
         {
-            var otherDescriptor = obj as LabelSignature;
-            return otherDescriptor != null && otherDescriptor.Category == Category && otherDescriptor.Value == Value;
+            return obj is LabelSignature otherDescriptor && otherDescriptor.Category == Category && otherDescriptor.Value == Value;
         }
 
         /// <summary>Hash code derived from Category and Value (consistent with <see cref="Equals"/>).</summary>
