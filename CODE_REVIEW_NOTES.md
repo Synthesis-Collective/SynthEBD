@@ -739,6 +739,23 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   so the seed-pack choice applies the config modifier. Fix-only + manual-verify: the integration harness (`AssetScenario`)
   only models leaf-level modifiers, so a config-level test would need disproportionate harness changes; the fix mirrors the
   verified B47a and the existing MixIn pack-modifier formula. Suite 216 / 1 skipped / 0 failed.
+- **B48 — whole-config race-grouping rules no longer a silent no-op (GetRaceGroupings General fallback added).**
+  `FlattenedAssetPack.GetRaceGroupings()` (the race-grouping source used to flatten the whole-config `DistributionRules`)
+  built its list from `Source.RaceGroupings` (the config's local groupings) plus General-overwrites of shared labels, but
+  never added **General-only** groupings -- so a config-level `AllowedRaceGroupings` label absent from the config's local
+  set resolved to no races, and the rule silently matched everything. Added a final fallback loop including each General
+  grouping whose label isn't already present, so `GetRaceGroupings()` returns the full effective set (General union Source,
+  with `OverwritePluginRaceGroups` deciding precedence on shared labels). **Realistically rare in production:** configs
+  auto-import (via `VM_AssetPack.AddFallBackRaceGroupings`) the General groupings their subgroups/replacers reference into
+  the local set, so the Source path normally already covers referenced groupings; this guard only catches a
+  config-level-only label that is absent locally yet present in the recipient's General settings. (Synthetic test packs
+  have empty local groupings, so the integration test hits exactly this path.) *Test:* `ConfigRulesAndInheritanceTests`
+  changed to gate the config pack via `DistributionRules.AllowedRaceGroupings = {"Nord"}` (the grouping label) instead of
+  explicit `AllowedRaces`; the existing "config assigns only to Nords" assertions now exercise the fix directly (passes for
+  real, SE installed). **Surfaced (separate):** the subgroup/replacer flatten path
+  ([:130](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L130)/[:137](SynthEBD/Patcher/Internal%20Data%20Structures/FlattenedAssetPack.cs#L137))
+  still uses `GeneralSettings.RaceGroupings` only and does NOT fall back to the config's local groupings -- a parallel gap
+  (Option B), pending a decision. Suite 216 / 1 skipped / 0 failed.
 
 ---
 
@@ -780,7 +797,7 @@ The factor appears to compose at the wrong granularity during combination genera
 on the final per-leaf weight. *Repro:* `ProbabilityWeightingTests.cs:84-90` currently asserts only
 `> 0.70` with a comment rationalizing 0.79 — the fix tightens it to ~0.95.
 
-### B48 — Whole-config grouping rules are a silent no-op — 🐞 (Important; found via integration tests)
+### ✅ B48 — Whole-config grouping rules are a silent no-op — 🐞 RESOLVED (GetRaceGroupings General fallback; subgroup path Option B pending) — see Resolved §B48
 
 `AssetPack.DistributionRules` resolves `Allowed/DisallowedRaceGroupings` **labels** against the
 pack's own `RaceGroupings` (usually empty) instead of `GeneralSettings.RaceGroupings` that

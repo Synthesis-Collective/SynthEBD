@@ -202,6 +202,22 @@ public class FlattenedAssetPack
                 output.Add(grouping);
             }
         }
+
+        // Guard: a race grouping referenced by the whole-config distribution rules but absent from the config's own
+        // RaceGroupings still resolves against the user's General settings (otherwise the config-level rule silently
+        // matches nothing). This is realistically almost never reached -- configs auto-import the General groupings their
+        // subgroups/replacers reference into the local set (VM_AssetPack.AddFallBackRaceGroupings), so the Source fallback
+        // above normally already covers referenced groupings; this only catches a config-level-only label that is absent
+        // locally yet present in the recipient's General settings (e.g. a config published referencing a stray grouping,
+        // shared with a user who happens to define it). With this loop GetRaceGroupings returns the full effective set
+        // (General union Source, with OverwritePluginRaceGroups deciding precedence on shared labels).
+        foreach (var grouping in _patcherState.GeneralSettings.RaceGroupings)
+        {
+            if (!output.Select(x => x.Label).Contains(grouping.Label))
+            {
+                output.Add(grouping);
+            }
+        }
         return output;
     }
 

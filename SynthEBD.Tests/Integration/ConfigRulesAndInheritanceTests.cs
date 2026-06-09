@@ -40,12 +40,13 @@ public class ConfigRulesAndInheritanceTests
             {
                 var nordMembers = harness.PatcherState.GeneralSettings.RaceGroupings.First(g => g.Label == "Nord").Races.ToHashSet();
 
-                // Pack 1: gated at the whole-config level to the Nord races; its single leaf carries no rule
-                // of its own. (Config-level rules resolve grouping labels against the pack's own RaceGroupings
-                // list, so explicit race FormKeys are used here.)
+                // Pack 1: gated at the whole-config level to the "Nord" grouping label (a General race grouping); its
+                // single leaf carries no rule of its own. (B48: config-level rules now resolve grouping labels against the
+                // full effective set -- the synthetic pack's empty local RaceGroupings fall back to General -- so a
+                // config-level AllowedRaceGroupings label is honored, where it was previously a silent no-op.)
                 var configPack = AssetScenario.BuildPack("Config Gated", Gender.Female,
                     new[] { new AssetScenario.Leaf { Id = "CFG.leaf" } });
-                foreach (var r in nordMembers) { configPack.DistributionRules.AllowedRaces.Add(r); }
+                configPack.DistributionRules.AllowedRaceGroupings.Add("Nord");
 
                 // Pack 2: the position (parent) is gated to Nord. INH.ok has no race rule (inherits Nord);
                 // INH.imperial requires Imperial, which is disjoint from the inherited Nord -> pruned.
