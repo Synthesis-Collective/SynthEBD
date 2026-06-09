@@ -29,15 +29,7 @@ public class MiscFunctions
     /// <returns>The input with all non-alphanumeric characters removed.</returns>
     public static string MakeAlphanumeric(string input)
     {
-        string output = string.Empty;
-        foreach (var c in input)
-        {
-            if (char.IsLetterOrDigit(c))
-            {
-                output += c;
-            }
-        }
-        return output;
+        return new string(input.Where(char.IsLetterOrDigit).ToArray());
     }
 
     /// <summary>Sanitizes a string into a token usable as an XML element name.</summary>

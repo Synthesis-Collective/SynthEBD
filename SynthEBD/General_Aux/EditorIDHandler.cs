@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 /// <summary>Helpers for obtaining a record's EditorID (or a readable fallback) without risking null-reference errors.</summary>
-public class EditorIDHandler
+public static class EditorIDHandler
 {
     /// <summary>Returns a record's EditorID, or a descriptive placeholder when it is null.</summary>
     /// <param name="getter">Record to inspect; may be null.</param>
@@ -28,14 +28,7 @@ public class EditorIDHandler
     {
         if (linkCache.TryResolve<TType>(formKey, out var getter))
         {
-            if (getter.EditorID != null)
-            {
-                return getter.EditorID;
-            }
-            else
-            {
-                return getter.FormKey.ToString() + " (No EditorID)";
-            }
+            return getter.EditorID ?? (getter.FormKey.ToString() + " (No EditorID)");
         }
         else
         {

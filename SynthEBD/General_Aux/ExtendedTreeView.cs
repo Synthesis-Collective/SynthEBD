@@ -20,11 +20,11 @@ namespace SynthEBD
         public ExtendedTreeView()
             : base()
         {
-            SelectedItemChanged += new RoutedPropertyChangedEventHandler<object>(___ICH);
+            SelectedItemChanged += new RoutedPropertyChangedEventHandler<object>(OnSelectedItemChanged);
         }
 
         /// <summary>Selection-changed handler that mirrors the current <see cref="TreeView.SelectedItem"/> into the bindable dependency property.</summary>
-        void ___ICH(object sender, RoutedPropertyChangedEventArgs<object> e)
+        void OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             if (SelectedItem != null)
             {

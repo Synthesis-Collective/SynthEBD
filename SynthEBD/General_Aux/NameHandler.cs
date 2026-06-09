@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace SynthEBD
 {
     /// <summary>Helpers for safely reading NPC identity fields that can throw on malformed data.</summary>
-    public class NameHandler
+    public static class NameHandler
     {
         /// <summary>
         /// Returns an NPC's display name, tolerating records whose localized name strings are

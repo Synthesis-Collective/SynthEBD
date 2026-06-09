@@ -24,27 +24,10 @@ namespace SynthEBD
         /// <remarks>Used to batch large lookups (e.g. SkyPatcher/Papyrus output) under a per-file size cap.</remarks>
         public static List<Dictionary<T, U>> SplitDictionary(Dictionary<T, U> input, int maxKeyCount)
         {
-            List<Dictionary<T, U>> output = new();
-
-            int keyCountSegmented = 0;
-            int keyCountTotal = 0;
-            var currentDict = new Dictionary<T, U>();
-            foreach (var entry in input)
-            {
-                keyCountSegmented++;
-                keyCountTotal++;
-
-                currentDict.Add(entry.Key, entry.Value);
-
-                if (keyCountSegmented == maxKeyCount || keyCountTotal == input.Count)
-                {
-                    output.Add(currentDict);
-                    currentDict = new();
-                    keyCountSegmented = 0;
-                }
-            }
-
-            return output;
+            return input
+                .Chunk(maxKeyCount)
+                .Select(chunk => chunk.ToDictionary(entry => entry.Key, entry => entry.Value))
+                .ToList();
         }
     }
 }

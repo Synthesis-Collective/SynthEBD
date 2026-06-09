@@ -866,7 +866,15 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 
 ### C. Trivial-neutral bundles (batch commits by subsystem)
 
-- [ ] **C1 General_Aux helpers:** mark NameHandler/EditorIDHandler `static class`; ExceptionLogger `is`-pattern; DictionarySplitter `.Chunk`; EditorIDHandler `??` form; ExtendedTreeView identifier rename; MiscFunctions `MakeAlphanumeric` LINQ. (ExtensionMethods.GetDefaultValue rename + `dynamic` return is STRUCTURAL -- route to its own commit, callers grep-checked.)
+- [x] **C1 General_Aux helpers -- DONE.** Marked `NameHandler`/`EditorIDHandler` `static class` (no `new` callers);
+  `ExceptionLogger.GetExceptionStack` `as`+null-check -> `is` pattern; `EditorIDHandler` generic overload inner
+  if/else -> `??` form (matches the non-generic one); `DictionarySplitter.SplitDictionary` dual-counter loop ->
+  `Chunk(maxKeyCount).Select(ToDictionary).ToList()`; `MiscFunctions.MakeAlphanumeric` loop ->
+  `new string(input.Where(char.IsLetterOrDigit).ToArray())`. `ExtendedTreeView`: renamed only the private handler
+  `___ICH` -> `OnSelectedItemChanged`; **left `SelectedItem_`** (public DP registered by string name + XAML binding
+  target -- rename would break bindings). Deferred: `ExtensionMethods.GetDefaultValue` rename/`dynamic` return is
+  STRUCTURAL (own commit); namespace -> file-scoped + global unused-`using` sweep are SKIP (D). Build 0 errors;
+  suite 222 / 1 skipped / 0 failed.
 - [ ] **C2 Logger nits:** string-build loops -> `new string('\t',n)`; async-without-await collapse; GetRaceLogString -> dictionary; col-0 indent; remove unused `Utf8StringWriter`; LogStartupEvent indent-drift guard.
 - [ ] **C3 Models/VMs:** BodyShapeDescriptor pattern-match + `HashCode.Combine`; NPCAttribute hash `OrderBy` removal + col-0 brace; VM_RaceGrouping `SetEquals`; drop dead `displayForceIfWeight`/`selfFactory` params; zEBD-conversion dead params + Contains-before-Add; AssetPackValidator `HashSet`; NifTextureLoader CreateTextureModelViaBmp rename.
 - [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
@@ -979,24 +987,24 @@ Both classes were deleted entirely. `Equals(a,b)` → `a.SetEquals(b)` (in the t
 `ComparableSetHashCode` → the single generic `NPCAttribute.OrderIndependentHash<T>` (value-identical XOR-fold).
 Covered the original three modernize/footgun items (`Equals`, `Contains`, `ComparableSetHashCode`) in one removal.
 
-### `ExceptionLogger.GetExceptionStack` — 🔧 modernize (minor)
+### ✅ `ExceptionLogger.GetExceptionStack` — 🔧 RESOLVED (`is` pattern) — see Bucket 3 §C1
 
 [ExceptionLogger.cs:16](SynthEBD/General_Aux/ExceptionLogger.cs#L16) · `e as TooManyMastersException
 != null` followed by a second `as` cast can collapse to `if (e is TooManyMastersException tmm)`.
 Cosmetic; the recursion and layer logic look correct.
 
-### `DictionarySplitter.SplitDictionary` — 🔧 modernize (minor)
+### ✅ `DictionarySplitter.SplitDictionary` — 🔧 RESOLVED (`.Chunk`) — see Bucket 3 §C1
 
 [DictionarySplitter.cs:11](SynthEBD/General_Aux/DictionarySplitter.cs#L11) · Correct, but the manual
 counters could be expressed with LINQ `.Chunk(maxKeyCount)` (.NET 6+) over the entries, then
 `ToDictionary`. Lower priority — current code is readable.
 
-### `EditorIDHandler.GetEditorIDSafely<TType>` — 🔧 modernize (minor)
+### ✅ `EditorIDHandler.GetEditorIDSafely<TType>` — 🔧 RESOLVED (`??` form) — see Bucket 3 §C1
 
 [EditorIDHandler.cs:18](SynthEBD/General_Aux/EditorIDHandler.cs#L18) · The inner `if/else` on
 `getter.EditorID` could mirror the first overload's `?? ` form for consistency.
 
-### `ExtendedTreeView` — 💭 opinion (minor/cosmetic)
+### ✅ `ExtendedTreeView` — 💭 RESOLVED (private `___ICH` renamed; public `SelectedItem_` left -- XAML-bound) — see Bucket 3 §C1
 
 [ExtendedTreeView.cs:20](SynthEBD/General_Aux/ExtendedTreeView.cs#L20) · Lifted from StackOverflow;
 identifiers `___ICH` and the trailing-underscore `SelectedItem_` are unidiomatic. Works fine — flag

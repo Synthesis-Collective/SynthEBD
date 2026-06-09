@@ -33,10 +33,8 @@ public class ExceptionLogger
             error += Environment.NewLine + "======= Layer " + layer.ToString() + ": " + Environment.NewLine + e.Message + Environment.NewLine + e.StackTrace + Environment.NewLine + Environment.NewLine;
         }
         
-        if (e as Mutagen.Bethesda.Plugins.Exceptions.TooManyMastersException != null)
+        if (e is Mutagen.Bethesda.Plugins.Exceptions.TooManyMastersException tooManyMastersEx)
         {
-            var tooManyMastersEx = e as Mutagen.Bethesda.Plugins.Exceptions.TooManyMastersException;
-
             error += "Current Masters:" + Environment.NewLine + String.Join(Environment.NewLine, tooManyMastersEx.Masters.Select(x => x.FileName).ToArray()) + Environment.NewLine + Environment.NewLine;
         }
 
