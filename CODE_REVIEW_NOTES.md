@@ -770,11 +770,49 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   ("B48LocalOnly", absent from General) referenced by a subgroup; the subgroup must restrict to that grouping's races
   rather than match all (fails pre-Option-B). Passes for real (SE installed). Suite 217 / 1 skipped / 0 failed.
 
+### M1 — MatureFace label rename + backward-compat migration (release-gated; version NOT bumped).
+
+- **M1 — `DefaultAttributeGroups.MatureFace` "Mildy"->"Mildly" rename + version-gated migration + config-install rewrite (fixed; dormant until 1.0.7.0).**
+  Attribute groups are referenced **by label string** (`NPCAttributeGroup.SelectedLabels` resolved against
+  `AttributeGroup.Label`, `==` ordinal, at match time), so fixing the typo in the *default* group's Label desyncs every
+  reference unless the old label is rewritten everywhere it appears. Without the migration, after the rename a by-label
+  reference whose label no longer has a matching definition in scope silently matches **zero** NPCs (an Allowed-group rule
+  stops distributing, a Disallowed-group rule stops blocking) -- e.g. a "Mature Skin" config built against the corrected
+  "Can Get Mildly Older Face" finds nothing in an existing user's settings, which still define "Can Get Mildy Older Face",
+  so innkeepers never get the mature-skin textures. Shipped as a matched set:
+  - **(1)** Re-applied the rename in [DefaultAttributeGroups.cs:465](SynthEBD/Settings/Settings_General/DefaultAttributeGroups.cs#L465)
+    (it had been reverted out of E4 to avoid landing half-migrated).
+  - **(2)** Added `UpdateHandler.UpdateV1070AttributeGroupRename()`, dispatched as a sibling line beside `UpdateV1070RaceAliases`
+    in `CheckBackwardCompatibility` (cumulative `if (appliedVersion < "1.0.7.0")`). It renames `VM_AttributeGroup.Label` across
+    every loaded attribute-group menu -- General (which the Head Part rules share via `VM_Settings_Headparts.AttributeGroupMenu`),
+    each asset pack, OBody, and each male/female BodyGen config (injected `VM_SettingsOBody` + `VM_SettingsBodyGen`; no DI cycle,
+    both `SingleInstance`). Key insight: in the VM layer a group *reference* (`AttributeGroupSelection.SubscribedAttributeGroup`)
+    is a **live pointer** to the same `VM_AttributeGroup` definition, and `SelectedLabels` is computed from `.Label` on dump, so
+    renaming the definitions propagates to every Allowed/Disallowed/ForceIf reference -- including group-in-group definitions --
+    without walking each rule.
+  - **(3)** Config-install rewrite: [ConfigInstaller.cs](SynthEBD/Installer/ConfigInstaller.cs) calls the new model-side helper on
+    each incoming `AssetPack` (after `LoadAssetPack`, before `SaveAssetPack`) so an *old* downloaded config aligns with the
+    corrected default on import.
+  - **Shared helper:** new pure static `AttributeGroupLabelMigrator` ([AttributeGroupLabelMigrator.cs](SynthEBD/Patcher/PatcherAux/AttributeGroupLabelMigrator.cs))
+    holds the single-source-of-truth `{old -> new}` `RenamedLabels` map (future renames = one entry) and the model-tree rewrite
+    (group definitions + config distribution rules + subgroups recursively + replacers + weight modifiers). It rebuilds the
+    `HashSet<NPCAttribute>`/`HashSet<ITypedNPCAttribute>` sets via a `List` intermediary so the renamed elements re-hash -- the
+    `HashSet` copy-constructor fast-path would otherwise clone the now-stale buckets verbatim.
+  - **Version NOT bumped** (`PatcherState.Version` stays "1.0.6.9") per the release convention and the user's explicit rule. The
+    migration stays **dormant** via the existing `if (appliedVersion >= currentVersion) return;` early-out and only fires once the
+    version is bumped to 1.0.7.0 at release. The demo `GeneralSettings.json:1024` keeps the old label as the migration test fixture.
+  - *Test:* new `AttributeGroupLabelMigratorTests` (5 cases) -- `Rename` maps the renamed label and passes others through;
+    `RewriteAttributeGroupDefinitions` renames the Label and nested group-in-group references; `RewriteAssetPack` rewrites
+    definitions + config rules + nested subgroups + replacers (5 reference sites, all -> new, still resolving against the renamed
+    local definition); a no-renamed-label pack returns false and is left unchanged; and the rebuilt set locates the renamed
+    attribute by value (catches the `HashSet` fast-path re-bucketing bug). The VM rename loop is manual-verify (full VM graph).
+    Suite 222 / 1 skipped / 0 failed.
+
 ---
 
 ## 🆕 Added during remediation (not in the original catalogue)
 
-### M1 — `MatureFace` label rename + backward-compat migration — 🐞 compat (BLOCKER for v1.0.7.0)
+### ✅ M1 — `MatureFace` label rename + backward-compat migration — 🐞 compat RESOLVED (rename + dormant 1.0.7.0 migration + config-install rewrite; version NOT bumped) — see Resolved §M1
 
 The "Mildy"→"Mildly" typo fix renames the default `MatureFace` AttributeGroup **Label**.
 AttributeGroups are referenced **by Label string** — `NPCAttributeGroup.SelectedLabels`
@@ -799,8 +837,9 @@ label at match time" — so renaming the default silently desyncs every referenc
 5. Test: run a settings tree + a config that reference the old label through the migration;
    assert the group Label and all `SelectedLabels` references are rewritten and still resolve.
 
-*Status:* rename was reverted out of `d098cac0` so the branch isn't half-migrated; the rename
-will land **with** this migration.
+*Status:* RESOLVED -- the rename landed together with the migration and config-install rewrite (see Resolved
+§M1). `PatcherState.Version` was deliberately **not** bumped, so the migration is dormant until the
+user authorizes the 1.0.7.0 bump at release.
 
 ### ✅ B47 — `ProbabilityWeightModifier` under-applies — 🐞 RESOLVED (B47a subgroup-seed + B47b pack-level seed) — see Resolved §B47a, §B47b
 

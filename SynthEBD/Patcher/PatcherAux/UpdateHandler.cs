@@ -27,10 +27,12 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     private readonly Logger _logger;
     private readonly VM_Settings_General _generalVM;
     private readonly VM_SettingsTexMesh _texMeshVM;
+    private readonly VM_SettingsOBody _oBodyVM;
+    private readonly VM_SettingsBodyGen _bodyGenVM;
     private readonly VM_RaceGrouping.Factory _raceGroupingFactory;
 
-    /// <summary>Captures the environment, paths, patcher state, IO helper, logger, settings VMs, and race-grouping factory used by the migrations.</summary>
-    public UpdateHandler(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_RaceGrouping.Factory raceGroupingFactory)
+    /// <summary>Captures the environment, paths, patcher state, IO helper, logger, settings VMs (General, TexMesh, OBody, BodyGen), and race-grouping factory used by the migrations.</summary>
+    public UpdateHandler(IEnvironmentStateProvider environmentProvider, SynthEBDPaths paths, PatcherState patcherState, PatcherIO patcherIO, Logger logger, VM_Settings_General generalVM, VM_SettingsTexMesh texMeshVM, VM_SettingsOBody oBodyVM, VM_SettingsBodyGen bodyGenVM, VM_RaceGrouping.Factory raceGroupingFactory)
     {
         _environmentProvider = environmentProvider;
         _paths = paths;
@@ -39,6 +41,8 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         _logger = logger;
         _generalVM = generalVM;
         _texMeshVM = texMeshVM;
+        _oBodyVM = oBodyVM;
+        _bodyGenVM = bodyGenVM;
         _raceGroupingFactory = raceGroupingFactory;
     }
 
@@ -87,6 +91,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         if (appliedVersion < "1.0.5.5") UpdateV1055CotrAttributes();
         if (appliedVersion < "1.0.6.8") UpdateV1068();
         if (appliedVersion < "1.0.7.0") UpdateV1070RaceAliases();
+        if (appliedVersion < "1.0.7.0") UpdateV1070AttributeGroupRename();
 
         _patcherState.UpdateLog.LastAppliedVersion = PatcherState.Version;
     }
@@ -529,6 +534,41 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         if (changed)
         {
             _logger.LogMessage("Update 1.0.7.0: restored the Charmers of the Reach Imperial Vampire race alias.");
+        }
+    }
+
+    /// <summary>
+    /// v1.0.7.0: rewrites attribute-group labels that were renamed in this version (see
+    /// <see cref="AttributeGroupLabelMigrator.RenamedLabels"/> - the "Mildy"->"Mildly" MatureFace typo fix)
+    /// across every loaded attribute-group menu: General Settings (which the Head Part rules share), each asset
+    /// pack, OBody, and each male/female BodyGen config. Attribute groups are referenced by label, and in the
+    /// view-model layer a reference is a live pointer to the menu's <see cref="VM_AttributeGroup"/> definition
+    /// (its label is read on serialization), so renaming the definitions here updates every Allowed/Disallowed/
+    /// ForceIf reference - including group-in-group definitions - without walking each rule. Mutates the VMs.
+    /// </summary>
+    private void UpdateV1070AttributeGroupRename()
+    {
+        RenameAttributeGroupLabels(_generalVM.AttributeGroupMenu); // also covers Head Part rules, which share the General menu
+        foreach (var assetPack in _texMeshVM.AssetPacks)
+        {
+            RenameAttributeGroupLabels(assetPack.AttributeGroupMenu);
+        }
+        RenameAttributeGroupLabels(_oBodyVM.AttributeGroupMenu);
+        foreach (var bodyGenConfig in _bodyGenVM.MaleConfigs.Concat(_bodyGenVM.FemaleConfigs))
+        {
+            RenameAttributeGroupLabels(bodyGenConfig.AttributeGroupMenu);
+        }
+    }
+
+    /// <summary>Applies the <see cref="AttributeGroupLabelMigrator.RenamedLabels"/> map to each group definition's
+    /// label in an attribute-group menu. The menu's checkbox references hold these same VM instances, so renaming
+    /// the definition propagates to every reference when the rules are serialized back to their models.</summary>
+    private static void RenameAttributeGroupLabels(VM_AttributeGroupMenu menu)
+    {
+        if (menu == null) { return; }
+        foreach (var group in menu.Groups)
+        {
+            group.Label = AttributeGroupLabelMigrator.Rename(group.Label);
         }
     }
 

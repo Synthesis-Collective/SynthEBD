@@ -171,6 +171,11 @@ public class ConfigInstaller
                 MessageWindow.DisplayNotificationOK("Installation failed", "Could not parse Asset Pack " + configPath + ". Installation aborted.");
                 continue;
             }
+
+            // Rewrite any attribute-group labels that older configs reference under a since-renamed default label
+            // (e.g. the "Mildy"->"Mildly" MatureFace fix) so the incoming config resolves against current settings.
+            AttributeGroupLabelMigrator.RewriteAssetPack(validationAP);
+
             loadedPacks.Add(validationAP);
 
             string destinationPath = Path.Combine(_paths.AssetPackDirPath, validationAP.GroupName + ".json");
