@@ -367,7 +367,7 @@ public class RecordGenerator
                     {
                         if (currentObjInfo.RecordFormKey.ModKey.Equals(_environmentProvider.OutputMod.ModKey) && !IsImportedForSkyPatcher(currentObj)) // This is a subrecord of a template-derived deep copied record. Now that the path signature of the given template-derived subrecord is known, cache it
                         {
-                            var generatedSubRecord = templateSubRecords.Where(x => x.SubRecord == currentObj).FirstOrDefault();
+                            var generatedSubRecord = templateSubRecords.FirstOrDefault(x => x.SubRecord == currentObj);
                             if (generatedSubRecord != null)
                             {
                                 AddGeneratedObjectToDictionary(pathSignature, group.Key, generatedSubRecord.TemplateSignature, currentObj, currentObjInfo.IndexInParentArray);

@@ -108,12 +108,12 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         {
             foreach (var descriptorShell in DescriptorShells)
             {
-                var oppositeShell = OppositeToggleMenu.DescriptorShells.Where(x => x.TrackedShell.Category == descriptorShell.TrackedShell.Category).FirstOrDefault();
+                var oppositeShell = OppositeToggleMenu.DescriptorShells.FirstOrDefault(x => x.TrackedShell.Category == descriptorShell.TrackedShell.Category);
                 if (oppositeShell != null)
                 {
                     foreach (var selector in descriptorShell.DescriptorSelectors)
                     {
-                        var oppositeSelector = oppositeShell.DescriptorSelectors.Where(x => x.TrackedDescriptor.Value == selector.TrackedDescriptor.Value).FirstOrDefault();
+                        var oppositeSelector = oppositeShell.DescriptorSelectors.FirstOrDefault(x => x.TrackedDescriptor.Value == selector.TrackedDescriptor.Value);
                         if (oppositeSelector != null)
                         {
                             selector.WhenAnyValue(x => x.IsSelected).Subscribe(isSelected =>

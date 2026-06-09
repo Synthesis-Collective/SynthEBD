@@ -170,7 +170,7 @@ public class HeadPartAuxFunctions
     /// </summary>
     private bool IsForced(INpcGetter npcGetter)
     {
-        var specificAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npcGetter.FormKey).FirstOrDefault();
-        return specificAssignment != null && specificAssignment.HeadParts != null && specificAssignment.HeadParts.Where(x => x.Value != null && x.Value.FormKey != null && !x.Value.FormKey.IsNull).Any();
+        var specificAssignment = _patcherState.SpecificNPCAssignments.FirstOrDefault(x => x.NPCFormKey == npcGetter.FormKey);
+        return specificAssignment != null && specificAssignment.HeadParts != null && specificAssignment.HeadParts.Any(x => x.Value != null && x.Value.FormKey != null && !x.Value.FormKey.IsNull);
     }
 }

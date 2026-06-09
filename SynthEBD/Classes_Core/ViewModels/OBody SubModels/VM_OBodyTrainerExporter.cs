@@ -92,7 +92,7 @@ public class VM_OBodyTrainerExporter : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var currentDescriptor = AvailableDescriptors.Where(x => x.IsSelected).FirstOrDefault()?.Text ?? string.Empty;
+                var currentDescriptor = AvailableDescriptors.FirstOrDefault(x => x.IsSelected)?.Text ?? string.Empty;
                 if (currentDescriptor == String.Empty)
                 {
                     MessageWindow.DisplayNotificationOK("Error", "You must select a Descriptor to export annotations for");
@@ -190,7 +190,7 @@ public class VM_OBodyTrainerExporter : VM
         var existingSliders = AvailableSliders.Select(x => x.SubscribedSlider).ToHashSet();
         foreach (var slider in availableSliders.Where(x => !existingSliders.Contains(x)))
         {
-            if (!AvailableSliders.Where(x => x.SubscribedSlider.SliderName == slider.SliderName).Any())
+            if (!AvailableSliders.Any(x => x.SubscribedSlider.SliderName == slider.SliderName))
             {
                 AvailableSliders.Add(new(slider));
             }
@@ -254,7 +254,7 @@ public class VM_OBodyTrainerExporter : VM
     /// <summary>Trains an ML.NET pipeline on the full BodySlide set labeled by the selected descriptor category and saves the model under the OBody settings "Models" folder. No-ops if no descriptor is selected.</summary>
     private void CreateModel()
     {
-        var currentDescriptor = AvailableDescriptors.Where(x => x.IsSelected).FirstOrDefault()?.Text ?? string.Empty;
+        var currentDescriptor = AvailableDescriptors.FirstOrDefault(x => x.IsSelected)?.Text ?? string.Empty;
         if (currentDescriptor == string.Empty)
         {
             return;

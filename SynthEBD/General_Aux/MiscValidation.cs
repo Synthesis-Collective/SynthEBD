@@ -283,8 +283,8 @@ public class MiscValidation
                 BodyGenConfig bodyGenConfig = null;
                 switch (assetPack.Gender)
                 {
-                    case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                    case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
+                    case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
                 }
 
                 if (examinedConfigs.Contains(assetPack.AssociatedBodyGenConfigName)) { continue; }
@@ -513,7 +513,7 @@ public class MiscValidation
     public bool VerifyGeneratedTriFilesForOBody(Settings_OBody oBodySettings)
     {
         bool valid = true;
-        if (oBodySettings.BodySlidesMale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
+        if (oBodySettings.BodySlidesMale.Any(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)))
         {
             string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "malebody.tri");
             if (!File.Exists(triPath))
@@ -523,7 +523,7 @@ public class MiscValidation
             }
         }
 
-        if (oBodySettings.BodySlidesFemale.Where(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any())
+        if (oBodySettings.BodySlidesFemale.Any(x => x.AllowRandom && oBodySettings.CurrentlyExistingBodySlides.Contains(x.Label)))
         {
             string triPath = Path.Combine(_environmentProvider.DataFolderPath, "meshes", "actors", "character", "character assets", "femalebody.tri");
             if (!File.Exists(triPath))
@@ -595,8 +595,8 @@ public class MiscValidation
                 BodyGenConfig bodyGenConfig = null;
                 switch (assetPack.Gender)
                 {
-                    case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                    case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                    case Gender.Male: bodyGenConfig = bodyGenConfigs.Male.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
+                    case Gender.Female: bodyGenConfig = bodyGenConfigs.Female.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
                 }
                 if (bodyGenConfig != null)
                 {
@@ -741,7 +741,7 @@ public class MiscValidation
 
             foreach (var g in duplicates.Distinct())
             {
-                message += g + " (" + (duplicates.Where(x => x == g).Count() + 1) + ")" + Environment.NewLine;
+                message += g + " (" + (duplicates.Count(x => x == g) + 1) + ")" + Environment.NewLine;
             }
 
             if (MessageWindow.DisplayNotificationYesNo("Duplicate Race Groupings", message))

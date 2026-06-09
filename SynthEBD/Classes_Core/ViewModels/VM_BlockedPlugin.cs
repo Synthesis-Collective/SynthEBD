@@ -88,7 +88,7 @@ public class VM_BlockedPlugin : VM
         viewModel.HeadParts = placeHolder.AssociatedModel.HeadParts;
         foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) 
         { 
-            viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; 
+            viewModel.HeadPartTypes.First(x => x.Type == type).Block = placeHolder.AssociatedModel.HeadPartTypes[type]; 
         }
         viewModel.VanillaBodyPath = placeHolder.AssociatedModel.VanillaBodyPath;
         return viewModel;
@@ -105,7 +105,7 @@ public class VM_BlockedPlugin : VM
         model.HeadParts = HeadParts;
         foreach (var type in model.HeadPartTypes.Keys) 
         { 
-            model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; 
+            model.HeadPartTypes[type] = HeadPartTypes.First(x => x.Type == type).Block; 
         }
         model.VanillaBodyPath = VanillaBodyPath;
         return model;

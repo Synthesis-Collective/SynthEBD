@@ -209,7 +209,7 @@ public class VM_MO2Integration : VM
             SetDefaultModDirPath();
             return;
         }
-        string dirLine = iniLines.Where(x => x.StartsWith("mod_directory", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        string dirLine = iniLines.FirstOrDefault(x => x.StartsWith("mod_directory", StringComparison.OrdinalIgnoreCase));
         if (dirLine == null || dirLine.IsNullOrEmpty())
         {
             SetDefaultModDirPath();

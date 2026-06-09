@@ -245,7 +245,7 @@ public class PatcherState
         }
         else if (OBodySettings != null)
         {
-            sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Where(x => x.HasAnyDescriptors()).Count() + " annotated)");
+            sb.AppendLine("Male BodySlides: " + OBodySettings.BodySlidesMale.Count + " (" + OBodySettings.BodySlidesMale.Count(x => x.HasAnyDescriptors()) + " annotated)");
         }
 
         if (OBodySettings != null && OBodySettings.BodySlidesFemale == null)
@@ -254,7 +254,7 @@ public class PatcherState
         }
         else if (OBodySettings != null)
         {
-            sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Where(x => x.HasAnyDescriptors()).Count() + " annotated)");
+            sb.AppendLine("Female BodySlides: " + OBodySettings.BodySlidesFemale.Count + " (" + OBodySettings.BodySlidesFemale.Count(x => x.HasAnyDescriptors()) + " annotated)");
         }
 
         if (HeightConfigs == null)

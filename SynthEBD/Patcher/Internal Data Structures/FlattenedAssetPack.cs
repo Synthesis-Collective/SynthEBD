@@ -195,7 +195,7 @@ public class FlattenedAssetPack
             var toOverwrite = new List<RaceGrouping>();
             foreach (var grouping in Source.RaceGroupings.Where(x => mainGroupingLabels.Contains(x.Label)).ToArray())
             {
-                var overwriteGrouping = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == grouping.Label).First();
+                var overwriteGrouping = _patcherState.GeneralSettings.RaceGroupings.First(x => x.Label == grouping.Label);
                 output.Add(new RaceGrouping() { Label = overwriteGrouping.Label, Races = new(overwriteGrouping.Races) });
             }
         }

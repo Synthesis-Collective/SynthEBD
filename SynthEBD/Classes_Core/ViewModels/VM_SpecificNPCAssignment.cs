@@ -498,7 +498,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         foreach (var replacer in model.AssetReplacerAssignments)
         {
-            var parentAssetPack = _texMeshSettings.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
+            var parentAssetPack = _texMeshSettings.AssetPacks.FirstOrDefault(x => x.GroupName == replacer.AssetPackName);
             if (parentAssetPack != null)
             {
                 VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, ForcedAssetReplacements);

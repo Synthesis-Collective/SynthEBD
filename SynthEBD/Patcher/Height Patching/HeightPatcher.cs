@@ -80,7 +80,7 @@ public class HeightPatcher
                 return null;
             }
 
-            var heightAssignment = heightConfig.HeightAssignments.Where(x => x.Races.Contains(npcInfo.HeightRace)).FirstOrDefault();
+            var heightAssignment = heightConfig.HeightAssignments.FirstOrDefault(x => x.Races.Contains(npcInfo.HeightRace));
 
             if (heightAssignment == null)
             {
@@ -211,11 +211,11 @@ public class HeightPatcher
         foreach (var race in _environmentProvider.LoadOrder.PriorityOrder.OnlyEnabledAndExisting().WinningOverrides<IRaceGetter>())
         {
             patchedRace = null;
-            raceAlias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.Race == race.FormKey && x.bApplyToHeight).FirstOrDefault();
+            raceAlias = _patcherState.GeneralSettings.RaceAliases.FirstOrDefault(x => x.Race == race.FormKey && x.bApplyToHeight);
                
             if (raceAlias != null && _patcherState.GeneralSettings.PatchableRaces.Contains(raceAlias.AliasRace) && _environmentProvider.LinkCache.TryResolve<IRaceGetter>(raceAlias.AliasRace, out var raceAliasGetter))
             {
-                heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(raceAlias.AliasRace)).FirstOrDefault();
+                heightRacialSetting = heightConfig.HeightAssignments.FirstOrDefault(x => x.Races.Contains(raceAlias.AliasRace));
 
                 if (heightRacialSetting == null || heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
                 {
@@ -228,7 +228,7 @@ public class HeightPatcher
             }
             else if (_patcherState.GeneralSettings.PatchableRaces.Contains(race.FormKey))
             {
-                heightRacialSetting = heightConfig.HeightAssignments.Where(x => x.Races.Contains(race.FormKey)).FirstOrDefault();
+                heightRacialSetting = heightConfig.HeightAssignments.FirstOrDefault(x => x.Races.Contains(race.FormKey));
                     
                 if (heightRacialSetting == null || heightRacialSetting.HeightMale == race.Height.Male && heightRacialSetting.HeightFemale == race.Height.Female)
                 {

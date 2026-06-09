@@ -77,7 +77,7 @@ namespace SynthEBD
         public void AddSubgroup(VM_SubgroupPlaceHolder subgroup)
         {
             var topLevelIndex = subgroup.GetTopLevelIndex();
-            var targetContainer = ContainersByIndex.Where(x => x.TopLevelIndex == topLevelIndex).FirstOrDefault();
+            var targetContainer = ContainersByIndex.FirstOrDefault(x => x.TopLevelIndex == topLevelIndex);
 
             if (targetContainer == null)
             {

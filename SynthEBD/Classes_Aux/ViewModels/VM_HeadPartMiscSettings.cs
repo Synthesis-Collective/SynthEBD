@@ -112,7 +112,7 @@ namespace SynthEBD
 
             if (!model.AssociatedBodyGenConfigNameMale.IsNullOrWhitespace())
             {
-                TrackedBodyGenConfigMale = AvailableBodyGenConfigsMale.Where(x => x.Label == model.AssociatedBodyGenConfigNameMale).FirstOrDefault();
+                TrackedBodyGenConfigMale = AvailableBodyGenConfigsMale.FirstOrDefault(x => x.Label == model.AssociatedBodyGenConfigNameMale);
             }
             else
             {
@@ -121,7 +121,7 @@ namespace SynthEBD
 
             if (!model.AssociatedBodyGenConfigNameFemale.IsNullOrWhitespace())
             {
-                TrackedBodyGenConfigFemale = AvailableBodyGenConfigsFemale.Where(x => x.Label == model.AssociatedBodyGenConfigNameFemale).FirstOrDefault();
+                TrackedBodyGenConfigFemale = AvailableBodyGenConfigsFemale.FirstOrDefault(x => x.Label == model.AssociatedBodyGenConfigNameFemale);
             }
             else
             {

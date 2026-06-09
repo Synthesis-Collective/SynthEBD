@@ -76,7 +76,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         //if a new item has been added to the subscribed list, add it to the checklist
         foreach (var item in masterList)
         {
-            if (!CollectionMemberStrings.Where(x => x.SubscribedString == item).Any())
+            if (!CollectionMemberStrings.Any(x => x.SubscribedString == item))
             {
                 var newItem = new VM_SelectableCollectionMemberString(item, this);
                 CollectionMemberStrings.Add(newItem);
@@ -87,7 +87,7 @@ public class VM_CollectionMemberStringCheckboxList : VM, ICollectionParent
         for (int i = 0; i < CollectionMemberStrings.Count; i++)
         {
             var item = CollectionMemberStrings[i];
-            if (!masterList.Where(x => item.SubscribedString == x).Any())
+            if (!masterList.Any(x => item.SubscribedString == x))
             {
                 CollectionMemberStrings.RemoveAt(i);
                 i--;

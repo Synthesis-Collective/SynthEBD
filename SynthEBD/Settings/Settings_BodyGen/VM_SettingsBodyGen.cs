@@ -171,8 +171,8 @@ public class VM_SettingsBodyGen : VM
             _logger.LogStartupEventEnd("Loading BodyGen Config UI for " + config.Label);
         }
 
-        CurrentMaleConfig = MaleConfigs.Where(x => x.Label == model.CurrentMaleConfig).FirstOrDefault();
-        CurrentFemaleConfig = FemaleConfigs.Where(x => x.Label == model.CurrentFemaleConfig).FirstOrDefault();
+        CurrentMaleConfig = MaleConfigs.FirstOrDefault(x => x.Label == model.CurrentMaleConfig);
+        CurrentFemaleConfig = FemaleConfigs.FirstOrDefault(x => x.Label == model.CurrentFemaleConfig);
 
         if (CurrentFemaleConfig == null)
         {
@@ -284,7 +284,7 @@ public class VM_SettingsBodyGen : VM
 
         var starterMapping = _mappingFactory(newConfig.GroupUI, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         starterMapping.Label = "Mapping 1";
-        var humanoidRaces = starterMapping.RaceGroupings.RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping.Label.Equals("humanoid", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        var humanoidRaces = starterMapping.RaceGroupings.RaceGroupingSelections.FirstOrDefault(x => x.SubscribedMasterRaceGrouping.Label.Equals("humanoid", StringComparison.OrdinalIgnoreCase));
         if (humanoidRaces != null)
         {
             humanoidRaces.IsSelected = true;

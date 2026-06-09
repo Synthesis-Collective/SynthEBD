@@ -540,14 +540,14 @@ public class VM_ConfigPathRemapper : VM
                         {
                             if (pathToUpdate.Source == bestMatchingPath && !PathWasRemappedByHash(subgroup, pathToUpdate))
                             {
-                                var recordEntry = SubgroupsRemappedByPathPrediction.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
+                                var recordEntry = SubgroupsRemappedByPathPrediction.FirstOrDefault(x => x.SourceSubgroup == subgroup);
                                 if (recordEntry == null)
                                 {
                                     recordEntry = new(subgroup);
                                     SubgroupsRemappedByPathPrediction.Add(recordEntry);
                                 }
 
-                                var pathEntry = recordEntry.Paths.Where(x => x.OldPath == bestMatchingPath).FirstOrDefault();
+                                var pathEntry = recordEntry.Paths.FirstOrDefault(x => x.OldPath == bestMatchingPath);
                                 if (pathEntry == null)
                                 {
                                     pathEntry = _remappedPathFactory(this);
@@ -586,10 +586,10 @@ public class VM_ConfigPathRemapper : VM
     /// <summary>Returns true if the given subgroup path was already remapped in the hash pass (so the similarity pass should skip it).</summary>
     private bool PathWasRemappedByHash(VM_SubgroupPlaceHolder subgroup, FilePathReplacement pathToUpdate)
     {
-        var matchingSubgroup = SubgroupsRemappedByHash.Where(x => x.SourceSubgroup == subgroup).FirstOrDefault();
+        var matchingSubgroup = SubgroupsRemappedByHash.FirstOrDefault(x => x.SourceSubgroup == subgroup);
         if (matchingSubgroup != null)
         {
-            var matchingPath = matchingSubgroup.Paths.Where(x => x.OldPath == pathToUpdate.Source).FirstOrDefault();
+            var matchingPath = matchingSubgroup.Paths.FirstOrDefault(x => x.OldPath == pathToUpdate.Source);
             if (matchingPath != null)
             {
                 return true;
@@ -704,9 +704,9 @@ public class VM_ConfigPathRemapper : VM
             var placeholderSubgroup = new RemappedSubgroup(subgroup);
             foreach (var path in subgroup.AssociatedModel.Paths)
             {
-                if (!SubgroupsRemappedByHash.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
-                    !SubgroupsRemappedByPathPrediction.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
-                    !MissingPathSubgroups.Where(x => x.Paths.Any(y => y.OldPath == path.Source)).Any() &&
+                if (!SubgroupsRemappedByHash.Any(x => x.Paths.Any(y => y.OldPath == path.Source)) &&
+                    !SubgroupsRemappedByPathPrediction.Any(x => x.Paths.Any(y => y.OldPath == path.Source)) &&
+                    !MissingPathSubgroups.Any(x => x.Paths.Any(y => y.OldPath == path.Source)) &&
                     !_allFiles_New.Contains(path.Source, StringComparer.OrdinalIgnoreCase) &&
                     !placeholderSubgroup.Paths.Any(x => x.OldPath == path.Source))
                 {
@@ -778,14 +778,14 @@ public class VM_ConfigPathRemapper : VM
                             continue;
                         }
 
-                        var existingRecord = MultimappedSubgroups.Where(x => x.SourceSubgroup == subgroup.SourceSubgroup).FirstOrDefault();
+                        var existingRecord = MultimappedSubgroups.FirstOrDefault(x => x.SourceSubgroup == subgroup.SourceSubgroup);
                         if (existingRecord == null)
                         {
                             existingRecord = new() { SourceSubgroup = subgroup.SourceSubgroup };
                             MultimappedSubgroups.Add(existingRecord);
                         }
 
-                        var existingTexture = existingRecord.MultimappedTextures.Where(x => x.OrigPath == path.OldPath).FirstOrDefault();
+                        var existingTexture = existingRecord.MultimappedTextures.FirstOrDefault(x => x.OrigPath == path.OldPath);
                         if (existingTexture == null)
                         {
                             existingTexture = new() { OrigPath = path.OldPath };

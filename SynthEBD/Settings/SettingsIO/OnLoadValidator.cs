@@ -121,7 +121,7 @@ namespace SynthEBD
 
                 foreach (var g in duplicates.Distinct())
                 {
-                    message += g + " (" + (duplicates.Where(x => x == g).Count() + 1) + ")" + Environment.NewLine;
+                    message += g + " (" + (duplicates.Count(x => x == g) + 1) + ")" + Environment.NewLine;
                 }
 
                 if (MessageWindow.DisplayNotificationYesNo("Duplicate " + type, message))

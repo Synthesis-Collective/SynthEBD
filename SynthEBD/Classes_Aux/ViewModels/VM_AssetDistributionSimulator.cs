@@ -202,7 +202,7 @@ namespace SynthEBD
             List<CountableString> assetPacks = new();
             foreach (var combo in combinations.Where(x => x.AssetPack != null).ToArray())
             {
-                var existing = assetPacks.Where(x => x.Str == combo.AssignmentName).FirstOrDefault();
+                var existing = assetPacks.FirstOrDefault(x => x.Str == combo.AssignmentName);
                 if (existing != null) { existing.Count++; }
                 else
                 {
@@ -225,7 +225,7 @@ namespace SynthEBD
             TextReport += Environment.NewLine + Environment.NewLine + "Subgroup Assignment Counts:";
             foreach (var ap in available)
             {
-                if (!assetPacks.Where(x => x.Str == ap.GroupName).Any()) { continue; }
+                if (!assetPacks.Any(x => x.Str == ap.GroupName)) { continue; }
                 AssetReport assetReport = new();
                 assetReport.TitleString += Environment.NewLine + "====================" + Environment.NewLine + ap.GroupName + Environment.NewLine + "====================" + Environment.NewLine;
                 List<CountableString> subgroups = new();
@@ -236,7 +236,7 @@ namespace SynthEBD
                     foreach (var subgroup in index)
                     {
                         CountableString sgString = new() { Str = subgroup.Id + " (" + subgroup.Name + "): " };
-                        sgString.Count = combinations.Where(x => x.AssignmentName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id).Count();
+                        sgString.Count = combinations.Count(x => x.AssignmentName == ap.GroupName && x.ContainedSubgroups[i].Id == subgroup.Id);
 
                         var reportString = new VM_ReportCountableStringWrapper(sgString);
                         if (sgString.Count > 0) { reportString.TextColor = CommonColors.White; }
@@ -320,7 +320,7 @@ namespace SynthEBD
                 string subgroupStrs = split2[0];
 
                 var subgroupStrArray = subgroupStrs.Split(Environment.NewLine).Where(x => !x.IsNullOrWhitespace()).ToArray();
-                ExplainStr = subgroupStrArray.Where(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(reportIDstring, string.Empty))).FirstOrDefault() ?? "No relevant information found";
+                ExplainStr = subgroupStrArray.FirstOrDefault(x => ReplaceWhitespace(x, string.Empty).StartsWith(ReplaceWhitespace(reportIDstring, string.Empty))) ?? "No relevant information found";
             }
 
             //https://stackoverflow.com/questions/6219454/efficient-way-to-remove-all-whitespace-from-string

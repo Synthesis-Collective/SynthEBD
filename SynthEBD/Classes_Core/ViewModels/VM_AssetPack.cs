@@ -555,10 +555,10 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             switch(model.Gender) // use the model's gender because the VM's gender is intentionally set last to simplify subscriptions.
             {
                 case Gender.Female:
-                    TrackedBodyGenConfig = CurrentBodyGenSettings.FemaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                    TrackedBodyGenConfig = CurrentBodyGenSettings.FemaleConfigs.FirstOrDefault(x => x.Label == model.AssociatedBodyGenConfigName);
                     break;
                 case Gender.Male:
-                    TrackedBodyGenConfig = CurrentBodyGenSettings.MaleConfigs.Where(x => x.Label == model.AssociatedBodyGenConfigName).FirstOrDefault();
+                    TrackedBodyGenConfig = CurrentBodyGenSettings.MaleConfigs.FirstOrDefault(x => x.Label == model.AssociatedBodyGenConfigName);
                     break;
             }
         }
@@ -787,7 +787,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 // merge existing subgroups
                 foreach (var subgroup in Subgroups)
                 {
-                    var matchedSubgroup = newAssetPackVM.Subgroups.Where(x => x.ID == subgroup.ID).FirstOrDefault();
+                    var matchedSubgroup = newAssetPackVM.Subgroups.FirstOrDefault(x => x.ID == subgroup.ID);
                     if (matchedSubgroup != null)
                     {
                         MergeSubgroupLists(subgroup.Subgroups, matchedSubgroup.Subgroups, this, newSubgroupNames);
@@ -811,7 +811,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     {
         foreach (VM_SubgroupPlaceHolder candidateSubgroup in ListB)
         {
-            var matchedSubgroup = ListA.Where(x => x.ID == candidateSubgroup.ID).FirstOrDefault();
+            var matchedSubgroup = ListA.FirstOrDefault(x => x.ID == candidateSubgroup.ID);
             if (matchedSubgroup is null)
             {
                 var clone = candidateSubgroup.Clone(parentAssetPack, ListA);
@@ -1000,7 +1000,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
             
             bool newDestinationExists = VM_FilePathReplacement.DestinationPathExists(newPath.Destination, RecordTemplateLinkCache, AllReferenceNPCs, _recordPathParser, _logger);
 
-            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Where(x => x.Destination == newPath.Destination).Any())
+            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Any(x => x.Destination == newPath.Destination))
             {
                 newFeetPaths.Add(newPath);
                 modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to feet: " + newPath.Source);
@@ -1050,7 +1050,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
 
             bool newDestinationExists = VM_FilePathReplacement.DestinationPathExists(newPath.Destination, RecordTemplateLinkCache, AllReferenceNPCs, _recordPathParser, _logger);
 
-            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Where(x => x.Destination == newPath.Destination).Any())
+            if (newDestinationExists && !subgroup.AssociatedModel.Paths.Any(x => x.Destination == newPath.Destination))
             {
                 newTailPaths.Add(newPath);
                 modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": Duplicated torso texture to tail: " + newPath.Source);
@@ -1071,7 +1071,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
     /// <summary>Returns whether the subgroup or any of its descendants assigns a path whose destination contains the given fragment.</summary>
     public static bool SubgroupHasDestinationPath(VM_SubgroupPlaceHolder subgroup, string destinationPath)
     {
-        if (subgroup.AssociatedModel.Paths.Where(x => x.Destination.Contains(destinationPath)).Any())
+        if (subgroup.AssociatedModel.Paths.Any(x => x.Destination.Contains(destinationPath)))
         {
             return true;
         }
@@ -1104,7 +1104,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 var tailAlternateDestination = targetDestination.Replace("BipedObjectFlag.Body", "BipedObjectFlag.Tail");
 
                 // try assigning the default destination path if the subgroup doesn't already assign an asset to that path
-                if (!subgroup.AssociatedModel.Paths.Where(x => x.Destination == targetDestination).Any())
+                if (!subgroup.AssociatedModel.Paths.Any(x => x.Destination == targetDestination))
                 {
                     path.Destination = FilePathDestinationMap.FileNameToDestMap[fileName];
                     modifications.Add(Logger.GetSubgroupIDString(subgroup) + ": " + path.Source + " --> " + path.Destination);
@@ -1113,7 +1113,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 else if (
                     (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName))  && 
                     CandidateTargetPathExists(feetAlternateDestination) &&
-                    !subgroup.AssociatedModel.Paths.Where(x => x.Destination == feetAlternateDestination).Any()
+                    !subgroup.AssociatedModel.Paths.Any(x => x.Destination == feetAlternateDestination)
                     )
                 {
                     path.Destination = feetAlternateDestination;
@@ -1123,7 +1123,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 else if (
                     (FilePathDestinationMap.MaleTorsoPaths.ContainsKey(fileName) || FilePathDestinationMap.FemaleTorsoPaths.ContainsKey(fileName)) &&
                     CandidateTargetPathExists(tailAlternateDestination) &&
-                    !subgroup.AssociatedModel.Paths.Where(x => x.Destination == tailAlternateDestination).Any()
+                    !subgroup.AssociatedModel.Paths.Any(x => x.Destination == tailAlternateDestination)
                     )
                 {
                     path.Destination = tailAlternateDestination;
@@ -1342,7 +1342,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         {
             if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
             {
-                existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                existingGroupings.Add(fallBackGroupings.First(x => x.Label == groupLabel));
             }
         }
     }
@@ -1488,7 +1488,7 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
                 foreach (var subDirectory in Directory.GetDirectories(modDirectory))
                 {
                     var candidatePrefixDirectories = Directory.GetDirectories(subDirectory).Select(x => new DirectoryInfo(x).Name).ToArray();
-                    if (candidatePrefixDirectories.Where(x => prefixes.Contains(x)).Any())
+                    if (candidatePrefixDirectories.Any(x => prefixes.Contains(x)))
                     {
                         candidateAssetDirs.Add(modDirectory);
                     }

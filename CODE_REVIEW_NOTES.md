@@ -910,7 +910,12 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   **deleted** the `VM_RaceGrouping.CollectionMatchesRaceGrouping` method. Pure SetEquals diverges from the old
   count+all-found logic only if a group held a duplicate FormKey (then it now matches the distinct set -- a fix).
   Suite 222/1/0.
-- [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
+- [x] **C4 `.Where(pred).First()` -> `.First(pred)` sweep -- DONE (full careful sweep).** 204 conversions across 65
+  files. Done via a paren-matching transformer (NOT a greedy regex) that converts `.Where(pred)` only when immediately
+  followed by a predicate-overload terminal (`First`/`FirstOrDefault`/`Any`/`Single`/`SingleOrDefault`/`Count`/`Last`/
+  `LastOrDefault`), so `.Where(...).Select(...).First()`-style chains are left untouched (the greedy grep over-counted
+  213; the real safe count was 204). Behavior-identical for every case. Diff is 202/202 pure content lines (line
+  endings/BOM preserved). Transformer script was deleted after the run. Build 0 errors; suite 222/1/0.
 - [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
 
@@ -1692,7 +1697,7 @@ so a head-part type missing from the model gets a blank added to the model but t
 `ToggleHide` `RelayCommand` properties are declared get-only but never assigned (always null), and a large
 commented-out `Clone` block sits just above them. Dead — wire up or remove.
 
-### View-model `.Where(pred).First()/.FirstOrDefault()` — 🔧 modernize
+### ✅ View-model `.Where(pred).First()/.FirstOrDefault()` — 🔧 RESOLVED (project-wide sweep, 204 sites) — see Bucket 3 §C4
 
 Several round-trip helpers use `collection.Where(x => x.Prop == v).First()` (or `.FirstOrDefault()`), which
 should be `collection.First(pred)` / `FirstOrDefault(pred)`:

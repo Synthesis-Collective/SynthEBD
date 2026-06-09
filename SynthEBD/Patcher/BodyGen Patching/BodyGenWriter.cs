@@ -52,7 +52,7 @@ public class BodyGenWriter
         string output = "";
         foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsMale)
         {
-            var currentConfig = bodyGenConfigs.Male.Where(x => x.Label == assignment.Key).First(); // first instead of single in case user has duplicate configs installed
+            var currentConfig = bodyGenConfigs.Male.First(x => x.Label == assignment.Key); // first instead of single in case user has duplicate configs installed
             var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label)).ToArray();
 
             foreach (var template in assignedTemplates)
@@ -63,7 +63,7 @@ public class BodyGenWriter
 
         foreach (var assignment in Patcher.BodyGenTracker.AllChosenMorphsFemale)
         {
-            var currentConfig = bodyGenConfigs.Female.Where(x => x.Label == assignment.Key).First();  // first instead of single in case user has duplicate configs installed
+            var currentConfig = bodyGenConfigs.Female.First(x => x.Label == assignment.Key);  // first instead of single in case user has duplicate configs installed
             var assignedTemplates = currentConfig.Templates.Where(x => assignment.Value.Contains(x.Label)).ToArray();
 
             foreach (var template in assignedTemplates)

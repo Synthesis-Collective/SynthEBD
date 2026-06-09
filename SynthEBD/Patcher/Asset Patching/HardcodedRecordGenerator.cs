@@ -105,10 +105,10 @@ public class HardcodedRecordGenerator
     public static INpcGetter GetTemplateForHardcodedAssignments(HashSet<FilePathReplacementParsed> paths, HashSet<string> preferredPaths, string fallBackStartStr)
     {
         INpcGetter template = null;
-        var preferredPath = paths.Where(x => preferredPaths.Contains(x.DestinationStr)).FirstOrDefault();
+        var preferredPath = paths.FirstOrDefault(x => preferredPaths.Contains(x.DestinationStr));
         if (preferredPath == null)
         {
-            preferredPath = paths.Where(x => x.DestinationStr.StartsWith(fallBackStartStr)).FirstOrDefault();
+            preferredPath = paths.FirstOrDefault(x => x.DestinationStr.StartsWith(fallBackStartStr));
         }
 
         if (preferredPath != null)
@@ -543,7 +543,7 @@ public class HardcodedRecordGenerator
             case ArmorAddonType.Tail: filteredFlags = candidates.Where(x => x.BodyTemplate.FirstPersonFlags.HasFlag(BipedObjectFlag.Tail)); break;
         }
         if (filteredFlags == null || !filteredFlags.Any()) { return null; }
-        return filteredFlags.Where(x => requiredRaceFKstrs.Contains(x.Race.FormKey.ToString())).FirstOrDefault();
+        return filteredFlags.FirstOrDefault(x => requiredRaceFKstrs.Contains(x.Race.FormKey.ToString()));
     }
 
     /// <summary>The fixed set of destination strings recognized as hardcoded torso body-texture paths (male/female diffuse/normal/subsurface/specular).</summary>
@@ -674,7 +674,7 @@ public class HardcodedRecordGenerator
     private static void AssignKnownHeadPartReplacer(SubgroupCombination subgroupCombination, INpcGetter npcGetter, SkyrimMod outputMod, Dictionary<HeadPart.TypeEnum, FormKey> generatedHeadParts, NPCInfo npcInfo, HeadPartSelector headPartSelector, IEnvironmentStateProvider environmentProvider)
     {
         var npc = outputMod.Npcs.GetOrAddAsOverride(npcGetter);
-        var headPart = npc.HeadParts.Where(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey).FirstOrDefault();
+        var headPart = npc.HeadParts.FirstOrDefault(x => x.FormKey == subgroupCombination.ReplacerDestinationFormKey);
 
         var pathSignature = new HashSet<string>();
         foreach (var subgroup in subgroupCombination.ContainedSubgroups)

@@ -59,7 +59,7 @@ namespace SynthEBD
                 execute: _ => { 
                     foreach (var assignment in specificAssignmentsUI.Assignments.Where(x => VM_SpecificNPCAssignment.GetGender(x.AssociatedModel.NPCFormKey, logger, environmentProvider) == _parent.Gender).ToArray())
                     {
-                        var existingMixInAssignment = assignment.AssociatedModel.MixInAssignments.Where(x => x.AssetPackName == _parent.GroupName).FirstOrDefault();
+                        var existingMixInAssignment = assignment.AssociatedModel.MixInAssignments.FirstOrDefault(x => x.AssetPackName == _parent.GroupName);
                         if (existingMixInAssignment != null)
                         {
                             if (OverrideExistingSNA)

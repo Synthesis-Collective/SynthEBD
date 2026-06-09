@@ -110,7 +110,7 @@ public class VM_BodySlideAnnotator : VM
                 rulesByBodyType= new SliderClassificationRulesByBodyType();
             }
 
-            var correspondingVM = AnnotationRules.Where(x => x.BodyTypeGroup == bodyType).FirstOrDefault();
+            var correspondingVM = AnnotationRules.FirstOrDefault(x => x.BodyTypeGroup == bodyType);
             if (correspondingVM != null)
             {
                 correspondingVM.CopyInFromModel(rulesByBodyType);
@@ -213,7 +213,7 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
 
         foreach (var perDescriptorRuleSet in model.DescriptorClassifiers)
         {
-            var correspondingVM = DescriptorClassifiers.Where(x => x.DescriptorCategory == perDescriptorRuleSet.DescriptorCategory).FirstOrDefault();
+            var correspondingVM = DescriptorClassifiers.FirstOrDefault(x => x.DescriptorCategory == perDescriptorRuleSet.DescriptorCategory);
             if (correspondingVM != null)
             {
                 correspondingVM.CopyInFromModel(perDescriptorRuleSet);
@@ -283,7 +283,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     /// <summary>Loads the default descriptor value and rebuilds the rule list from the model.</summary>
     public void CopyInFromModel(DescriptorClassificationRuleSet model)
     {
-        DefaultDescriptorValue = _subscribedDescriptorShell.Descriptors.Where(x => x.Value == model.DefaultDescriptorValue).FirstOrDefault();
+        DefaultDescriptorValue = _subscribedDescriptorShell.Descriptors.FirstOrDefault(x => x.Value == model.DefaultDescriptorValue);
 
         RuleList.Clear();
         foreach (var rulesForDescriptor in model.RuleList)
@@ -307,7 +307,7 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     /// <summary>Syncs <see cref="AvailableDefaultDescriptors"/> with the subscribed descriptors, keeping a leading empty/dummy option and dropping entries no longer present.</summary>
     private void RefreshAvailableDefaults()
     {
-        if (!AvailableDefaultDescriptors.Where(x => x.Value.IsNullOrEmpty()).Any())
+        if (!AvailableDefaultDescriptors.Any(x => x.Value.IsNullOrEmpty()))
         {
             AvailableDefaultDescriptors.Insert(0, new DummyDescriptor());
         }
@@ -384,7 +384,7 @@ public class VM_DescriptorAssignmentRuleSet : VM
     /// <summary>Loads the selected descriptor value and the OR-list of AND-gated rule groups from the model.</summary>
     public void CopyInFromModel(DescriptorAssignmentRuleSet model)
     {
-        SelectedDescriptorValue = SubscribedDescriptorValues.Where(x => x.Value == model.SelectedDescriptorValue).FirstOrDefault();
+        SelectedDescriptorValue = SubscribedDescriptorValues.FirstOrDefault(x => x.Value == model.SelectedDescriptorValue);
         foreach (var ruleSet in model.RuleListORlogic)
         {
             var ruleSetVM = new VM_AndGatedSliderRuleGroup(AvailableSliderNames, RuleListORlogic);
@@ -432,7 +432,7 @@ public class VM_AndGatedSliderRuleGroup : VM
     public ObservableCollection<VM_SliderClassificationRule> RuleListANDlogic { get; set; } = new();
     public RelayCommand AddNewRule { get; }
     /// <summary>True when this group has no rules, or none of its rules are non-empty.</summary>
-    public bool IsEmpty => !RuleListANDlogic.Any() || !RuleListANDlogic.Where(x => !x.IsEmpty).Any();
+    public bool IsEmpty => !RuleListANDlogic.Any() || !RuleListANDlogic.Any(x => !x.IsEmpty);
 
     /// <summary>Loads the AND-logic slider rules from the model.</summary>
     public void CopyInFromModel(AndGatedSliderRuleGroup model)

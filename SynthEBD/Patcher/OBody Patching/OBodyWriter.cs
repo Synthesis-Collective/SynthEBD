@@ -165,8 +165,8 @@ public class OBodyWriter
     {
         string str = "Spell = " + bodySlideSpell.FormKey.ToString().Replace(":", " - ") + " | ActorTypeNPC | NONE | NONE | "; // original format - SPID auto-updates but this is compatible with old SPID versions
 
-        bool hasMaleBodySlides = obodySettings.BodySlidesMale.Where(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any();
-        bool hasFemaleBodySlides = obodySettings.BodySlidesFemale.Where(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label)).Any();
+        bool hasMaleBodySlides = obodySettings.BodySlidesMale.Any(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label));
+        bool hasFemaleBodySlides = obodySettings.BodySlidesFemale.Any(x => obodySettings.CurrentlyExistingBodySlides.Contains(x.Label));
 
         if (!hasMaleBodySlides && !hasFemaleBodySlides) { return; }
         else if (hasMaleBodySlides && !hasFemaleBodySlides) { str += "M"; }

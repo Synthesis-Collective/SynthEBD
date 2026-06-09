@@ -223,7 +223,7 @@ public class UniqueNPCData
     {
         if (!npcInfo.IsValidLinkedUnique) { return; }
         CreateUnqiueAssignmentIfNeeded(npcInfo, AssignmentType.ReplacerAssets, out var comparisonRace);
-        if (!UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].ReplacerAssignments.Where(x => x.ReplacerName == replacerAssignment.ReplacerName).Any())
+        if (!UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].ReplacerAssignments.Any(x => x.ReplacerName == replacerAssignment.ReplacerName))
         {
             UniqueAssignmentsByName[npcInfo.Name][comparisonRace][npcInfo.Gender].ReplacerAssignments.Add(replacerAssignment);
         }

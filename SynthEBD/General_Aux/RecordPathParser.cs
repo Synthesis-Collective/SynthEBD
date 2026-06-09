@@ -883,7 +883,7 @@ public class RecordPathParser
         var toMatch = toMatchPathStr.Split(',').Select(x => x.Trim()).ToHashSet();
 
         bool matchDefault = false;
-        var defaultArg = toMatch.Where(x => x.Equals("MatchDefault", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        var defaultArg = toMatch.FirstOrDefault(x => x.Equals("MatchDefault", StringComparison.OrdinalIgnoreCase));
         if (defaultArg is not null)
         {
             matchDefault = true;

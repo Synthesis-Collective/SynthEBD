@@ -73,7 +73,7 @@ public class NPCInfo : IEquatable<NPCInfo>
         IsValidLinkedUnique = _uniqueNPCData.IsValidUnique(npc, out var npcName);
         Name = npcName;
 
-        SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.Where(x => x.NPCFormKey == npc.FormKey).FirstOrDefault();
+        SpecificNPCAssignment = _patcherState.SpecificNPCAssignments.FirstOrDefault(x => x.NPCFormKey == npc.FormKey);
 
         ConsistencyNPCAssignment = ResolveConsistencyAssignment(_patcherState.Consistency, NPC.FormKey, LogIDstring);
 

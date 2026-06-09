@@ -70,7 +70,7 @@ public class NPCAttribute
     {
         if (patcherState.GeneralSettings.OverwritePluginAttGroups)
         {
-            var matchedMainGroup = patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == label).FirstOrDefault();
+            var matchedMainGroup = patcherState.GeneralSettings.AttributeGroups.FirstOrDefault(x => x.Label == label);
             if (matchedMainGroup != null)
             {
                 return matchedMainGroup;
@@ -78,7 +78,7 @@ public class NPCAttribute
         }
 
         // fall back to plugin-supplied group definitions if necessary
-        var matchedPluginGroup = groupDefinitions.Where(x => x.Label == label).FirstOrDefault();
+        var matchedPluginGroup = groupDefinitions.FirstOrDefault(x => x.Label == label);
         if (matchedPluginGroup != null)
         {
             return matchedPluginGroup;

@@ -616,7 +616,7 @@ public class VM_ConfigDrafter : VM
     /// </summary>
     private bool PreVerifyMultiplets(IEnumerable<VM_FileDuplicateContainer> multiples, out string failureNames)
     {
-        var failedChecks = multiples.Where(multiplet => multiplet.FilePaths.Where(texture => !texture.IsSelected).Count() != 1).ToList();
+        var failedChecks = multiples.Where(multiplet => multiplet.FilePaths.Count(texture => !texture.IsSelected) != 1).ToList();
         if (failedChecks.Any())
         {
             failureNames = "When handling duplicate files by replacement, each group of replicate textures must have exactly ONE texture unchecked to serve as the source texture. The following textures need correction:" + Environment.NewLine + Environment.NewLine + String.Join(Environment.NewLine, failedChecks.Select(x => x.FileName));
@@ -661,7 +661,7 @@ public class VM_FileDuplicateContainer : VM
     /// </summary>
     public Multiplet ToMultiplet() // checking for single deselected option must come from caller
     {
-        var primary = FilePaths.Where(x => !x.IsSelected).First();
+        var primary = FilePaths.First(x => !x.IsSelected);
         return new Multiplet
         {
             PrimaryPath = primary.DisplayedPath,

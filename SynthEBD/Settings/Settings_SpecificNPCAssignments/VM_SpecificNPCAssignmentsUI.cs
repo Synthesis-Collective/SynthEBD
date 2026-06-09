@@ -121,7 +121,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                                 case Gender.Male:
                                     foreach (var name in morphNames)
                                     {
-                                        var morph = BodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates.Where(x => x.Label == name).FirstOrDefault();
+                                        var morph = BodyGenSettings.CurrentMaleConfig.TemplateMorphUI.Templates.FirstOrDefault(x => x.Label == name);
                                         if (morph != null)
                                         {
                                             morphs.Add(morph);
@@ -131,7 +131,7 @@ public class VM_SpecificNPCAssignmentsUI : VM
                                 case Gender.Female:
                                     foreach (var name in morphNames)
                                     {
-                                        var morph = BodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates.Where(x => x.Label == name).FirstOrDefault();
+                                        var morph = BodyGenSettings.CurrentFemaleConfig.TemplateMorphUI.Templates.FirstOrDefault(x => x.Label == name);
                                         if (morph != null)
                                         {
                                             morphs.Add(morph);

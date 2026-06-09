@@ -474,7 +474,7 @@ public class Patcher
         HeightConfig currentHeightConfig = null;
         if (_patcherState.GeneralSettings.bChangeHeight)
         {
-            currentHeightConfig = _patcherState.HeightConfigs.Where(x => x.Label == _patcherState.HeightSettings.SelectedHeightConfig).FirstOrDefault();
+            currentHeightConfig = _patcherState.HeightConfigs.FirstOrDefault(x => x.Label == _patcherState.HeightSettings.SelectedHeightConfig);
             if (currentHeightConfig == null)
             {
                 _logger.LogError("Could not find selected Height Config:" + _patcherState.HeightSettings.SelectedHeightConfig + ". Heights will not be assigned.");
@@ -1104,7 +1104,7 @@ public class Patcher
                     else
                     {
                         #region MixIn Asset assignment
-                        var currentMixIn = mixInAssetPacks.Where(x => x.GroupName == item).FirstOrDefault();
+                        var currentMixIn = mixInAssetPacks.FirstOrDefault(x => x.GroupName == item);
                         if (currentMixIn != null)
                         {
                             var assignedMixIn = _assetSelector.AssignAssets(currentNPCInfo, AssetSelector.AssetPackAssignmentMode.MixIn, new HashSet<FlattenedAssetPack>() { currentMixIn }, assignedMorphs, assignedBodySlides, out bool mixInDeclined);
@@ -1285,7 +1285,7 @@ public class Patcher
                 continue;
             }
 
-            var templateMod = recordTemplatePlugins.Where(x => x.ModKey.ToString() == templateFK.ModKey.ToString()).FirstOrDefault();
+            var templateMod = recordTemplatePlugins.FirstOrDefault(x => x.ModKey.ToString() == templateFK.ModKey.ToString());
             if (templateMod == null)
             {
                 _logger.LogError("Could not find record template plugin " + templateFK.ToString());
@@ -1403,8 +1403,8 @@ public class Patcher
             HasGenderedConfigs.Add(Gender.Male, false);
             HasGenderedConfigs.Add(Gender.Female, false);
 
-            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Male] = true; }
-            if (patcherState.AssetPacks.Where(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName)).Any()) { HasGenderedConfigs[Gender.Female] = true; }
+            if (patcherState.AssetPacks.Any(x => x.Gender == Gender.Male && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName))) { HasGenderedConfigs[Gender.Male] = true; }
+            if (patcherState.AssetPacks.Any(x => x.Gender == Gender.Female && patcherState.TexMeshSettings.SelectedAssetPacks.Contains(x.GroupName))) { HasGenderedConfigs[Gender.Female] = true; }
             _logger = logger;
             _linkCache = linkCache;
         }
@@ -1586,7 +1586,7 @@ public class Patcher
         }
         if (_headPartSelector.BlockNPCWithCustomFaceGen(npcInfo))
         {
-            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts != null && npcInfo.SpecificNPCAssignment.HeadParts.Where(x => x.Value != null && x.Value.FormKey != null && !x.Value.FormKey.IsNull).Any())
+            if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.HeadParts != null && npcInfo.SpecificNPCAssignment.HeadParts.Any(x => x.Value != null && x.Value.FormKey != null && !x.Value.FormKey.IsNull))
             {
                 _logger.LogReport("Head part assignment is NOT blocked for current NPC despite potentially having a custom face sculpt because you have a head part set in this NPC's Specific NPC Assignment", false, npcInfo);
             }

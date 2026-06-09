@@ -450,7 +450,7 @@ public class ConfigInstaller
         #region Import new BodyGen configs as VMs to be saved upon close
         foreach (var mConfig in validationBG.Male)
         {
-            if (!mainViewModel.BGVM.MaleConfigs.Where(x => x.Label == mConfig.Label).Any())
+            if (!mainViewModel.BGVM.MaleConfigs.Any(x => x.Label == mConfig.Label))
             {
                 var newMaleVM = VM_BodyGenConfig.GetViewModelFromModel(mConfig, mainViewModel.SGVM.RaceGroupings);
                 newMaleVM.SourcePath = ""; // will get auto-updated upon save
@@ -459,7 +459,7 @@ public class ConfigInstaller
         }
         foreach (var fConfig in validationBG.Female)
         {
-            if (!mainViewModel.BGVM.MaleConfigs.Where(x => x.Label == fConfig.Label).Any())
+            if (!mainViewModel.BGVM.MaleConfigs.Any(x => x.Label == fConfig.Label))
             {
                 var newFemaleVM = VM_BodyGenConfig.GetViewModelFromModel(fConfig, mainViewModel.SGVM.RaceGroupings);
                 newFemaleVM.SourcePath = ""; // will get auto-updated upon save
@@ -471,7 +471,7 @@ public class ConfigInstaller
         #region Import new Asset Packs as VMs to be saved upon close
         foreach (var ap in assetPacks)
         {
-            if (!mainViewModel.AssetPacks.Where(x => x.GroupName == ap.GroupName).Any())
+            if (!mainViewModel.AssetPacks.Any(x => x.GroupName == ap.GroupName))
             {
                 var newAssetPackVM = VM_AssetPack.GetViewModelFromModel(ap, mainViewModel.SGVM, mainViewModel.TMVM.AssetPacks, mainViewModel.vm)
             }
@@ -568,7 +568,7 @@ public class ConfigInstaller
         foreach (var path in usedPaths)
         {
             var split = path.Split(Path.DirectorySeparatorChar);
-            if (split.Length > 1 && availablePrefixes.Contains(split[1]) && !prefixes.Where(x => x.Item1 == split[0] && x.Item2 == split[1]).Any())
+            if (split.Length > 1 && availablePrefixes.Contains(split[1]) && !prefixes.Any(x => x.Item1 == split[0] && x.Item2 == split[1]))
             {
                 prefixes.Add((split[0], split[1]));
             }
@@ -859,7 +859,7 @@ public class ConfigInstaller
         }
         else
         {
-            var trimPath = _patcherState.TexMeshSettings.TrimPaths.Where(x => x.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var trimPath = _patcherState.TexMeshSettings.TrimPaths.FirstOrDefault(x => x.Extension.Equals(extension, StringComparison.OrdinalIgnoreCase));
             if (trimPath is not null)
             {
                 extensionFolder = trimPath.PathToTrim;
@@ -1015,7 +1015,7 @@ public class ConfigInstaller
 
         foreach (var groupingStr in subgroup.AllowedRaceGroupings)
         {
-            var grouping = groupings.Where(x => x.Label == groupingStr).FirstOrDefault();
+            var grouping = groupings.FirstOrDefault(x => x.Label == groupingStr);
             if (grouping != null)
             {
                 foreach (var raceFK in grouping.Races)
@@ -1074,7 +1074,7 @@ public class ConfigInstaller
 
         public SimulatedDirectory GetSubDirectory(string directoryName)
         {
-            return this.Directories.Where(x => x.Name == directoryName).FirstOrDefault();
+            return this.Directories.FirstOrDefault(x => x.Name == directoryName);
         }
         public SimulatedDirectory CreateSubDirectory(string directoryName)
         {
@@ -1084,7 +1084,7 @@ public class ConfigInstaller
         }
         public bool HasDirectory(string directoryName)
         {
-            return this.Directories.Where(x => x.Name == directoryName).Any();
+            return this.Directories.Any(x => x.Name == directoryName);
         }
 
         public static void CreateDirectory(SimulatedDirectory root, string directoryPath)

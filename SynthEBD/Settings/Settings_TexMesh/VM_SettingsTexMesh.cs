@@ -114,7 +114,7 @@ public class VM_SettingsTexMesh : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                var mod = _environmentProvider.LoadOrder.PriorityOrder.Where(x => x.ModKey == SelectedStrippedWNAMmodKey).FirstOrDefault()?.Mod ?? null;
+                var mod = _environmentProvider.LoadOrder.PriorityOrder.FirstOrDefault(x => x.ModKey == SelectedStrippedWNAMmodKey)?.Mod ?? null;
                 List<string> noEditorIDs = new();
                 StrippedSkinWNAMsHistory.Add(new(StrippedSkinWNAMs)); // shallow copy
                 bool added = false;
@@ -842,7 +842,7 @@ public class VM_SettingsTexMesh : VM
         List<TrimPath> defaultTrimPaths = _patcherState.TexMeshSettings.GetDefaultValue("TrimPaths");
         foreach (var trimPath in defaultTrimPaths)
         {
-            if (!TrimPaths.Where(x => x.PathToTrim == trimPath.PathToTrim && x.Extension == trimPath.Extension).Any())
+            if (!TrimPaths.Any(x => x.PathToTrim == trimPath.PathToTrim && x.Extension == trimPath.Extension))
             {
                 if (preparationMode)
                 {

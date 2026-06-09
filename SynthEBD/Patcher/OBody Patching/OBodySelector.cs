@@ -65,7 +65,7 @@ public class OBodySelector
         #region Specific NPC Assignments
         if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace())
         {
-            var specifiedPreset = availablePresets.Where(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset).FirstOrDefault();
+            var specifiedPreset = availablePresets.FirstOrDefault(x => x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset);
             if (specifiedPreset != null)
             {
                 _logger.LogReport("Assigned forced BodySlide preset " + specifiedPreset.Label, false, npcInfo);
@@ -345,7 +345,7 @@ public class OBodySelector
         var descriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(candidatePreset, npcInfo.NPC.Weight);
         foreach (var descriptorLabel in descriptorsAtWeight)
         {
-            var associatedDescriptor = oBodySettings.TemplateDescriptors.Flatten().Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
+            var associatedDescriptor = oBodySettings.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
             if (associatedDescriptor is not null)
             {
                 if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr))
@@ -447,7 +447,7 @@ public class OBodySelector
                     foreach (var descriptor in subgroup.PrioritizedBodySlideDescriptors.SelectMany(x => x.Value).Where(x => x.Priority >= 0).ToArray())
                     {
                         _logger.LogReport("--" + descriptor.ToString(), false, npcInfo);
-                        var existingDescriptor = priorities.Where(x => x.Equals(descriptor)).FirstOrDefault();
+                        var existingDescriptor = priorities.FirstOrDefault(x => x.Equals(descriptor));
                         if (existingDescriptor == null)
                         {
                             priorities.Add(descriptor);

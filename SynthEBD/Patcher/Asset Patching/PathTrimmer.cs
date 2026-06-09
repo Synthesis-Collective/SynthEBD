@@ -30,7 +30,7 @@ public class PathTrimmer
                             path.Source = path.Source.Remove(0, toRemove.Length);
                         }
 
-                        var matchedTrimPath = trimPaths.Where(x => path.Source.EndsWith(x.Extension, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+                        var matchedTrimPath = trimPaths.FirstOrDefault(x => path.Source.EndsWith(x.Extension, StringComparison.CurrentCultureIgnoreCase));
                         if (matchedTrimPath != null && path.Source.StartsWith(matchedTrimPath.PathToTrim, StringComparison.CurrentCultureIgnoreCase))
                         {
                             path.Source = path.Source.Remove(0, matchedTrimPath.PathToTrim.Length + 1); // +1 to account for subsequent \\
@@ -47,7 +47,7 @@ public class PathTrimmer
                     {
                         foreach (var path in subgroup.Paths)
                         {
-                            var matchedTrimPath = trimPaths.Where(x => path.Source.EndsWith(x.Extension, StringComparison.CurrentCultureIgnoreCase)).FirstOrDefault();
+                            var matchedTrimPath = trimPaths.FirstOrDefault(x => path.Source.EndsWith(x.Extension, StringComparison.CurrentCultureIgnoreCase));
                             if (matchedTrimPath != null && path.Source.StartsWith(matchedTrimPath.PathToTrim, StringComparison.CurrentCultureIgnoreCase))
                             {
                                 path.Source = path.Source.Remove(0, matchedTrimPath.PathToTrim.Length + 1); // +1 to account for subsequent \\

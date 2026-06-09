@@ -81,7 +81,7 @@ public class VM_BlockedNPC : VM
         viewModel.Height = placeHolder.AssociatedModel.Height;
         viewModel.BodyShape = placeHolder.AssociatedModel.BodyShape;
         viewModel.HeadParts = placeHolder.AssociatedModel.HeadParts;
-        foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) { viewModel.HeadPartTypes.Where(x => x.Type == type).First().Block = placeHolder.AssociatedModel.HeadPartTypes[type]; }
+        foreach (var type in placeHolder.AssociatedModel.HeadPartTypes.Keys) { viewModel.HeadPartTypes.First(x => x.Type == type).Block = placeHolder.AssociatedModel.HeadPartTypes[type]; }
         viewModel.VanillaBodyPath = placeHolder.AssociatedModel.VanillaBodyPath;
         return viewModel;
     }
@@ -95,7 +95,7 @@ public class VM_BlockedNPC : VM
         model.Height = Height;
         model.BodyShape = BodyShape;
         model.HeadParts = HeadParts;
-        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = HeadPartTypes.Where(x => x.Type == type).First().Block; }
+        foreach (var type in model.HeadPartTypes.Keys) { model.HeadPartTypes[type] = HeadPartTypes.First(x => x.Type == type).Block; }
         model.VanillaBodyPath = VanillaBodyPath;
         return model;
     }

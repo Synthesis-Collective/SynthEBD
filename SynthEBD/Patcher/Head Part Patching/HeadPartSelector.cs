@@ -189,7 +189,7 @@ namespace SynthEBD
             IHeadPartGetter specificAssignment = null;
             if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey.IsNull)
             {
-                var specificAssignmentSetting = currentSettings.HeadParts.Where(x => x.HeadPartFormKey.Equals(npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey)).FirstOrDefault();
+                var specificAssignmentSetting = currentSettings.HeadParts.FirstOrDefault(x => x.HeadPartFormKey.Equals(npcInfo.SpecificNPCAssignment.HeadParts[type].FormKey));
                 if (specificAssignmentSetting != null && specificAssignmentSetting.ResolvedHeadPart != null)
                 {
                     specificAssignment = specificAssignmentSetting.ResolvedHeadPart;
@@ -295,7 +295,7 @@ namespace SynthEBD
             randomizedToNone = false;
             if (consistencyHeadPart != null)
             {
-                var consistencyAssignment = options.Where(x => x.HeadPartFormKey.Equals(consistencyHeadPart.FormKey)).FirstOrDefault();
+                var consistencyAssignment = options.FirstOrDefault(x => x.HeadPartFormKey.Equals(consistencyHeadPart.FormKey));
                 if (consistencyAssignment != null)
                 {
                     _logger.LogReport("Assigning head part " + (consistencyAssignment.EditorID ?? consistencyAssignment.HeadPartFormKey.ToString()) + " from Consistency.", false, npcInfo);

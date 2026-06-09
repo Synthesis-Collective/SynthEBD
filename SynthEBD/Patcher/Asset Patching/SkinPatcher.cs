@@ -69,7 +69,7 @@ namespace SynthEBD
             {
                 foreach (var armaLink in armorGetter.Armature)
                 {
-                    var matchedTemplateRecord = recordsFromTemplate.Where(x => x.FormKey == armaLink.FormKey).FirstOrDefault();
+                    var matchedTemplateRecord = recordsFromTemplate.FirstOrDefault(x => x.FormKey == armaLink.FormKey);
                     if (matchedTemplateRecord != null)
                     {
                         var matchedArmatureRecord = matchedTemplateRecord as ArmorAddon;

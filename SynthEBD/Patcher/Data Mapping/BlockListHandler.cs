@@ -18,7 +18,7 @@ public class BlockListHandler
     /// </summary>
     public static BlockedNPC GetCurrentNPCBlockStatus(BlockList blockList, FormKey npcFormKey)
     {
-        var output = blockList.NPCs.Where(x => x.FormKey == npcFormKey).FirstOrDefault();
+        var output = blockList.NPCs.FirstOrDefault(x => x.FormKey == npcFormKey);
 
         if (output == null)
         {

@@ -182,7 +182,7 @@ public class Settings_OBody
 
                         currentBodySlides = gender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
 
-                        BodySlideSetting currentPreset = currentBodySlides.Where(x => x.ReferencedBodySlide == presetName).FirstOrDefault();
+                        BodySlideSetting currentPreset = currentBodySlides.FirstOrDefault(x => x.ReferencedBodySlide == presetName);
 
                         if (currentPreset == null)
                         {
@@ -212,7 +212,7 @@ public class Settings_OBody
                                     // across the new shell-grouped collection. The .ID.ToString()
                                     // comparison stays unchanged — the descriptor still carries the
                                     // full Category+Value pair in its ID.
-                                    var descriptor = templateDescriptors.Flatten().Where(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                                    var descriptor = templateDescriptors.Flatten().FirstOrDefault(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase));
                                     if (descriptor != null)
                                     {
                                         // Default CSV-shipped annotations are treated as Library-sourced (Tier 1).

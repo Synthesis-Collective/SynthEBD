@@ -154,7 +154,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     /// <summary>v1.0.1.3: adds the "Humanoid Playable Non-Vampire" default race grouping if missing. Mutates settings.</summary>
     private void UpdateV1013(VM_Settings_General generalVM)
     {
-        if (!generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == DefaultRaceGroupings.HumanoidPlayableNonVampire.Label).Any())
+        if (!generalVM.RaceGroupingEditor.RaceGroupings.Any(x => x.Label == DefaultRaceGroupings.HumanoidPlayableNonVampire.Label))
         {
             var newGrouping = _raceGroupingFactory(DefaultRaceGroupings.HumanoidPlayableNonVampire, generalVM.RaceGroupingEditor);
             generalVM.RaceGroupingEditor.RaceGroupings.Add(newGrouping);
@@ -186,10 +186,10 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     /// <summary>v1.0.1.6: adds the Housecarl faction to the default "Must Be Athletic" and "Must Be Muscular" attribute groups. Mutates settings.</summary>
     private void UpdateV1016AttributeGroups()
     {
-        var athleticGroup = _generalVM.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.MustBeAthletic.Label).FirstOrDefault();
+        var athleticGroup = _generalVM.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.MustBeAthletic.Label);
         UpdateV1016_Aux_AddFaction(athleticGroup);
 
-        var muscularGroup = _generalVM.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.MustBeMuscular.Label).FirstOrDefault();
+        var muscularGroup = _generalVM.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.MustBeMuscular.Label);
         UpdateV1016_Aux_AddFaction(muscularGroup);
     }
 
@@ -198,10 +198,10 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     {
         if (group != null)
         {
-            var defaultAtt = group.Attributes.Where(att => att.GroupedSubAttributes.Where(subAtt => subAtt.Type == NPCAttributeType.Faction).Any()).FirstOrDefault();
+            var defaultAtt = group.Attributes.FirstOrDefault(att => att.GroupedSubAttributes.Any(subAtt => subAtt.Type == NPCAttributeType.Faction));
             if (defaultAtt != null)
             {
-                var factionSubAtt = defaultAtt.GroupedSubAttributes.Where(subAtt => subAtt.Type == NPCAttributeType.Faction).FirstOrDefault();
+                var factionSubAtt = defaultAtt.GroupedSubAttributes.FirstOrDefault(subAtt => subAtt.Type == NPCAttributeType.Faction);
                 if (factionSubAtt != null && factionSubAtt.Attribute as VM_NPCAttributeFactions != null)
                 {
                     var factionAtt = factionSubAtt.Attribute as VM_NPCAttributeFactions;
@@ -241,7 +241,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     private void UpdateV1025RaceGroupings()
     {
         List<VM_RaceGrouping> toUpdateVMs = new();
-        var humanoidPlayableVM = _generalVM.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+        var humanoidPlayableVM = _generalVM.RaceGroupingEditor.RaceGroupings.FirstOrDefault(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey)));
         if (humanoidPlayableVM != null)
         {
             toUpdateVMs.Add(humanoidPlayableVM);
@@ -249,7 +249,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
 
         foreach (var assetPack in _texMeshVM.AssetPacks)
         {
-            humanoidPlayableVM = assetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+            humanoidPlayableVM = assetPack.RaceGroupingEditor.RaceGroupings.FirstOrDefault(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey)));
             if (humanoidPlayableVM != null)
             {
                 toUpdateVMs.Add(humanoidPlayableVM);
@@ -259,7 +259,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         List<RaceGrouping> toUpdateMs = new();
         foreach (var assetPack in _patcherState.AssetPacks)
         {
-            var humanoidPlayableM = assetPack.RaceGroupings.Where(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey))).FirstOrDefault();
+            var humanoidPlayableM = assetPack.RaceGroupings.FirstOrDefault(x => x.Label.Equals("Humanoid Playable", StringComparison.OrdinalIgnoreCase) && (x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey) || x.Races.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRaceVampire.FormKey)));
             if (humanoidPlayableM != null)
             {
                 toUpdateMs.Add(humanoidPlayableM);
@@ -306,13 +306,13 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
     /// <summary>v1.0.3.2: adds the "Charmers of the Reach Heads" default attribute group to general settings and each asset pack if missing. Mutates settings.</summary>
     private void UpdateV1032AttributeGroups()
     {
-        if (!_patcherState.GeneralSettings.AttributeGroups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
+        if (!_patcherState.GeneralSettings.AttributeGroups.Any(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label))
         {
             _generalVM.AttributeGroupMenu.AddAttributeGroupFromModel(DefaultAttributeGroups.CharmersOfTheReachHeads);
 
             foreach (var assetPack in _texMeshVM.AssetPacks)
             {
-                if (!assetPack.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label).Any())
+                if (!assetPack.AttributeGroupMenu.Groups.Any(x => x.Label == DefaultAttributeGroups.CharmersOfTheReachHeads.Label))
                 {
                     assetPack.AttributeGroupMenu.AddAttributeGroupFromModel(DefaultAttributeGroups.CharmersOfTheReachHeads);
                 }

@@ -42,17 +42,17 @@ public class AnnotationStateComputer
     /// <summary>Returns whether any substate has the <c>None</c> annotation state.</summary>
     private static bool IsAnnotated(ICollection<IHasAnnotationState> subStates)
     {
-        return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.None).Any();
+        return subStates.Any(x => x.AnnotationState == BodyShapeAnnotationState.None);
     }
     /// <summary>Returns whether any substate has a <c>Manual</c> annotation state.</summary>
     private static bool HasManualDescriptors(ICollection<IHasAnnotationState> subStates)
     {
-        return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.Manual).Any();
+        return subStates.Any(x => x.AnnotationState == BodyShapeAnnotationState.Manual);
     }
     /// <summary>Returns whether any substate has a <c>RulesBased</c> annotation state.</summary>
     private static bool HasRulesBasedDescriptors(ICollection<IHasAnnotationState> subStates)
     {
-        return subStates.Where(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased).Any();
+        return subStates.Any(x => x.AnnotationState == BodyShapeAnnotationState.RulesBased);
     }
 }
 

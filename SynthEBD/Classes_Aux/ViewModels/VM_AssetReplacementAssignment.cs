@@ -29,7 +29,7 @@ public class VM_AssetReplacementAssignment : VM
         {
             if (parent != null)
             {
-                SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.Where(x => x.Label == ReplacerName).FirstOrDefault();
+                SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.FirstOrDefault(x => x.Label == ReplacerName);
             }
         }).DisposeWith(this);
 
@@ -37,7 +37,7 @@ public class VM_AssetReplacementAssignment : VM
         {
             if (parent != null)
             {
-                SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.Where(x => x.Label == ReplacerName).FirstOrDefault();
+                SubscribedReplacerGroup = parent.ReplacersMenu.ReplacerGroups.FirstOrDefault(x => x.Label == ReplacerName);
             }
         }).DisposeWith(this);
     }

@@ -62,8 +62,8 @@ public class AssetPackValidator
             BodyGenConfig matchedConfig = null;
             switch (assetPack.Gender)
             {
-                case Gender.Male: matchedConfig = bodyGenConfigs.Male.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                case Gender.Female: matchedConfig = bodyGenConfigs.Female.Where(x => x.Label == assetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                case Gender.Male: matchedConfig = bodyGenConfigs.Male.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
+                case Gender.Female: matchedConfig = bodyGenConfigs.Female.FirstOrDefault(x => x.Label == assetPack.AssociatedBodyGenConfigName); break;
             }
             if (matchedConfig != null)
             {

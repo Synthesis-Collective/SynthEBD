@@ -150,7 +150,7 @@ namespace SynthEBD
         /// <returns><c>true</c> if the path was remapped.</returns>
         private bool RemapPath(VM_SubgroupPlaceHolder subgroup, FilePathReplacement path, List<Multiplet> multiplets, out Multiplet? correspondingMultiplet)
         {
-            correspondingMultiplet = multiplets.Where(x => x.ReplicatePaths.Contains(path.Source, StringComparer.OrdinalIgnoreCase)).FirstOrDefault();
+            correspondingMultiplet = multiplets.FirstOrDefault(x => x.ReplicatePaths.Contains(path.Source, StringComparer.OrdinalIgnoreCase));
             if (correspondingMultiplet != null)
             {
                 if (subgroup.AssociatedModel.Notes.Any())
@@ -226,7 +226,7 @@ namespace SynthEBD
         /// <returns><c>true</c> if a holder was found.</returns>
         private bool TryGetPrimaryPathHolder(string primaryPath, out VM_SubgroupPlaceHolder? subgroup)
         {
-            subgroup = AllSubgroups.Where(subgroup => subgroup.AssociatedModel.Paths.Where(path => path.Source.Equals(primaryPath, StringComparison.OrdinalIgnoreCase)).Any()).FirstOrDefault();
+            subgroup = AllSubgroups.FirstOrDefault(subgroup => subgroup.AssociatedModel.Paths.Any(path => path.Source.Equals(primaryPath, StringComparison.OrdinalIgnoreCase)));
             return subgroup != null;
         }
 

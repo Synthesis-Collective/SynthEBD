@@ -87,7 +87,7 @@ public class VM_AttributeGroupMenu : VM
                     if (subAtt.Type == NPCAttributeType.Group)
                     {
                         var subAttModel = (NPCAttributeGroup)subAtt;
-                        var correspondingVM = Groups.Where(x => x.Label == model.Label).First();
+                        var correspondingVM = Groups.First(x => x.Label == model.Label);
                         foreach (var groupAttribute in correspondingVM.Attributes)
                         {
                             var groupAttributes = groupAttribute.GroupedSubAttributes.Where(x => x.Type == NPCAttributeType.Group).ToArray();
@@ -144,7 +144,7 @@ public class VM_AttributeGroupMenu : VM
             }
             else
             { // overwrite existing definitions
-                var existingGroup = Groups.Where(x => x.Label == attGroup.Label).First();
+                var existingGroup = Groups.First(x => x.Label == attGroup.Label);
                 existingGroup.Attributes.Clear();
                 var tempGroup = attGroup.Copy(this);
                 existingGroup.Attributes.AddRange(tempGroup.Attributes);

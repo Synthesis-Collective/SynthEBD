@@ -411,7 +411,7 @@ namespace SynthEBD
             foreach (var sg in allSubgroups)
             {
                 // if the subgroup is a child of the current subgroup or one of its linked subgroups, don't add to its requirements
-                if (requiredSubgroupChain.Where(reqSubgroup => reqSubgroup.IsParentOf(sg)).Any())
+                if (requiredSubgroupChain.Any(reqSubgroup => reqSubgroup.IsParentOf(sg)))
                 {
                     continue;
                 }
@@ -438,7 +438,7 @@ namespace SynthEBD
                 //if sg is the current view model, operate in the view model space. 
                 if (sg.AssociatedViewModel == currentlyOpenSubgroupVM)
                 {
-                    var requiredSubgroupsAtIndex = currentlyOpenSubgroupVM.RequiredSubgroups.ContainersByIndex.Where(x => x.TopLevelIndex == requiredIndex).FirstOrDefault();
+                    var requiredSubgroupsAtIndex = currentlyOpenSubgroupVM.RequiredSubgroups.ContainersByIndex.FirstOrDefault(x => x.TopLevelIndex == requiredIndex);
                     if (requiredSubgroupsAtIndex != null && !currentlyOpenSubgroupVM.RequiredSubgroups.ContainsSubgroup(currentSubgroup)) // note: this should never be true on the first recursion because no required subgroup should be added to the same index as the current subgroup, but it could be true for downstream recursions.
                     {
                         currentlyOpenSubgroupVM.RequiredSubgroups.AddSubgroup(currentSubgroup);
@@ -450,7 +450,7 @@ namespace SynthEBD
                     bool hasRequiredSubgroupAtIndex = false;
                     foreach (var requiredID in sg.AssociatedModel.RequiredSubgroups)
                     {
-                        var placeHolder = allSubgroups.Where(x => x.AssociatedModel.ID == requiredID).FirstOrDefault();
+                        var placeHolder = allSubgroups.FirstOrDefault(x => x.AssociatedModel.ID == requiredID);
                         if (placeHolder != null && placeHolder.GetTopLevelIndex() == requiredIndex)
                         {
                             hasRequiredSubgroupAtIndex = true;
@@ -471,7 +471,7 @@ namespace SynthEBD
             {
                 foreach (var linkedRequiredID in currentSubgroup.AssociatedModel.RequiredSubgroups.Where(X => !alreadyProcessed.Select(vm => vm.ID).Contains(X)).ToArray())
                 {
-                    var linkedRequiredPlaceHolder = allSubgroups.Where(x => x.AssociatedModel.ID == linkedRequiredID).FirstOrDefault();
+                    var linkedRequiredPlaceHolder = allSubgroups.FirstOrDefault(x => x.AssociatedModel.ID == linkedRequiredID);
                     if (linkedRequiredPlaceHolder != null)
                     {
                         AddAsAlternative(linkedRequiredPlaceHolder, assetPack, currentlyOpenSubgroupVM, recursive, excludeNeighbors, alreadyProcessed);

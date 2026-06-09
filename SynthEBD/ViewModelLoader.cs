@@ -197,7 +197,7 @@ namespace SynthEBD
             _settingsOBody.CopyInViewModelFromModel(_patcherState.OBodySettings, _bodyShapeDescriptorCreator, _oBodyMiscSettingsFactory, _descriptorSelectionFactory, _attributeCreator, _logger);
             // load asset packs after BodyGen/BodySlide
             VM_AssetPack.GetViewModelsFromModels(_patcherState.AssetPacks, _texMeshSettingsVM, _patcherState.TexMeshSettings, _assetPackFactory, _generalSettingsVM.RaceGroupingEditor.RaceGroupings, _logger); // add asset pack view models to TexMesh shell view model here
-            _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.Where(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName).FirstOrDefault();
+            _texMeshSettingsVM.AssetPresenterPrimary.AssetPack = _texMeshSettingsVM.AssetPacks.FirstOrDefault(x => x.GroupName == _texMeshSettingsVM.LastViewedAssetPackName);
 
             VM_HeightConfig.GetViewModelsFromModels(_heightSettingsVM.AvailableHeightConfigs, _patcherState.HeightConfigs, _heightConfigFactory, _heightAssignmentFactory, _logger);
             _heightSettingsVM.CopyInFromModel(_patcherState.HeightSettings); /// must do after populating configs

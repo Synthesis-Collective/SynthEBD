@@ -75,7 +75,7 @@ public class BodyGenPreprocessing
             var toOverwrite = new List<RaceGrouping>();
             foreach (var grouping in config.RaceGroupings.Where(x => mainGroupingLabels.Contains(x.Label)))
             {
-                var overwriteGrouping = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == grouping.Label).First();
+                var overwriteGrouping = _patcherState.GeneralSettings.RaceGroupings.First(x => x.Label == grouping.Label);
                 output.Add(new RaceGrouping() { Label = overwriteGrouping.Label, Races = new(overwriteGrouping.Races) });
             }
         }

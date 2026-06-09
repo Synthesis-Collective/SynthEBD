@@ -72,7 +72,7 @@ namespace SynthEBD
             if (lk.TryResolve<INpcGetter>(NPCformkey, out var npc))
             {
                 var npcRaceFormKey = npc.Race.FormKey;
-                var raceAlias = _patcherState.GeneralSettings.RaceAliases.Where(x => x.Race == npcRaceFormKey).FirstOrDefault();
+                var raceAlias = _patcherState.GeneralSettings.RaceAliases.FirstOrDefault(x => x.Race == npcRaceFormKey);
                 if (raceAlias != null)
                 {
                     npcRaceFormKey = raceAlias.AliasRace;

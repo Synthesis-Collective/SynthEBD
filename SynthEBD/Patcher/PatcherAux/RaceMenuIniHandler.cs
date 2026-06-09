@@ -56,7 +56,7 @@ public class RaceMenuIniHandler
     /// </summary>
     private static string GetIniLine(List<string> iniContents, string settingName, out bool success)
     {
-        string relevantLine = iniContents.Where(x => x.StartsWith(settingName)).FirstOrDefault();
+        string relevantLine = iniContents.FirstOrDefault(x => x.StartsWith(settingName));
         if (relevantLine == null)
         {
             success=false;

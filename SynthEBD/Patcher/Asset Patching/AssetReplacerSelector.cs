@@ -149,7 +149,7 @@ namespace SynthEBD
         /// </summary>
         public static bool CheckIfReplacerTargetExists(FormKey specifierFK, INpcGetter npc)
         {
-            return npc.HeadParts.Where(x => x.FormKey == specifierFK).Any();
+            return npc.HeadParts.Any(x => x.FormKey == specifierFK);
         }
 
         /// <summary>

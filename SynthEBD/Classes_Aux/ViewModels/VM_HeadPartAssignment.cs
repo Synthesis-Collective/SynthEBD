@@ -40,7 +40,7 @@ namespace SynthEBD
 
             this.WhenAnyValue(x => x.EditorID).Subscribe(x =>
                 {
-                var assignment = parentConfig.Types[type].HeadPartList.Where(x => x.Label == EditorID).FirstOrDefault();
+                var assignment = parentConfig.Types[type].HeadPartList.FirstOrDefault(x => x.Label == EditorID);
                 if (assignment != null)
                 {
                     FormKey = assignment.AssociatedModel.HeadPartFormKey;

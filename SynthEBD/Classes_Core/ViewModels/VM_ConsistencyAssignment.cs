@@ -157,7 +157,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     {
         string subgroupName = "Not Loaded";
 
-        var assetPack = _texMeshUI.AssetPacks.Where(x => x.GroupName == assetPackName).FirstOrDefault();
+        var assetPack = _texMeshUI.AssetPacks.FirstOrDefault(x => x.GroupName == assetPackName);
         if (assetPack != null && assetPack.TryGetSubgroupByID(subgroupID, out var subgroup))
         {
             subgroupName = subgroup.GetNameChain(" -> ");
@@ -198,7 +198,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         AssetReplacements.Clear();
         foreach(var replacer in model.AssetReplacerAssignments)
         {
-            var parentAssetPack = _texMeshUI.AssetPacks.Where(x => x.GroupName == replacer.AssetPackName).FirstOrDefault();
+            var parentAssetPack = _texMeshUI.AssetPacks.FirstOrDefault(x => x.GroupName == replacer.AssetPackName);
             if (parentAssetPack != null)
             {
                 VM_AssetReplacementAssignment subVm = new VM_AssetReplacementAssignment(parentAssetPack, AssetReplacements);

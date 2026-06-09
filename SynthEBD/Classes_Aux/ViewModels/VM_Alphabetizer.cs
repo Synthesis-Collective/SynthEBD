@@ -108,7 +108,7 @@ namespace SynthEBD
         /// <summary>Recomputes <see cref="State"/> by testing whether the collection is currently sorted forward, reversed, or neither.</summary>
         private void GetSortState()
         {
-            if (SubscribedCollection is null || SubscribedCollection.Where(x => x == null).Any()) { return; }
+            if (SubscribedCollection is null || SubscribedCollection.Any(x => x == null)) { return; }
             if (SubscribedCollection.IsSorted(KeySelector, false))
             {
                 State = SortState.Forward;

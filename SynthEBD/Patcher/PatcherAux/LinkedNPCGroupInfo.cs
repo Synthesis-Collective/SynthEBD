@@ -70,7 +70,7 @@ public class LinkedNPCGroupInfo
         {
             if (group.NPCFormKeys.Contains(npcFormKey))
             {
-                var associatedGroup = createdGroups.Where(x => x.NPCFormKeys.Contains(npcFormKey)).FirstOrDefault();
+                var associatedGroup = createdGroups.FirstOrDefault(x => x.NPCFormKeys.Contains(npcFormKey));
                 if (associatedGroup == null)
                 {
                     return new LinkedNPCGroupInfo(group);

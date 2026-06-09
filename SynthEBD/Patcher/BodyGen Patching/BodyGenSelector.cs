@@ -55,16 +55,16 @@ public class BodyGenSelector
         {
             switch (npcInfo.Gender)
             {
-                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
-                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName).FirstOrDefault(); break;
+                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.FirstOrDefault(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName); break;
+                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.FirstOrDefault(x => x.Label == assignedPrimaryCombination.AssetPack.AssociatedBodyGenConfigName); break;
             }
         }
         if (currentBodyGenConfig == null)
         {
             switch (npcInfo.Gender)
             {
-                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.Where(x => x.Label == _patcherState.BodyGenSettings.CurrentMaleConfig).FirstOrDefault(); break;
-                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.Where(x => x.Label == _patcherState.BodyGenSettings.CurrentFemaleConfig).FirstOrDefault(); break;
+                case Gender.Male: currentBodyGenConfig = bodyGenConfigs.Male.FirstOrDefault(x => x.Label == _patcherState.BodyGenSettings.CurrentMaleConfig); break;
+                case Gender.Female: currentBodyGenConfig = bodyGenConfigs.Female.FirstOrDefault(x => x.Label == _patcherState.BodyGenSettings.CurrentFemaleConfig); break;
             }
         }
         if (currentBodyGenConfig == null)
@@ -514,7 +514,7 @@ public class BodyGenSelector
         // Repeat the above checks for the morph's descriptor rules
         foreach (var descriptorLabel in candidateMorph.BodyShapeDescriptors)
         {
-            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Flatten().Where(x => x.ID.MapsTo(descriptorLabel)).FirstOrDefault();
+            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
             if (associatedDescriptor is not null)
             {
                 if (associatedDescriptor.PermitNPC(npcInfo, bodyGenConfig.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr))
@@ -607,7 +607,7 @@ public class BodyGenSelector
             // if Race didn't match, check the template's RaceGroupings to see if they include the NPC's race.
             foreach (var raceGrouping in candidate.RaceGroupings)
             {
-                var collection = _patcherState.GeneralSettings.RaceGroupings.Where(x => x.Label == raceGrouping).FirstOrDefault();
+                var collection = _patcherState.GeneralSettings.RaceGroupings.FirstOrDefault(x => x.Label == raceGrouping);
                 if (collection == null) { continue; }
                 if (collection.Races.Contains(npcInfo.BodyShapeRace))
                 {

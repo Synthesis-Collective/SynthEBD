@@ -129,7 +129,7 @@ public class VM_AttributeGroup : VM
                 
                 foreach (var label in groupAttribute.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToArray())
                 {
-                    var selectedSubGroup = allGroups.Where(x => x.Label == label).FirstOrDefault();
+                    var selectedSubGroup = allGroups.FirstOrDefault(x => x.Label == label);
                     if (selectedSubGroup != null)
                     {
                         if (referencedGroups.Contains(selectedSubGroup.Label))

@@ -86,8 +86,8 @@ namespace SynthEBD
         /// </summary>
         public string DraftConfigFromTextures(VM_AssetPack config, List<string> categorizedTexturePaths, List<string> uncategorizedTexturePaths, List<string> ignoredTexturePaths, List<Multiplet> multiplets, MultipletHandlingMode multipletHandling, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules, bool autoApplyLinkage, out bool hasTNGTextures, out bool hasEtcTextures)
         {
-            var validCategorizedTexturePaths = categorizedTexturePaths.Where(cPath => !ignoredTexturePaths.Where(iPath => cPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)).Any()).ToList();
-            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Where(iPath => uPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)).Any())); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
+            var validCategorizedTexturePaths = categorizedTexturePaths.Where(cPath => !ignoredTexturePaths.Any(iPath => cPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase))).ToList();
+            var validUncategorizedTexturePaths = GetMatchingUnknownFiles(uncategorizedTexturePaths.Where(uPath => !ignoredTexturePaths.Any(iPath => uPath.EndsWith(iPath, StringComparison.OrdinalIgnoreCase)))); // EndsWith rather than Contains because uPaths are full paths from drive root while iPaths have the root folder paths pre-trimmed
             
             hasTNGTextures = HasTNGPaths(validCategorizedTexturePaths);
             hasEtcTextures = HasEtcPaths(validCategorizedTexturePaths);
@@ -171,7 +171,7 @@ namespace SynthEBD
         public void CreateSubgroupsByType(VM_AssetPack config, TextureType textureType, List<string> texturePaths, List<string> rootFolderPaths, bool rootPathsHavePrefix, bool autoApplyNames, bool autoApplyRules)
         {
             var subGroupLabels = TypeToSubgroupLabels[textureType];
-            var topLevelPlaceHolder = config.Subgroups.Where(x => x.ID == subGroupLabels.Item1).FirstOrDefault();
+            var topLevelPlaceHolder = config.Subgroups.FirstOrDefault(x => x.ID == subGroupLabels.Item1);
             if (topLevelPlaceHolder == null)
             {
                 topLevelPlaceHolder = _subgroupPlaceHolderFactory(CreateSubgroupModel(subGroupLabels.Item1, subGroupLabels.Item2), null, config, config.Subgroups);
@@ -660,7 +660,7 @@ namespace SynthEBD
 
             if (fileName.Equals(Source_HeadDetailAge40Male, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge40Female, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age40.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Age40.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -668,7 +668,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailAge50Male, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge50Female, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age50.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Age50.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -676,7 +676,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailAge40RoughMale, StringComparison.OrdinalIgnoreCase) || fileName.Equals(Source_HeadDetailAge40RoughFemale, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Age40Rough.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Age40Rough.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -684,7 +684,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailRoughFemale, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough01.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Rough01.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -692,7 +692,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailRough01Male, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough01.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Rough01.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -700,7 +700,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailRough02Male, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Rough02.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Rough02.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -708,7 +708,7 @@ namespace SynthEBD
             }
             else if (fileName.Equals(Source_HeadDetailFrecklesFemale, StringComparison.OrdinalIgnoreCase))
             {
-                var group = config.AttributeGroupMenu.Groups.Where(x => x.Label == DefaultAttributeGroups.Freckles.Label).FirstOrDefault();
+                var group = config.AttributeGroupMenu.Groups.FirstOrDefault(x => x.Label == DefaultAttributeGroups.Freckles.Label);
                 if (group != null)
                 {
                     AddAttributeGroup(subgroup, group);
@@ -793,7 +793,7 @@ namespace SynthEBD
             }
 
             // special handling for Elder NPCs (technically not applying rules by name, but not worth adding a whole separate function just for this)
-            if (subgroup.AssociatedModel.Paths.Where(x => x.Source.Contains("maleold", StringComparison.OrdinalIgnoreCase)).Any()) // search term covers femaleold as well
+            if (subgroup.AssociatedModel.Paths.Any(x => x.Source.Contains("maleold", StringComparison.OrdinalIgnoreCase))) // search term covers femaleold as well
             {
                 if (!subgroup.AssociatedModel.AllowedRaces.Contains(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.ElderRace.FormKey))
                 {
@@ -1025,7 +1025,7 @@ namespace SynthEBD
                         continue;
                     }
 
-                    if(!matchStrings.Where(x => canidateDir.Contains(x, StringComparison.OrdinalIgnoreCase)).Any())
+                    if(!matchStrings.Any(x => canidateDir.Contains(x, StringComparison.OrdinalIgnoreCase)))
                     {
                         unMatched = false;
                         break;
@@ -1153,7 +1153,7 @@ namespace SynthEBD
         /// <summary>Derives the asset pack short name from the first <c>textures\Prefix\...</c> segment found among the files and assigns it to the config; returns false if none found.</summary>
         private bool GetPrefix(VM_AssetPack config, string[] filesInDir, string rootPath)
         {
-            var firstSubPath = filesInDir.Select(x => x.Replace(rootPath, "").TrimStart(Path.DirectorySeparatorChar)).Where(x => x.StartsWith("textures", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+            var firstSubPath = filesInDir.Select(x => x.Replace(rootPath, "").TrimStart(Path.DirectorySeparatorChar)).FirstOrDefault(x => x.StartsWith("textures", StringComparison.OrdinalIgnoreCase));
             if (firstSubPath != null)
             {
                 var pathSplit = firstSubPath.Split(Path.DirectorySeparatorChar);
@@ -1291,7 +1291,7 @@ namespace SynthEBD
             {
                 var currentTopLevel = config.Subgroups[i];
                 var allSubgroups = currentTopLevel.GetChildren().And(currentTopLevel);
-                if (!allSubgroups.Where(x => x.AssociatedModel.Paths.Any()).Any())
+                if (!allSubgroups.Any(x => x.AssociatedModel.Paths.Any()))
                 {
                     config.Subgroups.RemoveAt(i);
                     i--;
@@ -1372,7 +1372,7 @@ namespace SynthEBD
                         {
                             continue;
                         }
-                        if (entry.Value.Where(x => sg.AssociatedModel.Name.Contains(x, StringComparison.OrdinalIgnoreCase)).Any())
+                        if (entry.Value.Any(x => sg.AssociatedModel.Name.Contains(x, StringComparison.OrdinalIgnoreCase)))
                         {
                             hasOtherRacialSubgroups = true;
                             break;
@@ -1432,7 +1432,7 @@ namespace SynthEBD
                     bool raceMatchedByAnyGrouping = false;
                     foreach (var arg in parent.AssociatedModel.AllowedRaceGroupings)
                     {
-                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == arg).FirstOrDefault();
+                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.FirstOrDefault(x => x.Label == arg);
                         if (correspondingGroup != null && correspondingGroup.Races.Contains(raceFormKey))
                         {
                             raceMatchedByAnyGrouping = true;
@@ -1449,7 +1449,7 @@ namespace SynthEBD
                 {
                     foreach (var drg in parent.AssociatedModel.DisallowedRaceGroupings)
                     {
-                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.Where(x => x.Label == drg).FirstOrDefault();
+                        var correspondingGroup = subgroup.ParentAssetPack.RaceGroupingEditor.RaceGroupings.FirstOrDefault(x => x.Label == drg);
                         if (correspondingGroup != null && correspondingGroup.Races.Contains(raceFormKey))
                         {
                             return false;
@@ -1471,13 +1471,13 @@ namespace SynthEBD
             if (subgroup.AssociatedModel.Name == "Nord" &&
                 subgroup.ParentSubgroup != null && 
                 subgroup.Subgroups.Count == 2 && 
-                subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).Any() && 
-                subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").Any() &&
+                subgroup.Subgroups.Any(x => x.AssociatedModel.Name == DefaultSubgroupName) && 
+                subgroup.Subgroups.Any(x => x.AssociatedModel.Name == "Vampire") &&
                 ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey) &&
                 ParentSubgroupsPermitRace(subgroup, Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceVampire.FormKey)) // probably don't need to check the other vampire races
             {
-                var nordGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == DefaultSubgroupName).FirstOrDefault();
-                var vampireGroup = subgroup.Subgroups.Where(x => x.AssociatedModel.Name == "Vampire").FirstOrDefault();
+                var nordGroup = subgroup.Subgroups.FirstOrDefault(x => x.AssociatedModel.Name == DefaultSubgroupName);
+                var vampireGroup = subgroup.Subgroups.FirstOrDefault(x => x.AssociatedModel.Name == "Vampire");
                 
                 nordGroup.AssociatedModel.DisallowedRaces.Clear();
                 nordGroup.AssociatedModel.AllowedRaces.Add(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRace.FormKey);
@@ -1552,7 +1552,7 @@ namespace SynthEBD
                 for (int i = 0; i < subgroup.Subgroups.Count; i++)
                 {
                     var sg = subgroup.Subgroups[i];
-                    if (!subgroup.ParentSubgroup.Subgroups.Where(x => x.AssociatedModel.Name == sg.AssociatedModel.Name).Any())
+                    if (!subgroup.ParentSubgroup.Subgroups.Any(x => x.AssociatedModel.Name == sg.AssociatedModel.Name))
                     {
                         MoveSubgroupTo(sg, subgroup.ParentSubgroup);
                         i--;
@@ -1637,7 +1637,7 @@ namespace SynthEBD
         {
             foreach (var path in subgroup.AssociatedModel.Paths)
             {
-                var associatedMultiplet = multiplets.Where(x => x.ReplicatePaths.Contains(path.Source)).FirstOrDefault();
+                var associatedMultiplet = multiplets.FirstOrDefault(x => x.ReplicatePaths.Contains(path.Source));
                 if (associatedMultiplet != null)
                 {
                     if (!subgroup.AssociatedModel.Notes.Contains(path.Source)) // some subgroups have two paths containing the same source path being sent to two or three destinations. Don't add multiple notes for the same path.

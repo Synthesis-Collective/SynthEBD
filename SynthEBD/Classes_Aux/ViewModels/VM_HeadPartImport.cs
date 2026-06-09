@@ -120,7 +120,7 @@ namespace SynthEBD
         public void UpdateSelections()
         {
             ClearSelections();
-            var mod = _environmentProvider.LoadOrder.ListedOrder.Where(x => x.ModKey.Equals(ModtoImport)).FirstOrDefault();
+            var mod = _environmentProvider.LoadOrder.ListedOrder.FirstOrDefault(x => x.ModKey.Equals(ModtoImport));
             if (mod != null)
             {
                 foreach (var headpart in mod.Mod.HeadParts)
@@ -223,7 +223,7 @@ namespace SynthEBD
                 {
                     if (_environmentProvider.LinkCache.TryResolve<IHeadPartGetter>(headPartFK, out var headpart))
                     {
-                        if (!ParentMenu.Types[entry.Key].HeadPartList.Where(x => x.AssociatedModel.HeadPartFormKey.Equals(headPartFK)).Any())
+                        if (!ParentMenu.Types[entry.Key].HeadPartList.Any(x => x.AssociatedModel.HeadPartFormKey.Equals(headPartFK)))
                         {
                             ParentMenu.Types[entry.Key].HeadPartList.Add(ImportHeadPart(headpart, ParentMenu.OBodyDescriptors, ParentMenu.RaceGroupings, ParentMenu.Types[entry.Key].HeadPartList, ParentMenu));
                             importCount++;

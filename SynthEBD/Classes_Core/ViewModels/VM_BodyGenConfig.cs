@@ -430,7 +430,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
             {
                 if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
                 {
-                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                    existingGroupings.Add(fallBackGroupings.First(x => x.Label == groupLabel));
                 }
             }
 
@@ -438,7 +438,7 @@ public class VM_BodyGenConfig : VM, IHasAttributeGroupMenu, IHasRaceGroupingEdit
             {
                 if (!existingGroupNames.Contains(groupLabel) && fallBackGroupNames.Contains(groupLabel))
                 {
-                    existingGroupings.Add(fallBackGroupings.Where(x => x.Label == groupLabel).First());
+                    existingGroupings.Add(fallBackGroupings.First(x => x.Label == groupLabel));
                 }
             }
         }

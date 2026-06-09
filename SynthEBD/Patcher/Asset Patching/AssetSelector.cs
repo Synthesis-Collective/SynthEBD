@@ -103,11 +103,11 @@ public class AssetSelector
             #region Opt out of Mix-In Asset Pack by probability here
             if (mode == AssetPackAssignmentMode.MixIn && availableAssetPacks.Any())
             {
-                var specificMixInAssignment = npcInfo.SpecificNPCAssignment?.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                var specificMixInAssignment = npcInfo.SpecificNPCAssignment?.MixInAssignments.FirstOrDefault(x => x.AssetPackName == availableAssetPacks.First().GroupName);
                 if (specificMixInAssignment == null)
                 {
                     var mixInPack = availableAssetPacks.First();
-                    var mixInConsistency = npcInfo.ConsistencyNPCAssignment?.MixInAssignments?.Where(x => x.AssetPackName == mixInPack.GroupName).FirstOrDefault();
+                    var mixInConsistency = npcInfo.ConsistencyNPCAssignment?.MixInAssignments?.FirstOrDefault(x => x.AssetPackName == mixInPack.GroupName);
                     if (mixInConsistency != null)
                     {
                         mixInDeclined = mixInConsistency.DeclinedAssignment;
@@ -197,7 +197,7 @@ public class AssetSelector
                 }
                 break;
             case AssetPackAssignmentMode.ReplacerVirtual:
-                var linkedAssignmentGroup = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                var linkedAssignmentGroup = npcInfo.AssociatedLinkGroup.ReplacerAssignments.FirstOrDefault(x => x.ReplacerName == availableAssetPacks.First().GroupName);
                 if (linkedAssignmentGroup != null) { linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
                 break;
         }
@@ -236,7 +236,7 @@ public class AssetSelector
                 uniqueNPCFound = _uniqueNPCData.TryGetUniqueNPCReplacerAssets(npcInfo, out var linkedReplacerCombinations, out uniqueFounderNPC);
                 if (linkedReplacerCombinations != null)
                 {
-                    var linkedAssignmentGroup = linkedReplacerCombinations.Where(x => x.ReplacerName == availableAssetPacks.First().GroupName).FirstOrDefault(); // availableAssetPacks only contains the current replacer
+                    var linkedAssignmentGroup = linkedReplacerCombinations.FirstOrDefault(x => x.ReplacerName == availableAssetPacks.First().GroupName); // availableAssetPacks only contains the current replacer
                     if (linkedAssignmentGroup != null) { linkedCombination = linkedAssignmentGroup.AssignedReplacerCombination; }
                 }
                 break;
@@ -614,7 +614,7 @@ public class AssetSelector
                     {
                         break;
                     }
-                    forcedAssetPack = assetPacksToBeFiltered.Where(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName).FirstOrDefault();
+                    forcedAssetPack = assetPacksToBeFiltered.FirstOrDefault(x => x.GroupName == npcInfo.SpecificNPCAssignment.AssetPackName);
                     if (forcedAssetPack != null)
                     {
                         forcedAssetPack = forcedAssetPack.ShallowCopy(); // don't forget to shallow copy or subsequent NPCs will get pruned asset packs
@@ -628,7 +628,7 @@ public class AssetSelector
                     }
                     break;
                 case AssetPackAssignmentMode.MixIn:
-                    var forcedMixIn = npcInfo.SpecificNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                    var forcedMixIn = npcInfo.SpecificNPCAssignment.MixInAssignments.FirstOrDefault(x => x.AssetPackName == availableAssetPacks.First().GroupName);
                     if (forcedMixIn != null)
                     {
                         forcedAssetPack = availableAssetPacks.First().ShallowCopy();
@@ -637,7 +637,7 @@ public class AssetSelector
                     }
                     break;
                 case AssetPackAssignmentMode.ReplacerVirtual:
-                    var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault(); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
+                    var forcedReplacerGroup = npcInfo.SpecificNPCAssignment.AssetReplacerAssignments.FirstOrDefault(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName); // Replacers are assigned from a pre-chosen asset pack so there must be exactly one in the set
                     if (forcedReplacerGroup != null)
                     {
                         forcedAssetPack = availableAssetPacks.First().ShallowCopy();
@@ -812,14 +812,14 @@ public class AssetSelector
             {
                 case AssetPackAssignmentMode.Primary: consistencyAssetPackName = npcInfo.ConsistencyNPCAssignment.AssetPackName; break;
                 case AssetPackAssignmentMode.MixIn:
-                    var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                    var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.FirstOrDefault(x => x.AssetPackName == availableAssetPacks.First().GroupName);
                     if (consistencyMixIn != null)
                     {
                         consistencyAssetPackName = availableAssetPacks.First().GroupName;
                     }
                     break;
                 case AssetPackAssignmentMode.ReplacerVirtual:
-                    consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                    consistencyReplacer = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.FirstOrDefault(x => x.ReplacerName == availableAssetPacks.First().ReplacerName && x.AssetPackName == availableAssetPacks.First().GroupName);
                     if (consistencyReplacer != null) { consistencyAssetPackName = consistencyReplacer.ReplacerName; }
                     break;
             }
@@ -849,7 +849,7 @@ public class AssetSelector
                         {
                             case AssetPackAssignmentMode.Primary: consistencySubgroupIDs = npcInfo.ConsistencyNPCAssignment.SubgroupIDs; break;
                             case AssetPackAssignmentMode.MixIn:
-                                var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == availableAssetPacks.First().GroupName).FirstOrDefault();
+                                var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.FirstOrDefault(x => x.AssetPackName == availableAssetPacks.First().GroupName);
                                 if (consistencyMixIn != null) { consistencySubgroupIDs = consistencyMixIn.SubgroupIDs; }
                                 break;
                             case AssetPackAssignmentMode.ReplacerVirtual: consistencySubgroupIDs = consistencyReplacer.SubgroupIDs; break;
@@ -1207,7 +1207,7 @@ public class AssetSelector
                 break;
 
             case AssetPackAssignmentMode.MixIn:
-                var forcedMixIn = specificAssignment.MixInAssignments.Where(x => x.AssetPackName == selectedCombination.AssignmentName).FirstOrDefault();
+                var forcedMixIn = specificAssignment.MixInAssignments.FirstOrDefault(x => x.AssetPackName == selectedCombination.AssignmentName);
                 if (forcedMixIn != null)
                 {
                     if (!CombinationContainsForcedSubgroups(selectedCombination.ContainedSubgroups.Select(x => x.Id), forcedMixIn.SubgroupIDs))
@@ -1217,7 +1217,7 @@ public class AssetSelector
                 }
                 break;
             case AssetPackAssignmentMode.ReplacerVirtual:
-                var forcedReplacer = specificAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == selectedCombination.AssignmentName).FirstOrDefault();
+                var forcedReplacer = specificAssignment.AssetReplacerAssignments.FirstOrDefault(x => x.ReplacerName == selectedCombination.AssignmentName);
                 if (forcedReplacer != null)
                 {
                     if (forcedReplacer.SubgroupIDs.Count != selectedCombination.ContainedSubgroups.Count) { return false; }
@@ -1278,7 +1278,7 @@ public class AssetSelector
         bool addMixInAssignmentToConsistency = assignedCombination != null || declinedViaProbability;
         if (_patcherState.GeneralSettings.bEnableConsistency && addMixInAssignmentToConsistency)
         {
-            var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.Where(x => x.AssetPackName == mixInName).FirstOrDefault();
+            var consistencyMixIn = npcInfo.ConsistencyNPCAssignment.MixInAssignments.FirstOrDefault(x => x.AssetPackName == mixInName);
             if (consistencyMixIn == null)
             {
                 consistencyMixIn = new NPCAssignment.MixInAssignment();
@@ -1322,13 +1322,13 @@ public class AssetSelector
     {
         if (_patcherState.GeneralSettings.bEnableConsistency)
         {
-            var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
+            var existingAssignment = npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.FirstOrDefault(x => x.ReplacerName == replacerGroup.Name);
             if (existingAssignment != null) { existingAssignment.SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList(); }
             else { npcInfo.ConsistencyNPCAssignment.AssetReplacerAssignments.Add(new NPCAssignment.AssetReplacerAssignment() { AssetPackName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, SubgroupIDs = assignedCombination.ContainedSubgroups.Where(x => x.Id != AssetPack.ConfigDistributionRules.SubgroupIDString).Select(x => x.Id).ToList() }); }
         }
         if (npcInfo.LinkGroupMember == NPCInfo.LinkGroupMemberType.Primary)
         {
-            var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.Where(x => x.ReplacerName == replacerGroup.Name).FirstOrDefault();
+            var existingAssignment = npcInfo.AssociatedLinkGroup.ReplacerAssignments.FirstOrDefault(x => x.ReplacerName == replacerGroup.Name);
             if (existingAssignment != null) { existingAssignment.AssignedReplacerCombination = assignedCombination; }
             else { npcInfo.AssociatedLinkGroup.ReplacerAssignments.Add(new LinkedNPCGroupInfo.LinkedAssetReplacerAssignment() { GroupName = replacerGroup.Source.GroupName, ReplacerName = replacerGroup.Name, AssignedReplacerCombination = assignedCombination }); }
         }

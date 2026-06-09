@@ -208,7 +208,7 @@ public class CombinationLog
             }
 
             if (!TryGetSubgroupIdsFromSignature(combination.Signature, out var currentSubgroupIDs)) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
-            var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
+            var currentCombinationRecord = currentAssetPackCombinations.FirstOrDefault(x => x.SubgroupIDs == currentSubgroupIDs);
             if (currentCombinationRecord == null)
             {
                 currentCombinationRecord = new CombinationInfo() { SubgroupIDs = currentSubgroupIDs, SubgroupDeepNames = combination.ContainedSubgroups.Select(x => x.DeepNamesString).ToList() };

@@ -131,7 +131,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
         foreach (var shellModel in shells)
         {
             if (shellModel == null) continue;
-            var shell = TemplateDescriptors.Where(x => x.Category == shellModel.Category).FirstOrDefault();
+            var shell = TemplateDescriptors.FirstOrDefault(x => x.Category == shellModel.Category);
             if (shell == null)
             {
                 shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
@@ -150,7 +150,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             foreach (var model in shellModel.Descriptors ?? new List<BodyShapeDescriptor>())
             {
                 if (model?.ID == null) continue;
-                var descriptor = shell.Descriptors.Where(x => x.Value == model.ID.Value).FirstOrDefault();
+                var descriptor = shell.Descriptors.FirstOrDefault(x => x.Value == model.ID.Value);
                 if (descriptor == null)
                 {
                     descriptor = _descriptorCreator.CreateNew(shell, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);

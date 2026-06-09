@@ -38,7 +38,7 @@ public class VM_RaceGroupingCheckboxList : VM
 
         foreach (var masterListing in SubscribedMasterList)
         {
-            var existingSelection = holdingList.Where(x => x.SubscribedMasterRaceGrouping.Label == masterListing.Label).FirstOrDefault();
+            var existingSelection = holdingList.FirstOrDefault(x => x.SubscribedMasterRaceGrouping.Label == masterListing.Label);
             if (existingSelection is null)
             {
                 RaceGroupingSelections.Add(new RaceGroupingSelection(masterListing, this));
@@ -134,7 +134,7 @@ public class VM_RaceGroupingCheckboxList : VM
     {
         foreach (var group in groupings)
         {
-            var matchedSelection = RaceGroupingSelections.Where(x => x.SubscribedMasterRaceGrouping == group).FirstOrDefault();
+            var matchedSelection = RaceGroupingSelections.FirstOrDefault(x => x.SubscribedMasterRaceGrouping == group);
             if (matchedSelection != null)
             {
                 matchedSelection.IsSelected = true;
