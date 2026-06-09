@@ -28,7 +28,10 @@ public class AssignmentIteration
     /// and <see cref="ChosenSeed"/>; both remain null if no asset pack could be selected.
     /// </summary>
     /// <param name="availableSeeds">Candidate seed subgroups across all available asset packs.</param>
-    public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds)
+    /// <param name="seedWeightSelector">Weight of a seed subgroup for the current NPC (base ProbabilityWeighting times any
+    /// matching ProbabilityWeightModifier factors). Supplied by the caller, which has the NPC/attribute context; this is
+    /// the SAME weight the per-position walk uses, so the modifier is applied consistently at the seed stage.</param>
+    public void ChooseSeedSubgroup(IEnumerable<FlattenedSubgroup> availableSeeds, Func<FlattenedSubgroup, double> seedWeightSelector)
     {
         // 1. Collect all unique ParentAssetPack members from availableSeeds.
         var uniqueAssetPacks = availableSeeds
@@ -47,8 +50,9 @@ public class AssignmentIteration
         var seedsFromChosenPack = availableSeeds
             .Where(seed => seed.ParentAssetPack == ChosenAssetPack);
 
-        // 4. Use the probability selector to randomly select a seed based on seed.ProbabilityWeighting.
-        ChosenSeed = (FlattenedSubgroup)ProbabilityWeighting.SelectByProbability(seedsFromChosenPack);
+        // 4. Select a seed weighted by the caller-supplied selector (base weight times modifier factor), so a
+        //    modifier-boosted subgroup is preferred as the seed exactly as it would be at a walked position.
+        ChosenSeed = ProbabilityWeighting.SelectByProbability(seedsFromChosenPack, seedWeightSelector);
     }
     
     /// <summary>

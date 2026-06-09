@@ -81,11 +81,11 @@ public class ProbabilityWeightingTests
                 var otherShare = otherM / (otherM + otherN);
                 _output.WriteLine($"Modulation: boostShare(M)={boostShare:0.000}, otherShare(M)={otherShare:0.000}");
 
-                // The modifier pushes matching NPCs well above the even (0.5) baseline; non-matching NPCs
-                // stay at the baseline. (The observed boosted share is ~0.79 rather than the naive 20/21
-                // because the factor composes with combination generation; the directional effect is what
-                // the modifier guarantees.)
-                boostShare.Should().BeGreaterThan(0.70, "the 20x modifier should make matching NPCs strongly prefer leaf M");
+                // The 20x modifier makes matching NPCs almost always get leaf M: with weights 20:1 the expected
+                // share is 20/21 ~= 0.95. (Before B47 the seed-selection stage ignored the modifier, diluting this
+                // to ~0.79; the seed weight now uses the same modifier-applied weight as the per-position walk.)
+                // Non-matching NPCs stay at the even 0.5 baseline.
+                boostShare.Should().BeInRange(0.90, 0.99, "a 20x modifier (weights 20:1) should give matching NPCs ~20/21 of leaf M");
                 otherShare.Should().BeInRange(0.40, 0.60, "non-matching NPCs are unaffected by the modifier and split evenly");
                 boostShare.Should().BeGreaterThan(otherShare + 0.20, "the modifier should clearly raise M's share for matching NPCs");
             }

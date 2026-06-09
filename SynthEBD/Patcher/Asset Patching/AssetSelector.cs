@@ -253,6 +253,17 @@ public class AssetSelector
         return linkedCombination;
     }
 
+    /// <summary>The weighted-selection weight of a subgroup for this NPC: its base ProbabilityWeighting times the product
+    /// of any matching ProbabilityWeightModifier factors. Used for BOTH seed selection and the per-position walk so the
+    /// modifier is applied consistently (the seed stage previously ignored it, diluting the modifier's effect).</summary>
+    private double GetSubgroupSelectionWeight(FlattenedSubgroup x, NPCInfo npcInfo)
+    {
+        return x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
+            x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
+            x.ParentAssetPack.Source.AttributeGroups, _attributeMatcher,
+            _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id);
+    }
+
     /// <summary>
     /// Builds a single candidate combination from the current iteration state: chooses a seed subgroup (preferring the
     /// most matched ForceIf attributes, else weighted-random), then fills each remaining position by probability,
@@ -288,13 +299,13 @@ public class AssetSelector
                 var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
                     x.ForceIfMatchCount == matchedForceIfCount);
 
-                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups);
+                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, x => GetSubgroupSelectionWeight(x, npcInfo));
                 
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
-                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds);
+                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, x => GetSubgroupSelectionWeight(x, npcInfo));
                 
                 _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
@@ -367,20 +378,12 @@ public class AssetSelector
             {
                 var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
                     x.ForceIfMatchCount == matchedForceIfCount);
-                nextSubgroup = ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups,
-                    x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
-                        x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
-                        x.ParentAssetPack.Source.AttributeGroups, _attributeMatcher,
-                        _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id));
+                nextSubgroup = ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups, x => GetSubgroupSelectionWeight(x, npcInfo));
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
             {
-                nextSubgroup = ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i],
-                    x => x.ProbabilityWeighting * ProbabilityWeighting.GetProbabilityModifierFactor(
-                        x.ProbabilityWeightModifiers, npcInfo.NPC, npcInfo.AssetsRace,
-                        x.ParentAssetPack.Source.AttributeGroups, _attributeMatcher,
-                        _patcherState.GeneralSettings.VerboseModeDetailedAttributes, _logger, npcInfo, x.Id));
+                nextSubgroup = ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i], x => GetSubgroupSelectionWeight(x, npcInfo));
                 _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " at random." + Environment.NewLine, false, npcInfo);
             }
             #endregion
