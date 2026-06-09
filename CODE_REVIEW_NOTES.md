@@ -646,6 +646,21 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   thread so `.Wait()` cannot deadlock. Added an in-code comment documenting this so it is not re-flagged. *Test:* new
   `AppCrashLogPathTests` (3 cases) -- settings root present -> used; null and blank settings root -> fallback root; all
   produce the `Logs/Crash Logs/<invariant-timestamp>.txt` tail. Suite 211 / 1 skipped / 0 failed.
+- **B43 — `SaveLoader.LoadPlugins` `GeneralSettings.RaceGroupings` deref — VERIFIED NOT A BUG (commented).**
+  The note claimed `LoadPlugins` NREs on `_patcherState.GeneralSettings.RaceGroupings` if general-settings load failed.
+  Verified false: `SettingsIO_General.LoadGeneralSettings` guarantees both levels non-null regardless of load success --
+  `if (GeneralSettings == null) GeneralSettings = new Settings_General();`
+  ([SettingsIO_General.cs:58](SynthEBD/Settings/SettingsIO/SettingsIO_General.cs#L58), so even a parse-error load where
+  `LoadJSONFile` returns null is covered) and `if (RaceGroupings == null) RaceGroupings = new();`
+  ([:75](SynthEBD/Settings/SettingsIO/SettingsIO_General.cs#L75)). Both `LoadPlugins` callers run after it: `LoadAllSettings`
+  calls `LoadInitialSettings()` first ([SaveLoader.cs:84-85](SynthEBD/SaveLoader.cs#L84)), and
+  `ViewModelLoader.SaveAndRefreshPlugins` ([:154](SynthEBD/ViewModelLoader.cs#L154)) is a post-load UI action. So although
+  `PatcherState.GeneralSettings` has no default initializer, it is non-null at every `LoadPlugins` call -- no NRE path.
+  Added an in-code comment documenting the invariant and explaining why a defensive `?? new()` is deliberately avoided (it
+  would mask an ordering violation by loading every config with an empty race-grouping set, silently breaking
+  grouping-gated distribution rules -- the B48 class). No code/behavior change, no test. (The sibling discarded-`loadSuccess`
+  aggregation and shared BodyGen save-error-caption items under that heading are separate 🔧, still open.) Suite 211 / 1
+  skipped / 0 failed.
 
 ---
 
@@ -2019,7 +2034,7 @@ guard (unlike the adjacent `_logger`/`_patcherState` guards), so a crash before 
 crash handler itself NRE and lose the report; and a `Task.Run(...).Wait()` inside an `async void` handler
 blocks the UI thread. 🐞/💭
 
-### `SaveLoader` null/guard items — 🐞
+### ✔️ `SaveLoader` null/guard items — 🐞 VERIFIED NOT A BUG (RaceGroupings deref is safe; 🔧 sub-items still open) — see Resolved §B43
 
 `LoadPlugins` dereferences `_patcherState.GeneralSettings.RaceGroupings` with no null check — if the
 general-settings load failed, this NREs. `LoadInitialSettings` discards every loader's `out loadSuccess`

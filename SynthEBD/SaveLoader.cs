@@ -117,6 +117,11 @@ public class SaveLoader
     /// </summary>
     public void LoadPlugins()
     {
+        // GeneralSettings and its RaceGroupings are guaranteed non-null here: both callers (LoadAllSettings and
+        // ViewModelLoader.SaveAndRefreshPlugins) run after LoadInitialSettings -> LoadGeneralSettings, which creates a
+        // fresh Settings_General on a failed/missing load and a fresh RaceGroupings list when null. A defensive
+        // null-coalesce is deliberately avoided: it would mask an ordering violation by silently loading every config
+        // with an empty race-grouping set (grouping-gated distribution rules would then resolve to nothing).
         // load bodygen configs before asset packs - asset packs depend on BodyGen but not vice versa
         _patcherState.BodyGenConfigs = _bodyGenIO.LoadBodyGenConfigs(_patcherState.GeneralSettings.RaceGroupings, out var loadSuccess);
         _patcherState.RecordTemplatePlugins = _assetIO.LoadRecordTemplates(out loadSuccess);
