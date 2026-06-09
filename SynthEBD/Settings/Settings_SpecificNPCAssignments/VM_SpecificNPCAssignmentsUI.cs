@@ -265,7 +265,9 @@ public class VM_SpecificNPCAssignmentsUI : VM
         SubscribedGeneralSettings.bShow3DPreview = Show3DPreview;
         SubscribedGeneralSettings.SpecificNPCPreviewerWidth = PreviewerWidth;
 
-        if (CurrentlyDisplayedAssignment != null)
+        // AssociatedViewModel is nulled when its heavy editor VM is freed on deselect (see the SelectedPlaceHolder
+        // subscription); in that case the placeholder's AssociatedModel is already current, so skip the re-dump.
+        if (CurrentlyDisplayedAssignment != null && CurrentlyDisplayedAssignment.AssociatedPlaceHolder?.AssociatedViewModel != null)
         {
             CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel();
         }

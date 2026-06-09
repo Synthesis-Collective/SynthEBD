@@ -567,6 +567,21 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   "Build: Athletic" in its Allowed/Disallowed BodyGen sets and its Allowed BodySlide set; after the helper the BodyGen
   sets lose it (Allowed keeps "Build: Muscular", Disallowed empties) while the BodySlide set is untouched. Suite 204 / 1
   skipped / 0 failed.
+- **B38 — `VM_SpecificNPCAssignmentsUI.DumpViewModelToModels` NRE on Save after deselect (fixed).**
+  The Save path's `DumpViewModelToModels` refreshed the open editor's model via
+  `CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel()` but guarded only
+  `CurrentlyDisplayedAssignment != null`. Normally the VM ctor links `AssociatedPlaceHolder.AssociatedViewModel = this`
+  ([VM_SpecificNPCAssignment.cs:84](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L84)), but the
+  `SelectedPlaceHolder` subscription disposes+nulls the *previous* placeholder's `AssociatedViewModel` (to free its heavy
+  `VM_CharacterViewer` GL context) and reassigns `CurrentlyDisplayedAssignment` only when `t.Current != null`. So on a
+  deselect (SelectedPlaceHolder -> null, e.g. clearing the list selection or Removing the selected row),
+  `CurrentlyDisplayedAssignment` dangled at the disposed VM whose placeholder `AssociatedViewModel` was now null ->
+  `null.DumpViewModelToModel()` -> NRE thrown out of Save, so the assignments were not saved. Fixed by tightening the
+  guard to also require `AssociatedPlaceHolder?.AssociatedViewModel != null` (matching the subscription's own check at
+  [:188](SynthEBD/Settings/Settings_SpecificNPCAssignments/VM_SpecificNPCAssignmentsUI.cs#L188)); when the VM was freed
+  the placeholder's `AssociatedModel` is already current (dumped at free-time) so the foreach still collects it. Fix-only
+  + manual-verify: heavy UI VM (factories/logger/settings VMs/GL viewer), the defect is a null-guard on a chain of heavy
+  VM props with no pure seam (cf. B28-B30). Suite 204 / 1 skipped / 0 failed (no regression).
 
 ---
 
@@ -1773,7 +1788,7 @@ the attribute to **every** pack — they never consult `assetPack.IsSelected`. B
 is to choose which packs the batch action targets. So the selection UI is inert and the action always applies
 to all packs. Should iterate `AssetPacks.Where(x => x.IsSelected)`.
 
-### `VM_SpecificNPCAssignmentsUI.DumpViewModelToModels` null-deref — 🐞 possible bug
+### ✅ `VM_SpecificNPCAssignmentsUI.DumpViewModelToModels` null-deref — 🐞 possible bug RESOLVED (guard AssociatedViewModel) — see Resolved §B38
 
 [VM_SpecificNPCAssignmentsUI.cs:254](SynthEBD/Settings/Settings_SpecificNPCAssignments/VM_SpecificNPCAssignmentsUI.cs#L254) ·
 Dereferences `CurrentlyDisplayedAssignment.AssociatedPlaceHolder.AssociatedViewModel.DumpViewModelToModel()`
