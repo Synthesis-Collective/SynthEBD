@@ -163,11 +163,13 @@ public sealed class Logger : VM
         lock (LockStartupLogMethod)
         {
             //_startupLog.Add(FormatTimeStamp(DateTime.Now) + GetIndentString() + message);
-            _startupLogIndentCount++;
-            System.Diagnostics.Stopwatch sw = new();
-            sw.Start();
+            // Only the first start for a given label is timed; tie the indent increment to that same
+            // condition so it balances End's guarded decrement (a duplicate start no longer drifts the indent).
             if (!_startupTimers.ContainsKey(message))
             {
+                _startupLogIndentCount++;
+                System.Diagnostics.Stopwatch sw = new();
+                sw.Start();
                 _startupTimers.Add(message, sw);
             }
         }
@@ -208,12 +210,7 @@ public sealed class Logger : VM
     /// <returns>Zero or more tab characters.</returns>
     public string GetIndentString()
     {
-        string s = "";
-        for (int i = 0; i < _startupLogIndentCount; i++)
-        {
-            s += "\t";
-        }
-        return s;
+        return new string('\t', _startupLogIndentCount);
     }
 
     /// <summary>Formats a timestamp as a bracketed "[HH:MM:SS] " prefix for log lines.</summary>
@@ -456,20 +453,8 @@ public sealed class Logger : VM
     /// <returns>The indented line.</returns>
     private static string Indent(string s, int count)
     {
-        for (int i = 0; i < count; i++)
-        {
-            s = "\t" + s;
-        }
-        return s;
-    }
-
-    /// <summary>A <see cref="System.IO.StringWriter"/> that reports UTF-8 as its encoding, so XML serialized through it declares utf-8.</summary>
-    private class Utf8StringWriter : System.IO.StringWriter
-    {
-        public override Encoding Encoding
-        {
-            get { return Encoding.UTF8; }
-        }
+        if (count <= 0) { return s; }
+        return new string('\t', count) + s;
     }
 
     /// <summary>Logs an error to the on-screen log or console (per mode) and raises <see cref="LoggedError"/>.</summary>
@@ -745,10 +730,10 @@ public sealed class Logger : VM
         return NameHandler.GetNPCNameSafely(npc, this) + " | " + EditorIDHandler.GetEditorIDSafely(npc) + " | " + npc.FormKey.ToString();
     }
 
-/// <summary>Builds a filesystem-safe "Name (EditorID) FormKey" string for naming per-NPC report files.</summary>
-/// <param name="npc">The NPC to describe.</param>
-/// <returns>A sanitized identifier safe for use as a file name.</returns>
-public static string GetNPCLogReportingString(INpcGetter npc)
+    /// <summary>Builds a filesystem-safe "Name (EditorID) FormKey" string for naming per-NPC report files.</summary>
+    /// <param name="npc">The NPC to describe.</param>
+    /// <returns>A sanitized identifier safe for use as a file name.</returns>
+    public static string GetNPCLogReportingString(INpcGetter npc)
     {
         return IO_Aux.MakeValidFileName(npc.Name?.String + " (" + EditorIDHandler.GetEditorIDSafely(npc) + ") " + npc.FormKey.ToString().Replace(':', '-'));
     }

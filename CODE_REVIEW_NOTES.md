@@ -848,6 +848,13 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **B56 (latent; re-verify exact lines) -- `RecordIntellisense.RefreshPathSuggestions` deref-before-null-guard
   (dead guard / possible NRE); `IO_Aux.SelectFileSave` populates `out path` even on Cancel.** GUI/Settings
   agent was uncertain on exact lines -- confirm against source first.
+- [ ] **B57 (surfaced during C2) -- `Logger.GetRaceLogString` special-case race names may never fire.** [Logger.cs:830-851](SynthEBD/General_Aux/Logger.cs#L830)
+  the 5 `fk.Equals(Mutagen...Race.X)` checks compare a `FormKey` against a `FormLink<IRaceGetter>` constant (the
+  `Mutagen.Bethesda.FormKeys.SkyrimSE...Race.*` members are FormLinks, not FormKeys). If `FormKey.Equals(object)`
+  returns false for a boxed FormLink, the curated names ("Afflicted", "Snow Elf", "Nord (Dawnguard)", etc.) never
+  appear in verbose logs -- the races fall through to the general resolve path and show their record Name/EditorID
+  instead. VERIFY the FormKey-vs-FormLink equality semantics empirically before fixing; if confirmed dead, the fix
+  (compare `.FormKey`, ideally via the dictionary deferred from C2) changes verbose-log output for those 5 races.
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -875,7 +882,14 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   target -- rename would break bindings). Deferred: `ExtensionMethods.GetDefaultValue` rename/`dynamic` return is
   STRUCTURAL (own commit); namespace -> file-scoped + global unused-`using` sweep are SKIP (D). Build 0 errors;
   suite 222 / 1 skipped / 0 failed.
-- [ ] **C2 Logger nits:** string-build loops -> `new string('\t',n)`; async-without-await collapse; GetRaceLogString -> dictionary; col-0 indent; remove unused `Utf8StringWriter`; LogStartupEvent indent-drift guard.
+- [x] **C2 Logger nits -- DONE (partial; 2 items split out).** `GetIndentString`/`Indent` tab loops ->
+  `new string('\t', n)` (Indent keeps its `count <= 0` guard); removed the unused private `Utf8StringWriter`;
+  fixed the column-0 indentation of `GetNPCLogReportingString` + its doc; and the **LogStartupEvent indent-drift**
+  fix -- moved `_startupLogIndentCount++` (and the stopwatch creation) inside the `if (!ContainsKey)` block so a
+  duplicate start no longer leaks a phantom indent level (happy path byte-identical). **Split out:** the
+  async-without-await status-dance collapse -> handled WITH B49 (it changes the VM-mutation thread, not neutral);
+  `GetRaceLogString` -> dictionary -> blocked on **B57** (the existing `fk.Equals(formLink)` special-case checks
+  compare a FormKey to a FormLink -- need to confirm whether they ever fire before changing them). Suite 222/1/0.
 - [ ] **C3 Models/VMs:** BodyShapeDescriptor pattern-match + `HashCode.Combine`; NPCAttribute hash `OrderBy` removal + col-0 brace; VM_RaceGrouping `SetEquals`; drop dead `displayForceIfWeight`/`selfFactory` params; zEBD-conversion dead params + Contains-before-Add; AssetPackValidator `HashSet`; NifTextureLoader CreateTextureModelViaBmp rename.
 - [ ] **C4 `.Where(pred).First()` -> `.First(pred)` sweep** across VM/patcher round-trip helpers (behavior-neutral; many files; one commit).
 - [ ] **C5 Patcher nits:** HeightPatcher `Random.Shared` + prune dead `WriteAssignmentDictionaryScriptMode`; dead `timer_Tick`; DictionaryMapper Contains-before-Add; UniqueNPCData comparer; AttributeMatcher `^` simplify; PatcherSettingsSourceProvider `;;` + dead `Initialized` read; ArmorPatcher always-true struct predicate.
@@ -1028,7 +1042,7 @@ thread it freezes the UI for `durationSec` seconds. The async siblings
 (`CallTimedNotifyStatusUpdateAsync`) do this correctly; this sync version looks like a leftover and
 should probably be removed or made to delegate to the async path.
 
-### `Logger` async-without-await status dance — 🔧 modernize
+### `Logger` async-without-await status dance — 🔧 modernize (deferred to B49 -- changes the VM-mutation thread; not behavior-neutral)
 
 [Logger.cs:440-485](SynthEBD/General_Aux/Logger.cs#L440-L485) · `UpdateStatusAsync` →
 `await Task.Run(() => _UpdateStatusAsync(...))`, where `_UpdateStatusAsync` is an `async Task` that
@@ -1046,14 +1060,14 @@ would be mis-split. `XDocument.ToString()` (already called in `SaveReport`) emit
 default, and `XmlWriterSettings { Indent = true }` covers the rest — worth checking whether this
 method is needed at all.
 
-### `Logger` string-building loops — 🔧 modernize (minor)
+### ✅ `Logger` string-building loops — 🔧 RESOLVED (GetIndentString/Indent -> `new string('\t',n)`; SpreadFlattenedAssetPack/GetBodyShapeDescriptorString left -- already Join-based) — see Bucket 3 §C2
 
 `GetIndentString` / `Indent` build tabs with `s += "\t"` in a loop → `new string('\t', count)`.
 `SpreadFlattenedAssetPack` ([Logger.cs:397](SynthEBD/General_Aux/Logger.cs#L397)) and the non-generic
 `GetBodyShapeDescriptorString` ([Logger.cs:618](SynthEBD/General_Aux/Logger.cs#L618)) concatenate in
 loops where a `string.Join` + `Select` reads cleaner. All cosmetic.
 
-### `Logger.LogStartupEventStart` / `LogStartupEventEnd` — 🐞 possible bug (minor)
+### ✅ `Logger.LogStartupEventStart` / `LogStartupEventEnd` — 🐞 RESOLVED (indent increment tied to timer registration; no drift on duplicate start) — see Bucket 3 §C2
 
 [Logger.cs:128](SynthEBD/General_Aux/Logger.cs#L128) · `Start` always increments the indent but only
 registers the stopwatch if the message key is new; `End` only decrements if the key exists. If the
@@ -1061,7 +1075,7 @@ same event label is started twice (or ended without a matching start), the inden
 skewing the indentation of later startup-log lines. Keying timers by a non-unique message is the
 root risk.
 
-### `Logger.GetRaceLogString` (static) — 💭 opinion (minor)
+### `Logger.GetRaceLogString` (static) — 💭 opinion (minor) + 🐞 see B57 (special-case checks may be dead -- FormKey vs FormLink)
 
 [Logger.cs:650](SynthEBD/General_Aux/Logger.cs#L650) · The hard-coded special-case races
 (Afflicted, Astrid, Snow Elf, …) are an if/else chain that would read better as a
@@ -1069,7 +1083,7 @@ root risk.
 (this static single-race formatter vs. the instance `out`-param report builder) — overload-by-accident
 that's easy to confuse.
 
-### `Logger` small nits — 💭 opinion / 🔧 (trivial)
+### ✅ `Logger` small nits — 💭/🔧 RESOLVED (col-0 GetNPCLogReportingString re-indented; unused Utf8StringWriter removed; `;;` already gone E2) — see Bucket 3 §C2
 
 - [Logger.cs:230](SynthEBD/General_Aux/Logger.cs#L230): stray double semicolon `);;`.
 - [Logger.cs:593](SynthEBD/General_Aux/Logger.cs#L593): `GetNPCLogReportingString` is indented to
