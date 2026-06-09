@@ -283,13 +283,19 @@ public class VM_OBodyTrainerExporter : VM
         ITransformer trainedModel = pipeline.Fit(data);
 
         // Save the model
-        var modelPath = System.IO.Path.Combine(_paths.OBodySettingsPath, "Models", currentDescriptor + "_" + DateTime.Now.ToString());
+        var modelPath = System.IO.Path.Combine(_paths.OBodySettingsPath, "Models", BuildModelFileName(currentDescriptor, DateTime.Now));
         context.Model.Save(trainedModel, data.Schema, modelPath);
 
         IDataView predictions = trainedModel.Transform(data);
         var metrics = context.Regression.Evaluate(predictions, labelColumnName: "Label", scoreColumnName: "Score");
-        
 
+
+    }
+
+    /// <summary>Builds the timestamped model file name. Uses a sortable invariant-culture timestamp so the result is path-safe (no '/' or ':') across locales, matching the trainer's CSV export naming at line 101.</summary>
+    public static string BuildModelFileName(string descriptor, DateTime timestamp)
+    {
+        return descriptor + "_" + timestamp.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture);
     }
 }
 

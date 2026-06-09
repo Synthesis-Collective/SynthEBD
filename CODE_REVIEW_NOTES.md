@@ -537,6 +537,19 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   double (`assigned * 100.0 / assignable`) and returns `"0"` when nothing is assignable; `FormatEntry` delegates. *Test:*
   new `AssetStatsTrackerTests` (5 cases) -- 1/3 -> "33.33" (the fix), 2/7 -> "28.57", 5/5 -> "100.00", 0/4 -> "0.00",
   0/0 -> "0" (sentinel, no division). (`"N2"` is current-culture; the suite/CI run en-US.) Suite 201 / 1 skipped / 0 failed.
+- **B36 — `VM_OBodyTrainerExporter` model-save path used bare `DateTime.Now.ToString()` (fixed).**
+  The OBody trainer's "Save the model" step ([:286](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L286))
+  built the ML.NET model path with `currentDescriptor + "_" + DateTime.Now.ToString()` -- no format/culture, so the
+  current culture's default date+time pattern was used. On en-US that is e.g. `"6/8/2026 1:55:39 PM"`: the `/` chars
+  become directory separators and the `:` chars are invalid in a Windows filename, so `context.Model.Save(...)` threw (and
+  the name was culture-dependent). The sibling CSV export at
+  [:101](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L101) already did it right
+  (`"yyyy-MM-dd-HH-mm"` + InvariantCulture). Repro: train/export the BodySlide classifier for a descriptor; the model save
+  aborts. Fixed by extracting a deterministic `public static string BuildModelFileName(string descriptor, DateTime
+  timestamp)` that uses the sortable invariant timestamp; line 286 calls it with `DateTime.Now`. *Test:* new
+  `OBodyTrainerExporterTests` (2 cases) -- `BuildModelFileName("Hips", 2026-06-08 13:55)` -> "Hips_2026-06-08-13-55", and
+  the result contains none of `/ \ :` (the chars the old bare `.ToString()` injected). (Trainer-export is an advanced path
+  that regenerates the shipped model, but it is real code that threw.) Suite 203 / 1 skipped / 0 failed.
 
 ---
 
@@ -1359,7 +1372,7 @@ exact trailing digit run by length.
 
 ### `VM_OBodyTrainerExporter` items — 🐞 / 💭
 
-- [VM_OBodyTrainerExporter.cs:286](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L286) ·
+- ✅ RESOLVED (see Resolved §B36) — [VM_OBodyTrainerExporter.cs:286](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L286) ·
   the model save path is built with a bare `DateTime.Now.ToString()` (no format/culture), which on most
   locales produces `/` and `:` — invalid Windows path characters — and is culture-dependent. The sibling at
   [:101](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_OBodyTrainerExporter.cs#L101) does it correctly
