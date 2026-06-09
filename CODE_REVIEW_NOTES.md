@@ -661,6 +661,27 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   grouping-gated distribution rules -- the B48 class). No code/behavior change, no test. (The sibling discarded-`loadSuccess`
   aggregation and shared BodyGen save-error-caption items under that heading are separate 🔧, still open.) Suite 211 / 1
   skipped / 0 failed.
+- **B44 — writers/parsers cluster: 3 input-hardening fixes + 2 verified-not-bugs (one commit).**
+  - **B44-1 `EasyNPCProfileParser`:** (a) the `FormKey.TryFactory(str) != null` guard is a **false positive** -- `TryFactory`
+    returns `FormKey?` (null on malformed input, no throw), so the check correctly skips bad lines; documented in-code. (b)
+    **Fixed:** `AppearanceDictionary.Add(formKey.Value, ...)` threw `ArgumentException` on a duplicate NPC FormKey (the sibling
+    `NPC2ProfileParser` guards with `ContainsKey`), aborting the whole EasyNPC-profile parse; added the same
+    `&& !ContainsKey(...)` guard.
+  - **B44-2 `CombinationLog.LogAssignedRecords` (fixed):** `container.Signature.Split(':')[1]` had no `:`-guard (unlike
+    `LogCombinationSelections` at :207), so a signature without `:` threw `IndexOutOfRangeException` during patching.
+    Extracted `public static bool TryGetSubgroupIdsFromSignature(string, out string)` and routed *both* sites through it
+    (guards + dedups). *Test:* new `CombinationLogSignatureTests` (5 cases) -- "Pack:1.2.3" -> "1.2.3", trailing colon -> "",
+    multi-colon takes the second segment, no-colon/empty -> false (no throw).
+  - **B44-3 `OBodyWriter` script-mode (fixed):** `entry.Value.First()` threw `InvalidOperationException` on an empty per-NPC
+    preset list (the ini sibling guards `if (!entry.Value.Any()) continue;`; the outer `Count == 0` check does not cover a
+    per-entry empty list); added the same guard.
+  - **B44-4 `AssetReplacerHardcodedPaths` female gash L/R -- VERIFIED NOT A BUG:** the female right-side-gash 11/12 textures
+    map to `MarksFemaleHumanoid{11,12}LeftGashR`, which *looks* mislabeled, but the trailing `R` distinguishes the
+    right-side record from the left-side `...LeftGash` (no R); vanilla `Skyrim.esm` genuinely names these female slots
+    "LeftGashR" (a Bethesda inconsistency -- the male equivalents are "RightGashR"). The mapping is a faithful reference to
+    the real (misnamed) vanilla records; "correcting" it would point at a non-existent record. Documented in-code.
+  - Fixes 1b/3 are fix-only defensive guards mirroring their correct siblings (file-IO parse/write paths; manual-verify).
+  Suite 216 / 1 skipped / 0 failed.
 
 ---
 
@@ -1666,7 +1687,7 @@ passes `_patcherState.OBodySettings.AttributeGroups` — a copy-paste slip; the 
 same `GeneralSettings.AttributeGroups`, otherwise disallowed-attribute logging rules resolve their groups
 against the wrong (OBody) group set.
 
-### Patcher writers/parsers smaller items — 🐞 / 💭
+### ✅ Patcher writers/parsers smaller items — 🐞 / 💭 RESOLVED (4 🐞 fixed/verified; 💭 sub-items open) — see Resolved §B44
 
 - `EasyNPCProfileParser` — `FormKey.TryFactory(str)` returns a non-nullable `FormKey`, so the `!= null` guard
   is always true (the bool `out`-overload was likely intended; malformed input throws instead of being

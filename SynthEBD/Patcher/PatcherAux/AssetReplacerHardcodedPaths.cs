@@ -147,6 +147,11 @@ public class AssetReplacerHardcodedPaths
             DestFormKeySpecifier = Skyrim.HeadPart.MarksFemaleHumanoid10RightGashR.FormKey,
             DestSpecifier = SubgroupCombination.DestinationSpecifier.HeadPartFormKey
         },
+        // NOTE (not a bug): vanilla Skyrim.esm names the female right-side-gash 11/12 head parts
+        // "MarksFemaleHumanoid{11,12}LeftGashR" -- the trailing "R" is what distinguishes them from the left-side
+        // "...LeftGash" records (which have no R). This is a Bethesda naming inconsistency; the male equivalents are
+        // "...RightGashR". The right-side textures below correctly target these (misnamed-but-real) vanilla records, so
+        // do NOT "correct" LeftGashR -> RightGashR -- that record does not exist for the female 11/12 slots.
         new RecordReplacerSpecifier()
         {
             Paths = new HashSet<string>() {

@@ -45,8 +45,11 @@ public class EasyNPCProfileParser
                 if (split3.Length != 2) { continue; }
 
                 string fkStr = split3[1] + ":" + split3[0];
+                // FormKey.TryFactory returns FormKey? (null on malformed input, without throwing), so the null check is a
+                // valid skip. Guard the duplicate key too (matching NPC2ProfileParser) so a repeated NPC entry in the
+                // profile does not throw from Dictionary.Add and abort the whole parse.
                 var formKey = FormKey.TryFactory(fkStr);
-                if (formKey != null)
+                if (formKey != null && !AppearanceDictionary.ContainsKey(formKey.Value))
                 {
                     AppearanceDictionary.Add(formKey.Value, appearanceMod);
                 }

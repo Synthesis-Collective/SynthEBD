@@ -198,6 +198,7 @@ public class OBodyWriter
         var outputDictionary = new Dictionary<string, string>();
         foreach (var entry in Patcher.BodySlideTracker)
         {
+            if (!entry.Value.Any()) { continue; } // guard against an empty preset list, matching WriteAssignmentIni; First() would otherwise throw
             outputDictionary.TryAdd(entry.Key.ToJContainersCompatiblityKey(), entry.Value.First());
         }
         string outputStr = JSONhandler<Dictionary<string, string>>.Serialize(outputDictionary, out bool success, out string exception);

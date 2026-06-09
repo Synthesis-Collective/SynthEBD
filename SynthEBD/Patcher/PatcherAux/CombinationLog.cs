@@ -204,9 +204,7 @@ public class CombinationLog
                 combinationDict.Add(combination.AssignmentName, currentAssetPackCombinations);
             }
 
-            if (!combination.Signature.Contains(':')) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
-
-            string currentSubgroupIDs = combination.Signature.Split(':')[1];
+            if (!TryGetSubgroupIdsFromSignature(combination.Signature, out var currentSubgroupIDs)) { _logger.LogError("Couldn't record combination with signature: " + combination.Signature); continue; }
             var currentCombinationRecord = currentAssetPackCombinations.Where(x => x.SubgroupIDs == currentSubgroupIDs).FirstOrDefault();
             if (currentCombinationRecord == null)
             {
@@ -222,6 +220,20 @@ public class CombinationLog
                 subgroup.AssignmentCount++;
             }
         }
+    }
+
+    /// <summary>Extracts the subgroup-ID portion (after the first ':') of a combination signature. Returns false when the
+    /// signature has no ':', so callers skip a malformed signature instead of throwing on Split(':')[1].</summary>
+    public static bool TryGetSubgroupIdsFromSignature(string signature, out string subgroupIDs)
+    {
+        var parts = signature.Split(':');
+        if (parts.Length < 2)
+        {
+            subgroupIDs = string.Empty;
+            return false;
+        }
+        subgroupIDs = parts[1];
+        return true;
     }
 
     /// <summary>
@@ -255,7 +267,7 @@ public class CombinationLog
                     combinationDict.Add(container.LoggingLabel, currentAssetPackCombinations);
                 }
 
-                string currentSubgroupIDs = container.Signature.Split(':')[1];
+                if (!TryGetSubgroupIdsFromSignature(container.Signature, out var currentSubgroupIDs)) { _logger.LogError("Couldn't record combination with signature: " + container.Signature); continue; }
 
                 var currentCombinationRecord = currentAssetPackCombinations
                     .Where(x => x.SubgroupIDs == currentSubgroupIDs)
