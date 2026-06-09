@@ -34,6 +34,10 @@ public class BSAHandler : ViewModel
     private HashSet<ModKey> _enabledMods = new();
     private HashSet<string> _enabledModNames = new();
 
+    // THREADING (future parallel selection): the dictionary itself is already concurrent and readers are opened write-once,
+    // so concurrent lookups during selection are safe. But the HashSet<IArchiveReader> value is not thread-safe, and file
+    // extraction (IArchiveFile.AsStream) may not be safe for concurrent use -- verify IArchiveReader concurrency and likely
+    // serialize extraction before parallelizing any code path that extracts from a shared reader.
     public ConcurrentDictionary<ModKey, HashSet<IArchiveReader>> OpenReaders = new();
     
     // NEW: The core cache mechanism

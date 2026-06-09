@@ -144,6 +144,8 @@ public class NPCInfo : IEquatable<NPCInfo>
             NPCFormKey = npcFormKey,
             DispName = dispName,
         };
+        // THREADING (future parallel selection): writes to the shared _patcherState.Consistency dict during selection; a
+        // parallel per-NPC loop needs a concurrent dict or synchronization here (keys are per-NPC, so a ConcurrentDictionary suffices).
         consistency[key] = assignment; // indexer (not Add) so a present-but-null entry is overwritten rather than throwing
         return assignment;
     }
@@ -181,8 +183,17 @@ public class NPCInfo : IEquatable<NPCInfo>
         return Gender.Male;
     }
 
-    /// <summary>Process-wide cache of all linked-group infos created so far, shared across NPCInfo instances.</summary>
+    /// <summary>Per-run cache of all linked-group infos created so far, shared across NPCInfo instances so linked NPCs
+    /// resolve to the same group. Reset at the start of each patcher run via <see cref="ResetLinkGroupCache"/> (it is
+    /// searched before the current settings, so a stale entry from a prior run would otherwise be reused).</summary>
+    // THREADING (future parallel selection): shared coordination state read+written during selection
+    // (SearchLinkedInfoFromList + the ctor Add). Parallelizing the per-NPC loop requires synchronizing access here, or
+    // partitioning linked groups so all members of a group run on the same thread -- linked-group resolution is cross-NPC.
     private static HashSet<LinkedNPCGroupInfo> AllLinkedNPCGroupInfos = new HashSet<LinkedNPCGroupInfo>();
+
+    /// <summary>Clears the per-run linked-group cache. Called at the start of each patcher run so a re-run in the same
+    /// app session does not reuse stale group infos (or grow the set unbounded). Within a run it accumulates as intended.</summary>
+    public static void ResetLinkGroupCache() => AllLinkedNPCGroupInfos.Clear();
 
     /// <summary>Searches the static cache for a linked-group info that already contains the given NPC form key.</summary>
     /// <param name="currentFormKey">The NPC form key to look up.</param>

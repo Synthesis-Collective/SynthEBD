@@ -682,6 +682,26 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
     the real (misnamed) vanilla records; "correcting" it would point at a non-existent record. Documented in-code.
   - Fixes 1b/3 are fix-only defensive guards mirroring their correct siblings (file-IO parse/write paths; manual-verify).
   Suite 216 / 1 skipped / 0 failed.
+- **B45 — patcher static-cache thread-safety verified non-issue (single-threaded); 2 cross-run resets fixed; future-parallelism signposts added.**
+  Three catalogue items flagged static caches as possible concurrency bugs (`BSAHandler.OpenReaders`,
+  `RecordPathParser._lambdaCache`/`PropertyCache`/`Embassy`, plus `RecordGenerator` dicts). **Verified the premise is false
+  today:** per-NPC processing is fully single-threaded -- the assignment loop is a plain `foreach`
+  ([Patcher.cs:936](SynthEBD/Patcher/Patcher.cs#L936)) and there is zero `Parallel`/`AsParallel`/PLINQ anywhere in
+  `SynthEBD/Patcher/`, so none of those caches has a live race. The separate `NPCInfo.AllLinkedNPCGroupInfos`
+  ([:185](SynthEBD/Patcher/PatcherAux/NPCInfo.cs#L185)) cross-run-staleness flag IS real: it is searched before the current
+  settings, so a stale prior-run linked-group info is reused on a re-run in the same session (and the set grows unbounded).
+  **Fixed** by adding `NPCInfo.ResetLinkGroupCache()` and calling it at `RunPatcher` start next to the existing
+  `_uniqueNPCData.Reinitialize()`. Exploration also found `RecordGenerator.GeneratedKeywords`
+  ([:937](SynthEBD/Patcher/Asset%20Patching/RecordGenerator.cs#L937)) had the *same* never-cleared-across-runs bug (every
+  other RecordGenerator static is cleared in `Reinitialize()`); **fixed** by adding it to that clear list (a stale entry
+  would reference a `Keyword` from the prior run's discarded output mod). **Groundwork for the user's future
+  per-NPC-parallel-selection plan:** added greppable `// THREADING (future parallel selection):` signpost comments mapping
+  the shared state -- a central overview at the selection loop (selection is the parallel target; LinkCache is read-only
+  here; generation/output-mod writes stay single-threaded), plus per-site notes at the two RecordPathParser memoization
+  caches (would need ConcurrentDictionary), `AllLinkedNPCGroupInfos` + the shared Consistency dict (coordination state),
+  the BodyGen/BodySlide/AssetStats/CombinationLog accumulators, `BSAHandler.OpenReaders` (concurrent dict but extraction
+  may need serialization), and the RecordGenerator generation-phase boundary. Fix-only + manual-verify for the resets
+  (private statics populated only via heavy construction); signposts are comments. Suite 216 / 1 skipped / 0 failed.
 
 ---
 
@@ -941,7 +961,7 @@ triplication.
 receive an empty `modName` even on a hit — unlike the single-path overload, which does set it. If any
 caller relies on `modName` from this overload, it's silently wrong.
 
-### `BSAHandler` — 🐞 verify (cross-thread mutation)
+### ✔️ `BSAHandler` — 🐞 verify (cross-thread mutation) VERIFIED NOT A LIVE BUG (per-NPC single-threaded; signpost added) — see Resolved §B45
 
 [BSAHandler.cs:606](SynthEBD/General_Aux/BSAHandler.cs#L606),
 [:682](SynthEBD/General_Aux/BSAHandler.cs#L682) · `OpenReaders` is a `ConcurrentDictionary`, but its
@@ -1001,7 +1021,7 @@ arm. The intent was clearly `iIndex >= 0 && iIndex < Count`. As written, a **neg
 the guard (`iIndex < 0` is true) and then `ElementAt(negative)` throws instead of failing gracefully.
 A path like `[-1]` triggers it. The `||` should be `&&` with `>= 0`.
 
-### `RecordPathParser` static caches are not thread-safe — 🐞 verify (concurrency)
+### ✔️ `RecordPathParser` static caches are not thread-safe — 🐞 verify (concurrency) VERIFIED NOT A LIVE BUG (single-threaded; signposts added) — see Resolved §B45
 
 [RecordPathParser.cs:46](SynthEBD/General_Aux/RecordPathParser.cs#L46) (`_lambdaCache`),
 [:1115](SynthEBD/General_Aux/RecordPathParser.cs#L1115) (`PropertyCache`),
@@ -1593,7 +1613,7 @@ the time. Use `prob < trueProbability` (with `Next(100)`), or `Next(1,101)`/a `[
 `>= index` guard admits `index == Count` and then `Source.Subgroups[index]` throws
 `ArgumentOutOfRangeException`. Should be `Count > index`.
 
-### `NPCInfo.AllLinkedNPCGroupInfos` static cache — 🐞 verify (cross-run stale state)
+### ✅ `NPCInfo.AllLinkedNPCGroupInfos` static cache — 🐞 verify (cross-run stale state) RESOLVED (reset per run; GeneratedKeywords sibling too) — see Resolved §B45
 
 [NPCInfo.cs:169](SynthEBD/Patcher/PatcherAux/NPCInfo.cs#L169) · A `private static HashSet<LinkedNPCGroupInfo>`
 accumulates linked-NPC-group infos but is never cleared. In the long-lived standalone UI process this persists

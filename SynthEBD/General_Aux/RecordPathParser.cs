@@ -67,6 +67,8 @@ public class RecordPathParser
         return interp;
     }
 
+    // THREADING (future parallel selection): deterministic memoization read during selection (EvalBoolExpression); under a
+    // parallel per-NPC loop the cache-miss write would race. Convert to ConcurrentDictionary (GetOrAdd) when parallelizing.
     private static readonly Dictionary<string, Lambda> _lambdaCache = new();
 
     /// <summary>Compiles (and caches) a boolean condition expression for the given parameter types and evaluates it.</summary>
@@ -1337,6 +1339,9 @@ public class RecordPathParser
     }
 
     /// <summary>Per-type cache of resolved <see cref="PropertyInfo"/> by property name, used by <see cref="GetPropertyInfo"/>.</summary>
+    // THREADING (future parallel selection): deterministic reflection memoization read+written during selection (and during
+    // generation); under a parallel per-NPC selection loop the cache-miss writes would race. Convert to a (nested)
+    // ConcurrentDictionary when parallelizing.
     public static Dictionary<Type, Dictionary<string, System.Reflection.PropertyInfo>> PropertyCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
 
     /// <summary>Resolves a property's <see cref="PropertyInfo"/> by reflection without caching. Retained for performance comparison.</summary>
@@ -1399,6 +1404,9 @@ public class RecordPathParser
         }
     }
 
+    // THREADING (future parallel selection): GetterEmbassy/SetterEmbassy are currently DEAD (the delegate-caching paths in
+    // GetSubObject/SetPropertyValue are commented out). If re-enabled they are deterministic memoization like PropertyCache
+    // above and would need the same ConcurrentDictionary treatment before the selection loop is parallelized.
     /// <summary>Per-type cache of compiled getter delegates by property name (used by <see cref="GetAccessor"/>).</summary>
     public static Dictionary<Type, Dictionary<string, Delegate>> GetterEmbassy = new Dictionary<Type, Dictionary<string, Delegate>>();
     /// <summary>Per-type cache of compiled setter delegates by property name (used by <see cref="GetAccessor"/>).</summary>

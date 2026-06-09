@@ -278,6 +278,7 @@ public class Patcher
             .ToArray();
         _raceResolver.ResolvePatchableRaces();
         _uniqueNPCData.Reinitialize();
+        NPCInfo.ResetLinkGroupCache(); // reset the per-run linked-group cache so a re-run in the same session is not poisoned by stale group infos
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
@@ -933,6 +934,16 @@ public class Patcher
         int npcCount = npcCollection.Count();
         var npcArray = npcCollection.ToArray();
 
+        // THREADING (future parallel selection): this per-NPC loop is the intended parallelization target. It performs
+        // SELECTION only -- choosing assets/body/height/headparts -- and writes results into the per-NPC transfer
+        // dictionaries. It never mutates the Mutagen output mod / link cache; that happens later in the serial GENERATION
+        // phase (RecordGenerator.ApplySelectedAssets / HeightPatcher.ApplySelectedHeights / the FaceGen loop), which must
+        // stay single-threaded. The Mutagen LinkCache is read-only here (safe for concurrent reads). Before this loop can
+        // run in parallel, the following shared state needs synchronization or per-thread-then-merge: the transfer
+        // dictionaries (FormKey-keyed), the AssetStatsTracker / BodyGenTracker / BodySlideTracker / CombinationLog
+        // accumulators, the shared _patcherState.Consistency dict (NPCInfo.ResolveConsistencyAssignment), and
+        // NPCInfo.AllLinkedNPCGroupInfos, plus the RecordPathParser memoization caches (_lambdaCache / PropertyCache),
+        // which take concurrent cache-miss writes.
         foreach (var npc in npcArray)
         {
             _statusBar.ProgressBarCurrent++;
@@ -1345,6 +1356,9 @@ public class Patcher
     }
 
     /// <summary>Global tracker of BodyGen morph assignments; only assigned morphs are written to the generated templates.ini.</summary>
+    // THREADING (future parallel selection): BodyGenTracker and BodySlideTracker below are cross-NPC accumulators written
+    // during selection; running the per-NPC loop in parallel requires thread-safe writes here (lock or per-thread buffers
+    // merged after the loop). Same applies to the AssetStatsTracker counters (AssignablePairing) and CombinationLog.
     public static BodyGenAssignmentTracker BodyGenTracker = new BodyGenAssignmentTracker(); // tracks unique selected morphs so that only assigned morphs are written to the generated templates.ini
     /// <summary>Global map of NPC FormKey to its assigned BodySlide preset names (multiple entries only in Native OBody mode).</summary>
     public static Dictionary<FormKey, List<string>> BodySlideTracker = new Dictionary<FormKey, List<string>>(); // tracks which NPCs get which bodyslide presets. The List<string> contains multiple entries ONLY if OBodySelectionMode == Native and 

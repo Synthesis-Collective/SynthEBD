@@ -60,6 +60,7 @@ public class RecordGenerator
         CachedObjectsByPathAndTemplate = new Dictionary<HashSet<string>, Dictionary<string, Dictionary<HashSet<string>, ObjectAtIndex>>>(HashSet<string>.CreateSetComparer());
         GeneratedRecordsByTempateNPC = new Dictionary<HashSet<string>, Dictionary<string, IMajorRecord>>(HashSet<string>.CreateSetComparer());
         EdidCounts = new Dictionary<string, int>();
+        GeneratedKeywords = new Dictionary<string, Keyword>(); // reset per run: the cached Keyword records live in the per-run output mod, so a stale entry would orphan-reference a discarded mod
         _facePartComplianceMaintainer.Reinitialize();
 
         skinWNAMsToStrip = new();
@@ -933,7 +934,11 @@ public class RecordGenerator
         }
     }
 
-    /// <summary>Cache of keyword records created for custom keyword strings, so the same keyword is reused rather than re-created.</summary>
+    /// <summary>Cache of keyword records created for custom keyword strings, so the same keyword is reused rather than
+    /// re-created. Reset per run in <see cref="Reinitialize"/> (the keyword records live in the per-run output mod).</summary>
+    // THREADING (future parallel selection): this and the other RecordGenerator static caches are on the GENERATION/write
+    // phase (ApplySelectedAssets mutates the output mod), which must stay single-threaded -- so they intentionally need no
+    // synchronization as long as record generation runs serially after the parallel selection phase.
     private static Dictionary<string, Keyword> GeneratedKeywords = new Dictionary<string, Keyword>();
 
     /// <summary>Adds every non-blank custom keyword declared by the assigned asset entries to the NPC (creating keyword records as needed).</summary>

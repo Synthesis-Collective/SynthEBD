@@ -179,6 +179,9 @@ public class CombinationLog
     /// </summary>
     public void LogCombinationSelections(NPCInfo npcInfo, List<SubgroupCombination> combinations)
     {
+        // THREADING (future parallel selection): this (and LogAssignedRecords) mutate the shared per-category combination
+        // dictionaries and the per-combination NPC lists during selection; a parallel per-NPC loop needs thread-safe writes
+        // here (lock or per-thread logs merged after the loop).
         if (!_patcherState.TexMeshSettings.bGenerateAssignmentLog) { return; }
 
         Dictionary<string, List<CombinationInfo>> combinationDict = null;
