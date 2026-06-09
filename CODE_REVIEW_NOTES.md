@@ -629,6 +629,23 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   `NotifyDragDelta` self-handler re-add is harmless redundancy -- not a cross-object leak -- and was left as-is.) Fix-only
   + manual-verify: WPF code-behind (Loaded/Unloaded, visual tree, GridSplitter) with no pure seam; a test needs an STA
   visual-tree + navigation simulation (cf. B30). Suite 208 / 1 skipped / 0 failed (no regression).
+- **B42 — `App.xaml.cs` crash-handler: dead `??` fallback + unguarded `_settingsSourceProvider` (fixed; `Task.Run().Wait()` verified correct).**
+  Two defects in the `Application_DispatcherUnhandledException` crash handler. (a) `"Installation Location: " +
+  Assembly.GetEntryAssembly()?.Location ?? "Failed to locate."` -- `+` binds tighter than `??`, so the left operand was
+  the already-concatenated (non-null) string and the fallback was dead; a null `Location` printed an empty location.
+  Wrapped the `?.Location ?? "..."` in parens (diagnostic-string only). (b) The handler guards `_environmentStateProvider`,
+  `_patcherState`, and `_logger` for null (a crash can happen early) but dereferenced `_settingsSourceProvider` unguarded
+  when building the crash-log path -- and that field only resolves partway through startup
+  ([:72](SynthEBD/App.xaml.cs#L72)/[:108](SynthEBD/App.xaml.cs#L108)/[:167](SynthEBD/App.xaml.cs#L167)). So a crash before
+  it resolved made the *crash handler itself* NRE, losing the log and the error dialog (silent failure). Extracted
+  `public static string BuildCrashLogPath(string? settingsRootPath, string fallbackRootPath, DateTime timestamp)` that
+  falls back to `AppContext.BaseDirectory` (passed by the handler) when the settings root is null/blank; the handler calls
+  it. (c) **Verified the adjacent `Task.Run(() => WriteTextFile(...)).Wait()` is correct, not a bug:** the handler must
+  stay synchronous so `e.Handled = true` is set before it returns to the dispatcher (awaiting would return at the await
+  with Handled still false -> WPF tears the app down), and `Task.Run` runs the async write's continuations off the UI
+  thread so `.Wait()` cannot deadlock. Added an in-code comment documenting this so it is not re-flagged. *Test:* new
+  `AppCrashLogPathTests` (3 cases) -- settings root present -> used; null and blank settings root -> fallback root; all
+  produce the `Logs/Crash Logs/<invariant-timestamp>.txt` tail. Suite 211 / 1 skipped / 0 failed.
 
 ---
 
@@ -1992,7 +2009,7 @@ share the same triplicated tree-select helper flagged in the Classes_Core views.
 
 *The entry point, Autofac wiring, central state, persistence, and shell view models.*
 
-### `App.xaml.cs` crash-handler / startup nits — 🐞 / 💭
+### ✅ `App.xaml.cs` crash-handler / startup nits — 🐞 / 💭 RESOLVED (parens + null-guard; Task.Run().Wait() verified correct) — see Resolved §B42
 
 [App.xaml.cs:232](SynthEBD/App.xaml.cs#L232) · `"Installation Location: " + Assembly.GetEntryAssembly()?.Location ?? "Failed to locate."`
 — `+` binds tighter than `??`, so the left operand of `??` is the already-concatenated (non-null) string and

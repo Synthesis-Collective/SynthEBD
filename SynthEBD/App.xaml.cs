@@ -229,7 +229,7 @@ public partial class App : Application
         sb.AppendLine();
         try
         {
-            sb.AppendLine("Installation Location: " + Assembly.GetEntryAssembly()?.Location ?? "Failed to locate.");
+            sb.AppendLine("Installation Location: " + (Assembly.GetEntryAssembly()?.Location ?? "Failed to locate."));
         }
         catch
         {
@@ -302,9 +302,16 @@ public partial class App : Application
 
         var errorMessage = sb.ToString();
 
-        var path = Path.Combine(_settingsSourceProvider.GetCurrentSettingsRootPath(), "Logs", "Crash Logs", DateTime.Now.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
+        // _settingsSourceProvider may not have resolved yet if the crash happened early in startup; fall back to the
+        // app base directory so the crash log still gets written (the other crash-handler fields are guarded similarly).
+        var path = BuildCrashLogPath(_settingsSourceProvider?.GetCurrentSettingsRootPath(), AppContext.BaseDirectory, DateTime.Now);
 
 
+        // Deliberately synchronous (do NOT rewrite as `await`): this DispatcherUnhandledException handler must finish
+        // writing the crash log and reach `e.Handled = true` below before it returns to the dispatcher -- awaiting would
+        // return at the await point with e.Handled still false, so WPF would treat the exception as unhandled and tear
+        // the app down before the dialog/Handled run. Task.Run runs the async WriteTextFile (and its continuations) on a
+        // pool thread so .Wait() on the UI thread cannot deadlock on a continuation that needs the UI thread.
         Task.Run(() => PatcherIO.WriteTextFile(path, errorMessage, _logger)).Wait();
 
         MessageWindow.DisplayNotificationOK("SynthEBD has crashed.", errorMessage);
@@ -312,5 +319,16 @@ public partial class App : Application
         e.Handled = true;
 
         Application.Current.MainWindow.Close();
+    }
+
+    /// <summary>
+    /// Builds the crash-log file path ("&lt;root&gt;/Logs/Crash Logs/&lt;yyyy-MM-dd-HH-mm&gt;.txt"). Falls back to
+    /// <paramref name="fallbackRootPath"/> when <paramref name="settingsRootPath"/> is null/blank, so a crash before the
+    /// settings source provider resolves still writes its log.
+    /// </summary>
+    public static string BuildCrashLogPath(string? settingsRootPath, string fallbackRootPath, DateTime timestamp)
+    {
+        var root = string.IsNullOrWhiteSpace(settingsRootPath) ? fallbackRootPath : settingsRootPath;
+        return Path.Combine(root, "Logs", "Crash Logs", timestamp.ToString("yyyy-MM-dd-HH-mm", System.Globalization.CultureInfo.InvariantCulture) + ".txt");
     }
 }
