@@ -557,6 +557,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                         logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + model.DispName + " no longer exists.");
                     }
                 }
+                break; // asset-pack GroupNames are matched as the first hit; stop so a duplicate name does not re-add subgroups
             }
         }
 
@@ -595,6 +596,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
                         logger.LogError("Warning: The forced Subgroup " + id + " for NPC " + npcName + " no longer exists.");
                     }
                 }
+                break; // asset-pack GroupNames are matched as the first hit; stop so a duplicate name does not re-add subgroups
             }
         }
 

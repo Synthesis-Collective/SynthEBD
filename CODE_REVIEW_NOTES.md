@@ -868,8 +868,13 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **B54 (latent) -- `AssetAssignmentJsonDictHandler` / `EBDCoreRecords`.** `Dictionary.Add` throws on a
   duplicate original-NPC FormKey (vs indexer); bare `catch {}` discards error text; `EBDCoreRecords`
   ignores the `FormKey.TryFactory` result before `SetTo`.
-- [ ] **B55 (latent) -- `Link*ToForcedAssignment` no `break`.** [VM_SpecificNPCAssignment.cs](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs)
-  duplicate `GroupName` processed twice (last wins).
+- [x] **B55 (latent) -- `Link*ToForcedAssignment` no `break` -- FIXED.** `LinkAssetPackToForcedAssignment` and its
+  mix-in twin looped all asset packs and, on `GroupName == assetPackName`, set `ForcedAssetPack` + added forced
+  subgroups, with no `break`. If two packs share a GroupName (no uniqueness enforcement), both matched: `ForcedAssetPack`
+  became the LAST match and the inner subgroup loop ran per duplicate, so `ForcedSubgroups` accumulated entries from
+  every duplicate-named pack (doubled, mixing packs). Added `break;` after the matched block in both methods -> first
+  match only, matching the `.FirstOrDefault(x => x.GroupName == ...)` semantics used elsewhere. Behavior-identical when
+  names are unique. Fix-only + manual-verify (private static, heavy VM collaborators). Suite 228/1/0.
 - [ ] **B56 (latent; re-verify exact lines) -- `RecordIntellisense.RefreshPathSuggestions` deref-before-null-guard
   (dead guard / possible NRE); `IO_Aux.SelectFileSave` populates `out path` even on Cancel.** GUI/Settings
   agent was uncertain on exact lines -- confirm against source first.
@@ -1784,7 +1789,7 @@ subgroup lookups → `.First(pred)` / `.FirstOrDefault(pred)` / `.Any(pred)`. Al
 its token-file reads in bare `catch { continue; }`, silently swallowing all IO exceptions — a real disk
 error during cleanup would be indistinguishable from "no token file". 💭
 
-### `VM_SpecificNPCAssignment` items — 🐞 / 🔧 / 💭
+### `VM_SpecificNPCAssignment` items — 🐞 / 🔧 / 💭 (Link* missing-break RESOLVED B55; head-part load shim NOT-A-BUG B53; `break; ;` fixed E2; `.Intersect().ToArray().Length>0`->`.Any()` still open 🔧)
 
 - [VM_SpecificNPCAssignment.cs:518](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L518) ·
   `CopyInFromModel` has the same head-parts pattern flagged for `VM_ConsistencyAssignment` — it mutates the
