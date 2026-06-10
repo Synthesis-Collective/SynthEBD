@@ -927,10 +927,9 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   behavior-identical** to the old LINQ `Contains(name, CurrentCultureIgnoreCase)`. Per user decision: keep the existing
   CurrentCulture semantics (respects Turkish-locale players -- the Turkish-I problem cuts both ways, so switching to
   Ordinal/Invariant would change tr-TR results) rather than make it locale-independent. Suite 222/1/0.
-- [ ] **C5b-random (pending user call) -- HeightPatcher `new Random()` per-NPC -> `Random.Shared`.** NOTE: on .NET 8
-  `new Random()` is NOT clock-correlated (modern seeding), so this is NOT a correlation bugfix -- only avoids a per-NPC
-  alloc + is thread-safe for future parallelism. It DOES change the exact RNG output (distribution unchanged; heights
-  already vary run-to-run). Low value; awaiting decision.
+- [x] **C5b-random -- DONE (per user).** HeightPatcher per-NPC `new Random()` -> `Random.Shared`. Not a .NET 8
+  correlation bugfix; done for B1 house-style consistency + avoids the per-NPC alloc. Changes exact RNG output
+  (distribution unchanged). Suite 222/1/0.
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
 
 ### D. Recommend SKIP (churn >> value) -- not doing unless asked
@@ -1913,7 +1912,7 @@ legacy int-only code worth removing.
   "Union"/"Merge" names mislead.
 - `EBDScripts.cs` carries an unused `using System.Runtime.Intrinsics.X86;`.
 
-### `HeightPatcher` — 🐞 / 🔧 / 💭
+### `HeightPatcher` — 🐞 / 🔧 / 💭 (:159 NRE RESOLVED B40; :128 Random -> Random.Shared C5b; WriteAssignmentDictionaryScriptMode left as intentional documented dead placeholder)
 
 ✅ RESOLVED (root fix in NPCInfo; see Resolved §B40) — [HeightPatcher.cs:159](SynthEBD/Patcher/Height%20Patching/HeightPatcher.cs#L159) · `npcInfo.ConsistencyNPCAssignment.Height = assignedHeight;`
 dereferences `ConsistencyNPCAssignment` under only a `bEnableConsistency` guard — if consistency is enabled

@@ -125,7 +125,7 @@ public class HeightPatcher
             // assign random
             else
             {
-                var rand = new Random();
+                var rand = Random.Shared;
                 switch (heightAssignment.DistributionMode)
                 {
                     case DistMode.uniform:
