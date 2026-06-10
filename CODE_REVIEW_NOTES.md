@@ -832,9 +832,12 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   -> delay -> UnarchiveStatus). Fix: redirected the caller to the fire-and-forget `CallTimedLogErrorWithStatusUpdateAsync(msg,
   ErrorType.Warning, 3)` (identical yellow status, non-blocking) and deleted the sync method. Fix-only + manual-verify
   (UI-thread behavior; no pure seam). Suite 222/1/0.
-- [ ] **B50 (LIVE, report-only) -- OBodySelector log prints type name.** [OBodySelector.cs:97,112](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L97)
-  concatenates a `List<BodySlideSetting>` directly, printing `System.Collections.Generic.List`1[...]`
-  instead of preset labels. Bundle with the "desecriptor"/"Presests" log typos.
+- [x] **B50 (LIVE, report-only) -- OBodySelector log prints type name -- FIXED.** Two report lines concatenated a
+  `List<BodySlideSetting>` directly (`String.Join(", ", linkedPresets)` and `+ selectedPresets`), so the verbose
+  per-NPC report printed `SynthEBD.BodySlideSetting` / `System.Collections.Generic.List`1[...]` instead of the preset
+  labels -- exactly where a user troubleshooting linked/unique-NPC body assignments needs to see which preset was
+  chosen. Fixed both with `.Select(x => x.Label)` (matching the correct sibling at :229). Also fixed the report typos
+  "Presests" -> "Presets" and "the prioritizes desecriptor" -> "the prioritized descriptor". Suite 222/1/0.
 - [ ] **B51 (latent) -- `VM_LinkedNPCGroup.DumpViewModelsToModels` fragile parse.** [:108](SynthEBD/Classes_Aux/ViewModels/VM_LinkedNPCGroup.cs#L108)
   `vm.Primary.Split('|')[2]` assumes a 3-field display string -> `IndexOutOfRange` on a `|` in a name.
 - [ ] **B52 (latent) -- `ConfigInstaller` long-path mapping overwritten per pack.** [ConfigInstaller.cs:158,183](SynthEBD/Installer/ConfigInstaller.cs#L158)
@@ -2045,7 +2048,7 @@ to cover both counts: `!SkyPatcher && (Count == 2 || Count == 1)`. Bracket it.
   non-mutating), and the following loop consumes `priorities` in unsorted order, so descriptor priority is
   never applied. Assign the result (`priorities = priorities.OrderBy(...).ToList()`).
 
-### Selector log/style nits — 💭 / 🔧
+### Selector log/style nits — 💭 / 🔧 (OBodySelector type-name log + typos RESOLVED B50; VanillaBodyPathSetter FormKey-.ToString / ArmatureHasVanillaPath inverted-return still open -- 💭)
 
 - `OBodySelector` log lines [:97](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L97),
   [:112](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L112) concatenate a `List<BodySlideSetting>`

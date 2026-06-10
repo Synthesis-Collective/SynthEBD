@@ -92,7 +92,7 @@ public class OBodySelector
                 }
                 else
                 {
-                    _logger.LogReport("Assigned linked BodySlide presets " + String.Join(", ", linkedPresets) + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
+                    _logger.LogReport("Assigned linked BodySlide presets " + String.Join(", ", linkedPresets.Select(x => x.Label)) + " from primary NPC " + npcInfo.AssociatedLinkGroup.PrimaryNPCFormKey.ToString(), false, npcInfo);
                 }
             }
             else
@@ -107,7 +107,7 @@ public class OBodySelector
         {
             if (selectedPresets.Any())
             {
-                _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a BodySlide preset " + selectedPresets + ". Using that BodySlide for current NPC.", false, npcInfo);
+                _logger.LogReport("Another unique NPC with the same name (" + uniqueFounderNPC + ") was assigned a BodySlide preset " + String.Join(", ", selectedPresets.Select(x => x.Label)) + ". Using that BodySlide for current NPC.", false, npcInfo);
             }
         }
         #endregion
@@ -226,7 +226,7 @@ public class OBodySelector
             }
             else
             {
-                logText = "Chose BodySlide Presests: " + string.Join(", ", selectedPresets.Select(x => x.Label));
+                logText = "Chose BodySlide Presets: " + string.Join(", ", selectedPresets.Select(x => x.Label));
             }
             _logger.LogReport(logText, false, npcInfo);
             selectionMade = true;
@@ -474,7 +474,7 @@ public class OBodySelector
                 }
                 else
                 {
-                    _logger.LogReport("No BodySlides match the prioritizes desecriptor " + currentSignature.ToString(), false, npcInfo);
+                    _logger.LogReport("No BodySlides match the prioritized descriptor " + currentSignature.ToString(), false, npcInfo);
                 }
                 priorities.Remove(currentSignature);
             }
