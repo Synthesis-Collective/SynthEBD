@@ -855,13 +855,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **B56 (latent; re-verify exact lines) -- `RecordIntellisense.RefreshPathSuggestions` deref-before-null-guard
   (dead guard / possible NRE); `IO_Aux.SelectFileSave` populates `out path` even on Cancel.** GUI/Settings
   agent was uncertain on exact lines -- confirm against source first.
-- [ ] **B57 (surfaced during C2) -- `Logger.GetRaceLogString` special-case race names may never fire.** [Logger.cs:830-851](SynthEBD/General_Aux/Logger.cs#L830)
-  the 5 `fk.Equals(Mutagen...Race.X)` checks compare a `FormKey` against a `FormLink<IRaceGetter>` constant (the
-  `Mutagen.Bethesda.FormKeys.SkyrimSE...Race.*` members are FormLinks, not FormKeys). If `FormKey.Equals(object)`
-  returns false for a boxed FormLink, the curated names ("Afflicted", "Snow Elf", "Nord (Dawnguard)", etc.) never
-  appear in verbose logs -- the races fall through to the general resolve path and show their record Name/EditorID
-  instead. VERIFY the FormKey-vs-FormLink equality semantics empirically before fixing; if confirmed dead, the fix
-  (compare `.FormKey`, ideally via the dictionary deferred from C2) changes verbose-log output for those 5 races.
+- [x] **B57 (surfaced during C2) -- `Logger.GetRaceLogString` special-case race names never fired -- FIXED.**
+  CONFIRMED empirically (throwaway test): `fk.Equals(Mutagen...Race.X)` returns **false** for all 5 because the
+  `FormKeys.SkyrimSE...Race.*` members are `FormLink<IRaceGetter>`, not `FormKey` (boxed FormLink != FormKey;
+  `fk.Equals(formLink.FormKey)` is true). So the curated names ("Afflicted", "Astrid Race", "Snow Elf",
+  "Nord (Dawnguard)", "Nord (Miraak)") never appeared in verbose logs -- those races fell through to their record
+  Name/EditorID. Fixed via a FormKey-keyed `static readonly Dictionary` + a pure
+  `Logger.TryGetSpecialCaseRaceLogName(FormKey, out string)`; `GetRaceLogString` calls it in place of the 5 dead
+  branches. Behavior change: those 5 races' verbose-log labels now show the curated name (the intended behavior).
+  *Test:* new `LoggerRaceLogNameTests` (2 cases) -- the 5 FormKeys resolve to their curated names; a normal race
+  (NordRace) returns false. **Suite now 224 passed / 1 skipped / 0 failed** (new baseline; +2 from B57).
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -1125,7 +1128,7 @@ same event label is started twice (or ended without a matching start), the inden
 skewing the indentation of later startup-log lines. Keying timers by a non-unique message is the
 root risk.
 
-### `Logger.GetRaceLogString` (static) — 💭 opinion (minor) + 🐞 see B57 (special-case checks may be dead -- FormKey vs FormLink)
+### ✅ `Logger.GetRaceLogString` (static) — 🐞 RESOLVED (special-case checks were dead: FormKey vs FormLink; now a FormKey-keyed dictionary + pure helper) — see Bucket 3 §B57
 
 [Logger.cs:650](SynthEBD/General_Aux/Logger.cs#L650) · The hard-coded special-case races
 (Afflicted, Astrid, Snow Elf, …) are an if/else chain that would read better as a

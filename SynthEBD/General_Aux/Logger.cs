@@ -796,6 +796,27 @@ public sealed class Logger : VM
         return "[" + String.Join(", ", formKeys.Select(x => GetRaceLogString(x, lk, patcherState))) + "]";
     }
 
+    /// <summary>Races whose friendly display name differs from their record name, keyed by FormKey.</summary>
+    /// <remarks>Keyed by <c>.FormKey</c>: the <c>Mutagen...FormKeys.SkyrimSE...Race.*</c> members are
+    /// <c>FormLink</c>s, not <c>FormKey</c>s, so a direct <c>fk.Equals(formLink)</c> is always false (B57).</remarks>
+    private static readonly Dictionary<FormKey, string> _specialCaseRaceLogNames = new()
+    {
+        { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace.FormKey, "Afflicted" },
+        { Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid.FormKey, "Astrid Race" },
+        { Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace.FormKey, "Snow Elf" },
+        { Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.DLC1NordRace.FormKey, "Nord (Dawnguard)" },
+        { Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Race.DLC2MiraakRace.FormKey, "Nord (Miraak)" },
+    };
+
+    /// <summary>Returns the curated display name for a race whose friendly name differs from its record name, if one is defined.</summary>
+    /// <param name="raceFormKey">The race FormKey to look up.</param>
+    /// <param name="name">Receives the curated name when present.</param>
+    /// <returns><c>true</c> if a curated special-case name exists for the race.</returns>
+    public static bool TryGetSpecialCaseRaceLogName(FormKey raceFormKey, out string name)
+    {
+        return _specialCaseRaceLogNames.TryGetValue(raceFormKey, out name);
+    }
+
     /// <summary>Resolves a single race FormKey to a friendly display name, with special cases for races whose display name differs from their record name.</summary>
     /// <param name="fk">The race FormKey.</param>
     /// <param name="lk">Link cache for resolution.</param>
@@ -809,25 +830,9 @@ public sealed class Logger : VM
         }
 
         // specific races whose display names aren't the same as their "real" names
-        if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.DA13AfflictedRace))
+        if (TryGetSpecialCaseRaceLogName(fk, out var specialCaseName))
         {
-            return "Afflicted";
-        }
-        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Skyrim.Race.NordRaceAstrid))
-        {
-            return "Astrid Race";
-        }
-        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.SnowElfRace))
-        {
-            return "Snow Elf";
-        }
-        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dawnguard.Race.DLC1NordRace))
-        {
-            return "Nord (Dawnguard)";
-        }
-        else if (fk.Equals(Mutagen.Bethesda.FormKeys.SkyrimSE.Dragonborn.Race.DLC2MiraakRace))
-        {
-            return "Nord (Miraak)";
+            return specialCaseName;
         }
 
         // general handling
