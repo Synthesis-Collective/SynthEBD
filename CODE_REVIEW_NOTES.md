@@ -857,10 +857,14 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   the common case (distinct paths). **Residual limitation (documented, not fixed):** the rare cross-pack same-new-path
   collision still drops one file (last-wins) -- a full fix needs a global remap index threaded through
   `RemapDirectoryNames` (much more invasive). Fix-only + manual-verify (install loop, no pure seam). Suite 228/1/0.
-- [ ] **B53 (latent) -- model-mutation-on-load, two sites.** [VM_ConsistencyAssignment.cs:229](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L229)
-  + [VM_SpecificNPCAssignment.cs:518](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L518):
-  load mutates the source model and only refreshes the VM in the `else`, so a head-part type missing from
-  the model keeps the VM default (never loaded).
+- [x] **B53 -- VERIFIED NOT A BUG (clarifying comments added).** The `if (!model.HeadParts.ContainsKey(type))
+  model.HeadParts.Add(type, new())` in both load methods is a defensive backward-compat shim, not a defect:
+  `NPCAssignment.HeadParts` initializes all 7 types, AND the patcher indexes `SpecificNPCAssignment.HeadParts[type]`
+  **directly** (HeadPartSelector :190/:192/:201/:524, no ContainsKey guard) -> a missing type would throw
+  KeyNotFoundException, so an older assignment predating a newer type (e.g. Scars) must be backfilled. The injected
+  blank is inert on the consistency path (patcher gates on `.Initialized`, false for a blank). The VM loads correctly
+  in both branches (loads when present; keeps its default -- equivalent to a blank -- when absent). Removing it would
+  be risky, not a fix (B10/B26-style). Left the logic; added a clarifying comment at both sites. Suite 228/1/0.
 - [ ] **B54 (latent) -- `AssetAssignmentJsonDictHandler` / `EBDCoreRecords`.** `Dictionary.Add` throws on a
   duplicate original-NPC FormKey (vs indexer); bare `catch {}` discards error text; `EBDCoreRecords`
   ignores the `FormKey.TryFactory` result before `SetTo`.
@@ -1726,7 +1730,7 @@ equivalent — verify the value-deletion path shouldn't be operating on BodyGen 
 the parameter is misspelled `decriptorSignature`, and `using System.Printing;`
 ([:6](SynthEBD/Classes_Core/ViewModels/VM_BodyGenConfig.cs#L6)) is an unused import.
 
-### `VM_ConsistencyAssignment.CopyInViewModelFromModel` — 💭 (model mutation during load)
+### ✔️ `VM_ConsistencyAssignment.CopyInViewModelFromModel` — 💭 VERIFIED NOT A BUG (head-part Add is a defensive backward-compat shim; patcher indexes HeadParts[type] directly; comment added) — see Bucket 3 §B53
 
 [VM_ConsistencyAssignment.cs:227](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L227) · A
 model→VM load method **mutates its source model** — `if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }` —

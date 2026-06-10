@@ -515,6 +515,10 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
 
         foreach (var headPartType in HeadParts.Keys)
         {
+            // Backward-compat shim (verified-not-a-bug B53): ensure every head-part type exists on the model. The
+            // patcher indexes SpecificNPCAssignment.HeadParts[type] directly (HeadPartSelector, no ContainsKey
+            // guard), so an older assignment missing a newer type (e.g. Scars) must be backfilled or the patcher
+            // would throw KeyNotFoundException. When the type is present the VM loads it; when absent it keeps its default.
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {

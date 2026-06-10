@@ -226,6 +226,10 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
 
         foreach (var headPartType in HeadParts.Keys)
         {
+            // Backward-compat shim (verified-not-a-bug B53): ensure every head-part type exists on the model. The
+            // patcher indexes HeadParts[type] directly (HeadPartSelector), so an older assignment missing a newer
+            // type (e.g. Scars) must be backfilled. The blank is inert here (Initialized == false, so the consistency
+            // path skips it). When the type is present the VM loads it; when absent the VM keeps its default.
             if (!model.HeadParts.ContainsKey(headPartType)) { model.HeadParts.Add(headPartType, new()); }
             else
             {
