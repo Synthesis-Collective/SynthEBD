@@ -89,10 +89,20 @@ public class VM_LinkedNPCGroup : VM
         return viewModels;
     }
 
+    /// <summary>Returns the last '|'-delimited field of a display string, trimmed.</summary>
+    /// <param name="value">The display string (e.g. "Name | EditorID | FormKey").</param>
+    /// <returns>The trailing field, trimmed; the whole trimmed string when there is no '|'.</returns>
+    /// <remarks>The FormKey is always the last field (EditorID/FormKey cannot contain '|'), so taking the last
+    /// field is robust to a '|' inside an earlier field (e.g. an NPC name) and to malformed strings -- the caller's
+    /// <c>FormKey.TryFactory</c> then degrades gracefully instead of mis-indexing or throwing (B51).</remarks>
+    public static string GetTrailingPipeField(string value)
+    {
+        return value.Split('|').Last().Trim();
+    }
+
     /// <summary>Replaces the contents of <paramref name="models"/> with models projected from the given VMs, parsing each primary's FormKey out of its "Name | EditorID | FormKey" display string.</summary>
     /// <param name="models">Target model list (cleared and repopulated).</param>
     /// <param name="viewModels">Source view models.</param>
-    /// <remarks>Primary parsing relies on the display string having a pipe-delimited FormKey in the third field; see review notes on its fragility.</remarks>
     public static void DumpViewModelsToModels(List<LinkedNPCGroup> models, ObservableCollection<VM_LinkedNPCGroup> viewModels)
     {
         models.Clear();
@@ -105,7 +115,7 @@ public class VM_LinkedNPCGroup : VM
 
             if (vm.Primary != null && vm.Primary.Any())
             {
-                var fkString = vm.Primary.Split('|')[2];
+                var fkString = GetTrailingPipeField(vm.Primary);
                 if (FormKey.TryFactory(fkString, out var primary))
                 {
                     m.Primary = primary;

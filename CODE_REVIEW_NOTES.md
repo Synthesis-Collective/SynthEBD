@@ -838,8 +838,14 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   labels -- exactly where a user troubleshooting linked/unique-NPC body assignments needs to see which preset was
   chosen. Fixed both with `.Select(x => x.Label)` (matching the correct sibling at :229). Also fixed the report typos
   "Presests" -> "Presets" and "the prioritizes desecriptor" -> "the prioritized descriptor". Suite 222/1/0.
-- [ ] **B51 (latent) -- `VM_LinkedNPCGroup.DumpViewModelsToModels` fragile parse.** [:108](SynthEBD/Classes_Aux/ViewModels/VM_LinkedNPCGroup.cs#L108)
-  `vm.Primary.Split('|')[2]` assumes a 3-field display string -> `IndexOutOfRange` on a `|` in a name.
+- [x] **B51 (latent) -- `VM_LinkedNPCGroup.DumpViewModelsToModels` fragile parse -- FIXED.** `vm.Primary.Split('|')[2]`
+  assumed exactly 3 `|`-fields: a `|` in the NPC Name made `[2]` a middle field (so `TryFactory` failed and the
+  group's primary was silently dropped), and a <3-field string threw `IndexOutOfRange` (crashing the save). Extracted
+  a pure `GetTrailingPipeField(string)` = `Split('|').Last().Trim()` -- the FormKey is always the last field
+  (EditorID/FormKey can't contain `|`), robust to `|`-in-name and degrading gracefully on malformed strings (also
+  trims the leading space `[2]` carried). Chose the robust-parse fix over the bigger store-FormKey-on-VM refactor.
+  *Test:* new `VM_LinkedNPCGroupTests` (4 cases) -- normal, `|`-in-name (>3 fields), no-pipe, whitespace.
+  Suite 228/1/0.
 - [ ] **B52 (latent) -- `ConfigInstaller` long-path mapping overwritten per pack.** [ConfigInstaller.cs:158,183](SynthEBD/Installer/ConfigInstaller.cs#L158)
   `assetPathMapping` reassigned each asset-pack iteration; only the last pack survives but it is consumed
   as global. Multi-pack bundles mis-map earlier packs. TRACE before touching.
@@ -1526,7 +1532,7 @@ below; not re-flagged per file.
 comparison (→ `group.Races.ToHashSet().SetEquals(collection)`), and the trailing inline comment still
 says "returns true if…" though the method was changed to return the matched set.
 
-### `VM_LinkedNPCGroup.DumpViewModelsToModels` — 🐞 possible bug (fragile parse)
+### ✅ `VM_LinkedNPCGroup.DumpViewModelsToModels` — 🐞 RESOLVED (robust GetTrailingPipeField; no more mis-index/IndexOutOfRange) — see Bucket 3 §B51
 
 [VM_LinkedNPCGroup.cs:90](SynthEBD/Classes_Aux/ViewModels/VM_LinkedNPCGroup.cs#L90) · Recovers the
 primary NPC's FormKey via `vm.Primary.Split('|')[2]`, assuming the display string is always the
