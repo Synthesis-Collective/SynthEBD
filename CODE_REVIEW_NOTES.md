@@ -824,10 +824,14 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 
 ### A. Re-classified bugs (separate commits; concrete example required)
 
-- [ ] **B49 (LIVE) -- `Logger.TimedNotifyStatusUpdate` UI freeze.** [Logger.cs:607-618](SynthEBD/General_Aux/Logger.cs#L607)
-  sync `Task.Factory.StartNew(() => Task.Delay(n).Wait())` then `.Wait()` blocks the caller for the full
-  duration. Live caller [VM_Subgroup.cs:210](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L210) (a
-  RelayCommand -> UI thread) freezes the app. Fix: delegate to the async path / await. Highest-value item.
+- [x] **B49 (LIVE) -- `Logger.TimedNotifyStatusUpdate` UI freeze -- FIXED.** The sync method did
+  `Task.Factory.StartNew(() => Task.Delay(n).Wait())` then `t.Wait()`, blocking the caller for the full duration.
+  Its sole caller, the Bulk Rename Subgroups RelayCommand ([VM_Subgroup.cs:210](SynthEBD/Classes_Core/ViewModels/VM_Subgroup.cs#L210)),
+  runs on the UI thread -> the whole window went unresponsive for 3s after a bulk rename. The method was the
+  blocking twin of the non-blocking `TimedLogErrorWithStatusUpdateAsync` (same ArchiveStatus -> LogErrorWithStatusUpdate
+  -> delay -> UnarchiveStatus). Fix: redirected the caller to the fire-and-forget `CallTimedLogErrorWithStatusUpdateAsync(msg,
+  ErrorType.Warning, 3)` (identical yellow status, non-blocking) and deleted the sync method. Fix-only + manual-verify
+  (UI-thread behavior; no pure seam). Suite 222/1/0.
 - [ ] **B50 (LIVE, report-only) -- OBodySelector log prints type name.** [OBodySelector.cs:97,112](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L97)
   concatenates a `List<BodySlideSetting>` directly, printing `System.Collections.Generic.List`1[...]`
   instead of preset labels. Bundle with the "desecriptor"/"Presests" log typos.
@@ -1077,7 +1081,7 @@ have no dependency on logger state and could live in a `LogFormatting` static he
 report system could be its own `NpcReportBuilder`; the status fields could be a small status VM.
 Splitting would shrink this 800-line file and clarify responsibilities. Low urgency, high churn.
 
-### `Logger.TimedNotifyStatusUpdate` (sync) — 🐞 possible bug (UI freeze)
+### ✅ `Logger.TimedNotifyStatusUpdate` (sync) — 🐞 RESOLVED (UI freeze; caller -> async wrapper, sync method deleted) — see Bucket 3 §B49
 
 [Logger.cs:487](SynthEBD/General_Aux/Logger.cs#L487) · Uses `Task.Factory.StartNew(() => Task.Delay(n).Wait())`
 then `t.Wait()`, which **blocks the calling thread for the full duration**. If called on the UI

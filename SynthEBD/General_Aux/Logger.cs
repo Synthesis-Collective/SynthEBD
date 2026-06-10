@@ -584,24 +584,6 @@ public sealed class Logger : VM
         StatusColor = BackupStatusColor;
     }
 
-    /// <summary>Shows an error in the status line for a fixed duration, then restores the previous status. Synchronous and blocking.</summary>
-    /// <param name="error">Status/error text to show.</param>
-    /// <param name="type">Warning vs error styling.</param>
-    /// <param name="durationSec">How long to display, in seconds.</param>
-    /// <remarks>Blocks the calling thread for the full duration (via <c>Task.Wait()</c>); calling it on the UI thread freezes the UI. Prefer <see cref="CallTimedNotifyStatusUpdateAsync(string, int)"/>.</remarks>
-    public void TimedNotifyStatusUpdate(string error, ErrorType type, int durationSec)
-    {
-        ArchiveStatus();
-        LogErrorWithStatusUpdate(error, type);
-
-        var t = Task.Factory.StartNew(() =>
-        {
-            Task.Delay(durationSec * 1000).Wait();
-        });
-        t.Wait();
-        UnarchiveStatus();
-    }
-
     /// <summary>Fire-and-forget wrapper that shows a timed error status on a background task without blocking the caller.</summary>
     /// <param name="error">Status/error text.</param>
     /// <param name="type">Warning vs error styling.</param>

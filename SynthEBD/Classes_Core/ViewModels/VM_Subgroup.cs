@@ -207,7 +207,7 @@ public class VM_Subgroup : VM
                 else
                 {
                     int count = ParentAssetPack.BulkRenameSubgroups(RenameFrom, RenameTo);
-                    _logger.TimedNotifyStatusUpdate("Renamed " + count + " Subgroups from " + RenameFrom + " to " + RenameTo, ErrorType.Warning, 3);
+                    _logger.CallTimedLogErrorWithStatusUpdateAsync("Renamed " + count + " Subgroups from " + RenameFrom + " to " + RenameTo, ErrorType.Warning, 3);
                 }
             }
         );
