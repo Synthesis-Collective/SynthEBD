@@ -56,13 +56,35 @@ public class AssetAssignmentJsonDictHandler
         if (npcInfo.NPC.HeadTexture is not null && !npcInfo.NPC.HeadTexture.IsNull &&
             npcInfo.NPC.HeadTexture.FormKey.ModKey.Equals(outputMod.ModKey))
         {
-            _faceTextureAssignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), npcInfo.NPC.HeadTexture.FormKey.ToString());
+            AddAssignment(_faceTextureAssignments, npcInfo, "face texture", npcInfo.NPC.HeadTexture.FormKey.ToString());
         }
-        
+
         if (npcInfo.NPC.WornArmor is not null && !npcInfo.NPC.WornArmor.IsNull &&
             npcInfo.NPC.WornArmor.FormKey.ModKey.Equals(outputMod.ModKey))
         {
-            _skinTextureAssignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), npcInfo.NPC.WornArmor.FormKey.ToString());
+            AddAssignment(_skinTextureAssignments, npcInfo, "skin (worn armor)", npcInfo.NPC.WornArmor.FormKey.ToString());
+        }
+    }
+
+    /// <summary>
+    /// Records one assignment keyed by the original NPC's JContainers FormKey string. A duplicate key means the same
+    /// original NPC was logged twice, which can only happen with corrupted input data or a patcher bug -- so the
+    /// collision is logged with the offending NPC and the run is aborted (via an exception) rather than silently
+    /// overwriting an earlier assignment.
+    /// </summary>
+    private void AddAssignment(Dictionary<string, string> assignments, NPCInfo npcInfo, string assignmentDescription, string value)
+    {
+        try
+        {
+            assignments.Add(npcInfo.OriginalNPC.FormKey.ToJContainersCompatiblityKey(), value);
+        }
+        catch (ArgumentException)
+        {
+            string msg = "Aborting patch: a " + assignmentDescription + " assignment was already recorded for NPC "
+                + EditorIDHandler.GetEditorIDSafely(npcInfo.NPC) + " (" + npcInfo.OriginalNPC.FormKey.ToString()
+                + "). This indicates corrupted input data or a bug in the patcher.";
+            _logger.LogErrorWithStatusUpdate(msg, ErrorType.Error);
+            throw new Exception(msg);
         }
     }
     

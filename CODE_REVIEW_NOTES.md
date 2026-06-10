@@ -865,9 +865,15 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   blank is inert on the consistency path (patcher gates on `.Initialized`, false for a blank). The VM loads correctly
   in both branches (loads when present; keeps its default -- equivalent to a blank -- when absent). Removing it would
   be risky, not a fix (B10/B26-style). Left the logic; added a clarifying comment at both sites. Suite 228/1/0.
-- [ ] **B54 (latent) -- `AssetAssignmentJsonDictHandler` / `EBDCoreRecords`.** `Dictionary.Add` throws on a
-  duplicate original-NPC FormKey (vs indexer); bare `catch {}` discards error text; `EBDCoreRecords`
-  ignores the `FormKey.TryFactory` result before `SetTo`.
+- [x] **B54 -- `AssetAssignmentJsonDictHandler` dup-key now fails loudly; `EBDCoreRecords` verified-not-a-bug.** Per
+  the user: a duplicate original-NPC key means corrupted input or a patcher bug, so it must NOT be silently
+  overwritten. Routed both `Add` sites through a private `AddAssignment` helper that catches the duplicate-key
+  `ArgumentException`, logs the specific offending NPC (EditorID + FormKey) via `LogErrorWithStatusUpdate`, and
+  re-throws to abort the run (no per-NPC catch swallows it -> propagates up `RunPatcher` -> crash handler).
+  **EBDCoreRecords :115** (`FormKey.TryFactory("000014:Skyrim.esm", ...)` result ignored before `SetTo`) is
+  VERIFIED NOT A LIVE BUG -- the argument is a hardcoded constant that always parses, and `CreateCoreRecords` is
+  static with no logger to report a failure; left unchanged. The 💭 sub-items (catch dropping `ex.Message`,
+  MessageWindow from engine code) are separate opinions, not fixed here. Suite 228/1/0.
 - [x] **B55 (latent) -- `Link*ToForcedAssignment` no `break` -- FIXED.** `LinkAssetPackToForcedAssignment` and its
   mix-in twin looped all asset packs and, on `GroupName == assetPackName`, set `ForcedAssetPack` + added forced
   subgroups, with no `break`. If two packs share a GroupName (no uniqueness enforcement), both matched: `ForcedAssetPack`
@@ -1962,7 +1968,7 @@ assignment loop (clock-seeded → correlated sequences for closely-timed calls; 
 dead — an unconditional `return; // currently handled by SkyPatcher` at the top makes the whole body (and the
 `_scriptHeightAssignments` field) vestigial. Intentional but worth pruning. 💭
 
-### `AssetAssignmentJsonDictHandler` / `EBDCoreRecords` — 🐞 / 💭
+### ✅ `AssetAssignmentJsonDictHandler` / `EBDCoreRecords` — 🐞 RESOLVED (dup-key Add now logs the NPC + aborts; EBDCoreRecords TryFactory verified-not-a-live-bug -- hardcoded constant) — see Bucket 3 §B54
 
 - `AssetAssignmentJsonDictHandler` — bare `catch { }` blocks swallow the exception entirely (only a generic
   message is logged; the actual error text is lost), `Dictionary.Add` is used where a duplicate original-NPC
