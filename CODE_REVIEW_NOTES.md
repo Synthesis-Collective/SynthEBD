@@ -846,9 +846,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   trims the leading space `[2]` carried). Chose the robust-parse fix over the bigger store-FormKey-on-VM refactor.
   *Test:* new `VM_LinkedNPCGroupTests` (4 cases) -- normal, `|`-in-name (>3 fields), no-pipe, whitespace.
   Suite 228/1/0.
-- [ ] **B52 (latent) -- `ConfigInstaller` long-path mapping overwritten per pack.** [ConfigInstaller.cs:158,183](SynthEBD/Installer/ConfigInstaller.cs#L158)
-  `assetPathMapping` reassigned each asset-pack iteration; only the last pack survives but it is consumed
-  as global. Multi-pack bundles mis-map earlier packs. TRACE before touching.
+- [x] **B52 (latent) -- `ConfigInstaller` long-path mapping overwritten per pack -- FIXED.** TRACED: the per-pack
+  `HandleLongFilePaths(..., out assetPathMapping)` overwrote the shared map each iteration, so the post-loop
+  `reversedAssetPathMapping` (new->old, drives the asset-file move loop) held only the LAST pack's entries. In a
+  multi-pack bundle where 2+ packs need long-path remapping, earlier packs' remapped files were looked for at their
+  new paths in the extraction folder (where they don't exist) -> reported missing / not installed -> missing (purple)
+  textures for NPCs using those packs. Fix: accumulate each pack's `out` map into `assetPathMapping`, and build the
+  reverse map with a last-wins LOOP instead of `ToDictionary` (accumulation can produce duplicate values if two packs
+  remap different sources to the same new path -- ToDictionary would throw; the loop degrades gracefully). Fully fixes
+  the common case (distinct paths). **Residual limitation (documented, not fixed):** the rare cross-pack same-new-path
+  collision still drops one file (last-wins) -- a full fix needs a global remap index threaded through
+  `RemapDirectoryNames` (much more invasive). Fix-only + manual-verify (install loop, no pure seam). Suite 228/1/0.
 - [ ] **B53 (latent) -- model-mutation-on-load, two sites.** [VM_ConsistencyAssignment.cs:229](SynthEBD/Classes_Core/ViewModels/VM_ConsistencyAssignment.cs#L229)
   + [VM_SpecificNPCAssignment.cs:518](SynthEBD/Classes_Core/ViewModels/VM_SpecificNPCAssignment.cs#L518):
   load mutates the source model and only refreshes the VM in the `else`, so a head-part type missing from
@@ -2304,7 +2312,7 @@ method returns the empty result tuple). So after an extraction exception, execut
 `Manifest.json` lookup in the empty/partial temp folder, and the user sees "Could not find Manifest.json …"
 instead of an extraction-failed message. Add a `return` in that catch.
 
-### `ConfigInstaller` long-path mapping overwritten per pack — 🐞 verify
+### ✅ `ConfigInstaller` long-path mapping overwritten per pack — 🐞 RESOLVED (accumulate per-pack maps; last-wins reverse loop; rare cross-pack new-path collision left as documented limit) — see Bucket 3 §B52
 
 The `assetPathMapping` `out` value is reassigned on each asset-pack iteration of the install loop, so only the
 **last** pack's path-length remapping survives — yet it is consumed downstream as if global. Multi-pack

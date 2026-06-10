@@ -180,9 +180,15 @@ public class ConfigInstaller
 
             string destinationPath = Path.Combine(_paths.AssetPackDirPath, validationAP.GroupName + ".json");
 
-            if (!HandleLongFilePaths(validationAP, manifest, out assetPathMapping))
+            if (!HandleLongFilePaths(validationAP, manifest, out var packPathMapping))
             {
                 continue;
+            }
+            // Accumulate every pack's old->new remapping; a per-pack `out` overwrite would leave only the last
+            // pack's map, so earlier packs' over-long-path files would not be relocated on install (B52).
+            foreach (var remap in packPathMapping)
+            {
+                assetPathMapping[remap.Key] = remap.Value;
             }
 
             if (!File.Exists(destinationPath))
@@ -284,9 +290,12 @@ public class ConfigInstaller
 
         List<string> missingFiles = new List<string>();
         Dictionary<string, string> reversedAssetPathMapping = new Dictionary<string, string>();
-        if (assetPathMapping.Keys.Any())
+        // Build new->old via a loop (last-wins) rather than ToDictionary: accumulating across packs (B52) can, in the
+        // rare case of two packs remapping different sources to the same new path, produce duplicate values that would
+        // make ToDictionary throw. Last-wins degrades gracefully instead of crashing the install.
+        foreach (var remap in assetPathMapping)
         {
-            reversedAssetPathMapping = assetPathMapping.ToDictionary(x => x.Value, x => x.Key);
+            reversedAssetPathMapping[remap.Value] = remap.Key;
         }
 
         bool assetPathCopyErrors = false;
