@@ -22,7 +22,7 @@ public class UniqueNPCData
     }
 
     /// <summary>Names that should NOT be treated as linked uniques (e.g. generic "Courier"), case-insensitively compared.</summary>
-    public HashSet<string> UniqueNameExclusions { get; set; } = new();
+    public HashSet<string> UniqueNameExclusions { get; set; } = new(StringComparer.CurrentCultureIgnoreCase);
     /// <summary>Founder assignments indexed by NPC name, then comparison race (per assignment type), then gender.</summary>
     public Dictionary<string, 
         Dictionary<FormKey, // race for the given type
@@ -32,7 +32,7 @@ public class UniqueNPCData
     public void Reinitialize()
     {
         UniqueAssignmentsByName.Clear();
-        UniqueNameExclusions = _patcherState.GeneralSettings.LinkedNPCNameExclusions.ToHashSet();
+        UniqueNameExclusions = _patcherState.GeneralSettings.LinkedNPCNameExclusions.ToHashSet(StringComparer.CurrentCultureIgnoreCase);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class UniqueNPCData
             npcName = npc.Name.ToString();
         }
 
-        if (UniqueNameExclusions.Contains(npcName, StringComparer.CurrentCultureIgnoreCase))
+        if (UniqueNameExclusions.Contains(npcName))
         {
             return false;
         }

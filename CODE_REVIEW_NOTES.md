@@ -922,11 +922,15 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   `timer_Tick` (no subscribers); PatcherSettingsSourceProvider stray `; ;` removed (space-separated -- E2 missed it)
   + dead `Initialized = source.Initialized` read dropped (overwritten unconditionally). Left
   `HeightPatcher.WriteAssignmentDictionaryScriptMode` (intentional documented dead placeholder). Suite 222/1/0.
-- [ ] **C5b Patcher behavior-CHANGING nits (each presented individually):** HeightPatcher `new Random()` per-NPC ->
-  `Random.Shared` (changes RNG sequence; fixes time-seed correlation); `UniqueNPCData` exclusion set ->
-  `OrdinalIgnoreCase` + plain `.Contains` (current LINQ `CurrentCultureIgnoreCase` is case-insensitive but the set is
-  case-sensitive ordinal -- naive HashSet.Contains would flip to case-sensitive; the fix preserves case-insensitivity,
-  switches culture->ordinal, O(1)).
+- [x] **C5b-comparer -- DONE.** `UniqueNPCData.UniqueNameExclusions` now built with
+  `StringComparer.CurrentCultureIgnoreCase` (lines 25/35) and looked up via plain `.Contains` -- O(1) and **byte-for-byte
+  behavior-identical** to the old LINQ `Contains(name, CurrentCultureIgnoreCase)`. Per user decision: keep the existing
+  CurrentCulture semantics (respects Turkish-locale players -- the Turkish-I problem cuts both ways, so switching to
+  Ordinal/Invariant would change tr-TR results) rather than make it locale-independent. Suite 222/1/0.
+- [ ] **C5b-random (pending user call) -- HeightPatcher `new Random()` per-NPC -> `Random.Shared`.** NOTE: on .NET 8
+  `new Random()` is NOT clock-correlated (modern seeding), so this is NOT a correlation bugfix -- only avoids a per-NPC
+  alloc + is thread-safe for future parallelism. It DOES change the exact RNG output (distribution unchanged; heights
+  already vary run-to-run). Low value; awaiting decision.
 - [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
 
 ### D. Recommend SKIP (churn >> value) -- not doing unless asked
