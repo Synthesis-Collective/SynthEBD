@@ -15,7 +15,7 @@ public class PatcherState
 {
     // Version
     /// <summary>Static SynthEBD version string, surfaced in the UI and crash/startup logs.</summary>
-    public static string Version = "1.0.6.9";
+    public static readonly string Version = "1.0.6.9";
     // Settings
     public Settings_General GeneralSettings { get; set; }
     public Settings_TexMesh TexMeshSettings { get; set; }

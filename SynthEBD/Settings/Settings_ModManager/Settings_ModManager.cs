@@ -15,9 +15,18 @@ public class Settings_ModManager
     /// <summary>Currently selected install target; starts equal to <see cref="DefaultInstallationFolder"/>.</summary>
     public string CurrentInstallationFolder { get; set; }
     /// <summary>Scratch folder (beside the executable) for extracting downloaded archives.</summary>
-    public string TempExtractionFolder { get; set; } = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Temp");
+    public string TempExtractionFolder { get; set; } = GetDefaultTempExtractionFolder();
     /// <summary>Max full-path length tolerated before warning about path-too-long issues.</summary>
     public int FilePathLimit { get; set; } = 260;
+
+    /// <summary>Resolves the default scratch folder beside the executable, falling back to the app base
+    /// directory when the entry assembly location is unavailable (e.g. single-file publish) so it never throws.</summary>
+    private static string GetDefaultTempExtractionFolder()
+    {
+        var entryLocation = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+        var baseDir = !string.IsNullOrEmpty(entryLocation) ? System.IO.Path.GetDirectoryName(entryLocation) : null;
+        return System.IO.Path.Combine(baseDir ?? System.AppContext.BaseDirectory, "Temp");
+    }
 
     /// <summary>Seeds the default and current installation folders from the resolved game Data folder.</summary>
     public void Initialize(IEnvironmentStateProvider environmentProvider)

@@ -695,7 +695,7 @@ public class ConfigInstaller
                     "The longest path:",
                     longestPath,
                     "is " + originalLongestPathLength + " characters and a maximum of " + pathLengthLimit + " are allowed.",
-                    "After automatic renaming the longest path was still " + newLongestPathLength + " charactersl long.",
+                    "After automatic renaming the longest path was still " + newLongestPathLength + " characters long.",
                     "Please consider moving the destination directory to a shorter path"
                 };
                 MessageWindow.DisplayNotificationOK("Installation error", string.Join(Environment.NewLine, longMessage));
@@ -900,7 +900,6 @@ public class ConfigInstaller
                 }
 
                 pathMap.Add(path, GenerateRemappedPath(path, manifest, fileName, newFileNameIndex));
-                newFileNameIndex++;
             }
         }
 

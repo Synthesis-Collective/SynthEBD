@@ -930,7 +930,13 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [x] **C5b-random -- DONE (per user).** HeightPatcher per-NPC `new Random()` -> `Random.Shared`. Not a .NET 8
   correlation bugfix; done for B1 house-style consistency + avoids the per-NPC alloc. Changes exact RNG output
   (distribution unchanged). Suite 222/1/0.
-- [ ] **C6 GUI/Installer/Settings nits:** `PatcherState.Version` -> `const` (verified never assigned at runtime); ConfigInstaller "charactersl" typo / culture `ToLower` / dead increment; Settings null-guards; VisibilityConverters/MaxHeightConverter/LongPathHandler/Converters nits.
+- [x] **C6 GUI/Installer/Settings cosmetics -- DONE.** `PatcherState.Version` -> `public static readonly` (never written;
+  value NOT bumped); ConfigInstaller "charactersl" -> "characters" + removed the dead `newFileNameIndex++` (reassigned
+  before next use); and `Settings_ModManager.TempExtractionFolder` now resolves via an NRE-proof helper
+  (`GetEntryAssembly()?.Location` -> `Path.GetDirectoryName` -> falls back to `AppContext.BaseDirectory`), preserving
+  today's value but never throwing. **Deliberately left** (per discussion): culture `.ToLower()` sites
+  (`ConfigInstaller`/`RaceEDID2FormKey` -- same Turkish-I nuance), and the 💭-only converter/LongPathHandler items
+  (one-way bindings / intentional limits -- no behavior fix warranted). Suite 222/1/0.
 
 ### D. Recommend SKIP (churn >> value) -- not doing unless asked
 
