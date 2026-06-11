@@ -521,14 +521,10 @@ public abstract class VM_NPCAttributeFormKeyBase<TSelf> : VM, ISubAttributeViewM
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => OnDelete(parentVM, parentShell));
-    }
-
-    /// <summary>Removes this sub-attribute's shell from its parent condition. Overridable so a subclass can add
-    /// cleanup (e.g. removing the parent condition once it has no remaining sub-attributes).</summary>
-    protected virtual void OnDelete(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        parentVM.GroupedSubAttributes.Remove(parentShell);
+        // Removing the shell from the parent condition is sufficient: VM_NPCAttribute subscribes to
+        // GroupedSubAttributes changes and calls TrimEmptyAttributes(), which removes the condition once it has
+        // no remaining shells -- so no per-type empty-parent cleanup is needed here.
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
     }
 
     public ObservableCollection<FormKey> FormKeys { get; set; } = new();
@@ -553,7 +549,7 @@ public class VM_NPCAttributeVoiceType : VM_NPCAttributeFormKeyBase<VM_NPCAttribu
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (which also removes the parent condition once it is left empty).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
         : base(parentVM, parentShell, environmentProvider)
     {
@@ -561,16 +557,6 @@ public class VM_NPCAttributeVoiceType : VM_NPCAttributeFormKeyBase<VM_NPCAttribu
         AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
     }
     protected override string PluralLabel => "Voice Types";
-
-    /// <summary>Also removes the parent condition once its last sub-attribute is deleted.</summary>
-    protected override void OnDelete(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
-    {
-        parentVM.GroupedSubAttributes.Remove(parentShell);
-        if (parentVM.GroupedSubAttributes.Count == 0)
-        {
-            parentVM.ParentCollection.Remove(parentVM);
-        }
-    }
 
     /// <summary>Builds a VoiceType sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeVoiceType GetViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeVoiceType.Factory factory)
