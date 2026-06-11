@@ -926,7 +926,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   package refs were already gone (only historical csproj/doc comments remain). Behavior-preserving by
   construction. Build 0 errors; suite 237 / 1 skipped / 0 failed.
 - [ ] **R6 -- view code-behind dup** -- shared `HandleSelectPreviewMouseDown/Up` + previewer-column base (525 magic number) across UC_AssetPack / UC_AssetPackSubGroupTreePresenter / UC_AssetReplacerGroup / UC_SpecificNPCAssignment / UC_ConsistencyAssignment.
-- [ ] **R7 -- `_7ZipInterface`** -- collapse ExtractArchive/GetArchiveContents process-launch boilerplate.
+- [x] **R7 -- `_7ZipInterface` -- DONE** (commit `07a56fcf`). `ExtractArchive` + the 3-arg `GetArchiveContents`
+  shared a near-identical body (build `ProcessStartInfo`, start, stream+capture stdout, await exit, scan for
+  the corrupt-archive marker, same `catch` -> dialog). Extracted one private
+  `Task<List<string>?> RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr)` returning the captured
+  lines or `null` on corrupt/exception (dialog already shown). `ExtractArchive` -> `output != null`;
+  `GetArchiveContents` -> `new()` on null else the unchanged `Path = ` parse. Preserved public signatures, the
+  `mirrorUIstr != null` redirect gating (B15) and the Start->subscribe->BeginOutputReadLine order. One intended
+  cosmetic delta (user OK): ExtractArchive's corrupt-dialog loses a trailing newline (StringBuilder/AppendLine
+  -> list/join, matching GetArchiveContents); detection identical (marker is one atomic line). Removed orphaned
+  `using System.Text`. Fix-only + manual-verify (shells to `7z.exe`). Suite 237 / 1 skipped / 0 failed.
 - [ ] **R8 -- Synthesis env wrappers** -- dedup OpenForSettings/Runnability/PatcherState wrappers in `EnvironmentStateProvider`.
 - [x] **R9 -- `AnnotationStateComputer` -- DONE** (commit `0a7ec10b`). The opening
   `state = new(); if (!IsAnnotated(subStates)) state = None;` only ever assigned `None` to a variable already
@@ -1223,13 +1232,14 @@ when `mirrorUIstr != null`, but `process.BeginOutputReadLine()` is called uncond
 redirected", which the catch turns into a misleading "extraction failed" dialog. Either make the
 parameter required or guard the null.
 
-### `_7ZipInterface` duplication / UI coupling — 🔧 modernize + 💭 opinion
+### ✅ `_7ZipInterface` duplication RESOLVED (see Bucket 3 §R7) / UI coupling still 💭 (deferred)
 
 [7ZipInterface.cs](SynthEBD/General_Aux/7ZipInterface.cs) · `ExtractArchive` and `GetArchiveContents`
-share ~90% identical process-launch/stdout-capture boilerplate — extractable into one helper that
-takes the 7-Zip arguments. Also, this low-level helper pops `MessageWindow.DisplayNotificationOK`
-dialogs directly; returning a result/error to the caller and letting the UI layer decide would
-decouple it.
+shared ~90% identical process-launch/stdout-capture boilerplate — **RESOLVED (§R7):** extracted into one
+`RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr)` helper. The remaining 💭 (this low-level
+helper pops `MessageWindow.DisplayNotificationOK` dialogs directly; returning a result/error and letting the
+UI layer decide would decouple it) is a **deferred opinion** (the MessageWindow-from-engine class of items),
+not done here.
 
 ### ✅ `MiscFunctions.StringHashSetsEqualCaseInvariant` — 🐞 RESOLVED (deleted; caller inlined OrdinalIgnoreCase SetEquals) — see Resolved §B13
 
