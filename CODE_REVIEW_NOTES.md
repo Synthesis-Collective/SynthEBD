@@ -1325,13 +1325,15 @@ behavior-sensitive refactor with a thin test net — catalogue now, schedule del
 
 ### Selection-loop minor flags — 💭
 
-- **Seed re-sort dropped on consistency relaxation:**
+- ✅ **Seed re-sort dropped on consistency relaxation — RESOLVED.**
   [AssetAndBodyShapeSelector.cs:200](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L200)
-  orders the initial seeds by `ForceIfMatchCount` descending, but the relaxed regeneration at
-  [:210](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L210) does not. Likely harmless —
+  ordered the initial seeds by `ForceIfMatchCount` descending, but the relaxed regeneration at
+  [:210](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L210) did not. Functionally harmless —
   seed choice re-prefers max-ForceIf internally
-  ([AssetSelector.cs:309-316](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L309)) — but the
-  asymmetry invites confusion; make both passes identical.
+  ([AssetSelector.cs:309-316](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L309)) and the
+  weighted draw is order-independent — but the asymmetry invited confusion. Applied the same
+  `OrderByDescending(ForceIfMatchCount)` to the relaxed pass (cosmetic; also keeps the
+  verbose-log seed list sorted). Fixed alongside R15-partial.
 - **Shared-object `MatchedForceIfCount` mutation blocks parallelization:** the selectors write
   per-NPC scratch state onto **shared, config-owned** candidate objects
   ([BodyGenSelector.cs:489](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L489)/[:498](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L498),

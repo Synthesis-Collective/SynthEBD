@@ -218,7 +218,7 @@ public class AssetAndBodyShapeSelector
                 {
                     _logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
                     filteredAssetPacks = _assetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, null, null);
-                    iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks);
+                    iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
                 }
                 else // no other filters can be relaxed
                 {
