@@ -252,8 +252,26 @@ public class BodyGenSelector
     /// Specific assignment, keeping only combinations that still have a morph at every position.
     /// </summary>
     /// <param name="success">True if any combination satisfied the specific assignment.</param>
-    /// <returns>The filtered combinations, or the original set when none matched.</returns>
+    /// <returns>Pruned copies of the matching combinations, or the original set when none matched.</returns>
     public HashSet<GroupCombinationObject> FilterBySpecificNPCAssignments (HashSet<GroupCombinationObject> allCombinations, NPCInfo npcInfo, out bool success)
+    {
+        var output = FilterCombinationsByMorphNames(allCombinations, npcInfo.SpecificNPCAssignment.BodyGenMorphNames, out success);
+        if (!success)
+        {
+            _logger.LogReport("Could not apply specific BodyGen morph assignment to NPC " + npcInfo.LogIDstring + " because no valid combinations contained the specified morphs", true, npcInfo);
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// Pure core of <see cref="FilterBySpecificNPCAssignments"/>: for each combination whose every position
+    /// contains at least one morph named in <paramref name="morphNames"/>, emits a copy with each position
+    /// pruned to only those named morphs. The input combinations are never modified, so callers can safely
+    /// reuse them on the no-match fallback path.
+    /// </summary>
+    /// <param name="success">True if any combination satisfied the name filter.</param>
+    /// <returns>The pruned copies, or the original set (untouched) when none matched.</returns>
+    public static HashSet<GroupCombinationObject> FilterCombinationsByMorphNames(HashSet<GroupCombinationObject> allCombinations, ICollection<string> morphNames, out bool success)
     {
         HashSet<GroupCombinationObject> output = new HashSet<GroupCombinationObject>();
         success = true;
@@ -261,10 +279,10 @@ public class BodyGenSelector
         {
             var newCombo = new GroupCombinationObject(candidateCombo);
             bool newComboIsValid = true;
-            for (int i = 0; i < candidateCombo.Templates.Count; i++)
+            for (int i = 0; i < newCombo.Templates.Count; i++)
             {
-                candidateCombo.Templates[i] = candidateCombo.Templates[i].Where(x => npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(x.Label)).ToHashSet();
-                if (!candidateCombo.Templates[i].Any())
+                newCombo.Templates[i] = newCombo.Templates[i].Where(x => morphNames.Contains(x.Label)).ToHashSet();
+                if (!newCombo.Templates[i].Any())
                 {
                     newComboIsValid = false;
                     break;
@@ -278,7 +296,6 @@ public class BodyGenSelector
 
         if (!output.Any())
         {
-            _logger.LogReport("Could not apply specific BodyGen morph assignment to NPC " + npcInfo.LogIDstring + " because no valid combinations contained the specified morphs", true, npcInfo);
             success = false;
             return allCombinations;
         }

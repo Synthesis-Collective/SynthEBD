@@ -899,6 +899,19 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   branches. Behavior change: those 5 races' verbose-log labels now show the curated name (the intended behavior).
   *Test:* new `LoggerRaceLogNameTests` (2 cases) -- the 5 FormKeys resolve to their curated names; a normal race
   (NordRace) returns false. **Suite now 224 passed / 1 skipped / 0 failed** (new baseline; +2 from B57).
+- [x] **B58 (surfaced during the 2026-06-11 selection-algorithm evaluation) -- `BodyGenSelector.
+  FilterBySpecificNPCAssignments` filtered the input, returned the unfiltered copy -- FIXED.** The loop
+  deep-copied `candidateCombo` into `newCombo`, then pruned the **input** `candidateCombo.Templates[i]`
+  while adding the **unfiltered** `newCombo` to the output. Two effects: (1) a Specific Assignment pinning
+  e.g. `CurvyTorso` left `SlimTorso` selectable in the returned combo (the method only verified the
+  assignment *could* be satisfied -- which combos were kept was correct, their contents were not);
+  (2) the mutation half-pruned `allCombinations`, so the `!output.Any()` fallback `return allCombinations`
+  handed corrupted combos to the relaxed retries (`:94`/`:102`). Fix: extracted the loop into a pure static
+  seam `FilterCombinationsByMorphNames(allCombinations, morphNames, out success)` (B16/B19 pattern; the
+  instance method keeps the failure log) which prunes `newCombo.Templates[i]` and never touches the input.
+  Kept-vs-dropped membership decisions are unchanged. *Test:* new `BodyGenSpecificAssignmentFilterTests`
+  (4 cases) -- output pruned to named morphs, input untouched, position-emptied combo excluded, no-match
+  fallback returns the original set pristine. **Suite 255 / 1 skipped / 0 failed** (+4).
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -1191,7 +1204,7 @@ retry-assets → independent-fallback design, with a consistency-preference laye
 Branches 2/3) on top. Termination is guaranteed by seed depletion + signature dedup. The entries
 below are what fell out of verifying that.*
 
-### B58 — `BodyGenSelector.FilterBySpecificNPCAssignments` filters the input, returns the unfiltered copy — 🐞
+### ✅ B58 — `BodyGenSelector.FilterBySpecificNPCAssignments` filters the input, returns the unfiltered copy — 🐞 RESOLVED (pure-seam extraction + 4 tests) — see Resolved §B58
 
 [BodyGenSelector.cs:260-277](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L260-L277) ·
 The loop deep-copies `candidateCombo` into `newCombo` (line 262), then **prunes the input**
