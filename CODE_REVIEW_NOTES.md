@@ -915,7 +915,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **R2 -- `NumericOnly` attached behavior** -- replace the identical handler across ~11 views (5 Classes_Aux + ~6 Core) with one `NumericInputBehavior`.
 - [ ] **R3 -- `VM_FilePathReplacement` destination-string table** -- collapse the 4 hand-kept copies (3 here + `FilePathDestinationMap`) into one bidirectional table.
 - [ ] **R4 -- `ProbabilityWeighting`** -- `Random.Shared` sweep + remove the unreachable int-only fallback. (RNG sequence changes, distribution does not.)
-- [ ] **R5 -- `NifTextureLoader.DecodeToBgra`** -- extract the duplicated Pfim decode switch (LoadDdsTextureViaPfim + LoadDdsPixels).
+- [x] **R5 -- MOOT, dead code DELETED instead** (commit `3a44a98c`). Re-verification: `LoadDdsTextureViaPfim`
+  + `LoadDdsPixels` lived only in `NifTextureLoader.cs`, a HelixToolkit-era leftover already
+  `<Compile Remove>`-excluded from the build (replaced by the OpenGL `GlTextureManager`/`CharacterPreviewCache`
+  path) -- it never compiled, so refactoring it was valueless. The live decode-to-BGRA switch is **already
+  deduped**: `CharacterPreviewCache.PfimageToBgra32` is the single shared helper for `DecodeDds` +
+  `DecodeDdsCubemap`. (`NifDiagnosticDumper.TryDumpPixelStats` has a similar `switch` but computes channel
+  offsets for stat sampling, not a BGRA buffer -- a different op, not a dup.) Per the user, **deleted the dead
+  file (~755 lines)** + its `<Compile Remove>` item rather than refactoring it; the HelixToolkit/SharpDX
+  package refs were already gone (only historical csproj/doc comments remain). Behavior-preserving by
+  construction. Build 0 errors; suite 237 / 1 skipped / 0 failed.
 - [ ] **R6 -- view code-behind dup** -- shared `HandleSelectPreviewMouseDown/Up` + previewer-column base (525 magic number) across UC_AssetPack / UC_AssetPackSubGroupTreePresenter / UC_AssetReplacerGroup / UC_SpecificNPCAssignment / UC_ConsistencyAssignment.
 - [ ] **R7 -- `_7ZipInterface`** -- collapse ExtractArchive/GetArchiveContents process-launch boilerplate.
 - [ ] **R8 -- Synthesis env wrappers** -- dedup OpenForSettings/Runnability/PatcherState wrappers in `EnvironmentStateProvider`.
@@ -1550,13 +1559,12 @@ on every implementation.)*
 CharacterViewer code, already thoroughly documented and cleanly written; this pass only filled
 constructor / private-helper gaps. Two minor items:
 
-- `NifTextureLoader.LoadDdsTextureViaPfim` and `LoadDdsPixels`
-  ([NifTextureLoader.cs:217](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L217),
-  [:403](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L403)) duplicate the same Pfim
-  Rgba32/Rgb24/Rgb8 → BGRA decode switch; a shared `DecodeToBgra` helper would remove the copy. 🔧
-- `NifTextureLoader.CreateTextureModelViaBmp`
-  ([:683](SynthEBD/Classes_Aux/Models/NifTextureLoader.cs#L683)) actually encodes **PNG** (its own doc
-  says so, to preserve alpha) — the "Bmp" in the name is a leftover and misleads. 💭
+- ✅ RESOLVED (file DELETED) — see Bucket 3 §R5 · `NifTextureLoader.LoadDdsTextureViaPfim` and `LoadDdsPixels`
+  duplicated the same Pfim Rgba32/Rgb24/Rgb8 → BGRA decode switch. The whole `NifTextureLoader.cs` was dead
+  (HelixToolkit-era, `<Compile Remove>`-excluded, replaced by the OpenGL path whose live decode is already a
+  single shared `CharacterPreviewCache.PfimageToBgra32`), so it was deleted rather than refactored. 🔧
+- ✅ MOOT (file DELETED) — see Bucket 3 §R5 · `NifTextureLoader.CreateTextureModelViaBmp` actually encoded
+  **PNG** (the "Bmp" name was a misleading leftover). Gone with the deleted dead file. 💭
 
 ---
 
