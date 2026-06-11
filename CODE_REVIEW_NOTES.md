@@ -936,7 +936,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   cosmetic delta (user OK): ExtractArchive's corrupt-dialog loses a trailing newline (StringBuilder/AppendLine
   -> list/join, matching GetArchiveContents); detection identical (marker is one atomic line). Removed orphaned
   `using System.Text`. Fix-only + manual-verify (shells to `7z.exe`). Suite 237 / 1 skipped / 0 failed.
-- [ ] **R8 -- Synthesis env wrappers** -- dedup OpenForSettings/Runnability/PatcherState wrappers in `EnvironmentStateProvider`.
+- [x] **R8 -- SKIPPED (considered, not worth it).** Per the user. `OpenForSettingsWrapper` +
+  `RunnabilitySettingsWrapper` are near-identical (differ only in `LoggerMode`) and DO share a common Synthesis
+  base, but pinning it cleanly proved impractical: the `IEnvironmentCreationState` base visible in Synthesis
+  `dev`-branch source does **not exist in the pinned 0.35.0** (a merge on it fails `CS0246`; attempted and
+  reverted), and reflection/binary probes of the 0.35.0 assembly did not surface the real base name. The
+  version-agnostic alternatives (a value-capturing base passing 5 path/version values + the `Lazy<env>` +
+  `LogMode`, or a `Func<>`-delegate base) both replace two short, parallel, readable wrappers with a wide,
+  awkward ctor -- worse than the duplication. Opinion-tier, in Synthesis-integration code with **no automated
+  regression net** (the three startup paths soft-skip in tests), so the risk/clarity cost outweighs a ~13-line
+  win. `PatcherStateWrapper` is structurally different regardless. Left as-is; no code change.
 - [x] **R9 -- `AnnotationStateComputer` -- DONE** (commit `0a7ec10b`). The opening
   `state = new(); if (!IsAnnotated(subStates)) state = None;` only ever assigned `None` to a variable already
   `None` (enum member 0) -- a provable no-op: the `hasManual`/`hasRulesBased` chain produces the result in
@@ -1271,13 +1280,15 @@ while the other is rebuilt fresh, drifting the two out of sync. Also, the
 `HashSet.Add` is already idempotent — and the whole accumulation reads naturally as a couple of LINQ
 `Concat`/`SelectMany` unions into a `HashSet`.
 
-### Synthesis env wrappers are near-duplicates — 💭 opinion / 🔧 modernize
+### ⏭️ SKIPPED — see Bucket 3 §R8 · Synthesis env wrappers are near-duplicates — 💭 opinion / 🔧 modernize
 
 [EnvironmentStateProvider.cs:207-296](SynthEBD/General_Aux/EnvironmentStateProvider.cs#L207-L296) ·
 `OpenForSettingsWrapper`, `RunnabilitySettingsWrapper`, and `PatcherStateWrapper` repeat the same
 ~13 property delegations almost verbatim (differing mainly in `LoggerMode` and a couple of paths).
-A shared abstract base (or a single wrapper over the common `IGameEnvironment`) would remove the
-triplication.
+A shared abstract base would remove the duplication — but **considered and skipped (§R8):** the clean
+common-base merge needs the Synthesis `IEnvironmentCreationState` base, which does not exist in the pinned
+0.35.0 (only on `dev`); the version-agnostic fallbacks are uglier than the duplication, and this is
+opinion-tier code with no automated regression net. Left as-is.
 
 ### `StandaloneRunEnvironmentStateProvider` nits — 💭 / 🐞 (trivial)
 
