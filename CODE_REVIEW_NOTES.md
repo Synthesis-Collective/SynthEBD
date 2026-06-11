@@ -902,7 +902,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
-- [ ] **R1 -- `MiscValidation.Verify*Installed` dedup** -> one `VerifyDataFile(relPath, sourceMod, silent)`. High-value; new pure seam -> testable.
+- [x] **R1 -- `MiscValidation.Verify*Installed` dedup -- DONE** (commit `a77e50ad`). Extracted one pure static
+  seam `CheckDataFiles(dataFolderPath, files, installHint, fileExists, out messages)` (injected `File.Exists`
+  probe + `out` messages, the B16/B19 pattern). Collapsed the **8** simple checks (EBD, OBody,
+  OBodyTemplateJson, AutoBody, SPID, SkyPatcher, PO3Extender, PO3Tweaks) onto it; each builds a
+  `(relativePath, sourceName)` descriptor list, the 2 silent checks gate emission on `!bSilent`.
+  Behavior-preserving: every log string reproduced exactly, including the two pre-existing PO3 dll
+  source-name inconsistencies (kept verbatim via per-file `sourceName`). Left `VerifyRaceMenuInstalled`
+  (either/or skee64-or-skeevr, logs the directory) and `VerifyJContainersInstalled` (SE-vs-VR conditional)
+  as-is -- they do not fit the uniform shape; added an in-code note at each. *Test:* 4 new `CheckDataFiles`
+  cases (all-present, one-missing, multi-missing order, null-hint). Suite 232 / 1 skipped / 0 failed (+4).
 - [ ] **R2 -- `NumericOnly` attached behavior** -- replace the identical handler across ~11 views (5 Classes_Aux + ~6 Core) with one `NumericInputBehavior`.
 - [ ] **R3 -- `VM_FilePathReplacement` destination-string table** -- collapse the 4 hand-kept copies (3 here + `FilePathDestinationMap`) into one bidirectional table.
 - [ ] **R4 -- `ProbabilityWeighting`** -- `Random.Shared` sweep + remove the unreachable int-only fallback. (RNG sequence changes, distribution does not.)
@@ -1389,7 +1398,7 @@ line's number is shown only when the *morph* line happened to be non-empty (and 
 `assetPack.GroupName + ": Subgroups [" + String.Join(", ", subGroupIDs)` opens a `[` that is never
 closed — the user-facing message reads `Subgroups [a, b, c` with no trailing `]`.
 
-### `MiscValidation.Verify*Installed` duplication — 🔧 modernize
+### ✅ RESOLVED — see Bucket 3 §R1 · `MiscValidation.Verify*Installed` duplication — 🔧 modernize
 
 Roughly a dozen methods (`VerifyEBDInstalled`, `VerifyOBodyInstalled`, `VerifyAutoBodyInstalled`,
 `VerifySPIDInstalled`, `VerifySkyPatcherInstalled`, `VerifyPO3ExtenderInstalled`, …) follow the identical
