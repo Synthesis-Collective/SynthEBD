@@ -67,7 +67,7 @@
                     <Border BorderBrush="DarkSlateGray" BorderThickness="1" CornerRadius="8">
                         <StackPanel Orientation="Horizontal">
                             <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="3 0 0 3">+</Button>
-                            <TextBlock Margin="5 0 5 0" PreviewMouseLeftButtonDown="HandleSelectPreviewMouseDown" MouseLeftButtonUp="HandleSelectPreviewMouseUp" VerticalAlignment="Center">
+                            <TextBlock Margin="5 0 5 0" local:TreeNodeDeferredSelectBehavior.IsEnabled="True" VerticalAlignment="Center">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="{}{0}">
                                         <Binding Path="Name"/>

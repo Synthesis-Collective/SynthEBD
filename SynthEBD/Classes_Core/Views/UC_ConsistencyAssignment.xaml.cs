@@ -72,8 +72,8 @@ public partial class UC_ConsistencyAssignment : UserControl
     {
         if (show)
         {
-            var width = _parentVM?.PreviewerWidth ?? 525;
-            if (width <= 0) width = 525;
+            var width = _parentVM?.PreviewerWidth ?? VisualTreeHelpers.DefaultPreviewerWidth;
+            if (width <= 0) width = VisualTreeHelpers.DefaultPreviewerWidth;
             PreviewerColumn.Width = new GridLength(width);
         }
         else

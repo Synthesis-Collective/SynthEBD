@@ -25,23 +25,5 @@ namespace SynthEBD
         {
             InitializeComponent();
         }
-
-        /// <summary>Intercepts the preview mouse-down on a tree node so selection is deferred to the mouse-up, enabling click-and-drag from other nodes.</summary>
-        private void HandleSelectPreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true; // intercept the down click to make sure the treeview node doesn't get changed until the subsequent upclick. This enables click & drag from other nodes.
-            return;
-        }
-
-        /// <summary>Completes deferred tree-node selection on mouse-up by focusing the ancestor <see cref="TreeViewItem"/>.</summary>
-        private void HandleSelectPreviewMouseUp(object sender, MouseButtonEventArgs e)
-        {
-            var dep = sender as DependencyObject;
-            if (dep.TryGetAncestor<TreeViewItem>(out var treeViewItem))
-            {
-                treeViewItem.Focus();
-                e.Handled = true;
-            }
-        }
     }
 }
