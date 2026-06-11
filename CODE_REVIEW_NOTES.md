@@ -924,6 +924,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   Report output for verbose NPCs is byte-identical (the factory is invoked synchronously inside the gate);
   non-verbose NPCs now skip the string construction entirely. Behavior-preserving; fix-only + manual-verify
   for report content (logging path, no pure seam worth adding). Suite 255 / 1 skipped / 0 failed.
+- [x] **R14 (perf; surfaced during the 2026-06-11 selection-algorithm evaluation) -- Branch-1 unconstrained
+  feasibility probe cached -- DONE.** `GenerateCombinationWithBodyShape` Branch 1 ran a **full unconstrained**
+  `SelectMorphs`/`SelectBodySlidePresets` ("would ANY body shape be valid for this NPC?") once per failed
+  candidate combination, though the answer depends only on the NPC. Now probed lazily once per call
+  (`bool? anyBodyShapeValidWithoutAssetRestrictions`) and reused across combination attempts. Safe because
+  the probe's other outputs were always discarded: on "not assignable" the loop exits without copying
+  `candidateMorphs`/`candidatePresets` into the output, and on "assignable" the next iteration's constrained
+  re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
+  the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
+  per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -1251,7 +1261,7 @@ full load order this is pure waste for ~all NPCs. Fix: guard hot-path call sites
 flag (or add a `Func<string>`/interpolated-handler overload so the string is only materialized
 when the NPC is actually being reported).
 
-### R14 — Branch-1 unconstrained feasibility probe re-run per failed combination — 🔧 (perf)
+### ✅ R14 — Branch-1 unconstrained feasibility probe re-run per failed combination — 🔧 RESOLVED (probe cached per call) — see Resolved §R14
 
 [AssetAndBodyShapeSelector.cs:262-283](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L262-L283) ·
 When a candidate combination admits no body shape, Branch 1 runs a **full unconstrained**

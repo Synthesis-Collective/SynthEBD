@@ -186,6 +186,7 @@ public class AssetAndBodyShapeSelector
         bool combinationIsValid = false;
 
         bool isFirstIteration = true;
+        bool? anyBodyShapeValidWithoutAssetRestrictions = null; // lazily probed once; depends only on the NPC, not the candidate combination
         SubgroupCombination firstCombination = null;
         Tuple<SubgroupCombination, object> firstValidCombinationShapePair = new Tuple<SubgroupCombination, object>(new SubgroupCombination(), new List<string>()); // object can be List<string> (BodyGen) or BodySlideSetting (OBody)
         bool firstValidCombinationShapePairInitialized = false;
@@ -262,16 +263,21 @@ public class AssetAndBodyShapeSelector
                 if (!bodyShapeAssigned)
                 {
                     // check if any body shape would be valid for the given NPC without any restrictions from the asset combination
-                    _logger.LogReport("Checking if any body shapes would be valid without the restrictions imposed by the current combination.", false, npcInfo);
-                    bool bodyShapeAssignable = false;
-                    switch (_patcherState.GeneralSettings.BodySelectionMode)
+                    // (the answer depends only on the NPC, so probe once and reuse it for subsequent candidate combinations)
+                    if (anyBodyShapeValidWithoutAssetRestrictions == null)
                     {
-                        case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
-                        case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssignable, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        _logger.LogReport("Checking if any body shapes would be valid without the restrictions imposed by the current combination.", false, npcInfo);
+                        bool bodyShapeAssignable = false;
+                        switch (_patcherState.GeneralSettings.BodySelectionMode)
+                        {
+                            case BodyShapeSelectionMode.BodyGen: candidateMorphs = _bodyGenSelector.SelectMorphs(npcInfo, out bodyShapeAssignable, bodyGenConfigs, null, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                            case BodyShapeSelectionMode.BodySlide: candidatePresets = _oBodySelector.SelectBodySlidePresets(npcInfo, out bodyShapeAssignable, oBodySettings, new List<SubgroupCombination>(), out bodyShapeStatusFlags); break;
+                        }
+                        anyBodyShapeValidWithoutAssetRestrictions = bodyShapeAssignable;
                     }
 
                     // if not, then the curent combination is fine because no other combination would be compatible with any body shapes anyway
-                    if (!bodyShapeAssignable)
+                    if (!anyBodyShapeValidWithoutAssetRestrictions.Value)
                     {
                         _logger.LogReport("No body shapes would be assignable even without the restrictions imposed by the current combination. Keeping the current combination.", false, npcInfo);
                         combinationIsValid = true;
