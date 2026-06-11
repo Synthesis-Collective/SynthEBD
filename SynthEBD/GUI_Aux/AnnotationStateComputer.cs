@@ -16,11 +16,9 @@ public class AnnotationStateComputer
     /// <c>None</c>.</summary>
     public static BodyShapeAnnotationState ComputeAnnotationState(ICollection<IHasAnnotationState> subStates)
     {
-        BodyShapeAnnotationState state = new();
-        if (!IsAnnotated(subStates))
-        {
-            state = BodyShapeAnnotationState.None;
-        }
+        // Default to None; the manual/rules-based chain below overrides it when either kind is present
+        // (when no substate is Manual or RulesBased, the state stays None).
+        BodyShapeAnnotationState state = BodyShapeAnnotationState.None;
         bool hasManual = HasManualDescriptors(subStates);
         bool hasRulesBased = HasRulesBasedDescriptors(subStates);
 
@@ -39,11 +37,6 @@ public class AnnotationStateComputer
         return state;
     }
 
-    /// <summary>Returns whether any substate has the <c>None</c> annotation state.</summary>
-    private static bool IsAnnotated(ICollection<IHasAnnotationState> subStates)
-    {
-        return subStates.Any(x => x.AnnotationState == BodyShapeAnnotationState.None);
-    }
     /// <summary>Returns whether any substate has a <c>Manual</c> annotation state.</summary>
     private static bool HasManualDescriptors(ICollection<IHasAnnotationState> subStates)
     {
