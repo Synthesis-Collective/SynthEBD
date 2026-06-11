@@ -1181,6 +1181,127 @@ whole config distributes to all races. Explicit race FormKeys still work. Same f
 General_Aux/Patcher "wrong-settings-source" bugs. *Repro:* `ConfigRulesAndInheritanceTests.cs:43-48`
 sidesteps it with explicit `AllowedRaces`; the fix lets the grouping path be tested directly.
 
+### Asset + body-shape selection algorithm evaluation (2026-06-11 pass)
+
+*Findings from a focused evaluation of the joint asset/body-shape distribution flow
+(`Patcher.AssignmentLoop` → `AssetAndBodyShapeSelector` → `AssetSelector` / `BodyGenSelector` /
+`OBodySelector`) against its intended design. Verdict on the algorithm itself: **sound** — the
+implementation matches the intended filter → weighted-select-with-backtracking → constrain-body-shape →
+retry-assets → independent-fallback design, with a consistency-preference layer (decision-tree
+Branches 2/3) on top. Termination is guaranteed by seed depletion + signature dedup. The entries
+below are what fell out of verifying that.*
+
+### B58 — `BodyGenSelector.FilterBySpecificNPCAssignments` filters the input, returns the unfiltered copy — 🐞
+
+[BodyGenSelector.cs:260-277](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L260-L277) ·
+The loop deep-copies `candidateCombo` into `newCombo` (line 262), then **prunes the input**
+`candidateCombo.Templates[i]` (line 266) while **adding the unfiltered `newCombo`** to the output
+(line 275) — the copy/mutate is inverted. Two consequences:
+
+1. *Specific assignment not enforced.* Example: an NPC's Specific Assignment pins morph
+   `CurvyTorso`; a combination's position-0 template set is `{CurvyTorso, SlimTorso}`. The
+   returned combo still contains `SlimTorso`, so `ChooseMorphs` can pick it — violating the
+   explicit per-NPC assignment. (Correct: output position-0 = `{CurvyTorso}`, input untouched.
+   As written, the method only verifies the assignment *could* be satisfied.)
+2. *Input corruption poisons the fallback.* The mutation half-prunes `allCombinations` (each combo
+   is pruned up to its first emptied position), and the `!output.Any()` fallback (line 283)
+   `return allCombinations` hands those corrupted combos to the relaxed retries at
+   [BodyGenSelector.cs:94](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L94)/[:102](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L102),
+   which can then fail even though valid combinations existed.
+
+Fix shape: filter `newCombo.Templates[i]` instead, leave `candidateCombo` alone. Eventual fix
+should carry an xUnit case (filtered copy returned; input set unchanged; fallback set pristine).
+
+### R13 — hot-loop `LogReport` argument strings built for every NPC — 🔧 (perf, likely the biggest win)
+
+`NpcReportBuilder.LogReport` early-outs on `npcInfo.Report.LogCurrentNPC`
+([NpcReportBuilder.cs:122](SynthEBD/General_Aux/NpcReportBuilder.cs#L122)) — but the *message
+argument* is built unconditionally at every call site. The worst offenders sit inside
+`AssetSelector.GenerateCombination`'s per-position walk:
+[AssetSelector.cs:355](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L355) and
+[:363](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L363) call
+`Logger.SpreadFlattenedAssetPack(...)` (spreads the entire remaining asset pack into a string)
+once per position per combination attempt, for **every** NPC — verbose-logged or not. Across a
+full load order this is pure waste for ~all NPCs. Fix: guard hot-path call sites on the report
+flag (or add a `Func<string>`/interpolated-handler overload so the string is only materialized
+when the NPC is actually being reported).
+
+### R14 — Branch-1 unconstrained feasibility probe re-run per failed combination — 🔧 (perf)
+
+[AssetAndBodyShapeSelector.cs:262-283](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L262-L283) ·
+When a candidate combination admits no body shape, Branch 1 runs a **full unconstrained**
+`SelectMorphs`/`SelectBodySlidePresets` (lines 269-270) to ask "would any body shape be valid for
+this NPC at all?" — whose answer depends only on the NPC, not the combination. For an NPC whose
+asset rules conflict with every body shape, this full-list validation re-runs once per failed
+combination. Compute it lazily once per `GenerateCombinationWithBodyShape` call and reuse.
+
+### R15 — body-shape validation re-runs NPC-static checks per combination attempt — 🔧 (perf)
+
+`MorphIsValid` / `PresetIsValid` re-validate every candidate against unique/non-unique, races,
+weight range, and attributes on **every** iteration of the
+`GenerateCombinationWithBodyShape` while-loop, though only the asset-imposed descriptor checks
+([BodyGenSelector.cs:536-572](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L536-L572),
+[OBodySelector.cs:367-403](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L367-L403)) change
+between iterations. Split validation into an NPC-static pass (cache the surviving candidate list
+for the duration of the per-NPC selection loop) and a per-combination descriptor pass. Also hoist
+the loop-invariant `npcHasBodyShapeConsistency` block
+([AssetAndBodyShapeSelector.cs:251-259](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L251-L259))
+above the `while`.
+
+### R16 — `GenerateCombinationWithBodyShape` decision-tree readability — 🔧
+
+[AssetAndBodyShapeSelector.cs:177-359](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L177-L359) ·
+Works, but: the three decision branches deserve extraction into named methods; the banked
+fallback pair is a `Tuple<SubgroupCombination, object>` requiring runtime casts (lines 190, 331,
+336) — replace with a small typed holder (or two typed fields); `notifyOfPermutationMorphConflict`
+actually means "current asset rules block all body shapes — seek another combination" (e.g.
+`assetRulesBlockAllBodyShapes`); the two-pass consistency relaxation (line 206-211) deserves a
+comment block. All behavior-preserving.
+
+### R17 — `AssetSelector` long methods + unnamed backtrack arithmetic — 🔧
+
+`FilterValidConfigsForNPC` ([AssetSelector.cs:596-921](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L596),
+325 lines) is four sequential phases — specific assignments / whole-config rules / subgroup rules /
+consistency — each extractable verbatim. `GenerateCombination`
+([:286-453](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L286), 167 lines) should have seed
+selection extracted, and the backtrack index arithmetic (`i == 0 || (i == 1 && seed at 0)`,
+`i - 2` to skip over the seed position) named or commented — it's correct but takes real effort
+to re-derive. `AssignmentIteration.RemainingVariantsByIndex` holds backtracking snapshots, not
+"remaining variants" — rename (e.g. `BacktrackSnapshotsByPosition`).
+
+### R18 — BodyGen/OBody selector validation duplication — 💭 (flag; large refactor)
+
+`MorphIsValid` ([BodyGenSelector.cs:431-576](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L431-L576))
+and `PresetIsValid` ([OBodySelector.cs:272-415](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L272-L415))
+are ~95% identical (unique/race/weight/attribute/descriptor checks + asset-imposed descriptor
+rules), as are the surrounding Specific/link-group/consistency selection flows. A shared
+validator over a common candidate interface is the right long-term shape, but it's a wide,
+behavior-sensitive refactor with a thin test net — catalogue now, schedule deliberately.
+
+### Selection-loop minor flags — 💭
+
+- **Seed re-sort dropped on consistency relaxation:**
+  [AssetAndBodyShapeSelector.cs:200](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L200)
+  orders the initial seeds by `ForceIfMatchCount` descending, but the relaxed regeneration at
+  [:210](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L210) does not. Likely harmless —
+  seed choice re-prefers max-ForceIf internally
+  ([AssetSelector.cs:309-316](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L309)) — but the
+  asymmetry invites confusion; make both passes identical.
+- **Shared-object `MatchedForceIfCount` mutation blocks parallelization:** the selectors write
+  per-NPC scratch state onto **shared, config-owned** candidate objects
+  ([BodyGenSelector.cs:489](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L489)/[:498](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L498),
+  [OBodySelector.cs:316](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L316)/[:325](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L325),
+  same pattern in HeadPartSelector). Safe today — `AssignmentLoop` is strictly sequential — but
+  any future parallel NPC processing corrupts this silently. Note-only; if parallelization is
+  ever pursued, move the tally into a per-NPC side dictionary.
+
+*Memory-evaluation outcome (no entry needed): the runtime objects are lean — `FlattenedSubgroup`/
+`FlattenedAssetPack` carry only trivial log-bookkeeping extras (`AssignmentCount`;
+`DeepNamesString` is computed, not stored), and body-shape candidates are shared references,
+never cloned per NPC. The real memory cost is transient allocation churn (log strings, per-position
+`ShallowCopy` backtrack snapshots, per-NPC list rebuilds), which R13-R15 address; no field
+removals are worth their churn.*
+
 ---
 
 ## General_Aux (utility / helper layer)
