@@ -178,8 +178,10 @@ public sealed class Logger : VM
     public void InitializeNewReport(NPCInfo npcInfo) => _reportBuilder.InitializeNewReport(npcInfo);
     /// <inheritdoc cref="NpcReportBuilder.OpenReportSubsection"/>
     public void OpenReportSubsection(string header, NPCInfo npcInfo) => _reportBuilder.OpenReportSubsection(header, npcInfo);
-    /// <inheritdoc cref="NpcReportBuilder.LogReport"/>
+    /// <inheritdoc cref="NpcReportBuilder.LogReport(string, bool, NPCInfo)"/>
     public void LogReport(string message, bool triggerSave, NPCInfo npcInfo) => _reportBuilder.LogReport(message, triggerSave, npcInfo);
+    /// <inheritdoc cref="NpcReportBuilder.LogReport(Func{string}, bool, NPCInfo)"/>
+    public void LogReport(Func<string> messageFactory, bool triggerSave, NPCInfo npcInfo) => _reportBuilder.LogReport(messageFactory, triggerSave, npcInfo);
     /// <inheritdoc cref="NpcReportBuilder.CloseReportSubsection"/>
     public void CloseReportSubsection(NPCInfo npcInfo) => _reportBuilder.CloseReportSubsection(npcInfo);
     /// <inheritdoc cref="NpcReportBuilder.CloseReportSubsectionsTo"/>

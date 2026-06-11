@@ -304,7 +304,7 @@ public class AssetSelector
                 return null;
             }
 
-            _logger.LogReport("Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
+            _logger.LogReport(() => "Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
 
             if (iterationInfo.AvailableSeeds.Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
@@ -313,13 +313,13 @@ public class AssetSelector
 
                 iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
                 
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
+                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
             }
             else
             {
                 iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
                 
-                _logger.LogReport("Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
+                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
             }
             iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
 
@@ -352,15 +352,16 @@ public class AssetSelector
             GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
         }
 
-        _logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false), false, npcInfo);
+        _logger.LogReport(() => "Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, 0, false), false, npcInfo);
 
         for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++) // iterate through each position within the combination
         {
             if (generatedCombination.ContainedSubgroups.Count > 0)
             {
-                _logger.LogReport("Current Combination: " + String.Join(" , ", generatedCombination.ContainedSubgroups.Where(x => x != null).Select(x => x.Id)) + Environment.NewLine, false, npcInfo);
+                _logger.LogReport(() => "Current Combination: " + String.Join(" , ", generatedCombination.ContainedSubgroups.Where(x => x != null).Select(x => x.Id)) + Environment.NewLine, false, npcInfo);
             }
-            _logger.LogReport("Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, i, true), false, npcInfo);
+            var currentPosition = i;
+            _logger.LogReport(() => "Available Subgroups:" + Logger.SpreadFlattenedAssetPack(iterationInfo.ChosenAssetPack, currentPosition, true), false, npcInfo);
 
             #region BackTrack if no options remain
             if (iterationInfo.ChosenAssetPack.Subgroups[i].Count == 0)
@@ -391,12 +392,14 @@ public class AssetSelector
                 var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
                     x.ForceIfMatchCount == matchedForceIfCount);
                 nextSubgroup = ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups, x => GetSubgroupSelectionWeight(x, npcInfo));
-                _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " because it had the most matched ForceIf Attributes (" + nextSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
+                var chosenSubgroup = nextSubgroup;
+                _logger.LogReport(() => "Chose next subgroup: " + chosenSubgroup.GetDetailedID_NameString(true) + " at position " + currentPosition + " because it had the most matched ForceIf Attributes (" + chosenSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
             }
             else
             {
                 nextSubgroup = ProbabilityWeighting.SelectByProbability(iterationInfo.ChosenAssetPack.Subgroups[i], x => GetSubgroupSelectionWeight(x, npcInfo));
-                _logger.LogReport("Chose next subgroup: " + nextSubgroup.GetDetailedID_NameString(true) + " at position " + i + " at random." + Environment.NewLine, false, npcInfo);
+                var chosenSubgroup = nextSubgroup;
+                _logger.LogReport(() => "Chose next subgroup: " + chosenSubgroup.GetDetailedID_NameString(true) + " at position " + currentPosition + " at random." + Environment.NewLine, false, npcInfo);
             }
             #endregion
 
@@ -445,7 +448,7 @@ public class AssetSelector
         _logger.LogReport("Successfully generated combination: " + generatedSignature, false, npcInfo);
         foreach(var subgroup in generatedCombination.ContainedSubgroups)
         {
-            _logger.LogReport(subgroup.ContainedSubgroupNames.First() + ": " + subgroup.GetNestedNameString(true), false, npcInfo);
+            _logger.LogReport(() => subgroup.ContainedSubgroupNames.First() + ": " + subgroup.GetNestedNameString(true), false, npcInfo);
         }
         GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);

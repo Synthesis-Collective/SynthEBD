@@ -130,6 +130,19 @@ public class NpcReportBuilder
         }
     }
 
+    /// <summary>
+    /// Lazy overload of <see cref="LogReport(string, bool, NPCInfo)"/> for hot paths: the message is only
+    /// materialized when the NPC is actually being verbose-logged, so expensive string construction (e.g.
+    /// spreading an entire asset pack) is skipped for the typical non-logged NPC.
+    /// </summary>
+    public void LogReport(Func<string> messageFactory, bool triggerSave, NPCInfo npcInfo)
+    {
+        if (npcInfo.Report.LogCurrentNPC)
+        {
+            LogReport(messageFactory(), triggerSave, npcInfo);
+        }
+    }
+
     /// <summary>Adds <paramref name="value"/> to an XML report element, splitting on newlines and inserting a leading blank line if the element already has content.</summary>
     /// <param name="element">Target report element.</param>
     /// <param name="value">Text to append (trimmed, then split on newlines into separate nodes).</param>

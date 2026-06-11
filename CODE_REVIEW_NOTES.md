@@ -912,6 +912,18 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   Kept-vs-dropped membership decisions are unchanged. *Test:* new `BodyGenSpecificAssignmentFilterTests`
   (4 cases) -- output pruned to named morphs, input untouched, position-emptied combo excluded, no-match
   fallback returns the original set pristine. **Suite 255 / 1 skipped / 0 failed** (+4).
+- [x] **R13 (perf; surfaced during the 2026-06-11 selection-algorithm evaluation) -- hot-loop `LogReport`
+  strings built for every NPC -- DONE.** `NpcReportBuilder.LogReport` gates on `npcInfo.Report.LogCurrentNPC`
+  but its *argument* was built unconditionally at the call site -- including
+  `Logger.SpreadFlattenedAssetPack(...)` (spreads the entire remaining pack into a string) once per position
+  per combination attempt in `AssetSelector.GenerateCombination`, for every NPC, verbose-logged or not.
+  Added a lazy `LogReport(Func<string>, bool, NPCInfo)` overload to `NpcReportBuilder` (invokes the factory
+  only when the NPC is being logged) + the matching `Logger` facade forwarder (R12 pattern), and converted
+  the 9 expensive `GenerateCombination` call sites (seed-list join, both `SpreadFlattenedAssetPack` sites,
+  current-combination join, seed/next-subgroup choice lines, final per-subgroup name lines) to lambda form.
+  Report output for verbose NPCs is byte-identical (the factory is invoked synchronously inside the gate);
+  non-verbose NPCs now skip the string construction entirely. Behavior-preserving; fix-only + manual-verify
+  for report content (logging path, no pure seam worth adding). Suite 255 / 1 skipped / 0 failed.
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -1225,7 +1237,7 @@ The loop deep-copies `candidateCombo` into `newCombo` (line 262), then **prunes 
 Fix shape: filter `newCombo.Templates[i]` instead, leave `candidateCombo` alone. Eventual fix
 should carry an xUnit case (filtered copy returned; input set unchanged; fallback set pristine).
 
-### R13 — hot-loop `LogReport` argument strings built for every NPC — 🔧 (perf, likely the biggest win)
+### ✅ R13 — hot-loop `LogReport` argument strings built for every NPC — 🔧 RESOLVED (lazy `Func<string>` overload + hot-site conversion) — see Resolved §R13
 
 `NpcReportBuilder.LogReport` early-outs on `npcInfo.Report.LogCurrentNPC`
 ([NpcReportBuilder.cs:122](SynthEBD/General_Aux/NpcReportBuilder.cs#L122)) — but the *message
