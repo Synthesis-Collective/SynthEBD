@@ -30,31 +30,47 @@ public class MiscValidation
         _paths = paths;
         _raceMenuHandler = raceMenuHandler;
     }
+
+    /// <summary>
+    /// Shared "are these Data-folder files present" check behind the simple <c>Verify*Installed</c> helpers.
+    /// For each descriptor it composes the full path under <paramref name="dataFolderPath"/> and, when the file
+    /// is absent (per the injected <paramref name="fileExists"/> probe), appends a
+    /// "Could not find {file} from {source} at {path}" line to <paramref name="messages"/>. If anything was
+    /// missing and <paramref name="installHint"/> is non-null, the hint is appended last. The probe is injected
+    /// (and the messages are returned rather than logged) so the assembly logic is pure and unit-testable
+    /// without a Data folder; callers pass <see cref="File.Exists(string)"/> and decide whether to emit.
+    /// </summary>
+    /// <returns><c>true</c> if every descriptor's file exists.</returns>
+    public static bool CheckDataFiles(string dataFolderPath, IReadOnlyList<(string RelativePath, string SourceName)> files, string? installHint, Func<string, bool> fileExists, out List<string> messages)
+    {
+        messages = new();
+        bool verified = true;
+        foreach (var (relativePath, sourceName) in files)
+        {
+            string fullPath = Path.Combine(dataFolderPath, relativePath);
+            if (!fileExists(fullPath))
+            {
+                messages.Add("Could not find " + Path.GetFileName(relativePath) + " from " + sourceName + " at " + fullPath);
+                verified = false;
+            }
+        }
+        if (!verified && installHint != null)
+        {
+            messages.Add(installHint);
+        }
+        return verified;
+    }
+
     /// <summary>Verifies that EveryBody's Different Redone's Papyrus scripts are present in the Data folder.</summary>
     /// <returns><c>true</c> if both required <c>.pex</c> scripts exist.</returns>
     public bool VerifyEBDInstalled()
     {
-        bool verified = true;
-
-        string helperScriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "EBDHelperScript.pex");
-        if (!File.Exists(helperScriptPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find EBDHelperScript.pex from EveryBody's Different Redone SSE at " + helperScriptPath);
-            verified = false;
-        }
-
-        string globalScriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "EBDGlobalFuncs.pex");
-        if (!File.Exists(globalScriptPath))
-        {
-            _logger.LogMessage("Could not find EBDGlobalFuncs.pex from EveryBody's Different Redone SSE at " + globalScriptPath);
-            verified = false;
-        }
-
-        if (!verified)
-        {
-            _logger.LogMessage("Please make sure that EveryBody's Different Redone SSE is installed.");
-        }
-
+            (@"Scripts\EBDHelperScript.pex", "EveryBody's Different Redone SSE"),
+            (@"Scripts\EBDGlobalFuncs.pex", "EveryBody's Different Redone SSE"),
+        }, "Please make sure that EveryBody's Different Redone SSE is installed.", File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return verified;
     }
 
@@ -62,6 +78,8 @@ public class MiscValidation
     /// <returns><c>true</c> if a RaceMenu DLL and ini are present.</returns>
     public bool VerifyRaceMenuInstalled()
     {
+        // Not folded into CheckDataFiles (R1): this is an either/or check (skee64 OR skeevr) and it logs the
+        // containing directory rather than the full file path, so it does not fit the uniform descriptor shape.
         bool verified = true;
 
         string dllPath64 = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "skee64.dll");
@@ -92,27 +110,12 @@ public class MiscValidation
     /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyOBodyInstalled()
     {
-        bool verified = true;
-
-        string scriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "OBodyNative.pex");
-        if (!File.Exists(scriptPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find OBodyNative.pex from OBody at " + scriptPath);
-            verified = false;
-        }
-
-        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody.dll");
-        if (!File.Exists(dllPath))
-        {
-            _logger.LogMessage("Could not find OBody.dll from OBody at " + dllPath);
-            verified = false;
-        }
-
-        if (!verified)
-        {
-            _logger.LogMessage("Please make sure that OBody is installed.");
-        }
-
+            (@"Scripts\OBodyNative.pex", "OBody"),
+            (@"SKSE\Plugins\OBody.dll", "OBody"),
+        }, "Please make sure that OBody is installed.", File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return verified;
     }
 
@@ -120,15 +123,11 @@ public class MiscValidation
     /// <returns><c>true</c> if the config JSON is present.</returns>
     public bool VerifyOBodyTemplateJsonExists()
     {
-        bool verified = true;
-
-        var expectedPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
-        if (!File.Exists(expectedPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find OBody_presetDistributionConfig.json from OBody at " + expectedPath);
-            verified = false;
-        }
-
+            (@"SKSE\Plugins\OBody_presetDistributionConfig.json", "OBody"),
+        }, null, File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return verified;
     }
 
@@ -136,27 +135,12 @@ public class MiscValidation
     /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyAutoBodyInstalled()
     {
-        bool verified = true;
-
-        string scriptPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "autoBodyUtils.pex");
-        if (!File.Exists(scriptPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find autoBodyUtils.pex from AutoBody at " + scriptPath);
-            verified = false;
-        }
-
-        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "autoBodyAE.dll");
-        if (!File.Exists(dllPath))
-        {
-            _logger.LogMessage("Could not find autoBodyAE.dll from AutoBody at " + dllPath);
-            verified = false;
-        }
-
-        if (!verified)
-        {
-            _logger.LogMessage("Please make sure that AutoBody is installed.");
-        }
-
+            (@"Scripts\autoBodyUtils.pex", "AutoBody"),
+            (@"SKSE\Plugins\autoBodyAE.dll", "AutoBody"),
+        }, "Please make sure that AutoBody is installed.", File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return verified;
     }
 
@@ -202,18 +186,12 @@ public class MiscValidation
     /// <returns><c>true</c> if the SPID DLL is present.</returns>
     public bool VerifySPIDInstalled(bool bSilent)
     {
-        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_SpellPerkItemDistributor.dll");
-        if (!File.Exists(dllPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            if (!bSilent)
-            {
-                _logger.LogMessage("Could not find po3_SpellPerkItemDistributor.dll from Spell Perk Item Distributor at " + dllPath);
-                _logger.LogMessage("Please make sure Spell Perk Item Distributor is enabled.");
-            }
-            
-            return false;
-        }
-        return true;
+            (@"SKSE\Plugins\po3_SpellPerkItemDistributor.dll", "Spell Perk Item Distributor"),
+        }, "Please make sure Spell Perk Item Distributor is enabled.", File.Exists, out var messages);
+        if (!bSilent) { foreach (var message in messages) { _logger.LogMessage(message); } }
+        return verified;
     }
     
     /// <summary>Verifies that SkyPatcher is installed.</summary>
@@ -221,18 +199,12 @@ public class MiscValidation
     /// <returns><c>true</c> if the SkyPatcher DLL is present.</returns>
     public bool VerifySkyPatcherInstalled(bool bSilent)
     {
-        string dllPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "SkyPatcher.dll");
-        if (!File.Exists(dllPath))
+        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            if (!bSilent)
-            {
-                _logger.LogMessage("Could not find SkyPatcher.dll from SkyPatcher at " + dllPath);
-                _logger.LogMessage("Please make sure SkyPatcher is enabled.");
-            }
-            
-            return false;
-        }
-        return true;
+            (@"SKSE\Plugins\SkyPatcher.dll", "SkyPatcher"),
+        }, "Please make sure SkyPatcher is enabled.", File.Exists, out var messages);
+        if (!bSilent) { foreach (var message in messages) { _logger.LogMessage(message); } }
+        return verified;
     }
 
     /// <summary>Verifies that the JContainers build matching the current Skyrim edition (SE/AE vs VR) is installed.</summary>
@@ -240,6 +212,8 @@ public class MiscValidation
     /// <returns><c>true</c> if the appropriate JContainers DLL is present.</returns>
     public bool VerifyJContainersInstalled(bool bSilent)
     {
+        // Not folded into CheckDataFiles (R1): the file checked is conditional on the Skyrim edition
+        // (SE/AE -> JContainers64.dll vs VR -> JContainersVR.dll), so it does not fit the uniform shape.
         string dllPathSE_AE = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "JContainers64.dll");
         string dllPathVR = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "JContainersVR.dll");
 
@@ -777,22 +751,14 @@ public class MiscValidation
     /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyPO3ExtenderInstalled()
     {
-        bool valid = true;
-        
-        string extenderScriptsPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "PO3_SKSEFunctions.pex");
-        if (!File.Exists(extenderScriptsPath))
+        // The dll's source string reads "Papyrus Extender VR" (inconsistent with the script's
+        // "PowerOfThree's Papyrus Extender"); preserved verbatim by R1's per-file SourceName.
+        bool valid = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find PO3_SKSEFunctions.pex from PowerOfThree's Papyrus Extender at " + extenderScriptsPath);
-            valid = false;
-        }
-
-        string extenderDLLPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_PapyrusExtender.dll");
-        if (!File.Exists(extenderDLLPath))
-        {
-            _logger.LogMessage("Could not find po3_PapyrusExtender.dll from Papyrus Extender VR at " + extenderDLLPath);
-            valid = false;
-        }
-
+            (@"Scripts\PO3_SKSEFunctions.pex", "PowerOfThree's Papyrus Extender"),
+            (@"SKSE\Plugins\po3_PapyrusExtender.dll", "Papyrus Extender VR"),
+        }, null, File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return valid;
     }
 
@@ -800,22 +766,14 @@ public class MiscValidation
     /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyPO3TweaksInstalled()
     {
-        bool valid = true;
-
-        string tweaksScriptsPath = Path.Combine(_environmentProvider.DataFolderPath, "Scripts", "po3_Tweaks.pex");
-        if (!File.Exists(tweaksScriptsPath))
+        // The dll's source string reads "powerofthree's Tweaks VR" (inconsistent with the script's
+        // "powerofthree's Tweaks"); preserved verbatim by R1's per-file SourceName.
+        bool valid = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
         {
-            _logger.LogMessage("Could not find po3_Tweaks.pex from powerofthree's Tweaks at " + tweaksScriptsPath);
-            valid = false;
-        }
-
-        string tweaksDLLPath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "po3_Tweaks.dll");
-        if (!File.Exists(tweaksDLLPath))
-        {
-            _logger.LogMessage("Could not find po3_Tweaks.dll from powerofthree's Tweaks VR at " + tweaksDLLPath);
-            valid = false;
-        }
-
+            (@"Scripts\po3_Tweaks.pex", "powerofthree's Tweaks"),
+            (@"SKSE\Plugins\po3_Tweaks.dll", "powerofthree's Tweaks VR"),
+        }, null, File.Exists, out var messages);
+        foreach (var message in messages) { _logger.LogMessage(message); }
         return valid;
     }
 }
