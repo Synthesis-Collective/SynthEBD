@@ -25,11 +25,5 @@ namespace SynthEBD
         {
             InitializeComponent();
         }
-        /// <summary>Text-input filter that rejects non-numeric keystrokes on the source TextBox.</summary>
-        private void NumericOnly(System.Object sender, System.Windows.Input.TextCompositionEventArgs e)
-        {
-            var senderTextBox = (System.Windows.Controls.TextBox)sender;
-            e.Handled = !IsNumeric.IsTextNumeric(senderTextBox, e.Text);
-        }
     }
 }

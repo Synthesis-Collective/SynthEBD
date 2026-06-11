@@ -30,7 +30,7 @@
         <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformKey}" ScopedTypes="{Binding NPCFormKeyTypes}" LinkCache="{Binding lk}"/>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite" VerticalAlignment="Center"/>
-        <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=Repetitions}"/>
+        <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=Repetitions}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SimulatePrimary}" Foreground="MediumPurple">Simulate Primary Distribution</Button>

@@ -81,9 +81,9 @@
 
         <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) of an NPC if it is to be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
         <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
-            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
+            <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
             <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
-            <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
+            <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Upper}"/>
         </StackPanel>
     </Grid>
 </UserControl>

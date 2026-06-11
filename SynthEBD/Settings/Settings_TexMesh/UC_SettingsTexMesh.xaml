@@ -188,7 +188,7 @@
             <StackPanel Grid.Row="12"  Grid.Column="1" Orientation="Horizontal">
                 <ComboBox ItemsSource="{Binding PreviewModeOptions}" SelectedItem="{Binding PreviewMode, Mode=TwoWay}" MinWidth="80" />
                 <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" ToolTip="Lower this value if the preview images are using too much memory" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-                <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
+                <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
 
             <TextBlock Grid.Row="13"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>

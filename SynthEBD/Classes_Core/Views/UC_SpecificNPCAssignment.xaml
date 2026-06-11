@@ -295,7 +295,7 @@
             </StackPanel>
 
             <TextBlock Grid.Row="7" Grid.Column="0" ToolTip="Specify the height of the selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Height</TextBlock>
-            <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ForcedHeight}"/>
+            <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ForcedHeight}"/>
 
             <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" ToolTip="BodySlide that must be applied to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Bodyslide</TextBlock>
             <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Path=AvailableBodySlides}" DisplayMemberPath="Label" SelectedValuePath="Label" SelectedValue="{Binding ForcedBodySlide, Mode=TwoWay}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}" />

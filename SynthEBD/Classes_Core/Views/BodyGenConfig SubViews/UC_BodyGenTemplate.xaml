@@ -155,9 +155,9 @@
 
                 <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this morph to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
                 <StackPanel Grid.Row="12" Grid.Column="2" Orientation="Horizontal">
-                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
+                    <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
                     <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
-                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
+                    <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Upper}"/>
                 </StackPanel>
 
                 <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this morph to NPCs other than those specified by Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
@@ -170,7 +170,7 @@
                 <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
                 <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Probabiility of the patcher assigning this morph relative to other eligible morphs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Probability Weighting</TextBlock>
-                <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+                <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
 
                 <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" ToolTip="Per-attribute multipliers on this morph's selection probability. When an NPC matches a modifier's attribute, this morph's probability is scaled by that modifier's factor (multiple matches multiply)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Probability Modifiers</TextBlock>
                 <Button Grid.Row="17" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="Lightgreen">Add New</Button>

@@ -69,16 +69,16 @@
                             <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=DistributionMode, Mode=TwoWay}" />
 
                             <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Male racial height multiplier" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Base Male Height</TextBlock>
-                            <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightBase}"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=MaleHeightBase}"/>
 
                             <TextBlock Grid.Row="4" Grid.Column="0" ToolTip="Male NPC height range (1 +/- this value)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Height +/-</TextBlock>
-                            <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=MaleHeightRange}"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=MaleHeightRange}"/>
 
                             <TextBlock Grid.Row="5" Grid.Column="0" ToolTip="Female racial height multiplier" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Base Female Height</TextBlock>
-                            <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightBase}"/>
+                            <TextBox Grid.Row="5" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=FemaleHeightBase}"/>
 
                             <TextBlock Grid.Row="6" Grid.Column="0" ToolTip="Female NPC height range (1 +/- this value)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Female Height +/-</TextBlock>
-                            <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=FemaleHeightRange}"/>
+                            <TextBox Grid.Row="6" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=FemaleHeightRange}"/>
                         </Grid>
                     </Border>
                 </DataTemplate>

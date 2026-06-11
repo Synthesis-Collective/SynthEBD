@@ -85,9 +85,9 @@
 
             <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0">Allowed NPC Weight Range</TextBlock>
             <StackPanel Grid.Row="12" Grid.Column="2" Orientation="Horizontal">
-                <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
+                <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
                 <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
-                <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
+                <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Upper}"/>
             </StackPanel>
 
             <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribute to non-forced NPCs</TextBlock>
@@ -100,7 +100,7 @@
             <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Distribution Probability Weighting</TextBlock>
-            <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+            <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
         </Grid>
     </ScrollViewer>
 </UserControl>

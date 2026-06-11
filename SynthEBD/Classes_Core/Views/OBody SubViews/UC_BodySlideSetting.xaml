@@ -114,7 +114,7 @@
                 <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 5">
                         <TextBlock VerticalAlignment="Center" Margin="0 0 5 0" Foreground="LightGray">Add slot at weight:</TextBlock>
-                        <TextBox MinWidth="40" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding NewSlotWeight, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox MinWidth="40" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding NewSlotWeight, UpdateSourceTrigger=PropertyChanged}"/>
                         <Button Margin="5 0 0 0" Foreground="LightGreen" Content="Add Slot" Command="{Binding AddWeightSlotCommand}"
                                 ToolTip="Add a new descriptor slot for the specified NPC weight (0-100)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                     </StackPanel>
@@ -192,9 +192,9 @@
 
                 <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this BodySlide preset to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
                 <StackPanel Grid.Row="14" Grid.Column="2" Orientation="Horizontal">
-                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Lower}"/>
+                    <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
                     <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
-                    <TextBox MinWidth="50" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=WeightRange.Upper}"/>
+                    <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Upper}"/>
                 </StackPanel>
 
                 <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this BodySlide preset to NPCs not specified via Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
@@ -207,7 +207,7 @@
                 <CheckBox Grid.Row="17" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
                 <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Relative probability of assigning the BodySlide preset compared to others" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"> Distribution Probability Weighting</TextBlock>
-                <TextBox Grid.Row="18" Grid.Column="2" TextAlignment="Left" PreviewTextInput="NumericOnly" Text="{Binding Path=ProbabilityWeighting}"/>
+                <TextBox Grid.Row="18" Grid.Column="2" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
 
                 <TextBlock Grid.Row="19" Grid.Column="0" Margin="0 0 15 0" ToolTip="Per-attribute multipliers on this preset's selection probability. When an NPC matches a modifier's attribute, this preset's probability is scaled by that modifier's factor (multiple matches multiply)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Probability Modifiers</TextBlock>
                 <Button Grid.Row="19" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="Lightgreen">Add New</Button>
