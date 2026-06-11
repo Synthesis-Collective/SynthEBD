@@ -955,7 +955,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   file (~755 lines)** + its `<Compile Remove>` item rather than refactoring it; the HelixToolkit/SharpDX
   package refs were already gone (only historical csproj/doc comments remain). Behavior-preserving by
   construction. Build 0 errors; suite 237 / 1 skipped / 0 failed.
-- [ ] **R6 -- view code-behind dup** -- shared `HandleSelectPreviewMouseDown/Up` + previewer-column base (525 magic number) across UC_AssetPack / UC_AssetPackSubGroupTreePresenter / UC_AssetReplacerGroup / UC_SpecificNPCAssignment / UC_ConsistencyAssignment.
+- [x] **R6 -- view code-behind dup -- DONE (A + B-minimal)** (commit `b5d5bc78`; scope chosen via AskUserQuestion).
+  **Cluster A:** the byte-identical `HandleSelectPreviewMouseDown`/`MouseUp` pair (in UC_AssetPack [DEAD -- its
+  XAML never wired it], UC_AssetReplacerGroup, UC_AssetPackSubGroupTreePresenter, **and** Window_ConfigPackager
+  -- 4 copies, not the 3 in the note) -> one `TreeNodeDeferredSelectBehavior.IsEnabled` attached property (R2
+  pattern); rewired the 3 live XAML sites, deleted all 4 handler pairs; XAML compile is the consistency net.
+  **Cluster B (minimal):** `UC_SpecificNPCAssignment` + `UC_ConsistencyAssignment` both hardcoded the previewer
+  default width `525` twice -> one `VisualTreeHelpers.DefaultPreviewerWidth` const (the already-shared helper).
+  **Deferred (per chosen scope):** the fuller shared previewer-column controller / `IPreviewerColumnHostVM`
+  extraction -- WPF Loaded/Unloaded/PropertyChanged lifecycle, no test net, only 2 copies. Behaviour-preserving;
+  manual-verify (tree click+drag, previewer column). Suite 246 / 1 skipped / 0 failed.
 - [x] **R7 -- `_7ZipInterface` -- DONE** (commit `07a56fcf`). `ExtractArchive` + the 3-arg `GetArchiveContents`
   shared a near-identical body (build `ProcessStartInfo`, start, stream+capture stdout, await exit, scan for
   the corrupt-archive marker, same `catch` -> dialog). Extracted one private
@@ -1959,13 +1968,18 @@ view's `.xaml.cs` — a general-purpose visual-tree helper that would be easier 
 
 ### View code-behind duplication — 🔧 modernize
 
-- `HandleSelectPreviewMouseDown`/`HandleSelectPreviewMouseUp` are copy-pasted verbatim across
-  `UC_AssetPack`, `UC_AssetPackSubGroupTreePresenter`, and `UC_AssetReplacerGroup`.
+- ✅ RESOLVED (§R6) — `HandleSelectPreviewMouseDown`/`HandleSelectPreviewMouseUp` were copy-pasted verbatim
+  across `UC_AssetPack`, `UC_AssetPackSubGroupTreePresenter`, `UC_AssetReplacerGroup` (and `Window_ConfigPackager`
+  -- a 4th copy) -> one `TreeNodeDeferredSelectBehavior` attached property; 3 live XAML sites rewired, 4 handler
+  pairs deleted.
 - ✅ RESOLVED (§R2) — The `NumericOnly` TextBox handler recurs in ~6 more Core views (in addition to the
   Classes_Aux ones already flagged) — an attached behavior would remove every copy. (Done: all 13 collapsed
   onto `NumericInputBehavior`.)
-- `UC_SpecificNPCAssignment` and `UC_ConsistencyAssignment` code-behinds are near-identical previewer-column
-  logic (including a duplicated `525` default-width magic number) — candidates for a shared base/behavior.
+- ⚠️ PARTIAL (§R6, B-minimal) — `UC_SpecificNPCAssignment` and `UC_ConsistencyAssignment` code-behinds are
+  near-identical previewer-column logic (including a duplicated `525` default-width magic number) — candidates
+  for a shared base/behavior. **Done:** the `525` magic hoisted to `VisualTreeHelpers.DefaultPreviewerWidth`.
+  **Deferred (per chosen scope):** the fuller shared-controller / `IPreviewerColumnHostVM` extraction (WPF
+  lifecycle, no test net, only 2 copies).
 
 ### Smaller view items — 💭
 
