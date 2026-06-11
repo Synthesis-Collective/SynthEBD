@@ -252,11 +252,6 @@
     <PackageReference Include="SharpCompress" Version="0.42.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- NifTextureLoader is dead code (replaced by GlTextureManager); exclude to avoid HelixToolkit compile errors -->
-    <Compile Remove="Classes_Aux\Models\NifTextureLoader.cs" />
-  </ItemGroup>
-
   <!-- Shaders moved to CharacterViewer.Rendering project; their Content/CopyToOutputDirectory
        rules ship them next to CharacterViewer.Rendering.dll in this project's bin folder via
        the ProjectReference declared below. -->
