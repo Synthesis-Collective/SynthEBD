@@ -1020,7 +1020,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   + static `Get/DumpViewModelToModel` stay per-subclass. `VM_NPCAttributeFactions` standalone (rank range);
   dispatcher untouched. Net **-122 lines**. Behavior-preserving on the C# side (build + suite 246/1/0); the
   FormKey-picker bindings are **manual-verify** (rename done in lockstep + grep-verified, but no UI test).
-- [ ] **R12 -- `Logger` god-object split** (LogFormatting / NpcReportBuilder / status VM). Large churn, low urgency. LAST.
+- [ ] **R12 -- `Logger` god-object split -- DEFERRED** (per user, end of the Bucket-3 pass). The 1005-line
+  `Logger` (General_Aux/Logger.cs) carries ~6 responsibilities: the reactive status VM (StatusString/Color,
+  LoggedEvents), the startup-timing log, the NPC XML-report builder, a family of static formatters
+  (FormatTimeStamp/DateTimeToHMS/FormatLogStringIndents/Indent/SpreadFlattenedAssetPack/GetRaceLogString/...),
+  the status-update + Timed*/Archive async methods, and error logging. A clean split (LogFormatting static +
+  NpcReportBuilder + status VM, with Logger as a facade to bound call-site churn) is **large churn on a
+  DI-singleton referenced throughout, behavior-sensitive (the async-without-await status dance --
+  `UpdateStatusAsync`/`ArchiveStatusAsync`/`UnarchiveStatusAsync` -> no-op `_*Async` workers wrapped in
+  `Task.Run`, which moves VM mutation off the UI thread), and thinly tested**. Deliberately deferred to a
+  focused session rather than bolted onto the end of this one. Everything else in Bucket 3 is done.
 
 ### C. Trivial-neutral bundles (batch commits by subsystem)
 
@@ -1218,7 +1227,7 @@ counters could be expressed with LINQ `.Chunk(maxKeyCount)` (.NET 6+) over the e
 identifiers `___ICH` and the trailing-underscore `SelectedItem_` are unidiomatic. Works fine — flag
 only for a future cosmetic rename.
 
-### `Logger` (whole class) — 💭 opinion (architecture)
+### ⏸️ DEFERRED — see Bucket 3 §R12 · `Logger` (whole class) — 💭 opinion (architecture)
 
 [Logger.cs:22](SynthEBD/General_Aux/Logger.cs#L22) · This is a god-object: it's a VM for the
 status/log UI, *and* the elapsed-time timer, *and* the startup-timing log, *and* the per-NPC XML
@@ -1236,7 +1245,7 @@ thread it freezes the UI for `durationSec` seconds. The async siblings
 (`CallTimedNotifyStatusUpdateAsync`) do this correctly; this sync version looks like a leftover and
 should probably be removed or made to delegate to the async path.
 
-### `Logger` async-without-await status dance — 🔧 modernize (deferred to B49 -- changes the VM-mutation thread; not behavior-neutral)
+### ⏸️ DEFERRED — see Bucket 3 §R12 · `Logger` async-without-await status dance — 🔧 modernize (changes the VM-mutation thread; not behavior-neutral)
 
 [Logger.cs:440-485](SynthEBD/General_Aux/Logger.cs#L440-L485) · `UpdateStatusAsync` →
 `await Task.Run(() => _UpdateStatusAsync(...))`, where `_UpdateStatusAsync` is an `async Task` that
