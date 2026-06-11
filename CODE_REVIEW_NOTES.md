@@ -934,6 +934,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
   the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
   per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
+- [x] **R15-partial (perf; surfaced during the 2026-06-11 selection-algorithm evaluation) -- loop-invariant
+  consistency flag hoisted -- HOIST DONE, SPLIT DEFERRED.** Moved the `npcHasBodyShapeConsistency`
+  computation (settings + `npcInfo.ConsistencyNPCAssignment`, both invariant across combination attempts)
+  from inside the `GenerateCombinationWithBodyShape` while-loop to above it. Safe: `ConsistencyNPCAssignment`
+  is never null (`NPCInfo.ResolveConsistencyAssignment` always backfills), and nothing inside the loop writes
+  it (the caller writes consistency only after the method returns). **Deferred:** the headline R15 item --
+  splitting `MorphIsValid`/`PresetIsValid` into an NPC-static pass (cached across the loop) + a
+  per-combination descriptor pass -- is a wide restructure of both selectors that overlaps the planned R18
+  shared-validator dedup; doing it twice (once per selector, then again when deduping) would churn the same
+  risk-bearing code twice, so it should ride along with R18. Suite 255 / 1 skipped / 0 failed.
 
 ### B. Structural refactors (separate commits; behavior-preserving)
 
@@ -1270,7 +1280,7 @@ this NPC at all?" — whose answer depends only on the NPC, not the combination.
 asset rules conflict with every body shape, this full-list validation re-runs once per failed
 combination. Compute it lazily once per `GenerateCombinationWithBodyShape` call and reuse.
 
-### R15 — body-shape validation re-runs NPC-static checks per combination attempt — 🔧 (perf)
+### R15 — body-shape validation re-runs NPC-static checks per combination attempt — 🔧 (perf) — PARTIAL (hoist DONE; static/dynamic split open, see Resolved §R15-partial)
 
 `MorphIsValid` / `PresetIsValid` re-validate every candidate against unique/non-unique, races,
 weight range, and attributes on **every** iteration of the

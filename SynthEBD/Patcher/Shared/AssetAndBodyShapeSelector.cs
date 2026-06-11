@@ -200,6 +200,16 @@ public class AssetAndBodyShapeSelector
         // initialize seeds
         iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
 
+        bool npcHasBodyShapeConsistency = false;
+        if (_patcherState.GeneralSettings.bEnableConsistency)
+        {
+            switch (_patcherState.GeneralSettings.BodySelectionMode)
+            {
+                case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
+                case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !(_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && _patcherState.OBodySettings.OBodyEnableMultipleAssignments); break;
+            }
+        }
+
         while (!combinationIsValid)
         {
             if (!iterationInfo.AvailableSeeds.Any())
@@ -248,16 +258,6 @@ public class AssetAndBodyShapeSelector
                 }
 
                 // Decision Tree
-
-                bool npcHasBodyShapeConsistency = false;
-                if (_patcherState.GeneralSettings.bEnableConsistency)
-                {
-                    switch (_patcherState.GeneralSettings.BodySelectionMode)
-                    {
-                        case BodyShapeSelectionMode.BodyGen: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames != null && npcInfo.ConsistencyNPCAssignment.BodyGenMorphNames.Any(); break;
-                        case BodyShapeSelectionMode.BodySlide: npcHasBodyShapeConsistency = npcInfo.ConsistencyNPCAssignment.BodySlidePreset != null && !string.IsNullOrWhiteSpace(npcInfo.ConsistencyNPCAssignment.BodySlidePreset) && !(_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && _patcherState.OBodySettings.OBodyEnableMultipleAssignments); break;
-                    }
-                }
 
                 // Branch 1: No body shape could be assigned in conjuction with the current combination
                 if (!bodyShapeAssigned)
