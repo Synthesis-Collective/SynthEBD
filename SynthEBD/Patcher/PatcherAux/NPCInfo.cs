@@ -41,7 +41,7 @@ public class NPCInfo : IEquatable<NPCInfo>
         BodyShapeRace = _aliasHandler.GetAliasBodyGen(npc.Race.FormKey);
         HeightRace = _aliasHandler.GetAliasHeight(npc.Race.FormKey);
         HeadPartsRace = _aliasHandler.GetAliasHeadParts(npc.Race.FormKey);
-        Report = new Logger.NPCReport(this);
+        Report = new NpcReportBuilder.NPCReport(this);
 
         IsPatchable = _patcherState.GeneralSettings.PatchableRaces.Contains(AssetsRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(BodyShapeRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeightRace) || _patcherState.GeneralSettings.PatchableRaces.Contains(HeadPartsRace);
         if (!IsPatchable)
@@ -151,7 +151,7 @@ public class NPCInfo : IEquatable<NPCInfo>
     }
 
     /// <summary>Per-NPC report accumulator for logging assignment decisions.</summary>
-    public Logger.NPCReport Report { get; set; }
+    public NpcReportBuilder.NPCReport Report { get; set; }
     /// <summary>The NPC's currently assigned head parts, resolved from the link cache (only populated when head-part patching is enabled).</summary>
     public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
     /// <summary>The NPC's entry in the block list, if it is individually blocked.</summary>
