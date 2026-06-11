@@ -912,7 +912,16 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   (either/or skee64-or-skeevr, logs the directory) and `VerifyJContainersInstalled` (SE-vs-VR conditional)
   as-is -- they do not fit the uniform shape; added an in-code note at each. *Test:* 4 new `CheckDataFiles`
   cases (all-present, one-missing, multi-missing order, null-hint). Suite 232 / 1 skipped / 0 failed (+4).
-- [ ] **R2 -- `NumericOnly` attached behavior** -- replace the identical handler across ~11 views (5 Classes_Aux + ~6 Core) with one `NumericInputBehavior`.
+- [x] **R2 -- `NumericOnly` attached behavior -- DONE** (commit `1298dc71`). 13 view code-behinds each carried a
+  byte-identical `NumericOnly` handler (delegating to the already-shared `IsNumeric.IsTextNumeric`), wired from
+  XAML via `PreviewTextInput="NumericOnly"` at **33 sites** across 13 `.xaml`. Replaced with one attached
+  property `NumericInputBehavior.IsEnabled` (new `GUI_Aux/NumericInputBehavior.cs`) that subscribes
+  `PreviewTextInput` and runs the same `IsNumeric.IsTextNumeric` filter; swapped all 33 XAML sites to
+  `local:NumericInputBehavior.IsEnabled="True"` (every file already declared `xmlns:local`); deleted all 13
+  handlers. Behaviour-preserving (same event, same invariant-culture parse; `IsNumeric` untouched). The XAML
+  compile is the consistency net -- it binds the attached-property refs and fails on any dangling handler, so a
+  clean Release build proves all 33 swaps + 13 removals are in sync. Manual-verify for runtime feel. 27 files
+  (+85/-134). Build 0 errors; suite 237 / 1 skipped / 0 failed.
 - [ ] **R3 -- `VM_FilePathReplacement` destination-string table** -- collapse the 4 hand-kept copies (3 here + `FilePathDestinationMap`) into one bidirectional table.
 - [ ] **R4 -- `ProbabilityWeighting`** -- `Random.Shared` sweep + remove the unreachable int-only fallback. (RNG sequence changes, distribution does not.)
 - [x] **R5 -- MOOT, dead code DELETED instead** (commit `3a44a98c`). Re-verification: `LoadDdsTextureViaPfim`
@@ -1687,7 +1696,10 @@ inconsistency. Relatedly, `InitializedVMcache` and this `switch` are two manual-
 be updated when a new attribute type is added (same single-source-of-truth smell flagged on the model's
 `CloneAsNew` switch).
 
-### `NumericOnly` TextBox handler duplicated across views — 🔧 modernize
+### ✅ RESOLVED — see Bucket 3 §R2 · `NumericOnly` TextBox handler duplicated across views — 🔧 modernize
+
+**RESOLVED (§R2, commit `1298dc71`):** all **13** such handlers (the 5 below + ~8 more Core views) replaced by
+one `NumericInputBehavior.IsEnabled` attached property; 33 XAML sites rewired. Original note follows.
 
 Five view code-behinds carry an identical `NumericOnly(object, TextCompositionEventArgs)` handler that
 defers to `IsNumeric.IsTextNumeric` to reject non-numeric keystrokes:
@@ -1922,8 +1934,9 @@ view's `.xaml.cs` — a general-purpose visual-tree helper that would be easier 
 
 - `HandleSelectPreviewMouseDown`/`HandleSelectPreviewMouseUp` are copy-pasted verbatim across
   `UC_AssetPack`, `UC_AssetPackSubGroupTreePresenter`, and `UC_AssetReplacerGroup`.
-- The `NumericOnly` TextBox handler recurs in ~6 more Core views (in addition to the Classes_Aux ones already
-  flagged) — an attached behavior would remove every copy.
+- ✅ RESOLVED (§R2) — The `NumericOnly` TextBox handler recurs in ~6 more Core views (in addition to the
+  Classes_Aux ones already flagged) — an attached behavior would remove every copy. (Done: all 13 collapsed
+  onto `NumericInputBehavior`.)
 - `UC_SpecificNPCAssignment` and `UC_ConsistencyAssignment` code-behinds are near-identical previewer-column
   logic (including a duplicated `525` default-width magic number) — candidates for a shared base/behavior.
 
