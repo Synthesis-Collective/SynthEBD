@@ -1008,7 +1008,18 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   (RankMin/RankMax in its equality/clone); the static dispatcher untouched. Converted Class first (15
   NPCAttribute tests green), then the other 5 via a whole-class regex transform. Net **-293 lines**. Suite 246
   / 1 skipped / 0 failed (Clone/Equality/Custom all green).
-- [ ] **R11 (BEHAVIOR-SENSITIVE, big) -- `VM_NPCAttribute` generic base.** Parallels R10. LAST.
+- [x] **R11 -- `VM_NPCAttribute` generic base -- DONE** (commit `94f7429d`; scope via AskUserQuestion -- riskier
+  than R10, no automated UI net). The 6 FormKey-set sub-attribute VMs (Class, Race, Keyword, FaceTexture,
+  VoiceType, NPC) collapsed onto a CRTP base `VM_NPCAttributeFormKeyBase<TSelf>` (shared ctor: env capture,
+  ParentVM/ParentShell, link-cache subscription, delete command; shared `ObservableCollection<FormKey>` +
+  ParentVM/ParentShell/DeleteCommand/lk/NeedsRefresh/AllowedFormKeyTypes + DebuggerString). **Key risk handled:**
+  each `XFormKeys` collection (XAML-bound) was renamed to one shared `FormKeys`, and the 6 `UC_NPCAttributeX.xaml`
+  bindings updated **in lockstep** (grep-verified: 6 `{Binding FormKeys}`, 0 stray; Faction/Custom untouched).
+  The `DeleteCommand` divergence (only VoiceType also removes the empty parent) is preserved via a `virtual
+  OnDelete` the base ctor wires (VoiceType overrides). `AllowedFormKeyTypes` set per-subclass ctor; `PluralLabel`
+  + static `Get/DumpViewModelToModel` stay per-subclass. `VM_NPCAttributeFactions` standalone (rank range);
+  dispatcher untouched. Net **-122 lines**. Behavior-preserving on the C# side (build + suite 246/1/0); the
+  FormKey-picker bindings are **manual-verify** (rename done in lockstep + grep-verified, but no UI test).
 - [ ] **R12 -- `Logger` god-object split** (LogFormatting / NpcReportBuilder / status VM). Large churn, low urgency. LAST.
 
 ### C. Trivial-neutral bundles (batch commits by subsystem)
@@ -1711,7 +1722,13 @@ through and passes the unresolved (null) `refNPC` straight into
 this is a latent NRE (or at best a misleading second result that overwrites the error message). The
 failed-resolve branch should `return` (or guard the subsequent call).
 
-### `VM_NPCAttribute` view-model family mirrors the model boilerplate — 🔧 modernize
+### ✅ RESOLVED — see Bucket 3 §R11 · `VM_NPCAttribute` view-model family mirrors the model boilerplate — 🔧 modernize
+
+**RESOLVED (§R11, commit `94f7429d`):** the 6 FormKey-set sub-VMs collapsed onto a CRTP base
+`VM_NPCAttributeFormKeyBase<TSelf>` (shared ctor/properties/DebuggerString; `virtual OnDelete` preserves
+VoiceType's extra cleanup); the `XFormKeys` collections renamed to one `FormKeys` with the 6 XAML bindings
+updated in lockstep. `Factions`/`Custom`/`Misc`/`Mod`/`Group` stay standalone. Net -122 lines; manual-verify
+for the FormKey-picker bindings. Original note follows.
 
 [VM_NPCAttribute.cs:504](SynthEBD/Classes_Aux/ViewModels/VM_NPCAttribute.cs#L504) (and the other 10) · The
 eleven `VM_NPCAttribute*` sub-VMs are the VM-side twins of the eleven `NPCAttribute*` models and carry the
