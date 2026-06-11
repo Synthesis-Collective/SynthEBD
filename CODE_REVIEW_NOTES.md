@@ -996,7 +996,18 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   roll up `Classifier`/`Library`/`Mixed` substates -- pre-existing, unchanged by this edit, and that whole
   section is slated for deprecation in favour of measurement-based annotation state.) *Test:* new
   `AnnotationStateComputerTests` (5 cases). Suite 237 / 1 skipped / 0 failed (+5).
-- [ ] **R10 (BEHAVIOR-SENSITIVE, big) -- `NPCAttribute` generic base** (`NPCAttributeFormKeyBase<TGetter>`). Equality/clone reworked in B22/B23/B24; must keep NPCAttributeClone/Equality tests green. LAST.
+- [x] **R10 -- `NPCAttribute` generic base -- DONE** (commit `0d8d5588`; incremental, test-gated; scope via
+  AskUserQuestion). The 6 "plain" FormKey-set types (Class, Race, Keyword, FaceTexture, VoiceType, NPC) were
+  byte-identical except the `Type` default, label, and the getter type resolved in `ToLogString`. Collapsed
+  onto a CRTP base `NPCAttributeFormKeyBase<TSelf>` holding `FormKeys`/`Type`/`ForceMode`/`Weighting`/`Not` +
+  `Equals`/`Equals(object)`/`GetHashCode`/`IsBlank`/`DebuggerString`; each subclass supplies only its `Type`
+  default (ctor), `PluralLabel`, `ToLogString` (via shared `FormatLog`), and the static `CloneAsNew` (deduped
+  via shared `CopyBaseFieldsTo`). Behaviour-preserving: moved logic verbatim (`is NPCAttributeX` -> `is TSelf`,
+  same closed type); `Type` default preserved via ctor; JSON shape unchanged (inherited props; verified
+  `AttributeConverter.ReadJson` `ToObject<T>` populates them). `NPCAttributeFactions` stays standalone
+  (RankMin/RankMax in its equality/clone); the static dispatcher untouched. Converted Class first (15
+  NPCAttribute tests green), then the other 5 via a whole-class regex transform. Net **-293 lines**. Suite 246
+  / 1 skipped / 0 failed (Clone/Equality/Custom all green).
 - [ ] **R11 (BEHAVIOR-SENSITIVE, big) -- `VM_NPCAttribute` generic base.** Parallels R10. LAST.
 - [ ] **R12 -- `Logger` god-object split** (LogFormatting / NpcReportBuilder / status VM). Large churn, low urgency. LAST.
 
@@ -1588,7 +1599,12 @@ the hash does.
 fields it's not initialized to `""`). A null `Comparator` throws inside `GetHashCode`. Use
 `Comparator?.GetHashCode() ?? 0` (or `HashCode.Combine`).
 
-### `NPCAttribute` family duplication — 🔧 modernize (headline)
+### ✅ RESOLVED — see Bucket 3 §R10 · `NPCAttribute` family duplication — 🔧 modernize (headline)
+
+**RESOLVED (§R10, commit `0d8d5588`):** the 6 FormKey-based types were collapsed onto a CRTP base
+`NPCAttributeFormKeyBase<TSelf>` (shared fields + `Equals`/`GetHashCode`/`IsBlank` + `CopyBaseFieldsTo`/`FormatLog`
+helpers), net -293 lines; behavior-preserving, Clone/Equality/Custom tests green. `NPCAttributeFactions` (rank
+extras), `Custom`, `Group`, `Misc`, `Mod` stay standalone. Original note follows.
 
 The 11 `NPCAttribute*` classes are ~90% identical boilerplate. The six FormKey-based ones (Class,
 FaceTexture, Keyword, Race, NPC, VoiceType) differ only in `Type`, the log label, and the getter type
