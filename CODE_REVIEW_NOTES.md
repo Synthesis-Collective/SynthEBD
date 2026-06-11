@@ -1024,16 +1024,25 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   + static `Get/DumpViewModelToModel` stay per-subclass. `VM_NPCAttributeFactions` standalone (rank range);
   dispatcher untouched. Net **-122 lines**. Behavior-preserving on the C# side (build + suite 246/1/0); the
   FormKey-picker bindings are **manual-verify** (rename done in lockstep + grep-verified, but no UI test).
-- [ ] **R12 -- `Logger` god-object split -- DEFERRED** (per user, end of the Bucket-3 pass). The 1005-line
-  `Logger` (General_Aux/Logger.cs) carries ~6 responsibilities: the reactive status VM (StatusString/Color,
-  LoggedEvents), the startup-timing log, the NPC XML-report builder, a family of static formatters
-  (FormatTimeStamp/DateTimeToHMS/FormatLogStringIndents/Indent/SpreadFlattenedAssetPack/GetRaceLogString/...),
-  the status-update + Timed*/Archive async methods, and error logging. A clean split (LogFormatting static +
-  NpcReportBuilder + status VM, with Logger as a facade to bound call-site churn) is **large churn on a
-  DI-singleton referenced throughout, behavior-sensitive (the async-without-await status dance --
-  `UpdateStatusAsync`/`ArchiveStatusAsync`/`UnarchiveStatusAsync` -> no-op `_*Async` workers wrapped in
-  `Task.Run`, which moves VM mutation off the UI thread), and thinly tested**. Deliberately deferred to a
-  focused session rather than bolted onto the end of this one. Everything else in Bucket 3 is done.
+- [x] **R12 -- `Logger` god-object split -- DONE** (focused session; 4 incremental commits, build + full suite
+  green after each, facade forwarders to bound call-site churn). Split the 1005-line `Logger` into:
+  **(a) `LogFormatting`** static class -- the ~dozen pure stateless formatters (FormatTimeStamp, DateTimeToHMS,
+  FormatLogStringIndents/Indent, SpreadFlattenedAssetPack, the static GetNPCLogNameString,
+  GetNPCLogReportingString, GetSubgroupIDString x4, GetBodyShapeDescriptorString x2, GetRaceListLogStrings,
+  the special-case race dict + TryGetSpecialCaseRaceLogName, static GetRaceLogString, GetFormLogString); Logger
+  keeps static forwarders so the ~73 call sites are unchanged; +5 LogFormattingTests on the new pure seam
+  (`9b197552`). **(b) `NpcReportBuilder`** -- the per-NPC XML report system (Initialize/Open/Log/Close*/Save +
+  the nested NPCReport state class), owned + constructed by Logger; instance forwarders keep the ~296 LogReport
+  and other call sites unchanged; NPCInfo.cs updates its 2 `Logger.NPCReport` type refs (`1eaccb82`).
+  **(c) `LoggerStatusVM`** -- the reactive status line + on-screen log (Status/Backup string+color, the colors,
+  LoggedEvents/LogString, LoggedError, OnUiThread, LogMessage/Clear/LogError/UpdateStatus/Timed*/Archive/...);
+  Logger exposes it as `Logger.Status` with method + collection/observable forwarders so VM_LogDisplay and the
+  app-wide call sites are unchanged; one required repoint -- VM_StatusBar observes `_logger.Status.WhenAnyValue`
+  (`46f85267`). **(d)** the flagged async-without-await dance turned out to be **dead code** (zero callers for
+  UpdateStatusAsync/ArchiveStatusAsync/UnarchiveStatusAsync + their no-op `_*Async` workers), so deleted whole
+  rather than collapsed -- no mutation-thread concern because the path was never reachable (`bec27fdb`).
+  Behavior-preserving except the equivalent VM_StatusBar repoint; status-bar/log-panel/per-NPC-report are
+  manual-verify (thin automated net). Suite 251/1/0. **=> ENTIRE BUCKET-3 R-TIER COMPLETE.**
 
 ### C. Trivial-neutral bundles (batch commits by subsystem)
 
@@ -1231,15 +1240,17 @@ counters could be expressed with LINQ `.Chunk(maxKeyCount)` (.NET 6+) over the e
 identifiers `___ICH` and the trailing-underscore `SelectedItem_` are unidiomatic. Works fine — flag
 only for a future cosmetic rename.
 
-### ⏸️ DEFERRED — see Bucket 3 §R12 · `Logger` (whole class) — 💭 opinion (architecture)
+### ✅ `Logger` (whole class) — 💭 RESOLVED (god-object split into LogFormatting + NpcReportBuilder + LoggerStatusVM behind a Logger facade) — see Bucket 3 §R12
 
-[Logger.cs:22](SynthEBD/General_Aux/Logger.cs#L22) · This is a god-object: it's a VM for the
+[Logger.cs:22](SynthEBD/General_Aux/Logger.cs#L22) · This was a god-object: a VM for the
 status/log UI, *and* the elapsed-time timer, *and* the startup-timing log, *and* the per-NPC XML
 report builder, *and* a couple dozen `static` string formatters (`GetSubgroupIDString`,
-`GetRaceLogString`, `GetBodyShapeDescriptorString`, `GetFormLogString`, …). The static formatters
-have no dependency on logger state and could live in a `LogFormatting` static helper; the NPC XML
-report system could be its own `NpcReportBuilder`; the status fields could be a small status VM.
-Splitting would shrink this 800-line file and clarify responsibilities. Low urgency, high churn.
+`GetRaceLogString`, `GetBodyShapeDescriptorString`, `GetFormLogString`, …). **Resolved (R12, 4 commits):**
+the stateless formatters moved to a `LogFormatting` static class, the NPC XML report system to
+`NpcReportBuilder`, and the status/log fields+methods to `LoggerStatusVM` (exposed as `Logger.Status`).
+Logger stays a thin facade (static + instance forwarders) so the ~73 formatter + ~296 report + app-wide
+status call sites are unchanged; only VM_StatusBar repointed to `_logger.Status.WhenAnyValue`. The
+elapsed-time timer, startup-timing log, CurrentNPCInfo, and PatcherExecutionStart remain on Logger.
 
 ### ✅ `Logger.TimedNotifyStatusUpdate` (sync) — 🐞 RESOLVED (UI freeze; caller -> async wrapper, sync method deleted) — see Bucket 3 §B49
 
@@ -1249,15 +1260,17 @@ thread it freezes the UI for `durationSec` seconds. The async siblings
 (`CallTimedNotifyStatusUpdateAsync`) do this correctly; this sync version looks like a leftover and
 should probably be removed or made to delegate to the async path.
 
-### ⏸️ DEFERRED — see Bucket 3 §R12 · `Logger` async-without-await status dance — 🔧 modernize (changes the VM-mutation thread; not behavior-neutral)
+### ✅ `Logger` async-without-await status dance — 🔧 RESOLVED (was DEAD code -- zero callers -> deleted whole, not collapsed) — see Bucket 3 §R12
 
 [Logger.cs:440-485](SynthEBD/General_Aux/Logger.cs#L440-L485) · `UpdateStatusAsync` →
 `await Task.Run(() => _UpdateStatusAsync(...))`, where `_UpdateStatusAsync` is an `async Task` that
 just sets two properties and never awaits (CS1998 is silenced project-wide). Same for
 `ArchiveStatusAsync`/`_ArchiveStatusAsync` and `UnarchiveStatusAsync`/`_DeArchiveStatusAsync`.
-Offloading two property assignments to a thread-pool task adds no value (and pushes VM mutation off
-the UI thread). These could collapse to the synchronous `UpdateStatus`/`ArchiveStatus` methods that
-already exist. Also note the naming mismatch: public `Unarchive…` vs private `_DeArchive…`.
+**Resolved (R12d):** tracing every reference showed the three publics + their three `_*Async` workers
+had **zero callers** anywhere in the app or tests, so the "moves VM mutation off the UI thread" concern
+was moot (that path was never reachable). Deleted all six (and the dead Logger forwarders) outright --
+dead-code deletion, not a semantics change. The live synchronous `UpdateStatus`/`ArchiveStatus`/
+`UnarchiveStatus` and the `Timed*` family (which already call the synchronous versions) are untouched.
 
 ### `Logger.FormatLogStringIndents` — 🔧 modernize / 🐞 edge case
 
