@@ -919,7 +919,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
 - [ ] **R6 -- view code-behind dup** -- shared `HandleSelectPreviewMouseDown/Up` + previewer-column base (525 magic number) across UC_AssetPack / UC_AssetPackSubGroupTreePresenter / UC_AssetReplacerGroup / UC_SpecificNPCAssignment / UC_ConsistencyAssignment.
 - [ ] **R7 -- `_7ZipInterface`** -- collapse ExtractArchive/GetArchiveContents process-launch boilerplate.
 - [ ] **R8 -- Synthesis env wrappers** -- dedup OpenForSettings/Runnability/PatcherState wrappers in `EnvironmentStateProvider`.
-- [ ] **R9 -- `AnnotationStateComputer`** -- rename inverted `IsAnnotated` + drop redundant block.
+- [x] **R9 -- `AnnotationStateComputer` -- DONE** (commit `0a7ec10b`). The opening
+  `state = new(); if (!IsAnnotated(subStates)) state = None;` only ever assigned `None` to a variable already
+  `None` (enum member 0) -- a provable no-op: the `hasManual`/`hasRulesBased` chain produces the result in
+  every non-trivial case, and the "neither" case stays `None` via the default. Per the user (option A) deleted
+  the block **and** the orphaned `private IsAnnotated` (sole caller; misnamed -- it returned whether ANY
+  substate is `None`) rather than renaming dead code; made the default explicit (`= None`). Verified the full
+  colour path is untouched: `ComputeAnnotationState` -> `AnnotationState` -> `UpdateTextColor` ->
+  `AnnotationToColor[state]`. Behaviour-neutral. (Noted-but-skipped per user: `ComputeAnnotationState` does not
+  roll up `Classifier`/`Library`/`Mixed` substates -- pre-existing, unchanged by this edit, and that whole
+  section is slated for deprecation in favour of measurement-based annotation state.) *Test:* new
+  `AnnotationStateComputerTests` (5 cases). Suite 237 / 1 skipped / 0 failed (+5).
 - [ ] **R10 (BEHAVIOR-SENSITIVE, big) -- `NPCAttribute` generic base** (`NPCAttributeFormKeyBase<TGetter>`). Equality/clone reworked in B22/B23/B24; must keep NPCAttributeClone/Equality tests green. LAST.
 - [ ] **R11 (BEHAVIOR-SENSITIVE, big) -- `VM_NPCAttribute` generic base.** Parallels R10. LAST.
 - [ ] **R12 -- `Logger` god-object split** (LogFormatting / NpcReportBuilder / status VM). Large churn, low urgency. LAST.
@@ -2252,7 +2262,7 @@ clone-from-sibling smell, now replaced with real summaries.
 record-path intellisense support, image-preview handling, path resolution, and the Config Drafter /
 Config Path Remapper tooling. Reviewed leaf-first (helpers/converters first).*
 
-### `AnnotationStateComputer.IsAnnotated` is misnamed / redundant — 💭
+### ✅ RESOLVED — see Bucket 3 §R9 · `AnnotationStateComputer.IsAnnotated` is misnamed / redundant — 💭
 
 [AnnotationStateComputer.cs:43](SynthEBD/GUI_Aux/AnnotationStateComputer.cs#L43) · `IsAnnotated` actually
 returns whether any substate is **None** (i.e. *un*-annotated) — the opposite of its name. In
