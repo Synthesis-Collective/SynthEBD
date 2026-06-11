@@ -180,59 +180,59 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     private Dictionary<string, string> DestinationDetailAbstractDictionary { get; set; } = new()
     {
         // Head mappings
-        { "HeadTexture.Diffuse.GivenPath", "Head Diffuse" },
-        { "HeadTexture.NormalOrGloss.GivenPath", "Head Normal" },
-        { "HeadTexture.GlowOrDetailMap.GivenPath", "Head Subsurface" },
-        { "HeadTexture.BacklightMaskOrSpecular.GivenPath", "Head Specular" },
-        { "HeadTexture.Height.GivenPath", "Head Detail" },
+        { FilePathDestinationMap.Dest_HeadDiffuse, "Head Diffuse" },
+        { FilePathDestinationMap.Dest_HeadNormal, "Head Normal" },
+        { FilePathDestinationMap.Dest_HeadSubsurface, "Head Subsurface" },
+        { FilePathDestinationMap.Dest_HeadSpecular, "Head Specular" },
+        { FilePathDestinationMap.Dest_HeadDetail, "Head Detail" },
 
         // Torso Male mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath", "Torso Diffuse (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath", "Torso Normal (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath", "Torso Subsurface (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath", "Torso Specular (Male)" },
+        { FilePathDestinationMap.Dest_TorsoMaleDiffuse, "Torso Diffuse (Male)" },
+        { FilePathDestinationMap.Dest_TorsoMaleNormal, "Torso Normal (Male)" },
+        { FilePathDestinationMap.Dest_TorsoMaleSubsurface, "Torso Subsurface (Male)" },
+        { FilePathDestinationMap.Dest_TorsoMaleSpecular, "Torso Specular (Male)" },
 
         // Hands Male mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath", "Hands Diffuse (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath", "Hands Normal (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath", "Hands Subsurface (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath", "Hands Specular (Male)" },
+        { FilePathDestinationMap.Dest_HandsMaleDiffuse, "Hands Diffuse (Male)" },
+        { FilePathDestinationMap.Dest_HandsMaleNormal, "Hands Normal (Male)" },
+        { FilePathDestinationMap.Dest_HandsMaleSubsurface, "Hands Subsurface (Male)" },
+        { FilePathDestinationMap.Dest_HandsMaleSpecular, "Hands Specular (Male)" },
 
         // Feet Male mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath", "Feet Diffuse (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath", "Feet Normal (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath", "Feet Subsurface (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath", "Feet Specular (Male)" },
+        { FilePathDestinationMap.Dest_FeetMaleDiffuse, "Feet Diffuse (Male)" },
+        { FilePathDestinationMap.Dest_FeetMaleNormal, "Feet Normal (Male)" },
+        { FilePathDestinationMap.Dest_FeetMaleSubsurface, "Feet Subsurface (Male)" },
+        { FilePathDestinationMap.Dest_FeetMaleSpecular, "Feet Specular (Male)" },
 
         // Tail Male mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath", "Tail Diffuse (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath", "Tail Normal (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath", "Tail Subsurface (Male)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath", "Tail Specular (Male)" },
+        { FilePathDestinationMap.Dest_TailMaleDiffuse, "Tail Diffuse (Male)" },
+        { FilePathDestinationMap.Dest_TailMaleNormal, "Tail Normal (Male)" },
+        { FilePathDestinationMap.Dest_TailMaleSubsurface, "Tail Subsurface (Male)" },
+        { FilePathDestinationMap.Dest_TailMaleSpecular, "Tail Specular (Male)" },
 
         // Torso Female mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath", "Torso Diffuse (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath", "Torso Normal (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath", "Torso Subsurface (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath", "Torso Specular (Female)" },
+        { FilePathDestinationMap.Dest_TorsoFemaleDiffuse, "Torso Diffuse (Female)" },
+        { FilePathDestinationMap.Dest_TorsoFemaleNormal, "Torso Normal (Female)" },
+        { FilePathDestinationMap.Dest_TorsoFemaleSubsurface, "Torso Subsurface (Female)" },
+        { FilePathDestinationMap.Dest_TorsoFemaleSpecular, "Torso Specular (Female)" },
 
         // Hands Female mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath", "Hands Diffuse (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath", "Hands Normal (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath", "Hands Subsurface (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath", "Hands Specular (Female)" },
+        { FilePathDestinationMap.Dest_HandsFemaleDiffuse, "Hands Diffuse (Female)" },
+        { FilePathDestinationMap.Dest_HandsFemaleNormal, "Hands Normal (Female)" },
+        { FilePathDestinationMap.Dest_HandsFemaleSubsurface, "Hands Subsurface (Female)" },
+        { FilePathDestinationMap.Dest_HandsFemaleSpecular, "Hands Specular (Female)" },
 
         // Feet Female mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath", "Feet Diffuse (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath", "Feet Normal (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath", "Feet Subsurface (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath", "Feet Specular (Female)" },
+        { FilePathDestinationMap.Dest_FeetFemaleDiffuse, "Feet Diffuse (Female)" },
+        { FilePathDestinationMap.Dest_FeetFemaleNormal, "Feet Normal (Female)" },
+        { FilePathDestinationMap.Dest_FeetFemaleSubsurface, "Feet Subsurface (Female)" },
+        { FilePathDestinationMap.Dest_FeetFemaleSpecular, "Feet Specular (Female)" },
 
         // Tail Female mappings
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath", "Tail Diffuse (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath", "Tail Normal (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath", "Tail Subsurface (Female)" },
-        { "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath", "Tail Specular (Female)" },
+        { FilePathDestinationMap.Dest_TailFemaleDiffuse, "Tail Diffuse (Female)" },
+        { FilePathDestinationMap.Dest_TailFemaleNormal, "Tail Normal (Female)" },
+        { FilePathDestinationMap.Dest_TailFemaleSubsurface, "Tail Subsurface (Female)" },
+        { FilePathDestinationMap.Dest_TailFemaleSpecular, "Tail Specular (Female)" },
     };
 
     /// <summary>Populates this row's source and destination from a <see cref="FilePathReplacement"/> model.</summary>
@@ -479,51 +479,51 @@ public class VM_FilePathReplacement : VM, IImplementsRecordIntellisense
     {
         switch(typeString)
         {
-            case "Head Diffuse": return "HeadTexture.Diffuse.GivenPath";
-            case "Head Normal": return "HeadTexture.NormalOrGloss.GivenPath";
-            case "Head Subsurface": return "HeadTexture.GlowOrDetailMap.GivenPath";
-            case "Head Specular": return "HeadTexture.BacklightMaskOrSpecular.GivenPath";
-            case "Head Detail": return "HeadTexture.Height.GivenPath";
+            case "Head Diffuse": return FilePathDestinationMap.Dest_HeadDiffuse;
+            case "Head Normal": return FilePathDestinationMap.Dest_HeadNormal;
+            case "Head Subsurface": return FilePathDestinationMap.Dest_HeadSubsurface;
+            case "Head Specular": return FilePathDestinationMap.Dest_HeadSpecular;
+            case "Head Detail": return FilePathDestinationMap.Dest_HeadDetail;
 
-            case "Torso Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath";
-            case "Torso Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath";
-            case "Torso Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath";
-            case "Torso Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath";
+            case "Torso Diffuse Male": return FilePathDestinationMap.Dest_TorsoMaleDiffuse;
+            case "Torso Normal Male": return FilePathDestinationMap.Dest_TorsoMaleNormal;
+            case "Torso Subsurface Male": return FilePathDestinationMap.Dest_TorsoMaleSubsurface;
+            case "Torso Specular Male": return FilePathDestinationMap.Dest_TorsoMaleSpecular;
 
-            case "Hands Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath";
-            case "Hands Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath";
-            case "Hands Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath";
-            case "Hands Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath";
+            case "Hands Diffuse Male": return FilePathDestinationMap.Dest_HandsMaleDiffuse;
+            case "Hands Normal Male": return FilePathDestinationMap.Dest_HandsMaleNormal;
+            case "Hands Subsurface Male": return FilePathDestinationMap.Dest_HandsMaleSubsurface;
+            case "Hands Specular Male": return FilePathDestinationMap.Dest_HandsMaleSpecular;
 
-            case "Feet Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath";
-            case "Feet Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath";
-            case "Feet Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath";
-            case "Feet Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath";
+            case "Feet Diffuse Male": return FilePathDestinationMap.Dest_FeetMaleDiffuse;
+            case "Feet Normal Male": return FilePathDestinationMap.Dest_FeetMaleNormal;
+            case "Feet Subsurface Male": return FilePathDestinationMap.Dest_FeetMaleSubsurface;
+            case "Feet Specular Male": return FilePathDestinationMap.Dest_FeetMaleSpecular;
 
-            case "Tail Diffuse Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.Diffuse.GivenPath";
-            case "Tail Normal Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.NormalOrGloss.GivenPath";
-            case "Tail Subsurface Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.GlowOrDetailMap.GivenPath";
-            case "Tail Specular Male": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Male.BacklightMaskOrSpecular.GivenPath";
+            case "Tail Diffuse Male": return FilePathDestinationMap.Dest_TailMaleDiffuse;
+            case "Tail Normal Male": return FilePathDestinationMap.Dest_TailMaleNormal;
+            case "Tail Subsurface Male": return FilePathDestinationMap.Dest_TailMaleSubsurface;
+            case "Tail Specular Male": return FilePathDestinationMap.Dest_TailMaleSpecular;
 
-            case "Torso Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath";
-            case "Torso Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath";
-            case "Torso Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath";
-            case "Torso Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Body) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath";
+            case "Torso Diffuse Female": return FilePathDestinationMap.Dest_TorsoFemaleDiffuse;
+            case "Torso Normal Female": return FilePathDestinationMap.Dest_TorsoFemaleNormal;
+            case "Torso Subsurface Female": return FilePathDestinationMap.Dest_TorsoFemaleSubsurface;
+            case "Torso Specular Female": return FilePathDestinationMap.Dest_TorsoFemaleSpecular;
 
-            case "Hands Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath";
-            case "Hands Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath";
-            case "Hands Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath";
-            case "Hands Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Hands) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath";
+            case "Hands Diffuse Female": return FilePathDestinationMap.Dest_HandsFemaleDiffuse;
+            case "Hands Normal Female": return FilePathDestinationMap.Dest_HandsFemaleNormal;
+            case "Hands Subsurface Female": return FilePathDestinationMap.Dest_HandsFemaleSubsurface;
+            case "Hands Specular Female": return FilePathDestinationMap.Dest_HandsFemaleSpecular;
 
-            case "Feet Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath";
-            case "Feet Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath";
-            case "Feet Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath";
-            case "Feet Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Feet) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath";
+            case "Feet Diffuse Female": return FilePathDestinationMap.Dest_FeetFemaleDiffuse;
+            case "Feet Normal Female": return FilePathDestinationMap.Dest_FeetFemaleNormal;
+            case "Feet Subsurface Female": return FilePathDestinationMap.Dest_FeetFemaleSubsurface;
+            case "Feet Specular Female": return FilePathDestinationMap.Dest_FeetFemaleSpecular;
 
-            case "Tail Diffuse Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.Diffuse.GivenPath";
-            case "Tail Normal Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.NormalOrGloss.GivenPath";
-            case "Tail Subsurface Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.GlowOrDetailMap.GivenPath";
-            case "Tail Specular Female": return "WornArmor.Armature[BodyTemplate.FirstPersonFlags.Invoke:HasFlag(BipedObjectFlag.Tail) && MatchRace(Race, AdditionalRaces, MatchDefault)].SkinTexture.Female.BacklightMaskOrSpecular.GivenPath";
+            case "Tail Diffuse Female": return FilePathDestinationMap.Dest_TailFemaleDiffuse;
+            case "Tail Normal Female": return FilePathDestinationMap.Dest_TailFemaleNormal;
+            case "Tail Subsurface Female": return FilePathDestinationMap.Dest_TailFemaleSubsurface;
+            case "Tail Specular Female": return FilePathDestinationMap.Dest_TailFemaleSpecular;
         }
         return "";
     }
