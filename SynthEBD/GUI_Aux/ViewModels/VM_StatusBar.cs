@@ -18,8 +18,8 @@ public class VM_StatusBar : VM
     {
         _logger = logger;
 
-        _logger.WhenAnyValue(x => x.StatusString).Subscribe(x => DispString = x).DisposeWith(this);
-        _logger.WhenAnyValue(x => x.StatusColor).Subscribe(x => FontColor = x).DisposeWith(this);
+        _logger.Status.WhenAnyValue(x => x.StatusString).Subscribe(x => DispString = x).DisposeWith(this);
+        _logger.Status.WhenAnyValue(x => x.StatusColor).Subscribe(x => FontColor = x).DisposeWith(this);
     }
 
     public string DispString { get; set; } = "";
