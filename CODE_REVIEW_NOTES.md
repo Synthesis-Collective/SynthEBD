@@ -881,9 +881,14 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   every duplicate-named pack (doubled, mixing packs). Added `break;` after the matched block in both methods -> first
   match only, matching the `.FirstOrDefault(x => x.GroupName == ...)` semantics used elsewhere. Behavior-identical when
   names are unique. Fix-only + manual-verify (private static, heavy VM collaborators). Suite 228/1/0.
-- [ ] **B56 (latent; re-verify exact lines) -- `RecordIntellisense.RefreshPathSuggestions` deref-before-null-guard
-  (dead guard / possible NRE); `IO_Aux.SelectFileSave` populates `out path` even on Cancel.** GUI/Settings
-  agent was uncertain on exact lines -- confirm against source first.
+- [x] **B56 -- two NRE/contract hardening fixes -- FIXED.** (1) `RecordIntellisense.RefreshPathSuggestions`
+  dereferenced `parent.ChosenPathSuggestion` and `parent.IntellisensedPath.Replace(...)` BEFORE its
+  `if (parent is null || parent.LinkCache is null) return;` guard, so the `parent is null` guard was dead and a null
+  `IntellisensedPath` (no initializer; the ctor subscription fires immediately) would NRE. Reordered: guard `parent`
+  first, keep the ChosenPathSuggestion clear, then guard `IntellisensedPath is null || LinkCache is null` before the
+  deref. (2) `IO_Aux.SelectFileSave` set `out path = dialog.FileName` unconditionally -> a populated path on Cancel.
+  All 14 callers gate on the bool (so not a live bug), but changed to `path = (result ?? false) ? dialog.FileName :
+  string.Empty` to protect a future careless caller. Fix-only + manual-verify (UI/dialog paths). Suite 228/1/0.
 - [x] **B57 (surfaced during C2) -- `Logger.GetRaceLogString` special-case race names never fired -- FIXED.**
   CONFIRMED empirically (throwaway test): `fk.Equals(Mutagen...Race.X)` returns **false** for all 5 because the
   `FormKeys.SkyrimSE...Race.*` members are `FormLink<IRaceGetter>`, not `FormKey` (boxed FormLink != FormKey;
@@ -2246,7 +2251,7 @@ returns whether any substate is **None** (i.e. *un*-annotated) — the opposite 
 redundant (the default `state` is already `None`, and the `hasManual`/`hasRulesBased` blocks below override
 it). The net result is correct, but the inverted name + dead block are a readability trap.
 
-### GUI_Aux converter/helper smaller items — 💭 / 🔧
+### GUI_Aux converter/helper smaller items — 💭 / 🔧 (RecordIntellisense dead null-guard RESOLVED B56; VisibilityConverters/MaxHeightConverter/ImagePreviewHandler/LongPathHandler/Converters nits still open 💭)
 
 - `VisibilityConverters` — the enum-driven converters' `ConvertBack` returns a **bool**, not the original
   enum (`BodyShapeSelectionMode`/`DrafterTextureSource`/`ExchangeMode`); harmless while one-way, wrong if ever

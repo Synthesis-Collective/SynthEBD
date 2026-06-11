@@ -52,7 +52,13 @@ public class RecordIntellisense : VM
     /// are intentionally not suggested.</summary>
     public void RefreshPathSuggestions(IImplementsRecordIntellisense parent)
     {
+        if (parent is null) { return; }
+
         parent.ChosenPathSuggestion = null; // clear this now to avoid the previous chosen path suggestion being added by the Subscription due to the current PathSuggestions being modified
+
+        // Guard the path/link-cache dereferences below; this guard previously sat after them, so it was dead and a
+        // null parent/IntellisensedPath would have thrown.
+        if (parent.IntellisensedPath is null || parent.LinkCache is null) { return; }
 
         var tmpPath = parent.IntellisensedPath.Replace("[*]", "[0]"); // evaluate the first member of any collection to determine subpaths
 
@@ -60,8 +66,6 @@ public class RecordIntellisense : VM
         {
             tmpPath = tmpPath.Remove(tmpPath.Length - 1, 1);
         }
-
-        if (parent is null || parent.LinkCache is null) { return; }
 
         HashSet<PathSuggestion> newSuggestions = new();
         if (parent.LinkCache.TryResolve<INpcGetter>(parent.ReferenceNPCFormKey, out var referenceNPC) && _recordPathParser.GetObjectAtPath(referenceNPC, referenceNPC, tmpPath, new Dictionary<string, dynamic>(), parent.LinkCache, true, _logger.GetNPCLogNameString(referenceNPC), out var subObj))

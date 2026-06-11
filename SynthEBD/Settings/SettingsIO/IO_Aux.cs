@@ -132,7 +132,7 @@ public class IO_Aux
 
         // Show open file dialog box
         bool? result = dialog.ShowDialog();
-        path = dialog.FileName;
+        path = (result ?? false) ? dialog.FileName : string.Empty; // don't hand back a path the user cancelled
         return result ?? false;
     }
 
