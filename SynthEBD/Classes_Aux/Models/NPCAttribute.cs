@@ -268,34 +268,36 @@ public enum AttributeForcing
     ForceIfAndRestrict
 }
 
-/// <summary>Matches NPCs whose Class record is among <see cref="FormKeys"/>.</summary>
-[DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeClass : ITypedNPCAttribute
+/// <summary>
+/// Shared base for the "plain" FormKey-set attribute kinds (Class, Race, Keyword, FaceTexture, VoiceType,
+/// NPC): a <see cref="HashSet{T}"/> of <see cref="FormKey"/> matched with OR logic, plus the common
+/// Not/ForceMode/Weighting/Type fields and their value equality, hashing, blank check, and debugger string.
+/// Uses the curiously-recurring template pattern so equality is scoped to the concrete type
+/// (<typeparamref name="TSelf"/>). Subclasses supply the <see cref="ITypedNPCAttribute.Type"/> default (via
+/// their constructor), the display label, and <see cref="ToLogString"/> (which differs in the resolved record
+/// getter type). <see cref="NPCAttributeFactions"/> is deliberately NOT a member -- it adds RankMin/RankMax to
+/// its equality and clone.
+/// </summary>
+/// <typeparam name="TSelf">The concrete attribute type deriving from this base.</typeparam>
+public abstract class NPCAttributeFormKeyBase<TSelf> : ITypedNPCAttribute
+    where TSelf : NPCAttributeFormKeyBase<TSelf>
 {
     public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.Class;
+    public NPCAttributeType Type { get; set; }
     public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
     public int Weighting { get; set; } = 1;
     public bool Not { get; set; } = false;
+
+    /// <summary>The plural display label for this attribute kind (e.g. "Classes", "Races"), used by the debugger string.</summary>
+    protected abstract string PluralLabel { get; }
+
     [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "Classes: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "Classes: None";
-            }
-        }
-    }
+    public string DebuggerString => (Not ? "NOT " : "") + PluralLabel + ": " +
+        (FormKeys.Any() ? String.Join(", ", FormKeys.Select(x => x.ToString())) : "None");
 
     public bool Equals(ITypedNPCAttribute other)
     {
-        return other is NPCAttributeClass otherTyped
+        return other is TSelf otherTyped
             && this.Type == otherTyped.Type
             && this.Not == otherTyped.Not
             && this.ForceMode == otherTyped.ForceMode
@@ -303,7 +305,7 @@ public class NPCAttributeClass : ITypedNPCAttribute
             && this.FormKeys.SetEquals(otherTyped.FormKeys);
     }
 
-    public override bool Equals(object? obj) => obj is NPCAttributeClass other && Equals(other);
+    public override bool Equals(object? obj) => obj is TSelf other && Equals(other);
 
     public override int GetHashCode()
     {
@@ -319,35 +321,47 @@ public class NPCAttributeClass : ITypedNPCAttribute
         return !FormKeys.Any();
     }
 
+    /// <summary>Copies the shared FormKey-set fields (deep-copying <see cref="FormKeys"/>) into <paramref name="target"/>; used by the typed <c>CloneAsNew</c> factories.</summary>
+    protected void CopyBaseFieldsTo(TSelf target)
+    {
+        target.ForceMode = ForceMode;
+        target.Type = Type;
+        target.FormKeys = new HashSet<FormKey>(FormKeys);
+        target.Not = Not;
+        target.Weighting = Weighting;
+    }
+
+    /// <summary>Formats the shared "{NOT }Label: [a, b, ...]" log representation, resolving each FormKey via
+    /// <paramref name="detailedResolver"/> when <paramref name="bDetailedAttributes"/> is set.</summary>
+    protected string FormatLog(string label, bool bDetailedAttributes, ILinkCache linkCache, Func<FormKey, ILinkCache, string> detailedResolver)
+    {
+        string inner = bDetailedAttributes
+            ? string.Join(", ", FormKeys.Select(x => detailedResolver(x, linkCache)))
+            : string.Join(", ", FormKeys.Select(x => x.ToString()));
+        return (Not ? "NOT " : "") + label + ": [" + inner + "]";
+    }
+
+    public abstract string ToLogString(bool bDetailedAttributes, ILinkCache linkCache);
+}
+
+/// <summary>Matches NPCs whose Class record is among its <c>FormKeys</c>.</summary>
+[DebuggerDisplay("{DebuggerString}")]
+public class NPCAttributeClass : NPCAttributeFormKeyBase<NPCAttributeClass>
+{
+    /// <summary>Creates a Class attribute.</summary>
+    public NPCAttributeClass() { Type = NPCAttributeType.Class; }
+    protected override string PluralLabel => "Classes";
+
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation), safe for duplication in the UI.</summary>
     public static NPCAttributeClass CloneAsNew(NPCAttributeClass input)
     {
         var output = new NPCAttributeClass();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "Class: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "Class: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("Class", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringUnnamed<IClassGetter>);
 }
 
 /// <summary>Matches NPCs by a custom record-path comparison: the value at <see cref="Path"/> compared (per <see cref="CustomType"/> and <see cref="Comparator"/>) against <see cref="ValueStr"/> or <see cref="ValueFKs"/>.</summary>
@@ -557,247 +571,62 @@ public class NPCAttributeFactions : ITypedNPCAttribute
 
 /// <summary>Matches NPCs whose head FaceTexture (texture set) is among <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeFaceTexture : ITypedNPCAttribute
+public class NPCAttributeFaceTexture : NPCAttributeFormKeyBase<NPCAttributeFaceTexture>
 {
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.FaceTexture;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-    public bool Not { get; set; } = false;
-    [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "Face Textures: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "Face Textures: None";
-            }
-        }
-    }
-
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        return other is NPCAttributeFaceTexture otherTyped
-            && this.Type == otherTyped.Type
-            && this.Not == otherTyped.Not
-            && this.ForceMode == otherTyped.ForceMode
-            && this.Weighting == otherTyped.Weighting
-            && this.FormKeys.SetEquals(otherTyped.FormKeys);
-    }
-
-    public override bool Equals(object? obj) => obj is NPCAttributeFaceTexture other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
-            Not.GetHashCode();
-    }
-
-    public bool IsBlank()
-    {
-        return !FormKeys.Any();
-    }
+    /// <summary>Creates a FaceTexture attribute.</summary>
+    public NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture; }
+    protected override string PluralLabel => "Face Textures";
 
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeFaceTexture CloneAsNew(NPCAttributeFaceTexture input)
     {
         var output = new NPCAttributeFaceTexture();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "Face Texture: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "Face Texture: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("Face Texture", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringUnnamed<ITextureSetGetter>);
 }
 
 /// <summary>Matches NPCs carrying any of the keywords in <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeKeyword : ITypedNPCAttribute
+public class NPCAttributeKeyword : NPCAttributeFormKeyBase<NPCAttributeKeyword>
 {
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.Keyword;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-    public bool Not { get; set; } = false;
-    [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "Keywords: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "Keywords: None";
-            }
-        }
-    }
-
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        return other is NPCAttributeKeyword otherTyped
-            && this.Type == otherTyped.Type
-            && this.Not == otherTyped.Not
-            && this.ForceMode == otherTyped.ForceMode
-            && this.Weighting == otherTyped.Weighting
-            && this.FormKeys.SetEquals(otherTyped.FormKeys);
-    }
-
-    public override bool Equals(object? obj) => obj is NPCAttributeKeyword other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        return NPCAttribute.OrderIndependentHash(FormKeys) ^
-            Type.GetHashCode() ^
-            ForceMode.GetHashCode() ^
-            Weighting.GetHashCode() ^
-            Not.GetHashCode();
-    }
-
-    public bool IsBlank()
-    {
-        return !FormKeys.Any();
-    }
+    /// <summary>Creates a Keyword attribute.</summary>
+    public NPCAttributeKeyword() { Type = NPCAttributeType.Keyword; }
+    protected override string PluralLabel => "Keywords";
 
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeKeyword CloneAsNew(NPCAttributeKeyword input)
     {
         var output = new NPCAttributeKeyword();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "Keyword: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IKeywordGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "Keyword: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("Keyword", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringUnnamed<IKeywordGetter>);
 }
 
 /// <summary>Matches NPCs of any race in <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeRace : ITypedNPCAttribute
+public class NPCAttributeRace : NPCAttributeFormKeyBase<NPCAttributeRace>
 {
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.Race;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-    public bool Not { get; set; } = false;
-    [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "Races: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "Races: None";
-            }
-        }
-    }
+    /// <summary>Creates a Race attribute.</summary>
+    public NPCAttributeRace() { Type = NPCAttributeType.Race; }
+    protected override string PluralLabel => "Races";
 
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        return other is NPCAttributeRace otherTyped
-            && this.Type == otherTyped.Type
-            && this.Not == otherTyped.Not
-            && this.ForceMode == otherTyped.ForceMode
-            && this.Weighting == otherTyped.Weighting
-            && this.FormKeys.SetEquals(otherTyped.FormKeys);
-    }
-
-    public override bool Equals(object? obj) => obj is NPCAttributeRace other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
-            Not.GetHashCode();
-    }
-
-    public bool IsBlank()
-    {
-        return !FormKeys.Any();
-    }
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeRace CloneAsNew(NPCAttributeRace input)
     {
         var output = new NPCAttributeRace();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "Race: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "Race: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("Race", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringNamed<IRaceGetter>);
 }
 
 /// <summary>Matches NPCs by miscellaneous flags/traits (unique, essential, protected, summonable, ghost, invulnerable) and optionally mood, aggression, and gender.</summary>
@@ -1015,164 +844,42 @@ public class NPCAttributeMod : ITypedNPCAttribute
 
 /// <summary>Matches specific NPCs by FormKey (<see cref="FormKeys"/>).</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeNPC : ITypedNPCAttribute
+public class NPCAttributeNPC : NPCAttributeFormKeyBase<NPCAttributeNPC>
 {
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.NPC;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-    public bool Not { get; set; } = false;
-    [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "NPCs: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "NPCs: None";
-            }
-        }
-    }
+    /// <summary>Creates an NPC attribute.</summary>
+    public NPCAttributeNPC() { Type = NPCAttributeType.NPC; }
+    protected override string PluralLabel => "NPCs";
 
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        return other is NPCAttributeNPC otherTyped
-            && this.Type == otherTyped.Type
-            && this.Not == otherTyped.Not
-            && this.ForceMode == otherTyped.ForceMode
-            && this.Weighting == otherTyped.Weighting
-            && this.FormKeys.SetEquals(otherTyped.FormKeys);
-    }
-
-    public override bool Equals(object? obj) => obj is NPCAttributeNPC other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
-            Not.GetHashCode();
-    }
-
-    public bool IsBlank()
-    {
-        return !FormKeys.Any();
-    }
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeNPC CloneAsNew(NPCAttributeNPC input)
     {
         var output = new NPCAttributeNPC();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "NPC: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringNamed<INpcGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "NPC: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("NPC", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringNamed<INpcGetter>);
 }
 
 /// <summary>Matches NPCs whose voice type is among <see cref="FormKeys"/>.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class NPCAttributeVoiceType : ITypedNPCAttribute
+public class NPCAttributeVoiceType : NPCAttributeFormKeyBase<NPCAttributeVoiceType>
 {
-    public HashSet<FormKey> FormKeys { get; set; } = new();
-    public NPCAttributeType Type { get; set; } = NPCAttributeType.VoiceType;
-    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
-    public int Weighting { get; set; } = 1;
-    public bool Not { get; set; } = false;
-    [JsonIgnore]
-    public string DebuggerString
-    {
-        get
-        {
-            if (FormKeys.Any())
-            {
-                return (Not ? "NOT " : "") + "Voice Types: " + String.Join(", ", FormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (Not ? "NOT " : "") + "Voice Types: None";
-            }
-        }
-    }
+    /// <summary>Creates a VoiceType attribute.</summary>
+    public NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType; }
+    protected override string PluralLabel => "Voice Types";
 
-    public bool Equals(ITypedNPCAttribute other)
-    {
-        return other is NPCAttributeVoiceType otherTyped
-            && this.Type == otherTyped.Type
-            && this.Not == otherTyped.Not
-            && this.ForceMode == otherTyped.ForceMode
-            && this.Weighting == otherTyped.Weighting
-            && this.FormKeys.SetEquals(otherTyped.FormKeys);
-    }
-
-    public override bool Equals(object? obj) => obj is NPCAttributeVoiceType other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        return NPCAttribute.OrderIndependentHash(FormKeys) ^ 
-            Type.GetHashCode() ^ 
-            ForceMode.GetHashCode() ^ 
-            Weighting.GetHashCode() ^ 
-            Not.GetHashCode();
-    }
-
-    public bool IsBlank()
-    {
-        return !FormKeys.Any();
-    }
     /// <summary>Returns an independent copy of the given attribute (deep-copies its collection and copies the Not negation).</summary>
     public static NPCAttributeVoiceType CloneAsNew(NPCAttributeVoiceType input)
     {
         var output = new NPCAttributeVoiceType();
-        output.ForceMode = input.ForceMode;
-        output.Type = input.Type;
-        output.FormKeys = new HashSet<FormKey>(input.FormKeys);
-        output.Not = input.Not;
-        output.Weighting = input.Weighting;
+        input.CopyBaseFieldsTo(output);
         return output;
     }
 
-    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
-    {
-        string logStr = "";
-        if (Not)
-        {
-            logStr += "NOT ";
-        }
-
-        if (bDetailedAttributes)
-        {
-            return logStr + "VoiceType: [" + string.Join(", ", FormKeys.Select(x => NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>(x, linkCache))) + "]";
-        }
-        else
-        {
-            return logStr + "VoiceType: [" + string.Join(", ", FormKeys.Select(x => x.ToString())) + "]";
-        }
-    }
+    public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+        => FormatLog("VoiceType", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>);
 }
 
 /// <summary>Matches NPCs that satisfy any of the attribute groups named in <see cref="SelectedLabels"/> (resolved by label at match time).</summary>
