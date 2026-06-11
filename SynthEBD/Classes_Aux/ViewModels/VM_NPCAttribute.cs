@@ -497,57 +497,78 @@ public interface ISubAttributeViewModel
     public string DebuggerString { get; }
 }
 
-/// <summary>Sub-attribute VM matching NPCs whose voice type is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
+/// <summary>
+/// Shared base for the FormKey-set sub-attribute VMs (Class, Race, Keyword, FaceTexture, VoiceType, NPC):
+/// an editable <see cref="ObservableCollection{T}"/> of <see cref="FormKey"/> (bound by the views as
+/// <c>FormKeys</c>) plus the common parent/shell back-references, link-cache tracking, delete command, and
+/// debugger string. Subclasses supply the allowed record types, the display label, and the static model
+/// round-trip helpers. <see cref="VM_NPCAttributeFactions"/> stays standalone (it adds a rank range).
+/// </summary>
+/// <typeparam name="TSelf">The concrete sub-attribute VM deriving from this base.</typeparam>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
+public abstract class VM_NPCAttributeFormKeyBase<TSelf> : VM, ISubAttributeViewModel
+    where TSelf : VM_NPCAttributeFormKeyBase<TSelf>
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
-    private readonly Factory _selfFactory;
-    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
-    public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (which removes this shell and the parent condition once it is left empty).</summary>
-    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+    protected readonly IEnvironmentStateProvider _environmentProvider;
+
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
+    protected VM_NPCAttributeFormKeyBase(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider)
     {
         _environmentProvider = environmentProvider;
-        _selfFactory = selfFactory;
-
         ParentVM = parentVM;
         ParentShell = parentShell;
-        DeleteCommand = new RelayCommand(
-            canExecute: _ => true, 
-            execute: _ => 
-            { 
-                parentVM.GroupedSubAttributes.Remove(parentShell);
-                if (parentVM.GroupedSubAttributes.Count == 0)
-                {
-                    parentVM.ParentCollection.Remove(parentVM);
-                }
-            }) ;
-        
+
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => OnDelete(parentVM, parentShell));
     }
-    public ObservableCollection<FormKey> VoiceTypeFormKeys { get; set; } = new();
+
+    /// <summary>Removes this sub-attribute's shell from its parent condition. Overridable so a subclass can add
+    /// cleanup (e.g. removing the parent condition once it has no remaining sub-attributes).</summary>
+    protected virtual void OnDelete(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        parentVM.GroupedSubAttributes.Remove(parentShell);
+    }
+
+    public ObservableCollection<FormKey> FormKeys { get; set; } = new();
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    
     public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IVoiceTypeGetter).AsEnumerable();
+    public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
     public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public string DebuggerString
+
+    /// <summary>The plural display label for this attribute kind (e.g. "Classes", "Races").</summary>
+    protected abstract string PluralLabel { get; }
+
+    public string DebuggerString => (ParentShell.Not ? "NOT " : "") + PluralLabel + ": " +
+        (FormKeys.Any() ? String.Join(", ", FormKeys.Select(x => x.ToString())) : "None");
+}
+
+/// <summary>Sub-attribute VM matching NPCs whose voice type is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
+[DebuggerDisplay("{DebuggerString}")]
+public class VM_NPCAttributeVoiceType : VM_NPCAttributeFormKeyBase<VM_NPCAttributeVoiceType>
+{
+    private readonly Factory _selfFactory;
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
+    public delegate VM_NPCAttributeVoiceType Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (which also removes the parent condition once it is left empty).</summary>
+    public VM_NPCAttributeVoiceType(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        get
+        _selfFactory = selfFactory;
+        AllowedFormKeyTypes = typeof(IVoiceTypeGetter).AsEnumerable();
+    }
+    protected override string PluralLabel => "Voice Types";
+
+    /// <summary>Also removes the parent condition once its last sub-attribute is deleted.</summary>
+    protected override void OnDelete(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell)
+    {
+        parentVM.GroupedSubAttributes.Remove(parentShell);
+        if (parentVM.GroupedSubAttributes.Count == 0)
         {
-            if (VoiceTypeFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Voice Types: " + String.Join(", ", VoiceTypeFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Voice Types: None";
-            }
+            parentVM.ParentCollection.Remove(parentVM);
         }
     }
 
@@ -555,7 +576,7 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
     public static VM_NPCAttributeVoiceType GetViewModelFromModel(NPCAttributeVoiceType model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeVoiceType.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.VoiceTypeFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
@@ -563,68 +584,39 @@ public class VM_NPCAttributeVoiceType : VM, ISubAttributeViewModel
     /// <summary>Serializes this VoiceType sub-attribute (with the shell's forcing mode, weight, and negation) back to an <see cref="NPCAttributeVoiceType"/> model.</summary>
     public static NPCAttributeVoiceType DumpViewModelToModel(VM_NPCAttributeVoiceType viewModel, string forceModeStr)
     {
-        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.VoiceTypeFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeVoiceType() { Type = NPCAttributeType.VoiceType, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
 /// <summary>Sub-attribute VM matching NPCs whose Class record is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeClass : VM, ISubAttributeViewModel
+public class VM_NPCAttributeClass : VM_NPCAttributeFormKeyBase<VM_NPCAttributeClass>
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeClass Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeClass(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
-        ParentVM = parentVM;
-        ParentShell = parentShell;
-        
-        _environmentProvider.WhenAnyValue(x => x.LinkCache)
-            .Subscribe(x => lk = x)
-            .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AllowedFormKeyTypes = typeof(IClassGetter).AsEnumerable();
     }
-    public ObservableCollection<FormKey> ClassFormKeys { get; set; } = new();
-    public VM_NPCAttribute ParentVM { get; set; }
-    public VM_NPCAttributeShell ParentShell { get; set; }
-    public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IClassGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    protected override string PluralLabel => "Classes";
 
-    public string DebuggerString
-    {
-        get
-        {
-            if (ClassFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Classes: " + String.Join(", ", ClassFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Classes: None";
-            }
-        }
-    }
-
-    /// <summary>Builds a Class sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
+    /// <summary>Builds a sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeClass GetViewModelFromModel(NPCAttributeClass model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeClass.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.ClassFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
     }
-
-    /// <summary>Serializes this Class sub-attribute (with the shell's forcing mode, weight, and negation) back to an <see cref="NPCAttributeClass"/> model.</summary>
+    /// <summary>Serializes this sub-attribute (with the shell's forcing mode, weight, and negation) back to its <see cref="NPCAttributeClass"/> model.</summary>
     public static NPCAttributeClass DumpViewModelToModel(VM_NPCAttributeClass viewModel, string forceModeStr)
     {
-        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.ClassFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeClass() { Type = NPCAttributeType.Class, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -928,183 +920,97 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 
 /// <summary>Sub-attribute VM matching NPCs whose head FaceTexture (texture set) is among the selected FormKeys. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeFaceTexture : VM, ISubAttributeViewModel
+public class VM_NPCAttributeFaceTexture : VM_NPCAttributeFormKeyBase<VM_NPCAttributeFaceTexture>
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeFaceTexture Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeFaceTexture(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
-        ParentVM = parentVM;
-        ParentShell = parentShell;
-        
-        _environmentProvider.WhenAnyValue(x => x.LinkCache)
-            .Subscribe(x => lk = x)
-            .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AllowedFormKeyTypes = typeof(ITextureSetGetter).AsEnumerable();
     }
-    public ObservableCollection<FormKey> FaceTextureFormKeys { get; set; } = new();
-    public VM_NPCAttribute ParentVM { get; set; }
-    public VM_NPCAttributeShell ParentShell { get; set; }
-    public RelayCommand DeleteCommand { get; }
+    protected override string PluralLabel => "Face Textures";
 
-    public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(ITextureSetGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public string DebuggerString
-    {
-        get
-        {
-            if (FaceTextureFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Face Textures: " + String.Join(", ", FaceTextureFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Face Textures: None";
-            }
-        }
-    }
-
-    /// <summary>Builds a FaceTexture sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
+    /// <summary>Builds a sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeFaceTexture GetViewModelFromModel(NPCAttributeFaceTexture model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeFaceTexture.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.FaceTextureFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
     }
-
-    /// <summary>Serializes this FaceTexture sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeFaceTexture"/> model.</summary>
+    /// <summary>Serializes this sub-attribute (with the shell's forcing mode, weight, and negation) back to its <see cref="NPCAttributeFaceTexture"/> model.</summary>
     public static NPCAttributeFaceTexture DumpViewModelToModel(VM_NPCAttributeFaceTexture viewModel, string forceModeStr)
     {
-        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FaceTextureFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeFaceTexture() { Type = NPCAttributeType.FaceTexture, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
 /// <summary>Sub-attribute VM matching NPCs that carry any of the selected keywords. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeKeyword : VM, ISubAttributeViewModel
+public class VM_NPCAttributeKeyword : VM_NPCAttributeFormKeyBase<VM_NPCAttributeKeyword>
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeKeyword Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeKeyword(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
-        ParentVM = parentVM;
-        ParentShell = parentShell;
-
-        _environmentProvider.WhenAnyValue(x => x.LinkCache)
-            .Subscribe(x => lk = x)
-            .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AllowedFormKeyTypes = typeof(IKeywordGetter).AsEnumerable();
     }
-    public ObservableCollection<FormKey> KeywordFormKeys { get; set; } = new();
-    public VM_NPCAttribute ParentVM { get; set; }
-    public VM_NPCAttributeShell ParentShell { get; set; }
-    public RelayCommand DeleteCommand { get; }
+    protected override string PluralLabel => "Keywords";
 
-    public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IKeywordGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public string DebuggerString
-    {
-        get
-        {
-            if (KeywordFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Keywords: " + String.Join(", ", KeywordFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Keywords: None";
-            }
-        }
-    }
-
-    /// <summary>Builds a Keyword sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
+    /// <summary>Builds a sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeKeyword GetViewModelFromModel(NPCAttributeKeyword model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeKeyword.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.KeywordFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
     }
-    /// <summary>Serializes this Keyword sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeKeyword"/> model.</summary>
+    /// <summary>Serializes this sub-attribute (with the shell's forcing mode, weight, and negation) back to its <see cref="NPCAttributeKeyword"/> model.</summary>
     public static NPCAttributeKeyword DumpViewModelToModel(VM_NPCAttributeKeyword viewModel, string forceModeStr)
     {
-        return new NPCAttributeKeyword() { Type = NPCAttributeType.Keyword, FormKeys = viewModel.KeywordFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeKeyword() { Type = NPCAttributeType.Keyword, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
 /// <summary>Sub-attribute VM matching NPCs of any of the selected races. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeRace : VM, ISubAttributeViewModel
+public class VM_NPCAttributeRace : VM_NPCAttributeFormKeyBase<VM_NPCAttributeRace>
 {
-    private IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeRace Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeRace(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
-        ParentVM = parentVM;
-        ParentShell = parentShell;
-
-        _environmentProvider.WhenAnyValue(x => x.LinkCache)
-            .Subscribe(x => lk = x)
-            .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AllowedFormKeyTypes = typeof(IRaceGetter).AsEnumerable();
     }
-    public ObservableCollection<FormKey> RaceFormKeys { get; set; } = new();
-    public VM_NPCAttribute ParentVM { get; set; }
-    public VM_NPCAttributeShell ParentShell { get; set; }
-    public RelayCommand DeleteCommand { get; }
+    protected override string PluralLabel => "Races";
 
-    public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IRaceGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public string DebuggerString
-    {
-        get
-        {
-            if (RaceFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Races: " + String.Join(", ", RaceFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "Races: None";
-            }
-        }
-    }
-
-    /// <summary>Builds a Race sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
+    /// <summary>Builds a sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeRace GetViewModelFromModel(NPCAttributeRace model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeRace.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.RaceFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
     }
-
-    /// <summary>Serializes this Race sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeRace"/> model.</summary>
+    /// <summary>Serializes this sub-attribute (with the shell's forcing mode, weight, and negation) back to its <see cref="NPCAttributeRace"/> model.</summary>
     public static NPCAttributeRace DumpViewModelToModel(VM_NPCAttributeRace viewModel, string forceModeStr)
     {
-        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.RaceFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeRace() { Type = NPCAttributeType.Race, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
@@ -1282,61 +1188,33 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
 
 /// <summary>Sub-attribute VM matching the specific NPCs selected by FormKey. See <see cref="ISubAttributeViewModel"/> for the shared contract.</summary>
 [DebuggerDisplay("{DebuggerString}")]
-public class VM_NPCAttributeNPC : VM, ISubAttributeViewModel
+public class VM_NPCAttributeNPC : VM_NPCAttributeFormKeyBase<VM_NPCAttributeNPC>
 {
-    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Factory _selfFactory;
     /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell.</summary>
     public delegate VM_NPCAttributeNPC Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell);
-    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command (removes this shell from the parent condition).</summary>
+    /// <summary>Stores the parent condition/shell, tracks the link cache, and wires the delete command.</summary>
     public VM_NPCAttributeNPC(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, IEnvironmentStateProvider environmentProvider, Factory selfFactory)
+        : base(parentVM, parentShell, environmentProvider)
     {
-        _environmentProvider = environmentProvider;
         _selfFactory = selfFactory;
-
-        ParentVM = parentVM;
-        ParentShell = parentShell;
-        
-        _environmentProvider.WhenAnyValue(x => x.LinkCache)
-            .Subscribe(x => lk = x)
-            .DisposeWith(this);
-        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AllowedFormKeyTypes = typeof(INpcGetter).AsEnumerable();
     }
-    public ObservableCollection<FormKey> NPCFormKeys { get; set; } = new();
-    public VM_NPCAttribute ParentVM { get; set; }
-    public VM_NPCAttributeShell ParentShell { get; set; }
-    public RelayCommand DeleteCommand { get; }
-    public ILinkCache lk { get; private set; }
-    public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
-    public string DebuggerString
-    {
-        get
-        {
-            if (NPCFormKeys.Any())
-            {
-                return (ParentShell.Not ? "NOT " : "") + "NPCs: " + String.Join(", ", NPCFormKeys.Select(x => x.ToString()));
-            }
-            else
-            {
-                return (ParentShell.Not ? "NOT " : "") + "NPCs: None";
-            }
-        }
-    }
+    protected override string PluralLabel => "NPCs";
 
-    /// <summary>Builds an NPC sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
+    /// <summary>Builds a sub-attribute VM from its model, copying the FormKeys, weight, and negation onto the shell.</summary>
     public static VM_NPCAttributeNPC GetViewModelFromModel(NPCAttributeNPC model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, VM_NPCAttributeNPC.Factory factory)
     {
         var newAtt = factory(parentVM, parentShell);
-        newAtt.NPCFormKeys = new ObservableCollection<FormKey>(model.FormKeys);
+        newAtt.FormKeys = new ObservableCollection<FormKey>(model.FormKeys);
         parentShell.ForceIfWeight = model.Weighting;
         parentShell.Not = model.Not;
         return newAtt;
     }
-    /// <summary>Serializes this NPC sub-attribute (FormKeys and the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeNPC"/> model.</summary>
+    /// <summary>Serializes this sub-attribute (with the shell's forcing mode, weight, and negation) back to its <see cref="NPCAttributeNPC"/> model.</summary>
     public static NPCAttributeNPC DumpViewModelToModel(VM_NPCAttributeNPC viewModel, string forceModeStr)
     {
-        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.NPCFormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+        return new NPCAttributeNPC() { Type = NPCAttributeType.NPC, FormKeys = viewModel.FormKeys.ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
     }
 }
 
