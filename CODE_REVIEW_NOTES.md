@@ -934,7 +934,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   *Test:* new `GetPathFromTypeStringTests` (heads pinned to literal paths, body aliases to the consts, unknown
   -> ""). (Diff has 8 incidental empty-line CRLF normalizations -- pre-existing blob stray-CRs, no semantic
   change.) Suite 246 / 1 skipped / 0 failed (+9).
-- [ ] **R4 -- `ProbabilityWeighting`** -- `Random.Shared` sweep + remove the unreachable int-only fallback. (RNG sequence changes, distribution does not.)
+- [x] **R4 -- `ProbabilityWeighting` -- DONE** (commit `b3ddd848`). Re-verify expanded the scope: the whole
+  non-generic `SelectByProbability(IEnumerable<IProbabilityWeighted>)` overload was **dead** (no callers --
+  B47a migrated its last caller, the asset seed selection, to the 2-arg generic overload). Its int-fallback was
+  unreachable (non-negative weights -> loop always returns; final `currentWeight == totalWeight >= randomCap`)
+  AND broken (`HashSet<int>` dedups -> uniform pick, not weighted). Deleted the whole dead overload (per user,
+  option A); the `IProbabilityWeighted` interface stays (live weight-property contract on 10+ types). In the
+  live generic `SelectByProbability<T>`, `new Random()` -> `Random.Shared` (no per-call alloc, idiomatic) -- RNG
+  sequence changes, distribution does not. **Not** a correctness fix: the same-seed-in-a-loop hazard is a .NET
+  Framework issue; on net8.0 each parameterless `Random` seeds independently. Behaviour-preserving (dead-code
+  deletion + distribution-equivalent RNG); the integration `ProbabilityWeightingTests` stays green. Suite 246 /
+  1 skipped / 0 failed.
 - [x] **R5 -- MOOT, dead code DELETED instead** (commit `3a44a98c`). Re-verification: `LoadDdsTextureViaPfim`
   + `LoadDdsPixels` lived only in `NifTextureLoader.cs`, a HelixToolkit-era leftover already
   `<Compile Remove>`-excluded from the build (replaced by the OpenGL `GlTextureManager`/`CharacterPreviewCache`
@@ -2016,7 +2026,13 @@ per-head-part-type loop does `if (blockedPlugin.HeadPartTypes[t]) output[t] = tr
 — the `else` **overwrites** a block set by an earlier plugin, so a later plugin that blocks HeadParts but
 not a given type clears that type's block. Should set true with no else (or `|=`).
 
-### `ProbabilityWeighting` — 🔧 / 💭 (per-call Random + dead fallback)
+### ✅ RESOLVED — see Bucket 3 §R4 · `ProbabilityWeighting` — 🔧 / 💭 (per-call Random + dead fallback)
+
+**RESOLVED (§R4, commit `b3ddd848`):** the entire first (non-generic) overload was dead (no callers post-B47a)
+and was deleted -- removing the unreachable+broken int-fallback and two of the three `new Random()` sites; the
+live generic overload now uses `Random.Shared`. (Note: the time-seeded-correlation concern below is a .NET
+Framework issue and does not apply on net8.0; the change is modernization, not a correctness fix.) Original
+note follows.
 
 [ProbabilityWeighting.cs:28](SynthEBD/Patcher/Shared/ProbabilityWeighting.cs#L28),
 [:53](SynthEBD/Patcher/Shared/ProbabilityWeighting.cs#L53),
