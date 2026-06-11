@@ -203,14 +203,8 @@ public sealed class Logger : VM
     public void UpdateStatus(string message, bool triggerWarning) => Status.UpdateStatus(message, triggerWarning);
     /// <inheritdoc cref="LoggerStatusVM.UpdateStatus(string, SolidColorBrush)"/>
     public void UpdateStatus(string message, SolidColorBrush newColor) => Status.UpdateStatus(message, newColor);
-    /// <inheritdoc cref="LoggerStatusVM.UpdateStatusAsync"/>
-    public async Task UpdateStatusAsync(string message, bool triggerWarning) => await Status.UpdateStatusAsync(message, triggerWarning);
-    /// <inheritdoc cref="LoggerStatusVM.ArchiveStatusAsync"/>
-    public async Task ArchiveStatusAsync() => await Status.ArchiveStatusAsync();
     /// <inheritdoc cref="LoggerStatusVM.ArchiveStatus"/>
     public void ArchiveStatus() => Status.ArchiveStatus();
-    /// <inheritdoc cref="LoggerStatusVM.UnarchiveStatusAsync"/>
-    public async Task UnarchiveStatusAsync() => await Status.UnarchiveStatusAsync();
     /// <inheritdoc cref="LoggerStatusVM.UnarchiveStatus"/>
     public void UnarchiveStatus() => Status.UnarchiveStatus();
     /// <inheritdoc cref="LoggerStatusVM.CallTimedLogErrorWithStatusUpdateAsync"/>

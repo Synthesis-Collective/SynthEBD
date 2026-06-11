@@ -151,56 +151,11 @@ public sealed class LoggerStatusVM : VM
         StatusColor = newColor;
     }
 
-    /// <summary>Asynchronously sets the status text (optionally as a warning) by offloading to a background task.</summary>
-    /// <param name="message">Status text.</param>
-    /// <param name="triggerWarning">When <c>true</c>, sets the warning color.</param>
-    public async Task UpdateStatusAsync(string message, bool triggerWarning)
-    {
-        await Task.Run(() => _UpdateStatusAsync(message, triggerWarning));
-    }
-
-    /// <summary>Worker for <see cref="UpdateStatusAsync"/>; sets the status fields (no awaitable work — runs synchronously inside the offloaded task).</summary>
-    /// <param name="message">Status text.</param>
-    /// <param name="triggerWarning">When <c>true</c>, sets the warning color.</param>
-    private async Task _UpdateStatusAsync(string message, bool triggerWarning)
-    {
-        StatusString = message;
-        if (triggerWarning)
-        {
-            StatusColor = WarningColor;
-        }
-    }
-
-    /// <summary>Asynchronously snapshots the current status text/color into the backup fields.</summary>
-    public async Task ArchiveStatusAsync()
-    {
-        await Task.Run(() => _ArchiveStatusAsync());
-    }
-
-    /// <summary>Worker for <see cref="ArchiveStatusAsync"/>; copies the status into the backup fields.</summary>
-    private async Task _ArchiveStatusAsync()
-    {
-        BackupStatusString = StatusString;
-        BackupStatusColor = StatusColor;
-    }
     /// <summary>Snapshots the current status text/color into the backup fields so it can be restored later.</summary>
     public void ArchiveStatus()
     {
         BackupStatusString = StatusString;
         BackupStatusColor = StatusColor;
-    }
-
-    /// <summary>Asynchronously restores the status text/color from the backup fields.</summary>
-    public async Task UnarchiveStatusAsync()
-    {
-        await Task.Run(() => _DeArchiveStatusAsync());
-    }
-
-    /// <summary>Worker for <see cref="UnarchiveStatusAsync"/>; restores the status from the backup fields.</summary>
-    private async Task _DeArchiveStatusAsync()
-    {
-        StatusString = BackupStatusString;
-        StatusColor = BackupStatusColor;
     }
 
     /// <summary>Restores the status text/color from the backup fields.</summary>
