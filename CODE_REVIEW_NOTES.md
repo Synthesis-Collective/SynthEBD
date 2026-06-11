@@ -1015,8 +1015,12 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   ParentVM/ParentShell/DeleteCommand/lk/NeedsRefresh/AllowedFormKeyTypes + DebuggerString). **Key risk handled:**
   each `XFormKeys` collection (XAML-bound) was renamed to one shared `FormKeys`, and the 6 `UC_NPCAttributeX.xaml`
   bindings updated **in lockstep** (grep-verified: 6 `{Binding FormKeys}`, 0 stray; Faction/Custom untouched).
-  The `DeleteCommand` divergence (only VoiceType also removes the empty parent) is preserved via a `virtual
-  OnDelete` the base ctor wires (VoiceType overrides). `AllowedFormKeyTypes` set per-subclass ctor; `PluralLabel`
+  The `DeleteCommand` divergence (only VoiceType also removed the empty parent) was initially preserved via a
+  `virtual OnDelete`, then **dropped in follow-up `4687cd46`**: that branch was both DEAD (the typed-VM
+  `DeleteCommand` is bound by no view -- the delete button uses the *shell's* `DeleteCommand`) and REDUNDANT
+  (empty-condition cleanup is centralized in `VM_NPCAttribute.TrimEmptyAttributes()`, auto-fired on every
+  `GroupedSubAttributes` change). So the base ctor now wires the plain `Remove(parentShell)` and VoiceType is
+  uniform with the other 5 -- a one-off copy-paste leftover removed. `AllowedFormKeyTypes` set per-subclass ctor; `PluralLabel`
   + static `Get/DumpViewModelToModel` stay per-subclass. `VM_NPCAttributeFactions` standalone (rank range);
   dispatcher untouched. Net **-122 lines**. Behavior-preserving on the C# side (build + suite 246/1/0); the
   FormKey-picker bindings are **manual-verify** (rename done in lockstep + grep-verified, but no UI test).
