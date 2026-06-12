@@ -47,10 +47,8 @@ namespace SynthEBD
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptorsFemale { get; set; } = new();
         public DescriptorMatchMode DisallowedBodyGenDescriptorMatchModeFemale { get; set; } = DescriptorMatchMode.Any;
 
-        /// <summary>Runtime count of ForceIf attributes matched on the current NPC, used to rank candidates during patching (not serialized).</summary>
-        // used during patching
-        [Newtonsoft.Json.JsonIgnore]
-        public int MatchedForceIfCount { get; set; } = 0;
+        // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: head-part settings are
+        // shared settings-owned objects, so per-NPC scratch on them would block parallel selection.
 
         /// <summary>The head-part record resolved from <see cref="HeadPartFormKey"/>, cached during patching (not serialized).</summary>
         [Newtonsoft.Json.JsonIgnore]

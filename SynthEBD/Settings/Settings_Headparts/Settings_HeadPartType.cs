@@ -56,10 +56,8 @@ namespace SynthEBD
         public HashSet<BodyShapeDescriptor.LabelSignature> DisallowedBodyGenDescriptorsFemale { get; set; } = new();
         public DescriptorMatchMode DisallowedBodyGenDescriptorMatchModeFemale { get; set; } = DescriptorMatchMode.Any;
 
-        // populated during patching
-        /// <summary>Runtime count of matched ForceIf attributes, used for rule prioritization.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public int MatchedForceIfCount { get; set; } = 0;
+        // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: this type-level settings
+        // object is shared across NPCs, so per-NPC scratch on it would block parallel selection.
 
         /// <summary>Runtime cache: allowed BodySlide descriptors reshaped as category → values for fast lookup.</summary>
         [Newtonsoft.Json.JsonIgnore]

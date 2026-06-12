@@ -255,10 +255,10 @@ namespace SynthEBD
 
             IHeadPartGetter selectedHeadPart = null;
 
-            var forceIfHeadParts = availableHeadParts.Where(x => x.MatchedForceIfCount > 0).OrderBy(x => x.MatchedForceIfCount).ToArray();
+            var forceIfHeadParts = availableHeadParts.Where(x => npcInfo.ForceIfMatches.Get(x) > 0).OrderBy(x => npcInfo.ForceIfMatches.Get(x)).ToArray();
             if (forceIfHeadParts.Any())
             {
-                var forceIfHeadPartStrings = forceIfHeadParts.Select(x => (x.EditorID ?? x.HeadPartFormKey.ToString()) + ": " + x.MatchedForceIfCount).ToArray();
+                var forceIfHeadPartStrings = forceIfHeadParts.Select(x => (x.EditorID ?? x.HeadPartFormKey.ToString()) + ": " + npcInfo.ForceIfMatches.Get(x)).ToArray();
                 _logger.LogReport("The following headparts have matched ForceIf attributes:" + Environment.NewLine + String.Join(Environment.NewLine, forceIfHeadPartStrings), false, npcInfo);
                 selectedHeadPart = ChooseHeadPart(forceIfHeadParts, consistencyHeadPart, npcInfo, type, 100, out randomizedToNone);
             }
@@ -322,7 +322,7 @@ namespace SynthEBD
         /// <summary>
         /// Gates whether the NPC may receive any head part of this type, checking the type-level rules:
         /// random-allowed flag, gender, restrict-to-existing-type, unique/non-unique, allowed/disallowed
-        /// races, weight range, allowed/disallowed attributes (sets <c>MatchedForceIfCount</c>), and
+        /// races, weight range, allowed/disallowed attributes (tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>), and
         /// allowed/disallowed BodySlide and BodyGen descriptors.
         /// </summary>
         /// <returns>True if at least one head part of this type could be assigned; false if the whole type is disallowed.</returns>
@@ -417,7 +417,7 @@ namespace SynthEBD
             }
 
             // Allowed and Forced Attributes
-            currentSettings.MatchedForceIfCount = 0;
+            npcInfo.ForceIfMatches.Set(currentSettings, 0);
             _attributeMatcher.MatchNPCtoAttributeList(currentSettings.AllowedAttributes, npcInfo.NPC, npcInfo.HeadPartsRace, attributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
@@ -426,10 +426,10 @@ namespace SynthEBD
             }
             else
             {
-                currentSettings.MatchedForceIfCount = matchedForceIfWeightedCount;
+                npcInfo.ForceIfMatches.Set(currentSettings, matchedForceIfWeightedCount);
             }
 
-            if (currentSettings.MatchedForceIfCount > 0)
+            if (npcInfo.ForceIfMatches.Get(currentSettings) > 0)
             {
                 _logger.LogReport(type + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
             }
@@ -504,7 +504,7 @@ namespace SynthEBD
             }
 
             // must run after attribute matching above so the gate sees the current NPC's ForceIf match count (B59)
-            if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0)
+            if (!currentSettings.bAllowRandom && npcInfo.ForceIfMatches.Get(currentSettings) == 0)
             {
                 _logger.LogReport(type + " headparts will not be assigned because they can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;
@@ -516,7 +516,7 @@ namespace SynthEBD
 
         /// <summary>
         /// Per-candidate validity check: applies the same rule battery as <see cref="CanGetThisHeadPartType"/>
-        /// (random/unique/race/weight/attribute/descriptor rules, setting <c>MatchedForceIfCount</c>) to a
+        /// (random/unique/race/weight/attribute/descriptor rules, tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>) to a
         /// single <see cref="HeadPartSetting"/>. Specific NPC assignment short-circuits to valid.
         /// </summary>
         /// <returns>True if the candidate head part may be distributed to the NPC.</returns>
@@ -564,7 +564,7 @@ namespace SynthEBD
             }
 
             // Allowed and Forced Attributes
-            candidateHeadPart.MatchedForceIfCount = 0;
+            npcInfo.ForceIfMatches.Set(candidateHeadPart, 0);
             _attributeMatcher.MatchNPCtoAttributeList(candidateHeadPart.AllowedAttributes, npcInfo.NPC, npcInfo.HeadPartsRace, attributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
             if (hasAttributeRestrictions && !matchesAttributeRestrictions)
             {
@@ -573,10 +573,10 @@ namespace SynthEBD
             }
             else
             {
-                candidateHeadPart.MatchedForceIfCount = matchedForceIfWeightedCount;
+                npcInfo.ForceIfMatches.Set(candidateHeadPart, matchedForceIfWeightedCount);
             }
 
-            if (candidateHeadPart.MatchedForceIfCount > 0)
+            if (npcInfo.ForceIfMatches.Get(candidateHeadPart) > 0)
             {
                 _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
             }
@@ -650,7 +650,7 @@ namespace SynthEBD
             }
 
             // must run after attribute matching above so the gate sees the current NPC's ForceIf match count (B59)
-            if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
+            if (!candidateHeadPart.bAllowRandom && npcInfo.ForceIfMatches.Get(candidateHeadPart) == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
             {
                 _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
                 return false;

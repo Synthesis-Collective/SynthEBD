@@ -218,7 +218,6 @@ public class BodyGenSelector
                     _logger.LogReport(logStr, false, npcInfo);
                 }
             }
-            //_logger.LogReport("Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => x.MatchedForceIfCount).Select(x => x.Label + " (" + x.MatchedForceIfCount + ")")), false, npcInfo);
         }
 
         // Prefer the combinations with the highest ForceIf-match count, then pick ONE combination from that

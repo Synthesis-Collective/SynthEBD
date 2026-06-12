@@ -934,6 +934,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
   the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
   per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
+- [x] **R19 -- per-NPC ForceIf scratch relocated onto `NPCInfo.ForceIfMatches` -- DONE** (3 commits:
+  R19a asset side, R19b BodyGen/OBody/descriptors, R19c head parts). Deleted all six shared-object scratch
+  properties (`FlattenedSubgroup.ForceIfMatchCount`, `BodyGenTemplate`/`BodySlideSetting`/`HeadPartSetting`/
+  `Settings_HeadPartType.MatchedForceIfCount`, `BodyShapeDescriptorRules.MatchedForceIfCount`) and converted
+  every site -- compiler-enumerated -- to the new reference-keyed `ForceIfMatchTally` on `NPCInfo`
+  (per-NPC lifetime). `NPCisValid`/`PermitNPC` -> `out int matchedForceIfCount` (no descriptor mutation).
+  `GroupCombinationObject` build ctor takes the tally for `MaxMatchedForceIfAttributes`. All properties were
+  `[JsonIgnore]`/runtime-only -- no serialization surface. Behavior-preserving (same values, same points,
+  per-NPC keyed); B59 fixed the one ordering bug first so this relocation stayed mechanical. *Test:*
+  `ForceIfMatchTallyTests` (3 cases); integration AttributeGating/ProbabilityWeighting suites green.
+  Remaining parallelization blockers catalogued in the R19 entry. Suite 258 / 1 skipped / 0 failed.
 - [x] **B59 (LIVE; surfaced during R19 survey) -- stale `AllowRandom=false` ForceIf gates -- FIXED.** Three
   validity checks (`BodyGenSelector.MorphIsValid`, `HeadPartSelector.CanGetThisHeadPartType`,
   `HeadPartSelector.HeadPartIsValid`) read `MatchedForceIfCount` in their "only assignable via ForceIf"
@@ -1331,6 +1342,29 @@ selection extracted, and the backtrack index arithmetic (`i == 0 || (i == 1 && s
 `i - 2` to skip over the seed position) named or commented — it's correct but takes real effort
 to re-derive. `AssignmentIteration.RemainingVariantsByIndex` holds backtracking snapshots, not
 "remaining variants" — rename (e.g. `BacktrackSnapshotsByPosition`).
+
+### ✅ R19 — per-NPC ForceIf scratch state relocated off shared objects — 🔧 RESOLVED (ForceIfMatchTally on NPCInfo) — see Resolved §R19
+
+The first concrete parallelization-enabler: all four selectors wrote per-NPC ForceIf match counts
+onto **shared** objects (`FlattenedSubgroup.ForceIfMatchCount` — subgroups are shared across NPCs
+because `FlattenedAssetPack.ShallowCopy` copies list containers, not subgroups;
+`BodyGenTemplate`/`BodySlideSetting`/`HeadPartSetting`/`Settings_HeadPartType.MatchedForceIfCount` —
+config/settings-owned; `BodyShapeDescriptorRules.MatchedForceIfCount` — written by `NPCisValid`,
+read immediately by its two callers). Single-threaded today this worked (modulo B59); under
+parallel NPC selection every one of these is a data race.
+
+Resolution: new reference-keyed `ForceIfMatchTally` (`Dictionary<object,int>` +
+`ReferenceEqualityComparer`) exposed as `NPCInfo.ForceIfMatches` — per-NPC lifetime by
+construction. All six scratch properties **deleted** (compiler enumerated every site);
+`NPCisValid`/`PermitNPC` return the count via `out int` instead of mutating the descriptor (also
+closes the "`NPCisValid` mutates" 💭 flagged under Classes_Aux). `GroupCombinationObject`'s
+build-from-config ctor takes the tally to compute `MaxMatchedForceIfAttributes`.
+
+**Remaining parallelization blockers (out of scope here, catalogue for later):** the consistency
+dict backfill (`NPCInfo.ResolveConsistencyAssignment` writes `_patcherState.Consistency`; has an
+in-code THREADING note), `AssignmentCount` cumulative tallies (CombinationLog increments shared
+pack/subgroup counters), `Patcher.BodyGenTracker`/`BodySlideTracker` statics, `UniqueNPCData`
+founder tracking, and `Logger`/report single-threaded assumptions.
 
 ### ✅ B59 — `AllowRandom=false` gates read the previous evaluation's ForceIf count — 🐞 RESOLVED (gates moved after matching) — see Resolved §B59
 
