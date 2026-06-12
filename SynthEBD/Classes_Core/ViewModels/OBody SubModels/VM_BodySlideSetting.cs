@@ -495,6 +495,8 @@ public class VM_BodySlideSetting : VM
     public static SolidColorBrush BorderColorHidden = CommonColors.LightSlateGrey;
     public static SolidColorBrush BorderColorAnnotationRuleBased = CommonColors.MediumPurple;
     public static SolidColorBrush BorderColorAnnotationMixManual_RulesBased = new(Colors.Teal);
+    public static SolidColorBrush BorderColorAnnotationLibrary = new(Colors.CornflowerBlue);
+    public static SolidColorBrush BorderColorAnnotationClassifier = new(Colors.Orange);
 
     public VM_BodySlideSetting Clone()
     {
@@ -692,12 +694,18 @@ public class VM_BodySlideSetting : VM
         }
     }
 
+    // Must cover every BodyShapeAnnotationState member: UpdateTextColor (descriptor selectors/shells)
+    // and VM_BodySlidePlaceHolder.InitializeBorderColor index this directly, so a missing key throws
+    // as soon as a state first appears in the UI (e.g. Classifier during RefreshPreview).
     public static Dictionary<BodyShapeAnnotationState, SolidColorBrush> AnnotationToColor = new()
     {
         { BodyShapeAnnotationState.None, BorderColorUnannotated},
         { BodyShapeAnnotationState.RulesBased, BorderColorAnnotationRuleBased},
         { BodyShapeAnnotationState.Manual, BorderColorValid },
-        { BodyShapeAnnotationState.Mix_Manual_RulesBased, BorderColorAnnotationMixManual_RulesBased }
+        { BodyShapeAnnotationState.Mix_Manual_RulesBased, BorderColorAnnotationMixManual_RulesBased },
+        { BodyShapeAnnotationState.Library, BorderColorAnnotationLibrary },
+        { BodyShapeAnnotationState.Classifier, BorderColorAnnotationClassifier },
+        { BodyShapeAnnotationState.Mixed, BorderColorAnnotationMixManual_RulesBased }, // same brush as Mix_Manual_RulesBased (see UpdateStatusDisplay's shared case)
     };
 
     public void CopyInViewModelFromModel(BodySlideSetting model, int? preferredWeight = null)
