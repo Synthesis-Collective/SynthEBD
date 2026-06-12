@@ -1668,8 +1668,8 @@ public class VM_AssetPack : VM, IHasAttributeGroupMenu, IDropTarget, IHasSubgrou
         }
     }
 
-    /// <summary>Applies a predefined record-template set (used by the Config Drafter for a chosen body type): sets the default human template plus Khajiit and Argonian beast templates and their additional-races paths.</summary>
-    private void ApplyCustomRecordTemplate(string newDefaultTemplateFormKeyStr, string newKhajiitFormKeyStr, string newArgonianFormKeyStr, Gender gender, IEnumerable<string> defaultAdditionalRacesPaths)
+    /// <summary>Applies a predefined record-template set (used by the Config Drafter for a chosen body type): sets the default human template plus Khajiit and Argonian beast templates and their additional-races paths. Public so the CLI's headless draft verb can apply the same template sets the drafter UI does.</summary>
+    public void ApplyCustomRecordTemplate(string newDefaultTemplateFormKeyStr, string newKhajiitFormKeyStr, string newArgonianFormKeyStr, Gender gender, IEnumerable<string> defaultAdditionalRacesPaths)
     {
         if (RecordTemplateLinkCache.TryResolve<INpcGetter>(newDefaultTemplateFormKeyStr, out var defaultTemplate))
         {

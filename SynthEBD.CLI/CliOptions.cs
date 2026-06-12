@@ -1,4 +1,5 @@
 using Mutagen.Bethesda.Skyrim;
+using Noggog;
 
 namespace SynthEBD.CLI;
 
@@ -7,6 +8,19 @@ public enum CliVerb
 {
     Help,
     Validate,
+    Scan,
+    Draft,
+}
+
+/// <summary>How the draft verb disposes of duplicate (byte-identical) textures.</summary>
+public enum CliMultipletMode
+{
+    /// <summary>Point all subgroups at each duplicate group's keeper (the GUI's "Replace With Primary").</summary>
+    Replace,
+    /// <summary>Skip non-keeper duplicates entirely (the GUI's "Ignore Non-Primary").</summary>
+    Ignore,
+    /// <summary>Do not check for duplicates; draft every texture as-is.</summary>
+    None,
 }
 
 /// <summary>Thrown by <see cref="CliOptions.Parse"/> when the command line is malformed.</summary>
@@ -53,6 +67,48 @@ public class CliOptions
     /// <summary>Emit machine-readable JSON to stdout instead of human-readable text.</summary>
     public bool Json { get; private set; }
 
+    /// <summary>Texture root folder(s) to scan/draft from. With the default layout each root is the
+    /// extraction working folder, laid out like a mod folder (containing <c>textures\&lt;prefix&gt;\...</c>).</summary>
+    public List<string> Roots { get; } = new();
+
+    /// <summary>When set, each root is itself a <c>...\Textures\&lt;Prefix&gt;</c> folder (the drafter's
+    /// non-mod-manager layout) rather than a mod-style folder containing one.</summary>
+    public bool RootsHavePrefix { get; private set; }
+
+    /// <summary>GroupName for the drafted config (also the saved file name).</summary>
+    public string? ConfigName { get; private set; }
+
+    /// <summary>Prefix (ShortName) for the drafted config.</summary>
+    public string? Prefix { get; private set; }
+
+    /// <summary>Duplicate-texture disposition for the draft verb.</summary>
+    public CliMultipletMode MultipletMode { get; private set; } = CliMultipletMode.Replace;
+
+    /// <summary>Unmatched (uncategorized) texture paths to keep as Unknown-type subgroups; all other
+    /// unmatched textures are ignored. Paths as reported by the scan verb (root-relative).</summary>
+    public List<string> KeepUnmatched { get; } = new();
+
+    /// <summary>Keep every unmatched texture.</summary>
+    public bool KeepAllUnmatched { get; private set; }
+
+    /// <summary>Ignore every unmatched texture.</summary>
+    public bool IgnoreAllUnmatched { get; private set; }
+
+    /// <summary>Keeper overrides for duplicate groups: each path (as reported by scan) becomes its
+    /// group's kept/source texture instead of the auto-suggested one.</summary>
+    public List<string> Keepers { get; } = new();
+
+    /// <summary>Body family for "etc" body textures (3BA or BHUNP); required when the drafter detects them.</summary>
+    public DrafterBodyType? EtcBody { get; private set; }
+
+    /// <summary>Drafter auto-assign toggles (all default on, matching the GUI).</summary>
+    public bool AutoNames { get; private set; } = true;
+    public bool AutoRules { get; private set; } = true;
+    public bool AutoLinkage { get; private set; } = true;
+
+    /// <summary>Optional explicit output file for the drafted config; default is the instance's Asset Packs folder.</summary>
+    public string? OutPath { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -60,7 +116,17 @@ USAGE:
 
 VERBS:
   validate     Validate asset-pack config files (same checks as the GUI Validate button).
+  scan         Categorize the textures in a working folder and report unmatched textures and
+               byte-identical duplicate groups (with suggested keepers). Run before drafting.
+  draft        Draft a new asset-pack config from a working folder (the GUI Config Drafter, headless).
   help         Show this help.
+
+WORKING-FOLDER LAYOUT (scan/draft):
+  Extract every archive of the texture mod into ONE working folder laid out like a mod:
+    <working folder>\textures\<Prefix>\<archive contents...>
+  Pass the working folder via --root. Use a separate <Prefix> per archive if archives share
+  identical internal paths. (--roots-have-prefix instead treats each root as a
+  ...\Textures\<Prefix> folder itself.)
 
 COMMON OPTIONS:
   --synthebd-path <dir>    SynthEBD installation folder whose settings to load (honors any portable
@@ -78,6 +144,31 @@ VALIDATE OPTIONS:
                            Repeatable. Default: validate all installed configs.
   --asset-root <dir>       Extra root folder probed for Source files, e.g. the working folder the
                            texture mod was extracted to. Repeatable.
+
+SCAN / DRAFT OPTIONS:
+  --root <dir>             Working folder to scan/draft from. Repeatable.
+  --roots-have-prefix      Roots are ...\Textures\<Prefix> folders themselves (see layout note above).
+
+DRAFT OPTIONS:
+  --name <text>            GroupName for the drafted config (required; must be a valid file name).
+  --prefix <text>          Short prefix (ShortName) for the config (required), e.g. ""BnP4K_C"".
+  --multiplet-mode <mode>  replace (default) | ignore | none. How byte-identical duplicate textures
+                           are handled. replace points subgroups at each group's keeper; ignore
+                           skips non-keepers; none skips the duplicate check entirely.
+  --keeper <path>          Override the suggested keeper of the duplicate group containing this
+                           path (path as reported by scan). Repeatable.
+  --keep-unmatched <path>  Keep this unmatched texture (as reported by scan); all other unmatched
+                           textures are ignored. Repeatable.
+  --keep-all-unmatched     Keep every unmatched texture.
+  --ignore-all-unmatched   Ignore every unmatched texture.
+                           (If unmatched textures exist, one of the three options above is required.)
+  --etc-body <type>        3BA | BHUNP. Required when the mod contains ""etc"" body textures, which
+                           need body-specific record templates.
+  --no-auto-names          Disable the drafter's automatic subgroup naming.
+  --no-auto-rules          Disable the drafter's automatic distribution rules.
+  --no-auto-linkage        Disable automatic Required-Subgroup linkage of same-named subgroups
+                           (recommended for very complex mods; linkage errors can block distribution).
+  --out <file>             Save the drafted config to this file instead of the Asset Packs folder.
 
 EXIT CODES:
   0  success / all configs valid
@@ -97,6 +188,8 @@ EXIT CODES:
         options.Verb = args[0].ToLowerInvariant() switch
         {
             "validate" => CliVerb.Validate,
+            "scan" => CliVerb.Scan,
+            "draft" => CliVerb.Draft,
             "help" or "--help" or "-h" or "-?" or "/?" => CliVerb.Help,
             _ => throw new CliArgumentException("Unknown verb: " + args[0]),
         };
@@ -136,8 +229,81 @@ EXIT CODES:
                 case "--output-mod":
                     options.OutputModName = TakeValue(args, ref i, flag);
                     break;
+                case "--root":
+                    options.Roots.Add(TakeDirectoryValue(args, ref i, flag));
+                    break;
+                case "--roots-have-prefix":
+                    options.RootsHavePrefix = true;
+                    break;
+                case "--name":
+                    options.ConfigName = TakeValue(args, ref i, flag);
+                    break;
+                case "--prefix":
+                    options.Prefix = TakeValue(args, ref i, flag);
+                    break;
+                case "--multiplet-mode":
+                    var modeStr = TakeValue(args, ref i, flag);
+                    if (!Enum.TryParse<CliMultipletMode>(modeStr, ignoreCase: true, out var mode))
+                    {
+                        throw new CliArgumentException("Unrecognized multiplet mode \"" + modeStr + "\". Valid values: replace, ignore, none");
+                    }
+                    options.MultipletMode = mode;
+                    break;
+                case "--keeper":
+                    options.Keepers.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--keep-unmatched":
+                    options.KeepUnmatched.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--keep-all-unmatched":
+                    options.KeepAllUnmatched = true;
+                    break;
+                case "--ignore-all-unmatched":
+                    options.IgnoreAllUnmatched = true;
+                    break;
+                case "--etc-body":
+                    var bodyStr = TakeValue(args, ref i, flag);
+                    options.EtcBody = bodyStr.ToLowerInvariant() switch
+                    {
+                        "3ba" or "cbbe_3ba" or "cbbe-3ba" or "cbbe3ba" => DrafterBodyType.CBBE_3BA,
+                        "bhunp" => DrafterBodyType.BHUNP,
+                        _ => throw new CliArgumentException("Unrecognized --etc-body value \"" + bodyStr + "\". Valid values: 3BA, BHUNP"),
+                    };
+                    break;
+                case "--no-auto-names":
+                    options.AutoNames = false;
+                    break;
+                case "--no-auto-rules":
+                    options.AutoRules = false;
+                    break;
+                case "--no-auto-linkage":
+                    options.AutoLinkage = false;
+                    break;
+                case "--out":
+                    options.OutPath = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
+                    break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
+            }
+        }
+
+        if (options.Verb is CliVerb.Scan or CliVerb.Draft && !options.Roots.Any())
+        {
+            throw new CliArgumentException(args[0].ToLowerInvariant() + " requires at least one --root");
+        }
+        if (options.Verb == CliVerb.Draft)
+        {
+            if (options.ConfigName.IsNullOrWhitespace())
+            {
+                throw new CliArgumentException("draft requires --name");
+            }
+            if (options.Prefix.IsNullOrWhitespace())
+            {
+                throw new CliArgumentException("draft requires --prefix");
+            }
+            if (options.KeepAllUnmatched && options.IgnoreAllUnmatched)
+            {
+                throw new CliArgumentException("--keep-all-unmatched and --ignore-all-unmatched are mutually exclusive");
             }
         }
 

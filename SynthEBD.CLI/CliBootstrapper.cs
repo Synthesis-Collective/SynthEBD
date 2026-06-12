@@ -108,8 +108,41 @@ public sealed class CliBootstrapper : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Copies the loaded General settings model into the <see cref="VM_Settings_General"/> singleton
+    /// (the first step of <c>ViewModelLoader.LoadInitialSettingsViewModels</c>). Required before any
+    /// feature that imports race groupings or attribute groups "from General settings" — those imports
+    /// read the General settings <i>view model</i>, which a headless bootstrap otherwise leaves empty.
+    /// Deliberately avoids resolving <c>ViewModelLoader</c> itself, whose construction triggers a full
+    /// reload including backward-compatibility migrations.
+    /// </summary>
+    public void PopulateGeneralSettingsViewModel()
+    {
+        var generalVM = Container.Resolve<VM_Settings_General>();
+        var raceAliasFactory = Container.Resolve<VM_RaceAlias.Factory>();
+        var linkedNPCFactory = Container.Resolve<VM_LinkedNPCGroup.Factory>();
+        generalVM.CopyInFromModel(PatcherState.GeneralSettings, raceAliasFactory, linkedNPCFactory,
+            EnvironmentProvider.LinkCache);
+    }
+
     public void Dispose()
     {
+        // Transitively-resolved view models queue deferred dispatcher callbacks that resolve from the
+        // container. Drain the queue while the container is still alive (mirrors PatcherTestHarness.Dispose)
+        // so those callbacks can't throw ObjectDisposedException after disposal. On the dispatcher thread,
+        // Invoke at ContextIdle priority pumps all higher-priority queued work via a nested frame.
+        try
+        {
+            if (System.Windows.Threading.Dispatcher.FromThread(Thread.CurrentThread) is { } dispatcher)
+            {
+                dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
+        }
+        catch
+        {
+            // Best-effort; Program's DispatcherUnhandledException handler swallows any stragglers.
+        }
+
         Container.Dispose();
     }
 }

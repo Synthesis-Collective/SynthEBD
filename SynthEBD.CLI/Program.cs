@@ -66,6 +66,8 @@ internal static class Program
                 exitCode = options.Verb switch
                 {
                     CliVerb.Validate => await ValidateVerb.RunAsync(options, resultWriter),
+                    CliVerb.Scan => await ScanVerb.RunAsync(options, resultWriter),
+                    CliVerb.Draft => await DraftVerb.RunAsync(options, resultWriter),
                     _ => throw new InvalidOperationException("Unhandled verb: " + options.Verb),
                 };
             }
