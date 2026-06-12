@@ -294,59 +294,13 @@ public class AssetSelector
         _logger.OpenReportSubsection("CombinationGeneration", npcInfo);
         _logger.LogReport("Generating a new combination", false, npcInfo);
 
-        #region Choose New Seed
         if (iterationInfo.ChosenSeed == null)
         {
-            if (!iterationInfo.AvailableSeeds.Any())
+            if (!TryChooseNewSeed(generatedCombination, iterationInfo, npcInfo, mode))
             {
-                _logger.LogReport("No seed subgroups remain. A valid combination cannot be assigned with the given filters.", mode == AssetPackAssignmentMode.Primary, npcInfo);
-                _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
-                return null;
-            }
-
-            _logger.LogReport(() => "Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + npcInfo.ForceIfMatches.Get(x) + ")")), false, npcInfo);
-
-            if (iterationInfo.AvailableSeeds.Max(x => npcInfo.ForceIfMatches.Get(x)) is var matchedForceIfCount && matchedForceIfCount > 0)
-            {
-                var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
-                    npcInfo.ForceIfMatches.Get(x) == matchedForceIfCount);
-
-                iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
-
-                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + npcInfo.ForceIfMatches.Get(iterationInfo.ChosenSeed) + ").", false, npcInfo);
-            }
-            else
-            {
-                iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
-                
-                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
-            }
-            iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
-
-            _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
-
-            GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
-
-            iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
-
-            iterationInfo.RemainingVariantsByIndex = new Dictionary<int, FlattenedAssetPack>(); // tracks the available subgroups as the combination gets built up to enable backtracking if the patcher chooses an invalid combination
-            for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
-            {
-                iterationInfo.RemainingVariantsByIndex.Add(i, null); // set up placeholders for backtracking
-            }
-            iterationInfo.RemainingVariantsByIndex[0] = iterationInfo.ChosenAssetPack.ShallowCopy(); // initial state of the chosen asset pack
-            if (!ConformRequiredExcludedSubgroups(generatedCombination, iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack, npcInfo, out var filteredAssetPack))
-            {
-                _logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.", false, npcInfo);
-                _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
-                return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
-            }
-            else
-            {
-                iterationInfo.ChosenAssetPack = filteredAssetPack;
+                return null; // seed pool exhausted, or the chosen seed's rules conflict (that seed was removed); caller re-enters to try the next seed
             }
         }
-        #endregion
         else
         {
             GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
@@ -366,13 +320,18 @@ public class AssetSelector
             #region BackTrack if no options remain
             if (iterationInfo.ChosenAssetPack.Subgroups[i].Count == 0)
             {
-                if (i == 0 || (i == 1 && iterationInfo.ChosenSeed.TopLevelSubgroupIndex == 0))
+                // The seed's position is pinned to exactly one subgroup, so backtracking can never re-choose it:
+                // a backtrack from the position directly after the seed must skip back two steps instead of one,
+                // and if no backtrackable position exists before this one, the seed itself has no valid partners.
+                bool noBacktrackablePositionBeforeThis = i == 0 || (i == 1 && iterationInfo.ChosenSeed.TopLevelSubgroupIndex == 0);
+                bool previousPositionIsSeed = (i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex;
+                if (noBacktrackablePositionBeforeThis)
                 {
                     _logger.LogReport("Cannot backtrack further with " + iterationInfo.ChosenSeed.Id + " as seed. Selecting a new seed.", false, npcInfo);
                     _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
                     return RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo); // exit this function and re-enter from caller to choose a new seed
                 }
-                else if ((i - 1) == iterationInfo.ChosenSeed.TopLevelSubgroupIndex) // skip over the seed subgroup
+                else if (previousPositionIsSeed)
                 {
                     _logger.LogReport("No subgroups remain at position (" + i + "). Selecting a different subgroup at position " + (i - 2), false, npcInfo);
                     i = AssignmentIteration.BackTrack(iterationInfo, generatedCombination.ContainedSubgroups[i - 2], i, 2);
@@ -436,7 +395,7 @@ public class AssetSelector
             }
             else
             {
-                iterationInfo.RemainingVariantsByIndex[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy(); // store the current state of the current asset pack for backtracking in future iterations if necessary
+                iterationInfo.BacktrackSnapshotsByPosition[i + 1] = iterationInfo.ChosenAssetPack.ShallowCopy(); // store the current state of the current asset pack for backtracking in future iterations if necessary
             }
         }
 
@@ -453,6 +412,67 @@ public class AssetSelector
         GenerateDescriptorLog(generatedCombination, npcInfo);
         _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
         return generatedCombination;
+    }
+
+    /// <summary>
+    /// Chooses and pins a new seed subgroup for a combination attempt: picks the seed (preferring the most
+    /// matched ForceIf attributes, else weighted-random), shallow-copies its parent pack as the working pack,
+    /// pins the seed at its top-level position, initializes the backtracking snapshots, and conforms the pack
+    /// to the seed's required/excluded subgroup rules.
+    /// </summary>
+    /// <returns>False when generation cannot proceed: either no seeds remain, or the chosen seed's
+    /// required/excluded rules conflict (that seed is then removed from the pool so the next attempt can try
+    /// another). The caller should return null so its caller re-enters.</returns>
+    private bool TryChooseNewSeed(SubgroupCombination generatedCombination, AssignmentIteration iterationInfo, NPCInfo npcInfo, AssetPackAssignmentMode mode)
+    {
+        if (!iterationInfo.AvailableSeeds.Any())
+        {
+            _logger.LogReport("No seed subgroups remain. A valid combination cannot be assigned with the given filters.", mode == AssetPackAssignmentMode.Primary, npcInfo);
+            _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
+            return false;
+        }
+
+        _logger.LogReport(() => "Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + npcInfo.ForceIfMatches.Get(x) + ")")), false, npcInfo);
+
+        if (iterationInfo.AvailableSeeds.Max(x => npcInfo.ForceIfMatches.Get(x)) is var matchedForceIfCount && matchedForceIfCount > 0)
+        {
+            var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
+                npcInfo.ForceIfMatches.Get(x) == matchedForceIfCount);
+
+            iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
+
+            _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + npcInfo.ForceIfMatches.Get(iterationInfo.ChosenSeed) + ").", false, npcInfo);
+        }
+        else
+        {
+            iterationInfo.ChooseSeedSubgroup(iterationInfo.AvailableSeeds, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
+
+            _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack.GroupName + " at random", false, npcInfo);
+        }
+        iterationInfo.ChosenAssetPack = iterationInfo.ChosenSeed.ParentAssetPack.ShallowCopy();
+
+        _logger.OpenReportSubsection("Seed-" + iterationInfo.ChosenSeed.Id.Replace('.', '_'), npcInfo);
+
+        GenerateSubgroupPlaceHolders(generatedCombination, iterationInfo.ChosenAssetPack);
+
+        iterationInfo.ChosenAssetPack.Subgroups[iterationInfo.ChosenSeed.TopLevelSubgroupIndex] = new List<FlattenedSubgroup>() { iterationInfo.ChosenSeed }; // filter the seed index so that the seed is the only option
+
+        iterationInfo.BacktrackSnapshotsByPosition = new Dictionary<int, FlattenedAssetPack>(); // tracks the available subgroups as the combination gets built up to enable backtracking if the patcher chooses an invalid combination
+        for (int i = 0; i < iterationInfo.ChosenAssetPack.Subgroups.Count; i++)
+        {
+            iterationInfo.BacktrackSnapshotsByPosition.Add(i, null); // set up placeholders for backtracking
+        }
+        iterationInfo.BacktrackSnapshotsByPosition[0] = iterationInfo.ChosenAssetPack.ShallowCopy(); // initial state of the chosen asset pack
+
+        if (!ConformRequiredExcludedSubgroups(generatedCombination, iterationInfo.ChosenSeed, iterationInfo.ChosenAssetPack, npcInfo, out var filteredAssetPack))
+        {
+            _logger.LogReport("Cannot create a combination with the chosen seed subgroup due to conflicting required/excluded subgroup rules. Selecting a different seed.", false, npcInfo);
+            _logger.CloseReportSubsectionsToParentOf("CombinationGeneration", npcInfo);
+            RemoveInvalidSeed(iterationInfo.AvailableSeeds, iterationInfo);
+            return false;
+        }
+        iterationInfo.ChosenAssetPack = filteredAssetPack;
+        return true;
     }
 
     /// <summary>Drops the current seed from the available-seeds list and clears it, then returns null so the caller re-enters and picks a new seed.</summary>
@@ -590,22 +610,58 @@ public class AssetSelector
     }
 
     /// <summary>
-    /// Filters flattened asset packs to remove subgroups, or entire asset packs, that are incompatible with the selected NPC due to any subgroup's rule set
-    /// Returns shallow copied FlattenedAssetPacks; input availableAssetPacks remain unmodified
+    /// Filters flattened asset packs to remove subgroups, or entire asset packs, that are incompatible with the
+    /// selected NPC, in four phases: Specific NPC Assignments, whole-config distribution rules, per-subgroup
+    /// distribution rules, and consistency (each phase is its own method — see the Phase 1-4 helpers below).
+    /// Returns shallow-copied FlattenedAssetPacks; the input <paramref name="availableAssetPacks"/> remain unmodified.
     /// </summary>
-    /// <param name="availableAssetPacks"></param>
-    /// <param name="npcInfo"></param>
-    /// <returns></returns>
+    /// <param name="ignoreConsistency">When true, skips Phase 4 (used by the caller's consistency-relaxation retry).</param>
+    /// <param name="wasFilteredByConsistency">True if Phase 4 narrowed the result to the consistency asset pack.</param>
     public HashSet<FlattenedAssetPack> FilterValidConfigsForNPC(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, out bool wasFilteredByConsistency, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides)
     {
         _logger.OpenReportSubsection("ConfigFiltering", npcInfo);
-        HashSet<FlattenedAssetPack> assetPacksToBeFiltered = new HashSet<FlattenedAssetPack>(availableAssetPacks); // available asset packs filtered by Specific NPC Assignments and Consistency
-        List<FlattenedAssetPack> filteredPacks = new List<FlattenedAssetPack>(); // available asset packs (further) filtered by current NPC's compliance with each subgroup's rule set
         wasFilteredByConsistency = false;
-        List<List<FlattenedSubgroup>> forcedAssignments = null; // must be a nested list because if the user forces a non-bottom-level subgroup, then at a given index multiple options will be forced
 
-        #region handle specific NPC assignments
-        FlattenedAssetPack forcedAssetPack = null;
+        // Phase 1: Specific NPC Assignments — pin the user-forced asset pack/subgroups if one applies
+        var assetPacksToBeFiltered = ApplySpecificNPCAssignments(availableAssetPacks, npcInfo, mode, out FlattenedAssetPack forcedAssetPack, out List<List<FlattenedSubgroup>> forcedAssignments);
+
+        // Phases 2 and 3 share the RulesEvaluation report section
+        _logger.OpenReportSubsection("RulesEvaluation", npcInfo);
+
+        // Phase 2: whole-config distribution rules (then keep only the packs with the max matched ForceIf count)
+        assetPacksToBeFiltered = FilterByWholeConfigDistributionRules(assetPacksToBeFiltered, npcInfo, mode, assignedBodyGen, assignedBodySlides, forcedAssetPack);
+
+        // Phase 3: per-subgroup distribution rules (ForceIf-max filtering per position + linked-subgroup second pass)
+        var filteredPacks = FilterBySubgroupDistributionRules(assetPacksToBeFiltered, npcInfo, mode, assignedBodyGen, assignedBodySlides, forcedAssetPack, forcedAssignments);
+
+        _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
+
+        // Phase 4: consistency (must be last to ensure subordinance to ForceIf attribute count, which is determined by evaluating all available subgroups)
+        filteredPacks = ApplyConsistencyAssetPack(filteredPacks, availableAssetPacks, npcInfo, ignoreConsistency, mode, assignedBodyGen, assignedBodySlides, forcedAssetPack, forcedAssignments, out wasFilteredByConsistency);
+
+        if (filteredPacks.Count == 0 && mode == AssetPackAssignmentMode.Primary)
+        {
+            _logger.LogMessage("None of your current installed config files can be applied to " + npcInfo.LogIDstring);
+        }
+
+        _logger.CloseReportSubsection(npcInfo);
+
+        return filteredPacks.ToHashSet();
+    }
+
+    /// <summary>
+    /// Phase 1 of <see cref="FilterValidConfigsForNPC"/>: if the NPC has a Specific NPC Assignment for this
+    /// assignment mode, shallow-copies the forced asset pack, prunes each position to the forced subgroups,
+    /// and narrows the candidate set to just that pack. Otherwise returns the full candidate set.
+    /// </summary>
+    /// <param name="forcedAssetPack">The (shallow-copied) forced pack, or null when none applies.</param>
+    /// <param name="forcedAssignments">Forced subgroups per position (nested because forcing a non-bottom-level
+    /// subgroup forces all of its descendants at that position), or null when none apply.</param>
+    private HashSet<FlattenedAssetPack> ApplySpecificNPCAssignments(HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, AssetPackAssignmentMode mode, out FlattenedAssetPack forcedAssetPack, out List<List<FlattenedSubgroup>> forcedAssignments)
+    {
+        HashSet<FlattenedAssetPack> assetPacksToBeFiltered = new HashSet<FlattenedAssetPack>(availableAssetPacks);
+        forcedAssetPack = null;
+        forcedAssignments = null;
         if (npcInfo.SpecificNPCAssignment != null)
         {
             _logger.OpenReportSubsection("SpecificAssignments", npcInfo);
@@ -666,12 +722,16 @@ public class AssetSelector
             }
             _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
         }
-        #endregion
+        return assetPacksToBeFiltered;
+    }
 
-        // evaluate config distribution rules
-        _logger.OpenReportSubsection("RulesEvaluation", npcInfo);
-
-        #region handle non-predefined asset packs
+    /// <summary>
+    /// Phase 2 of <see cref="FilterValidConfigsForNPC"/>: drops asset packs whose whole-config distribution
+    /// rules reject the NPC (the forced pack is exempt from evaluation), then — when any pack matched
+    /// whole-config ForceIf attributes — keeps only the packs sharing the maximum matched count.
+    /// </summary>
+    private HashSet<FlattenedAssetPack> FilterByWholeConfigDistributionRules(HashSet<FlattenedAssetPack> assetPacksToBeFiltered, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, FlattenedAssetPack forcedAssetPack)
+    {
         _logger.OpenReportSubsection("ConfigDistributionRules", npcInfo);
         var filteredByMainConfigRules = new List<FlattenedAssetPack>();
         foreach (var ap in assetPacksToBeFiltered)
@@ -708,11 +768,19 @@ public class AssetSelector
                 }
             }
         }
-        assetPacksToBeFiltered = filteredByMainConfigRules.ToHashSet();
         _logger.CloseReportSubsectionsTo("RulesEvaluation", npcInfo);
-        #endregion
+        return filteredByMainConfigRules.ToHashSet();
+    }
 
-        #region Check distribution rules for each subgroup
+    /// <summary>
+    /// Phase 3 of <see cref="FilterValidConfigsForNPC"/>: validates each remaining pack's subgroups
+    /// position-by-position (positions pinned by a Specific NPC Assignment are exempt), keeps only the
+    /// max-ForceIf subgroups per position, reverts a forced pack's emptied positions to unfiltered, then runs
+    /// the linked required-subgroup second pass. Packs left with an empty position are dropped.
+    /// </summary>
+    private List<FlattenedAssetPack> FilterBySubgroupDistributionRules(HashSet<FlattenedAssetPack> assetPacksToBeFiltered, NPCInfo npcInfo, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, FlattenedAssetPack forcedAssetPack, List<List<FlattenedSubgroup>> forcedAssignments)
+    {
+        List<FlattenedAssetPack> filteredPacks = new List<FlattenedAssetPack>();
         _logger.OpenReportSubsection("SubGroupDistributionRules", npcInfo);
         foreach (var ap in assetPacksToBeFiltered)
         {
@@ -787,13 +855,22 @@ public class AssetSelector
             }
             _logger.CloseReportSubsectionsTo("SubGroupDistributionRules", npcInfo);
         }
+        return filteredPacks;
+    }
 
-        #endregion
-
-        _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
-
-        #region handle consistency 
-        if (_patcherState.GeneralSettings.bEnableConsistency && !ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && filteredPacks.Any()) // (must be last to ensure subordinance to ForceIf attribute count which is determined by evaluating all available subgroups)
+    /// <summary>
+    /// Phase 4 of <see cref="FilterValidConfigsForNPC"/>: if consistency applies and the consistency record
+    /// names an asset pack for this mode (and it doesn't clash with a Specific NPC Assignment), narrows the
+    /// filtered set to that pack and pins each still-valid consistency subgroup at its position.
+    /// <paramref name="wasFilteredByConsistency"/> tells the caller's relaxation pass (see
+    /// <see cref="AssetAndBodyShapeSelector.TryReplenishSeedsWithoutConsistency"/> via the out param of
+    /// <see cref="FilterValidConfigsForNPC"/>) that a consistency-ignoring retry is available if this
+    /// narrowing leaves the seed pool empty.
+    /// </summary>
+    private List<FlattenedAssetPack> ApplyConsistencyAssetPack(List<FlattenedAssetPack> filteredPacks, HashSet<FlattenedAssetPack> availableAssetPacks, NPCInfo npcInfo, bool ignoreConsistency, AssetPackAssignmentMode mode, List<BodyGenConfig.BodyGenTemplate> assignedBodyGen, List<BodySlideSetting> assignedBodySlides, FlattenedAssetPack forcedAssetPack, List<List<FlattenedSubgroup>> forcedAssignments, out bool wasFilteredByConsistency)
+    {
+        wasFilteredByConsistency = false;
+        if (_patcherState.GeneralSettings.bEnableConsistency && !ignoreConsistency && npcInfo.ConsistencyNPCAssignment != null && filteredPacks.Any())
         {
             _logger.OpenReportSubsection("Consistency", npcInfo);
             string consistencyAssetPackName = "";
@@ -898,16 +975,7 @@ public class AssetSelector
             }
             _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
         }
-        #endregion
-
-        if (filteredPacks.Count == 0 && mode == AssetPackAssignmentMode.Primary)
-        {
-            _logger.LogMessage("None of your current installed config files can be applied to " + npcInfo.LogIDstring);
-        }
-
-        _logger.CloseReportSubsection(npcInfo);
-
-        return filteredPacks.ToHashSet();
+        return filteredPacks;
     }
 
     /// <summary>

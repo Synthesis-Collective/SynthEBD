@@ -949,6 +949,23 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   Branch 2's, so it is now a documented fall-through; and the Branch-1 probe's discarded selector outputs
   (`candidateMorphs`/`candidatePresets`/status flags, established discarded during R14) are now explicit
   `out _` discards. All log/report strings byte-identical. Suite 258 / 1 skipped / 0 failed.
+- [x] **R17 -- `AssetSelector` structural split -- DONE.** Three parts, all behavior-preserving (phase bodies
+  and log/report strings moved verbatim; report XML section structure unchanged):
+  **(a)** `FilterValidConfigsForNPC` (325 lines) is now a ~30-line orchestrator over four phase methods --
+  `ApplySpecificNPCAssignments` (Phase 1, outs the forced pack/assignments), `FilterByWholeConfigDistributionRules`
+  (Phase 2, incl. the max-ForceIf pack filter), `FilterBySubgroupDistributionRules` (Phase 3, incl. per-position
+  ForceIf-max + the `RemoveInvalidLinkedSubgroups` second pass), and `ApplyConsistencyAssetPack` (Phase 4,
+  keeps its gate internally so the ~100-line interior moved verbatim; outs `wasFilteredByConsistency`).
+  **(b)** `GenerateCombination`'s 50-line Choose-New-Seed region extracted into `TryChooseNewSeed`
+  (returns false on seed-pool exhaustion or seed rule conflict -- the two old return-null paths); the
+  backtrack arithmetic is now named (`noBacktrackablePositionBeforeThis`, `previousPositionIsSeed`) with a
+  comment explaining WHY the seed position is skipped (it is pinned to a single subgroup and can never be
+  re-chosen).
+  **(c)** `AssignmentIteration.RemainingVariantsByIndex` renamed to `BacktrackSnapshotsByPosition` (it holds
+  backtracking snapshots, not "remaining variants").
+  Verification net: the integration suites (RaceGating/AttributeGating/ConfigRulesAndInheritance/
+  ProbabilityWeighting/RecordPosition) drive the full filter+generate path against a real SE environment.
+  Suite 258 / 1 skipped / 0 failed.
 - [x] **R19 -- per-NPC ForceIf scratch relocated onto `NPCInfo.ForceIfMatches` -- DONE** (3 commits:
   R19a asset side, R19b BodyGen/OBody/descriptors, R19c head parts). Deleted all six shared-object scratch
   properties (`FlattenedSubgroup.ForceIfMatchCount`, `BodyGenTemplate`/`BodySlideSetting`/`HeadPartSetting`/
@@ -1347,7 +1364,7 @@ actually means "current asset rules block all body shapes — seek another combi
 `assetRulesBlockAllBodyShapes`); the two-pass consistency relaxation (line 206-211) deserves a
 comment block. All behavior-preserving.
 
-### R17 — `AssetSelector` long methods + unnamed backtrack arithmetic — 🔧
+### ✅ R17 — `AssetSelector` long methods + unnamed backtrack arithmetic — 🔧 RESOLVED (4-phase split + seed extraction + renames) — see Resolved §R17
 
 `FilterValidConfigsForNPC` ([AssetSelector.cs:596-921](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L596),
 325 lines) is four sequential phases — specific assignments / whole-config rules / subgroup rules /

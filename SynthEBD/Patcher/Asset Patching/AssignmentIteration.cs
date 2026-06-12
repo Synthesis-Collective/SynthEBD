@@ -17,8 +17,8 @@ public class AssignmentIteration
     public FlattenedSubgroup ChosenSeed { get; set; } = null;
     /// <summary>The asset pack the current combination is being built from (set by <see cref="ChooseSeedSubgroup"/>).</summary>
     public FlattenedAssetPack ChosenAssetPack { get; set; } = null;
-    /// <summary>Snapshot of the working asset pack at each subgroup index, enabling <see cref="BackTrack"/> to revert when a constraint fails.</summary>
-    public Dictionary<int, FlattenedAssetPack> RemainingVariantsByIndex { get; set; } = new();
+    /// <summary>Snapshot of the working asset pack taken as each subgroup position is filled, enabling <see cref="BackTrack"/> to revert to an earlier position's state when a constraint fails.</summary>
+    public Dictionary<int, FlattenedAssetPack> BacktrackSnapshotsByPosition { get; set; } = new();
     /// <summary>Signatures of combinations already produced this pass, used to avoid re-generating the same combination in an infinite loop.</summary>
     public HashSet<string> PreviouslyGeneratedCombinations = new HashSet<string>();
 
@@ -70,7 +70,7 @@ public class AssignmentIteration
     /// <returns>The index the caller's for-loop should resume from (one less than the revert target, since the loop re-increments).</returns>
     public static int BackTrack(AssignmentIteration iterationInfo, FlattenedSubgroup toRemove, int currentIndex, int steps)
     {
-        FlattenedAssetPack revertTo = iterationInfo.RemainingVariantsByIndex[currentIndex - steps];
+        FlattenedAssetPack revertTo = iterationInfo.BacktrackSnapshotsByPosition[currentIndex - steps];
 
         if (toRemove != null)
         {
