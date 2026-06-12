@@ -323,8 +323,8 @@ public class BodySlideSetting : IProbabilityWeighted
     [JsonIgnore]
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
 
-    [JsonIgnore]
-    public int MatchedForceIfCount { get; set; } = 0;
+    // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: presets are shared
+    // settings-owned objects, so per-NPC scratch on them would block parallel selection.
 
     [JsonIgnore]
     public string SliderGroup { get; set; }

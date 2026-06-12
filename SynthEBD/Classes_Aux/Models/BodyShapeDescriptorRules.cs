@@ -22,9 +22,6 @@ public class BodyShapeDescriptorRules
     public double ProbabilityWeighting { get; set; } = 1;
     public NPCWeightRange WeightRange { get; set; } = new() { Lower = 0, Upper = 100 };
 
-    [JsonIgnore]
-    public int MatchedForceIfCount { get; set; } = 0;
-
     /// <summary>Evaluates whether an NPC satisfies a descriptor's rules (unique/non-unique, allowed/disallowed races, weight range, allowed/forced and disallowed attributes).</summary>
     /// <param name="descriptor">The descriptor whose <see cref="BodyShapeDescriptorRules"/> are evaluated.</param>
     /// <param name="attributeGroups">Named attribute groups referenced by the rules.</param>
@@ -32,11 +29,12 @@ public class BodyShapeDescriptorRules
     /// <param name="attMatcher">Matcher used to evaluate attribute rules.</param>
     /// <param name="bDetailedAttributeLogging">When true, produces verbose attribute-match logs.</param>
     /// <param name="reportStr">Receives a human-readable reason for rejection, or a matched-forced-attribute note.</param>
+    /// <param name="matchedForceIfCount">The NPC's matched ForceIf attribute weight for these rules (0 on rejection), which downstream code uses to bias selection.</param>
     /// <returns><c>true</c> if the NPC is allowed by the rules.</returns>
-    /// <remarks>Side effect: sets <c>descriptor.AssociatedRules.MatchedForceIfCount</c> to the number of matched ForceIf attributes, which downstream code uses to bias selection.</remarks>
-    public bool NPCisValid(BodyShapeDescriptor descriptor, HashSet<AttributeGroup> attributeGroups, NPCInfo npcInfo, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr)
+    public bool NPCisValid(BodyShapeDescriptor descriptor, HashSet<AttributeGroup> attributeGroups, NPCInfo npcInfo, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr, out int matchedForceIfCount)
     {
         reportStr = "";
+        matchedForceIfCount = 0;
         // Allow unique NPCs
         if (!descriptor.AssociatedRules.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
@@ -73,7 +71,6 @@ public class BodyShapeDescriptorRules
         }
 
         // Allowed and Forced Attributes
-        descriptor.AssociatedRules.MatchedForceIfCount = 0;
         attMatcher.MatchNPCtoAttributeList(descriptor.AssociatedRules.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, attributeGroups, bDetailedAttributeLogging, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -82,10 +79,10 @@ public class BodyShapeDescriptorRules
         }
         else
         {
-            descriptor.AssociatedRules.MatchedForceIfCount = matchedForceIfWeightedCount;
+            matchedForceIfCount = matchedForceIfWeightedCount;
         }
 
-        if (descriptor.AssociatedRules.MatchedForceIfCount > 0)
+        if (matchedForceIfCount > 0)
         {
             reportStr = "Current NPC matches the following forced attributes from Body Shape Descriptor " + descriptor.ID.ToString() + ": " + forceIfLog;
         }

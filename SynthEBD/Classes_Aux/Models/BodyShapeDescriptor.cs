@@ -191,10 +191,11 @@ public class BodyShapeDescriptor : IHasLabel
     /// <param name="attMatcher">Matcher for attribute rules.</param>
     /// <param name="bDetailedAttributeLogging">When true, produces verbose attribute logs.</param>
     /// <param name="reportStr">Receives a human-readable rejection reason or forced-attribute note.</param>
+    /// <param name="matchedForceIfCount">The NPC's matched ForceIf attribute weight for this descriptor's rules (0 on rejection).</param>
     /// <returns><c>true</c> if the NPC is permitted.</returns>
-    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr)
+    public bool PermitNPC(NPCInfo npcInfo, HashSet<AttributeGroup> attributeGroups, AttributeMatcher attMatcher, bool bDetailedAttributeLogging, out string reportStr, out int matchedForceIfCount)
     {
-        return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, bDetailedAttributeLogging, out reportStr);
+        return AssociatedRules.NPCisValid(this, attributeGroups, npcInfo, attMatcher, bDetailedAttributeLogging, out reportStr, out matchedForceIfCount);
     }
 
     /// <summary>Determines whether a set of descriptors satisfies a category→allowed-values match specification, under one of three match modes.</summary>

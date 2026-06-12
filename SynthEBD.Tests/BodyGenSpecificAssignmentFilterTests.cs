@@ -26,7 +26,7 @@ public class BodyGenSpecificAssignmentFilterTests
             Members = positions.Select(p => p.Group).ToList(),
         };
         var allTemplates = positions.SelectMany(p => p.Templates).ToHashSet();
-        return new BodyGenSelector.GroupCombinationObject(combination, allTemplates);
+        return new BodyGenSelector.GroupCombinationObject(combination, allTemplates, new ForceIfMatchTally());
     }
 
     [Fact]

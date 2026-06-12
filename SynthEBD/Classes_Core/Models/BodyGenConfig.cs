@@ -78,9 +78,8 @@ public class BodyGenConfig
         public HashSet<string> RequiredTemplates { get; set; } = new();
         public NPCWeightRange WeightRange { get; set; } = new();
 
-        /// <summary>Runtime count of ForceIf attributes matched on the current NPC, used to rank candidates during selection (not serialized).</summary>
-        [JsonIgnore]
-        public int MatchedForceIfCount { get; set; } = 0;
+        // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: templates are shared
+        // config-owned objects, so per-NPC scratch on them would block parallel selection.
 
         /// <summary>Back-reference to the owning config, set at load time (not serialized).</summary>
         [JsonIgnore]

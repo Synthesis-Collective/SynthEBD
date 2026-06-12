@@ -1,4 +1,4 @@
-using Noggog;
+﻿using Noggog;
 
 namespace SynthEBD;
 
@@ -420,7 +420,7 @@ public class BodyGenSelector
     }
 
     /// <summary>
-    /// Filters a BodyGenConfig's template list and assigns each template's MatchedForceIfCount
+    /// Filters a BodyGenConfig's template list and records each template's ForceIf match count in npcInfo.ForceIfMatches
     /// </summary>
     /// <param name="allMorphs">All templated contained within a BodyGenConfig</param>
     /// <param name="npcInfo"></param>
@@ -440,7 +440,7 @@ public class BodyGenSelector
 
     /// <summary>
     /// Validates a single morph against the NPC: random/unique/race/weight/allowed-disallowed attribute rules
-    /// (setting and accumulating <c>MatchedForceIfCount</c>), the morph's own descriptor rules, and the
+    /// (tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>), the morph's own descriptor rules, and the
     /// allowed/disallowed BodyGen descriptors of every assigned asset combination and its subgroups.
     /// <paramref name="ignoredFactors"/> can skip race checks or bypass validation entirely.
     /// </summary>
@@ -497,7 +497,7 @@ public class BodyGenSelector
         }
 
         // Allowed and Forced Attributes
-        candidateMorph.MatchedForceIfCount = 0;
+        npcInfo.ForceIfMatches.Set(candidateMorph, 0);
         _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -506,10 +506,10 @@ public class BodyGenSelector
         }
         else
         {
-            candidateMorph.MatchedForceIfCount = matchedForceIfWeightedCount;
+            npcInfo.ForceIfMatches.Set(candidateMorph, matchedForceIfWeightedCount);
         }
 
-        if (candidateMorph.MatchedForceIfCount > 0)
+        if (npcInfo.ForceIfMatches.Get(candidateMorph) > 0)
         {
             _logger.LogReport("Morph " + candidateMorph.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
@@ -528,11 +528,11 @@ public class BodyGenSelector
             var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
             if (associatedDescriptor is not null)
             {
-                if (associatedDescriptor.PermitNPC(npcInfo, bodyGenConfig.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr))
+                if (associatedDescriptor.PermitNPC(npcInfo, bodyGenConfig.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr, out int descriptorForceIfCount))
                 {
-                    if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
+                    if (descriptorForceIfCount > 0)
                     {
-                        candidateMorph.MatchedForceIfCount += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        npcInfo.ForceIfMatches.Add(candidateMorph, descriptorForceIfCount);
                         _logger.LogReport(reportStr, false, npcInfo);
                     }
                 }
@@ -583,7 +583,7 @@ public class BodyGenSelector
         }
 
         // must run after attribute/descriptor matching above so the gate sees the current NPC's ForceIf match count (B59)
-        if (!candidateMorph.AllowRandom && candidateMorph.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
+        if (!candidateMorph.AllowRandom && npcInfo.ForceIfMatches.Get(candidateMorph) == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
         {
             _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
             return false;
@@ -612,7 +612,7 @@ public class BodyGenSelector
             {
                 foreach (var stringCombination in candidate.Combinations)
                 {
-                    var comboObject = new GroupCombinationObject(stringCombination, availableTemplates);
+                    var comboObject = new GroupCombinationObject(stringCombination, availableTemplates, npcInfo.ForceIfMatches);
                     if (comboObject.InitializedSuccessfully)
                     {
                         output.Add(comboObject);
@@ -631,7 +631,7 @@ public class BodyGenSelector
                 {
                     foreach (var stringCombination in candidate.Combinations)
                     {
-                        var comboObject = new GroupCombinationObject(stringCombination, availableTemplates);
+                        var comboObject = new GroupCombinationObject(stringCombination, availableTemplates, npcInfo.ForceIfMatches);
                         if (comboObject.InitializedSuccessfully)
                         {
                             output.Add(comboObject);
@@ -663,7 +663,7 @@ public class BodyGenSelector
                 {
                     if (!CollectionContainsCombination(stringCombination.Members, addedCombinations))
                     {
-                        var newCombination = new GroupCombinationObject(stringCombination, bodyGenConfig.Templates);
+                        var newCombination = new GroupCombinationObject(stringCombination, bodyGenConfig.Templates, npcInfo.ForceIfMatches);
                         output.Add(newCombination);
                         addedCombinations.Add(stringCombination.Members);
                     }
@@ -719,9 +719,10 @@ public class BodyGenSelector
         /// <summary>
         /// Builds a combination from a config's string-category combination, populating each position with the
         /// available templates in that category. Sets <see cref="InitializedSuccessfully"/> to false if any
-        /// category resolves to no templates, and computes <see cref="MaxMatchedForceIfAttributes"/>.
+        /// category resolves to no templates, and computes <see cref="MaxMatchedForceIfAttributes"/> from the
+        /// current NPC's <paramref name="forceIfMatches"/> tally.
         /// </summary>
-        public GroupCombinationObject(BodyGenConfig.RacialMapping.BodyGenCombination bodyGenCombination, HashSet<BodyGenConfig.BodyGenTemplate> availableTemplates)
+        public GroupCombinationObject(BodyGenConfig.RacialMapping.BodyGenCombination bodyGenCombination, HashSet<BodyGenConfig.BodyGenTemplate> availableTemplates, ForceIfMatchTally forceIfMatches)
         {
             MaxMatchedForceIfAttributes = 0;
             ProbabilityWeighting = bodyGenCombination.ProbabilityWeighting;
@@ -739,7 +740,7 @@ public class BodyGenSelector
 
                 foreach (var template in templatesInGroup)
                 {
-                    if (template.MatchedForceIfCount > MaxMatchedForceIfAttributes) { MaxMatchedForceIfAttributes = template.MatchedForceIfCount; }
+                    if (forceIfMatches.Get(template) > MaxMatchedForceIfAttributes) { MaxMatchedForceIfAttributes = forceIfMatches.Get(template); }
                 }
                 Templates.Add(templatesInGroup);
             }

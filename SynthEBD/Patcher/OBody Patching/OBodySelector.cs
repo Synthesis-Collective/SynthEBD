@@ -37,7 +37,7 @@ public class OBodySelector
     /// <param name="assignedAssetCombinations">Asset combinations assigned to this NPC (drive descriptor rules/priorities).</param>
     /// <param name="statusFlags">Outputs consistency-related status flags for the body-shape selector.</param>
     /// <returns>The chosen presets, or null if none could be assigned.</returns>
-    /// <remarks>Mutates each candidate preset's <c>MatchedForceIfCount</c> and logs.</remarks>
+    /// <remarks>Records each candidate preset's ForceIf match count in <c>npcInfo.ForceIfMatches</c> and logs.</remarks>
     public List<BodySlideSetting> SelectBodySlidePresets(NPCInfo npcInfo, out bool selectionMade, Settings_OBody oBodySettings, IEnumerable<SubgroupCombination> assignedAssetCombinations,  out AssetAndBodyShapeSelector.BodyShapeSelectorStatusFlag statusFlags)
     {
         selectionMade = false;
@@ -124,14 +124,14 @@ public class OBodySelector
                 if (PresetIsValid(preset, npcInfo, assignedAssetCombinations, oBodySettings))
                 {
                     filteredPresets.Add(preset);
-                    if (preset.MatchedForceIfCount > 0)
+                    if (npcInfo.ForceIfMatches.Get(preset) > 0)
                     {
                         forceIfPresets.Add(preset);
                     }
                 }
             }
 
-            _logger.LogReport("Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => x.MatchedForceIfCount).Select(x => x.Label + " (" + x.MatchedForceIfCount + ")")), false, npcInfo);
+            _logger.LogReport(() => "Available BodySlides (Force If Attribute Count): " + Environment.NewLine + String.Join(Environment.NewLine, filteredPresets.OrderBy(x => npcInfo.ForceIfMatches.Get(x)).Select(x => x.Label + " (" + npcInfo.ForceIfMatches.Get(x) + ")")), false, npcInfo);
 
             if (forceIfPresets.Any())
             {
@@ -263,7 +263,7 @@ public class OBodySelector
 
     /// <summary>
     /// Validates a single BodySlide preset against the NPC: unique/non-unique, allowed/disallowed races,
-    /// weight range, allowed/disallowed attributes (setting and accumulating <c>MatchedForceIfCount</c>), the
+    /// weight range, allowed/disallowed attributes (tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>), the
     /// preset's per-weight descriptor rules, and the allowed/disallowed descriptors of every assigned asset
     /// combination and its subgroups. Specific assignment short-circuits to valid; the random-allowed flag is
     /// checked last so ForceIf matches can override it.
@@ -313,7 +313,7 @@ public class OBodySelector
         }
 
         // Allowed and Forced Attributes
-        candidatePreset.MatchedForceIfCount = 0;
+        npcInfo.ForceIfMatches.Set(candidatePreset, 0);
         _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, _patcherState.OBodySettings.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -322,10 +322,10 @@ public class OBodySelector
         }
         else
         {
-            candidatePreset.MatchedForceIfCount = matchedForceIfWeightedCount;
+            npcInfo.ForceIfMatches.Set(candidatePreset, matchedForceIfWeightedCount);
         }
 
-        if (candidatePreset.MatchedForceIfCount > 0)
+        if (npcInfo.ForceIfMatches.Get(candidatePreset) > 0)
         {
             _logger.LogReport("Preset " + candidatePreset.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
@@ -348,11 +348,11 @@ public class OBodySelector
             var associatedDescriptor = oBodySettings.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
             if (associatedDescriptor is not null)
             {
-                if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr))
+                if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr, out int descriptorForceIfCount))
                 {
-                    if (associatedDescriptor.AssociatedRules.MatchedForceIfCount > 0)
+                    if (descriptorForceIfCount > 0)
                     {
-                        candidatePreset.MatchedForceIfCount += associatedDescriptor.AssociatedRules.MatchedForceIfCount;
+                        npcInfo.ForceIfMatches.Add(candidatePreset, descriptorForceIfCount);
                         _logger.LogReport(reportStr, false, npcInfo);
                     }
                 }
@@ -404,7 +404,7 @@ public class OBodySelector
 
         // if the current Preset's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
 
-        if (!candidatePreset.AllowRandom && candidatePreset.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
+        if (!candidatePreset.AllowRandom && npcInfo.ForceIfMatches.Get(candidatePreset) == 0) // don't need to check for specific assignment because it was evaluated just above
         {
             _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
             return false;
