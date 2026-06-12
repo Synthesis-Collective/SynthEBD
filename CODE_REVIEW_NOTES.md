@@ -934,6 +934,17 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
   the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
   per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
+- [x] **B59 (LIVE; surfaced during R19 survey) -- stale `AllowRandom=false` ForceIf gates -- FIXED.** Three
+  validity checks (`BodyGenSelector.MorphIsValid`, `HeadPartSelector.CanGetThisHeadPartType`,
+  `HeadPartSelector.HeadPartIsValid`) read `MatchedForceIfCount` in their "only assignable via ForceIf"
+  gate BEFORE the same call reset/recomputed it, so the gate saw the previous evaluation's leftover (or
+  the default 0 for the first NPC). Concrete: run's first NPC matches an `AllowRandom=false` morph's
+  ForceIfs -> wrongly rejected (count still 0); after NPC-A matches with count 5, non-matching NPC-B
+  passes the gate on the stale 5 -> morph wrongly remains in B's pool. Fix: moved each gate to just
+  before the method's final `return true`, after all attribute/descriptor ForceIf accumulation --
+  mirroring `OBodySelector.PresetIsValid`, which has always had the correct order. Behavior change is
+  the intended documented behavior; no pure seam (instance methods over AttributeMatcher/env), relies
+  on integration AttributeGatingTests + manual verify. Suite 255 / 1 skipped / 0 failed.
 - [x] **B60 (surfaced during R19 survey) -- `MatchedWholeConfigForceIfs` filter no-op -- DELETED.** The
   `FlattenedAssetPack.MatchedWholeConfigForceIfs` property was read by a pack-removal filter at the end of
   the subgroup-rules region but **never written** (verified: zero assignment sites repo-wide), so
@@ -1320,6 +1331,25 @@ selection extracted, and the backtrack index arithmetic (`i == 0 || (i == 1 && s
 `i - 2` to skip over the seed position) named or commented — it's correct but takes real effort
 to re-derive. `AssignmentIteration.RemainingVariantsByIndex` holds backtracking snapshots, not
 "remaining variants" — rename (e.g. `BacktrackSnapshotsByPosition`).
+
+### ✅ B59 — `AllowRandom=false` gates read the previous evaluation's ForceIf count — 🐞 RESOLVED (gates moved after matching) — see Resolved §B59
+
+Surfaced while mapping shared ForceIf scratch state for R19. Three validity checks gated
+"this candidate may only be distributed via ForceIf match or Specific Assignment" by reading
+`MatchedForceIfCount` **before** the same call reset/recomputed it — so the gate evaluated the
+count left over from the **previous evaluation** (a different NPC, or the type default 0):
+
+- `BodyGenSelector.MorphIsValid` (gate was near the top; reset/recompute ~40 lines below)
+- `HeadPartSelector.CanGetThisHeadPartType` (same pattern)
+- `HeadPartSelector.HeadPartIsValid` (same pattern)
+
+*Worked example:* the first NPC processed in a run evaluates an `AllowRandom=false` morph whose
+ForceIf attributes she matches. The count is still the initial `0`, so the morph is wrongly
+rejected ("can only be assigned via ForceIf attributes") even though her ForceIfs match.
+Conversely, after NPC-A matches (count 5), non-matching NPC-B passes the gate on A's stale 5 and
+the morph wrongly stays in B's random pool. `OBodySelector.PresetIsValid` has always done this
+correctly (gate dead last, after all attribute + descriptor accumulation) — the three buggy
+methods now mirror that placement.
 
 ### ✅ B60 — `MatchedWholeConfigForceIfs` pack filter was a silent no-op (property never written) — 🐞 RESOLVED (no-op deleted) — see Resolved §B60
 

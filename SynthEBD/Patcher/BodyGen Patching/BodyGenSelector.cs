@@ -459,12 +459,6 @@ public class BodyGenSelector
             return true;
         }
 
-        if (!candidateMorph.AllowRandom && candidateMorph.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
-            return false;
-        }
-
         // Allow unique NPCs
         if (!candidateMorph.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
         {
@@ -586,6 +580,13 @@ public class BodyGenSelector
                     return false;
                 }
             }
+        }
+
+        // must run after attribute/descriptor matching above so the gate sees the current NPC's ForceIf match count (B59)
+        if (!candidateMorph.AllowRandom && candidateMorph.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
+        {
+            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
+            return false;
         }
 
         // If the candidateMorph is still valid

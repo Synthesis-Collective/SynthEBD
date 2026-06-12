@@ -328,12 +328,6 @@ namespace SynthEBD
         /// <returns>True if at least one head part of this type could be assigned; false if the whole type is disallowed.</returns>
         public bool CanGetThisHeadPartType(Settings_HeadPartType currentSettings, HeadPart.TypeEnum type, NPCInfo npcInfo, List<BodySlideSetting> assignedBodySlides, List<BodyGenConfig.BodyGenTemplate> assignedBodyGenMorphs, HashSet<AttributeGroup> attributeGroups)
         {
-            if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
-            {
-                _logger.LogReport(type + " headparts will not be assigned because they can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
-                return false;
-            }
-
             if (npcInfo.Gender == Gender.Male && !currentSettings.bAllowMale)
             {
                 _logger.LogReport(type + " headparts cannot be distributed to male NPCs unless assigned via Specific Assignment.", false, npcInfo);
@@ -509,6 +503,13 @@ namespace SynthEBD
                 }
             }
 
+            // must run after attribute matching above so the gate sees the current NPC's ForceIf match count (B59)
+            if (!currentSettings.bAllowRandom && currentSettings.MatchedForceIfCount == 0)
+            {
+                _logger.LogReport(type + " headparts will not be assigned because they can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
+                return false;
+            }
+
             // If the head part type is still valid
             return true;
         }
@@ -525,12 +526,6 @@ namespace SynthEBD
             {
                 _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is valid because it is specifically assigned by user.", false, npcInfo);
                 return true;
-            }
-
-            if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated just above
-            {
-                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
-                return false;
             }
 
             // Allow unique NPCs
@@ -652,6 +647,13 @@ namespace SynthEBD
                         return false;
                     }
                 }
+            }
+
+            // must run after attribute matching above so the gate sees the current NPC's ForceIf match count (B59)
+            if (!candidateHeadPart.bAllowRandom && candidateHeadPart.MatchedForceIfCount == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
+            {
+                _logger.LogReport("Head Part " + candidateHeadPart.EditorID + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
+                return false;
             }
 
             // If the head part is still valid
