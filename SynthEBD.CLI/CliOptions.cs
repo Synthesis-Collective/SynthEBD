@@ -10,6 +10,7 @@ public enum CliVerb
     Validate,
     Scan,
     Draft,
+    Simulate,
 }
 
 /// <summary>How the draft verb disposes of duplicate (byte-identical) textures.</summary>
@@ -109,6 +110,15 @@ public class CliOptions
     /// <summary>Optional explicit output file for the drafted config; default is the instance's Asset Packs folder.</summary>
     public string? OutPath { get; private set; }
 
+    /// <summary>NPCs to simulate distribution for: FormKeys ("123456:Skyrim.esm") or EditorIDs ("Hulda").</summary>
+    public List<string> Npcs { get; } = new();
+
+    /// <summary>Number of selection rounds per NPC for the simulate verb.</summary>
+    public int Repetitions { get; private set; } = 100;
+
+    /// <summary>When set, the simulate verb writes each NPC's full verbose report (XML) into this folder.</summary>
+    public string? FullReportDir { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -119,6 +129,9 @@ VERBS:
   scan         Categorize the textures in a working folder and report unmatched textures and
                byte-identical duplicate groups (with suggested keepers). Run before drafting.
   draft        Draft a new asset-pack config from a working folder (the GUI Config Drafter, headless).
+  simulate     Simulate primary asset distribution for specific NPCs (the GUI Distribution Simulator,
+               headless): per-pack and per-subgroup assignment counts plus log-derived explanations
+               for subgroups that never get assigned.
   help         Show this help.
 
 WORKING-FOLDER LAYOUT (scan/draft):
@@ -170,10 +183,20 @@ DRAFT OPTIONS:
                            (recommended for very complex mods; linkage errors can block distribution).
   --out <file>             Save the drafted config to this file instead of the Asset Packs folder.
 
+SIMULATE OPTIONS:
+  --npc <id>               NPC to simulate, as a FormKey (""013BA3:Skyrim.esm"") or EditorID (""Hulda"").
+                           Repeatable.
+  --config <name>          Simulate only the named Primary config(s) (the GUI workflow of deselecting
+                           all others). Repeatable. Default: the configs currently selected in the
+                           Textures and Meshes menu.
+  --repetitions <n>        Selection rounds per NPC (default 100; use 2-3 for very large fresh drafts).
+  --full-report-dir <dir>  Write each NPC's full verbose report (XML) into this folder for deep
+                           debugging of distribution failures.
+
 EXIT CODES:
-  0  success / all configs valid
-  1  validation errors found
-  2  fatal error (bad arguments, environment/settings failed to load, config not found)";
+  0  success / all configs valid / every simulated NPC received assignments
+  1  validation errors found / at least one simulated NPC received no assignments
+  2  fatal error (bad arguments, environment/settings failed to load, config/NPC not found)";
 
     /// <summary>Parses the raw command line, throwing <see cref="CliArgumentException"/> on malformed input.</summary>
     public static CliOptions Parse(string[] args)
@@ -190,6 +213,7 @@ EXIT CODES:
             "validate" => CliVerb.Validate,
             "scan" => CliVerb.Scan,
             "draft" => CliVerb.Draft,
+            "simulate" => CliVerb.Simulate,
             "help" or "--help" or "-h" or "-?" or "/?" => CliVerb.Help,
             _ => throw new CliArgumentException("Unknown verb: " + args[0]),
         };
@@ -282,6 +306,20 @@ EXIT CODES:
                 case "--out":
                     options.OutPath = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
                     break;
+                case "--npc":
+                    options.Npcs.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--repetitions":
+                    var repStr = TakeValue(args, ref i, flag);
+                    if (!int.TryParse(repStr, out int repetitions) || repetitions < 1)
+                    {
+                        throw new CliArgumentException("--repetitions requires a positive integer, got \"" + repStr + "\"");
+                    }
+                    options.Repetitions = repetitions;
+                    break;
+                case "--full-report-dir":
+                    options.FullReportDir = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
+                    break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
             }
@@ -290,6 +328,10 @@ EXIT CODES:
         if (options.Verb is CliVerb.Scan or CliVerb.Draft && !options.Roots.Any())
         {
             throw new CliArgumentException(args[0].ToLowerInvariant() + " requires at least one --root");
+        }
+        if (options.Verb == CliVerb.Simulate && !options.Npcs.Any())
+        {
+            throw new CliArgumentException("simulate requires at least one --npc");
         }
         if (options.Verb == CliVerb.Draft)
         {
