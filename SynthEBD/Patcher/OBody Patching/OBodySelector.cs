@@ -271,7 +271,7 @@ public class OBodySelector
     /// <returns>True if the preset may be assigned to the NPC.</returns>
     public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, IEnumerable<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
     {
-        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidatePreset.Label))
+        if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace() && candidatePreset.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset)
         {
             _logger.LogReport("Preset " + candidatePreset.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
             return true;
