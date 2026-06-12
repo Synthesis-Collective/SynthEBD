@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SynthEBD", "SynthEBD\SynthE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CharacterViewer.Rendering", "CharacterViewer.Rendering\CharacterViewer.Rendering.csproj", "{96875DA2-B254-4BCD-BAC2-4E2CD0D15F8E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SynthEBD.CLI", "SynthEBD.CLI\SynthEBD.CLI.csproj", "{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{96875DA2-B254-4BCD-BAC2-4E2CD0D15F8E}.Release|x64.Build.0 = Release|Any CPU
 		{96875DA2-B254-4BCD-BAC2-4E2CD0D15F8E}.Release|x86.ActiveCfg = Release|Any CPU
 		{96875DA2-B254-4BCD-BAC2-4E2CD0D15F8E}.Release|x86.Build.0 = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|x64.Build.0 = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Debug|x86.Build.0 = Debug|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|x64.ActiveCfg = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|x64.Build.0 = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|x86.ActiveCfg = Release|Any CPU
+		{47EA5B98-19CC-4792-8EDD-DE78C1A083AF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -18,6 +18,12 @@ public class AssetPackValidator
     private readonly PatcherState _patcherState;
     private readonly RecordPathParser _recordPathParser;
 
+    /// <summary>Optional additional root folders probed (after the data folder, before the BSA checks) for
+    /// each path's Source file. Lets headless tooling validate a config against the working folder a texture
+    /// mod was extracted to, whose assets are not yet visible in the game data folder or an active
+    /// mod-manager VFS. Empty by default, in which case validation behaves exactly as before.</summary>
+    public List<string> ExtraAssetRoots { get; } = new();
+
     /// <summary>Captures the BSA handler, environment, patcher state, and record-path parser used during validation.</summary>
     public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, RecordPathParser recordPathParser)
     {
@@ -249,9 +255,13 @@ public class AssetPackValidator
         foreach (var path in subgroup.Paths)
         {
             var fullPath = System.IO.Path.Combine(_environmentProvider.DataFolderPath, path.Source);
-            if (!System.IO.File.Exists(fullPath) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName) && !_bsaHandler.ReferencedPathExists(path.Source, associatedBSAmodKeys, out bool specifiedArchiveExists, out string specifiedModName))
+            if (!System.IO.File.Exists(fullPath) && !ExistsUnderExtraAssetRoot(path.Source) && !_bsaHandler.ReferencedPathExists(path.Source, out bool archiveExists, out string modName) && !_bsaHandler.ReferencedPathExists(path.Source, associatedBSAmodKeys, out bool specifiedArchiveExists, out string specifiedModName))
             {
                 string pathError = "No file exists at " + fullPath;
+                if (ExtraAssetRoots.Any())
+                {
+                    pathError += " or under any extra asset root";
+                }
                 if (archiveExists)
                 {
                     pathError += " or any BSA archives corresponding to " + modName;
@@ -327,6 +337,12 @@ public class AssetPackValidator
         }
 
         return isValid;
+    }
+
+    /// <summary>True if the source path exists under any of <see cref="ExtraAssetRoots"/>.</summary>
+    private bool ExistsUnderExtraAssetRoot(string sourcePath)
+    {
+        return ExtraAssetRoots.Any(root => System.IO.File.Exists(System.IO.Path.Combine(root, sourcePath)));
     }
 
     /// <summary>True if the ID is already XML-tag-compatible (unchanged by <see cref="MiscFunctions.MakeXMLtagCompatible"/>).</summary>
