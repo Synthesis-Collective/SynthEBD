@@ -14,6 +14,7 @@ public enum CliVerb
     Package,
     ArchiveList,
     ArchiveExtract,
+    VerifyInstall,
 }
 
 /// <summary>How the draft verb disposes of duplicate (byte-identical) textures.</summary>
@@ -131,6 +132,9 @@ public class CliOptions
     /// <summary>Destination folder for archive-extract.</summary>
     public string? DestDir { get; private set; }
 
+    /// <summary>Folder containing the dependency archives (matched by DownloadInfo.ExpectedFileName) for verify-install.</summary>
+    public string? DownloadsDir { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -146,6 +150,10 @@ VERBS:
                for subgroups that never get assigned.
   package      Validate a staged config folder against its Manifest.json and 7-zip it into a
                distributable archive. (No game environment needed.)
+  verify-install   Verify a packaged (or staged) config archive installs correctly for EVERY possible
+               installer selection: enumerates all option chains and checks that each chain's files
+               exist and that every config Source path resolves in the simulated install tree
+               (config archive contents + dependency archive contents, prefix-routed).
   archive-list     List the file entries of a 7z/zip/rar archive via the bundled 7-Zip.
   archive-extract  Extract a 7z/zip/rar archive via the bundled 7-Zip.
   help         Show this help.
@@ -210,10 +218,13 @@ SIMULATE OPTIONS:
                            debugging of distribution failures.
 
 PACKAGE / ARCHIVE OPTIONS:
-  --staging <dir>          Folder containing Manifest.json plus the staged configs/templates to package.
+  --staging <dir>          Folder containing Manifest.json plus the staged configs/templates to package
+                           (package, verify-install).
   --out <file>             Output archive path (default: <ConfigName>.7z next to the staging folder).
-  --archive <file>         Archive to list/extract.
+  --archive <file>         Archive to list/extract/verify.
   --dest <dir>             Destination folder for archive-extract (created if missing).
+  --downloads <dir>        Folder containing the dependency archives the manifest's DownloadInfo
+                           references (matched by ExpectedFileName); used by verify-install.
 
 EXIT CODES:
   0  success / all configs valid / every simulated NPC received assignments
@@ -237,6 +248,7 @@ EXIT CODES:
             "draft" => CliVerb.Draft,
             "simulate" => CliVerb.Simulate,
             "package" => CliVerb.Package,
+            "verify-install" => CliVerb.VerifyInstall,
             "archive-list" => CliVerb.ArchiveList,
             "archive-extract" => CliVerb.ArchiveExtract,
             "help" or "--help" or "-h" or "-?" or "/?" => CliVerb.Help,
@@ -359,6 +371,9 @@ EXIT CODES:
                 case "--dest":
                     options.DestDir = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
                     break;
+                case "--downloads":
+                    options.DownloadsDir = TakeDirectoryValue(args, ref i, flag);
+                    break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
             }
@@ -383,6 +398,10 @@ EXIT CODES:
         if (options.Verb == CliVerb.ArchiveExtract && options.DestDir == null)
         {
             throw new CliArgumentException("archive-extract requires --dest");
+        }
+        if (options.Verb == CliVerb.VerifyInstall && (options.ArchivePath == null) == (options.StagingDir == null))
+        {
+            throw new CliArgumentException("verify-install requires exactly one of --archive or --staging");
         }
         if (options.Verb == CliVerb.Draft)
         {

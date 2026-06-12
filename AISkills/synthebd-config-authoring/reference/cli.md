@@ -181,6 +181,42 @@ archive creation. Default output: `<ConfigName>.7z` next to the staging folder.
 
 ---
 
+## verify-install
+
+Verifies that a packaged (or staged) config archive installs correctly for **every possible
+installer selection**, without running the interactive installer. Enumerates all selection chains
+through the manifest's Options tree (each top-level option is a sequential wizard step; every
+root-to-leaf path through its sub-options is one chain), unions each chain's resources exactly as
+the installer's finalize step does, and checks per chain:
+
+- the referenced config / record-template / BodyGen files exist in the package and the configs parse;
+- every dependency archive the chain requires is present in `--downloads` (matched by
+  `DownloadInfo.ExpectedFileName`);
+- every config `Source` path resolves to a file the simulated install tree would provide — the
+  package's own contents plus each dependency archive's catalogued contents routed to
+  `<ExtractionSubPath-or-ConfigPrefix>\<entry>`, using the installer's own prefix-stripping logic.
+  No live game data is involved; this is pure path verification.
+
+```
+SynthEBD.CLI verify-install (--archive <file.7z> | --staging <dir>) [--downloads <dir>] [--json]
+```
+
+Run it after `package` (and after any manifest edit) with the original texture-mod archives in the
+`--downloads` folder. Exit 0 = all chains verified; 1 = at least one chain has missing files,
+missing archives, or parse failures; 2 = fatal.
+
+JSON shape (abridged):
+
+```json
+{ "Command": "verify-install", "ConfigName": "...", "ConfigPrefix": "...", "AllChainsValid": false,
+  "Chains": [ { "Selection": "Step 1: CBBE > 4K", "IsValid": false,
+      "InstalledConfigs": ["CBBE\\4K\\....json"], "InstalledRecordTemplates": ["..."],
+      "InstalledBodyGenConfigs": [], "RequiredDownloads": ["BnP female skin 4k....7z"],
+      "Errors": [], "MissingSourceFiles": ["textures\\BnP\\... (expected in archive set at: BnP\\...)"] } ] }
+```
+
+---
+
 ## archive-list / archive-extract
 
 Bundled 7-Zip wrappers (7z, zip, and rar all supported); no game environment needed.

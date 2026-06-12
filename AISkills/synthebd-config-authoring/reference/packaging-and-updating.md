@@ -20,6 +20,13 @@ staging\
 Then: `SynthEBD.CLI package --staging <staging> [--out <file.7z>] --json` — it validates the
 manifest against the staged files (and each config's prefixes) before creating the archive.
 
+After packaging, **verify every installer branch**:
+`SynthEBD.CLI verify-install --archive <file.7z> --downloads <folder with the texture-mod archives> --json`
+enumerates every possible user selection through the Options tree and confirms each chain installs
+the right configs/templates and that every config Source path resolves against the dependency
+archives' actual contents (see `cli.md`). This is the packaged-archive equivalent of `validate
+--asset-root` and the definition of done for a release.
+
 ### Manifest.json
 
 ```json

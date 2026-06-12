@@ -107,7 +107,10 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
     convention. Resolution variants (4K/2K) of the same mod are usually a search-and-replace on the
     Source paths in a copied config.
 11. **Package** (when the user wants to distribute): see `reference/packaging-and-updating.md`, then
-    `SynthEBD.CLI package --staging <stagingFolder> --json`.
+    `SynthEBD.CLI package --staging <stagingFolder> --json`, and finally
+    `SynthEBD.CLI verify-install --archive <packaged.7z> --downloads <folder with the mod archives>
+    --json` to prove every installer selection chain installs correctly against the real dependency
+    archives.
 
 For **updating** an existing config to a new mod version, see `reference/packaging-and-updating.md`.
 
