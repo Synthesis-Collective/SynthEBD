@@ -988,6 +988,20 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   mirroring `OBodySelector.PresetIsValid`, which has always had the correct order. Behavior change is
   the intended documented behavior; no pure seam (instance methods over AttributeMatcher/env), relies
   on integration AttributeGatingTests + manual verify. Suite 255 / 1 skipped / 0 failed.
+- [x] **B61 (latent/LIVE-edge; surfaced during R18 comparison) -- `PresetIsValid` specific-assignment
+  exemption read `BodyGenMorphNames` -- FIXED.** The exemption gate ("specifically-assigned preset skips
+  all validity rules") tested the BodyGen morph list instead of `BodySlidePreset`: never fired for real
+  assignments, wrongly fired on cross-axis name coincidences, and NRE'd if `BodyGenMorphNames` was null
+  (its default). Fixed to a null-safe `BodySlidePreset` label comparison with a blank-string guard
+  (mirroring the upstream Specific region). Suite 258 / 1 skipped / 0 failed.
+- [x] **B62 (LIVE; surfaced during R18 comparison) -- BodyGen whole-config disallowed-descriptor check
+  cross-axis -- FIXED.** `MorphIsValid` matched whole-config `DisallowedBodySlideDescriptors` (BodySlide
+  set) instead of `DisallowedBodyGenDescriptors`, so a config's whole-config disallowed-BodyGen rule was
+  silently unenforced (e.g. `DisallowedBodyGenDescriptors={BodyType:Curvy}` did not block morph
+  `CurvyBody`), and stray BodySlide entries could wrongly reject morphs. Also fixed the sibling
+  report-only defect (allowed-rejection log printed the BodySlide set). Subgroup-level checks were
+  already correct. No pure seam (integration AttributeGating/descriptor paths + manual verify).
+  Suite 258 / 1 skipped / 0 failed.
 - [x] **B60 (surfaced during R19 survey) -- `MatchedWholeConfigForceIfs` filter no-op -- DELETED.** The
   `FlattenedAssetPack.MatchedWholeConfigForceIfs` property was read by a pack-removal filter at the end of
   the subgroup-rules region but **never written** (verified: zero assignment sites repo-wide), so
@@ -1416,6 +1430,33 @@ Conversely, after NPC-A matches (count 5), non-matching NPC-B passes the gate on
 the morph wrongly stays in B's random pool. `OBodySelector.PresetIsValid` has always done this
 correctly (gate dead last, after all attribute + descriptor accumulation) — the three buggy
 methods now mirror that placement.
+
+### ✅ B61 — `PresetIsValid` specific-assignment exemption read the BodyGen morph list — 🐞 RESOLVED — see Resolved §B61
+
+Surfaced during the R18 line-by-line validator comparison.
+[OBodySelector.cs:274](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L274) gated "this preset is
+exempt from all validity rules because the user specifically assigned it" on
+`SpecificNPCAssignment.BodyGenMorphNames.Contains(preset.Label)` — the **BodyGen** field, not
+`BodySlidePreset`. Three defects in one line: the exemption could never fire for an actually-assigned
+BodySlide preset; a preset whose label coincided with a forced BodyGen morph name would be wrongly
+exempted; and `BodyGenMorphNames` defaults to **null**, so an assignment carrying only non-BodyGen
+forcings would NRE in BodySlide mode. (Softened in practice because `SelectBodySlidePresets` resolves
+Specific assignments earlier, so the exemption is rarely reached.) Fix: null-safe
+`BodySlidePreset` label comparison, guarded against the blank-string default like the upstream Specific
+region.
+
+### ✅ B62 — BodyGen whole-config disallowed-descriptor check read the BodySlide set — 🐞 RESOLVED — see Resolved §B62
+
+Surfaced during the R18 line-by-line validator comparison. In `MorphIsValid`'s asset-imposed section,
+the whole-config *disallowed* check matched `DistributionRules.DisallowedBodySlideDescriptors` (with the
+BodyGen match mode) instead of `DisallowedBodyGenDescriptors`. *Worked example:* a config author sets
+whole-config `DisallowedBodyGenDescriptors = {BodyType: Curvy}` in BodyGen mode; an NPC receives that
+config's assets and candidate morph `CurvyBody` carries `BodyType: Curvy`. Buggy: the check reads the
+(typically empty) BodySlide set → the morph is accepted despite the author's rule; conversely, stray
+BodySlide-disallowed entries would wrongly reject morphs. Correct: the BodyGen rule is enforced. The
+subgroup-level checks below it were already correct. Sibling report-only defect fixed in the same pass:
+the whole-config *allowed* rejection log printed the BodySlide allowed-set instead of the BodyGen one.
+This cross-axis copy-paste class of bug is what the R18 axis-parameterized shared validator eliminates.
 
 ### ✅ B60 — `MatchedWholeConfigForceIfs` pack filter was a silent no-op (property never written) — 🐞 RESOLVED (no-op deleted) — see Resolved §B60
 
