@@ -28,7 +28,18 @@ jobs:
     - name: Publish
       #run: dotnet publish "SynthEBD/SynthEBD.csproj" --configuration Release -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true
       run: dotnet publish "SynthEBD/SynthEBD.csproj" --configuration Release -p:PublishSingleFile=false
-      
+
+    # The CLI publishes into the same folder so SynthEBD.CLI.exe ships beside SynthEBD.exe
+    # (its default --synthebd-path is its own directory). Shared assemblies are identical builds.
+    - name: Publish CLI
+      run: dotnet publish "SynthEBD.CLI/SynthEBD.CLI.csproj" --configuration Release -p:PublishSingleFile=false --output SynthEBD/bin/Release/net8.0/publish
+
+    # Ship the AI config-authoring Skill inside the release and as a standalone artifact (for Nexus).
+    - name: Bundle AI Skill
+      run: |
+        powershell Copy-Item -Recurse AISkills SynthEBD/bin/Release/net8.0/publish/AISkills
+        powershell Compress-Archive AISkills/synthebd-config-authoring "SynthEBD_AISkill_${{ github.event.release.tag_name }}.zip"
+
     - name: Archive Release
       run: |
         powershell Compress-Archive SynthEBD/bin/Release/net8.0/publish/* "SynthEBD_${{ github.event.release.tag_name }}.zip"
@@ -36,5 +47,11 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         file: "SynthEBD_${{ github.event.release.tag_name }}.zip"
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.event.release.tag_name }}
+    - name: Publish AI Skill to Github
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: "SynthEBD_AISkill_${{ github.event.release.tag_name }}.zip"
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.event.release.tag_name }}
