@@ -934,6 +934,21 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
   the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
   per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
+- [x] **R16 -- `GenerateCombinationWithBodyShape` decision-tree restructure -- DONE.** The ~190-line method
+  now reads as: filter -> seed -> loop { replenish seeds / draw combination / decision tree } -> fallback.
+  Extracted: `BodyShapeSelectionIsIrrelevant` (the former 3-clause one-liner gate), `NpcHasBodyShapeConsistency`
+  (the R15-hoisted block), `TryReplenishSeedsWithoutConsistency` (the two-pass consistency relaxation, now
+  documented), `RunBodyShapeDecisionTree` dispatching to `HandleNoCompatibleBodyShape` (Branch 1, contains the
+  R14 probe cache), `AcceptBodyShape` (Branch 2), `BankConsistencyMismatchedPair` (Branch 3), and
+  `ApplyFallbackAssignment` (post-loop). Cross-iteration flags live on a private `BodyShapeDecisionState`
+  (`AnyBodyShapeValidWithoutAssetRestrictions`, `AssetRulesBlockAllBodyShapes` -- the renamed
+  `notifyOfPermutationMorphConflict` -- and `FirstValidCombinationShapePair`). The
+  `Tuple<SubgroupCombination, object>` + runtime casts became a typed `AssetAndBodyShapeAssignment` (the
+  existing result class is exactly the needed shape; null replaces the `Initialized` flag). Two provable
+  no-behavior-change simplifications: Branch 3's `else if` condition was the exact negation-remainder of
+  Branch 2's, so it is now a documented fall-through; and the Branch-1 probe's discarded selector outputs
+  (`candidateMorphs`/`candidatePresets`/status flags, established discarded during R14) are now explicit
+  `out _` discards. All log/report strings byte-identical. Suite 258 / 1 skipped / 0 failed.
 - [x] **R19 -- per-NPC ForceIf scratch relocated onto `NPCInfo.ForceIfMatches` -- DONE** (3 commits:
   R19a asset side, R19b BodyGen/OBody/descriptors, R19c head parts). Deleted all six shared-object scratch
   properties (`FlattenedSubgroup.ForceIfMatchCount`, `BodyGenTemplate`/`BodySlideSetting`/`HeadPartSetting`/
@@ -1322,7 +1337,7 @@ the loop-invariant `npcHasBodyShapeConsistency` block
 ([AssetAndBodyShapeSelector.cs:251-259](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L251-L259))
 above the `while`.
 
-### R16 — `GenerateCombinationWithBodyShape` decision-tree readability — 🔧
+### ✅ R16 — `GenerateCombinationWithBodyShape` decision-tree readability — 🔧 RESOLVED (branches extracted, typed fallback pair, renames) — see Resolved §R16
 
 [AssetAndBodyShapeSelector.cs:177-359](SynthEBD/Patcher/Shared/AssetAndBodyShapeSelector.cs#L177-L359) ·
 Works, but: the three decision branches deserve extraction into named methods; the banked
