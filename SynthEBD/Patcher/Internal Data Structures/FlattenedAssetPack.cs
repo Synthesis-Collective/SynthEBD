@@ -87,8 +87,6 @@ public class FlattenedAssetPack
     public AssetPackType Type { get; set; }
     /// <summary>Replacer name; only used when <see cref="Type"/> is <see cref="AssetPackType.ReplacerVirtual"/>.</summary>
     public string ReplacerName { get; set; } = ""; // only used when Type == ReplacerVirtual
-    /// <summary>Count of whole-config ForceIf attributes matched for the current NPC (used in selection scoring).</summary>
-    public int MatchedWholeConfigForceIfs { get; set; } = 0;
     /// <summary>Virtual subgroup carrying the pack-wide distribution rules, inherited by every real subgroup during flattening.</summary>
     public FlattenedSubgroup DistributionRules { get; set; } // "virtual" subgroup
     /// <summary>Running count of how many times this pack has been assigned (for logging).</summary>

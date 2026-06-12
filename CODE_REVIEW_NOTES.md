@@ -934,6 +934,13 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   re-selection overwrites them; `bodyShapeStatusFlags` is re-created each iteration. Verbose-report delta:
   the "Checking if any body shapes would be valid..." line now prints only on the first probe (the
   per-attempt conclusion lines are unchanged). Suite 255 / 1 skipped / 0 failed.
+- [x] **B60 (surfaced during R19 survey) -- `MatchedWholeConfigForceIfs` filter no-op -- DELETED.** The
+  `FlattenedAssetPack.MatchedWholeConfigForceIfs` property was read by a pack-removal filter at the end of
+  the subgroup-rules region but **never written** (verified: zero assignment sites repo-wide), so
+  `maxMatchedConfigForceIfs` was always 0 and the `0 < 0` removal never fired. Deleted the property + block
+  (behavior-preserving by proof). The real whole-config ForceIf filter at `FilterValidConfigsForNPC`
+  lines 698-710 (keyed on `DistributionRules.ForceIfMatchCount`, which IS written at :687) is untouched.
+  Suite 255 / 1 skipped / 0 failed.
 - [x] **R15-partial (perf; surfaced during the 2026-06-11 selection-algorithm evaluation) -- loop-invariant
   consistency flag hoisted -- HOIST DONE, SPLIT DEFERRED.** Moved the `npcHasBodyShapeConsistency`
   computation (settings + `npcInfo.ConsistencyNPCAssignment`, both invariant across combination attempts)
@@ -1313,6 +1320,17 @@ selection extracted, and the backtrack index arithmetic (`i == 0 || (i == 1 && s
 `i - 2` to skip over the seed position) named or commented — it's correct but takes real effort
 to re-derive. `AssignmentIteration.RemainingVariantsByIndex` holds backtracking snapshots, not
 "remaining variants" — rename (e.g. `BacktrackSnapshotsByPosition`).
+
+### ✅ B60 — `MatchedWholeConfigForceIfs` pack filter was a silent no-op (property never written) — 🐞 RESOLVED (no-op deleted) — see Resolved §B60
+
+Surfaced while mapping shared ForceIf scratch state for R19. `FlattenedAssetPack.MatchedWholeConfigForceIfs`
+had **zero write sites** anywhere in the codebase, so the post-subgroup-filtering pack filter that read it
+(formerly AssetSelector, end of the SubGroupDistributionRules region) compared `0 < 0` for every pack and
+provably removed nothing — including its log line, which could never fire. The *working* whole-config
+ForceIf filter lives earlier in `FilterValidConfigsForNPC`
+([AssetSelector.cs:698-710](SynthEBD/Patcher/Asset%20Patching/AssetSelector.cs#L698-L710)), keyed on
+`DistributionRules.ForceIfMatchCount`, which **is** written (line 687). Deleted the dead property and the
+no-op block rather than wiring it up — implementing it would just duplicate the 698-710 filter.
 
 ### R18 — BodyGen/OBody selector validation duplication — 💭 (flag; large refactor)
 

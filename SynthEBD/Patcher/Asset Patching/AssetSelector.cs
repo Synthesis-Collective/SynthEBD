@@ -788,19 +788,6 @@ public class AssetSelector
             _logger.CloseReportSubsectionsTo("SubGroupDistributionRules", npcInfo);
         }
 
-        if (filteredPacks.Any())
-        {
-            int maxMatchedConfigForceIfs = filteredPacks.Select(x => x.MatchedWholeConfigForceIfs).Max();
-            for (int i = 0; i < filteredPacks.Count; i++)
-            {
-                if (filteredPacks[i].MatchedWholeConfigForceIfs < maxMatchedConfigForceIfs)
-                {
-                    _logger.LogReport("Asset Pack: " + filteredPacks[i].GroupName + " was removed because it has fewer (" + filteredPacks[i].MatchedWholeConfigForceIfs + ") than the maximal (" + maxMatchedConfigForceIfs.ToString() + ") matched ForceIf attributes.", false, npcInfo);
-                    filteredPacks.RemoveAt(i);
-                    i--;
-                }
-            }
-        }
         #endregion
 
         _logger.CloseReportSubsectionsTo("ConfigFiltering", npcInfo);
