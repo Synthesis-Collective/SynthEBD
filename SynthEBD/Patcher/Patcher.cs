@@ -433,8 +433,20 @@ public class Patcher
         }
         else if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide)
         {
-            copiedOBodySettings.BodySlidesFemale = copiedOBodySettings.BodySlidesFemale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide)).ToList(); // don't assign BodySlides that have been uninstalled
-            copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide)).ToList();
+            // Don't assign BodySlides that have been uninstalled or whose sliders did not match any
+            // Body Type Registry entry ("Unknown" classification): without a known body type the
+            // preset can't be guaranteed compatible with the installed body. Unclassified-but-installed
+            // exclusions are logged so users can diagnose why a preset never gets distributed.
+            var unclassifiedBodySlides = copiedOBodySettings.BodySlidesFemale.And(copiedOBodySettings.BodySlidesMale)
+                .Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide) && !x.HasDetectedBodyType)
+                .Select(x => x.Label)
+                .ToList();
+            if (unclassifiedBodySlides.Any())
+            {
+                _logger.LogMessage("Excluding " + unclassifiedBodySlides.Count + " BodySlide(s) with no detected Registry Body Type from distribution: " + string.Join(", ", unclassifiedBodySlides));
+            }
+            copiedOBodySettings.BodySlidesFemale = copiedOBodySettings.BodySlidesFemale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide) && x.HasDetectedBodyType).ToList();
+            copiedOBodySettings.BodySlidesMale = copiedOBodySettings.BodySlidesMale.Where(x => copiedOBodySettings.CurrentlyExistingBodySlides.Contains(x.ReferencedBodySlide) && x.HasDetectedBodyType).ToList();
             _oBodyPreprocessing.CompilePresetRaces(copiedOBodySettings);
             _oBodyPreprocessing.CompileRulesRaces(copiedOBodySettings);
 

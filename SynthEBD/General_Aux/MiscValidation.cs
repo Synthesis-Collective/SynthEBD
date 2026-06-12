@@ -144,29 +144,37 @@ public class MiscValidation
         return verified;
     }
 
-    /// <summary>Verifies that every configured BodySlide setting (male and female) whose referenced
-    /// BodySlide is currently installed has a unique label. Settings referencing uninstalled BodySlides
-    /// are skipped: RunPatcher filters them out of distribution, so their labels can never collide at
-    /// assignment time.</summary>
+    /// <summary>Verifies that every distributable BodySlide setting has a unique label within its gender's
+    /// list. Settings referencing uninstalled BodySlides or lacking a detected Registry Body Type are
+    /// skipped: RunPatcher filters both out of distribution, so their labels can never collide at
+    /// assignment time. The male and female lists are validated independently because NPCs only ever
+    /// select from the gender-matching list, so a label shared across genders is unambiguous.</summary>
     /// <returns><c>true</c> if no duplicate labels were found.</returns>
     public bool VerifyBodySlideUniqueLabels()
     {
-        List<string> existingLabels = new();
+        // & rather than && so both lists get validated and logged in one pass
+        return VerifyBodySlideUniqueLabels(_patcherState.OBodySettings.BodySlidesMale, "male")
+            & VerifyBodySlideUniqueLabels(_patcherState.OBodySettings.BodySlidesFemale, "female");
+    }
+
+    /// <summary>Checks one gender's BodySlide list for duplicate labels among distributable entries.</summary>
+    /// <param name="bodySlides">The gender-specific BodySlide list to validate.</param>
+    /// <param name="genderLabel">Gender name used in the duplicate log message.</param>
+    /// <returns><c>true</c> if no duplicate labels were found.</returns>
+    private bool VerifyBodySlideUniqueLabels(List<BodySlideSetting> bodySlides, string genderLabel)
+    {
+        HashSet<string> existingLabels = new();
         bool foundDuplicate = false;
-        foreach (var bodySlide in _patcherState.OBodySettings.BodySlidesMale.And(_patcherState.OBodySettings.BodySlidesFemale))
+        foreach (var bodySlide in bodySlides)
         {
-            if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(bodySlide.ReferencedBodySlide))
+            if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(bodySlide.ReferencedBodySlide) || !bodySlide.HasDetectedBodyType)
             {
-                continue; // not distributable (mirrors the RunPatcher uninstalled-BodySlide filter)
+                continue; // not distributable (mirrors the RunPatcher BodySlide filters)
             }
-            if (existingLabels.Contains(bodySlide.Label))
+            if (!existingLabels.Add(bodySlide.Label))
             {
-                _logger.LogMessage("Found duplicate BodySlide name: " + bodySlide.Label + ". Names must be unique even if the linked BodySlide is the same.");
+                _logger.LogMessage("Found duplicate " + genderLabel + " BodySlide name: " + bodySlide.Label + ". Names must be unique within each gender's list even if the linked BodySlide is the same.");
                 foundDuplicate = true;
-            }
-            else
-            {
-                existingLabels.Add(bodySlide.Label);
             }
         }
         return !foundDuplicate;

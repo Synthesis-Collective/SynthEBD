@@ -332,6 +332,16 @@ public class BodySlideSetting : IProbabilityWeighted, IBodyShapeRuleCandidate
     [JsonIgnore]
     public string SliderGroup { get; set; }
 
+    /// <summary>
+    /// True when this preset's sliders matched a Body Type Registry entry at classification time
+    /// (<see cref="SliderGroup"/> holds a body type other than the "Unknown" sentinel). Presets
+    /// without a detected body type are excluded from distribution by RunPatcher and skipped by
+    /// the pre-run unique-label validation.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasDetectedBodyType => !string.IsNullOrWhiteSpace(SliderGroup)
+        && !string.Equals(SliderGroup, "Unknown", StringComparison.OrdinalIgnoreCase);
+
     [JsonIgnore]
     public Dictionary<string, BodySlideSlider> SliderValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

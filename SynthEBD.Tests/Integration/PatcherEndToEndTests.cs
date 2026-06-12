@@ -105,9 +105,9 @@ public class PatcherEndToEndTests
             // Switch the body axis to BodySlide (OBody script mode is set in the demo OBody settings).
             harness.PatcherState.GeneralSettings.BodySelectionMode = BodyShapeSelectionMode.BodySlide;
             harness.PatcherState.GeneralSettings.BSSelectionMode = BodySlideSelectionMode.OBody;
-            // An empty test data folder means no BodySlides are auto-detected; mark the demo presets as
-            // installed so assignments survive the patcher's existence filter.
-            harness.MarkAllBodySlidesAsExisting();
+            // An empty test data folder means no BodySlides are auto-detected or classified; mark the demo
+            // presets as installed + classified so assignments survive the patcher's distributability filters.
+            harness.MarkAllBodySlidesAsDistributable();
             // Inject real, resolvable vanilla head parts so head-part patching has something to assign.
             InjectVanillaHeadParts(harness);
 

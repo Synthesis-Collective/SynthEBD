@@ -124,17 +124,23 @@ public sealed class PatcherTestHarness : IDisposable
     }
 
     /// <summary>
-    /// Marks every loaded BodySlide preset as "currently installed". Required for BodySlide assignments to
-    /// survive <c>Patcher.cs</c>'s filter against <c>CurrentlyExistingBodySlides</c>, which would otherwise
-    /// be empty because no BodySlide XML exists in the (empty) test data folder.
+    /// Marks every loaded BodySlide preset as "currently installed" and as having a detected Registry
+    /// Body Type. Required for BodySlide assignments to survive <c>Patcher.cs</c>'s distributability
+    /// filters (against <c>CurrentlyExistingBodySlides</c> and <c>HasDetectedBodyType</c>), which would
+    /// otherwise drop everything because no BodySlide XML exists in the (empty) test data folder, so
+    /// nothing is detected or classified.
     /// </summary>
-    public void MarkAllBodySlidesAsExisting()
+    public void MarkAllBodySlidesAsDistributable()
     {
         var o = PatcherState.OBodySettings;
         var existing = o.CurrentlyExistingBodySlides;
         foreach (var bs in o.BodySlidesMale.And(o.BodySlidesFemale))
         {
             existing.Add(bs.ReferencedBodySlide);
+            if (!bs.HasDetectedBodyType)
+            {
+                bs.SliderGroup = "TestBodyType";
+            }
         }
     }
 
