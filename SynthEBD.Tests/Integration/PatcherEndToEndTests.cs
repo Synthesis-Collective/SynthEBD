@@ -129,6 +129,47 @@ public class PatcherEndToEndTests
         });
     }
 
+    [Fact]
+    public async Task RunPatcher_BodySlideSelectionFailsForAllNpcs_HeadPartsStillAssigned()
+    {
+        await _wpf.RunOnStaAsync(async () =>
+        {
+        var harness = PatcherTestHarness.TryCreate(out var skipReason);
+        if (harness is null)
+        {
+            _output.WriteLine("SKIPPED: " + skipReason);
+            return;
+        }
+
+        using (harness)
+        {
+            harness.PatcherState.GeneralSettings.BodySelectionMode = BodyShapeSelectionMode.BodySlide;
+            harness.PatcherState.GeneralSettings.BSSelectionMode = BodySlideSelectionMode.OBody;
+            harness.MarkAllBodySlidesAsDistributable();
+            // Force SelectBodySlidePresets to fail for every NPC: the race-only pre-check
+            // (CurrentNPCHasAvailablePresets) still passes, but full validation rejects every preset
+            // on weight range (NPC weights are 0-100). This is the path a user hits when their
+            // remaining distributable presets can't validate for some NPC, and it must not take the
+            // head-part axis down with it (assignedBodySlides used to go null here).
+            foreach (var preset in harness.PatcherState.OBodySettings.BodySlidesMale
+                         .Concat(harness.PatcherState.OBodySettings.BodySlidesFemale))
+            {
+                preset.WeightRange = new NPCWeightRange { Lower = 101, Upper = 101 };
+            }
+            InjectVanillaHeadParts(harness);
+
+            await harness.RunAsync();
+
+            // ── BodySlides: nothing assignable, and that's expected ──
+            Patcher.BodySlideTracker.Should().BeEmpty("every preset fails its weight range, so no BodySlide can be assigned");
+
+            // ── Head parts must still be assigned despite the BodySlide axis coming up empty ──
+            File.Exists(Path.Combine(harness.OutputDataFolder, "SynthEBD", "HeadPartAssignments.json"))
+                .Should().BeTrue("head-part assignment must survive BodySlide selection failure");
+        }
+        });
+    }
+
     /// <summary>
     /// Verifies the race-gating distribution rule: every NPC assigned a combination containing the
     /// Nord-only subgroup (<c>HD.Nord</c>) must actually be a Nord. Reads the patcher's combination log,

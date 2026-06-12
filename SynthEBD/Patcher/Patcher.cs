@@ -1198,9 +1198,13 @@ public class Patcher
                     if (!blockBodyShape && _raceResolver.PatchableRaceFormKeys.Contains(currentNPCInfo.BodyShapeRace) && !bodyShapeAssigned && _oBodySelector.CurrentNPCHasAvailablePresets(currentNPCInfo, oBodySettings))
                     {
                         _logger.LogReport("Assigning a BodySlide preset independently of Asset Combination", false, currentNPCInfo);
-                        assignedBodySlides = _oBodySelector.SelectBodySlidePresets(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
+                        // SelectBodySlidePresets returns null on failure; only overwrite on success so
+                        // assignedBodySlides keeps its never-null (empty when none) convention — the
+                        // head-part assignment below iterates it.
+                        var selectedBodySlides = _oBodySelector.SelectBodySlidePresets(currentNPCInfo, out bool success, oBodySettings, new List<SubgroupCombination>(), out _);
                         if (success)
                         {
+                            assignedBodySlides = selectedBodySlides;
                             BodySlideTracker.Add(currentNPCInfo.NPC.FormKey, assignedBodySlides.Select(x => x.ReferencedBodySlide).ToList());
                             _oBodySelector.RecordBodySlideConsistencyAndLinkedNPCs(assignedBodySlides, currentNPCInfo);
                             primaryAssetsAndBodyShape.BodySlidePresets = assignedBodySlides;
