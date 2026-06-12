@@ -32,12 +32,33 @@ namespace SynthEBD
         /// <param name="destinationPath">Folder to extract into (overwriting via <c>-y</c>).</param>
         /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
         /// <param name="mirrorUIstr">Callback receiving each line of 7-Zip's stdout (e.g. to mirror progress in the UI).</param>
-        /// <returns><c>true</c> on success; <c>false</c> if extraction failed or 7-Zip reported "Can't open as archive". Failures show a notification dialog.</returns>
-        public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr)
+        /// <param name="suppressErrorDialog">When <c>true</c>, failures are reported only via the return value instead of a notification dialog (for headless callers).</param>
+        /// <returns><c>true</c> on success; <c>false</c> if extraction failed or 7-Zip reported "Can't open as archive". Failures show a notification dialog unless suppressed.</returns>
+        public async Task<bool> ExtractArchive(string archivePath, string destinationPath, bool hideWindow, Action<string> mirrorUIstr, bool suppressErrorDialog = false)
         {
             var arguments = string.Format("x \"{0}\" -y -o\"{1}\"", archivePath, destinationPath);
-            var output = await RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr);
-            return output != null; // null == corrupt-archive or exception (RunSevenZip already showed the dialog)
+            var output = await RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr, suppressErrorDialog);
+            return output != null; // null == corrupt-archive or exception (RunSevenZip already showed/reported the error)
+        }
+
+        /// <summary>Creates an archive from a folder's contents by invoking <c>7z a</c>. The folder's contents
+        /// (not the folder itself) become the archive root; the archive type follows the file extension
+        /// (.7z, .zip, ...).</summary>
+        /// <param name="sourceDirectory">Folder whose contents to archive.</param>
+        /// <param name="archivePath">Path of the archive to create (overwritten if present).</param>
+        /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
+        /// <param name="mirrorUIstr">Callback receiving each line of 7-Zip's stdout.</param>
+        /// <param name="suppressErrorDialog">When <c>true</c>, failures are reported only via the return value instead of a notification dialog (for headless callers).</param>
+        /// <returns><c>true</c> when 7-Zip completed and the archive file exists afterward.</returns>
+        public async Task<bool> CreateArchive(string sourceDirectory, string archivePath, bool hideWindow, Action<string> mirrorUIstr, bool suppressErrorDialog = false)
+        {
+            if (File.Exists(archivePath))
+            {
+                File.Delete(archivePath); // 7z a updates existing archives; recreate for a clean result
+            }
+            var arguments = string.Format("a \"{0}\" \"{1}\"", archivePath, Path.Combine(sourceDirectory, "*"));
+            var output = await RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr, suppressErrorDialog);
+            return output != null && File.Exists(archivePath);
         }
 
         /// <summary>Lists the file entries in an archive, with no progress callback.</summary>
@@ -53,12 +74,13 @@ namespace SynthEBD
         /// <param name="archivePath">Path to the archive.</param>
         /// <param name="hideWindow">When <c>true</c>, runs 7-Zip without a visible console window.</param>
         /// <param name="mirrorUIstr">Callback receiving each line of 7-Zip's stdout.</param>
+        /// <param name="suppressErrorDialog">When <c>true</c>, failures are reported only via the return value instead of a notification dialog (for headless callers).</param>
         /// <returns>The archive's file paths (entries judged to be files by <see cref="IsFilePathFragment"/>), or an empty list on failure.</returns>
-        public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow, Action<string> mirrorUIstr)
+        public async Task<List<string>> GetArchiveContents(string archivePath, bool hideWindow, Action<string> mirrorUIstr, bool suppressErrorDialog = false)
         {
             var arguments = string.Format("l -slt \"{0}\"", archivePath);
-            var outputLines = await RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr);
-            if (outputLines == null) // corrupt-archive or exception (RunSevenZip already showed the dialog)
+            var outputLines = await RunSevenZip(archivePath, arguments, hideWindow, mirrorUIstr, suppressErrorDialog);
+            if (outputLines == null) // corrupt-archive or exception (RunSevenZip already showed/reported the error)
             {
                 return new();
             }
@@ -75,8 +97,9 @@ namespace SynthEBD
         /// <param name="arguments">Full 7-Zip command-line arguments (e.g. <c>x "..." -y -o"..."</c> or <c>l -slt "..."</c>).</param>
         /// <param name="hideWindow">When <c>true</c>, runs without a visible console window.</param>
         /// <param name="mirrorUIstr">Callback receiving each stdout line; when non-null, stdout/stderr are redirected.</param>
+        /// <param name="suppressErrorDialog">When <c>true</c>, skips the failure dialog (headless callers report via the return value; the output callback still receives 7-Zip's messages).</param>
         /// <returns>The captured stdout lines, or <c>null</c> on corrupt-archive / exception.</returns>
-        private async Task<List<string>?> RunSevenZip(string archivePath, string arguments, bool hideWindow, Action<string> mirrorUIstr)
+        private async Task<List<string>?> RunSevenZip(string archivePath, string arguments, bool hideWindow, Action<string> mirrorUIstr, bool suppressErrorDialog = false)
         {
             List<string> outputLines = new();
             try
@@ -122,7 +145,10 @@ namespace SynthEBD
                     if (outputLines.Any(x => x.Contains("Can't open as archive")))
                     {
                         var outputStr = string.Join(Environment.NewLine, outputLines);
-                        MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
+                        if (!suppressErrorDialog)
+                        {
+                            MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " appears to have failed with message: " + Environment.NewLine + outputStr.Replace("\r\n", Environment.NewLine));
+                        }
                         return null;
                     }
                 }
@@ -130,7 +156,14 @@ namespace SynthEBD
 
             catch (Exception e)
             {
-                MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                if (!suppressErrorDialog)
+                {
+                    MessageWindow.DisplayNotificationOK("File Extraction Error", "Extraction of " + archivePath + " failed with message: " + Environment.NewLine + ExceptionLogger.GetExceptionStack(e));
+                }
+                else
+                {
+                    mirrorUIstr?.Invoke(ExceptionLogger.GetExceptionStack(e));
+                }
                 return null;
             }
 

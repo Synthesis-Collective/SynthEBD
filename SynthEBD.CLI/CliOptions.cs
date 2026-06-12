@@ -11,6 +11,9 @@ public enum CliVerb
     Scan,
     Draft,
     Simulate,
+    Package,
+    ArchiveList,
+    ArchiveExtract,
 }
 
 /// <summary>How the draft verb disposes of duplicate (byte-identical) textures.</summary>
@@ -119,6 +122,15 @@ public class CliOptions
     /// <summary>When set, the simulate verb writes each NPC's full verbose report (XML) into this folder.</summary>
     public string? FullReportDir { get; private set; }
 
+    /// <summary>Staging folder (containing Manifest.json) for the package verb.</summary>
+    public string? StagingDir { get; private set; }
+
+    /// <summary>Archive file for archive-list / archive-extract.</summary>
+    public string? ArchivePath { get; private set; }
+
+    /// <summary>Destination folder for archive-extract.</summary>
+    public string? DestDir { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -132,6 +144,10 @@ VERBS:
   simulate     Simulate primary asset distribution for specific NPCs (the GUI Distribution Simulator,
                headless): per-pack and per-subgroup assignment counts plus log-derived explanations
                for subgroups that never get assigned.
+  package      Validate a staged config folder against its Manifest.json and 7-zip it into a
+               distributable archive. (No game environment needed.)
+  archive-list     List the file entries of a 7z/zip/rar archive via the bundled 7-Zip.
+  archive-extract  Extract a 7z/zip/rar archive via the bundled 7-Zip.
   help         Show this help.
 
 WORKING-FOLDER LAYOUT (scan/draft):
@@ -193,6 +209,12 @@ SIMULATE OPTIONS:
   --full-report-dir <dir>  Write each NPC's full verbose report (XML) into this folder for deep
                            debugging of distribution failures.
 
+PACKAGE / ARCHIVE OPTIONS:
+  --staging <dir>          Folder containing Manifest.json plus the staged configs/templates to package.
+  --out <file>             Output archive path (default: <ConfigName>.7z next to the staging folder).
+  --archive <file>         Archive to list/extract.
+  --dest <dir>             Destination folder for archive-extract (created if missing).
+
 EXIT CODES:
   0  success / all configs valid / every simulated NPC received assignments
   1  validation errors found / at least one simulated NPC received no assignments
@@ -214,6 +236,9 @@ EXIT CODES:
             "scan" => CliVerb.Scan,
             "draft" => CliVerb.Draft,
             "simulate" => CliVerb.Simulate,
+            "package" => CliVerb.Package,
+            "archive-list" => CliVerb.ArchiveList,
+            "archive-extract" => CliVerb.ArchiveExtract,
             "help" or "--help" or "-h" or "-?" or "/?" => CliVerb.Help,
             _ => throw new CliArgumentException("Unknown verb: " + args[0]),
         };
@@ -320,6 +345,20 @@ EXIT CODES:
                 case "--full-report-dir":
                     options.FullReportDir = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
                     break;
+                case "--staging":
+                    options.StagingDir = TakeDirectoryValue(args, ref i, flag);
+                    break;
+                case "--archive":
+                    var archivePath = TakeValue(args, ref i, flag);
+                    if (!System.IO.File.Exists(archivePath))
+                    {
+                        throw new CliArgumentException("--archive file does not exist: " + archivePath);
+                    }
+                    options.ArchivePath = System.IO.Path.GetFullPath(archivePath);
+                    break;
+                case "--dest":
+                    options.DestDir = System.IO.Path.GetFullPath(TakeValue(args, ref i, flag));
+                    break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
             }
@@ -332,6 +371,18 @@ EXIT CODES:
         if (options.Verb == CliVerb.Simulate && !options.Npcs.Any())
         {
             throw new CliArgumentException("simulate requires at least one --npc");
+        }
+        if (options.Verb == CliVerb.Package && options.StagingDir == null)
+        {
+            throw new CliArgumentException("package requires --staging");
+        }
+        if (options.Verb is CliVerb.ArchiveList or CliVerb.ArchiveExtract && options.ArchivePath == null)
+        {
+            throw new CliArgumentException(args[0].ToLowerInvariant() + " requires --archive");
+        }
+        if (options.Verb == CliVerb.ArchiveExtract && options.DestDir == null)
+        {
+            throw new CliArgumentException("archive-extract requires --dest");
         }
         if (options.Verb == CliVerb.Draft)
         {

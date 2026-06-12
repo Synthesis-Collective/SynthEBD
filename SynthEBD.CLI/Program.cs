@@ -69,6 +69,9 @@ internal static class Program
                     CliVerb.Scan => await ScanVerb.RunAsync(options, resultWriter),
                     CliVerb.Draft => await DraftVerb.RunAsync(options, resultWriter),
                     CliVerb.Simulate => await SimulateVerb.RunAsync(options, resultWriter),
+                    CliVerb.Package => await PackageVerb.RunAsync(options, resultWriter),
+                    CliVerb.ArchiveList => await PackageVerb.RunListAsync(options, resultWriter),
+                    CliVerb.ArchiveExtract => await PackageVerb.RunExtractAsync(options, resultWriter),
                     _ => throw new InvalidOperationException("Unhandled verb: " + options.Verb),
                 };
             }
