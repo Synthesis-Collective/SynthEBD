@@ -35,6 +35,8 @@ Tests cover the BodySlide group classifier (ML.NET-based), form-key replacement 
 - **SynthEBD/** — the main WPF/Synthesis application (WinExe entry point).
 - **CharacterViewer.Rendering/** — standalone OpenTK/OpenGL 4.3 renderer library (replaced HelixToolkit), referenced by SynthEBD via `ProjectReference`.
 - **SynthEBD.Tests/** — xUnit test project (not in the .sln).
+- **SynthEBD.CLI/** — headless console front-end (`validate`/`scan`/`draft`/`simulate`/`package`/`archive-*` verbs) for AI-assisted config authoring. Bootstraps the full object graph the same way the integration-test harness does (STA WPF `Application` + Autofac + `SaveLoader`); stdout is reserved for results (`--json`), all logging goes to stderr. Published into the same folder as SynthEBD.exe by the release workflow.
+- **AISkills/** — agent-portable Skill documentation (`synthebd-config-authoring/`) teaching an LLM the config-authoring workflow against the CLI; zipped into releases. Keep it in lockstep with CLI/config-format changes.
 - **BatchConfigUpdater/** — auxiliary tool.
 
 ## Architecture of the main app (SynthEBD/)
