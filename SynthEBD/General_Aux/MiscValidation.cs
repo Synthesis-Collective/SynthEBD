@@ -144,7 +144,10 @@ public class MiscValidation
         return verified;
     }
 
-    /// <summary>Verifies that every configured BodySlide setting (male and female) has a unique label.</summary>
+    /// <summary>Verifies that every configured BodySlide setting (male and female) whose referenced
+    /// BodySlide is currently installed has a unique label. Settings referencing uninstalled BodySlides
+    /// are skipped: RunPatcher filters them out of distribution, so their labels can never collide at
+    /// assignment time.</summary>
     /// <returns><c>true</c> if no duplicate labels were found.</returns>
     public bool VerifyBodySlideUniqueLabels()
     {
@@ -152,6 +155,10 @@ public class MiscValidation
         bool foundDuplicate = false;
         foreach (var bodySlide in _patcherState.OBodySettings.BodySlidesMale.And(_patcherState.OBodySettings.BodySlidesFemale))
         {
+            if (!_patcherState.OBodySettings.CurrentlyExistingBodySlides.Contains(bodySlide.ReferencedBodySlide))
+            {
+                continue; // not distributable (mirrors the RunPatcher uninstalled-BodySlide filter)
+            }
             if (existingLabels.Contains(bodySlide.Label))
             {
                 _logger.LogMessage("Found duplicate BodySlide name: " + bodySlide.Label + ". Names must be unique even if the linked BodySlide is the same.");
