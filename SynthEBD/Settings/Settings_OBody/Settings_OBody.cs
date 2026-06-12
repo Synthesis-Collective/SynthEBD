@@ -270,7 +270,7 @@ public class Settings_OBody
 }
 
 [DebuggerDisplay("{Label}")]
-public class BodySlideSetting : IProbabilityWeighted
+public class BodySlideSetting : IProbabilityWeighted, IBodyShapeRuleCandidate
 {
     public string Label { get; set; } = "";
     public string ReferencedBodySlide { get; set; } = "";
@@ -325,6 +325,9 @@ public class BodySlideSetting : IProbabilityWeighted
 
     // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: presets are shared
     // settings-owned objects, so per-NPC scratch on them would block parallel selection.
+
+    /// <summary>BodySlide presets validate only the descriptors annotated at the NPC's weight slot, so per-weight presets aren't spuriously rejected by rules that only apply to the other slot.</summary>
+    public HashSet<BodyShapeDescriptor.LabelSignature> GetDescriptorsForValidation(float npcWeight) => new(PerWeightDescriptorLookup.GetDescriptorsForWeight(this, npcWeight));
 
     [JsonIgnore]
     public string SliderGroup { get; set; }

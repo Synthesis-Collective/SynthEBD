@@ -16,14 +16,16 @@ public class BodyGenSelector
     private readonly Logger _logger;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
-    /// <summary>Injects patcher state, environment, logging, attribute matching, and unique-NPC tracking dependencies.</summary>
-    public BodyGenSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
+    private readonly BodyShapeCandidateValidator _candidateValidator;
+    /// <summary>Injects patcher state, environment, logging, attribute matching, unique-NPC tracking, and the shared candidate-validator dependencies.</summary>
+    public BodyGenSelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData, BodyShapeCandidateValidator candidateValidator)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _attributeMatcher = attributeMatcher;  
         _uniqueNPCData = uniqueNPCData;
+        _candidateValidator = candidateValidator;
     }
 
     /// <summary>
@@ -427,9 +429,10 @@ public class BodyGenSelector
     public HashSet<BodyGenConfig.BodyGenTemplate> InitializeMorphList(HashSet<BodyGenConfig.BodyGenTemplate> allMorphs, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
     {
         HashSet<BodyGenConfig.BodyGenTemplate> outputMorphs = new HashSet<BodyGenConfig.BodyGenTemplate>();
+        var validationContext = BuildValidationContext(npcInfo, ignoredFactors, bodyGenConfig);
         foreach (var candidateMorph in allMorphs)
         {
-            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombinations, bodyGenConfig))
+            if (MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombinations, validationContext))
             {
                 outputMorphs.Add(candidateMorph);
             }
@@ -438,13 +441,20 @@ public class BodyGenSelector
     }
 
     /// <summary>
-    /// Validates a single morph against the NPC: random/unique/race/weight/allowed-disallowed attribute rules
-    /// (tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>), the morph's own descriptor rules, and the
-    /// allowed/disallowed BodyGen descriptors of every assigned asset combination and its subgroups.
+    /// Validates a single morph against the NPC via the shared <see cref="BodyShapeCandidateValidator"/>
+    /// rule battery (R18): random/unique/race/weight/attribute rules (tallying ForceIf matches in
+    /// <c>npcInfo.ForceIfMatches</c>), the morph's own descriptor rules, and the allowed/disallowed BodyGen
+    /// descriptors of every assigned asset combination and its subgroups.
     /// <paramref name="ignoredFactors"/> can skip race checks or bypass validation entirely.
     /// </summary>
     /// <returns>True if the morph may be assigned to the NPC.</returns>
     public bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyGenConfig bodyGenConfig)
+    {
+        return MorphIsValid(candidateMorph, npcInfo, ignoredFactors, assignedAssetCombinations, BuildValidationContext(npcInfo, ignoredFactors, bodyGenConfig));
+    }
+
+    /// <summary>Context-reusing overload for callers that validate many morphs in a loop (the context flattens the descriptor catalog, so build it once per call batch via <see cref="BuildValidationContext"/>).</summary>
+    private bool MorphIsValid(BodyGenConfig.BodyGenTemplate candidateMorph, NPCInfo npcInfo, ValidationIgnore ignoredFactors, IEnumerable<SubgroupCombination> assignedAssetCombinations, BodyShapeCandidateValidator.ValidationContext context)
     {
         if (ignoredFactors == ValidationIgnore.All)
         {
@@ -452,144 +462,21 @@ public class BodyGenSelector
             return true;
         }
 
-        if (npcInfo.SpecificNPCAssignment != null && npcInfo.SpecificNPCAssignment.BodyGenMorphNames.Contains(candidateMorph.Label))
+        return _candidateValidator.CandidateIsValid(candidateMorph, npcInfo, context, assignedAssetCombinations);
+    }
+
+    /// <summary>Builds the per-call validation context for a BodyGen config: BodyGen axis, the config's local attribute groups, its descriptor catalog (flattened once), and the Specific-assignment exemption test.</summary>
+    private BodyShapeCandidateValidator.ValidationContext BuildValidationContext(NPCInfo npcInfo, ValidationIgnore ignoredFactors, BodyGenConfig bodyGenConfig)
+    {
+        return new BodyShapeCandidateValidator.ValidationContext()
         {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
-            return true;
-        }
-
-        // Allow unique NPCs
-        if (!candidateMorph.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current morph is disallowed for unique NPCs", false, npcInfo);
-            return false;
-        }
-
-        // Allow non-unique NPCs
-        if (!candidateMorph.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current morph is disallowed for non-unique NPCs", false, npcInfo);
-            return false;
-        }
-
-        if (ignoredFactors != ValidationIgnore.Race)
-        {
-            // Allowed Races
-            if (candidateMorph.AllowedRaces.Any() && !candidateMorph.AllowedRaces.Contains(npcInfo.BodyShapeRace))
-            {
-                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its allowed races (" + Logger.GetRaceListLogStrings(candidateMorph.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race", false, npcInfo);
-                return false;
-            }
-
-            // Disallowed Races
-            if (candidateMorph.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
-            {
-                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(candidateMorph.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race", false, npcInfo);
-                return false;
-            }
-        }
-        // Weight Range
-        if (npcInfo.NPC.Weight < candidateMorph.WeightRange.Lower || npcInfo.NPC.Weight > candidateMorph.WeightRange.Upper)
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the current NPC's weight falls outside of the morph's allowed weight range", false, npcInfo);
-            return false;
-        }
-
-        // Allowed and Forced Attributes
-        npcInfo.ForceIfMatches.Set(candidateMorph, 0);
-        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
-        if (hasAttributeRestrictions && !matchesAttributeRestrictions)
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
-            return false;
-        }
-        else
-        {
-            npcInfo.ForceIfMatches.Set(candidateMorph, matchedForceIfWeightedCount);
-        }
-
-        if (npcInfo.ForceIfMatches.Get(candidateMorph) > 0)
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
-        }
-
-        // Disallowed Attributes
-        _attributeMatcher.MatchNPCtoAttributeList(candidateMorph.DisallowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, bodyGenConfig.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
-        if (hasAttributeRestrictions && matchesAttributeRestrictions)
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
-            return false;
-        }
-
-        // Repeat the above checks for the morph's descriptor rules
-        foreach (var descriptorLabel in candidateMorph.BodyShapeDescriptors)
-        {
-            var associatedDescriptor = bodyGenConfig.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
-            if (associatedDescriptor is not null)
-            {
-                if (associatedDescriptor.PermitNPC(npcInfo, bodyGenConfig.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr, out int descriptorForceIfCount))
-                {
-                    if (descriptorForceIfCount > 0)
-                    {
-                        npcInfo.ForceIfMatches.Add(candidateMorph, descriptorForceIfCount);
-                        _logger.LogReport(reportStr, false, npcInfo);
-                    }
-                }
-                else
-                {
-                    _logger.LogReport("Preset " + candidateMorph.Label + " is invalid because the rules for its descriptor " + reportStr, false, npcInfo);
-                    return false;
-                }
-            }
-        }
-
-        foreach (var assignedAssetCombination in assignedAssetCombinations)
-        {
-            // check whole config rules
-            if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors.Any())
-            {
-                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenMatchMode, out _))
-                {
-                    _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssignmentName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodyGenDescriptors), false, npcInfo);
-                    return false;
-                }
-            }
-
-            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodyGenMatchMode, out string matchedDescriptor))
-            {
-                _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssignmentName, false, npcInfo);
-                return false;
-            }
-
-            // check subgroups
-            foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
-            {
-                if (subgroup.AllowedBodyGenDescriptors.Any())
-                {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, subgroup.AllowedBodyGenMatchMode, out _))
-                    {
-                        _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodyGenDescriptors), false, npcInfo);
-                        return false;
-                    }
-                }
-
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodyGenDescriptors, candidateMorph.BodyShapeDescriptors, subgroup.DisallowedBodyGenMatchMode, out matchedDescriptor))
-                {
-                    _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
-                    return false;
-                }
-            }
-        }
-
-        // must run after attribute/descriptor matching above so the gate sees the current NPC's ForceIf match count (B59)
-        if (!candidateMorph.AllowRandom && npcInfo.ForceIfMatches.Get(candidateMorph) == 0) // don't need to check for specific assignment because it was evaluated at the top of this method
-        {
-            _logger.LogReport("Morph " + candidateMorph.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
-            return false;
-        }
-
-        // If the candidateMorph is still valid
-        return true;
+            Noun = "Morph",
+            Axis = BodyShapeCandidateValidator.BodyShapeAxis.BodyGen,
+            AttributeGroups = bodyGenConfig.AttributeGroups,
+            DescriptorCatalog = bodyGenConfig.TemplateDescriptors.Flatten().ToList(),
+            IgnoreRaceChecks = ignoredFactors == ValidationIgnore.Race,
+            IsSpecificallyAssigned = x => npcInfo.SpecificNPCAssignment?.BodyGenMorphNames?.Contains(x.Label) == true,
+        };
     }
 
     /// <summary>

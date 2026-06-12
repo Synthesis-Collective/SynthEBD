@@ -17,14 +17,16 @@ public class OBodySelector
     private readonly Logger _logger;
     private readonly AttributeMatcher _attributeMatcher;
     private readonly UniqueNPCData _uniqueNPCData;
-    /// <summary>Injects patcher state, environment, logging, attribute matching, and unique-NPC tracking dependencies.</summary>
-    public OBodySelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger,AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData)
+    private readonly BodyShapeCandidateValidator _candidateValidator;
+    /// <summary>Injects patcher state, environment, logging, attribute matching, unique-NPC tracking, and the shared candidate-validator dependencies.</summary>
+    public OBodySelector(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger,AttributeMatcher attributeMatcher, UniqueNPCData uniqueNPCData, BodyShapeCandidateValidator candidateValidator)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
         _logger = logger;
         _attributeMatcher = attributeMatcher;   
         _uniqueNPCData = uniqueNPCData;
+        _candidateValidator = candidateValidator;
     }
     /// <summary>
     /// Main entry point: selects the BodySlide preset(s) for an NPC from the gender-appropriate list. Resolves
@@ -119,9 +121,10 @@ public class OBodySelector
             var filteredPresets = new List<BodySlideSetting>(); // fall back if ForceIfs fail
             var forceIfPresets = new List<BodySlideSetting>();
 
+            var validationContext = BuildValidationContext(npcInfo, oBodySettings);
             foreach (var preset in availablePresets)
             {
-                if (PresetIsValid(preset, npcInfo, assignedAssetCombinations, oBodySettings))
+                if (_candidateValidator.CandidateIsValid(preset, npcInfo, validationContext, assignedAssetCombinations))
                 {
                     filteredPresets.Add(preset);
                     if (npcInfo.ForceIfMatches.Get(preset) > 0)
@@ -262,156 +265,29 @@ public class OBodySelector
     }
 
     /// <summary>
-    /// Validates a single BodySlide preset against the NPC: unique/non-unique, allowed/disallowed races,
-    /// weight range, allowed/disallowed attributes (tallying ForceIf matches in <c>npcInfo.ForceIfMatches</c>), the
-    /// preset's per-weight descriptor rules, and the allowed/disallowed descriptors of every assigned asset
-    /// combination and its subgroups. Specific assignment short-circuits to valid; the random-allowed flag is
-    /// checked last so ForceIf matches can override it.
+    /// Validates a single BodySlide preset against the NPC via the shared <see cref="BodyShapeCandidateValidator"/>
+    /// rule battery (R18): random/unique/race/weight/attribute rules (tallying ForceIf matches in
+    /// <c>npcInfo.ForceIfMatches</c>), the preset's per-weight descriptor rules, and the allowed/disallowed
+    /// BodySlide descriptors of every assigned asset combination and its subgroups.
     /// </summary>
-    /// <returns>True if the preset may be assigned to the NPC.</returns>
+    /// <returns>True if the preset may be distributed to the NPC.</returns>
     public bool PresetIsValid(BodySlideSetting candidatePreset, NPCInfo npcInfo, IEnumerable<SubgroupCombination> assignedAssetCombinations, Settings_OBody oBodySettings)
     {
-        if (npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace() && candidatePreset.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset)
+        return _candidateValidator.CandidateIsValid(candidatePreset, npcInfo, BuildValidationContext(npcInfo, oBodySettings), assignedAssetCombinations);
+    }
+
+    /// <summary>Builds the per-call validation context for the OBody settings: BodySlide axis, the settings' attribute groups, their descriptor catalog (flattened once), and the Specific-assignment exemption test.</summary>
+    private BodyShapeCandidateValidator.ValidationContext BuildValidationContext(NPCInfo npcInfo, Settings_OBody oBodySettings)
+    {
+        return new BodyShapeCandidateValidator.ValidationContext()
         {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is valid because it is specifically assigned by user.", false, npcInfo);
-            return true;
-        }
-
-        // Allow unique NPCs
-        if (!candidatePreset.AllowUnique && npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for unique NPCs", false, npcInfo);
-            return false;
-        }
-
-        // Allow non-unique NPCs
-        if (!candidatePreset.AllowNonUnique && !npcInfo.NPC.Configuration.Flags.HasFlag(Mutagen.Bethesda.Skyrim.NpcConfiguration.Flag.Unique))
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it is disallowed for non-unique NPCs", false, npcInfo);
-            return false;
-        }
-
-        // Allowed Races
-        if (candidatePreset.AllowedRaces.Any() && !candidatePreset.AllowedRaces.Contains(npcInfo.BodyShapeRace))
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its allowed races (" + Logger.GetRaceListLogStrings(candidatePreset.AllowedRaces, _environmentProvider.LinkCache, _patcherState) + ") do not include the current NPC's race", false, npcInfo);
-            return false;
-        }
-
-        // Disallowed Races
-        if (candidatePreset.DisallowedRaces.Contains(npcInfo.BodyShapeRace))
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its disallowed races (" + Logger.GetRaceListLogStrings(candidatePreset.DisallowedRaces, _environmentProvider.LinkCache, _patcherState) + ") include the current NPC's race", false, npcInfo);
-            return false;
-        }
-
-        // Weight Range
-        if (npcInfo.NPC.Weight < candidatePreset.WeightRange.Lower || npcInfo.NPC.Weight > candidatePreset.WeightRange.Upper)
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the current NPC's weight falls outside of the it's allowed weight range", false, npcInfo);
-            return false;
-        }
-
-        // Allowed and Forced Attributes
-        npcInfo.ForceIfMatches.Set(candidatePreset, 0);
-        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.AllowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, _patcherState.OBodySettings.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
-        if (hasAttributeRestrictions && !matchesAttributeRestrictions)
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC does not match any of its allowed attributes: " + unmatchedLog, false, npcInfo);
-            return false;
-        }
-        else
-        {
-            npcInfo.ForceIfMatches.Set(candidatePreset, matchedForceIfWeightedCount);
-        }
-
-        if (npcInfo.ForceIfMatches.Get(candidatePreset) > 0)
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
-        }
-
-        // Disallowed Attributes
-        _attributeMatcher.MatchNPCtoAttributeList(candidatePreset.DisallowedAttributes, npcInfo.NPC, npcInfo.BodyShapeRace, _patcherState.OBodySettings.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out hasAttributeRestrictions, out matchesAttributeRestrictions, out int dummy, out string matchLog, out string _, out string _, null);
-        if (hasAttributeRestrictions && matchesAttributeRestrictions)
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the NPC matches one of its disallowed attributes: " + matchLog, false, npcInfo);
-            return false;
-        }
-
-        // Repeat the above checks for the preset's descriptor rules.
-        // Use only the descriptors annotated at the NPC's weight slot so per-weight presets
-        // (e.g. HIMBO Daddy "Slight" at low weight / "Powerful" at high) don't get spuriously
-        // rejected by rules that only apply to the other slot.
-        var descriptorsAtWeight = PerWeightDescriptorLookup.GetDescriptorsForWeight(candidatePreset, npcInfo.NPC.Weight);
-        foreach (var descriptorLabel in descriptorsAtWeight)
-        {
-            var associatedDescriptor = oBodySettings.TemplateDescriptors.Flatten().FirstOrDefault(x => x.ID.MapsTo(descriptorLabel));
-            if (associatedDescriptor is not null)
-            {
-                if (associatedDescriptor.PermitNPC(npcInfo, oBodySettings.AttributeGroups, _attributeMatcher, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out string reportStr, out int descriptorForceIfCount))
-                {
-                    if (descriptorForceIfCount > 0)
-                    {
-                        npcInfo.ForceIfMatches.Add(candidatePreset, descriptorForceIfCount);
-                        _logger.LogReport(reportStr, false, npcInfo);
-                    }
-                }
-                else
-                {
-                    _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because the rules for its descriptor " + reportStr, false, npcInfo);
-                    return false;
-                }
-            }
-        }
-
-        foreach (var assignedAssetCombination in assignedAssetCombinations)
-        {
-            // check whole config rules
-            if (assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors.Any())
-            {
-                if (!BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors, descriptorsAtWeight, assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideMatchMode, out _))
-                {
-                    _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned Asset Pack " + assignedAssetCombination.AssignmentName + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(assignedAssetCombination.AssetPack.DistributionRules.AllowedBodySlideDescriptors), false, npcInfo);
-                    return false;
-                }
-            }
-
-            if (BodyShapeDescriptor.DescriptorsMatch(assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideDescriptors, descriptorsAtWeight, assignedAssetCombination.AssetPack.DistributionRules.DisallowedBodySlideMatchMode, out string matchedDescriptor))
-            {
-                _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned Asset Pack " + assignedAssetCombination.AssignmentName, false, npcInfo);
-                return false;
-            }
-
-            // check subgroups
-            foreach (var subgroup in assignedAssetCombination.ContainedSubgroups)
-            {
-                if (subgroup.AllowedBodySlideDescriptors.Any())
-                {
-                    if (!BodyShapeDescriptor.DescriptorsMatch(subgroup.AllowedBodySlideDescriptors, descriptorsAtWeight, subgroup.AllowedBodySlideMatchMode, out _))
-                    {
-                        _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptors do not match allowed descriptors from assigned subgroup " + Logger.GetSubgroupIDString(subgroup) + Environment.NewLine + "\t" + Logger.GetBodyShapeDescriptorString(subgroup.AllowedBodySlideDescriptors), false, npcInfo);
-                        return false;
-                    }
-                }
-
-                if (BodyShapeDescriptor.DescriptorsMatch(subgroup.DisallowedBodySlideDescriptors, descriptorsAtWeight, subgroup.DisallowedBodySlideMatchMode, out matchedDescriptor))
-                {
-                    _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because its descriptor [" + matchedDescriptor + "] is disallowed by assigned subgroup " + Logger.GetSubgroupIDString(subgroup), false, npcInfo);
-                    return false;
-                }
-            }
-        }
-
-        // if the current Preset's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
-
-        if (!candidatePreset.AllowRandom && npcInfo.ForceIfMatches.Get(candidatePreset) == 0) // don't need to check for specific assignment because it was evaluated just above
-        {
-            _logger.LogReport("Preset " + candidatePreset.Label + " is invalid because it can only be assigned via ForceIf attributes or Specific NPC Assignments", false, npcInfo);
-            return false;
-        }
-
-        // If the candidateMorph is still valid
-        return true;
+            Noun = "Preset",
+            Axis = BodyShapeCandidateValidator.BodyShapeAxis.BodySlide,
+            AttributeGroups = oBodySettings.AttributeGroups,
+            DescriptorCatalog = oBodySettings.TemplateDescriptors.Flatten().ToList(),
+            IgnoreRaceChecks = false,
+            IsSpecificallyAssigned = x => npcInfo.SpecificNPCAssignment != null && !npcInfo.SpecificNPCAssignment.BodySlidePreset.IsNullOrWhitespace() && x.Label == npcInfo.SpecificNPCAssignment.BodySlidePreset,
+        };
     }
     
     /// <summary>

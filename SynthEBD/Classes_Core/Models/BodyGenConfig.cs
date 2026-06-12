@@ -55,7 +55,7 @@ public class BodyGenConfig
 
     /// <summary>A single BodyGen morph template: its morph spec string plus the allow/disallow race and attribute filters, weighting, weight range, and template-group membership that gate its selection.</summary>
     [DebuggerDisplay("{Label}")]
-    public class BodyGenTemplate : IProbabilityWeighted
+    public class BodyGenTemplate : IProbabilityWeighted, IBodyShapeRuleCandidate
     {
         public string Label { get; set; } = "";
         public string Notes { get; set; } = "";
@@ -80,6 +80,9 @@ public class BodyGenConfig
 
         // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: templates are shared
         // config-owned objects, so per-NPC scratch on them would block parallel selection.
+
+        /// <summary>BodyGen morphs validate all of their annotated descriptors regardless of NPC weight.</summary>
+        public HashSet<BodyShapeDescriptor.LabelSignature> GetDescriptorsForValidation(float npcWeight) => BodyShapeDescriptors;
 
         /// <summary>Back-reference to the owning config, set at load time (not serialized).</summary>
         [JsonIgnore]

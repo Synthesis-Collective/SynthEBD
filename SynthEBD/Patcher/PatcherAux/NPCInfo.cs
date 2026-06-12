@@ -154,6 +154,10 @@ public class NPCInfo : IEquatable<NPCInfo>
     public NpcReportBuilder.NPCReport Report { get; set; }
     /// <summary>Per-NPC ForceIf match tallies for selection candidates (kept here, not on the shared candidate objects, so parallel NPC selection stays possible — R19).</summary>
     public ForceIfMatchTally ForceIfMatches { get; } = new();
+    /// <summary>Per-NPC cache of body-shape candidates' NPC-static validity (R15), keyed by candidate reference. Bypassed for verbose-logged NPCs so their reports stay complete.</summary>
+    public Dictionary<object, BodyShapeCandidateValidator.StaticValidity> BodyShapeStaticValidity { get; } = new(ReferenceEqualityComparer.Instance);
+    /// <summary>As <see cref="BodyShapeStaticValidity"/>, but for evaluations run with race checks ignored (BodyGen's relaxed Specific-assignment retry).</summary>
+    public Dictionary<object, BodyShapeCandidateValidator.StaticValidity> BodyShapeStaticValidityRaceIgnored { get; } = new(ReferenceEqualityComparer.Instance);
     /// <summary>The NPC's currently assigned head parts, resolved from the link cache (only populated when head-part patching is enabled).</summary>
     public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
     /// <summary>The NPC's entry in the block list, if it is individually blocked.</summary>

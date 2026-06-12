@@ -988,6 +988,30 @@ Baseline at start of Bucket 3: build 0 errors / ~2282 warnings; suite 222 passed
   mirroring `OBodySelector.PresetIsValid`, which has always had the correct order. Behavior change is
   the intended documented behavior; no pure seam (instance methods over AttributeMatcher/env), relies
   on integration AttributeGatingTests + manual verify. Suite 255 / 1 skipped / 0 failed.
+- [x] **R18 + R15-full -- BodyGen/OBody validator dedup onto `BodyShapeCandidateValidator` -- DONE.**
+  `MorphIsValid` (~150 lines) and `PresetIsValid` (~145 lines) collapsed onto one shared rule battery:
+  new `IBodyShapeRuleCandidate` interface (implemented by `BodyGenTemplate` + `BodySlideSetting`, whose
+  rule members were already shape-identical; per-weight descriptor resolution moved behind
+  `GetDescriptorsForValidation(npcWeight)`), and new `BodyShapeCandidateValidator` (DI singleton) running
+  the original check sequence: specific-exemption, unique/non-unique, races (optional ignore for BodyGen's
+  relaxed retry), weight, attributes (+ForceIf tally), own-descriptor rules, asset-imposed descriptor rules
+  (axis-parameterized property selection -- the B61/B62 cross-axis class is now impossible), then the
+  AllowRandom gate (B59 order). **R15 split landed with it:** the NPC-static verdict
+  (`Invalid`/`ExemptViaSpecificAssignment`/`ValidPendingDynamicChecks`) is cached per NPC on
+  `NPCInfo.BodyShapeStaticValidity[RaceIgnored]` (reference-keyed, R19 pattern), so non-verbose NPCs
+  validate each candidate's static rules once per NPC instead of once per combination attempt; the cache is
+  bypassed when `npcInfo.Report.LogCurrentNPC` so verbose reports keep their full per-attempt reasoning.
+  Old public signatures kept as thin adapters; the two hot loops build the validation context (flattened
+  descriptor catalog) once per call instead of per candidate(/per label). All validator logs use the lazy
+  R13 overload. **Documented report-only wording deltas (verbose reports):** unique/non-unique rejections
+  unified to OBody's phrasing ("because it is disallowed for..."); the weight-range line drops OBody's
+  "the it's" typo ("outside of its allowed weight range"); BodyGen's own-descriptor rejection now correctly
+  says "Morph" instead of the copy-pasted "Preset". Hardening: the BodyGen specific-exemption test is now
+  null-safe (`BodyGenMorphNames?.Contains(...)` -- same latent NRE family as B61). Attribute groups for
+  OBody descriptor rules now consistently use the passed `oBodySettings.AttributeGroups` (the old code mixed
+  `_patcherState.OBodySettings` and the parameter -- the same instance at every call site). Verification:
+  integration AttributeGating/ConfigRulesAndInheritance/E2E suites green. Suite 258 / 1 skipped / 0 failed.
+  **=> ALL items from the 2026-06-11 selection-algorithm evaluation are now closed.**
 - [x] **B61 (latent/LIVE-edge; surfaced during R18 comparison) -- `PresetIsValid` specific-assignment
   exemption read `BodyGenMorphNames` -- FIXED.** The exemption gate ("specifically-assigned preset skips
   all validity rules") tested the BodyGen morph list instead of `BodySlidePreset`: never fired for real
@@ -1355,7 +1379,7 @@ this NPC at all?" — whose answer depends only on the NPC, not the combination.
 asset rules conflict with every body shape, this full-list validation re-runs once per failed
 combination. Compute it lazily once per `GenerateCombinationWithBodyShape` call and reuse.
 
-### R15 — body-shape validation re-runs NPC-static checks per combination attempt — 🔧 (perf) — PARTIAL (hoist DONE; static/dynamic split open, see Resolved §R15-partial)
+### ✅ R15 — body-shape validation re-runs NPC-static checks per combination attempt — 🔧 RESOLVED (hoist in §R15-partial; static/dynamic split + per-NPC cache landed with R18 — see Resolved §R18)
 
 `MorphIsValid` / `PresetIsValid` re-validate every candidate against unique/non-unique, races,
 weight range, and attributes on **every** iteration of the
@@ -1469,14 +1493,17 @@ ForceIf filter lives earlier in `FilterValidConfigsForNPC`
 `DistributionRules.ForceIfMatchCount`, which **is** written (line 687). Deleted the dead property and the
 no-op block rather than wiring it up — implementing it would just duplicate the 698-710 filter.
 
-### R18 — BodyGen/OBody selector validation duplication — 💭 (flag; large refactor)
+### ✅ R18 — BodyGen/OBody selector validation duplication — 🔧 RESOLVED (shared BodyShapeCandidateValidator + R15 cache) — see Resolved §R18
 
-`MorphIsValid` ([BodyGenSelector.cs:431-576](SynthEBD/Patcher/BodyGen%20Patching/BodyGenSelector.cs#L431-L576))
-and `PresetIsValid` ([OBodySelector.cs:272-415](SynthEBD/Patcher/OBody%20Patching/OBodySelector.cs#L272-L415))
-are ~95% identical (unique/race/weight/attribute/descriptor checks + asset-imposed descriptor
-rules), as are the surrounding Specific/link-group/consistency selection flows. A shared
-validator over a common candidate interface is the right long-term shape, but it's a wide,
-behavior-sensitive refactor with a thin test net — catalogue now, schedule deliberately.
+`MorphIsValid` and `PresetIsValid` were ~95% identical (unique/race/weight/attribute/descriptor
+checks + asset-imposed descriptor rules). Resolved by a shared `BodyShapeCandidateValidator` over a
+common `IBodyShapeRuleCandidate` interface, with the asset-imposed rule properties axis-parameterized
+(killing the B61/B62 cross-axis copy-paste bug class) and the NPC-static portion cached per NPC
+(R15), bypassed for verbose-logged NPCs. The surrounding Specific/link-group/consistency selection
+flows remain per-selector (they differ structurally: combinations vs. flat list) — only the
+validators were deduplicated. The HeadPart validators (`CanGetThisHeadPartType`/`HeadPartIsValid`)
+share the same shape and could adopt the validator later (gendered descriptor dictionaries need
+extra parameterization) — 💭 future item.
 
 ### Selection-loop minor flags — 💭
 

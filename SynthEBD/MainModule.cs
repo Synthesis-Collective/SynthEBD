@@ -184,6 +184,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<AssetAndBodyShapeSelector>().AsSelf().SingleInstance();
         builder.RegisterType<AssetSelector>().AsSelf().SingleInstance();
         builder.RegisterType<AssetReplacerSelector>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyShapeCandidateValidator>().AsSelf().SingleInstance();
         builder.RegisterType<BodyGenSelector>().AsSelf().SingleInstance();
         builder.RegisterType<OBodySelector>().AsSelf().SingleInstance();
         builder.RegisterType<HeadPartSelector>().AsSelf().SingleInstance();
