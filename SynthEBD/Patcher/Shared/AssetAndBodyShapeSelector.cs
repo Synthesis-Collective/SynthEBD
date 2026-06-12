@@ -198,7 +198,7 @@ public class AssetAndBodyShapeSelector
         filteredAssetPacks = _assetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, null, null);
 
         // initialize seeds
-        iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
+        iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => npcInfo.ForceIfMatches.Get(x)).ToList();
 
         bool npcHasBodyShapeConsistency = false;
         if (_patcherState.GeneralSettings.bEnableConsistency)
@@ -218,7 +218,7 @@ public class AssetAndBodyShapeSelector
                 {
                     _logger.LogReport("Attempting to select a valid non-consistency Combination.", true, npcInfo);
                     filteredAssetPacks = _assetSelector.FilterValidConfigsForNPC(availableAssetPacks, npcInfo, true, out wasFilteredByConsistency, mode, null, null);
-                    iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
+                    iterationInfo.AvailableSeeds = AssetSelector.GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => npcInfo.ForceIfMatches.Get(x)).ToList();
                 }
                 else // no other filters can be relaxed
                 {

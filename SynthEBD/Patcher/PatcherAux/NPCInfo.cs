@@ -152,6 +152,8 @@ public class NPCInfo : IEquatable<NPCInfo>
 
     /// <summary>Per-NPC report accumulator for logging assignment decisions.</summary>
     public NpcReportBuilder.NPCReport Report { get; set; }
+    /// <summary>Per-NPC ForceIf match tallies for selection candidates (kept here, not on the shared candidate objects, so parallel NPC selection stays possible — R19).</summary>
+    public ForceIfMatchTally ForceIfMatches { get; } = new();
     /// <summary>The NPC's currently assigned head parts, resolved from the link cache (only populated when head-part patching is enabled).</summary>
     public HashSet<IHeadPartGetter> ExistingHeadParts { get; set; } = new();
     /// <summary>The NPC's entry in the block list, if it is individually blocked.</summary>

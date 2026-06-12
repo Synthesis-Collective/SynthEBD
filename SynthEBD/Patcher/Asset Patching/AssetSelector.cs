@@ -137,7 +137,7 @@ public class AssetSelector
             // remove subgroups or entire asset packs whose distribution rules are incompatible with the current NPC
             var filteredAssetPacks = FilterValidConfigsForNPC(availableAssetPacks, npcInfo, false, out bool wasFilteredByConsistency, mode, assignedBodyGen, assignedBodySlides);
             // initialize seeds
-            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => x.ForceIfMatchCount).ToList();
+            iterationInfo.AvailableSeeds = GetAllSubgroups(filteredAssetPacks).OrderByDescending(x => npcInfo.ForceIfMatches.Get(x)).ToList();
 
             bool combinationIsValid = false;
 
@@ -304,16 +304,16 @@ public class AssetSelector
                 return null;
             }
 
-            _logger.LogReport(() => "Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + x.ForceIfMatchCount + ")")), false, npcInfo);
+            _logger.LogReport(() => "Choosing a new seed subgroup from the following list of available seeds and (matched ForceIf attributes):" + Environment.NewLine + string.Join(Environment.NewLine, iterationInfo.AvailableSeeds.Select(x => (x.ParentAssetPack?.GroupName + "::" ?? string.Empty) + x.Id + ": " + x.Name + " (" + npcInfo.ForceIfMatches.Get(x) + ")")), false, npcInfo);
 
-            if (iterationInfo.AvailableSeeds.Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
+            if (iterationInfo.AvailableSeeds.Max(x => npcInfo.ForceIfMatches.Get(x)) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
                 var forceIfFilteredSubgroups = iterationInfo.AvailableSeeds.Where(x =>
-                    x.ForceIfMatchCount == matchedForceIfCount);
+                    npcInfo.ForceIfMatches.Get(x) == matchedForceIfCount);
 
                 iterationInfo.ChooseSeedSubgroup(forceIfFilteredSubgroups, p => GetAssetPackSelectionWeight(p, npcInfo), x => GetSubgroupSelectionWeight(x, npcInfo));
-                
-                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + iterationInfo.ChosenSeed.ForceIfMatchCount + ").", false, npcInfo);
+
+                _logger.LogReport(() => "Chose seed subgroup " + iterationInfo.ChosenSeed.GetDetailedID_NameString(false) + " in " + iterationInfo.ChosenAssetPack?.GroupName + " because it had the most matched ForceIf attributes (" + npcInfo.ForceIfMatches.Get(iterationInfo.ChosenSeed) + ").", false, npcInfo);
             }
             else
             {
@@ -387,13 +387,13 @@ public class AssetSelector
             #endregion
 
             #region Pick next subgroup
-            if (iterationInfo.ChosenAssetPack.Subgroups[i].Max(x => x.ForceIfMatchCount) is var matchedForceIfCount && matchedForceIfCount > 0)
+            if (iterationInfo.ChosenAssetPack.Subgroups[i].Max(x => npcInfo.ForceIfMatches.Get(x)) is var matchedForceIfCount && matchedForceIfCount > 0)
             {
                 var forceIfFilteredSubgroups = iterationInfo.ChosenAssetPack.Subgroups[i].Where(x =>
-                    x.ForceIfMatchCount == matchedForceIfCount);
+                    npcInfo.ForceIfMatches.Get(x) == matchedForceIfCount);
                 nextSubgroup = ProbabilityWeighting.SelectByProbability(forceIfFilteredSubgroups, x => GetSubgroupSelectionWeight(x, npcInfo));
                 var chosenSubgroup = nextSubgroup;
-                _logger.LogReport(() => "Chose next subgroup: " + chosenSubgroup.GetDetailedID_NameString(true) + " at position " + currentPosition + " because it had the most matched ForceIf Attributes (" + chosenSubgroup.ForceIfMatchCount + ")." + Environment.NewLine, false, npcInfo);
+                _logger.LogReport(() => "Chose next subgroup: " + chosenSubgroup.GetDetailedID_NameString(true) + " at position " + currentPosition + " because it had the most matched ForceIf Attributes (" + npcInfo.ForceIfMatches.Get(chosenSubgroup) + ")." + Environment.NewLine, false, npcInfo);
             }
             else
             {
@@ -695,12 +695,12 @@ public class AssetSelector
             _logger.CloseReportSubsectionsTo("ConfigDistributionRules", npcInfo);
         }
 
-        filteredByMainConfigRules = filteredByMainConfigRules.OrderByDescending(x => x.DistributionRules.ForceIfMatchCount).ToList(); // remove asset packs with less than the max ForceIf attributes
-        if (filteredByMainConfigRules.Count > 1 && filteredByMainConfigRules[0].DistributionRules.ForceIfMatchCount > 0)
+        filteredByMainConfigRules = filteredByMainConfigRules.OrderByDescending(x => npcInfo.ForceIfMatches.Get(x.DistributionRules)).ToList(); // remove asset packs with less than the max ForceIf attributes
+        if (filteredByMainConfigRules.Count > 1 && npcInfo.ForceIfMatches.Get(filteredByMainConfigRules[0].DistributionRules) > 0)
         {
             for (int i = 1; i < filteredByMainConfigRules.Count; i++)
             {
-                if (filteredByMainConfigRules[i].DistributionRules.ForceIfMatchCount < filteredByMainConfigRules[0].DistributionRules.ForceIfMatchCount)
+                if (npcInfo.ForceIfMatches.Get(filteredByMainConfigRules[i].DistributionRules) < npcInfo.ForceIfMatches.Get(filteredByMainConfigRules[0].DistributionRules))
                 {
                     _logger.LogReport("Asset Pack " + filteredByMainConfigRules[i].GroupName + " was removed because another Asset Pack has more matched ForceIf attributes for this NPC", false, npcInfo);
                     filteredByMainConfigRules.RemoveAt(i);
@@ -756,13 +756,13 @@ public class AssetSelector
                 }
                 else
                 {
-                    candidatePack.Subgroups[i] = candidatePack.Subgroups[i].OrderByDescending(x => x.ForceIfMatchCount).ToList();
+                    candidatePack.Subgroups[i] = candidatePack.Subgroups[i].OrderByDescending(x => npcInfo.ForceIfMatches.Get(x)).ToList();
                     // remove subgroups with less than maximal forceIf counts
-                    if (candidatePack.Subgroups[i][0].ForceIfMatchCount > 0)
+                    if (npcInfo.ForceIfMatches.Get(candidatePack.Subgroups[i][0]) > 0)
                     {
                         for (int j = 1; j < candidatePack.Subgroups[i].Count; j++)
                         {
-                            if (candidatePack.Subgroups[i][j].ForceIfMatchCount < candidatePack.Subgroups[i][0].ForceIfMatchCount)
+                            if (npcInfo.ForceIfMatches.Get(candidatePack.Subgroups[i][j]) < npcInfo.ForceIfMatches.Get(candidatePack.Subgroups[i][0]))
                             {
                                 _logger.LogReport("Subgroup " + candidatePack.Subgroups[i][j].Id + "(" + candidatePack.Subgroups[i][j].Name + ") was removed because another subgroup in position " + (i + 1).ToString() + " had more matched ForceIf attributes.", false, npcInfo);
                                 candidatePack.Subgroups[i].RemoveAt(j);
@@ -1056,7 +1056,7 @@ public class AssetSelector
         }
 
         // Allowed and Forced Attributes
-        subgroup.ForceIfMatchCount = 0;
+        npcInfo.ForceIfMatches.Set(subgroup, 0);
         _attributeMatcher.MatchNPCtoAttributeList(subgroup.AllowedAttributes, npcInfo.NPC, npcInfo.AssetsRace, subgroup.ParentAssetPack.Source.AttributeGroups, _patcherState.GeneralSettings.VerboseModeDetailedAttributes, out bool hasAttributeRestrictions, out bool matchesAttributeRestrictions, out int matchedForceIfWeightedCount, out string _, out string unmatchedLog, out string forceIfLog, null);
         if (hasAttributeRestrictions && !matchesAttributeRestrictions)
         {
@@ -1065,10 +1065,10 @@ public class AssetSelector
         }
         else
         {
-            subgroup.ForceIfMatchCount = matchedForceIfWeightedCount;
+            npcInfo.ForceIfMatches.Set(subgroup, matchedForceIfWeightedCount);
         }
 
-        if (subgroup.ForceIfMatchCount > 0)
+        if (npcInfo.ForceIfMatches.Get(subgroup) > 0)
         {
             _logger.LogReport(reportStringPrefix + " Current NPC matches the following forced attributes: " + forceIfLog, false, npcInfo);
         }
@@ -1084,7 +1084,7 @@ public class AssetSelector
         // if the current subgroup's forceIf attributes match the current NPC, skip the checks for Distribution Enabled
 
         // Distribution Enabled
-        if (subgroup.ForceIfMatchCount == 0 && !subgroup.DistributionEnabled)
+        if (npcInfo.ForceIfMatches.Get(subgroup) == 0 && !subgroup.DistributionEnabled)
         {
             _logger.LogReport(reportStringPrefix + "is invalid because its distribution is disabled to random NPCs, it is not a Specific NPC Assignment, and the NPC does not match any of its ForceIf attributes.", false, npcInfo);
             return false;

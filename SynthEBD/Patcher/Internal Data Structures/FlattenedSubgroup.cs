@@ -115,8 +115,9 @@ public class FlattenedSubgroup : IProbabilityWeighted
     // used during combination generation
     /// <summary>The flattened asset pack this subgroup belongs to.</summary>
     public FlattenedAssetPack ParentAssetPack { get; set; }
-    /// <summary>Count of ForceIf attributes matched for the current NPC (used in selection scoring).</summary>
-    public int ForceIfMatchCount { get; set; } = 0;
+    // Per-NPC ForceIf match counts live in NPCInfo.ForceIfMatches (R19), NOT here: subgroup objects are
+    // shared across NPCs (ShallowCopy copies lists, not subgroups), so per-NPC scratch on them would
+    // block parallel selection.
     /// <summary>IDs of the direct ancestor subgroups inherited during flattening.</summary>
     public List<string> ParentSubgroupIDs { get; set; } = new();
     // used for logging
