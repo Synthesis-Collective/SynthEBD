@@ -132,6 +132,12 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
    vs aged face, dirt/scar overlays, fantasy skins, schlong size, head-replacer branches, ...) onto
    the standard Attribute Groups and Build descriptors. Run it as a **propose → approve → implement**
    loop, and codify it the same way every time:
+   0. **Show the user the options before proposing rules.** List each variant axis with the FOMOD's
+      own option descriptions, and — when the FOMOD ships preview images (`image assets\...`, referenced
+      from `ModuleConfig.xml`) — open them side by side so the user can decide from what they actually
+      look like: `python scripts/preview_montage.py "<FOMOD>\image assets"` (or pass a
+      `--manifest items.json` of `{path,label,desc}` to caption each with its option text). Discuss,
+      don't assume.
    1. For each variant subgroup, derive the proposed rule(s) from its semantics.
    2. **Write the user a report**: every proposed rule, the reasoning, and the caveat that rules tied
       to an Attribute Group are inert until the user populates that group (and must never be the only

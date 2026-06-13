@@ -233,6 +233,13 @@ tally so it wins when several themed variants compete (use 2–3 for athletic/mu
 ("Smooth"-style) variant of an axis should be the one with no positive ForceIf so it remains the
 fallback for NPCs that match no theme.
 
+Know what ForceIf actually does: a matched ForceIf does not nudge the odds, it **wins** — among the
+candidates for a position, a subgroup an NPC matches by ForceIf is selected over all non-ForceIf
+candidates, so a matched NPC effectively gets it ~100% of the time (e.g. ForceIf'ing the elf/orc
+races onto a "Hairless" body diffuse makes elves and orcs essentially always hairless, while races
+with no ForceIf split evenly across the axis). When you want a genuine *probability* lean rather than
+a hard win, use `ProbabilityWeighting` on the siblings instead of ForceIf.
+
 Caveat to flag in the rules report: a `Restrict`/`ForceIfAndRestrict` rule tied to an Attribute
 Group that is **empty** in the user's settings makes that subgroup match nobody, so it stops
 distributing until the group is populated. Never put such a rule on the *only* subgroup that covers
