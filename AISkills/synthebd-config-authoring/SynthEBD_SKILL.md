@@ -53,7 +53,10 @@ suitable group exists or can be defined. See `reference/config-format.md`.
 
 ## The standard workflow (new config)
 
-Work in **one extraction working folder**, laid out like a mod, fully independent of any mod manager:
+**Before you start, ask the user where the working/extraction folder should live — do not assume or
+invent a path** (and confirm which SynthEBD install / settings root to target if it is not obvious).
+Then work in **one extraction working folder**, laid out like a mod, fully independent of any mod
+manager:
 
 ```
 <workfolder>\textures\<Prefix>\<contents of archive 1>
@@ -158,15 +161,18 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
       containing every resolution, do not fold them into one config. Sibling resolution configs are
       usually a search-and-replace on the Source paths of a copied config — except where the mod's
       partial upgrade packs / off-resolution fixes (step 1) force a deliberate, user-approved mix.
-11. **Package** (when the user wants to distribute): see `reference/packaging-and-updating.md`, then
-    `SynthEBD.CLI package --staging <stagingFolder> --json`, and finally
+11. **Package — always finish by producing the ready-to-install archive** (not only when the user
+    asks to distribute): build the staging tree + `Manifest.json` (see
+    `reference/packaging-and-updating.md`), then `SynthEBD.CLI package --staging <stagingFolder>
+    --json` to zip it into a single installable archive (**7z format preferred**), and finally
     `SynthEBD.CLI verify-install --archive <packaged.7z> --downloads <folder with the mod archives>
     --json` to prove every installer selection chain installs correctly against the real dependency
-    archives. **Before writing the manifest, ask the user for each dependency archive's mod-page URL
-    and its exact Nexus download display name** — these populate each `DownloadInfo` entry's `URL`,
-    `ModPageName`/`ModDownloadName`, and `ExpectedFileName`, which is what lets the installer point
-    users at the right file and auto-match archives they already downloaded. (`ExpectedFileName`
-    should match the archive on disk; if unsure, read it from the `--downloads` folder.)
+    archives. Hand the user the finished archive path as the deliverable. **Before writing the
+    manifest, ask the user for each dependency archive's mod-page URL and its exact Nexus download
+    display name** — these populate each `DownloadInfo` entry's `URL`, `ModPageName`/`ModDownloadName`,
+    and `ExpectedFileName`, which is what lets the installer point users at the right file and
+    auto-match archives they already downloaded. (`ExpectedFileName` should match the archive on disk;
+    if unsure, read it from the `--downloads` folder.)
 
 For **updating** an existing config to a new mod version, see `reference/packaging-and-updating.md`.
 
@@ -174,6 +180,7 @@ For **updating** an existing config to a new mod version, see `reference/packagi
 
 | When | Ask |
 |---|---|
+| Before starting | Where should the working/extraction folder live? (Don't assume — pick a short path the user names.) Which SynthEBD install / settings root to target? |
 | Before starting | What does the mod page description say? (Theme/tone informs rules and texture pairings; "no description" is a fine answer.) |
 | Multiple archives downloaded | Which are base / update / hotfix / options? Does any supersede another? |
 | Multiple resolutions present | Which archives/folders belong to which resolution set? (One config per resolution.) Confirm any plan that mixes resolutions in one config (partial upgrade packs, off-resolution fixes). |
