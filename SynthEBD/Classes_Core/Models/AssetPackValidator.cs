@@ -24,6 +24,11 @@ public class AssetPackValidator
     /// mod-manager VFS. Empty by default, in which case validation behaves exactly as before.</summary>
     public List<string> ExtraAssetRoots { get; } = new();
 
+    /// <summary>Race groupings available to the config being validated (General settings plus the config's own
+    /// local groupings), used to resolve grouping-label references and race coverage. Rebuilt per Validate call.</summary>
+    private List<RaceGrouping> _availableRaceGroupings = new();
+    private HashSet<string> _availableRaceGroupingLabels = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Captures the BSA handler, environment, patcher state, and record-path parser used during validation.</summary>
     public AssetPackValidator(BSAHandler bsaHandler, IEnvironmentStateProvider environmentProvider, PatcherState patcherState, RecordPathParser recordPathParser)
     {
@@ -43,6 +48,9 @@ public class AssetPackValidator
     {
         bool isValidated = true;
         bool hasMisingDescriptorsError = false;
+
+        _availableRaceGroupings = BuildAvailableRaceGroupings(assetPack);
+        _availableRaceGroupingLabels = _availableRaceGroupings.Select(x => x.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         BodyGenConfig referencedBodyGenConfig = new BodyGenConfig();
 
@@ -101,6 +109,11 @@ public class AssetPackValidator
                     hasMisingDescriptorsError = true;
                 }
             }
+        }
+
+        if (!ValidateRaceCoverage(assetPack, errors))
+        {
+            isValidated = false;
         }
 
         if (!isValidated)
@@ -205,6 +218,17 @@ public class AssetPackValidator
             else if (GetSubgroupByID(id, parent, out _, otherPostitions) == null)
             {
                 subErrors.Add("Cannot use " + id + " as an excluded subgroup because it was not found in the subgroup tree");
+                isValid = false;
+            }
+        }
+
+        // Race-grouping labels must resolve to an actual grouping (General settings or this config's local
+        // RaceGroupings); an unresolved label silently matches no races, so the subgroup never distributes.
+        foreach (var label in subgroup.AllowedRaceGroupings.Concat(subgroup.DisallowedRaceGroupings))
+        {
+            if (!_availableRaceGroupingLabels.Contains(label))
+            {
+                subErrors.Add("References race grouping \"" + label + "\" which is not defined in this config's local Race Groupings or in General Settings. It will match no races.");
                 isValid = false;
             }
         }
@@ -343,6 +367,105 @@ public class AssetPackValidator
     private bool ExistsUnderExtraAssetRoot(string sourcePath)
     {
         return ExtraAssetRoots.Any(root => System.IO.File.Exists(System.IO.Path.Combine(root, sourcePath)));
+    }
+
+    /// <summary>The race groupings visible to a config: General settings' groupings, plus the config's own local
+    /// groupings for any label General lacks (General supersedes on a label collision, mirroring the patcher).</summary>
+    private List<RaceGrouping> BuildAvailableRaceGroupings(AssetPack assetPack)
+    {
+        var merged = new List<RaceGrouping>(_patcherState.GeneralSettings.RaceGroupings);
+        var generalLabels = merged.Select(x => x.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var local in assetPack.RaceGroupings)
+        {
+            if (!generalLabels.Contains(local.Label)) { merged.Add(local); }
+        }
+        return merged;
+    }
+
+    /// <summary>
+    /// Flags "unsatisfiable position" gaps: since an NPC must receive one subgroup from every enabled top-level,
+    /// an NPC of race R gets nothing from the whole config if any single top-level cannot be assigned to R. This
+    /// reports a race only when EXACTLY ONE enabled top-level fails to cover it while every other top-level does —
+    /// the strong signal of an oversight (e.g. a default Head Diffuse that forgot the Elder race, or a top-level
+    /// whose subgroups are all disabled). Races a config deliberately does not support (covered by no/few
+    /// top-levels, e.g. beast races in a human-only skin) are left alone. Race matching only (attributes/weights
+    /// are ignored), so this never produces a false negative for the "whole position is dead" case.
+    /// </summary>
+    private bool ValidateRaceCoverage(AssetPack assetPack, List<string> errors)
+    {
+        var patchable = _patcherState.GeneralSettings.PatchableRaces?.ToHashSet() ?? new HashSet<FormKey>();
+        var topLevels = assetPack.Subgroups.Where(x => x.Enabled).ToList();
+        if (!patchable.Any() || topLevels.Count < 2) { return true; }
+
+        var coveredByTop = topLevels.ToDictionary(
+            t => t,
+            t => patchable.Where(r => SubgroupCoversRace(t, r, new HashSet<FormKey>(), true, new HashSet<FormKey>())).ToHashSet());
+
+        var gapsByTop = new Dictionary<AssetPack.Subgroup, List<FormKey>>();
+        foreach (var race in patchable)
+        {
+            var missing = topLevels.Where(t => !coveredByTop[t].Contains(race)).ToList();
+            if (missing.Count == 1) // every other top-level covers this race; this one is the lone hole
+            {
+                if (!gapsByTop.TryGetValue(missing[0], out var list)) { gapsByTop[missing[0]] = list = new(); }
+                list.Add(race);
+            }
+        }
+
+        bool isValid = true;
+        foreach (var (top, races) in gapsByTop)
+        {
+            isValid = false;
+            var raceNames = string.Join(", ", races.Select(RaceLabel));
+            errors.Add("Top-level subgroup " + top.ID + " (" + top.Name + ") is the only top-level that cannot be " +
+                "assigned to NPCs of race(s) [" + raceNames + "] - every other top-level can. Such NPCs would receive " +
+                "nothing from this config (each enabled top-level must be assignable to every NPC the config patches). " +
+                "Broaden this subgroup's allowed races/groupings, add a variant for those races, or add an empty " +
+                "enabled placeholder subgroup if the omission is deliberate.");
+        }
+        return isValid;
+    }
+
+    /// <summary>Whether some enabled, distribution-enabled leaf under <paramref name="subgroup"/> can be assigned to
+    /// <paramref name="race"/>, honoring the same allowed/disallowed-race inheritance the patcher applies
+    /// (empty AllowedRaces = all races; child allowed intersects parent; disallowed accumulates down the tree).</summary>
+    private bool SubgroupCoversRace(AssetPack.Subgroup subgroup, FormKey race, HashSet<FormKey> inheritedAllowed, bool inheritedAllowedEmpty, HashSet<FormKey> inheritedDisallowed)
+    {
+        if (!subgroup.Enabled) { return false; }
+
+        var ownAllowed = RaceGrouping.MergeRaceAndGroupingList(subgroup.AllowedRaceGroupings, _availableRaceGroupings, subgroup.AllowedRaces);
+        bool ownAllowedEmpty = ownAllowed.Count == 0;
+
+        var disallowed = new HashSet<FormKey>(inheritedDisallowed);
+        disallowed.UnionWith(RaceGrouping.MergeRaceAndGroupingList(subgroup.DisallowedRaceGroupings, _availableRaceGroupings, subgroup.DisallowedRaces));
+
+        HashSet<FormKey> effAllowed;
+        bool effEmpty;
+        if (ownAllowedEmpty && inheritedAllowedEmpty) { effAllowed = new(); effEmpty = true; }
+        else if (inheritedAllowedEmpty) { effAllowed = ownAllowed; effEmpty = false; }
+        else if (ownAllowedEmpty) { effAllowed = inheritedAllowed; effEmpty = false; }
+        else { effAllowed = new(ownAllowed); effAllowed.IntersectWith(inheritedAllowed); effEmpty = false; }
+
+        bool matched = (effEmpty || effAllowed.Contains(race)) && !disallowed.Contains(race);
+        if (!matched) { return false; }
+
+        if (subgroup.Subgroups.Any())
+        {
+            return subgroup.Subgroups.Any(c => SubgroupCoversRace(c, race, effAllowed, effEmpty, disallowed));
+        }
+        return subgroup.DistributionEnabled;
+    }
+
+    /// <summary>Best-effort friendly name for a race FormKey (EditorID if resolvable, else the FormKey string).</summary>
+    private string RaceLabel(FormKey raceFormKey)
+    {
+        if (_environmentProvider.LinkCache != null
+            && _environmentProvider.LinkCache.TryResolve<Mutagen.Bethesda.Skyrim.IRaceGetter>(raceFormKey, out var race)
+            && !string.IsNullOrEmpty(race.EditorID))
+        {
+            return race.EditorID;
+        }
+        return raceFormKey.ToString();
     }
 
     /// <summary>True if the ID is already XML-tag-compatible (unchanged by <see cref="MiscFunctions.MakeXMLtagCompatible"/>).</summary>
