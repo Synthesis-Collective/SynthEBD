@@ -56,6 +56,13 @@ aborts at the unsatisfiable position; this is intended behavior). Two consequenc
   (`Humanoid Young Vampire` for the head, plus Afflicted/Snow Elf). Always confirm with the
   simulator on an elder and a vampire — these are the NPCs that fall through a too-narrow default.
 
+`validate` reports an "unsatisfiable position" error when exactly one top-level fails to cover a race
+every other top-level covers (the elder / all-disabled signal). One known benign trigger:
+**`NordRaceAstrid` is used by a single *female* NPC (Astrid, the Dark Brotherhood)** — a male config
+whose per-race head subgroups list only `NordRace` gets flagged for it. It can never matter for a male
+config; either add `NordRaceAstrid` (and `DLC1NordRace`, which *does* have male NPCs) to the relevant
+Nord subgroup for completeness, or disregard that one race.
+
 ```json
 {
   "ID": "HD.M.M",                       // unique, XML-tag-compatible (letters/digits/periods)
@@ -190,6 +197,47 @@ Standard conventions to apply during review:
   almost all cases.
 - Exact category/value names vary with the user's descriptor set — read them from the instance's
   OBody settings or the paired BodyGen config rather than assuming.
+
+## Styling heuristics (deriving rules from a texture variant's meaning)
+
+These map a variant subgroup's *semantics* — read from its FOMOD option name / folder, not from one
+mod's idiosyncratic words — onto the standard, user-maintained Attribute Groups and Build/Chest
+descriptors. They are distilled from shipping configs (BnP Male, BnP CBBE "Piranha's Choice"); apply
+them in the finalization pass (see the SKILL's "Apply a distribution style" step). The named groups
+(`Must be Fit/Athletic/Muscular`, `Cannot Have Definition`, `Can Get Chubby Morph`, `Must Get Young
+Face`, `Must Get AgeNN/RoughNN Face`, `Can Get Mildy Older/Haggard Face`, `Must Get Face Freckles`,
+`Can Be Dirty`, `Must Be Dirty`, `Cannot Have Scars`, `Magic Users`, `Has CotR Head`, ...) are the
+default Attribute Groups the drafter ships; rules referencing them stay inert until the user has
+populated those groups with NPC criteria, which is expected.
+
+| Variant meaning | Rule |
+|---|---|
+| **Muscular / defined body normal** (lean, toned, sporty, boxer, vigorexia, "veiny") | `AllowedAttributes` Group `Must be Fit`/`Must be Athletic`/`Must be Muscular` as **ForceIfAndRestrict**, weight scaling with intensity (Fit≈1, Athletic≈2, Muscular≈3); `DisallowedBodySlideDescriptors Build=Chubby`; the strongest also `PrioritizedBodySlideDescriptors Build=Powerful`. |
+| **Plain / smooth / less-muscular body normal** (the non-athletic default) | `DisallowedAttributes` Group `Must be Fit, Must be Athletic, Must be Muscular` (Restrict) and/or `AllowedAttributes` Group `Cannot Have Definition` (ForceIf) so built NPCs never get it. |
+| **Chubby / heavy / strongman body normal** | `AllowedAttributes` Group `Can Get Chubby Morph` (Restrict); `AllowedBodySlideDescriptors Build=Chubby`. |
+| **Younger / softer face** (diffuse or normal) | `AllowedAttributes` Group `Must Get Young Face` (ForceIfAndRestrict). |
+| **Aged complexion** (`maleheaddetail_age40/age50/rough01...`) | the matching `Must Get AgeNN/RoughNN Face` group (ForceIfAndRestrict). The drafter usually assigns these automatically from the file name — verify and leave as-is. |
+| **Older / haggard face normal** | `AllowedAttributes` Group `Can Get Mildy Older Face` / `Can Get Haggard Face` (Restrict). |
+| **Dirt overlay** (`+dirt`) | `AllowedAttributes` Group `Can Be Dirty` (Restrict) OR `Must Be Dirty` (ForceIfAndRestrict). |
+| **Scar / blood overlay** (`+scars`) | `DisallowedAttributes` Group `Cannot Have Scars` (Restrict). |
+| **Freckles overlay** | `AllowedAttributes` Group `Must Get Face Freckles`. |
+| **Fantasy / saturated race skin** (vivid elf/orc tones) | `AllowedAttributes` Group `Magic Users` (Restrict) — the author intends them for mages/fantasy NPCs (confirm with the user). |
+| **Genital / body size mesh** (SOS Smurf/Regular/VectorPlexus Muscular) | the muscular size → Group `Must be Muscular` (Restrict/ForceIf); the smallest → `Cannot Have Definition`. |
+| **Head-mesh-replacer variant** (Charmers of the Reach, High Poly Head, ...) | gate the whole branch by the replacer's NPC group, e.g. `+ATTR Has CotR Head` on the replacer branch and `-ATTR Has CotR Head` on every sibling branch. |
+
+ForceMode guidance: **ForceIfAndRestrict** = "for these NPCs and only these" (young faces, aged
+complexions). **Restrict** = eligibility gate without forcing (fantasy skins, chubby). **ForceIf** =
+prefer-for-these without excluding others. A **Disallowed** group with Restrict = "never for these"
+(scars on `Cannot Have Scars`; muscle shading on the smooth normal). `Weighting` raises a ForceIf's
+tally so it wins when several themed variants compete (use 2–3 for athletic/muscular). The default
+("Smooth"-style) variant of an axis should be the one with no positive ForceIf so it remains the
+fallback for NPCs that match no theme.
+
+Caveat to flag in the rules report: a `Restrict`/`ForceIfAndRestrict` rule tied to an Attribute
+Group that is **empty** in the user's settings makes that subgroup match nobody, so it stops
+distributing until the group is populated. Never put such a rule on the *only* subgroup that covers
+some race (it would resurrect the unsatisfiable-position problem) — keep an unrestricted default in
+each top-level.
 
 ## Record templates
 

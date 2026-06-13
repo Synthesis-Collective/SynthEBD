@@ -126,6 +126,20 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
 9. **Apply user preferences.** Now ask the user about restrictions and pairings the files alone can't
    tell you (which variants for which NPC kinds, anything to toggle off by default), encode them as
    rules, and re-simulate.
+9b. **Apply a distribution style (finalization).** Once distribution is correct, give the variants
+   *intent* instead of pure randomness, following the heuristics in `reference/config-format.md`
+   ("Styling heuristics") which map each variant's meaning (muscular vs smooth body normal, younger
+   vs aged face, dirt/scar overlays, fantasy skins, schlong size, head-replacer branches, ...) onto
+   the standard Attribute Groups and Build descriptors. Run it as a **propose → approve → implement**
+   loop, and codify it the same way every time:
+   1. For each variant subgroup, derive the proposed rule(s) from its semantics.
+   2. **Write the user a report**: every proposed rule, the reasoning, and the caveat that rules tied
+      to an Attribute Group are inert until the user populates that group (and must never be the only
+      subgroup covering a race — keep an unrestricted default per top-level).
+   3. Get approval or revisions; reach consensus before editing.
+   4. Implement the agreed rules in the config JSON, then **re-`validate` and re-`simulate`** — confirm
+      the race-coverage check still passes and no subgroup was zeroed by an over-restrictive rule on
+      an empty group.
 10. **Variants.** Two different kinds, handled differently:
     - **Stylistic variants** (e.g. "Default" vs "No Bronze Shine" subsurface): do NOT delete
       subgroups — duplicate the whole config file (adjusting `GroupName`) or toggle
@@ -142,7 +156,11 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
     `SynthEBD.CLI package --staging <stagingFolder> --json`, and finally
     `SynthEBD.CLI verify-install --archive <packaged.7z> --downloads <folder with the mod archives>
     --json` to prove every installer selection chain installs correctly against the real dependency
-    archives.
+    archives. **Before writing the manifest, ask the user for each dependency archive's mod-page URL
+    and its exact Nexus download display name** — these populate each `DownloadInfo` entry's `URL`,
+    `ModPageName`/`ModDownloadName`, and `ExpectedFileName`, which is what lets the installer point
+    users at the right file and auto-match archives they already downloaded. (`ExpectedFileName`
+    should match the archive on disk; if unsure, read it from the `--downloads` folder.)
 
 For **updating** an existing config to a new mod version, see `reference/packaging-and-updating.md`.
 
@@ -160,6 +178,8 @@ For **updating** an existing config to a new mod version, see `reference/packagi
 | After draft | Any variants they want restricted (e.g. "fantasy skins only on mages"), weighted, or disabled by default? |
 | Normal maps with defined muscle/body traits | Confirm descriptor pairings (muscular → disallow chubby; under-bust shading → require busty). |
 | At packaging time | Bundle the default female BodyGen configs? (Shareable, optional, somewhat dated — user's call.) |
+| At packaging time | For each dependency archive: its mod-page URL and exact Nexus download display name (for the manifest's `DownloadInfo` URL / `ModDownloadName` / `ExpectedFileName`). |
+| Before the styling pass | Confirm the proposed distribution-style rules (the report from step 9b) — approve or revise. |
 | Custom destination paths beyond the defaults | A custom Record Templates .esp is required — does one exist, or must the user provide one? |
 
 ## Reference files
@@ -171,6 +191,18 @@ For **updating** an existing config to a new mod version, see `reference/packagi
   ModuleConfig.xml into subgroups, linkage, and rules.
 - `reference/packaging-and-updating.md` — Manifest.json, packaging conventions, BodyGen bundling,
   record templates, path-length limits, and the config-update workflow.
+- `scripts/inspect_config.py` — a vetted, read-only config inspector (subgroup tree with
+  enabled/distribution flags, race rules, links, attributes, descriptors, and shortened
+  source/destination per path). Prefer it over writing ad-hoc inspection scripts:
+  `python scripts/inspect_config.py "<config>.json" [--paths] [--rules] [--grep <substr>]`.
+
+**Reducing permission prompts (local agents).** Inspecting configs and running the CLI repeatedly
+generates a permission prompt per command unless allow-listed. To streamline, the user can add to
+their project `.claude/settings.local.json` `permissions.allow`: `"Bash(python:*)"` (and `python3`)
+for the inspector/JSON work, and a rule for the CLI by its absolute path,
+e.g. `"Bash(<SynthEBD install>/SynthEBD.CLI.exe:*)"`. Invoke the CLI by that absolute path as the
+first token (avoid `cd … &&` prefixes and shell variables, which defeat prefix matching). The user
+accepts that `python:*` permits arbitrary scripts — that is the intended trade-off for speed.
 
 ## Hard rules
 
