@@ -35,6 +35,13 @@ suitable group exists or can be defined. See `reference/config-format.md`.
 
 ## Prerequisites
 
+- **This skill requires a locally-running agent** with access to the user's filesystem and the
+  ability to run `SynthEBD.CLI.exe` on their Windows machine (e.g. Claude Code CLI / IDE extension,
+  Codex CLI, Gemini CLI). If you are in a cloud/sandboxed environment that cannot see the user's
+  local drives or run the CLI (the Claude desktop app's analysis tool, claude.ai, and similar),
+  **stop and tell the user to re-run the request in a locally-running agent such as Claude Code** —
+  do not improvise a config from files you cannot see and cannot validate. An unvalidated,
+  invented-path config is exactly the broken artifact this skill exists to prevent.
 - **SynthEBD.CLI.exe** ships alongside SynthEBD.exe. Run it from the install folder, or pass
   `--synthebd-path <SynthEBD install dir>` (it honors the instance's portable-settings redirect), or
   `--settings-root <dir>` to pin a settings tree directly. All verbs except `package`/`archive-*`
@@ -53,10 +60,23 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
 <workfolder>\textures\<Prefix2>\<contents of archive 2>   (only if archives collide or for findability)
 ```
 
-1. **Inventory the downloads.** A full texture set often spans several archives (base mod, updates,
-   hotfixes, option packs). For each, catalogue without extracting:
-   `SynthEBD.CLI archive-list --archive <file> --json`. If two archives contain identical internal
-   paths, they MUST get different prefixes — and ask the user whether one supersedes the other.
+1. **Gather context, then inventory the downloads.** Ask the user for the mod page description —
+   it often reveals the textures' theme/tone (useful for rule selection) and sometimes how
+   different textures are meant to pair; be open to being told it is missing or unhelpful. A full
+   texture set often spans several archives (base mod, updates, hotfixes, option packs). For each,
+   catalogue without extracting: `SynthEBD.CLI archive-list --archive <file> --json` (or list the
+   folders if the user already extracted them). Then work out how the archives/folders **relate**
+   before extracting anything:
+   - If two archives contain identical internal paths, they MUST get different prefixes — and ask
+     the user whether one supersedes the other.
+   - **Resolution sets (1K/2K/4K...)**: identify which archives/folders belong to which resolution.
+     Each resolution becomes its **own config file** (see step 10). Watch for the plausible
+     complications: a base resolution (e.g. 2K) with *partial* upgrade/downgrade packs (4K or 1K
+     options covering only a subset of textures), or a core mod at one resolution whose
+     fix/adjustment file (e.g. a more-correct subsurface fix) only exists at a different
+     resolution. In those cases one config legitimately combines sources from several
+     archives/folders — make sure the user knows and agrees with the combination plan before
+     drafting. Whenever the grouping is not unambiguous, ask.
 2. **Read the FOMOD first.** If an archive contains `fomod\ModuleConfig.xml`, parse it before
    anything else — it documents which textures belong together, the author's intended variants, and
    race/body hints. It is often UTF-16: convert before parsing. Mapping rules in
@@ -97,15 +117,27 @@ Work in **one extraction working folder**, laid out like a mod, fully independen
    races/genders/vampires/elders> --repetitions 100 --json` (drop to 2–3 repetitions for very large
    fresh drafts). Zero-count subgroups carry a log-derived explanation; for stubborn failures add
    `--full-report-dir <dir>` and read the per-NPC XML. Iterate steps 6–8 until distribution matches
-   intent.
+   intent. **Cover the failure-prone races, not just the base ones** — a `TotalAssignments` of 0 for
+   any NPC means a top-level position had no selectable subgroup (see config-format.md). For male
+   mods a good fixed sample is each base race plus a **vampire** (e.g. `DLC1Vingalmo`), an **elder**
+   (`Esbern` / `013358:Skyrim.esm`), an **afflicted** (`064A42:Skyrim.esm`), a **snow elf**
+   (`DLC1Gelebor`), and a **beast race** (`Kharjo`/`Madesi` — expected to get nothing for a
+   human/elf mod, which is correct). Vampires and elders are the classic fall-through cases.
 9. **Apply user preferences.** Now ask the user about restrictions and pairings the files alone can't
    tell you (which variants for which NPC kinds, anything to toggle off by default), encode them as
    rules, and re-simulate.
-10. **Variants.** For texture-set variations (e.g. "Default" vs "No Bronze Shine"), do NOT delete
-    subgroups — duplicate the whole config file (adjusting `GroupName`) or toggle
-    `DistributionEnabled: false` on the variant subgroups. Disabled-not-deleted is the maintainability
-    convention. Resolution variants (4K/2K) of the same mod are usually a search-and-replace on the
-    Source paths in a copied config.
+10. **Variants.** Two different kinds, handled differently:
+    - **Stylistic variants** (e.g. "Default" vs "No Bronze Shine" subsurface): do NOT delete
+      subgroups — duplicate the whole config file (adjusting `GroupName`) or toggle
+      `DistributionEnabled: false` on the variant subgroups. Disabled-not-deleted is the
+      maintainability convention.
+    - **Resolution variants (1K/2K/4K...)**: the exception to the rule above — make **one config
+      file per resolution**, each referencing only that resolution's texture paths, with the
+      resolution in the config's name (e.g. "... 4K CBBE"); the manifest's Options tree then lets
+      the installing user pick their resolution. When the user pointed you at a project root
+      containing every resolution, do not fold them into one config. Sibling resolution configs are
+      usually a search-and-replace on the Source paths of a copied config — except where the mod's
+      partial upgrade packs / off-resolution fixes (step 1) force a deliberate, user-approved mix.
 11. **Package** (when the user wants to distribute): see `reference/packaging-and-updating.md`, then
     `SynthEBD.CLI package --staging <stagingFolder> --json`, and finally
     `SynthEBD.CLI verify-install --archive <packaged.7z> --downloads <folder with the mod archives>
@@ -118,10 +150,13 @@ For **updating** an existing config to a new mod version, see `reference/packagi
 
 | When | Ask |
 |---|---|
+| Before starting | What does the mod page description say? (Theme/tone informs rules and texture pairings; "no description" is a fine answer.) |
 | Multiple archives downloaded | Which are base / update / hotfix / options? Does any supersede another? |
+| Multiple resolutions present | Which archives/folders belong to which resolution set? (One config per resolution.) Confirm any plan that mixes resolutions in one config (partial upgrade packs, off-resolution fixes). |
 | Scan reports duplicate groups | De-duplicate identical textures to save VRAM? (Recommend yes, `replace` mode.) |
 | Scan reports unmatched textures | Keep or ignore each (tint masks: ignore; complexions: usually keep)? |
 | Draft reports etc body textures | Is this mod for a CBBE-family (3BA) or UNP-family (BHUNP) body? |
+| Male mod with genital (`malegenitals_*`) textures | Which schlong system(s) — SOS Full, TNG, SOS Light? One config per system. Distribute the schlong as mesh+textures (all-or-nothing); see the schlong section in `reference/fomod-and-textures.md`. |
 | After draft | Any variants they want restricted (e.g. "fantasy skins only on mages"), weighted, or disabled by default? |
 | Normal maps with defined muscle/body traits | Confirm descriptor pairings (muscular → disallow chubby; under-bust shading → require busty). |
 | At packaging time | Bundle the default female BodyGen configs? (Shareable, optional, somewhat dated — user's call.) |
@@ -142,6 +177,11 @@ For **updating** an existing config to a new mod version, see `reference/packagi
 - Trust the local code, configs, and these references over web sources; SynthEBD is niche and online
   information is frequently wrong or outdated.
 - Never leave a drafted config unvalidated: `validate` then `simulate` is the definition of done.
-- Never delete subgroups to express a variant — disable distribution instead.
+- Never delete subgroups to express a stylistic variant — disable distribution instead. The one
+  exception is texture **resolution**: resolutions are separate per-resolution config files chosen
+  through the installer, not subgroups within one config.
 - Ask rather than guess whenever a decision changes what ships (de-dup, body family, kept unknowns,
   preference rules).
+- For male mods with genital textures, distribute the schlong as a whole record (mesh **and**
+  textures) — it is all-or-nothing, never texture-only. Follow the SOS Full / TNG / SOS Light
+  patterns in `reference/fomod-and-textures.md` unless the user specifies otherwise.

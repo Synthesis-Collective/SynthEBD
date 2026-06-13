@@ -31,6 +31,41 @@ Special families the drafter detects:
 - Body diffuse/normal/specular/subsurface textures are automatically replicated to the feet (and
   tail where relevant) destinations — that is why body subgroups carry several `Paths`.
 
+## Schlong distribution (SOS / TNG / SOS Light) — always handle this way
+
+Male skin mods built for **SOS (Schlongs of Skyrim)** or **TNG (The New Gentleman)** ship genital
+textures (`malegenitals_*`). SOS/TNG add the schlong armor-addon record **dynamically at runtime
+via script**, so that record does not exist at patch time. This makes the schlong
+**all-or-nothing**: SynthEBD either adds the *entire* record (mesh **and** textures, via the record
+template's slot-52 armature — `BipedObjectFlag 4194304`) or it adds nothing. A texture-only
+approach is impossible: if no record is added, SOS/TNG applies its own default schlong with default
+textures, producing a groin/neck seam against the mod's body skin. Therefore **the NIFs must be
+distributed alongside the genital textures**, and you should distribute the size variants rather
+than leaning on the template's single default nif.
+
+Unless the user's prompt says otherwise, handle a TNG/SOS texture mod with these patterns (verified
+against the shipping BnP Male configs):
+
+- **TNG**: `DefaultRecordTemplate` → `…:Record Templates - The New Gentleman.esp` (the drafter
+  applies this automatically when it detects TNG textures), plus the standard beast-race
+  `AdditionalRecordTemplateAssignments`. Build full schlong top-levels — diffuse / normal /
+  subsurface / specular on `WornArmor.Armature[…HasFlag((BipedObjectFlag)4194304)…].SkinTexture.Male.*`
+  and a **mesh** top-level on `…WorldModel.Male.File` — each with the three size children
+  **Smurf Average / VectorPlexus Muscular / VectorPlexus Regular**, cross-linked via
+  `RequiredSubgroups` so each NPC gets one coherent size (matching mesh + size-specific normal).
+  The meshes are TNG's own (`meshes\actors\character\character assets\TNG\{c,m,r}_genitals_1.nif`),
+  a TNG dependency the skin mod does not ship.
+- **SOS Full**: use the **same TNG record template**, but distribute **no schlong subgroups** — SOS's
+  runtime owns the schlong, and the template's default nif is incorporated wholesale.
+- **SOS Light**: use the **base** template (`Record Templates.esp`); SOS Light reallocates the schlong
+  onto the **Feet** slot, so distribute Feet subgroups (`FD`/`FN`/`FS`) rather than slot-52 schlong
+  subgroups.
+
+Because the TNG meshes live under `meshes\…` (not `textures\<Prefix>\…`), they will not resolve in
+`validate` unless TNG is installed — stage dummy `.nif` files at those paths in an extra
+`--asset-root` to validate cleanly — and they must be listed in the manifest's
+`IgnoreMissingSourceFiles` so `verify-install` does not flag them as missing from the package.
+
 ## Reading a FOMOD (`fomod\ModuleConfig.xml`)
 
 Most texture mods ship a FOMOD installer whose script encodes exactly how the author intends the

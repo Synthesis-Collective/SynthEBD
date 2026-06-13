@@ -64,6 +64,11 @@ archives' actual contents (see `cli.md`). This is the packaged-archive equivalen
 - The `Options` tree is the installer wizard: each level is one sequential choice; the chosen
   chain's resources are unioned. Use it for body family (CBBE/UNP), resolution (4K/2K), and
   male-mod variants (SOS/TNG) — mirror how the existing configs on Nexus structure theirs.
+- **Resolutions**: ship one config file per resolution (each referencing only that resolution's
+  paths, with the resolution in its name) and present the choice as an Options level, exactly like
+  the 4K/2K example above. A mod whose base resolution is supplemented by partial upgrade packs or
+  off-resolution fixes still gets one config per *offered* resolution tier — each internally mixing
+  the agreed sources — rather than resolution variants inside a single config.
 - `DownloadInfo` per option lists the texture archives the user must supply; `ExpectedFileName`
   lets the installer auto-match files the user already downloaded.
 - `IgnoreMissingSourceFiles` suppresses missing-file warnings for paths that are legitimately

@@ -36,6 +36,26 @@ paths carry textures. The drafter creates one top-level subgroup per texture typ
 Diffuse, `HN` Head Normals, `BD` Body Diffuse, `BN` Body Normals, specular `*Sp`, subsurface `*S`,
 hands `Ha*`, etc/TNG types, and `U*` Unknown types for kept unrecognized files).
 
+**Every enabled top-level subgroup is a required position.** If, for some NPC, a top-level offers
+*no* selectable subgroup — because all its subgroups are `Enabled: false`, or every one is gated
+away by race/attribute — then **that NPC receives nothing from the entire config** (selection
+aborts at the unsatisfiable position; this is intended behavior). Two consequences:
+
+- A top-level you want to *keep but not distribute* (a disabled placeholder for a future feature, or
+  an installer "off" choice such as "no schlong") must still contain **one empty, `Enabled: true`,
+  `DistributionEnabled: true` "None" subgroup** — a no-op with no `Paths` — so the position is
+  always satisfiable. The selection algorithm is happy with an assignable subgroup that points to no
+  assets. (This is the same pattern as the SOS/TNG "no schlong management" branch.)
+- The **default ("Main") subgroup of each texture type must cover every race that shares the base
+  skin** — most importantly **elders** (the Elder race uses the human head/body diffuse, only the
+  normal map differs) and, for texture types that have *no* vampire-specific variant (hands,
+  complexion, normals, ...), **vampires**. The drafter seeds the default subgroups with the
+  `Humanoid Playable Non-Vampire` grouping (the 8 young human races); during review, broaden any
+  default whose texture type lacks an elder/vampire sibling — e.g. base it on `Humanoid` and
+  `DisallowedRaceGroupings`/`DisallowedRaces` only the races that genuinely have their own variant
+  (`Humanoid Young Vampire` for the head, plus Afflicted/Snow Elf). Always confirm with the
+  simulator on an elder and a vampire — these are the NPCs that fall through a too-narrow default.
+
 ```json
 {
   "ID": "HD.M.M",                       // unique, XML-tag-compatible (letters/digits/periods)
