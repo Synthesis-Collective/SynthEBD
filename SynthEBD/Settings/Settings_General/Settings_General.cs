@@ -233,6 +233,7 @@ public class Settings_General
     {
         DefaultRaceGroupings.Humanoid,
         DefaultRaceGroupings.HumanoidPlayable,
+        DefaultRaceGroupings.HumanoidPlayableNonVampire,
         DefaultRaceGroupings.HumanoidNonVampire,
         DefaultRaceGroupings.HumanoidVampire,
         DefaultRaceGroupings.HumanoidYoung,

@@ -92,6 +92,7 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         if (appliedVersion < "1.0.6.8") UpdateV1068();
         if (appliedVersion < "1.0.7.0") UpdateV1070RaceAliases();
         if (appliedVersion < "1.0.7.0") UpdateV1070AttributeGroupRename();
+        if (appliedVersion < "1.0.7.0") UpdateV1070RaceGroupings();
 
         _patcherState.UpdateLog.LastAppliedVersion = PatcherState.Version;
     }
@@ -534,6 +535,23 @@ public class UpdateHandler // handles backward compatibility for previous SynthE
         if (changed)
         {
             _logger.LogMessage("Update 1.0.7.0: restored the Charmers of the Reach Imperial Vampire race alias.");
+        }
+    }
+
+    /// <summary>
+    /// v1.0.7.0: silently adds the "Humanoid Playable Non-Vampire" default race grouping if the user lacks it.
+    /// This grouping is referenced by the Config Drafter (the default head/hands/complexion subgroups) but was
+    /// historically omitted from the shipped default set in <see cref="Settings_General.RaceGroupings"/>, so fresh
+    /// installs after v1.0.1.3 never received it (UpdateV1013 only repaired users migrating from before 1.0.1.3).
+    /// Without it, drafted configs that reference the label match no races and every affected NPC gets nothing.
+    /// </summary>
+    private void UpdateV1070RaceGroupings()
+    {
+        if (!_generalVM.RaceGroupingEditor.RaceGroupings.Any(x => x.Label == DefaultRaceGroupings.HumanoidPlayableNonVampire.Label))
+        {
+            var newGrouping = _raceGroupingFactory(DefaultRaceGroupings.HumanoidPlayableNonVampire, _generalVM.RaceGroupingEditor);
+            _generalVM.RaceGroupingEditor.RaceGroupings.Add(newGrouping);
+            _logger.LogMessage("Update 1.0.7.0: added the missing \"Humanoid Playable Non-Vampire\" default race grouping.");
         }
     }
 

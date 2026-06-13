@@ -223,6 +223,10 @@ public static class PackageVerb
                         if (firstSegment.EndsWith(".esp", StringComparison.OrdinalIgnoreCase)
                             || firstSegment.EndsWith(".esm", StringComparison.OrdinalIgnoreCase)
                             || firstSegment.EndsWith(".esl", StringComparison.OrdinalIgnoreCase)) { continue; }
+                        // Dependency assets the package legitimately does not contain (e.g. TNG/SOS genital
+                        // meshes under meshes\...) are declared in IgnoreMissingSourceFiles and live at vanilla
+                        // paths, not under the config prefix; exempt them, exactly as verify-install does.
+                        if (manifest.IgnoreMissingSourceFiles.Contains(path.Source, StringComparer.OrdinalIgnoreCase)) { continue; }
                         if (!validPrefixes.Contains(segments[1]))
                         {
                             badPrefixes.Add(segments[1]);
