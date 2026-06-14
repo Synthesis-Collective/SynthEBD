@@ -216,7 +216,11 @@ namespace SynthEBD
                 FixFemaleHeadComplexionNesting(topLevelPlaceHolder);
             }
 
+            FlattenLoneRulelessWrapper(topLevelPlaceHolder);
+
             SortSubgroupsRecursive(topLevelPlaceHolder);
+
+            OrderDefaultSubgroupFirstRecursive(topLevelPlaceHolder);
         }
 
         /// <summary>
@@ -1350,6 +1354,62 @@ namespace SynthEBD
             foreach (var sg in subgroup.Subgroups)
             {
                 SortSubgroupsRecursive(sg);
+            }
+        }
+
+        /// <summary>True if the subgroup carries any distribution constraint of its own (races, attributes,
+        /// body-shape descriptors, required/excluded links, keywords, weighting), so that grouping other
+        /// subgroups beneath it is meaningful - the rule gates them.</summary>
+        private static bool SubgroupHasOwnRules(VM_SubgroupPlaceHolder sg)
+        {
+            var m = sg.AssociatedModel;
+            return m.AllowedRaces.Any() || m.AllowedRaceGroupings.Any() || m.DisallowedRaces.Any() || m.DisallowedRaceGroupings.Any()
+                || m.AllowedAttributes.Any() || m.DisallowedAttributes.Any()
+                || m.AllowedBodyGenDescriptors.Any() || m.DisallowedBodyGenDescriptors.Any()
+                || m.AllowedBodySlideDescriptors.Any() || m.DisallowedBodySlideDescriptors.Any() || m.PrioritizedBodySlideDescriptors.Any()
+                || m.RequiredSubgroups.Any() || m.ExcludedSubgroups.Any() || m.AddKeywords.Any()
+                || m.ProbabilityWeighting != 1 || m.WeightRange.Lower != 0 || m.WeightRange.Upper != 100
+                || !m.AllowUnique || !m.AllowNonUnique;
+        }
+
+        /// <summary>Removes dead nesting under a top-level subgroup: when it has exactly one child that is
+        /// itself a wrapper (has children) and that wrapper carries no rules of its own, the wrapper only
+        /// adds a redundant tree level - promote its children to the top level and delete it (e.g. the
+        /// per-FOMOD-option "CORE" folder that just holds Main/Afflicted/Snow Elf/Vampire). A wrapper that
+        /// carries rules (the rule gates its children) or that has a sibling wrapper (a parallel grouped
+        /// structure, e.g. per-race default normals beside a "Softer Faces" group) is meaningful and kept.</summary>
+        public void FlattenLoneRulelessWrapper(VM_SubgroupPlaceHolder topLevel)
+        {
+            var wrappers = topLevel.Subgroups.Where(x => x.Subgroups.Any()).ToList();
+            if (wrappers.Count != 1)
+            {
+                return;
+            }
+            var wrapper = wrappers[0];
+            if (SubgroupHasOwnRules(wrapper))
+            {
+                return;
+            }
+            foreach (var child in wrapper.Subgroups.ToList())
+            {
+                MoveSubgroupTo(child, topLevel); // re-parents and regenerates the child's ID chain
+            }
+            topLevel.Subgroups.Remove(wrapper);
+        }
+
+        /// <summary>Lists the baseline subgroup (<see cref="DefaultSubgroupName"/>) first among its siblings,
+        /// recursively, so it reads as the default the others are variations on.</summary>
+        public void OrderDefaultSubgroupFirstRecursive(VM_SubgroupPlaceHolder subgroup)
+        {
+            var def = subgroup.Subgroups.FirstOrDefault(x => x.AssociatedModel.Name == DefaultSubgroupName);
+            if (def != null && subgroup.Subgroups.IndexOf(def) > 0)
+            {
+                subgroup.Subgroups.Remove(def);
+                subgroup.Subgroups.Insert(0, def);
+            }
+            foreach (var sg in subgroup.Subgroups)
+            {
+                OrderDefaultSubgroupFirstRecursive(sg);
             }
         }
 
