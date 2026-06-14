@@ -1368,7 +1368,8 @@ namespace SynthEBD
                 || m.AllowedBodyGenDescriptors.Any() || m.DisallowedBodyGenDescriptors.Any()
                 || m.AllowedBodySlideDescriptors.Any() || m.DisallowedBodySlideDescriptors.Any() || m.PrioritizedBodySlideDescriptors.Any()
                 || m.RequiredSubgroups.Any() || m.ExcludedSubgroups.Any() || m.AddKeywords.Any()
-                || m.ProbabilityWeighting != 1 || m.WeightRange.Lower != 0 || m.WeightRange.Upper != 100
+                || m.ProbabilityWeighting != 1 || m.ProbabilityWeightModifiers.Any()
+                || m.WeightRange.Lower != 0 || m.WeightRange.Upper != 100
                 || !m.AllowUnique || !m.AllowNonUnique;
         }
 
