@@ -47,6 +47,18 @@ delete the wrapper**. Rule of thumb: if a top-level has exactly one child that h
 child has no rules, flatten it; if two or more children are wrappers (or the wrapper carries rules),
 the grouping is meaningful — leave it.
 
+**Collapse single-child subgroups.** A subgroup with exactly one child is always redundant — promote
+the child and delete the wrapper (merge the wrapper's rules into the child if it had any). The special
+case is a **top-level** with a single child: a top-level subgroup may carry `Paths`
+(FilePathReplacements) *directly*, so absorb the child's paths and rules into the top-level and keep
+the top-level's own name and ID (e.g. a Body Subsurface top-level whose sole "Subsurface" child holds
+the `_sk` paths becomes a Body Subsurface top-level that holds those paths itself). This is verified to
+validate and distribute.
+
+**List "Default" first.** When a `Default` subgroup sits beside named siblings (e.g. Head Normals'
+`Default` next to `Softer Faces`, or a specular `Default` next to `Wet`), order it first in the
+sibling list — it reads as the baseline the others are variations on.
+
 **Every enabled top-level subgroup is a required position.** If, for some NPC, a top-level offers
 *no* selectable subgroup — because all its subgroups are `Enabled: false`, or every one is gated
 away by race/attribute — then **that NPC receives nothing from the entire config** (selection

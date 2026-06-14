@@ -116,7 +116,10 @@ manager:
    nesting**: the drafter wraps each FOMOD option folder in a grouping subgroup (a `CORE`/"Default"
    wrapper), which is only worth keeping when it carries a shared rule or parallels a ruled grouped
    sibling. If a top-level has exactly one child-with-children and that wrapper has no rules of its
-   own, promote its children up and delete it (see "An intermediate subgroup must earn its level" in
+   own, promote its children up and delete it. Likewise **collapse any single-child subgroup** (a
+   top-level with one child absorbs the child's `Paths` and keeps its own name; a nested one promotes
+   the child), and **list a `Default` subgroup first** among its siblings (see "An intermediate
+   subgroup must earn its level", "Collapse single-child subgroups", and "List Default first" in
    `reference/config-format.md`).
 7. **Validate:** `SynthEBD.CLI validate --config "<name>" --asset-root <workfolder> --json`.
    `--asset-root` lets sources resolve from the working folder before the mod is installed/activated.
