@@ -36,6 +36,17 @@ paths carry textures. The drafter creates one top-level subgroup per texture typ
 Diffuse, `HN` Head Normals, `BD` Body Diffuse, `BN` Body Normals, specular `*Sp`, subsurface `*S`,
 hands `Ha*`, etc/TNG types, and `U*` Unknown types for kept unrecognized files).
 
+**An intermediate (grouping) subgroup must earn its level.** A non-leaf subgroup is worth keeping only
+when it carries a rule that should gate all its children (e.g. a "Softer Faces" group whose parent
+restricts every per-race child to `Must Get Young Face`), or when it parallels such a ruled grouped
+sibling so the alternatives stay organized (the "Default" per-race normals beside "Softer Faces").
+A *lone* intermediate wrapper that carries **no rules of its own** — typically the drafter's
+per-FOMOD-option `CORE`/"Default" folder holding unrelated race leaves (Main, Afflicted, Snow Elf,
+Vampire, ...) — is dead nesting: in the review pass, **promote its children up to the parent and
+delete the wrapper**. Rule of thumb: if a top-level has exactly one child that has children and that
+child has no rules, flatten it; if two or more children are wrappers (or the wrapper carries rules),
+the grouping is meaningful — leave it.
+
 **Every enabled top-level subgroup is a required position.** If, for some NPC, a top-level offers
 *no* selectable subgroup — because all its subgroups are `Enabled: false`, or every one is gated
 away by race/attribute — then **that NPC receives nothing from the entire config** (selection

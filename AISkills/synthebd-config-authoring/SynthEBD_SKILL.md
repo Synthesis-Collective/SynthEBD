@@ -112,7 +112,12 @@ manager:
    destinations of kept unknown textures (drafted with an empty `Destination` — copy from a sibling
    subgroup of the same texture type), and descriptor pairings (muscular normals should disallow
    chubby; under-bust-shaded torso normals should require busty — see `reference/config-format.md`).
-   Keep subgroup IDs unique and XML-tag-compatible (alphanumeric + period, no spaces).
+   Keep subgroup IDs unique and XML-tag-compatible (alphanumeric + period, no spaces). **Flatten dead
+   nesting**: the drafter wraps each FOMOD option folder in a grouping subgroup (a `CORE`/"Default"
+   wrapper), which is only worth keeping when it carries a shared rule or parallels a ruled grouped
+   sibling. If a top-level has exactly one child-with-children and that wrapper has no rules of its
+   own, promote its children up and delete it (see "An intermediate subgroup must earn its level" in
+   `reference/config-format.md`).
 7. **Validate:** `SynthEBD.CLI validate --config "<name>" --asset-root <workfolder> --json`.
    `--asset-root` lets sources resolve from the working folder before the mod is installed/activated.
    Fix everything it reports; re-run until clean.
