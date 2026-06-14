@@ -89,6 +89,21 @@ namespace SynthEBD
                 })
                 .DisposeWith(this);
 
+            // Live re-fire when the config file's declared gender changes, so an open
+            // render preview immediately swaps to an NPC of the new gender (Render mode
+            // only — image previews don't depend on gender).
+            this.WhenAnyValue(x => x.AssetPack.Gender)
+                .Skip(1) // skip the initial value pushed at subscription time
+                .Throttle(TimeSpan.FromMilliseconds(50), RxApp.MainThreadScheduler)
+                .Subscribe(gender =>
+                {
+                    if (ParentUI.PreviewMode == PreviewMode.Render)
+                    {
+                        _ = RefreshRenderPreviewAsync();
+                    }
+                })
+                .DisposeWith(this);
+
             SelectFromConfigFileCommand = new RelayCommand(
                 canExecute: _ => ParentUI.PreviewMode == PreviewMode.Render && AssetPack != null,
                 execute: _ =>
@@ -150,7 +165,7 @@ namespace SynthEBD
             }
         }
 
-        /// <summary>Resolves the effective races, gender, and preview NPC for the selected subgroup, loads it into the character viewer, and applies the accumulated texture overrides.</summary>
+        /// <summary>Resolves the effective races and preview NPC for the selected subgroup — using the asset pack's configured <see cref="VM_AssetPack.Gender"/> rather than a per-subgroup destination heuristic — loads it into the character viewer, and applies the accumulated texture overrides.</summary>
         private async Task RefreshRenderPreviewAsync()
         {
             if (AssetPack == null || AssetPack.SelectedPlaceHolder == null || lk == null) return;
@@ -163,7 +178,10 @@ namespace SynthEBD
                     ? AssetPack.RaceGroupingEditor.DumpToModel()
                     : new List<RaceGrouping>();
                 var effectiveRaces = _textureMapper.ResolveEffectiveRaces(selected, groupings);
-                var gender = SubgroupTextureMapper.DetermineGenderFromDestinations(selected.AssociatedModel.Paths);
+                // The config file declares its gender (VM_AssetPack.Gender), so drive the
+                // preview NPC off that directly — a male config shows a male NPC immediately,
+                // without waiting for a male-specific subgroup to be selected.
+                var gender = AssetPack.Gender;
 
                 FormKey npc;
                 if (!PreviewNpcOverride.IsNull)

@@ -102,25 +102,4 @@ public class SubgroupTextureMapper
         allowed.ExceptWith(disallowed);
         return allowed;
     }
-
-    /// <summary>
-    /// Rough-heuristic gender detection from a subgroup's destination patterns.
-    /// Destinations that contain ".Female." imply female; otherwise falls through
-    /// to Female when ambiguous. Asset packs in this codebase don't carry a
-    /// per-subgroup gender flag, so the destination text is the only signal.
-    /// </summary>
-    public static Gender DetermineGenderFromDestinations(IEnumerable<FilePathReplacement> paths)
-    {
-        bool sawFemale = false;
-        bool sawMale = false;
-        foreach (var p in paths)
-        {
-            if (string.IsNullOrWhiteSpace(p.Destination)) continue;
-            if (p.Destination.Contains(".Female.", StringComparison.OrdinalIgnoreCase)) sawFemale = true;
-            else if (p.Destination.Contains(".Male.", StringComparison.OrdinalIgnoreCase)) sawMale = true;
-        }
-        if (sawFemale) return Gender.Female;
-        if (sawMale) return Gender.Male;
-        return Gender.Female;
-    }
 }
