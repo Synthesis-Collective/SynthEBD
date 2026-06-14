@@ -33,39 +33,32 @@ public class SubgroupTextureMapper
     }
 
     /// <summary>
-    /// Walks every subgroup in the given pack (deep, top-down, definition order)
-    /// and records the FIRST FilePathReplacement seen for each (bodyPart, slot).
-    /// Used by the "Select from Config File" action.
+    /// Builds the (bodyPart, slot) → FilePathReplacement map for a fully-resolved
+    /// <see cref="SubgroupCombination"/> (one valid distribution roll). Walks every
+    /// contained <see cref="FlattenedSubgroup"/>'s already-inherited <c>Paths</c>,
+    /// keeping the last-seen replacement per slot. This reflects only the subgroups the
+    /// distribution simulator actually selected for the preview NPC — unlike a naive
+    /// whole-pack dump, which would ignore the config's distribution rules and mix
+    /// mutually-exclusive subgroups together. Drives the "Select from Config File" action.
     /// </summary>
-    public Dictionary<(string bodyPart, int slot), FilePathReplacement> MapAssetPackTextures(VM_AssetPack pack)
+    public Dictionary<(string bodyPart, int slot), FilePathReplacement> MapCombinationTextures(SubgroupCombination combination)
     {
         var result = new Dictionary<(string, int), FilePathReplacement>();
-        if (pack?.Subgroups == null) return result;
-        foreach (var top in pack.Subgroups)
-        {
-            MergeFirstSeen(top, result);
-        }
-        return result;
-    }
+        if (combination?.ContainedSubgroups == null) return result;
 
-    private void MergeFirstSeen(VM_SubgroupPlaceHolder node, Dictionary<(string, int), FilePathReplacement> sink)
-    {
-        if (node?.AssociatedModel?.Paths != null)
+        foreach (var subgroup in combination.ContainedSubgroups)
         {
-            foreach (var path in node.AssociatedModel.Paths)
+            if (subgroup?.Paths == null) continue;
+            foreach (var path in subgroup.Paths)
             {
                 if (string.IsNullOrWhiteSpace(path.Destination) || string.IsNullOrWhiteSpace(path.Source)) continue;
                 string? bodyPart = VM_CharacterViewer.ParseBodyPart(path.Destination);
                 int? slot = VM_CharacterViewer.ParseTextureSlot(path.Destination);
                 if (bodyPart == null || slot == null) continue;
-                var key = (bodyPart, slot.Value);
-                if (!sink.ContainsKey(key)) sink[key] = path;
+                result[(bodyPart, slot.Value)] = path;
             }
         }
-        foreach (var child in node.Subgroups)
-        {
-            MergeFirstSeen(child, sink);
-        }
+        return result;
     }
 
     /// <summary>
@@ -88,48 +81,78 @@ public class SubgroupTextureMapper
     /// </summary>
     public List<MeshOverride> MapSubgroupMeshOverrides(VM_SubgroupPlaceHolder node, Gender gender)
     {
-        var result = new List<MeshOverride>();
-        if (node == null) return result;
-        string genderStr = gender == Gender.Female ? "Female" : "Male";
+        if (node == null) return new List<MeshOverride>();
 
         // The mesh template may sit on the selected leaf or on an ancestor;
         // walk the chain leaf-first so the most-specific definition wins.
         var chain = new List<VM_SubgroupPlaceHolder> { node };
         chain.AddRange(node.GetParents());
 
+        var paths = chain
+            .Where(link => link?.AssociatedModel?.Paths != null)
+            .SelectMany(link => link.AssociatedModel.Paths);
+        return BuildMeshOverrides(paths, gender);
+    }
+
+    /// <summary>
+    /// Mesh-override variant for a fully-resolved <see cref="SubgroupCombination"/>
+    /// (one valid distribution roll). Each contained <see cref="FlattenedSubgroup"/>
+    /// already carries its inherited <c>Paths</c>, so the union of every position's
+    /// paths is the complete asset set the NPC would receive — the same input the
+    /// real patcher acts on. Used by the "Select from Config File" action once the
+    /// distribution simulator has produced a compatible combination.
+    /// </summary>
+    public List<MeshOverride> MapCombinationMeshOverrides(SubgroupCombination combination, Gender gender)
+    {
+        if (combination?.ContainedSubgroups == null) return new List<MeshOverride>();
+        var paths = combination.ContainedSubgroups
+            .Where(sg => sg?.Paths != null)
+            .SelectMany(sg => sg.Paths);
+        return BuildMeshOverrides(paths, gender);
+    }
+
+    /// <summary>
+    /// Builds the neutral auxiliary-armature <see cref="MeshOverride"/> list from a flat
+    /// set of <see cref="FilePathReplacement"/>s (gathered from a selected subgroup's
+    /// parent chain, or from a rolled <see cref="SubgroupCombination"/>). Records the
+    /// first-seen mesh source per non-base biped slot and bundles same-slot
+    /// <c>SkinTexture.&lt;gender&gt;.*</c> paths onto it. See
+    /// <see cref="MapSubgroupMeshOverrides"/> for the rationale on excluding base
+    /// armatures and the gender gate.
+    /// </summary>
+    private List<MeshOverride> BuildMeshOverrides(IEnumerable<FilePathReplacement> paths, Gender gender)
+    {
+        var result = new List<MeshOverride>();
+        string genderStr = gender == Gender.Female ? "Female" : "Male";
+
         // biped flag -> first-seen mesh source for that slot
         var meshBySlot = new Dictionary<int, string>();
         // biped flag -> (tex slot -> source), first-seen per (slot, texslot)
         var texBySlot = new Dictionary<int, Dictionary<int, string>>();
 
-        foreach (var link in chain)
+        foreach (var path in paths)
         {
-            var model = link?.AssociatedModel;
-            if (model?.Paths == null) continue;
-            foreach (var path in model.Paths)
+            if (string.IsNullOrWhiteSpace(path.Destination) || string.IsNullOrWhiteSpace(path.Source)) continue;
+            // Gender gate: only this preview NPC's gendered WorldModel/SkinTexture.
+            if (!path.Destination.Contains("." + genderStr + ".", StringComparison.OrdinalIgnoreCase)) continue;
+
+            int? flag = ParseBipedFlag(path.Destination);
+            if (flag == null) continue;
+
+            bool isMesh = path.Destination.Contains("WorldModel", StringComparison.OrdinalIgnoreCase)
+                          && path.Destination.Contains("File", StringComparison.OrdinalIgnoreCase);
+            bool isTex = path.Destination.Contains("SkinTexture", StringComparison.OrdinalIgnoreCase);
+
+            if (isMesh)
             {
-                if (string.IsNullOrWhiteSpace(path.Destination) || string.IsNullOrWhiteSpace(path.Source)) continue;
-                // Gender gate: only this preview NPC's gendered WorldModel/SkinTexture.
-                if (!path.Destination.Contains("." + genderStr + ".", StringComparison.OrdinalIgnoreCase)) continue;
-
-                int? flag = ParseBipedFlag(path.Destination);
-                if (flag == null) continue;
-
-                bool isMesh = path.Destination.Contains("WorldModel", StringComparison.OrdinalIgnoreCase)
-                              && path.Destination.Contains("File", StringComparison.OrdinalIgnoreCase);
-                bool isTex = path.Destination.Contains("SkinTexture", StringComparison.OrdinalIgnoreCase);
-
-                if (isMesh)
-                {
-                    if (!meshBySlot.ContainsKey(flag.Value)) meshBySlot[flag.Value] = path.Source;
-                }
-                else if (isTex)
-                {
-                    int? texSlot = VM_CharacterViewer.ParseTextureSlot(path.Destination);
-                    if (texSlot == null) continue;
-                    if (!texBySlot.TryGetValue(flag.Value, out var d)) { d = new(); texBySlot[flag.Value] = d; }
-                    if (!d.ContainsKey(texSlot.Value)) d[texSlot.Value] = path.Source;
-                }
+                if (!meshBySlot.ContainsKey(flag.Value)) meshBySlot[flag.Value] = path.Source;
+            }
+            else if (isTex)
+            {
+                int? texSlot = VM_CharacterViewer.ParseTextureSlot(path.Destination);
+                if (texSlot == null) continue;
+                if (!texBySlot.TryGetValue(flag.Value, out var d)) { d = new(); texBySlot[flag.Value] = d; }
+                if (!d.ContainsKey(texSlot.Value)) d[texSlot.Value] = path.Source;
             }
         }
 

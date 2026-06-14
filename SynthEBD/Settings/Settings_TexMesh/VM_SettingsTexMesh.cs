@@ -64,6 +64,7 @@ public class VM_SettingsTexMesh : VM
         VM_Manifest.Factory manifestFactory,
         Func<VM_TexMeshBatchActions> getBatchActionsMenu,
         SubgroupTextureMapper textureMapper,
+        AssetDistributionSimulator distributionSimulator,
         Func<VM_CharacterViewer> characterViewerFactory)
     {
         _logger = logger;
@@ -284,8 +285,8 @@ public class VM_SettingsTexMesh : VM
             }
         );
 
-        AssetPresenterPrimary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, characterViewerFactory);
-        AssetPresenterSecondary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, characterViewerFactory);
+        AssetPresenterPrimary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, distributionSimulator, patcherState, characterViewerFactory);
+        AssetPresenterSecondary = new VM_AssetPresenter(this, logger, general, environmentProvider, textureMapper, distributionSimulator, patcherState, characterViewerFactory);
 
         SelectConfigsAll = new RelayCommand(
             canExecute: _ => true,

@@ -26,6 +26,8 @@ namespace SynthEBD
         private readonly VM_Settings_General _generalSettings;
         private readonly IEnvironmentStateProvider _environmentProvider;
         private readonly SubgroupTextureMapper _textureMapper;
+        private readonly AssetDistributionSimulator _simulator;
+        private readonly PatcherState _patcherState;
 
         /// <summary>Creates the presenter, building the read-only character viewer and wiring preview-mode/selection/NPC-override subscriptions plus the select-from-config and reset commands.</summary>
         /// <param name="parent">The owning texture/mesh settings VM.</param>
@@ -33,6 +35,8 @@ namespace SynthEBD
         /// <param name="generalSettings">General settings (preview-NPC resolution).</param>
         /// <param name="environmentProvider">Supplies the link cache.</param>
         /// <param name="textureMapper">Maps subgroup/pack textures and resolves effective races.</param>
+        /// <param name="simulator">Distribution simulator used to roll a valid subgroup combination for the preview.</param>
+        /// <param name="patcherState">Supplies the BodyGen/OBody/BlockList settings the simulator needs.</param>
         /// <param name="characterViewerFactory">Factory for the embedded 3D character viewer.</param>
         public VM_AssetPresenter(
             VM_SettingsTexMesh parent,
@@ -40,6 +44,8 @@ namespace SynthEBD
             VM_Settings_General generalSettings,
             IEnvironmentStateProvider environmentProvider,
             SubgroupTextureMapper textureMapper,
+            AssetDistributionSimulator simulator,
+            PatcherState patcherState,
             Func<VM_CharacterViewer> characterViewerFactory)
         {
             ParentUI = parent;
@@ -47,6 +53,8 @@ namespace SynthEBD
             _generalSettings = generalSettings;
             _environmentProvider = environmentProvider;
             _textureMapper = textureMapper;
+            _simulator = simulator;
+            _patcherState = patcherState;
 
             CharacterViewer = characterViewerFactory();
             CharacterViewer.Mode = ViewerMode.ReadOnly;
@@ -118,19 +126,7 @@ namespace SynthEBD
 
             SelectFromConfigFileCommand = new RelayCommand(
                 canExecute: _ => ParentUI.PreviewMode == PreviewMode.Render && AssetPack != null,
-                execute: _ =>
-                {
-                    if (AssetPack == null) return;
-                    var packMap = _textureMapper.MapAssetPackTextures(AssetPack);
-                    foreach (var kv in packMap)
-                    {
-                        AccumulatedOverrides[kv.Key] = kv.Value;
-                    }
-                    if (CharacterViewer.Renderer.Meshes.Count > 0)
-                    {
-                        CharacterViewer.ApplyTextureOverrides(AccumulatedOverrides.Values);
-                    }
-                });
+                execute: _ => { var _unused = SelectCombinationFromConfigAsync(); });
 
             ResetAccumulatedOverridesCommand = new RelayCommand(
                 canExecute: _ => ParentUI.PreviewMode == PreviewMode.Render,
@@ -272,6 +268,145 @@ namespace SynthEBD
             catch (Exception ex)
             {
                 _logger.LogMessage("VM_AssetPresenter.RefreshRenderPreviewAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
+            }
+        }
+
+        /// <summary>
+        /// Backs the "Select from Config File" button: rolls one distribution-rule-valid
+        /// subgroup combination via <see cref="AssetDistributionSimulator"/> and renders it.
+        /// <para>When a preview NPC is already chosen in the picker, a single random
+        /// combination compatible with that NPC is rolled. When none is chosen, the
+        /// configured preview-NPC defaults (General Settings) are tried in turn until one
+        /// is compatible with the config's distribution rules; the first hit is loaded.
+        /// In both cases the rolled combination's textures and auxiliary meshes — not the
+        /// whole pack's assets — are applied, so the preview matches what the patcher would
+        /// actually produce.</para>
+        /// </summary>
+        private async Task SelectCombinationFromConfigAsync()
+        {
+            if (AssetPack == null || lk == null) return;
+
+            try
+            {
+                var packModel = AssetPack.DumpViewModelToModel();
+                var gender = AssetPack.Gender;
+
+                FormKey chosenNpc;
+                SubgroupCombination? combination;
+
+                if (!PreviewNpcOverride.IsNull)
+                {
+                    // An NPC is already selected: roll a single random compatible combination for it.
+                    combination = TryRollCombination(PreviewNpcOverride, packModel, out string reason);
+                    if (combination == null)
+                    {
+                        MessageWindow.DisplayNotificationOK("No compatible assignment",
+                            "The config file '" + AssetPack.GroupName + "' can't be assigned to the selected preview NPC under its current distribution rules."
+                            + (string.IsNullOrWhiteSpace(reason) ? "" : Environment.NewLine + Environment.NewLine + reason));
+                        return;
+                    }
+                    chosenNpc = PreviewNpcOverride;
+                }
+                else
+                {
+                    // No NPC selected: iterate the configured preview-NPC defaults until one
+                    // yields a valid combination under the config's distribution rules.
+                    chosenNpc = FormKey.Null;
+                    combination = null;
+                    foreach (var candidate in EnumeratePreviewNpcCandidates(gender))
+                    {
+                        combination = TryRollCombination(candidate, packModel, out _);
+                        if (combination != null) { chosenNpc = candidate; break; }
+                    }
+                    if (combination == null)
+                    {
+                        MessageWindow.DisplayNotificationOK("No compatible preview NPC",
+                            "None of the configured preview NPCs for " + gender + " could be assigned assets from '"
+                            + AssetPack.GroupName + "' under its current distribution rules. "
+                            + "Pick a specific Preview NPC, or review the config's distribution rules with the Distribution Simulator.");
+                        return;
+                    }
+                }
+
+                // Load the chosen NPC, then apply the rolled combination's assets.
+                await CharacterViewer.LoadNpcAsync(chosenNpc, lk);
+                _lastLoadedNpc = chosenNpc;
+
+                AccumulatedOverrides.Clear();
+                foreach (var kv in _textureMapper.MapCombinationTextures(combination))
+                {
+                    AccumulatedOverrides[kv.Key] = kv.Value;
+                }
+                if (AccumulatedOverrides.Count > 0)
+                {
+                    CharacterViewer.ApplyTextureOverrides(AccumulatedOverrides.Values);
+                }
+
+                AccumulatedMeshOverrides.Clear();
+                foreach (var mo in _textureMapper.MapCombinationMeshOverrides(combination, gender))
+                {
+                    AccumulatedMeshOverrides[mo.BipedSlots] = mo;
+                }
+                CharacterViewer.ApplyMeshOverrides(AccumulatedMeshOverrides.Values);
+                UpdateMeshOverrideWarning();
+
+                _logger.LogMessage("VM_AssetPresenter: rolled combination '" + combination.Signature
+                    + "' from '" + AssetPack.GroupName + "' for preview NPC " + chosenNpc);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogMessage("VM_AssetPresenter.SelectCombinationFromConfigAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
+            }
+        }
+
+        /// <summary>
+        /// Runs one repetition of the asset-distribution pipeline for <paramref name="npcFormKey"/>
+        /// against the single supplied pack, returning a random valid <see cref="SubgroupCombination"/>
+        /// (or null with <paramref name="failureReason"/> when the NPC is unresolvable, the pack's
+        /// gender doesn't match, or the distribution rules exclude the NPC entirely).
+        /// </summary>
+        private SubgroupCombination? TryRollCombination(FormKey npcFormKey, AssetPack packModel, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (npcFormKey.IsNull) { failureReason = "No NPC supplied."; return null; }
+            if (lk == null || !lk.TryResolve<INpcGetter>(npcFormKey, out var npcGetter))
+            {
+                failureReason = "Preview NPC " + npcFormKey + " could not be resolved in the current load order.";
+                return null;
+            }
+
+            var result = _simulator.SimulatePrimaryDistribution(
+                npcGetter,
+                new HashSet<AssetPack> { packModel },
+                _patcherState.BodyGenConfigs,
+                _patcherState.OBodySettings,
+                _patcherState.BlockList,
+                1,
+                out failureReason);
+
+            return result?.Combinations.FirstOrDefault(c => c.AssetPack != null);
+        }
+
+        /// <summary>
+        /// Ordered, de-duplicated preview-NPC candidates for <paramref name="gender"/>, drawn from
+        /// General Settings: the Default pair first ("the defaults"), then every per-race row's NPC
+        /// ("the options"). Null entries are skipped.
+        /// </summary>
+        private IEnumerable<FormKey> EnumeratePreviewNpcCandidates(Gender gender)
+        {
+            var preview = _generalSettings?.PreviewNpcs;
+            if (preview == null) yield break;
+
+            var seen = new HashSet<FormKey>();
+
+            FormKey defaultNpc = gender == Gender.Female ? preview.DefaultRow?.FemaleNpc ?? FormKey.Null
+                                                         : preview.DefaultRow?.MaleNpc ?? FormKey.Null;
+            if (!defaultNpc.IsNull && seen.Add(defaultNpc)) yield return defaultNpc;
+
+            foreach (var row in preview.Rows)
+            {
+                FormKey rowNpc = gender == Gender.Female ? row.FemaleNpc : row.MaleNpc;
+                if (!rowNpc.IsNull && seen.Add(rowNpc)) yield return rowNpc;
             }
         }
 
