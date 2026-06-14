@@ -71,9 +71,21 @@ namespace SynthEBD
                 .Subscribe(_ =>
                 {
                     AccumulatedOverrides.Clear();
+                    AccumulatedMeshOverrides.Clear();
                     PreviewNpcOverride = FormKey.Null;
                     _lastLoadedNpc = FormKey.Null;
+                    ClearMeshOverrideWarning();
                 })
+                .DisposeWith(this);
+
+            // Mesh overrides drain after the scene commits when a load was in
+            // flight at apply time; refresh the missing-asset warning then so it
+            // reflects the freshly-synthesized shapes (e.g. a skipped or
+            // misaligned auxiliary mesh).
+            void OnSceneCommitted() => UpdateMeshOverrideWarning();
+            CharacterViewer.SceneCommitted += OnSceneCommitted;
+            System.Reactive.Disposables.Disposable
+                .Create(() => CharacterViewer.SceneCommitted -= OnSceneCommitted)
                 .DisposeWith(this);
 
             // Live re-fire when the user picks a different preview NPC or toggles the lock.
@@ -125,6 +137,7 @@ namespace SynthEBD
                 execute: _ =>
                 {
                     AccumulatedOverrides.Clear();
+                    AccumulatedMeshOverrides.Clear();
                     _ = RefreshRenderPreviewAsync();
                 });
         }
@@ -139,8 +152,31 @@ namespace SynthEBD
         private FormKey _lastLoadedNpc = FormKey.Null;
         public Dictionary<(string bodyPart, int slot), FilePathReplacement> AccumulatedOverrides { get; } = new();
 
+        /// <summary>Accumulated auxiliary mesh overrides, keyed by the biped-slot
+        /// bitmask they occupy so a later selection replaces only the same-slot
+        /// variant. Mirrors <see cref="AccumulatedOverrides"/> for textures:
+        /// once a subgroup contributes an auxiliary mesh it persists across other
+        /// subgroup selections until a different variant for that slot is chosen
+        /// (or Reset / an asset-pack swap clears it).</summary>
+        public Dictionary<int, MeshOverride> AccumulatedMeshOverrides { get; } = new();
+
         public ILinkCache lk { get; private set; }
         public IEnumerable<Type> NPCPickerFormKeys { get; } = typeof(INpcGetter).AsEnumerable();
+
+        /// <summary>True when one or more auxiliary mesh overrides for the
+        /// current selection couldn't be rendered (the override NIF didn't
+        /// resolve, or a shape is weighted to a bone in neither the skeleton nor
+        /// the mesh), or rendered but against an incompatible skeleton (bones the
+        /// mesh expects are missing from the loaded skeleton, so it may be
+        /// misaligned — e.g. a required skeleton mod isn't installed). Drives the
+        /// warning line under the render preview, mirroring NPC Plugin Chooser
+        /// 2's mugshot missing-asset icon.</summary>
+        public bool ShowMeshOverrideWarning { get; set; }
+
+        /// <summary>Human-readable detail of why the auxiliary mesh override(s)
+        /// were skipped or may be misaligned; shown as the warning line's
+        /// tooltip / text.</summary>
+        public string MeshOverrideWarning { get; set; } = "";
 
         public RelayCommand SelectFromConfigFileCommand { get; }
         public RelayCommand ResetAccumulatedOverridesCommand { get; }
@@ -219,11 +255,51 @@ namespace SynthEBD
                 {
                     CharacterViewer.ApplyTextureOverrides(AccumulatedOverrides.Values);
                 }
+
+                // Merge any non-base armature mesh the selection defines (an
+                // auxiliary armature on a free slot, e.g. slot 52) into the
+                // accumulator, keyed by slot so a later selection replaces only
+                // the same-slot variant. Like the texture accumulator above, the
+                // mesh persists across other subgroup selections until a
+                // different variant for that slot is chosen (or Reset clears it).
+                foreach (var mo in _textureMapper.MapSubgroupMeshOverrides(selected, gender))
+                {
+                    AccumulatedMeshOverrides[mo.BipedSlots] = mo;
+                }
+                CharacterViewer.ApplyMeshOverrides(AccumulatedMeshOverrides.Values);
+                UpdateMeshOverrideWarning();
             }
             catch (Exception ex)
             {
                 _logger.LogMessage("VM_AssetPresenter.RefreshRenderPreviewAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
             }
+        }
+
+        /// <summary>Reflects <see cref="VM_CharacterViewer.MeshOverrideWarnings"/>
+        /// onto the bound warning line. Called after applying overrides and again
+        /// when the scene commits (the apply may have been queued behind a load).
+        /// Covers both unrenderable meshes and meshes that rendered against an
+        /// incompatible / missing skeleton.</summary>
+        private void UpdateMeshOverrideWarning()
+        {
+            var warnings = CharacterViewer?.MeshOverrideWarnings;
+            if (warnings == null || warnings.Count == 0)
+            {
+                ClearMeshOverrideWarning();
+                return;
+            }
+            MeshOverrideWarning = "Some auxiliary preview meshes couldn't be rendered correctly "
+                + "(mesh not found, missing skinning bones, or an incompatible/absent skeleton):"
+                + Environment.NewLine
+                + " - " + string.Join(Environment.NewLine + " - ", warnings);
+            ShowMeshOverrideWarning = true;
+        }
+
+        /// <summary>Hides the mesh-override warning line.</summary>
+        private void ClearMeshOverrideWarning()
+        {
+            ShowMeshOverrideWarning = false;
+            MeshOverrideWarning = "";
         }
 
         /// <summary>Loads the selected subgroup's preview images (respecting an available-RAM floor and abandoning stale loads when the selection changes).</summary>

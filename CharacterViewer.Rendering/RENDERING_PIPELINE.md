@@ -15,6 +15,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Skinning](#skinning)
    - [Dismember partitions and shape filtering](#dismember-partitions-and-shape-filtering)
    - [Shader flag inventory](#shader-flag-inventory)
+   - [Override channels (textures + meshes)](#override-channels-textures--meshes)
 3. [Part 2 — Fragment shader pipeline](#part-2--fragment-shader-pipeline)
    - [Vertex shader (brief)](#vertex-shader-brief)
    - [Stage 1: base color & alpha test](#stage-1-base-color--alpha-test)
@@ -241,6 +242,34 @@ What [Appendix A](#appendix-a--shader-flag-inventory-table) catalogs by bit. Sum
 - **Flags we ignore** because the data we render reliably doesn't depend on them, the feature isn't implemented, or the flag is non-actor-specific. See Appendix A for the per-flag rationale.
 
 The "ignore" bucket is large because most SLSF1/SLSF2 bits exist for engine paths we don't share — landscape rendering, LOD fadeout, parallax/decal/refraction shaders, vehicle texture remapping, fire/water effects, weapon-blood splatter. These never appear on actor body/face/hair shapes and adding code paths for them would be dead weight. The ones worth flagging as "could matter and we don't do them" are `Parallax`, `Anisotropic_Lighting` (hair specular), `Back_Lighting` (skin transmission), and `Glow_Map` (slot 2 emissive modulation) — see Appendix A notes for each.
+
+### Override channels (textures + meshes)
+
+The host can mutate a loaded scene through two **neutral, replace-on-reapply** channels on `VM_CharacterViewer`. Both queue while a load/rebuild is in flight and drain in `ProcessPendingScene` once the scene commits (so a host can fire them right after `LoadAsync` returns without awaiting the GL install).
+
+**`ApplyTextureOverrides(IEnumerable<TextureOverride>)`** — retargets texture slots (0/1/2/7) on existing skin shapes. Each `TextureOverride(bodyPart, slot, gameRelativePath)` routes to `Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.IsSkinShape)` (Head routes only to the primary head shape). The host maps its own override representation to this via `ParseBodyPart` / `ParseTextureSlot`.
+
+**`ApplyMeshOverrides(IEnumerable<MeshOverride>)`** — *synthesizes* extra renderable shapes from `.nif` files the base NPC doesn't carry. The first consumer is an auxiliary armature on a non-base biped slot (e.g. slot 52, `(BipedObjectFlag)4194304`) that some mods add to the actor **at runtime by script** — it is never in the static `WornArmor` the resolver walks, so its mesh lives only in the selected asset-pack subgroup's `WorldModel.<sex>.File`. The same channel later serves NPC Plugin Chooser 2's "Include Default Outfit" / "Include headgear".
+
+Per override (`MeshOverride`: `Key`, `MeshPath`, `BipedSlots`, `HidesSlots`, `Kind`, `Textures`) the channel:
+
+1. resolves `MeshPath` via `GameAssetResolver` (an auxiliary armature's NIFs are typically dependency-mod assets under `Data\meshes\…`, resolved like any other mesh — not under the config prefix);
+2. CPU-skins it to the **current scene's skeleton** (`_cachedMeshPaths.SkeletonPath`) using the same `NifMeshBuilder.BuildFromFile` path as the base meshes — skinning and skin-tint are already generic (bone weights from the NIF, tint from the NIF shader type), so no per-slot logic is needed;
+3. applies the bundled `Textures` (else the NIF's own `BSShaderTextureSet`) — a SynthEBD auxiliary subgroup ships mesh + its slot's `SkinTexture.*` together, so the texture set travels *with* the mesh rather than through the texture-only channel;
+4. tints by `Kind` default — `Skin` lets the shader decide (an auxiliary skin mesh tints with the body QNAM like any slot-32 skin shape); `Armor`/`Headgear` never take the skin QNAM tint;
+5. weight-morphs it — the override NIF is the `_1` (weight-100) variant, so its `_0` companion is loaded and `Positions`/normals are lerped at `t = NpcWeight/100` (the same `BlendWeightMorph` the base body gets). Without this the auxiliary mesh, authored to fit a weight-100 body, floats low/forward on a lower-weight NPC;
+6. registers the shape under `Key` (also used as `GlMesh.BodyPart`, so a slot's `SkinTexture.*` routed by `ApplyTextureOverrides` lands on it) with its biped slots.
+
+**Numeric slot routing.** `ParseBodyPart` understands the raw-cast `(BipedObjectFlag)N` form (not just `BipedObjectFlag.Body/Hands/Feet`), mapping each single-bit flag to a routing key — named base parts keep their labels, everything else becomes a generic `"Slot{n}"` (slot 52 → `"Slot52"`). `BipedFlagToBodyPart(int)` is the shared converter so a host builds a `MeshOverride.Key` that matches what the parser routes textures to. No semantic per-slot concept exists anywhere — the slot number is the only key.
+
+**Slot occupancy / hiding.** Every shape carries the biped slots it occupies (`GlMesh.BipedSlots`; base shapes get theirs from their body-part label, override shapes from `MeshOverride.BipedSlots`) plus a `SlotDrawPriority` (0 skin/base, 1 armor, 2 headgear). After each `ApplyMeshOverrides`, `ResolveSlotVisibility` hides any shape a strictly-higher-priority shape's `HidesSlots` covers — body armor (slot 32) hides the nude body, headgear (slots 30/31) hides hair. The flag is `GlMesh.HiddenBySlotOccupancy`, kept separate from the missing-texture cull (`IsRendering`); the render passes gate on `ShouldRender = IsRendering && !HiddenBySlotOccupancy`. An auxiliary mesh on a free slot (e.g. slot 52) collides with nothing, so it is never hidden and never hides — but the machinery is in place for NPC2's clothing/headgear features.
+
+**Bone resolution → skip, or warn-but-render.** CPU-skinning resolves each weighted bone's world transform from the skeleton NIF or, failing that, the **mesh's own NIF** — actor body/armor NIFs embed copies of the bones they're weighted to, which is how the base body renders auxiliary-armature weights even on a skeleton that lacks those bones (in the field: a test body skinned 26 bones, 24 from the skeleton + 2 from the body NIF, when the skeleton mod that adds the auxiliary bones was absent; the auxiliary armature's own NIF likewise embeds the full bone chain it is weighted to). `TryApplyCpuSkinning` classifies each weighted bone and surfaces two signals:
+
+- **`BuiltMesh.UnresolvedSkinBones`** — bone present in *neither* source; it keeps a zero transform and would collapse its vertices to the origin. `ApplyMeshOverrides` **skips** any shape that has one — no crash, no bind-pose collapse.
+- **`BuiltMesh.BonesAbsentFromSkeleton`** — bone present in the mesh NIF but absent from the skeleton, so it rendered via the mesh-NIF fallback. The shape still renders, but on a frame the base meshes (which DO get those bones from the skeleton) don't share, so it can be **misaligned**. This is exactly how a missing/incompatible skeleton mod manifests (an auxiliary mesh that sits slightly off the body). `ApplyMeshOverrides` renders it but adds a skeleton-compatibility warning.
+
+Both, plus unresolved override NIFs, are surfaced on `VM_CharacterViewer.MeshOverrideWarnings`, which SynthEBD shows as a render-preview warning line (analogous to NPC2's mugshot missing-asset icon) — e.g. "the loaded skeleton is missing bone(s) […]; install the skeleton these meshes require (XPMSSE / XP32 Maximum Skeleton)." The normal load path ignores both signals — its behavior is unchanged.
 
 ---
 

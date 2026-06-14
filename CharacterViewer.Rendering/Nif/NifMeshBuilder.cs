@@ -132,6 +132,34 @@ public class NifMeshBuilder
         public SkinningInfo? Skinning { get; init; }
 
         /// <summary>
+        /// Names of bones this shape's vertices are weighted to that resolved
+        /// from NO source - present in neither the skeleton NIF nor the mesh's
+        /// own NIF - so their vertices would collapse to the origin. Null/empty
+        /// in the normal case. Bones that are absent from the skeleton but
+        /// embedded in the mesh NIF do NOT appear here (they render via the
+        /// mesh-NIF fallback like the base body does); those are reported
+        /// separately on <see cref="BonesAbsentFromSkeleton"/>. The mesh-override
+        /// channel reads this to SKIP a genuinely unrenderable shape (no crash,
+        /// no bind-pose collapse) and surface it as a missing asset. The normal
+        /// load path ignores it (existing behavior unchanged).
+        /// </summary>
+        public IReadOnlyList<string>? UnresolvedSkinBones { get; init; }
+
+        /// <summary>
+        /// Names of weighted bones present in the mesh's own NIF but absent from
+        /// the resolved skeleton, so they rendered via the mesh-NIF fallback.
+        /// Null/empty in the normal case (skeleton provides every bone). A
+        /// non-empty list means the loaded skeleton is missing bones the mesh
+        /// expects: the shape still renders, but on a frame the base meshes
+        /// (which DO get those bones from the skeleton) don't share, so it can be
+        /// misaligned. The mesh-override channel surfaces this as a
+        /// skeleton-compatibility warning (e.g. an auxiliary armature needs a
+        /// skeleton mod that the load order is missing). The normal load path
+        /// ignores it.
+        /// </summary>
+        public IReadOnlyList<string>? BonesAbsentFromSkeleton { get; init; }
+
+        /// <summary>
         /// True if this shape is the primary head mesh in a FaceGen NIF.
         /// </summary>
         public bool IsPrimaryHeadShape { get; init; }
@@ -694,6 +722,8 @@ public class NifMeshBuilder
         Weight0BindPosePositions = b.Weight0BindPosePositions != null ? (Vector3[])b.Weight0BindPosePositions.Clone() : null,
         Weight1BindPosePositions = b.Weight1BindPosePositions != null ? (Vector3[])b.Weight1BindPosePositions.Clone() : null,
         Skinning = b.Skinning,
+        UnresolvedSkinBones = b.UnresolvedSkinBones,
+        BonesAbsentFromSkeleton = b.BonesAbsentFromSkeleton,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
@@ -1116,13 +1146,16 @@ public class NifMeshBuilder
 
         MatTransform? shapeTransform = null;
         bool hasTransform = false;
+        List<string>? unresolvedBones = null;
+        List<string>? bonesAbsentFromSkeleton = null;
 
         if (skeletonNif != null && shape.HasSkinInstance())
         {
             skinning = TryApplyCpuSkinning(nif, shape, nifVerts, nifNormals, vertCount,
                 skeletonNif,
                 out skinnedPosX, out skinnedPosY, out skinnedPosZ,
-                out skinnedNrmX, out skinnedNrmY, out skinnedNrmZ);
+                out skinnedNrmX, out skinnedNrmY, out skinnedNrmZ,
+                out unresolvedBones, out bonesAbsentFromSkeleton);
         }
 
         if (skinning == null)
@@ -1605,6 +1638,10 @@ public class NifMeshBuilder
             BindPosePositions = bindPosePositionsYUp,
             BindPoseNormals = bindPoseNormalsYUp,
             Skinning = skinning,
+            UnresolvedSkinBones = (unresolvedBones != null && unresolvedBones.Count > 0)
+                ? unresolvedBones : null,
+            BonesAbsentFromSkeleton = (bonesAbsentFromSkeleton != null && bonesAbsentFromSkeleton.Count > 0)
+                ? bonesAbsentFromSkeleton : null,
             IsPrimaryHeadShape = isPrimaryHead,
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
@@ -1922,10 +1959,18 @@ public class NifMeshBuilder
         vectorVector3 nifVerts, vectorVector3? nifNormals, int vertCount,
         NifFile skeletonNif,
         out float[]? outPosX, out float[]? outPosY, out float[]? outPosZ,
-        out float[]? outNrmX, out float[]? outNrmY, out float[]? outNrmZ)
+        out float[]? outNrmX, out float[]? outNrmY, out float[]? outNrmZ,
+        out List<string>? unresolvedBones, out List<string>? bonesAbsentFromSkeleton)
     {
         outPosX = outPosY = outPosZ = null;
         outNrmX = outNrmY = outNrmZ = null;
+        // Names of weighted bones that resolve from no source (skip the shape)
+        // and bones present in the mesh NIF but absent from the skeleton (render
+        // via fallback, but warn). Populated after the weight pass so we only
+        // flag bones vertices actually use - see BuiltMesh.UnresolvedSkinBones /
+        // BuiltMesh.BonesAbsentFromSkeleton.
+        unresolvedBones = null;
+        bonesAbsentFromSkeleton = null;
 
         string shapeName = shape.name?.get() ?? "?";
         NiHeader header = nif.GetHeader();
@@ -1946,6 +1991,22 @@ public class NifMeshBuilder
         // Bone world transforms come from the SKELETON NIF (not the shape's own NIF),
         // which provides the real bind-pose bone positions from the full skeleton hierarchy.
         var boneTransforms = new CachedSkinTransform[numBones];
+        // Per-bone resolution tracking. A bone resolves from the skeleton NIF
+        // or, failing that, the mesh's own NIF (actor body/armor NIFs embed
+        // copies of the bones they're weighted to). After the weight pass these
+        // feed two diagnostics, for bones vertices actually use:
+        //   boneResolved     - got a transform from EITHER source. A bone that
+        //                      resolves from neither keeps a zero transform and
+        //                      would collapse its vertices to the origin.
+        //   boneFromSkeleton - got it from the skeleton specifically. A bone
+        //                      resolved only via the mesh-NIF fallback means the
+        //                      skeleton is missing it: the mesh still renders, but
+        //                      against a frame the other meshes don't share, so it
+        //                      can be misaligned - the signal that an incompatible
+        //                      or absent skeleton (e.g. a missing skeleton mod) is
+        //                      loaded.
+        var boneResolved = new bool[numBones];
+        var boneFromSkeleton = new bool[numBones];
         int validBones = 0;
         int skeletonBones = 0;
         for (uint i = 0; i < numBones; i++)
@@ -1965,6 +2026,7 @@ public class NifMeshBuilder
             if (skeletonNif.GetNodeTransformToGlobal(boneName, boneWorld))
             {
                 skeletonBones++;
+                boneFromSkeleton[i] = true;
             }
             else if (!nif.GetNodeTransformToGlobal(boneName, boneWorld))
             {
@@ -1984,6 +2046,7 @@ public class NifMeshBuilder
 
             using var skinMatrix = boneWorld.ComposeTransforms(inverseBind);
             boneTransforms[i] = ExtractTransform(skinMatrix);
+            boneResolved[i] = true;
             validBones++;
         }
 
@@ -2164,6 +2227,44 @@ public class NifMeshBuilder
                 nifVerts[0].y.ToString("F2") + "," + nifVerts[0].z.ToString("F2") +
                 ") → skinned=(" + outPosX[0].ToString("F2") + "," +
                 outPosY[0].ToString("F2") + "," + outPosZ[0].ToString("F2") + ")");
+        }
+
+        // --- Step 5: classify weighted bones by where they resolved ---
+        // Only bones a vertex actually references with weight > 0 matter; a bone
+        // listed by the NIF but unused can't break the pose. Two buckets:
+        //   unresolved     - in neither skeleton nor mesh NIF; the shape would
+        //                    collapse toward the origin (mesh-override channel
+        //                    treats this as "skip + warn").
+        //   skeletonAbsent - resolved only via the mesh-NIF fallback (present in
+        //                    the mesh, absent from the skeleton). The shape still
+        //                    renders, but on a frame the base meshes don't share,
+        //                    so it can be misaligned - the signal that an
+        //                    incompatible / missing skeleton is loaded.
+        HashSet<string>? unresolved = null;
+        HashSet<string>? skeletonAbsent = null;
+        for (int idx = 0; idx < vertBoneWeights.Length; idx++)
+        {
+            if (vertBoneWeights[idx] <= 0f) continue;
+            int bIdx = vertBoneIndices[idx];
+            if (bIdx < 0 || bIdx >= numBones) continue;
+            if (!boneResolved[bIdx])
+                (unresolved ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(boneNames[bIdx]);
+            else if (!boneFromSkeleton[bIdx])
+                (skeletonAbsent ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(boneNames[bIdx]);
+        }
+        if (unresolved != null)
+        {
+            unresolvedBones = new List<string>(unresolved);
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
+                "' references " + unresolved.Count + " bone(s) found in neither skeleton nor mesh NIF: [" +
+                string.Join(", ", unresolved) + "]");
+        }
+        if (skeletonAbsent != null)
+        {
+            bonesAbsentFromSkeleton = new List<string>(skeletonAbsent);
+            LogVerbose("CharacterViewer: [Skinning] '" + shapeName +
+                "' references " + skeletonAbsent.Count + " bone(s) absent from the skeleton (rendered via mesh-NIF fallback): [" +
+                string.Join(", ", skeletonAbsent) + "]");
         }
 
         return new SkinningInfo

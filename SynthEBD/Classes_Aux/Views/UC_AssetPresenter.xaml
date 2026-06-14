@@ -106,6 +106,12 @@
                         <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="MediumPurple"/>
                         <Button Content="Reset" Command="{Binding ResetAccumulatedOverridesCommand}" Foreground="Firebrick"/>
                     </StackPanel>
+                    <!-- Warning for auxiliary mesh overrides that couldn't render or
+                         that need a skeleton the load order is missing — mirrors NPC2's mugshot icon. -->
+                    <TextBlock Margin="0 4 0 0" Foreground="Orange" TextWrapping="Wrap"
+                               Text="{Binding MeshOverrideWarning}"
+                               ToolTip="{Binding MeshOverrideWarning}"
+                               Visibility="{Binding ShowMeshOverrideWarning, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
             </Border>
         </Grid>

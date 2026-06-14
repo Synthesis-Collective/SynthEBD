@@ -67,6 +67,51 @@ public class GlMesh : IDisposable
     public bool IsRendering { get; set; } = true;
     public bool IsEye { get; set; }
 
+    // ── Biped-slot tracking + occupancy/hiding (mesh-override channel) ────────
+    // Each rendered shape carries the biped-object slots it occupies so the
+    // renderer can resolve "headgear hides hair" / "clothing hides body"
+    // visibility from slot collisions rather than from body-part strings. See
+    // RENDERING_PIPELINE.md "Mesh-override channel". Base shapes get their slots
+    // assigned from their body-part label at install time; mesh-override shapes
+    // get theirs from MeshOverride.BipedSlots.
+
+    /// <summary>Bitmask of biped-object slots this shape occupies, encoded as
+    /// the asset-pack <c>(BipedObjectFlag)N</c> bits (<c>1 &lt;&lt; (slot-30)</c>).
+    /// 0 for shapes with no slot association (e.g. FaceGen accessories).</summary>
+    public int BipedSlots { get; set; }
+
+    /// <summary>Bitmask of slots whose lower-priority occupants this shape
+    /// hides. Non-zero only for mesh-override shapes that should occlude what
+    /// they cover (armor over body, headgear over hair). Base shapes leave this
+    /// 0 — the nude body never hides anything.</summary>
+    public int HidesSlots { get; set; }
+
+    /// <summary>Slot-occupancy precedence: a shape can only be hidden by another
+    /// shape of strictly higher priority. 0 = skin / base (nude body, an
+    /// auxiliary skin mesh), 1 = armor, 2 = headgear. Keeps a priority-0
+    /// auxiliary mesh from being hidden by the priority-0 body, and lets
+    /// armor/headgear occlude.</summary>
+    public int SlotDrawPriority { get; set; }
+
+    /// <summary>Non-null for shapes synthesized by
+    /// <see cref="VM_CharacterViewer.ApplyMeshOverrides"/> (the MeshOverride.Key
+    /// they came from); null for base NPC shapes. Lets a re-applied override set
+    /// find and tear down the shapes the previous set created.</summary>
+    public string? OverrideKey { get; set; }
+
+    /// <summary>True when this shape is currently occluded by a higher-priority
+    /// override that <see cref="HidesSlots"/> one of its <see cref="BipedSlots"/>.
+    /// Kept separate from <see cref="IsRendering"/> (which the missing-texture
+    /// cull owns) so slot-hiding can be recomputed on every override re-apply
+    /// without clobbering the cull state. Render passes gate on
+    /// <see cref="ShouldRender"/>, which ANDs the two.</summary>
+    public bool HiddenBySlotOccupancy { get; set; }
+
+    /// <summary>Master visibility gate for all render passes: visible only when
+    /// not culled (<see cref="IsRendering"/>) and not occluded by slot occupancy
+    /// (<see cref="HiddenBySlotOccupancy"/>).</summary>
+    public bool ShouldRender => IsRendering && !HiddenBySlotOccupancy;
+
     // When true, the wireframe overlay pass draws this mesh's edges on top of
     // the solid surface. Used by the BodySlide classifier for key-vertex
     // assignment; toggled per-mesh so non-body shapes (head, hair, outfit)

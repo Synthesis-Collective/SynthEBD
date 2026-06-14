@@ -762,7 +762,7 @@ public class GlRenderer : IDisposable
         GL.DepthMask(true);
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             if (mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
@@ -777,7 +777,7 @@ public class GlRenderer : IDisposable
         // Khajiit / Argonian heads have alpha < 1 across the whole face).
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
             DrawMesh(mesh);
@@ -804,7 +804,7 @@ public class GlRenderer : IDisposable
         int curSrc = -1, curDst = -1;
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.HasAlphaBlend) continue;
 
@@ -1207,7 +1207,7 @@ public class GlRenderer : IDisposable
 
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             // Pure alpha-blend shapes (no alpha-test bit) don't cast useful
             // shadows; their cast would just be a soft amorphous blob.
@@ -1467,7 +1467,7 @@ public class GlRenderer : IDisposable
 
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             // Skip every transparent mesh (alpha-blend AND alpha-test).
             //
@@ -1598,7 +1598,7 @@ public class GlRenderer : IDisposable
         bool any = false;
         for (int i = 0; i < _meshes.Count; i++)
         {
-            if (!_meshes[i].IsRendering) continue;
+            if (!_meshes[i].ShouldRender) continue;
             if (_meshes[i].ShowWireframe || _meshes[i].RenderAsWireframeFallback)
             { any = true; break; }
         }
@@ -1624,7 +1624,7 @@ public class GlRenderer : IDisposable
 
         foreach (var mesh in _meshes)
         {
-            if (!mesh.IsRendering) continue;
+            if (!mesh.ShouldRender) continue;
             bool wantFallback = mesh.RenderAsWireframeFallback;
             bool wantOverlay = mesh.ShowWireframe;
             if (!wantFallback && !wantOverlay) continue;

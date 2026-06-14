@@ -157,6 +157,13 @@ public class VM_CharacterViewer : ViewerVm
     /// will be auto-loaded by the apply path).</summary>
     private (MorphSet Morphs, int Weight)? _pendingMorphSet;
 
+    /// <summary>Pending neutral mesh-override set to apply after scene setup.
+    /// Mirrors <see cref="_pendingTextureOverrides"/>: a call to
+    /// <see cref="ApplyMeshOverrides"/> that arrives while a rebuild is in
+    /// flight is queued here and drained by <see cref="ProcessPendingScene"/>
+    /// once the scene commits. A later call supersedes (replace semantics).</summary>
+    private List<MeshOverride>? _pendingMeshOverrides;
+
     /// <summary>The last real (non-flip) morph applied via <see cref="ApplyMorphSet"/>, kept so the
     /// pending-box "show zeroed" flip can restore the preset after temporarily rendering the
     /// undeformed body. Null until a preset has been applied this session.</summary>
@@ -296,6 +303,25 @@ public class VM_CharacterViewer : ViewerVm
     /// not using a particular slot) are NOT counted.</summary>
     public IReadOnlyCollection<string> MissingTexturePaths =>
         TextureManager?.MissingTexturePaths ?? (IReadOnlyCollection<string>)Array.Empty<string>();
+
+    /// <summary>Warnings from the most recent <see cref="ApplyMeshOverrides"/>,
+    /// covering two cases:
+    /// <list type="bullet">
+    ///   <item>a shape that could NOT be rendered — the override NIF didn't
+    ///   resolve, or it is weighted to a bone present in neither the skeleton
+    ///   nor the mesh NIF (it would collapse to the origin, so it is skipped);</item>
+    ///   <item>a shape that DID render but is weighted to bones absent from the
+    ///   resolved skeleton (resolved via the mesh-NIF fallback) — the loaded
+    ///   skeleton is missing bones the auxiliary mesh expects, so the result can
+    ///   be misaligned until a compatible skeleton mod is installed.</item>
+    /// </list>
+    /// Hosts surface these as a missing-asset / incompatible-skeleton warning
+    /// (SynthEBD's render-preview warning line, NPC2's mugshot icon). Each entry
+    /// is "&lt;Key&gt;: &lt;reason&gt;" so the UI can name what's wrong.
+    /// Recomputed on every apply (and drained queue), so it reflects the current
+    /// scene once <see cref="SceneCommitted"/> has fired.</summary>
+    public IReadOnlyList<string> MeshOverrideWarnings => _meshOverrideWarnings;
+    private readonly List<string> _meshOverrideWarnings = new();
 
     /// <summary>Controls how an alpha-tested / alpha-blended shape with no
     /// resolvable diffuse is handled during scene build. <c>true</c>
@@ -3322,6 +3348,7 @@ public class VM_CharacterViewer : ViewerVm
         _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingMorphSet = null;
+        _pendingMeshOverrides = null;
         _pendingHeadReplace = null;
 
         _currentLoadedIdentityKey = "";
@@ -3514,6 +3541,19 @@ public class VM_CharacterViewer : ViewerVm
             ApplyMorphSet(morphs, weight);
         }
 
+        // Mesh overrides drain after texture/morph state so the synthesized
+        // shapes (e.g. an auxiliary slot-52 mesh) are built against a
+        // fully-textured base and any slot-N texture overrides queued above have
+        // already been routed.
+        // Still inside this method's PushScopes bracket, so the override NIF /
+        // skeleton resolve with the load's scope chain.
+        if (_pendingMeshOverrides != null)
+        {
+            var meshOverrides = _pendingMeshOverrides;
+            _pendingMeshOverrides = null;
+            ApplyMeshOverrides(meshOverrides);
+        }
+
         // Notify host-side queues (e.g. SynthEbdViewerHostState's pending
         // BodySlide preset) that the scene is now ready for narrow updates.
         // Fired after the neutral drains above so subscribers see a fully-committed
@@ -3580,6 +3620,10 @@ public class VM_CharacterViewer : ViewerVm
             isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
         glMesh.BodyPart = shape.BodyPart;
+        // Tag the base shape with the biped slot(s) its body part occupies so
+        // the slot-occupancy resolver can let a mesh override (armor/headgear)
+        // hide it. Base shapes stay at draw priority 0 and never hide anything.
+        glMesh.BipedSlots = BodyPartToBipedFlag(shape.BodyPart);
         glMesh.ShowWireframe = ShowWireframe;
         Renderer.AddMesh(glMesh);
 
@@ -3690,6 +3734,7 @@ public class VM_CharacterViewer : ViewerVm
         // resolve to disk; the renderer / host reads it after LoadAsync
         // completes to surface incomplete-render warnings.
         _missingMeshPaths.Clear();
+        _meshOverrideWarnings.Clear();
         TextureManager?.ClearMissingTexturePaths();
 
         // Mark a rebuild as in-flight so any ApplyTextureOverrides calls arriving
@@ -4285,6 +4330,303 @@ public class VM_CharacterViewer : ViewerVm
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  MESH OVERRIDES
+    //
+    //  A neutral channel that SYNTHESIZES extra renderable shapes from .nif
+    //  files the base NPC doesn't carry. The first consumer is an auxiliary
+    //  armature on a non-base biped slot (e.g. slot 52) that some mods add to
+    //  the actor at runtime by script: its mesh lives only in the selected
+    //  asset-pack subgroup's WorldModel, so the resolver that walks the static
+    //  WornArmor never sees it. The same channel later serves NPC2's "Include
+    //  Default Outfit" / "headgear".
+    //
+    //  Mirrors ApplyTextureOverrides: replace-on-reapply, queue while a rebuild
+    //  is in flight, drain on scene commit. Each override loads its NIF,
+    //  CPU-skins it to the current skeleton, applies its bundled textures (or
+    //  the NIF's own), tints by NIF shader type, and registers the shape under
+    //  the override Key with its biped slots for occupancy/hiding.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Neutral mesh-override entry. Each <see cref="MeshOverride"/> names a
+    /// game-relative <c>.nif</c>, the biped slot(s) it occupies, and an optional
+    /// bundled texture set. Replace semantics: this call supersedes the previous
+    /// override set (so selecting a different subgroup / toggling a feature
+    /// re-applies cleanly), exactly like <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
+    /// NPC Plugin Chooser 2 (and any future host) calls this directly.
+    /// </summary>
+    public void ApplyMeshOverrides(IEnumerable<MeshOverride> overrides)
+    {
+        var overrideList = overrides as List<MeshOverride> ?? overrides?.ToList() ?? new List<MeshOverride>();
+
+        // Queue when the scene isn't ready, the texture manager isn't up, a
+        // rebuild is in flight, or no base mesh paths are cached yet (we need
+        // the skeleton path off them). Mirrors ApplyTextureOverrides' gate.
+        if (_meshesByBodyPart.Count == 0 || TextureManager == null
+            || _sceneRebuildPending || _cachedMeshPaths == null)
+        {
+            LogVerbose("CharacterViewer: ApplyMeshOverrides queuing " + overrideList.Count +
+                " override(s); meshes=" + _meshesByBodyPart.Count +
+                ", texMgr=" + (TextureManager != null) +
+                ", rebuildPending=" + _sceneRebuildPending +
+                ", meshPaths=" + (_cachedMeshPaths != null));
+            _pendingMeshOverrides = overrideList;
+            return;
+        }
+
+        LogVerbose("CharacterViewer: ApplyMeshOverrides applying " + overrideList.Count + " override(s)");
+
+        // Replace: tear down shapes the previous override set synthesized, and
+        // reset the skipped-asset surface for this fresh pass.
+        RemoveAppliedMeshOverrides();
+        _meshOverrideWarnings.Clear();
+
+        // Resolve under the load's scope chain so the override NIF / skeleton
+        // follow the same loose/BSA/scoped resolution as the base meshes. When
+        // we're draining from ProcessPendingScene this nests harmlessly inside
+        // that method's own bracket; when called directly post-commit the
+        // snapshot fields are null and this is a no-op push.
+        using var __scopes = _assetResolver.PushScopes(
+            _currentSceneScopes, _currentSceneFolders,
+            _currentSceneVanillaLooseOverridesBsa,
+            _currentSceneVanillaLooseOverridesModLoose);
+
+        nifly.NifFile? skeletonNif = null;
+        string? skelDiskPath = null;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_cachedMeshPaths.SkeletonPath))
+            {
+                skelDiskPath = _assetResolver.ResolveAssetPath(_cachedMeshPaths.SkeletonPath);
+                if (skelDiskPath != null)
+                {
+                    skeletonNif = new nifly.NifFile();
+                    if (skeletonNif.Load(skelDiskPath) != 0)
+                    {
+                        skeletonNif.Dispose();
+                        skeletonNif = null;
+                        skelDiskPath = null;
+                    }
+                }
+            }
+
+            foreach (var ov in overrideList)
+            {
+                if (ov == null || string.IsNullOrWhiteSpace(ov.MeshPath)) continue;
+                ApplyOneMeshOverride(ov, skeletonNif, skelDiskPath);
+            }
+        }
+        finally
+        {
+            skeletonNif?.Dispose();
+        }
+
+        // Recompute slot occupancy now that the override shapes are in the scene
+        // (e.g. armor hides the nude body, headgear hides hair). An auxiliary
+        // armature on a free slot collides with nothing, so this is a no-op for
+        // that case.
+        ResolveSlotVisibility();
+    }
+
+    /// <summary>Loads, skins, textures, and registers one mesh override's
+    /// shapes. Surfaces unrenderable shapes (mesh not found, or weighted to a
+    /// bone in neither the skeleton nor the mesh) and skeleton-compatibility
+    /// problems (bones the mesh expects but the skeleton lacks) on
+    /// <see cref="MeshOverrideWarnings"/> instead of crashing or silently
+    /// rendering a collapsed or misaligned shape.</summary>
+    private void ApplyOneMeshOverride(MeshOverride ov, nifly.NifFile? skeletonNif, string? skelDiskPath)
+    {
+        var source = _assetResolver.ResolveAssetSource(ov.MeshPath);
+        if (source.ResolvedDiskPath == null)
+        {
+            _missingMeshPaths.Add(ov.MeshPath);
+            _meshOverrideWarnings.Add(ov.Key + ": mesh not found (" + ov.MeshPath + ")");
+            LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                "' mesh UNRESOLVED: " + ov.MeshPath);
+            return;
+        }
+
+        // bipedBodyPart: null disables the dismember-partition slot filter — an
+        // auxiliary NIF is the source for exactly one slot and we want all its
+        // shapes, not just those carrying a particular partition id.
+        var built = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bipedBodyPart: null);
+        if (built.Count == 0)
+        {
+            _meshOverrideWarnings.Add(ov.Key + ": no renderable shapes in " + System.IO.Path.GetFileName(ov.MeshPath));
+            LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' produced 0 shapes");
+            return;
+        }
+
+        // Weight morph: the override NIF is the _1 (weight-100) variant. Its bones
+        // and vertices are authored to fit a weight-100 body, so on a body morphed
+        // to NpcWeight < 100 it would float (the auxiliary mesh sat low/forward at
+        // weight 75). Blend in the _0 companion at t = NpcWeight/100 so the
+        // override tracks the same weight morph the base body gets in
+        // LoadAllMeshParts.
+        string? weight0Path = TryGetWeightZeroPath(ov.MeshPath);
+        if (weight0Path != null)
+        {
+            var weight0Source = _assetResolver.ResolveAssetSource(weight0Path);
+            if (weight0Source.ResolvedDiskPath != null)
+            {
+                var built0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bipedBodyPart: null);
+                BlendWeightMorph(built0, built, NpcWeight / 100f, ov.Key);
+            }
+            else
+            {
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                    "' weight-0 '" + weight0Path + "' not found — rendering at full (_1) weight");
+            }
+        }
+
+        int installed = 0;
+        foreach (var b in built)
+        {
+            // Skip a shape weighted to bones that resolve from no source —
+            // present in neither the skeleton nor the mesh's own NIF — which
+            // would collapse its vertices to the origin. No crash, no bind-pose
+            // collapse; surface it so the host can warn. Bones absent from the
+            // skeleton but embedded in the mesh NIF do NOT trip this: they render
+            // via the mesh-NIF fallback like the base body.
+            if (b.UnresolvedSkinBones is { Count: > 0 } unresolved)
+            {
+                _meshOverrideWarnings.Add(ov.Key + ": unresolved bone(s) [" +
+                    string.Join(", ", unresolved) + "] for shape '" + b.ShapeName + "'");
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
+                    b.ShapeName + "' SKIPPED — bones in neither skeleton nor mesh NIF [" +
+                    string.Join(", ", unresolved) + "]");
+                continue;
+            }
+
+            // Skeleton-compatibility check: the shape renders (its bones resolved
+            // via the mesh-NIF fallback), but the resolved skeleton is missing
+            // bones the mesh expects. The base meshes get those bones from the
+            // skeleton while this one falls back to its own copies, so it can be
+            // misaligned (this is how a missing skeleton mod manifests — the
+            // auxiliary mesh sits in a slightly wrong frame from the body). Warn
+            // but still render.
+            if (b.BonesAbsentFromSkeleton is { Count: > 0 } skelAbsent)
+            {
+                _meshOverrideWarnings.Add(ov.Key + ": the loaded skeleton is missing bone(s) [" +
+                    string.Join(", ", skelAbsent) + "] this mesh needs — it may be misaligned. " +
+                    "Install the skeleton these meshes require (e.g. XPMSSE / XP32 Maximum Skeleton).");
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
+                    b.ShapeName + "' SKELETON-INCOMPATIBLE — skeleton lacks [" +
+                    string.Join(", ", skelAbsent) + "] (rendered via mesh-NIF fallback, may be misaligned)");
+            }
+
+            var glMesh = CreateGlMesh(b);
+            glMesh.MeshSource = source;
+
+            // Bundled textures (the selection's slot-N SkinTexture.* / ARMA TXST)
+            // override the NIF's own embedded set; null leaves the NIF's own.
+            var effectiveTextures = new Dictionary<int, string>(b.TexturePaths);
+            if (ov.Textures != null)
+                foreach (var kv in ov.Textures)
+                    effectiveTextures[kv.Key] = kv.Value;
+
+            bool isHairTint = false;
+            float hairR = 0, hairG = 0, hairB = 0;
+            bool isFaceTint = false;
+            string? faceTintPath = null;
+            ApplyTexturesToGlMesh(glMesh, b, effectiveTextures, _cachedMeshPaths!,
+                ref isHairTint, ref hairR, ref hairG, ref hairB,
+                ref isFaceTint, ref faceTintPath);
+
+            _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
+                new Dictionary<int, string>(effectiveTextures),
+                isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
+
+            // Kind defaults: Skin lets the shader decide tint, so the auxiliary
+            // mesh picks up the body QNAM skin tint like any slot-32 skin shape.
+            // Armor / Headgear never take the skin QNAM tint even if the NIF is
+            // mis-authored with a skin shader type (forward-prep for NPC2).
+            if ((ov.Kind == MeshOverrideKind.Armor || ov.Kind == MeshOverrideKind.Headgear)
+                && !b.IsHairTintShader)
+            {
+                glMesh.HasTintColor = false;
+                glMesh.IsSkinShape = false;
+            }
+
+            glMesh.BodyPart = ov.Key;          // so slot-N texture overrides route here
+            glMesh.OverrideKey = ov.Key;       // so a re-apply can tear this down
+            glMesh.BipedSlots = ov.BipedSlots;
+            glMesh.HidesSlots = ov.EffectiveHidesSlots;
+            glMesh.SlotDrawPriority = SlotDrawPriorityForKind(ov.Kind);
+            glMesh.ShowWireframe = ShowWireframe;
+            Renderer.AddMesh(glMesh);
+            installed++;
+        }
+
+        LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' installed " +
+            installed + "/" + built.Count + " shape(s) from " + System.IO.Path.GetFileName(ov.MeshPath) +
+            " (slots=" + ov.BipedSlots + ", kind=" + ov.Kind + ")");
+    }
+
+    /// <summary>Removes every shape a prior <see cref="ApplyMeshOverrides"/>
+    /// synthesized (those carry a non-null <see cref="GlMesh.OverrideKey"/>),
+    /// disposing GL resources and dropping their cached texture-apply info.</summary>
+    private void RemoveAppliedMeshOverrides()
+    {
+        var existing = Renderer.Meshes.Where(m => m.OverrideKey != null).ToList();
+        foreach (var m in existing)
+        {
+            Renderer.RemoveMesh(m);
+            _textureApplyInfoByMesh.Remove(m);
+            m.Dispose();
+        }
+    }
+
+    /// <summary>Recomputes per-shape slot-occupancy visibility across the whole
+    /// scene: a shape is hidden when some strictly-higher-priority shape
+    /// <see cref="GlMesh.HidesSlots"/> one of its <see cref="GlMesh.BipedSlots"/>.
+    /// Body armor (priority 1) hides the nude body (priority 0); headgear
+    /// (priority 2) hides hair (priority 0). Only the slot-hiding flag is
+    /// touched — missing-texture culling (<see cref="GlMesh.IsRendering"/>) is
+    /// left alone, and both combine in <see cref="GlMesh.ShouldRender"/>.</summary>
+    private void ResolveSlotVisibility()
+    {
+        var meshes = Renderer.Meshes;
+        foreach (var m in meshes) m.HiddenBySlotOccupancy = false;
+
+        foreach (var occluder in meshes)
+        {
+            if (occluder.HidesSlots == 0) continue;
+            foreach (var m in meshes)
+            {
+                if (ReferenceEquals(m, occluder)) continue;
+                if (m.SlotDrawPriority < occluder.SlotDrawPriority
+                    && (m.BipedSlots & occluder.HidesSlots) != 0)
+                {
+                    m.HiddenBySlotOccupancy = true;
+                }
+            }
+        }
+    }
+
+    /// <summary>Slot-occupancy precedence for a mesh-override kind. Skin / Hair /
+    /// Other sit with the base shapes at 0; Armor at 1; Headgear at 2.</summary>
+    private static int SlotDrawPriorityForKind(MeshOverrideKind kind) => kind switch
+    {
+        MeshOverrideKind.Armor => 1,
+        MeshOverrideKind.Headgear => 2,
+        _ => 0,
+    };
+
+    /// <summary>Maps a base body-part label to the BipedObjectFlag bit its slot
+    /// occupies, so base shapes can be hidden by an overlapping mesh override.</summary>
+    private static int BodyPartToBipedFlag(string? bodyPart) => bodyPart switch
+    {
+        "Head" => 1,      // slot 30
+        "Hair" => 2,      // slot 31
+        "Body" => 4,      // slot 32
+        "Hands" => 8,     // slot 33
+        "Feet" => 128,    // slot 37
+        "Tail" => 1024,   // slot 40
+        _ => 0,
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  BODYSLIDE
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -4572,6 +4914,7 @@ public class VM_CharacterViewer : ViewerVm
                 isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
             glMesh.BodyPart = "Head";
+            glMesh.BipedSlots = BodyPartToBipedFlag("Head");
             glMesh.ShowWireframe = ShowWireframe;
             Renderer.AddMesh(glMesh);
 
@@ -4649,6 +4992,7 @@ public class VM_CharacterViewer : ViewerVm
         _sceneInstall = null;
         _pendingTextureOverrides = null;
         _pendingMorphSet = null;
+        _pendingMeshOverrides = null;
         _pendingHeadReplace = null;
         _meshesByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
@@ -5117,6 +5461,49 @@ public class VM_CharacterViewer : ViewerVm
             if (destination.Contains("BipedObjectFlag.Body", StringComparison.OrdinalIgnoreCase)) return "Body";
             if (destination.Contains("BipedObjectFlag.Hands", StringComparison.OrdinalIgnoreCase)) return "Hands";
             if (destination.Contains("BipedObjectFlag.Feet", StringComparison.OrdinalIgnoreCase)) return "Feet";
+
+            // Numeric biped-slot destinations, e.g. an auxiliary slot-52
+            // armature: "...HasFlag((BipedObjectFlag)4194304)...". Route them
+            // generically by slot number so a slot's SkinTexture.* / WorldModel
+            // lands on the synthesized override shape. No semantic per-slot case
+            // is needed - the slot number is the only routing key required.
+            const string marker = "(BipedObjectFlag)";
+            int mi = destination.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (mi >= 0)
+            {
+                int p = mi + marker.Length;
+                int start = p;
+                while (p < destination.Length && char.IsDigit(destination[p])) p++;
+                if (p > start && int.TryParse(destination.Substring(start, p - start), out int flag))
+                    return BipedFlagToBodyPart(flag);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Maps a single BipedObjectFlag bit (the asset-pack
+    /// <c>(BipedObjectFlag)N</c> encoding, i.e. <c>1 &lt;&lt; (slot-30)</c>) to a
+    /// body-part routing key. Named base parts keep their existing labels so
+    /// their textures route to base shapes; everything else (an auxiliary
+    /// armature on slot 52, modded slots) becomes a generic "Slot{n}". Returns
+    /// null for a zero / multi-bit mask. Public so hosts build a MeshOverride.Key
+    /// that matches what <see cref="ParseBodyPart"/> routes textures to.</summary>
+    public static string? BipedFlagToBodyPart(int flag)
+    {
+        switch (flag)
+        {
+            case 1: return "Head";    // slot 30
+            case 2: return "Hair";    // slot 31
+            case 4: return "Body";    // slot 32
+            case 8: return "Hands";   // slot 33
+            case 128: return "Feet";  // slot 37
+            case 1024: return "Tail"; // slot 40
+        }
+        // Single-bit mask → slot 30 + bitIndex (e.g. 4194304 = 1<<22 → "Slot52").
+        if (flag > 0 && (flag & (flag - 1)) == 0)
+        {
+            int bit = System.Numerics.BitOperations.Log2((uint)flag);
+            return "Slot" + (30 + bit);
         }
         return null;
     }
