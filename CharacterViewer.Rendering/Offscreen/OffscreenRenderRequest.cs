@@ -34,6 +34,17 @@ public sealed class OffscreenRenderRequest
     /// their NIF-embedded defaults.</summary>
     public IEnumerable<TextureOverride>? TextureOverrides { get; init; }
 
+    /// <summary>Mesh overrides applied after mesh load — auxiliary shapes
+    /// synthesized from <c>.nif</c> files the base NPC doesn't carry (the same
+    /// neutral channel as <see cref="VM_CharacterViewer.ApplyMeshOverrides"/>:
+    /// SynthEBD's auxiliary-armature subgroup mesh, NPC Plugin Chooser 2's
+    /// "Include Default Outfit" / "Include headgear"). Loaded, CPU-skinned to the
+    /// scene skeleton, textured, slot-hidden (body armor hides the nude body,
+    /// headgear hides hair). Optional — null adds no extra shapes. Any
+    /// unrenderable / skeleton-incompatible overrides are reported via
+    /// <see cref="MeshOverrideWarningsOut"/>.</summary>
+    public IEnumerable<MeshOverride>? MeshOverrides { get; init; }
+
     /// <summary>BodySlide-style morph deformation to apply to body shapes.
     /// Optional — null leaves the body at its bind pose.</summary>
     public MorphSet? Morphs { get; init; }
@@ -187,6 +198,22 @@ public sealed class OffscreenRenderRequest
     /// or neither populated.</para>
     /// </summary>
     public List<string>? MissingTexturePathsOut { get; init; }
+
+    /// <summary>
+    /// Optional output collection. If non-null and <see cref="MeshOverrides"/>
+    /// were supplied, the renderer appends the human-readable warning strings
+    /// from <see cref="VM_CharacterViewer.MeshOverrideWarnings"/> — auxiliary
+    /// override meshes that couldn't render (mesh not found / weighted to a bone
+    /// in neither skeleton nor mesh NIF) or that rendered against an
+    /// incompatible / absent skeleton (may be misaligned). Lets the host show
+    /// the same missing-asset hint for offscreen renders that the live preview
+    /// shows. Empty after the render means every supplied override rendered
+    /// cleanly.
+    /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave null to
+    /// skip tracking. Independent of <see cref="MissingMeshPathsOut"/> /
+    /// <see cref="MissingTexturePathsOut"/>.</para>
+    /// </summary>
+    public List<string>? MeshOverrideWarningsOut { get; init; }
 
     /// <summary>
     /// Controls how the renderer handles alpha shapes whose diffuse texture

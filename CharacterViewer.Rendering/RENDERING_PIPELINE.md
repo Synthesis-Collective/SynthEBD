@@ -271,6 +271,8 @@ Per override (`MeshOverride`: `Key`, `MeshPath`, `BipedSlots`, `HidesSlots`, `Ki
 
 Both, plus unresolved override NIFs, are surfaced on `VM_CharacterViewer.MeshOverrideWarnings`, which SynthEBD shows as a render-preview warning line (analogous to NPC2's mugshot missing-asset icon) — e.g. "the loaded skeleton is missing bone(s) […]; install the skeleton these meshes require (XPMSSE / XP32 Maximum Skeleton)." The normal load path ignores both signals — its behavior is unchanged.
 
+**Offscreen parity.** The same channel is available to the headless mugshot path: `OffscreenRenderRequest.MeshOverrides` (an `IEnumerable<MeshOverride>?`) is applied after texture overrides and before the framing/render, via the same `VM_CharacterViewer.ApplyMeshOverrides` on the per-render VM — so a saved PNG shows the auxiliary/outfit/headgear shapes (and the slot-hiding) identically to the live preview. The post-apply `MeshOverrideWarnings` are copied into the optional `OffscreenRenderRequest.MeshOverrideWarningsOut` list (parallel to `MissingMeshPathsOut` / `MissingTexturePathsOut`) so the host can flag an incomplete offscreen render the same way it flags one in the preview. Null `MeshOverrides` leaves the offscreen path byte-identical to before.
+
 ---
 
 ## Part 2 — Fragment shader pipeline
