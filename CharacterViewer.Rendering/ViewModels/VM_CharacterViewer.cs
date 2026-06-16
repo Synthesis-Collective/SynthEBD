@@ -4541,10 +4541,24 @@ public class VM_CharacterViewer : ViewerVm
 
             // Kind defaults: Skin lets the shader decide tint, so the auxiliary
             // mesh picks up the body QNAM skin tint like any slot-32 skin shape.
-            // Armor / Headgear never take the skin QNAM tint even if the NIF is
-            // mis-authored with a skin shader type (forward-prep for NPC2).
+            // Armor / Headgear shapes drop the skin QNAM tint — BUT only the
+            // ones that are NOT genuine skin shapes. Revealing armors (e.g. the
+            // light Hide cuirass) bake real body-skin shapes into the armor NIF
+            // for the exposed midriff / shoulders: ShaderType 5 (ST_SkinTint,
+            // SLSF1_FaceGen_RGB_Tint), textured with the body skin (FemaleBody).
+            // The engine applies the NPC's skin tone to those exactly as it does
+            // the slot-32 body, keyed purely on the shader type — it has no
+            // notion of "armor vs skin." Stripping their tint here left the
+            // revealed skin at the untextured default (pink/beige) so it clashed
+            // with a tinted face/hands (e.g. a green Orc's torso). Preserve the
+            // tint for ShaderType 4/5 skin shapes; only non-skin armor material
+            // (leather/metal, ShaderType 0/1/etc.) loses it. Note non-skin
+            // shapes never had HasTintColor set in the first place, so this is a
+            // no-op for them and only matters as a guard against future regressions.
+            bool isSkinShaderShape = b.ShaderType == 4 || b.ShaderType == 5;
             if ((ov.Kind == MeshOverrideKind.Armor || ov.Kind == MeshOverrideKind.Headgear)
-                && !b.IsHairTintShader)
+                && !b.IsHairTintShader
+                && !isSkinShaderShape)
             {
                 glMesh.HasTintColor = false;
                 glMesh.IsSkinShape = false;
