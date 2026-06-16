@@ -165,6 +165,18 @@ public class NifMeshBuilder
         public bool IsPrimaryHeadShape { get; init; }
 
         /// <summary>
+        /// Dismember-partition IDs (SSE SBP_* values) read from this shape's
+        /// <see cref="BSDismemberSkinInstance"/>, or null when it has none (a
+        /// plain <c>NiSkinInstance</c> shape such as eyes/brows/mouth). Lets the
+        /// slot-occupancy resolver tag a FaceGen head NIF's sub-shapes by their
+        /// real biped slot instead of the coarse "Head" group slot — so a hood
+        /// occupying the hair slot (31) can hide baked-in hair (partition 131)
+        /// the same way body armor hides the nude body. See
+        /// <c>VM_CharacterViewer.BipedSlotsForBaseShape</c>.
+        /// </summary>
+        public IReadOnlyList<ushort>? DismemberPartitions { get; init; }
+
+        /// <summary>
         /// True if this shape's NiAlphaProperty has the alpha test flag set (bit 9).
         /// </summary>
         public bool HasAlphaTest { get; init; }
@@ -725,6 +737,7 @@ public class NifMeshBuilder
         UnresolvedSkinBones = b.UnresolvedSkinBones,
         BonesAbsentFromSkeleton = b.BonesAbsentFromSkeleton,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
+        DismemberPartitions = b.DismemberPartitions,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
         AlphaThreshold = b.AlphaThreshold,
@@ -909,6 +922,19 @@ public class NifMeshBuilder
     {
         return partId == 30 || partId == 130 || partId == 230 || partId == 1;
     }
+
+    /// <summary>Collapses a dismember-partition ID onto the canonical biped-slot
+    /// numbering (30-61), folding the SSE duplicate 130-161 / 230-261 ranges back
+    /// down (e.g. 131 → 31 hair, 130/230 → 30 head, 143 → 43 ears) and mapping the
+    /// legacy Oblivion <c>BP_HEAD = 1</c> to 30. IDs outside those ranges are
+    /// returned unchanged for the caller to filter.</summary>
+    public static int PartitionToBipedSlot(ushort partId) => partId switch
+    {
+        1 => 30,                          // legacy BP_HEAD
+        >= 230 and <= 261 => partId - 200,
+        >= 130 and <= 161 => partId - 100,
+        _ => partId,
+    };
 
     /// <summary>True when this NIF contains a node named
     /// <c>BSFaceGenNiNodeSkinned</c>. SSE FaceGen NIFs (the per-NPC
@@ -1592,6 +1618,11 @@ public class NifMeshBuilder
 
         string shapeName = shape.name?.get() ?? $"Shape_{positions.Length}v";
 
+        // Capture this shape's dismember partitions so the slot-occupancy
+        // resolver can tag baked-in head sub-shapes (e.g. hair = partition 131)
+        // by their real biped slot rather than the coarse "Head" group slot.
+        var dismemberPartitions = ReadDismemberPartitions(nif.GetHeader(), shape);
+
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
         LogVerbose("CharacterViewer: Built shape '" + shapeName +
@@ -1643,6 +1674,7 @@ public class NifMeshBuilder
             BonesAbsentFromSkeleton = (bonesAbsentFromSkeleton != null && bonesAbsentFromSkeleton.Count > 0)
                 ? bonesAbsentFromSkeleton : null,
             IsPrimaryHeadShape = isPrimaryHead,
+            DismemberPartitions = dismemberPartitions,
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
             AlphaThreshold = alphaThreshold,

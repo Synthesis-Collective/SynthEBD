@@ -3620,10 +3620,12 @@ public class VM_CharacterViewer : ViewerVm
             isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
         glMesh.BodyPart = shape.BodyPart;
-        // Tag the base shape with the biped slot(s) its body part occupies so
-        // the slot-occupancy resolver can let a mesh override (armor/headgear)
-        // hide it. Base shapes stay at draw priority 0 and never hide anything.
-        glMesh.BipedSlots = BodyPartToBipedFlag(shape.BodyPart);
+        // Tag the base shape with the biped slot(s) it occupies so the
+        // slot-occupancy resolver can let a mesh override (armor/headgear) hide
+        // it. Derived per-shape (not just from the body-part group) so a hood
+        // hides only the baked-in hair sub-shape of a FaceGen head, not the
+        // face. Base shapes stay at draw priority 0 and never hide anything.
+        glMesh.BipedSlots = BipedSlotsForBaseShape(shape.Built, shape.BodyPart);
         glMesh.ShowWireframe = ShowWireframe;
         Renderer.AddMesh(glMesh);
 
@@ -4626,6 +4628,45 @@ public class VM_CharacterViewer : ViewerVm
         _ => 0,
     };
 
+    /// <summary>Per-shape biped-slot tag for a base (non-override) shape. Almost
+    /// always just the body-part's slot, but a FaceGen head NIF bundles the face,
+    /// eyes, brows AND — for most standalone NPC replacers — the hair into one
+    /// "Head" group. Tagging them all slot 30 (Head) means a hood that hides the
+    /// hair slot (31) can't reach the baked-in hair, so it clips through. For
+    /// non-primary head sub-shapes we derive the slot from the shape's own
+    /// dismember partition (e.g. 131 → slot 31) so the resolver hides just the
+    /// hair, exactly as body armor hides the nude body.
+    /// <para>The primary head (face) and any shape lacking head-region partitions
+    /// (plain-skinned eyes/brows/mouth) keep the coarse "Head" slot, so they're
+    /// never wrongly culled. Only head-region slots are honoured: a head
+    /// accessory mis-authored with the body partition (32) is ignored rather than
+    /// becoming hideable by body armor — dismember values are not a reliable
+    /// shape-role signal for the head region across modder conventions.</para></summary>
+    private static int BipedSlotsForBaseShape(NifMeshBuilder.BuiltMesh built, string? bodyPart)
+    {
+        int groupSlots = BodyPartToBipedFlag(bodyPart);
+        if (bodyPart != "Head" || built.IsPrimaryHeadShape) return groupSlots;
+
+        var parts = built.DismemberPartitions;
+        if (parts == null || parts.Count == 0) return groupSlots;
+
+        int mask = 0;
+        foreach (var p in parts)
+        {
+            // Head-region slots only: Head(30), Hair(31), LongHair(41),
+            // Circlet(42), Ears(43). 1 << (slot - 30) matches BodyPartToBipedFlag.
+            switch (NifMeshBuilder.PartitionToBipedSlot(p))
+            {
+                case 30: mask |= 1 << 0; break;
+                case 31: mask |= 1 << 1; break;
+                case 41: mask |= 1 << 11; break;
+                case 42: mask |= 1 << 12; break;
+                case 43: mask |= 1 << 13; break;
+            }
+        }
+        return mask != 0 ? mask : groupSlots;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  BODYSLIDE
     // ═══════════════════════════════════════════════════════════════════════
@@ -4914,7 +4955,7 @@ public class VM_CharacterViewer : ViewerVm
                 isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
             glMesh.BodyPart = "Head";
-            glMesh.BipedSlots = BodyPartToBipedFlag("Head");
+            glMesh.BipedSlots = BipedSlotsForBaseShape(built, "Head");
             glMesh.ShowWireframe = ShowWireframe;
             Renderer.AddMesh(glMesh);
 
