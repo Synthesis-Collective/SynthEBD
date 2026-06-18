@@ -1,27 +1,41 @@
 name: Publish CharacterViewer.Rendering (NuGet)
 
-# Packs CharacterViewer.Rendering and pushes it to nuget.org.
+# Packs CharacterViewer.Rendering and publishes it to nuget.org using
+# Trusted Publishing (OIDC) — no long-lived API key secret to store or rotate.
+# nuget.org issues a short-lived (1 hour) key to this workflow at run time.
 #
-# Versioning: the package version is the <Version> in
+# ONE-TIME SETUP on nuget.org (Account name -> Trusted Publishing -> add a policy):
+#   Repository Owner: Synthesis-Collective
+#   Repository:       SynthEBD
+#   Workflow File:    publish-cvr.yml          (file name only, no path)
+#   Environment:      (leave empty)
+#   Policy owner:     your nuget.org user (Piranha91), or an org you belong to.
+# The package SynthEBD.CharacterViewer.Rendering ends up owned by that policy
+# owner. (SynthEBD is a public repo, so the policy is active immediately.)
+#
+# Also add one repository secret NUGET_USER = your nuget.org username
+# (e.g. Piranha91). It is not sensitive — it is your public profile name, NOT
+# your email — so you may instead hardcode it in the `user:` line below.
+#
+# Versioning: the package version is <Version> in
 # CharacterViewer.Rendering.csproj (kept in sync with
-# CharacterViewerRendering.Version). To cut a release: bump that <Version>,
-# commit, then either push a tag `cvr-v<version>` (e.g. cvr-v2.5.19) or run this
-# workflow manually from the Actions tab.
-#
-# Requires a repository secret named NUGET_API_KEY: a nuget.org API key scoped to
-# "Push" for the SynthEBD.CharacterViewer.Rendering package (glob "SynthEBD.*"
-# works if you reserve that ID prefix). Generate it at
-# https://www.nuget.org/account/apikeys.
+# CharacterViewerRendering.Version). To release: bump that <Version>, commit,
+# then push a tag `cvr-v<version>` (e.g. cvr-v2.5.18) or run this workflow
+# manually from the Actions tab. NOTE: the "Run workflow" button only appears
+# once this file is on the repo's default branch.
 
 on:
   push:
     tags:
       - 'cvr-v*'
-  workflow_dispatch:  # allows manual triggering from the Actions tab
+  workflow_dispatch:  # manual trigger from the Actions tab
 
 jobs:
-  pack-and-push:
+  pack-and-publish:
     runs-on: windows-latest
+    permissions:
+      id-token: write   # enable GitHub OIDC token issuance (required for Trusted Publishing)
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -34,5 +48,12 @@ jobs:
       - name: Pack
         run: dotnet pack "CharacterViewer.Rendering/CharacterViewer.Rendering.csproj" -c Release -o nupkgs
 
+      # Exchange the GitHub OIDC token for a short-lived nuget.org API key.
+      - name: NuGet login (OIDC -> temporary API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to nuget.org
-        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
