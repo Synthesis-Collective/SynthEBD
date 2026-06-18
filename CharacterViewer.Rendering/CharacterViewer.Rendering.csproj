@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,10 +11,28 @@
     <!-- Library version. Keep in sync with CharacterViewerRendering.Version
          in CharacterViewerRendering.cs — hosts compare against that constant
          for staleness checks. Bump together: Major = breaking, Minor =
-         additive, Patch = bugfix. -->
+         additive, Patch = bugfix. This is also the published NuGet version. -->
     <Version>2.5.18</Version>
     <AssemblyVersion>2.5.18.0</AssemblyVersion>
     <FileVersion>2.5.18.0</FileVersion>
+  </PropertyGroup>
+
+  <!-- NuGet packaging metadata. Produced with `dotnet pack -c Release`; not packed
+       on every build. PackageId is SynthEBD-prefixed because nuget.org is a global
+       namespace. Authors is a free-text handle (no legal name required). -->
+  <PropertyGroup>
+    <PackageId>SynthEBD.CharacterViewer.Rendering</PackageId>
+    <Authors>Synthesis Collective</Authors>
+    <Company>Synthesis Collective</Company>
+    <Product>CharacterViewer.Rendering</Product>
+    <Description>Offscreen OpenGL 3D renderer for Skyrim NPC head/body previews (mugshots). Host-agnostic: no Mutagen or game-specific dependency — consumers implement a few small abstraction interfaces. Used by SynthEBD and NPC Plugin Chooser 2.</Description>
+    <PackageTags>skyrim;mutagen;opengl;renderer;mugshot;npc;synthebd</PackageTags>
+    <PackageProjectUrl>https://github.com/Synthesis-Collective/SynthEBD</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Synthesis-Collective/SynthEBD</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <Copyright>Copyright (C) Synthesis Collective</Copyright>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,13 +48,23 @@
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
   </ItemGroup>
 
+  <!-- Shaders ship two ways: embedded into the assembly (so NuGet-package
+       consumers — for whom copied content does NOT flow through a PackageReference
+       — and single-file deployments still have them) AND copied next to the
+       assembly (so local / ProjectReference builds can hot-edit a shader in the
+       bin folder and re-run without a rebuild). ModuleResourceLocator.ReadShaderSource
+       prefers the on-disk copy and falls back to the embedded one. -->
   <ItemGroup>
-    <Content Include="Shaders\*.vert">
+    <EmbeddedResource Include="Shaders\*.vert">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Shaders\*.frag">
+    </EmbeddedResource>
+    <EmbeddedResource Include="Shaders\*.frag">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

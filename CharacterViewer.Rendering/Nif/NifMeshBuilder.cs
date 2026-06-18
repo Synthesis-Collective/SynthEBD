@@ -171,7 +171,7 @@ public class NifMeshBuilder
         /// slot-occupancy resolver tag a FaceGen head NIF's sub-shapes by their
         /// real biped slot instead of the coarse "Head" group slot — so a hood
         /// occupying the hair slot (31) can hide baked-in hair (partition 131)
-        /// the same way body armor hides the nude body. See
+        /// the same way body armor hides the base body. See
         /// <c>VM_CharacterViewer.BipedSlotsForBaseShape</c>.
         /// </summary>
         public IReadOnlyList<ushort>? DismemberPartitions { get; init; }
@@ -1636,7 +1636,7 @@ public class NifMeshBuilder
 
         // TEMP DEBUG: dump NIF-space and Y-up-converted normal of vertex 0
         // to diagnose a 90-degree normal orientation mismatch between the
-        // body mesh and the loincloth/armor meshes. Safe to remove once fixed.
+        // body mesh and the armor meshes. Safe to remove once fixed.
         if (nifNormals != null && nifNormals.Count > 0 && normals.Length > 0)
         {
             var nifN0 = nifNormals[0];

@@ -1,0 +1,38 @@
+name: Publish CharacterViewer.Rendering (NuGet)
+
+# Packs CharacterViewer.Rendering and pushes it to nuget.org.
+#
+# Versioning: the package version is the <Version> in
+# CharacterViewer.Rendering.csproj (kept in sync with
+# CharacterViewerRendering.Version). To cut a release: bump that <Version>,
+# commit, then either push a tag `cvr-v<version>` (e.g. cvr-v2.5.19) or run this
+# workflow manually from the Actions tab.
+#
+# Requires a repository secret named NUGET_API_KEY: a nuget.org API key scoped to
+# "Push" for the SynthEBD.CharacterViewer.Rendering package (glob "SynthEBD.*"
+# works if you reserve that ID prefix). Generate it at
+# https://www.nuget.org/account/apikeys.
+
+on:
+  push:
+    tags:
+      - 'cvr-v*'
+  workflow_dispatch:  # allows manual triggering from the Actions tab
+
+jobs:
+  pack-and-push:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.*
+
+      - name: Pack
+        run: dotnet pack "CharacterViewer.Rendering/CharacterViewer.Rendering.csproj" -c Release -o nupkgs
+
+      - name: Push to nuget.org
+        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

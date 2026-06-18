@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using OpenTK.Graphics.OpenGL4;
 
 namespace CharacterViewer.Rendering;
@@ -106,13 +105,15 @@ public class GlShaderProgram : IDisposable
     }
 
     /// <summary>
-    /// Loads shader source files from the Shaders directory next to this assembly.
-    /// Falls back to embedded resources if files are not found.
+    /// Loads a vertex+fragment shader program by file name (e.g. "basic.vert",
+    /// "basic.frag"). Source is read via <see cref="ModuleResourceLocator.ReadShaderSource"/>,
+    /// which prefers an on-disk copy under <paramref name="shaderDirectory"/> and
+    /// falls back to the copy embedded in this assembly.
     /// </summary>
-    public static GlShaderProgram LoadFromFiles(string vertexPath, string fragmentPath)
+    public static GlShaderProgram Load(string? shaderDirectory, string vertFileName, string fragFileName)
     {
-        string vertSrc = File.ReadAllText(vertexPath);
-        string fragSrc = File.ReadAllText(fragmentPath);
+        string vertSrc = ModuleResourceLocator.ReadShaderSource(shaderDirectory, vertFileName);
+        string fragSrc = ModuleResourceLocator.ReadShaderSource(shaderDirectory, fragFileName);
         return new GlShaderProgram(vertSrc, fragSrc);
     }
 }

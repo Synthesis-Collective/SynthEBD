@@ -438,7 +438,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // Auxiliary mesh overrides (SynthEBD subgroup mesh, NPC2 outfit/headgear).
         // The scene is ready post-drain, so this loads/skins/textures/hides the
         // extra shapes inline against the bound FBO — they'll be in the next
-        // Render() pass. Slot occupancy hides the nude body under body armor and
+        // Render() pass. Slot occupancy hides the base body under body armor and
         // hair under headgear, exactly as in the live preview.
         if (request.MeshOverrides != null)
         {

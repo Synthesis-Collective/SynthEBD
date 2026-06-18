@@ -439,7 +439,7 @@ public class GlRenderer : IDisposable
     /// <summary>
     /// Initializes OpenGL state and compiles shaders. Must be called after GL context is available.
     /// </summary>
-    public void Initialize(string shaderDirectory)
+    public void Initialize(string? shaderDirectory)
     {
         if (_initialized) return;
 
@@ -448,9 +448,7 @@ public class GlRenderer : IDisposable
         // ellipsis …, NBSP, etc.) make the GLSL compiler emit a misleading
         // "unexpected $end at token <EOF>" with no line number. See
         // GlShaderProgram class remarks. Keep this note across refactors.
-        string vertPath = Path.Combine(shaderDirectory, "basic.vert");
-        string fragPath = Path.Combine(shaderDirectory, "basic.frag");
-        _shader = GlShaderProgram.LoadFromFiles(vertPath, fragPath);
+        _shader = GlShaderProgram.Load(shaderDirectory, "basic.vert", "basic.frag");
 
         // Set texture unit bindings (these don't change)
         _shader.Use();
@@ -510,15 +508,11 @@ public class GlRenderer : IDisposable
             (int)TextureWrapMode.ClampToEdge);
 
         // Debug (line-based) shader for the key-light arrow gizmo
-        string debugVertPath = Path.Combine(shaderDirectory, "debug.vert");
-        string debugFragPath = Path.Combine(shaderDirectory, "debug.frag");
-        _debugShader = GlShaderProgram.LoadFromFiles(debugVertPath, debugFragPath);
+        _debugShader = GlShaderProgram.Load(shaderDirectory, "debug.vert", "debug.frag");
 
         // Wireframe shader — reads position (location 0) from the standard mesh
         // VAO and draws a flat-colored edge overlay on top of the solid mesh.
-        string wireVertPath = Path.Combine(shaderDirectory, "wireframe.vert");
-        string wireFragPath = Path.Combine(shaderDirectory, "wireframe.frag");
-        _wireframeShader = GlShaderProgram.LoadFromFiles(wireVertPath, wireFragPath);
+        _wireframeShader = GlShaderProgram.Load(shaderDirectory, "wireframe.vert", "wireframe.frag");
 
         // Shadow-depth shader — reads position + texcoords (locations 0, 2)
         // from the standard mesh VAO, transforms by u_lightViewProj, and
@@ -526,9 +520,7 @@ public class GlRenderer : IDisposable
         // Alpha-test path samples the diffuse texture and discards
         // transparent texels so hair / brow strands cast strand-shaped
         // shadows instead of solid card-shaped occluders.
-        string shadowVertPath = Path.Combine(shaderDirectory, "shadow_depth.vert");
-        string shadowFragPath = Path.Combine(shaderDirectory, "shadow_depth.frag");
-        _shadowShader = GlShaderProgram.LoadFromFiles(shadowVertPath, shadowFragPath);
+        _shadowShader = GlShaderProgram.Load(shaderDirectory, "shadow_depth.vert", "shadow_depth.frag");
         _shadowShader.Use();
         _shadowShader.SetInt("texture_diffuse", 0);
 
@@ -536,9 +528,7 @@ public class GlRenderer : IDisposable
         // logic as shadow_depth but renders from the camera's POV
         // (separate u_view + u_projection uniforms instead of a
         // pre-multiplied light view-proj matrix).
-        string depthVertPath = Path.Combine(shaderDirectory, "depth_only.vert");
-        string depthFragPath = Path.Combine(shaderDirectory, "depth_only.frag");
-        _depthOnlyShader = GlShaderProgram.LoadFromFiles(depthVertPath, depthFragPath);
+        _depthOnlyShader = GlShaderProgram.Load(shaderDirectory, "depth_only.vert", "depth_only.frag");
         _depthOnlyShader.Use();
         _depthOnlyShader.SetInt("texture_diffuse", 0);
 
@@ -547,9 +537,7 @@ public class GlRenderer : IDisposable
         // occlusion factor. The normal G-buffer comes from the depth
         // prepass so the hemisphere orients off smooth interpolated
         // vertex normals (not faceted dFdx/dFdy reconstruction).
-        string fullVertPath = Path.Combine(shaderDirectory, "fullscreen.vert");
-        string ssaoFragPath = Path.Combine(shaderDirectory, "ssao.frag");
-        _ssaoShader = GlShaderProgram.LoadFromFiles(fullVertPath, ssaoFragPath);
+        _ssaoShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "ssao.frag");
         _ssaoShader.Use();
         _ssaoShader.SetInt("u_depthTex", 0);
         _ssaoShader.SetInt("u_normalTex", 1);
@@ -559,8 +547,7 @@ public class GlRenderer : IDisposable
         // averages a 4x4 neighborhood per pixel to cancel the noise
         // tile pattern, writes the smoothed result. Always runs
         // between ComputeSsao and the main pass when SSAO is on.
-        string ssaoBlurPath = Path.Combine(shaderDirectory, "ssao_blur.frag");
-        _ssaoBlurShader = GlShaderProgram.LoadFromFiles(fullVertPath, ssaoBlurPath);
+        _ssaoBlurShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "ssao_blur.frag");
         _ssaoBlurShader.Use();
         _ssaoBlurShader.SetInt("u_ssaoTex", 0);
 

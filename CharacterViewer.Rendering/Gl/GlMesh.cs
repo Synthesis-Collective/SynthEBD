@@ -83,11 +83,11 @@ public class GlMesh : IDisposable
     /// <summary>Bitmask of slots whose lower-priority occupants this shape
     /// hides. Non-zero only for mesh-override shapes that should occlude what
     /// they cover (armor over body, headgear over hair). Base shapes leave this
-    /// 0 — the nude body never hides anything.</summary>
+    /// 0 — the base body never hides anything.</summary>
     public int HidesSlots { get; set; }
 
     /// <summary>Slot-occupancy precedence: a shape can only be hidden by another
-    /// shape of strictly higher priority. 0 = skin / base (nude body, an
+    /// shape of strictly higher priority. 0 = skin / base (the body, an
     /// auxiliary skin mesh), 1 = armor, 2 = headgear. Keeps a priority-0
     /// auxiliary mesh from being hidden by the priority-0 body, and lets
     /// armor/headgear occlude.</summary>

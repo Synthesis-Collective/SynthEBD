@@ -3293,7 +3293,7 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>
     /// Called once after the GL context is ready (from the view's OnRender or Loaded event).
     /// </summary>
-    public void InitializeGl(string shaderDirectory)
+    public void InitializeGl(string? shaderDirectory)
     {
         if (IsGlInitialized) return;
 
@@ -3598,7 +3598,7 @@ public class VM_CharacterViewer : ViewerVm
 
         var effectiveTextures = new Dictionary<int, string>(shape.Built.TexturePaths);
         // ARMA TXST overrides target the body part's *skin* (e.g. ARMA[Body] → FemaleBody_1.dds).
-        // Body/Hands/Feet NIFs can contain non-skin shapes (FemaleUnderwear, fingernails,
+        // Body/Hands/Feet NIFs can contain non-skin shapes (a clothing shape, fingernails,
         // attached armor) that share the NIF but ship their own diffuse/normal. Gate on
         // BSLSP shader type 5 (ST_SkinTint) so the body skin texture doesn't bleed onto
         // those shapes — engine behavior, and matches IsSkinShape elsewhere.
@@ -4247,11 +4247,12 @@ public class VM_CharacterViewer : ViewerVm
             // For Head, target only the primary head shape (the face — face/hair/eyes
             // are separate shapes with different meaning for each slot). For non-head
             // body parts, apply to every *skin* shape in that NIF: a body NIF can hold
-            // multiple skin shapes (CBBE 3BA Body+Vagina), and they should all receive
-            // the body diffuse. But non-skin shapes that share the same NIF (underwear
-            // on the vanilla FemaleBody, fingernails on FemaleHands) keep their NIF-baked
-            // textures — without this gate, ARMA[Body] TXST clobbers the brassiere with
-            // FemaleBody_1.dds and you get a belly button on the underwear.
+            // multiple skin shapes (some body replacers split the torso into more than
+            // one skin shape), and they should all receive the body diffuse. But non-skin
+            // shapes that share the same NIF (a clothing shape on the vanilla FemaleBody,
+            // fingernails on FemaleHands) keep their NIF-baked textures — without this
+            // gate, ARMA[Body] TXST clobbers that shape's own texture with FemaleBody_1.dds
+            // and it inherits body detail it shouldn't.
             List<GlMesh> targets;
             if (bodyPart == "Head")
             {
@@ -4424,7 +4425,7 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         // Recompute slot occupancy now that the override shapes are in the scene
-        // (e.g. armor hides the nude body, headgear hides hair). An auxiliary
+        // (e.g. armor hides the base body, headgear hides hair). An auxiliary
         // armature on a free slot collides with nothing, so this is a no-op for
         // that case.
         ResolveSlotVisibility();
@@ -4596,7 +4597,7 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Recomputes per-shape slot-occupancy visibility across the whole
     /// scene: a shape is hidden when some strictly-higher-priority shape
     /// <see cref="GlMesh.HidesSlots"/> one of its <see cref="GlMesh.BipedSlots"/>.
-    /// Body armor (priority 1) hides the nude body (priority 0); headgear
+    /// Body armor (priority 1) hides the base body (priority 0); headgear
     /// (priority 2) hides hair (priority 0). Only the slot-hiding flag is
     /// touched — missing-texture culling (<see cref="GlMesh.IsRendering"/>) is
     /// left alone, and both combine in <see cref="GlMesh.ShouldRender"/>.</summary>
@@ -4649,7 +4650,7 @@ public class VM_CharacterViewer : ViewerVm
     /// hair slot (31) can't reach the baked-in hair, so it clips through. For
     /// non-primary head sub-shapes we derive the slot from the shape's own
     /// dismember partition (e.g. 131 → slot 31) so the resolver hides just the
-    /// hair, exactly as body armor hides the nude body.
+    /// hair, exactly as body armor hides the base body.
     /// <para>The primary head (face) and any shape lacking head-region partitions
     /// (plain-skinned eyes/brows/mouth) keep the coarse "Head" slot, so they're
     /// never wrongly culled. Only head-region slots are honoured: a head

@@ -39,7 +39,7 @@ public sealed class OffscreenRenderRequest
     /// neutral channel as <see cref="VM_CharacterViewer.ApplyMeshOverrides"/>:
     /// SynthEBD's auxiliary-armature subgroup mesh, NPC Plugin Chooser 2's
     /// "Include Default Outfit" / "Include headgear"). Loaded, CPU-skinned to the
-    /// scene skeleton, textured, slot-hidden (body armor hides the nude body,
+    /// scene skeleton, textured, slot-hidden (body armor hides the base body,
     /// headgear hides hair). Optional — null adds no extra shapes. Any
     /// unrenderable / skeleton-incompatible overrides are reported via
     /// <see cref="MeshOverrideWarningsOut"/>.</summary>
