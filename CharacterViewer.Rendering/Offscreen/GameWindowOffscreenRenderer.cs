@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -289,6 +290,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             // than only at the coarser phase boundaries in LoadAndRender.
             vm.RenderCancellation = request.Cancellation;
             LoadAndRender(vm, request);
+            long tDrawDone = Stopwatch.GetTimestamp();
 
             // Resolve the multisampled draw target into the single-sample
             // resolve FBO so glReadPixels gets a correctly-AA'd image.
@@ -361,10 +363,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 pixels[i] = 255;
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            long tReadbackDone = Stopwatch.GetTimestamp();
 
-            return encodeAsPng
+            byte[] encoded = encodeAsPng
                 ? EncodePngFromRgba(pixels, request.Width, request.Height)
                 : RgbaToBgra(pixels);
+
+            if (request.TimingsOut is { } t)
+            {
+                t.ReadbackMs = MsBetween(tDrawDone, tReadbackDone);
+                t.EncodeMs = MsBetween(tReadbackDone, Stopwatch.GetTimestamp());
+            }
+
+            return encoded;
         }
         finally
         {
@@ -380,6 +391,9 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     private void LoadAndRender(VM_CharacterViewer vm, OffscreenRenderRequest request)
     {
+        var timings = request.TimingsOut;
+        long tStart = Stopwatch.GetTimestamp();
+
         // Initialize the VM against the offscreen GL context. Shaders ship
         // beside this assembly via ModuleResourceLocator.
         vm.InitializeGl(ModuleResourceLocator.ShaderDirectory);
@@ -407,6 +421,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.VignetteRadius = request.VignetteRadius;
         vm.VignetteIntensity = request.VignetteIntensity;
 
+        long tSetupDone = Stopwatch.GetTimestamp();
+
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
         // then flushes the install queue against the bound FBO.
@@ -414,6 +430,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.LoadAsync(identity, request.MeshPaths, request.OverrideHeadMeshAbsolutePath,
             request.Cancellation).GetAwaiter().GetResult();
         request.Cancellation.ThrowIfCancellationRequested();
+        long tBuildDone = Stopwatch.GetTimestamp();
+        // Decode is a subset of install; snapshot the shared cache's cumulative
+        // decode counter across the install span to split decode from GL upload.
+        double decodeMsStart = _previewCache.TotalDecodeMs;
         vm.ProcessPendingSceneToCompletion(ct: request.Cancellation);
 
         // Surface any unresolved mesh game-paths so the host can flag an
@@ -458,6 +478,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
         }
 
+        long tInstallDone = Stopwatch.GetTimestamp();
+
         // Re-bind the multisampled draw FBO (VM's GL calls may have unbound
         // it) and clear before we render the new scene. MSAA on this FBO is
         // implicit from the multisampled attachments; the explicit Multisample
@@ -483,7 +505,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // point the work is a single GL pass we don't interrupt.
         request.Cancellation.ThrowIfCancellationRequested();
         vm.Renderer.Render(vm.Camera, request.Width, request.Height);
+
+        if (timings != null)
+        {
+            timings.SetupMs = MsBetween(tStart, tSetupDone);
+            timings.BuildMs = MsBetween(tSetupDone, tBuildDone);
+            timings.InstallMs = MsBetween(tBuildDone, tInstallDone);
+            timings.DecodeMs = _previewCache.TotalDecodeMs - decodeMsStart;
+            timings.DrawMs = MsBetween(tInstallDone, Stopwatch.GetTimestamp());
+        }
     }
+
+    private static double MsBetween(long startTimestamp, long endTimestamp)
+        => (endTimestamp - startTimestamp) * 1000.0 / Stopwatch.Frequency;
 
     /// <summary>Sets the VM camera's orbit parameters from the request's
     /// <see cref="CameraFraming"/>. Portrait mode auto-frames the head using
@@ -696,11 +730,30 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         return rgba;
     }
 
+    // Mugshot PNG encoder, tuned for speed at negligible size/quality cost.
+    // Two changes from the default:
+    //  * ColorType=Rgb — RenderInternalCore stamps every pixel's alpha to 255
+    //    before encode, so the alpha channel carries no information. Dropping it
+    //    is lossless here and removes a quarter of the pixel data from the
+    //    deflate stage.
+    //  * FilterMethod=Paeth — the default Adaptive filter trials all five PNG
+    //    filters on every scanline and keeps the smallest, which is the bulk of
+    //    encode CPU. On smooth rendered faces a single Paeth filter is within a
+    //    few percent of adaptive's output size for a fraction of the work.
+    // CompressionLevel is left at the default so on-disk size stays comparable.
+    // Immutable + stateless, so a single shared instance is safe (encode runs
+    // only on the serialized render thread anyway).
+    private static readonly PngEncoder MugshotPngEncoder = new()
+    {
+        ColorType = PngColorType.Rgb,
+        FilterMethod = PngFilterMethod.Paeth,
+    };
+
     private static byte[] EncodePngFromRgba(byte[] rgba, int width, int height)
     {
         using var image = Image.LoadPixelData<Rgba32>(rgba, width, height);
         using var ms = new MemoryStream();
-        image.Save(ms, new PngEncoder());
+        image.Save(ms, MugshotPngEncoder);
         return ms.ToArray();
     }
 

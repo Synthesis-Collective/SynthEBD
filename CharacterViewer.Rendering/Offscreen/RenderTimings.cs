@@ -1,0 +1,55 @@
+namespace CharacterViewer.Rendering.Offscreen;
+
+/// <summary>
+/// Per-render wall-clock phase breakdown, populated by the offscreen renderer
+/// when a host passes a fresh instance via <see cref="OffscreenRenderRequest.TimingsOut"/>.
+/// This is pure data, not logging — it carries zero I/O cost, so a host can
+/// collect representative timings with verbose per-asset logging OFF (the
+/// verbose trace itself perturbs the measurement enough to invalidate it).
+///
+/// <para>All values are CPU wall-clock milliseconds. Note that GL is
+/// asynchronous: <see cref="DrawMs"/> measures only the CPU time issuing the
+/// draw calls; the GPU's actual execution is folded into <see cref="ReadbackMs"/>,
+/// where glReadPixels blocks until the frame completes. For a coarse build-vs-
+/// upload-vs-GPU attribution (which is what render-strategy decisions need) that
+/// split is sufficient; true GPU timing would require GL timer queries.</para>
+/// </summary>
+public sealed class RenderTimings
+{
+    /// <summary>GL/VM setup before the scene loads — InitializeGl (shader
+    /// compile) plus request→VM property forwarding. Per-render today because
+    /// the VM is rebuilt each render; a non-trivial value flags shader compile
+    /// as a candidate to hoist.</summary>
+    public double SetupMs { get; set; }
+
+    /// <summary>LoadAsync: NIF resolve/extract + parse + CPU skinning of every
+    /// body part. The unique, uncached head NIF dominates this for high-poly mods.</summary>
+    public double BuildMs { get; set; }
+
+    /// <summary>ProcessPendingSceneToCompletion + mesh/texture/morph overrides:
+    /// texture decode-on-miss and the GL upload of textures and vertex buffers.
+    /// High value here is what would make pinning shared GL resources pay off.</summary>
+    public double InstallMs { get; set; }
+
+    /// <summary>Subset of <see cref="InstallMs"/> spent in actual DDS decode
+    /// (cache misses). InstallMs − DecodeMs approximates the GL-upload portion.
+    /// Decode is CPU and parallelizable / cacheable; a high decode share argues
+    /// for pre-decoding on worker threads, a high upload share for pinning
+    /// shared GL textures resident.</summary>
+    public double DecodeMs { get; set; }
+
+    /// <summary>CPU time issuing the draw pass (vm.Renderer.Render). Typically
+    /// small; see the class remark about GL asynchrony.</summary>
+    public double DrawMs { get; set; }
+
+    /// <summary>MSAA resolve blit + glReadPixels (blocks on GPU completion) +
+    /// vertical flip + alpha stamp.</summary>
+    public double ReadbackMs { get; set; }
+
+    /// <summary>PNG (or BGRA) encode of the read-back pixels.</summary>
+    public double EncodeMs { get; set; }
+
+    /// <summary>Sum of all phases — the renderer's own view of total render
+    /// cost, comparable to the host's RenderToPngAsync timing.</summary>
+    public double TotalMs => SetupMs + BuildMs + InstallMs + DrawMs + ReadbackMs + EncodeMs;
+}

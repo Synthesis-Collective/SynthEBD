@@ -216,6 +216,16 @@ public sealed class OffscreenRenderRequest
     public List<string>? MeshOverrideWarningsOut { get; init; }
 
     /// <summary>
+    /// Optional per-render timing sink. Pass a fresh <see cref="RenderTimings"/>
+    /// to have the renderer record a wall-clock phase breakdown (setup / build /
+    /// install / draw / readback / encode) for this render. Pure data — no
+    /// logging — so it can be collected with verbose tracing OFF, which is the
+    /// only way to get representative numbers (the verbose trace inflates the
+    /// render it's measuring). Leave null to skip.
+    /// </summary>
+    public RenderTimings? TimingsOut { get; init; }
+
+    /// <summary>
     /// Controls how the renderer handles alpha shapes whose diffuse texture
     /// couldn't be decoded. <c>true</c> (default): render as a wireframe
     /// placeholder in the missing-texture color so the missing-texture

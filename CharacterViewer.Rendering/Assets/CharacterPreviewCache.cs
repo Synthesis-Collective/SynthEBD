@@ -86,6 +86,19 @@ public class CharacterPreviewCache
     private readonly LinkedList<string> _cubemapLru = new();
     private readonly object _cubemapLock = new();
 
+    // Cumulative wall-clock spent in actual DDS decode (cache misses only — hits
+    // don't reach the decode call). Lets a profiling host snapshot the delta
+    // around a render to split the "install" phase into decode (CPU, cacheable /
+    // parallelizable) vs GL upload (must be on the render thread). Interlocked
+    // because the live preview can decode off the render thread.
+    private long _decodeTicks;
+
+    /// <summary>Cumulative milliseconds spent decoding DDS pixels on cache
+    /// misses since process start (or the last <see cref="Clear"/>... not reset
+    /// by Clear — it's a monotonic profiling counter). Snapshot before/after a
+    /// span and subtract to attribute decode cost.</summary>
+    public double TotalDecodeMs => _decodeTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
     public CharacterPreviewCache(
         INpcMeshDataSource dataSource,
         GameAssetResolver assetResolver,
@@ -186,7 +199,9 @@ public class CharacterPreviewCache
             }
         }
 
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         var decoded = DecodeDds(relativeGamePath);
+        System.Threading.Interlocked.Add(ref _decodeTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
 
         // Don't cache misses — see method-level remark.
         if (decoded == null) return null;
@@ -265,7 +280,9 @@ public class CharacterPreviewCache
             }
         }
 
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         var decoded = DecodeDdsCubemap(relativeGamePath);
+        System.Threading.Interlocked.Add(ref _decodeTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
         if (decoded == null) return null;
 
         lock (_cubemapLock)
