@@ -257,8 +257,15 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                         continue;
                     }
                     job.Request.Cancellation.ThrowIfCancellationRequested();
-                    byte[] result = RenderInternalCore(job.Request, job.EncodeAsPng);
-                    job.Tcs.TrySetResult(result);
+                    // Do the GL work on this thread, then hand the read-back pixel
+                    // buffer to the thread pool for the CPU-only PNG/BGRA encode so
+                    // this thread starts the next queued render immediately instead
+                    // of blocking ~50-100 ms per NPC on encode. The job's Tcs is
+                    // completed from the encode task. Render-phase failures still
+                    // throw here and are caught below; encode-phase failures are
+                    // set on the Tcs inside DispatchEncode.
+                    RenderedFrame frame = RenderInternalCore(job.Request);
+                    DispatchEncode(frame, job);
                 }
                 catch (OperationCanceledException oce)
                 {
@@ -283,7 +290,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         }
     }
 
-    private byte[] RenderInternalCore(OffscreenRenderRequest request, bool encodeAsPng)
+    private RenderedFrame RenderInternalCore(OffscreenRenderRequest request)
     {
         if (_gw == null) throw new InvalidOperationException("GameWindow not initialized.");
 
@@ -411,17 +418,16 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             long tReadbackDone = Stopwatch.GetTimestamp();
 
-            byte[] encoded = encodeAsPng
-                ? EncodePngFromRgba(pixels, request.Width, request.Height)
-                : RgbaToBgra(pixels);
-
             if (request.TimingsOut is { } t)
-            {
                 t.ReadbackMs = MsBetween(tDrawDone, tReadbackDone);
-                t.EncodeMs = MsBetween(tReadbackDone, Stopwatch.GetTimestamp());
-            }
 
-            return encoded;
+            // The PNG/BGRA encode is pure CPU over this managed pixel buffer with
+            // no GL or VM dependency, so the caller (DispatchEncode) offloads it to
+            // the thread pool after this method disposes the VM on the render
+            // thread. EncodeMs is recorded there. `pixels` is a fresh per-render
+            // allocation (ReadPixelsRgba), so the encode task owns it outright —
+            // the next render's FBO reuse can't race it.
+            return new RenderedFrame(pixels, request.Width, request.Height);
         }
         finally
         {
@@ -433,6 +439,46 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             // GameAssetResolver.ClearExtractedFiles() at quiescence (e.g. on
             // shutdown) instead.
         }
+    }
+
+    /// <summary>A rendered frame's read-back pixels (RGBA8, top-left origin,
+    /// alpha stamped to 255) awaiting CPU encode. Decoupled from the render
+    /// thread so the encode can run on the thread pool.</summary>
+    private readonly record struct RenderedFrame(byte[] Pixels, int Width, int Height);
+
+    /// <summary>Offloads the PNG/BGRA encode of a rendered frame to the thread
+    /// pool and completes the job's <see cref="TaskCompletionSource{TResult}"/>
+    /// from there, so the dedicated render thread returns to draining the queue
+    /// immediately. The encode is pure CPU over a managed buffer (no GL, no VM),
+    /// and <see cref="MugshotPngEncoder"/> is immutable/stateless, so concurrent
+    /// encodes from back-to-back renders are safe. The host semaphore that bounds
+    /// in-flight renders also bounds how many frames can await encode at once, so
+    /// pixel buffers can't pile up unbounded.</summary>
+    private void DispatchEncode(RenderedFrame frame, in RenderJob job)
+    {
+        // Capture into locals — a lambda can't close over the `in` parameter, and
+        // these are all the encode needs (the render thread keeps no reference to
+        // the frame after this returns).
+        var tcs = job.Tcs;
+        var timings = job.Request.TimingsOut;
+        bool encodeAsPng = job.EncodeAsPng;
+        Task.Run(() =>
+        {
+            try
+            {
+                long tEncodeStart = Stopwatch.GetTimestamp();
+                byte[] encoded = encodeAsPng
+                    ? EncodePngFromRgba(frame.Pixels, frame.Width, frame.Height)
+                    : RgbaToBgra(frame.Pixels);
+                if (timings != null)
+                    timings.EncodeMs = MsBetween(tEncodeStart, Stopwatch.GetTimestamp());
+                tcs.TrySetResult(encoded);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
     }
 
     private void LoadAndRender(VM_CharacterViewer vm, OffscreenRenderRequest request)
