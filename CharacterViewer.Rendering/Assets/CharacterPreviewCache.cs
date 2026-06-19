@@ -121,6 +121,14 @@ public class CharacterPreviewCache
     /// produce). Treating misses as fresh-each-time avoids cross-scope cache
     /// poisoning.
     /// </summary>
+    /// <summary>Resolves a game-relative path to its on-disk file under the
+    /// current scope chain (extracting from a BSA into the cache dir if needed),
+    /// or null if unresolved. Exposed so the resident GL texture cache can key on
+    /// the resolved disk path — correct across the strict per-mod scopes, where
+    /// the same game-path can map to different files.</summary>
+    public string? ResolveAssetPath(string relativeGamePath) =>
+        _assetResolver.ResolveAssetPath(relativeGamePath);
+
     public ResolvedNpcMeshPaths? GetOrResolveMeshPaths(NpcIdentity identity)
     {
         var token = _dataSource.CurrentInvalidationToken;

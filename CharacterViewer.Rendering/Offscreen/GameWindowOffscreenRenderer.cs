@@ -77,6 +77,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     private readonly CharacterViewerLogGate _logGate;
     private readonly ICharacterViewerLogger _logger;
 
+    // Shared GL texture cache, created on the render thread once the context is
+    // current and reused across every render so the same vanilla / mod-shared
+    // textures upload to the GPU once instead of per render. Render-thread-only.
+    private ResidentTextureCache? _residentTextures;
+
     // Dedicated render thread + queue. The thread owns the GL context for
     // its lifetime so we never migrate context across threads.
     private readonly Thread _renderThread;
@@ -186,6 +191,9 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             _gw!.MakeCurrent();
             System.Diagnostics.Debug.WriteLine(
                 $"[OffscreenRenderer] Render thread MakeCurrent OK tid={Environment.CurrentManagedThreadId}");
+            // Context is current on this thread now — safe to create the shared
+            // texture cache (it queries VRAM + will own GL handles on this context).
+            _residentTextures = new ResidentTextureCache(_logger);
         }
         catch (Exception ex)
         {
@@ -235,6 +243,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         {
             // GL resources must be released on the thread that owns the
             // context. Best-effort: if any step fails the others still try.
+            try { _residentTextures?.Dispose(); _residentTextures = null; } catch { /* best-effort */ }
             try { DestroyFboIfPresent(); } catch { /* best-effort */ }
             try { _gw?.Context.MakeNoneCurrent(); } catch { /* best-effort */ }
             try { _gw?.Close(); } catch { /* best-effort */ }
@@ -289,6 +298,12 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             // cancel abort partway through a heavy shape's texture loads rather
             // than only at the coarser phase boundaries in LoadAndRender.
             vm.RenderCancellation = request.Cancellation;
+            // Share uploaded textures across renders (vanilla + mod-shared) so
+            // the GL-upload floor — the dominant steady-state cost per the
+            // profiler — is paid once instead of per NPC.
+            vm.ResidentTextureCache = _residentTextures;
+            // Protect this render's textures from mid-render eviction.
+            _residentTextures?.BeginRenderPass();
             LoadAndRender(vm, request);
             long tDrawDone = Stopwatch.GetTimestamp();
 

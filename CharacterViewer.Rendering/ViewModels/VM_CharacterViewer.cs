@@ -498,6 +498,13 @@ public class VM_CharacterViewer : ViewerVm
     /// these checks are no-ops there.</summary>
     public CancellationToken RenderCancellation { get; set; } = CancellationToken.None;
 
+    /// <summary>Optional render-context-shared GL texture cache, set per-render by
+    /// the offscreen renderer before <see cref="InitializeGl"/> so this VM's
+    /// <see cref="GlTextureManager"/> shares uploaded textures with sibling renders
+    /// instead of re-uploading them. Null for the live preview (its own context,
+    /// one long-lived VM), which keeps per-VM texture ownership.</summary>
+    public ResidentTextureCache? ResidentTextureCache { get; set; }
+
     /// <summary>
     /// Counterpart to <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>
     /// for the live preview path. When true (default), vanilla data folder
@@ -3308,7 +3315,7 @@ public class VM_CharacterViewer : ViewerVm
     {
         if (IsGlInitialized) return;
 
-        TextureManager = new GlTextureManager(_previewCache, _logger);
+        TextureManager = new GlTextureManager(_previewCache, _logger, ResidentTextureCache);
         TextureManager.Initialize();
         Renderer.Initialize(shaderDirectory);
 

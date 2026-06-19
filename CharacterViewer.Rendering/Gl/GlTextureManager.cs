@@ -15,7 +15,17 @@ public class GlTextureManager : IDisposable
 {
     private readonly CharacterPreviewCache _previewCache;
     private readonly ICharacterViewerLogger _logger;
+    // Optional render-context-owned cache shared across renders (offscreen path).
+    // When present, uploaded textures are owned by it (keyed on resolved disk
+    // path) and survive between renders rather than being deleted with this VM.
+    // Null for the live preview, which keeps strictly per-VM texture ownership.
+    private readonly ResidentTextureCache? _resident;
+    // Per-VM game-path -> handle map. Dedupes repeated requests within a single
+    // render and, when a resident cache is in play, caches the resolved resident
+    // handle so re-lookups this render skip the disk-path resolve.
     private readonly Dictionary<string, int> _textureCache = new(StringComparer.OrdinalIgnoreCase);
+    // Handles OWNED BY THIS VM (deleted on Dispose/ClearCache). Resident-cache
+    // handles are deliberately NOT added here — the resident cache owns them.
     private readonly List<int> _allTextures = new();
 
     // Game-paths that LoadTexture was asked for but couldn't decode (resolver
@@ -37,10 +47,12 @@ public class GlTextureManager : IDisposable
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
-    public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger)
+    public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger,
+        ResidentTextureCache? resident = null)
     {
         _previewCache = previewCache;
         _logger = logger;
+        _resident = resident;
     }
 
     /// <summary>
@@ -72,6 +84,19 @@ public class GlTextureManager : IDisposable
         if (_textureCache.TryGetValue(relativeGamePath, out int cached))
             return cached;
 
+        // Resident (offscreen) path: share the GL texture across renders, keyed on
+        // the resolved disk path (correct under the strict per-mod scope chain).
+        string? diskPath = _resident != null ? _previewCache.ResolveAssetPath(relativeGamePath) : null;
+        if (diskPath != null)
+        {
+            int residentHandle = _resident!.TryGet(diskPath);
+            if (residentHandle != -1)
+            {
+                _textureCache[relativeGamePath] = residentHandle;
+                return residentHandle;
+            }
+        }
+
         var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
@@ -82,7 +107,7 @@ public class GlTextureManager : IDisposable
             return WhiteTexture;
         }
 
-        int handle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
+        int handle = UploadTexture2DOwned(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height, diskPath);
         _textureCache[relativeGamePath] = handle;
         return handle;
     }
@@ -106,7 +131,7 @@ public class GlTextureManager : IDisposable
         if (tintSource == null)
         {
             _logger.LogMessage("GlTextures: Face tint not found '" + faceTintPath + "', using unblended diffuse");
-            return UploadTexture(diffusePixels, dw, dh);
+            return UploadTexture2DOwned(diffusePixels, dw, dh, null);
         }
 
         int tw = tintSource.Value.Width;
@@ -138,7 +163,7 @@ public class GlTextureManager : IDisposable
         }
 
         _logger.LogMessage("GlTextures: Face tint blended (" + dw + "x" + dh + ")");
-        return UploadTexture(diffusePixels, dw, dh);
+        return UploadTexture2DOwned(diffusePixels, dw, dh, null);
     }
 
     /// <summary>
@@ -164,7 +189,7 @@ public class GlTextureManager : IDisposable
             pixels[i + 2] = (byte)Math.Clamp((int)(intensity * tintR * 255f), 0, 255);
         }
 
-        return UploadTexture(pixels, width, height);
+        return UploadTexture2DOwned(pixels, width, height, null);
     }
 
     /// <summary>
@@ -187,10 +212,23 @@ public class GlTextureManager : IDisposable
         if (_textureCache.TryGetValue("env2d:" + relativeGamePath, out int flatCached))
             return (flatCached, false);
 
+        // Resident path keyed on disk path, prefixed so a file's cubemap and 2D
+        // forms can't be confused (a given file is deterministically one or the
+        // other, but the prefixes keep the handles unambiguous).
+        string? diskPath = _resident != null ? _previewCache.ResolveAssetPath(relativeGamePath) : null;
+        if (diskPath != null)
+        {
+            int rc = _resident!.TryGet("cube:" + diskPath);
+            if (rc != -1) { _textureCache["envcube:" + relativeGamePath] = rc; return (rc, true); }
+            int r2 = _resident.TryGet("2d:" + diskPath);
+            if (r2 != -1) { _textureCache["env2d:" + relativeGamePath] = r2; return (r2, false); }
+        }
+
         var cubemap = _previewCache.GetOrLoadDdsCubemap(relativeGamePath);
         if (cubemap != null)
         {
-            int cubeHandle = UploadCubemap(cubemap.Value.Faces, cubemap.Value.Width, cubemap.Value.Height);
+            int cubeHandle = UploadCubemapOwned(cubemap.Value.Faces, cubemap.Value.Width, cubemap.Value.Height,
+                diskPath != null ? "cube:" + diskPath : null);
             _textureCache["envcube:" + relativeGamePath] = cubeHandle;
             return (cubeHandle, true);
         }
@@ -204,7 +242,8 @@ public class GlTextureManager : IDisposable
             return (0, false);
         }
 
-        int flatHandle = UploadTexture(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height);
+        int flatHandle = UploadTexture2DOwned(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height,
+            diskPath != null ? "2d:" + diskPath : null);
         _textureCache["env2d:" + relativeGamePath] = flatHandle;
         return (flatHandle, false);
     }
@@ -249,6 +288,57 @@ public class GlTextureManager : IDisposable
         GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR,
             (int)TextureWrapMode.ClampToEdge);
 
+        return handle;
+    }
+
+    // Rough VRAM footprint of an RGBA8 texture incl. its mip chain (~+1/3).
+    private static long EstimateTextureBytes(int width, int height) => (long)width * height * 4 * 4 / 3;
+
+    /// <summary>Uploads a 2D texture and assigns ownership: to the resident cache
+    /// (keyed by <paramref name="residentDiskPath"/>) when both are present, else
+    /// to this VM's per-instance list. On a GL_OUT_OF_MEMORY upload it deletes the
+    /// handle, shrinks the resident budget, and returns <see cref="WhiteTexture"/>
+    /// so the render degrades gracefully instead of crashing on low-VRAM GPUs.</summary>
+    private int UploadTexture2DOwned(byte[] pixelData, int width, int height, string? residentDiskPath)
+    {
+        int handle = UploadTexture(pixelData, width, height);
+        if (_resident != null)
+        {
+            if (GL.GetError() == ErrorCode.OutOfMemory)
+            {
+                GL.DeleteTexture(handle);
+                _resident.ReduceBudgetAfterOom();
+                return WhiteTexture;
+            }
+            if (residentDiskPath != null)
+            {
+                _resident.Add(residentDiskPath, handle, EstimateTextureBytes(width, height));
+                return handle;
+            }
+        }
+        _allTextures.Add(handle);
+        return handle;
+    }
+
+    /// <summary>Cubemap counterpart to <see cref="UploadTexture2DOwned"/>. Returns
+    /// 0 (no env map — the shader handles its absence) on GL_OUT_OF_MEMORY.</summary>
+    private int UploadCubemapOwned(byte[][] faces, int width, int height, string? residentDiskPath)
+    {
+        int handle = UploadCubemap(faces, width, height);
+        if (_resident != null)
+        {
+            if (GL.GetError() == ErrorCode.OutOfMemory)
+            {
+                GL.DeleteTexture(handle);
+                _resident.ReduceBudgetAfterOom();
+                return 0;
+            }
+            if (residentDiskPath != null)
+            {
+                _resident.Add(residentDiskPath, handle, EstimateTextureBytes(width, height) * 6);
+                return handle;
+            }
+        }
         _allTextures.Add(handle);
         return handle;
     }
@@ -281,7 +371,6 @@ public class GlTextureManager : IDisposable
             GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)0x84FE,
                 Math.Min(maxAniso, 8f));
 
-        _allTextures.Add(handle);
         return handle;
     }
 
