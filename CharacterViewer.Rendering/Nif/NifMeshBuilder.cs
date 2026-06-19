@@ -398,7 +398,7 @@ public class NifMeshBuilder
     /// Default null disables the filter — passing null preserves the
     /// pre-existing "render every shape in the NIF" behavior for callers
     /// that don't have body-part context (BuildFromNif, dev paths).</param>
-    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null, string? bipedBodyPart = null)
+    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null, string? bipedBodyPart = null, System.Threading.CancellationToken ct = default)
     {
         long nifMTime = TryGetMTime(nifPath);
         long skelMTime = skeletonPath != null ? TryGetMTime(skeletonPath) : 0;
@@ -426,7 +426,7 @@ public class NifMeshBuilder
 
         NifDiagnosticDumper.DumpIfEnabled(nif, nifPath, _logGate, _logger, _assetResolver);
 
-        results = BuildAllShapes(nif, skeletonNif, bipedBodyPart);
+        results = BuildAllShapes(nif, skeletonNif, bipedBodyPart, ct);
 
         if (cacheable && results.Count > 0)
         {
@@ -780,7 +780,8 @@ public class NifMeshBuilder
     /// Shared implementation: finds the primary head shape (if any), computes accessory
     /// offset transforms, and builds all shapes with correct positioning.
     /// </summary>
-    private List<BuiltMesh> BuildAllShapes(NifFile nif, NifFile? skeletonNif, string? bipedBodyPart)
+    private List<BuiltMesh> BuildAllShapes(NifFile nif, NifFile? skeletonNif, string? bipedBodyPart,
+        System.Threading.CancellationToken ct = default)
     {
         var results = new List<BuiltMesh>();
         using var shapes = nif.GetShapes();
@@ -839,6 +840,11 @@ public class NifMeshBuilder
 
         for (int si = 0; si < shapes.Count; si++)
         {
+            // Per-shape build (parse + CPU skinning) is the heavy unit for a
+            // high-poly head NIF — the dominant uncached per-NPC cost. Check
+            // between shapes so a host cancel doesn't have to finish the whole
+            // NIF. Default token (cached/preview paths) never cancels.
+            ct.ThrowIfCancellationRequested();
             if (skipped != null && skipped.Contains(si)) continue;
             var shape = shapes[si];
             var built = BuildShape(nif, shape, accessoryOffset, skeletonNif, primaryHeadName);

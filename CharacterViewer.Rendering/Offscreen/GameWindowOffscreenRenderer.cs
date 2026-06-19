@@ -284,6 +284,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.AdditionalDataFolders = request.AdditionalDataFolders;
             vm.VanillaLooseOverridesBsa = request.VanillaLooseOverridesBsa;
             vm.VanillaLooseOverridesModLoose = request.VanillaLooseOverridesModLoose;
+            // Granular cancellation for the install/texture path — lets a host
+            // cancel abort partway through a heavy shape's texture loads rather
+            // than only at the coarser phase boundaries in LoadAndRender.
+            vm.RenderCancellation = request.Cancellation;
             LoadAndRender(vm, request);
 
             // Resolve the multisampled draw target into the single-sample
@@ -409,7 +413,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         var identity = new NpcIdentity("offscreen", "offscreen");
         vm.LoadAsync(identity, request.MeshPaths, request.OverrideHeadMeshAbsolutePath,
             request.Cancellation).GetAwaiter().GetResult();
-        vm.ProcessPendingSceneToCompletion();
+        request.Cancellation.ThrowIfCancellationRequested();
+        vm.ProcessPendingSceneToCompletion(ct: request.Cancellation);
 
         // Surface any unresolved mesh game-paths so the host can flag an
         // incomplete render. Populated during LoadAllMeshParts.
@@ -442,7 +447,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // hair under headgear, exactly as in the live preview.
         if (request.MeshOverrides != null)
         {
-            vm.ApplyMeshOverrides(request.MeshOverrides);
+            vm.ApplyMeshOverrides(request.MeshOverrides, request.Cancellation);
             if (request.MeshOverrideWarningsOut != null && vm.MeshOverrideWarnings.Count > 0)
             {
                 request.MeshOverrideWarningsOut.AddRange(vm.MeshOverrideWarnings);
@@ -474,6 +479,9 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
         ConfigureCamera(vm, request);
 
+        // Last chance to bail before the draw + readback + encode. Past this
+        // point the work is a single GL pass we don't interrupt.
+        request.Cancellation.ThrowIfCancellationRequested();
         vm.Renderer.Render(vm.Camera, request.Width, request.Height);
     }
 

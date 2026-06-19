@@ -487,6 +487,17 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public IReadOnlyList<RenderScope>? AdditionalScopes { get; set; }
 
+    /// <summary>Cancellation for an in-progress offscreen render. Set per-render
+    /// by <c>GameWindowOffscreenRenderer</c> (which creates a fresh VM each
+    /// render, so this never leaks across renders). Checked at granular points
+    /// in the install/texture path — a single shape can pull half a dozen
+    /// BSA-extracted, DDS-decoded textures — so a host cancel ("Cancel Mugshot
+    /// Load") aborts mid-shape instead of finishing every texture. Defaults to
+    /// <see cref="CancellationToken.None"/>; the live preview's long-lived VM
+    /// leaves it unset and relies on <see cref="LoadAsync"/>'s own token, so
+    /// these checks are no-ops there.</summary>
+    public CancellationToken RenderCancellation { get; set; } = CancellationToken.None;
+
     /// <summary>
     /// Counterpart to <see cref="Offscreen.OffscreenRenderRequest.VanillaLooseOverridesBsa"/>
     /// for the live preview path. When true (default), vanilla data folder
@@ -3386,10 +3397,16 @@ public class VM_CharacterViewer : ViewerVm
     /// In WPF interactive use this would be wrong (it'd block the UI thread
     /// for the full install span), which is why this is a separate entry
     /// point rather than the default behavior.</summary>
-    public void ProcessPendingSceneToCompletion(int maxIterations = 200)
+    public void ProcessPendingSceneToCompletion(int maxIterations = 200, CancellationToken ct = default)
     {
         for (int i = 0; i < maxIterations && HasPendingSceneWork; i++)
         {
+            // Each tick installs one shape — texture decode + GL upload, the
+            // other half of an offscreen render's cost. Check between ticks so a
+            // host cancellation drops the in-flight render without draining the
+            // whole install queue. Default token (live-preview callers) never
+            // cancels here.
+            ct.ThrowIfCancellationRequested();
             ProcessPendingScene();
         }
     }
@@ -3593,9 +3610,29 @@ public class VM_CharacterViewer : ViewerVm
     /// install used; called once per shape from the sliced install loop.</summary>
     private void InstallOneShape(SceneInstallState install, PendingShape shape)
     {
+        // Cheap pre-shape bail: avoids creating a GL mesh we'd only tear down.
+        RenderCancellation.ThrowIfCancellationRequested();
+
         var glMesh = CreateGlMesh(shape.Built);
         glMesh.MeshSource = shape.MeshSource;
 
+        // ApplyTexturesToGlMesh checks RenderCancellation between texture loads;
+        // if it throws, glMesh is built (GL buffers uploaded) but not yet handed
+        // to Renderer, so dispose it here to avoid leaking those buffers on a
+        // mid-shape cancel.
+        try
+        {
+            InstallOneShapeTextures(install, shape, glMesh);
+        }
+        catch (OperationCanceledException)
+        {
+            glMesh.Dispose();
+            throw;
+        }
+    }
+
+    private void InstallOneShapeTextures(SceneInstallState install, PendingShape shape, GlMesh glMesh)
+    {
         var effectiveTextures = new Dictionary<int, string>(shape.Built.TexturePaths);
         // ARMA TXST overrides target the body part's *skin* (e.g. ARMA[Body] → FemaleBody_1.dds).
         // Body/Hands/Feet NIFs can contain non-skin shapes (a clothing shape, fingernails,
@@ -3799,7 +3836,7 @@ public class VM_CharacterViewer : ViewerVm
                        _currentSceneVanillaLooseOverridesBsa,
                        _currentSceneVanillaLooseOverridesModLoose))
             {
-                loadResults = await Task.Run(() => LoadAllMeshParts(paths), cts.Token);
+                loadResults = await Task.Run(() => LoadAllMeshParts(paths, cts.Token), cts.Token);
             }
             cts.Token.ThrowIfCancellationRequested();
 
@@ -3888,6 +3925,12 @@ public class VM_CharacterViewer : ViewerVm
     {
         if (TextureManager == null) return;
 
+        // Each LoadTexture below can extract a DDS from a BSA and decode+upload
+        // it — the finest-grained slow unit in an offscreen render. Check
+        // RenderCancellation before each group so a host cancel aborts between
+        // textures. No-op for the live preview (token defaults to None).
+        RenderCancellation.ThrowIfCancellationRequested();
+
         // Diffuse (slot 0) — with special handling for hair tint and face tint.
         // Two tinting modes match the Skyrim engine (and NPC Portrait Creator):
         //   1. SLSF1_Greyscale_To_Palette_Color flag set:
@@ -3947,6 +3990,7 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         // Normal map (slot 1)
+        RenderCancellation.ThrowIfCancellationRequested();
         if (effectiveTextures.TryGetValue(1, out string? normalPath))
         {
             glMesh.NormalTexture = TextureManager.LoadTexture(normalPath);
@@ -3964,6 +4008,7 @@ public class VM_CharacterViewer : ViewerVm
         // (glow, environment, etc.) and applying it as a skin map would add incorrect red SSS tinting.
         bool isSkinShader = built.ShaderType == 4  // BSLSP_FACE
                          || built.ShaderType == 5; // BSLSP_SKINTINT
+        RenderCancellation.ThrowIfCancellationRequested();
         if (isSkinShader && effectiveTextures.TryGetValue(2, out string? skinPath))
         {
             glMesh.SkinTexture = TextureManager.LoadTexture(skinPath);
@@ -3976,6 +4021,7 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         // Specular map (slot 7)
+        RenderCancellation.ThrowIfCancellationRequested();
         if (effectiveTextures.TryGetValue(7, out string? specPath))
         {
             glMesh.SpecularTexture = TextureManager.LoadTexture(specPath);
@@ -4051,6 +4097,7 @@ public class VM_CharacterViewer : ViewerVm
         }
 
         // Environment mapping (SLSF1_Environment_Mapping bit 7, or SLSF1_Eye_Environment_Mapping bit 17)
+        RenderCancellation.ThrowIfCancellationRequested();
         bool hasEnvMap = (built.ShaderFlags1 & (1u << 7)) != 0;
         bool hasEyeEnvMap = (built.ShaderFlags1 & (1u << 17)) != 0;
         if ((hasEnvMap || hasEyeEnvMap) && effectiveTextures.TryGetValue(4, out string? envMapPath))
@@ -4358,7 +4405,7 @@ public class VM_CharacterViewer : ViewerVm
     /// re-applies cleanly), exactly like <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
     /// NPC Plugin Chooser 2 (and any future host) calls this directly.
     /// </summary>
-    public void ApplyMeshOverrides(IEnumerable<MeshOverride> overrides)
+    public void ApplyMeshOverrides(IEnumerable<MeshOverride> overrides, CancellationToken ct = default)
     {
         var overrideList = overrides as List<MeshOverride> ?? overrides?.ToList() ?? new List<MeshOverride>();
 
@@ -4415,6 +4462,7 @@ public class VM_CharacterViewer : ViewerVm
 
             foreach (var ov in overrideList)
             {
+                ct.ThrowIfCancellationRequested();
                 if (ov == null || string.IsNullOrWhiteSpace(ov.MeshPath)) continue;
                 ApplyOneMeshOverride(ov, skeletonNif, skelDiskPath);
             }
@@ -5087,12 +5135,17 @@ public class VM_CharacterViewer : ViewerVm
     // references SynthEBD's BodySlideSetting and BodySlideSlider types.
 
     private List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadAllMeshParts(
-        ResolvedNpcMeshPaths meshPaths)
+        ResolvedNpcMeshPaths meshPaths, CancellationToken ct = default)
     {
         var results = new List<(string, AssetSource?, List<NifMeshBuilder.BuiltMesh>)>();
 
         nifly.NifFile? skeletonNif = null;
         string? skelDiskPath = null;
+        // Each body part is a NIF parse + (often) a BSA extraction — the bulk of
+        // an offscreen render's pre-GL cost. Check the token before each so a
+        // host cancellation (e.g. "Cancel Mugshot Load") aborts the in-flight
+        // render promptly instead of finishing every remaining part.
+        ct.ThrowIfCancellationRequested();
         if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath))
         {
             skelDiskPath = _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath);
@@ -5117,6 +5170,7 @@ public class VM_CharacterViewer : ViewerVm
         {
             void TryLoad(string bodyPart, string? gamePath)
             {
+                ct.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(gamePath))
                 {
                     System.Diagnostics.Trace.WriteLine(
@@ -5134,7 +5188,7 @@ public class VM_CharacterViewer : ViewerVm
                     _missingMeshPaths.Add(gamePath);
                     return;
                 }
-                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart);
+                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct);
                 string shapeSummary = meshes.Count == 0 ? "" :
                     " [" + string.Join(", ", meshes.Select(m =>
                         m.ShapeName
@@ -5172,7 +5226,8 @@ public class VM_CharacterViewer : ViewerVm
                         var weight0Source = _assetResolver.ResolveAssetSource(weight0Path);
                         if (weight0Source.ResolvedDiskPath != null)
                         {
-                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart);
+                            ct.ThrowIfCancellationRequested();
+                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct);
 
                             // Snapshot endpoints onto each m1 BEFORE the in-place blend.
                             // After this loop completes, m1.Weight0BindPosePositions ==
