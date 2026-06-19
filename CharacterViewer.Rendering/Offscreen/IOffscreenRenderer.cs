@@ -30,4 +30,11 @@ public interface IOffscreenRenderer : IAsyncDisposable
     /// skip the PNG encode and feed the pixels into their own image pipeline
     /// (e.g. WPF's <c>WriteableBitmap</c>).</summary>
     Task<byte[]> RenderToBgra32Async(OffscreenRenderRequest request);
+
+    /// <summary>Drops cached assets the environment change may have invalidated
+    /// (resolved disk paths / decoded pixels / uploaded GL textures). Call when
+    /// the host rebuilds its environment (game path or load order changed). Safe
+    /// from any thread — GL-side work is marshalled onto the renderer's own
+    /// thread; a no-op on a disposed renderer.</summary>
+    void InvalidateCaches();
 }

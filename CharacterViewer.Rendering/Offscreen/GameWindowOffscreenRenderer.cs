@@ -87,10 +87,14 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     private readonly Thread _renderThread;
     private readonly BlockingCollection<RenderJob> _renderQueue = new();
 
+    // A job is either a render (Request set) or a maintenance action (Maintenance
+    // set) — both run on the render thread with the context current, preserving
+    // ordering so e.g. a cache clear can't race in-flight renders.
     private readonly record struct RenderJob(
         OffscreenRenderRequest Request,
         bool EncodeAsPng,
-        TaskCompletionSource<byte[]> Tcs);
+        TaskCompletionSource<byte[]> Tcs,
+        Action? Maintenance = null);
 
     internal GameWindowOffscreenRenderer(
         CharacterPreviewCache previewCache,
@@ -155,6 +159,27 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     public Task<byte[]> RenderToBgra32Async(OffscreenRenderRequest request)
         => EnqueueRender(request, encodeAsPng: false);
+
+    public void InvalidateCaches()
+    {
+        if (_disposed) return;
+        // Enqueue as a maintenance job so the resident-texture clear runs on the
+        // render thread (GL context) in order with any in-flight renders. The
+        // CPU-side preview cache is cleared on the same hop for atomicity.
+        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            _renderQueue.Add(new RenderJob(null!, false, tcs, Maintenance: () =>
+            {
+                _residentTextures?.Clear();
+                _previewCache.Clear();
+            }));
+        }
+        catch (InvalidOperationException)
+        {
+            // Race: dispose ran between the check and Add — nothing to invalidate.
+        }
+    }
 
     private Task<byte[]> EnqueueRender(OffscreenRenderRequest request, bool encodeAsPng)
     {
@@ -223,6 +248,12 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     if (_disposed)
                     {
                         job.Tcs.TrySetException(new ObjectDisposedException(nameof(GameWindowOffscreenRenderer)));
+                        continue;
+                    }
+                    if (job.Maintenance != null)
+                    {
+                        job.Maintenance();
+                        job.Tcs.TrySetResult(System.Array.Empty<byte>());
                         continue;
                     }
                     job.Request.Cancellation.ThrowIfCancellationRequested();
