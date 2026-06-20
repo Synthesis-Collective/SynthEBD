@@ -93,11 +93,25 @@ public class CharacterPreviewCache
     // because the live preview can decode off the render thread.
     private long _decodeTicks;
 
+    // Per-thread decode accumulator. Since the prewarm pipeline decodes on worker
+    // threads concurrently with the render thread's own decode-on-miss, the
+    // process-wide _decodeTicks can no longer attribute decode to a single render
+    // (a render's install span would also count whatever prewarm workers decoded
+    // meanwhile, inflating it past the install wall-time). ThreadStatic so the
+    // render thread snapshots ONLY its own decode for per-render timings.
+    [ThreadStatic] private static long _threadDecodeTicks;
+
     /// <summary>Cumulative milliseconds spent decoding DDS pixels on cache
     /// misses since process start (or the last <see cref="Clear"/>... not reset
-    /// by Clear — it's a monotonic profiling counter). Snapshot before/after a
-    /// span and subtract to attribute decode cost.</summary>
+    /// by Clear — it's a monotonic profiling counter). Process-wide across all
+    /// threads. Snapshot before/after a span and subtract to attribute decode cost.</summary>
     public double TotalDecodeMs => _decodeTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
+    /// <summary>Like <see cref="TotalDecodeMs"/> but accumulated PER CALLING THREAD
+    /// (ThreadStatic). The offscreen render thread snapshots this around its install
+    /// span to measure its OWN decode-on-miss without counting decode that prewarm
+    /// workers perform on other threads concurrently. Monotonic per thread.</summary>
+    public double ThreadDecodeMs => _threadDecodeTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
 
     public CharacterPreviewCache(
         INpcMeshDataSource dataSource,
@@ -209,7 +223,9 @@ public class CharacterPreviewCache
 
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         var decoded = DecodeDds(relativeGamePath);
-        System.Threading.Interlocked.Add(ref _decodeTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
+        long dt = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+        System.Threading.Interlocked.Add(ref _decodeTicks, dt);
+        _threadDecodeTicks += dt;
 
         // Don't cache misses — see method-level remark.
         if (decoded == null) return null;
@@ -290,7 +306,9 @@ public class CharacterPreviewCache
 
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         var decoded = DecodeDdsCubemap(relativeGamePath);
-        System.Threading.Interlocked.Add(ref _decodeTicks, System.Diagnostics.Stopwatch.GetTimestamp() - t0);
+        long dt = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+        System.Threading.Interlocked.Add(ref _decodeTicks, dt);
+        _threadDecodeTicks += dt;
         if (decoded == null) return null;
 
         lock (_cubemapLock)
@@ -473,6 +491,161 @@ public class CharacterPreviewCache
                         image.Format + " for '" + relativeGamePath + "'");
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Warms the parsed-NIF and decoded-DDS caches for an NPC's base meshes with
+    /// NO GL work, so a subsequent offscreen render of the same NPC hits both
+    /// caches and pays only GL upload + draw + readback on the render thread.
+    /// Intended to run on a worker thread — with the same resolver scopes pushed
+    /// as the render (the caller does this) — while the render thread renders a
+    /// different NPC: nifly parsing is thread-safe on separate <c>NifFile</c>
+    /// instances, Pfim decode is per-call safe, and all three caches here are
+    /// internally locked.
+    ///
+    /// <para>Mirrors <see cref="VM_CharacterViewer.LoadAllMeshParts"/>'s parse set
+    /// (each body-part NIF plus its <c>_0</c> weight companion, built against the
+    /// resolved skeleton so the cache key matches) and
+    /// <c>VM_CharacterViewer.InstallOneShapeTextures</c>'s effective-texture set
+    /// (NIF slots with ARMA TXST overrides applied to skin shapes, the env map via
+    /// the cubemap path, plus the head FaceTint). It is strictly best-effort:
+    /// anything it misses simply decodes on the render thread as before, so
+    /// divergence from those methods degrades performance, never correctness.
+    /// Mesh overrides (attire / headgear) are not pre-warmed here — they go through
+    /// the more involved slot-occupancy path and stay on the render thread.</para>
+    /// </summary>
+    public void PrewarmNpc(ResolvedNpcMeshPaths paths, System.Threading.CancellationToken ct = default)
+    {
+        if (paths == null) return;
+
+        // Load the skeleton once (the NifFile instance isn't part of the parse
+        // cache key — only its disk path is — so the render's later parse still
+        // hits the entries we warm here, even though it loads its own skeleton).
+        nifly.NifFile? skeletonNif = null;
+        string? skelDiskPath = null;
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!string.IsNullOrWhiteSpace(paths.SkeletonPath))
+            {
+                skelDiskPath = _assetResolver.ResolveAssetPath(paths.SkeletonPath);
+                if (skelDiskPath != null)
+                {
+                    skeletonNif = new nifly.NifFile();
+                    if (skeletonNif.Load(skelDiskPath) != 0)
+                    {
+                        skeletonNif.Dispose();
+                        skeletonNif = null;
+                        // Keep skelDiskPath as the cache key even on load failure, so
+                        // these entries key identically to the render's lazy path
+                        // (LoadAllMeshParts keeps the resolved skeleton path as the
+                        // key regardless of whether the NIF parses). Otherwise a
+                        // skeleton that fails to load would make prewarm key on null
+                        // and the render miss every part.
+                    }
+                }
+            }
+
+            PrewarmPart("Body", paths.BodyMeshPath, paths, skeletonNif, skelDiskPath, ct);
+            PrewarmPart("Hands", paths.HandsMeshPath, paths, skeletonNif, skelDiskPath, ct);
+            PrewarmPart("Feet", paths.FeetMeshPath, paths, skeletonNif, skelDiskPath, ct);
+            PrewarmPart("Head", paths.HeadMeshPath, paths, skeletonNif, skelDiskPath, ct);
+            PrewarmPart("Hair", paths.HairMeshPath, paths, skeletonNif, skelDiskPath, ct);
+            PrewarmPart("Tail", paths.TailMeshPath, paths, skeletonNif, skelDiskPath, ct);
+
+            // FaceTint is a per-NPC (often large) head texture pulled from the
+            // resolved paths, not from any NIF, and decoded for the primary head
+            // shape during install. Warm it directly.
+            if (!string.IsNullOrWhiteSpace(paths.FaceTintPath))
+            {
+                ct.ThrowIfCancellationRequested();
+                GetOrLoadDdsPixels(paths.FaceTintPath);
+            }
+        }
+        finally
+        {
+            skeletonNif?.Dispose();
+        }
+    }
+
+    private void PrewarmPart(string bodyPart, string? gamePath, ResolvedNpcMeshPaths paths,
+        nifly.NifFile? skeletonNif, string? skelDiskPath, System.Threading.CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return;
+        ct.ThrowIfCancellationRequested();
+
+        string? diskPath = _assetResolver.ResolveAssetPath(gamePath);
+        if (diskPath == null) return;
+
+        // Parse the weight-1 NIF — warms the parsed-NIF LRU keyed on
+        // (path, mtime, skeletonPath, mtime, bodyPart), the same key the render's
+        // BuildFromFile uses, and returns the shapes whose textures we decode below.
+        var meshes = MeshBuilder.BuildFromFile(diskPath, skeletonNif, skelDiskPath, bodyPart, ct);
+
+        // Non-head parts ship a _0 weight companion that LoadAllMeshParts also
+        // parses (for the weight morph); warm it too so that parse is a cache hit.
+        if (bodyPart != "Head")
+        {
+            string? weight0 = TryGetWeightZeroPath(gamePath);
+            if (weight0 != null)
+            {
+                string? d0 = _assetResolver.ResolveAssetPath(weight0);
+                if (d0 != null) MeshBuilder.BuildFromFile(d0, skeletonNif, skelDiskPath, bodyPart, ct);
+            }
+        }
+
+        // Head shapes apply no ARMA TXST overrides (those target body-part skin);
+        // pass them only for the other parts, matching InstallOneShapeTextures.
+        Dictionary<int, string>? txst = null;
+        if (bodyPart != "Head") paths.TxstTextures.TryGetValue(bodyPart, out txst);
+
+        foreach (var built in meshes)
+        {
+            ct.ThrowIfCancellationRequested();
+            PrewarmShapeTextures(built, txst);
+        }
+    }
+
+    private void PrewarmShapeTextures(NifMeshBuilder.BuiltMesh built, Dictionary<int, string>? txstOverrides)
+    {
+        // Build the effective texture set exactly as InstallOneShapeTextures does:
+        // ARMA TXST overrides apply only to skin shapes (BSLSP shader type 5).
+        Dictionary<int, string> effective;
+        if (txstOverrides != null && built.ShaderType == 5)
+        {
+            effective = new Dictionary<int, string>(built.TexturePaths);
+            foreach (var (slot, path) in txstOverrides) effective[slot] = path;
+        }
+        else
+        {
+            effective = built.TexturePaths;
+        }
+
+        foreach (var (slot, path) in effective)
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            if (slot == 4)
+            {
+                // Env map slot: the render loads it via the cubemap cache first,
+                // falling back to a 2D decode — warm the same cache it will read.
+                if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+            }
+            else
+            {
+                GetOrLoadDdsPixels(path);
+            }
+        }
+    }
+
+    /// <summary>Derives the weight-0 companion for a NIF path ending in
+    /// <c>_1.nif</c>. Mirror of <c>VM_CharacterViewer.TryGetWeightZeroPath</c>.</summary>
+    private static string? TryGetWeightZeroPath(string gamePath)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return null;
+        const string suffix = "_1.nif";
+        if (gamePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            return gamePath.Substring(0, gamePath.Length - suffix.Length) + "_0.nif";
+        return null;
     }
 
     /// <summary>

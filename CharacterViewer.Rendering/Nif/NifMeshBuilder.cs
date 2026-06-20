@@ -363,9 +363,58 @@ public class NifMeshBuilder
         public required List<BuiltMesh> Meshes { get; init; }
     }
 
-    private const int CacheMaxEntries = 16;
+    // 96 (was 16, then 32). The offscreen prewarm pipeline warms this cache from
+    // worker threads for several NPCs concurrently while the render thread also
+    // parses its current NPC, so the live working set is roughly
+    // (MaxParallelPortraitRenders + 1) NPCs, each touching up to ~9 entries
+    // (body/hands/feet × _0/_1 + head + hair + tail). At 32 that working set
+    // overflowed and prewarmed entries were evicted before their render consumed
+    // them — measured ~1% build-cache hits, so the parse never moved off the
+    // render thread. 96 (~7-10 NPCs at 4-way) keeps prewarmed entries resident
+    // until consumed. Entries are vertex-data clones (~1-2 MB each) → ~100-190 MB
+    // worst case; in practice far less since body/hands/feet NIFs are shared across
+    // NPCs. Must exceed (maxParallelRenders + 1) × ~9 to avoid re-introducing the
+    // thrash; revisit if MaxParallelPortraitRenders is raised well above 4.
+    private const int CacheMaxEntries = 96;
     private readonly LinkedList<NifCacheEntry> _cache = new();
     private readonly object _cacheLock = new();
+
+    // --- Opt-in parsed-NIF cache diagnostics (drop a LogNifCacheDiag.txt next to
+    // the exe). Appends one line per lookup outcome to RenderLogs/NifCacheDiag.log
+    // so we can tell a true cache hit from a miss, and on a miss whether an entry
+    // for the same NIF path exists with a DIFFERENT key (mtime / skeleton /
+    // body-part — a key mismatch) vs no entry at all (first-load or eviction).
+    // Zero overhead when the trigger file is absent (single static bool check).
+    private static readonly bool _cacheDiag =
+        System.IO.File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "LogNifCacheDiag.txt"));
+    private static readonly string _cacheDiagPath =
+        System.IO.Path.Combine(AppContext.BaseDirectory, "RenderLogs", "NifCacheDiag.log");
+    private static readonly object _cacheDiagLock = new();
+    private static long _diagHits, _diagMisses;
+
+    // Per-thread time + count spent in an actual NIF parse (cache miss: NifFile.Load
+    // + skeleton materialize + BuildAllShapes/CPU skinning). ThreadStatic so the now-
+    // inline offscreen build phase attributes its OWN parse cost, separate from
+    // prewarm-worker parses on other threads — lets the profiler split `build` into
+    // parse (should trend to ~0 once prewarm warms everything) vs the per-render
+    // floor of resolve + clone + weight-morph.
+    [ThreadStatic] private static long _threadParseTicks;
+    [ThreadStatic] private static int _threadParseCount;
+    public double ThreadParseMs => _threadParseTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+    public int ThreadParseCount => _threadParseCount;
+
+    private static void CacheDiagLog(string line)
+    {
+        try
+        {
+            lock (_cacheDiagLock)
+            {
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_cacheDiagPath)!);
+                System.IO.File.AppendAllText(_cacheDiagPath, line + "\n");
+            }
+        }
+        catch { /* diagnostics must never disrupt a render */ }
+    }
 
     /// <summary>
     /// Drops every cached parse result. Call when the mod environment is reloaded
@@ -398,7 +447,15 @@ public class NifMeshBuilder
     /// Default null disables the filter — passing null preserves the
     /// pre-existing "render every shape in the NIF" behavior for callers
     /// that don't have body-part context (BuildFromNif, dev paths).</param>
-    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null, string? bipedBodyPart = null, System.Threading.CancellationToken ct = default)
+    /// <param name="skeletonProvider">Optional lazy skeleton loader. When
+    /// <paramref name="skeletonNif"/> is null and this is supplied, the skeleton
+    /// NIF is loaded by invoking this ONLY on a cache miss (i.e. when a real parse
+    /// happens). On a cache hit the method returns before touching it, so a caller
+    /// whose body parts are all already cached (e.g. a fully-prewarmed offscreen
+    /// render) never pays the skeleton parse. The cache key still uses
+    /// <paramref name="skeletonPath"/>, which the caller supplies eagerly, so a
+    /// deferred load doesn't change hit/miss behavior.</param>
+    public List<BuiltMesh> BuildFromFile(string nifPath, NifFile? skeletonNif = null, string? skeletonPath = null, string? bipedBodyPart = null, System.Threading.CancellationToken ct = default, Func<NifFile?>? skeletonProvider = null)
     {
         long nifMTime = TryGetMTime(nifPath);
         long skelMTime = skeletonPath != null ? TryGetMTime(skeletonPath) : 0;
@@ -420,13 +477,30 @@ public class NifMeshBuilder
             if (cached != null) return cached;
         }
 
+        // Cache miss → a real parse. Time it (ThreadStatic) so the profiler can see
+        // how much of `build` is parse vs the per-render resolve/clone/morph floor.
+        long parseStart = System.Diagnostics.Stopwatch.GetTimestamp();
         var results = new List<BuiltMesh>();
         using var nif = new NifFile();
-        if (nif.Load(nifPath) != 0) return results;
+        if (nif.Load(nifPath) != 0)
+        {
+            _threadParseTicks += System.Diagnostics.Stopwatch.GetTimestamp() - parseStart;
+            _threadParseCount++;
+            return results;
+        }
 
         NifDiagnosticDumper.DumpIfEnabled(nif, nifPath, _logGate, _logger, _assetResolver);
 
+        // The skeleton is actually needed now. When the caller deferred it
+        // (skeletonProvider), materialize it here. On the all-cache-hit path this
+        // method already returned above and the skeleton NIF was never loaded —
+        // that's the point: a fully-prewarmed render skips the skeleton re-parse.
+        if (skeletonNif == null && skeletonProvider != null)
+            skeletonNif = skeletonProvider();
+
         results = BuildAllShapes(nif, skeletonNif, bipedBodyPart, ct);
+        _threadParseTicks += System.Diagnostics.Stopwatch.GetTimestamp() - parseStart;
+        _threadParseCount++;
 
         if (cacheable && results.Count > 0)
         {
@@ -455,21 +529,50 @@ public class NifMeshBuilder
     private List<BuiltMesh>? TryGetFromCache(string nifPath, string? skeletonPath,
         long nifMTime, long skelMTime, string? bipedBodyPart)
     {
+        string? samePathDiff = null; // first same-path-but-different-key reason (diag)
         lock (_cacheLock)
         {
             for (var node = _cache.First; node != null; node = node.Next)
             {
                 var e = node.Value;
                 if (!string.Equals(e.NifPath, nifPath, StringComparison.OrdinalIgnoreCase)) continue;
-                if (!string.Equals(e.BipedBodyPart, bipedBodyPart, StringComparison.Ordinal)) continue;
-                if (e.NifMTimeTicks != nifMTime) continue;
-                if (!string.Equals(e.SkeletonPath, skeletonPath, StringComparison.OrdinalIgnoreCase)) continue;
-                if (e.SkeletonMTimeTicks != skelMTime) continue;
-                // LRU touch
-                _cache.Remove(node);
-                _cache.AddFirst(node);
-                return CloneBuiltMeshList(e.Meshes);
+                bool keyMatch =
+                    string.Equals(e.BipedBodyPart, bipedBodyPart, StringComparison.Ordinal)
+                    && e.NifMTimeTicks == nifMTime
+                    && string.Equals(e.SkeletonPath, skeletonPath, StringComparison.OrdinalIgnoreCase)
+                    && e.SkeletonMTimeTicks == skelMTime;
+                if (keyMatch)
+                {
+                    // LRU touch
+                    _cache.Remove(node);
+                    _cache.AddFirst(node);
+                    if (_cacheDiag) System.Threading.Interlocked.Increment(ref _diagHits);
+                    return CloneBuiltMeshList(e.Meshes);
+                }
+                if (_cacheDiag && samePathDiff == null)
+                {
+                    samePathDiff =
+                        (e.NifMTimeTicks != nifMTime ? $"nifMtime({e.NifMTimeTicks}!={nifMTime}) " : "") +
+                        (!string.Equals(e.BipedBodyPart, bipedBodyPart, StringComparison.Ordinal)
+                            ? $"bodyPart('{e.BipedBodyPart}'!='{bipedBodyPart}') " : "") +
+                        (!string.Equals(e.SkeletonPath, skeletonPath, StringComparison.OrdinalIgnoreCase)
+                            ? $"skelPath('{e.SkeletonPath}'!='{skeletonPath}') " : "") +
+                        (e.SkeletonMTimeTicks != skelMTime ? $"skelMtime({e.SkeletonMTimeTicks}!={skelMTime}) " : "");
+                }
             }
+        }
+
+        if (_cacheDiag)
+        {
+            System.Threading.Interlocked.Increment(ref _diagMisses);
+            string fn = System.IO.Path.GetFileName(nifPath);
+            CacheDiagLog(samePathDiff != null
+                ? $"MISS [{fn}] part={bipedBodyPart} SAME-PATH-DIFF: {samePathDiff}"
+                : $"MISS [{fn}] part={bipedBodyPart} no same-path entry (first-load or evicted)");
+            long h = System.Threading.Interlocked.Read(ref _diagHits);
+            long m = System.Threading.Interlocked.Read(ref _diagMisses);
+            if ((h + m) % 50 == 0)
+                CacheDiagLog($"--- totals: hits={h} misses={m} ({(h + m == 0 ? 0 : 100 * h / (h + m))}% hit) ---");
         }
         return null;
     }

@@ -37,4 +37,20 @@ public interface IOffscreenRenderer : IAsyncDisposable
     /// from any thread — GL-side work is marshalled onto the renderer's own
     /// thread; a no-op on a disposed renderer.</summary>
     void InvalidateCaches();
+
+    /// <summary>Pre-warms the CPU-side caches (parsed NIFs + decoded DDS pixels)
+    /// for the request's NPC <em>without any GL work</em>, on a worker thread, so a
+    /// subsequent <see cref="RenderToPngAsync"/> for the same request hits those
+    /// caches and the serialized GL render thread only pays texture upload + draw +
+    /// readback. Call this and await it just before the matching render: while this
+    /// NPC's NIF parse + texture decode run off-thread, the render thread is busy
+    /// with other NPCs, so the heaviest per-NPC CPU phases overlap the GL pipeline
+    /// instead of stalling it.
+    ///
+    /// <para>Best-effort: it uses the request's scopes for resolution, honors
+    /// <see cref="OffscreenRenderRequest.Cancellation"/>, and never throws to the
+    /// caller — anything it fails to warm simply decodes on the render thread as
+    /// before, so skipping it leaves the render correct (just slower). A no-op on a
+    /// disposed renderer or a request with no mesh paths.</para></summary>
+    Task PrewarmAsync(OffscreenRenderRequest request);
 }

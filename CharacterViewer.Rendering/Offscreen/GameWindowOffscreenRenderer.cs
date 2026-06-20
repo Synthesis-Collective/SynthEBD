@@ -115,6 +115,20 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         _logGate = logGate;
         _logger = logger;
 
+        // Prime nifly's block-type factory (a Meyers/function-local-static
+        // singleton) once on this thread before any render or prewarm worker
+        // parses a NIF, so the first concurrent parse can't race the singleton's
+        // lazy initialization. The factory map is populated once in the ctor and
+        // read-only afterward, so concurrent NifFile.Load on separate instances is
+        // safe — which is what PrewarmAsync relies on. Best-effort: a failure here
+        // only forfeits that head start, it doesn't break rendering.
+        try { using (nifly.NiFactoryRegister.Get()) { } }
+        catch (Exception primeEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                "[OffscreenRenderer] NiFactoryRegister prime failed (non-fatal): " + primeEx.Message);
+        }
+
         // Construct the hidden GameWindow on the constructing thread — GLFW
         // installs its event hook on the first thread that touches it.
         // The window stays at 8×8 and never becomes visible; the actual
@@ -173,12 +187,59 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             {
                 _residentTextures?.Clear();
                 _previewCache.Clear();
+                // The env may resolve assets differently now (game path / load order
+                // changed), so drop the scope-aware resolve cache too.
+                _assets.ClearResolveCache();
             }));
         }
         catch (InvalidOperationException)
         {
             // Race: dispose ran between the check and Add — nothing to invalidate.
         }
+    }
+
+    public Task PrewarmAsync(OffscreenRenderRequest request)
+    {
+        if (_disposed || request?.MeshPaths == null) return Task.CompletedTask;
+
+        var ct = request.Cancellation;
+        // Run the GL-free parse + decode on the thread pool so it overlaps the GL
+        // render thread (busy with other NPCs). Push the request's resolution
+        // scopes on THIS worker flow first — the preview cache's resolves read them
+        // off AsyncLocal, and the push covers the synchronous PrewarmNpc below.
+        // Deliberately NOT passing ct to Task.Run: prewarm is best-effort and must
+        // never fault the host's await, so cancellation is observed via the inner
+        // ThrowIfCancellationRequested checks and swallowed here.
+        return Task.Run(() =>
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                using var scopes = _assets.PushScopes(
+                    request.AdditionalScopes,
+                    request.AdditionalDataFolders,
+                    request.VanillaLooseOverridesBsa,
+                    request.VanillaLooseOverridesModLoose);
+
+                var paths = request.MeshPaths;
+                if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
+                    paths = paths.WithHeadMeshPath(request.OverrideHeadMeshAbsolutePath);
+
+                _previewCache.PrewarmNpc(paths, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelled before/while warming — the matching render (if it still
+                // runs) re-resolves any misses, so there's nothing to surface.
+            }
+            catch (Exception ex)
+            {
+                // Prewarm is a pure optimization; never let it fault the host's
+                // await. A miss costs a re-decode on the render thread, no more.
+                System.Diagnostics.Debug.WriteLine(
+                    "[OffscreenRenderer] Prewarm failed (non-fatal): " + ex.Message);
+            }
+        });
     }
 
     private Task<byte[]> EnqueueRender(OffscreenRenderRequest request, bool encodeAsPng)
@@ -515,6 +576,15 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
         long tSetupDone = Stopwatch.GetTimestamp();
 
+        // Build runs inline on THIS (render) thread for the offscreen path, so the
+        // resolver's + mesh builder's per-thread counters attribute the build's own
+        // resolve and parse cost here. Snapshot the deltas to split `build` into
+        // resolve (uncacheable scope walk) vs parse (cache miss) vs the clone/morph
+        // remainder. Captured before LoadAsync; the install-phase resolves/parses
+        // after tBuildDone are excluded.
+        double resolveMsStart = _assets.ThreadResolveMs;
+        double parseMsStart = _previewCache.MeshBuilder.ThreadParseMs;
+
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
         // then flushes the install queue against the bound FBO.
@@ -523,9 +593,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             request.Cancellation).GetAwaiter().GetResult();
         request.Cancellation.ThrowIfCancellationRequested();
         long tBuildDone = Stopwatch.GetTimestamp();
-        // Decode is a subset of install; snapshot the shared cache's cumulative
-        // decode counter across the install span to split decode from GL upload.
-        double decodeMsStart = _previewCache.TotalDecodeMs;
+        // Decode is a subset of install; snapshot this thread's cumulative decode
+        // counter across the install span to split decode from GL upload. Uses the
+        // per-thread (not process-wide) counter so concurrent prewarm-worker decode
+        // doesn't get charged to this render's decodeMs.
+        double decodeMsStart = _previewCache.ThreadDecodeMs;
         vm.ProcessPendingSceneToCompletion(ct: request.Cancellation);
 
         // Surface any unresolved mesh game-paths so the host can flag an
@@ -602,8 +674,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         {
             timings.SetupMs = MsBetween(tStart, tSetupDone);
             timings.BuildMs = MsBetween(tSetupDone, tBuildDone);
+            timings.ResolveMs = _assets.ThreadResolveMs - resolveMsStart;
+            timings.ParseMs = _previewCache.MeshBuilder.ThreadParseMs - parseMsStart;
             timings.InstallMs = MsBetween(tBuildDone, tInstallDone);
-            timings.DecodeMs = _previewCache.TotalDecodeMs - decodeMsStart;
+            timings.DecodeMs = _previewCache.ThreadDecodeMs - decodeMsStart;
             timings.DrawMs = MsBetween(tInstallDone, Stopwatch.GetTimestamp());
         }
     }

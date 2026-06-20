@@ -3843,7 +3843,17 @@ public class VM_CharacterViewer : ViewerVm
                        _currentSceneVanillaLooseOverridesBsa,
                        _currentSceneVanillaLooseOverridesModLoose))
             {
-                loadResults = await Task.Run(() => LoadAllMeshParts(paths, cts.Token), cts.Token);
+                // Offscreen renderer (inline marshaller): we're already on a
+                // dedicated render thread, not the WPF UI thread, so the Task.Run
+                // hop buys nothing — it only adds ThreadPool scheduling latency and
+                // competes with the prewarm/encode workers for pool threads while
+                // the render thread sits blocked on the result. Run inline so build
+                // is just the render thread's own (now mostly cache-hit) work.
+                // Interactive hosts (WPF dispatcher marshaller) keep the Task.Run so
+                // the UI thread stays responsive during the parse.
+                loadResults = _renderThread is InlineRenderThreadMarshaller
+                    ? LoadAllMeshParts(paths, cts.Token)
+                    : await Task.Run(() => LoadAllMeshParts(paths, cts.Token), cts.Token);
             }
             cts.Token.ThrowIfCancellationRequested();
 
@@ -5146,31 +5156,35 @@ public class VM_CharacterViewer : ViewerVm
     {
         var results = new List<(string, AssetSource?, List<NifMeshBuilder.BuiltMesh>)>();
 
-        nifly.NifFile? skeletonNif = null;
-        string? skelDiskPath = null;
-        // Each body part is a NIF parse + (often) a BSA extraction — the bulk of
-        // an offscreen render's pre-GL cost. Check the token before each so a
-        // host cancellation (e.g. "Cancel Mugshot Load") aborts the in-flight
-        // render promptly instead of finishing every remaining part.
+        // Resolve the skeleton's disk path eagerly (cheap, cached) so it can key the
+        // parsed-NIF cache, but DEFER the actual NIF parse until a body part is an
+        // actual cache miss. When the offscreen prewarm pipeline has already warmed
+        // every body part, all the BuildFromFile calls below hit the cache and this
+        // skeleton NIF is never loaded — it was effectively the whole `build` phase
+        // on the render thread, so skipping it is the win. skelDiskPath is kept for
+        // the cache key regardless of whether the NIF later parses, matching the
+        // rule CharacterPreviewCache.PrewarmNpc uses so the keys line up.
         ct.ThrowIfCancellationRequested();
-        if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath))
+        nifly.NifFile? skeletonNif = null;
+        string? skelDiskPath = !string.IsNullOrWhiteSpace(meshPaths.SkeletonPath)
+            ? _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath)
+            : null;
+        if (!string.IsNullOrWhiteSpace(meshPaths.SkeletonPath) && skelDiskPath == null)
+            _missingMeshPaths.Add(meshPaths.SkeletonPath);
+
+        bool skeletonLoadAttempted = false;
+        // Memoized lazy loader handed to BuildFromFile; invoked only on a real parse.
+        nifly.NifFile? LoadSkeleton()
         {
-            skelDiskPath = _assetResolver.ResolveAssetPath(meshPaths.SkeletonPath);
+            if (skeletonLoadAttempted) return skeletonNif;
+            skeletonLoadAttempted = true;
             if (skelDiskPath != null)
             {
-                skeletonNif = new nifly.NifFile();
-                if (skeletonNif.Load(skelDiskPath) != 0)
-                {
-                    skeletonNif.Dispose();
-                    skeletonNif = null;
-                    skelDiskPath = null;
-                    _missingMeshPaths.Add(meshPaths.SkeletonPath);
-                }
+                var sk = new nifly.NifFile();
+                if (sk.Load(skelDiskPath) == 0) skeletonNif = sk;
+                else { sk.Dispose(); _missingMeshPaths.Add(meshPaths.SkeletonPath); }
             }
-            else
-            {
-                _missingMeshPaths.Add(meshPaths.SkeletonPath);
-            }
+            return skeletonNif;
         }
 
         try
@@ -5195,7 +5209,7 @@ public class VM_CharacterViewer : ViewerVm
                     _missingMeshPaths.Add(gamePath);
                     return;
                 }
-                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct);
+                var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct, LoadSkeleton);
                 string shapeSummary = meshes.Count == 0 ? "" :
                     " [" + string.Join(", ", meshes.Select(m =>
                         m.ShapeName
@@ -5234,7 +5248,7 @@ public class VM_CharacterViewer : ViewerVm
                         if (weight0Source.ResolvedDiskPath != null)
                         {
                             ct.ThrowIfCancellationRequested();
-                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct);
+                            var meshes0 = _meshBuilder.BuildFromFile(weight0Source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct, LoadSkeleton);
 
                             // Snapshot endpoints onto each m1 BEFORE the in-place blend.
                             // After this loop completes, m1.Weight0BindPosePositions ==

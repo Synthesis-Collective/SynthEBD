@@ -26,6 +26,18 @@ public sealed class RenderTimings
     /// body part. The unique, uncached head NIF dominates this for high-poly mods.</summary>
     public double BuildMs { get; set; }
 
+    /// <summary>Subset of <see cref="BuildMs"/> spent resolving asset paths (scope
+    /// walk + File.Exists + BSA locate). Uncacheable under strict scopes, so prewarm
+    /// can't reduce it — a per-render floor.</summary>
+    public double ResolveMs { get; set; }
+
+    /// <summary>Subset of <see cref="BuildMs"/> spent in actual NIF parse on the
+    /// render thread (cache misses: NifFile.Load + skinning). Trends to ~0 when
+    /// prewarm has warmed every part; a high value means the render thread is still
+    /// re-parsing (eviction or un-prewarmed meshes). <see cref="BuildMs"/> −
+    /// ResolveMs − ParseMs ≈ the clone + weight-morph cost.</summary>
+    public double ParseMs { get; set; }
+
     /// <summary>ProcessPendingSceneToCompletion + mesh/texture/morph overrides:
     /// texture decode-on-miss and the GL upload of textures and vertex buffers.
     /// High value here is what would make pinning shared GL resources pay off.</summary>

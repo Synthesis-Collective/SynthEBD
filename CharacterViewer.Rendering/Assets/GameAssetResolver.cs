@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -73,6 +74,29 @@ public class GameAssetResolver
     /// on the second and subsequent loads.
     /// </summary>
     private readonly ConcurrentDictionary<string, AssetSource> _looseSourceCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Scope-aware resolve cache for the strict two-phase scope chain
+    /// (<see cref="ResolveViaScopes"/>). Key = signature(ordered scopes) + both
+    /// vanilla-loose toggles + normalized path, so a hit is only ever returned for
+    /// an identical resolution context — different scope chains / toggles produce
+    /// different keys. That's what makes caching safe here where the path-only
+    /// <see cref="_looseSourceCache"/> is not: under strict scopes the same path can
+    /// resolve to different files, so path-only keying would poison across scopes.
+    /// Both hits and definitive misses are cached; a hit re-validates the on-disk
+    /// file still exists before returning (a cleared BSA extraction or removed loose
+    /// file falls through to a full re-resolve). Cleared on env change and on
+    /// <see cref="ClearExtractedFiles"/>.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, AssetSource> _scopedResolveCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Memoizes a scope set's signature per list reference, so it's hashed
+    /// once per distinct scope list (built once per render and immutable for its
+    /// lifetime) rather than on every resolve. Two different list instances with
+    /// identical content still produce the same signature, so the resolve cache is
+    /// shared across renders that use the same scope set, not just within one.</summary>
+    private readonly ConditionalWeakTable<IReadOnlyList<RenderScope>, string> _scopeSetSigCache = new();
 
     private readonly string _extractionDir;
 
@@ -224,6 +248,9 @@ public class GameAssetResolver
         _extractionCache.Clear();
         _bsaSourceCache.Clear();
         _extractionLocks.Clear();
+        // Scoped resolve entries point at the extractions we're about to delete; drop
+        // them so a later hit doesn't re-validate a dangling path then re-resolve.
+        _scopedResolveCache.Clear();
 
         int deleted = 0;
         foreach (var kv in snapshot)
@@ -406,6 +433,14 @@ public class GameAssetResolver
         return ResolveAssetSource(relativeGamePath).ResolvedDiskPath;
     }
 
+    // Per-thread time spent resolving asset paths (scope walk + File.Exists probes
+    // + BSA locate). ThreadStatic so the inline offscreen build phase can attribute
+    // its OWN resolve cost. Under strict scopes the loose cache is bypassed, so the
+    // scope walk runs every render and prewarm can't warm it — this column shows how
+    // much of `build` is that uncacheable resolve floor.
+    [ThreadStatic] private static long _threadResolveTicks;
+    public double ThreadResolveMs => _threadResolveTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
     /// <summary>
     /// Resolves a game-relative path and reports where the asset came from
     /// (loose file on disk, or a specific BSA archive). Always returns a
@@ -413,6 +448,13 @@ public class GameAssetResolver
     /// for <see cref="AssetOriginKind.NotFound"/>.
     /// </summary>
     public AssetSource ResolveAssetSource(string relativeGamePath)
+    {
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        try { return ResolveAssetSourceCore(relativeGamePath); }
+        finally { _threadResolveTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0; }
+    }
+
+    private AssetSource ResolveAssetSourceCore(string relativeGamePath)
     {
         if (string.IsNullOrWhiteSpace(relativeGamePath))
         {
@@ -505,6 +547,36 @@ public class GameAssetResolver
         return bsaResult;
     }
 
+    /// <summary>Drops the scope-aware resolve cache. Call on env change (asset set
+    /// may differ) and when extracted BSA files are cleared (cached BSA dest paths
+    /// would dangle — hits already re-validate existence, but clearing avoids the
+    /// wasted hit + re-resolve). Thread-safe; doesn't touch the filesystem.</summary>
+    public void ClearResolveCache() => _scopedResolveCache.Clear();
+
+    /// <summary>Stable content signature for a scope set (ordered folder paths +
+    /// modkey filenames), memoized per list reference. Order-sensitive (scopes are
+    /// last-to-first priority). The vanilla-loose toggles are NOT included here —
+    /// the caller appends them to the cache key — because they vary per render
+    /// independently of the scope list.</summary>
+    private string GetScopeSetSignature(IReadOnlyList<RenderScope> scopes) =>
+        _scopeSetSigCache.GetValue(scopes, ComputeScopeSetSignature);
+
+    private static string ComputeScopeSetSignature(IReadOnlyList<RenderScope> scopes)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < scopes.Count; i++)
+        {
+            var s = scopes[i];
+            sb.Append(s.FolderPath ?? string.Empty).Append((char)1);
+            if (s.ModKeyFileNames != null)
+                for (int k = 0; k < s.ModKeyFileNames.Count; k++)
+                    sb.Append(s.ModKeyFileNames[k]).Append((char)2);
+            sb.Append((char)3);
+        }
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
+        return Convert.ToHexString(hash, 0, 12);
+    }
+
     /// <summary>
     /// Strict two-phase scope iteration matching the contract on
     /// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/>:
@@ -512,14 +584,51 @@ public class GameAssetResolver
     /// phase across all scopes last-to-first via
     /// <see cref="IBsaArchiveProvider.TryLocateInScopedBsa"/>. No implicit
     /// vanilla fallback — the host includes vanilla as a scope if desired.
+    ///
+    /// <para>This wrapper adds the scope-aware resolve cache (<see cref="_scopedResolveCache"/>):
+    /// it's keyed on the scope-set signature + both vanilla-loose toggles + path, so
+    /// a hit is only returned for an identical resolution context. A hit re-validates
+    /// the on-disk file still exists; a vanished file (cleared extraction / removed
+    /// loose file) falls through to a full re-resolve via
+    /// <see cref="ResolveViaScopesUncached"/>.</para>
     /// </summary>
     private AssetSource ResolveViaScopes(string relativeGamePath, string normalized,
         IReadOnlyList<RenderScope> scopes)
     {
-        // Snapshot once per call. AsyncLocal<bool?> defaults to null when
-        // no caller pushed a value; treat null as the engine-default true.
+        // Snapshot the per-flow toggles once. AsyncLocal<bool?> defaults to null
+        // when no caller pushed a value; treat null as the engine-default true.
+        // These are part of the cache key AND passed to the uncached core so the
+        // key and the resolution it caches can't disagree.
         bool toggleVanillaOverridesBsa = _vanillaLooseOverridesBsa.Value ?? true;
         bool toggleVanillaOverridesModLoose = _vanillaLooseOverridesModLoose.Value;
+
+        string cacheKey = GetScopeSetSignature(scopes)
+            + (toggleVanillaOverridesBsa ? '1' : '0')
+            + (toggleVanillaOverridesModLoose ? '1' : '0')
+            + '|' + normalized;
+
+        if (_scopedResolveCache.TryGetValue(cacheKey, out var cachedScoped))
+        {
+            // NotFound has no file to validate and stays valid for this scope set
+            // until env-change invalidation. For a hit with a disk path, re-validate
+            // it still exists — a loose file may have been removed or a BSA
+            // extraction cleared since caching — else fall through to re-resolve.
+            if (cachedScoped.Kind == AssetOriginKind.NotFound) return cachedScoped;
+            if (cachedScoped.ResolvedDiskPath != null && File.Exists(cachedScoped.ResolvedDiskPath))
+                return cachedScoped;
+        }
+
+        var resolvedScoped = ResolveViaScopesUncached(
+            relativeGamePath, normalized, scopes,
+            toggleVanillaOverridesBsa, toggleVanillaOverridesModLoose);
+        _scopedResolveCache[cacheKey] = resolvedScoped;
+        return resolvedScoped;
+    }
+
+    private AssetSource ResolveViaScopesUncached(string relativeGamePath, string normalized,
+        IReadOnlyList<RenderScope> scopes,
+        bool toggleVanillaOverridesBsa, bool toggleVanillaOverridesModLoose)
+    {
         bool isFaceGen = IsFaceGenPath(normalized);
 
         // Toggle 2 fast-path: vanilla loose preempts mod-folder loose for
