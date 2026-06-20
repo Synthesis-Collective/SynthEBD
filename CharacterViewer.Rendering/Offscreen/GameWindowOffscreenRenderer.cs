@@ -225,7 +225,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
                     paths = paths.WithHeadMeshPath(request.OverrideHeadMeshAbsolutePath);
 
-                _previewCache.PrewarmNpc(paths, ct);
+                _previewCache.PrewarmNpc(paths, request.MeshOverrides, ct);
             }
             catch (OperationCanceledException)
             {

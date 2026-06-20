@@ -511,10 +511,19 @@ public class CharacterPreviewCache
     /// the cubemap path, plus the head FaceTint). It is strictly best-effort:
     /// anything it misses simply decodes on the render thread as before, so
     /// divergence from those methods degrades performance, never correctness.
-    /// Mesh overrides (attire / headgear) are not pre-warmed here — they go through
-    /// the more involved slot-occupancy path and stay on the render thread.</para>
+    /// Mesh overrides (attire / headgear) ARE pre-warmed when supplied — their NIFs
+    /// are parsed and their textures decoded so the render's ApplyMeshOverrides hits
+    /// both caches. Outfits are diverse, so to keep that churn from displacing the
+    /// shared body / skin assets reused on every NPC: the override parses cache under
+    /// a null body part, which the parse cache's role-aware eviction reclaims before
+    /// shared body parts; and the diverse-outfit vs shared-skin TEXTURE split is left
+    /// to the resident GL texture cache's segmented LRU (which prewarm doesn't touch,
+    /// and which graduates re-hit skin/eye/hair to its protected segment while
+    /// evicting one-shot outfit textures first).</para>
     /// </summary>
-    public void PrewarmNpc(ResolvedNpcMeshPaths paths, System.Threading.CancellationToken ct = default)
+    public void PrewarmNpc(ResolvedNpcMeshPaths paths,
+        IEnumerable<MeshOverride>? meshOverrides = null,
+        System.Threading.CancellationToken ct = default)
     {
         if (paths == null) return;
 
@@ -561,10 +570,75 @@ public class CharacterPreviewCache
                 ct.ThrowIfCancellationRequested();
                 GetOrLoadDdsPixels(paths.FaceTintPath);
             }
+
+            // Attire / headgear mesh overrides (Include Default Outfit / headgear).
+            // Parse each override NIF + decode its textures so the render's
+            // ApplyMeshOverrides hits the caches. Uses the same skeleton + null body
+            // part as ApplyOneMeshOverride so the parse cache key lines up.
+            if (meshOverrides != null)
+            {
+                foreach (var ov in meshOverrides)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    PrewarmMeshOverride(ov, skeletonNif, skelDiskPath, ct);
+                }
+            }
         }
         finally
         {
             skeletonNif?.Dispose();
+        }
+    }
+
+    private void PrewarmMeshOverride(MeshOverride ov, nifly.NifFile? skeletonNif,
+        string? skelDiskPath, System.Threading.CancellationToken ct)
+    {
+        if (ov == null || string.IsNullOrWhiteSpace(ov.MeshPath)) return;
+        ct.ThrowIfCancellationRequested();
+
+        string? diskPath = _assetResolver.ResolveAssetPath(ov.MeshPath);
+        if (diskPath == null) return;
+
+        // null bipedBodyPart matches ApplyOneMeshOverride (an override NIF is the
+        // source for one slot; keep all its shapes — no dismember filter) so the
+        // parse cache key matches the render's later BuildFromFile.
+        var meshes = MeshBuilder.BuildFromFile(diskPath, skeletonNif, skelDiskPath, bipedBodyPart: null, ct: ct);
+
+        string? weight0 = TryGetWeightZeroPath(ov.MeshPath);
+        if (weight0 != null)
+        {
+            string? d0 = _assetResolver.ResolveAssetPath(weight0);
+            if (d0 != null) MeshBuilder.BuildFromFile(d0, skeletonNif, skelDiskPath, bipedBodyPart: null, ct: ct);
+        }
+
+        // Effective textures mirror ApplyOneMeshOverride: ov.Textures override the
+        // NIF's embedded set on ALL slots (not gated on shader type like base TXST).
+        foreach (var built in meshes)
+        {
+            ct.ThrowIfCancellationRequested();
+            Dictionary<int, string> effective;
+            if (ov.Textures != null && ov.Textures.Count > 0)
+            {
+                effective = new Dictionary<int, string>(built.TexturePaths);
+                foreach (var kv in ov.Textures) effective[kv.Key] = kv.Value;
+            }
+            else
+            {
+                effective = built.TexturePaths;
+            }
+
+            foreach (var (slot, path) in effective)
+            {
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                if (slot == 4)
+                {
+                    if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+                }
+                else
+                {
+                    GetOrLoadDdsPixels(path);
+                }
+            }
         }
     }
 

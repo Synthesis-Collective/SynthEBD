@@ -518,13 +518,41 @@ public class NifMeshBuilder
                     BipedBodyPart = bipedBodyPart,
                     Meshes = snapshot,
                 });
+                // Evict to the cap, but protect the shared body-part parses
+                // (femalebody / hands / feet / hair, reused across all/most NPCs)
+                // from being displaced by one-shot entries. Outfits are diverse and
+                // per-NPC FaceGen heads are unique, so attire (null body part) and
+                // Head are evicted first; only if every remaining entry is a shared
+                // part do we evict the oldest of those (prevents starvation). The
+                // analogous diverse-outfit vs shared-skin TEXTURE split is handled
+                // by the resident GL texture cache's segmented LRU, so it isn't
+                // re-implemented here.
                 while (_cache.Count > CacheMaxEntries)
-                    _cache.RemoveLast();
+                    _cache.Remove(OldestEvictable());
             }
         }
 
         return results;
     }
+
+    /// <summary>Oldest cache node, preferring a non-shared (Head / attire) role so
+    /// shared body-part parses survive one-shot churn; falls back to the oldest
+    /// overall when every entry is a shared part. Called under <c>_cacheLock</c>.</summary>
+    private LinkedListNode<NifCacheEntry> OldestEvictable()
+    {
+        for (var node = _cache.Last; node != null; node = node.Previous)
+            if (!IsSharedBodyPart(node.Value.BipedBodyPart)) return node;
+        return _cache.Last!;
+    }
+
+    /// <summary>Body parts whose NIFs are shared across NPCs (same mesh reused), so
+    /// they're worth protecting in the parse cache. Head is per-NPC FaceGen and
+    /// attire (null body part) is diverse, so both are one-shot and evicted first.</summary>
+    private static bool IsSharedBodyPart(string? bipedBodyPart) => bipedBodyPart switch
+    {
+        "Body" or "Hands" or "Feet" or "Hair" or "Tail" => true,
+        _ => false,
+    };
 
     private List<BuiltMesh>? TryGetFromCache(string nifPath, string? skeletonPath,
         long nifMTime, long skelMTime, string? bipedBodyPart)
