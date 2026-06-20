@@ -3954,13 +3954,35 @@ public class VM_CharacterViewer : ViewerVm
         //      Texture is greyscale; shader: baseColor.rrr * tint_color * greyscaleToPaletteScale
         //   2. BSLSP_HAIRTINT shader type only (flag NOT set):
         //      Texture is full RGB; shader: baseColor.rgb *= tint_color (simple multiply)
-        if (built.IsHairTintShader && built.HairTintColor.HasValue &&
-            effectiveTextures.TryGetValue(0, out string? hairDiffuse))
+        //
+        // The tint color is the NPC record's HairColor (HCLR) when resolved,
+        // falling back to the NIF's baked hairTintColor. This mirrors the
+        // engine: Skyrim overrides every hair-tint shape's baked tint with the
+        // NPC's HairColor at runtime, so the hair, brows, beard, and any
+        // ArmorAddon wig all render at one consistent color. Without the
+        // override each shape kept its own baked value — a FaceGen head bakes
+        // the NPC's color per-export, but a shared/static wig NIF ships a fixed
+        // (often dark) default, so wigs rendered darker than the FaceGen hair
+        // on the same NPC. HCLR is sRGB 0..1, the same space the shader
+        // multiplies against the raw sRGB diffuse texels, so no gamma rebase is
+        // needed. Entered whenever a hair-tint shape has EITHER a resolved HCLR
+        // or a baked tint, so a wig with no baked color still gets tinted.
+        if (built.IsHairTintShader
+            && (_npcHairColorFromRecord.HasValue || built.HairTintColor.HasValue)
+            && effectiveTextures.TryGetValue(0, out string? hairDiffuse))
         {
-            var (tR, tG, tB) = built.HairTintColor.Value;
+            var (tR, tG, tB) = _npcHairColorFromRecord ?? built.HairTintColor!.Value;
             isHairTint = true; hairR = tR; hairG = tG; hairB = tB;
             glMesh.DiffuseTexture = TextureManager.LoadTexture(hairDiffuse);
             glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
+
+            string tintSrc = _npcHairColorFromRecord.HasValue
+                ? "HCLR" + (built.HairTintColor.HasValue
+                    ? " (overriding baked (" + built.HairTintColor.Value.R.ToString("F3")
+                        + "," + built.HairTintColor.Value.G.ToString("F3")
+                        + "," + built.HairTintColor.Value.B.ToString("F3") + "))"
+                    : " (no baked tint)")
+                : "baked NIF hairTintColor";
 
             if (built.HasGreyscaleToPaletteFlag)
             {
@@ -3969,6 +3991,7 @@ public class VM_CharacterViewer : ViewerVm
                 RecordTextureSource(glMesh, "Diffuse (hair tint, greyscale-to-palette)", hairDiffuse);
                 LogVerbose("CharacterViewer: Hair tint (greyscale-to-palette): " +
                     "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                    " src=" + tintSrc +
                     " scale=" + built.GreyscaleToPaletteScale.ToString("F2") +
                     " -> baseColor.rrr * tint * scale" +
                     " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
@@ -3979,6 +4002,7 @@ public class VM_CharacterViewer : ViewerVm
                 RecordTextureSource(glMesh, "Diffuse (hair tint, RGB multiply)", hairDiffuse);
                 LogVerbose("CharacterViewer: Hair tint (simple RGB multiply): " +
                     "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                    " src=" + tintSrc +
                     " -> baseColor.rgb *= tint" +
                     " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
             }
