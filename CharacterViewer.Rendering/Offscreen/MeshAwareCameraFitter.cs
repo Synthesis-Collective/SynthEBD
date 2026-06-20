@@ -332,8 +332,17 @@ public static class MeshAwareCameraFitter
             FramingShapeSelector.PrimaryHead =>
                 all.Where(m => m.IsPrimaryHeadShape).ToList(),
 
+            // "Head" covers FaceGen-baked accessories (hair headparts, eyes,
+            // brows, mouth, scars); "Hair" covers a wig/hair worn via an
+            // ArmorAddon, which the loader tags with its biped-slot label
+            // ("Hair") rather than "Head". Both are head accessories for
+            // framing — without the "Hair" arm, an ArmorAddon wig is excluded
+            // and the camera frames only the bare scalp. The primary head is
+            // always excluded; the AboveLowerYOfPrimaryHead filter keeps
+            // floor-length hair from blowing out the bbox.
             FramingShapeSelector.HeadAccessories =>
-                all.Where(m => string.Equals(m.BodyPart, "Head", StringComparison.OrdinalIgnoreCase)
+                all.Where(m => (string.Equals(m.BodyPart, "Head", StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(m.BodyPart, "Hair", StringComparison.OrdinalIgnoreCase))
                                && !m.IsPrimaryHeadShape).ToList(),
 
             FramingShapeSelector.BodyPart bp =>

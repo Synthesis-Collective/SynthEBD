@@ -159,8 +159,11 @@ public abstract record FramingShapeSelector
         public static PrimaryHead Instance { get; } = new();
     }
 
-    /// <summary>Match every shape in the Head body part EXCEPT the primary
-    /// head — i.e. hair, eyes, brows, mouth, scars, etc.</summary>
+    /// <summary>Match every head accessory — i.e. hair, eyes, brows, mouth,
+    /// scars, etc. — but never the primary head itself. Covers both the
+    /// FaceGen-baked accessories (tagged body part <c>"Head"</c>) and a
+    /// wig/hair worn via an ArmorAddon (tagged with its biped-slot label
+    /// <c>"Hair"</c> rather than <c>"Head"</c>).</summary>
     public sealed record HeadAccessories : FramingShapeSelector
     {
         public static HeadAccessories Instance { get; } = new();
