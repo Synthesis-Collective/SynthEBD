@@ -225,7 +225,20 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
                     paths = paths.WithHeadMeshPath(request.OverrideHeadMeshAbsolutePath);
 
+                // Snapshot this worker thread's load/build split across the prewarm
+                // parse so it lands in the per-render CSV (the render thread, after a
+                // full prewarm, parses nothing — its ParseMs is ~0). ThreadStatic +
+                // synchronous PrewarmNpc means these deltas are exactly this NPC's
+                // offloaded parse cost. Accumulate (+=) so a render-thread re-parse of
+                // an evicted part adds on top rather than clobbering.
+                double loadMsStart = _previewCache.MeshBuilder.ThreadLoadMs;
+                double buildMsStart = _previewCache.MeshBuilder.ThreadBuildMs;
                 _previewCache.PrewarmNpc(paths, request.MeshOverrides, ct);
+                if (request.TimingsOut is { } pt)
+                {
+                    pt.LoadMs += _previewCache.MeshBuilder.ThreadLoadMs - loadMsStart;
+                    pt.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildMsStart;
+                }
             }
             catch (OperationCanceledException)
             {
@@ -584,6 +597,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // after tBuildDone are excluded.
         double resolveMsStart = _assets.ThreadResolveMs;
         double parseMsStart = _previewCache.MeshBuilder.ThreadParseMs;
+        double loadMsStart = _previewCache.MeshBuilder.ThreadLoadMs;
+        double buildShapesMsStart = _previewCache.MeshBuilder.ThreadBuildMs;
 
         // Synchronously load + drain. The marshaller is inline so LoadAsync's
         // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
@@ -676,6 +691,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             timings.BuildMs = MsBetween(tSetupDone, tBuildDone);
             timings.ResolveMs = _assets.ThreadResolveMs - resolveMsStart;
             timings.ParseMs = _previewCache.MeshBuilder.ThreadParseMs - parseMsStart;
+            // += so a render-thread re-parse adds onto the prewarm worker's split
+            // (captured in PrewarmAsync) rather than overwriting it.
+            timings.LoadMs += _previewCache.MeshBuilder.ThreadLoadMs - loadMsStart;
+            timings.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildShapesMsStart;
             timings.InstallMs = MsBetween(tBuildDone, tInstallDone);
             timings.DecodeMs = _previewCache.ThreadDecodeMs - decodeMsStart;
             timings.DrawMs = MsBetween(tInstallDone, Stopwatch.GetTimestamp());

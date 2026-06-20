@@ -403,6 +403,58 @@ public class NifMeshBuilder
     public double ThreadParseMs => _threadParseTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
     public int ThreadParseCount => _threadParseCount;
 
+    // Parse split: of the ThreadParse total, how much is native NifFile.Load (file
+    // parse) vs BuildAllShapes (C#-side per-vertex SWIG marshaling + CPU skinning).
+    // ThreadStatic for the same reason as above — each worker/render thread sees only
+    // its own work, so a host can snapshot deltas around a single parse (e.g. PrewarmNpc)
+    // and attribute the split per-NPC. Answers "is the FaceGen head cost in the native
+    // Load or the managed marshaling" without per-block instrumentation overhead.
+    [ThreadStatic] private static long _threadLoadTicks;
+    [ThreadStatic] private static long _threadBuildTicks;
+    public double ThreadLoadMs => _threadLoadTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+    public double ThreadBuildMs => _threadBuildTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
+    // Process-wide aggregate of the same split (all threads), so the NifCacheDiag log
+    // can print a load-vs-build summary even when per-render CSV timing is off. Gated
+    // entirely behind the _cacheDiag trigger file — zero cost otherwise.
+    private static long _procLoadTicks, _procBuildTicks, _procGeomTicks, _procSkinTicks;
+    private static int _procParseCount;
+
+    // Within BuildAllShapes, split build cost into the geometry SWIG marshaling + per-
+    // element copy loops (verts/normals/uvs/colors/tangents/bitangents/triangles — what a
+    // native bulk-copy helper would eliminate) vs the CPU skinning / shape-transform pass
+    // (which it would not). De-risks the native-helper decision: a high geom share means
+    // the helper directly targets the cost. ThreadStatic, accumulated across all shapes of
+    // a parse; BuildFromFile snapshots the deltas around BuildAllShapes.
+    [ThreadStatic] private static long _threadGeomTicks;
+    [ThreadStatic] private static long _threadSkinTicks;
+
+    // Roll the per-parse load/build split into the process-wide aggregate and, when
+    // the cache-diag trigger is present, periodically log the running load-vs-build
+    // share. Off the hot path when _cacheDiag is false (single bool check).
+    private static void AccumulateParseSplit(long loadTicks, long buildTicks, long geomTicks, long skinTicks)
+    {
+        if (!_cacheDiag) return;
+        long l = System.Threading.Interlocked.Add(ref _procLoadTicks, loadTicks);
+        long b = System.Threading.Interlocked.Add(ref _procBuildTicks, buildTicks);
+        long g = System.Threading.Interlocked.Add(ref _procGeomTicks, geomTicks);
+        long s = System.Threading.Interlocked.Add(ref _procSkinTicks, skinTicks);
+        int n = System.Threading.Interlocked.Increment(ref _procParseCount);
+        if (n % 25 == 0)
+        {
+            double freq = System.Diagnostics.Stopwatch.Frequency;
+            double loadMs = l * 1000.0 / freq, buildMs = b * 1000.0 / freq;
+            double geomMs = g * 1000.0 / freq, skinMs = s * 1000.0 / freq;
+            double total = loadMs + buildMs;
+            // geom% / skin% are shares of build (the rest of build = shader/texture/alpha reads).
+            CacheDiagLog($"--- parse split: parses={n} loadMs={loadMs:F0} buildMs={buildMs:F0}" +
+                $" (load={(total <= 0 ? 0 : 100 * loadMs / total):F0}% build={(total <= 0 ? 0 : 100 * buildMs / total):F0}%)" +
+                $" | of build: geomMs={geomMs:F0} skinMs={skinMs:F0}" +
+                $" (geom={(buildMs <= 0 ? 0 : 100 * geomMs / buildMs):F0}% skin={(buildMs <= 0 ? 0 : 100 * skinMs / buildMs):F0}%," +
+                $" avg geom={geomMs / n:F2} skin={skinMs / n:F2} ms/parse) ---");
+        }
+    }
+
     private static void CacheDiagLog(string line)
     {
         try
@@ -482,10 +534,14 @@ public class NifMeshBuilder
         long parseStart = System.Diagnostics.Stopwatch.GetTimestamp();
         var results = new List<BuiltMesh>();
         using var nif = new NifFile();
-        if (nif.Load(nifPath) != 0)
+        int loadResult = nif.Load(nifPath);
+        long loadTicks = System.Diagnostics.Stopwatch.GetTimestamp() - parseStart;
+        if (loadResult != 0)
         {
-            _threadParseTicks += System.Diagnostics.Stopwatch.GetTimestamp() - parseStart;
+            _threadParseTicks += loadTicks;
+            _threadLoadTicks += loadTicks;
             _threadParseCount++;
+            AccumulateParseSplit(loadTicks, 0, 0, 0);
             return results;
         }
 
@@ -498,9 +554,16 @@ public class NifMeshBuilder
         if (skeletonNif == null && skeletonProvider != null)
             skeletonNif = skeletonProvider();
 
+        long buildStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        long geomBefore = _threadGeomTicks, skinBefore = _threadSkinTicks;
         results = BuildAllShapes(nif, skeletonNif, bipedBodyPart, ct);
-        _threadParseTicks += System.Diagnostics.Stopwatch.GetTimestamp() - parseStart;
+        long buildTicks = System.Diagnostics.Stopwatch.GetTimestamp() - buildStart;
+        _threadParseTicks += loadTicks + buildTicks;
+        _threadLoadTicks += loadTicks;
+        _threadBuildTicks += buildTicks;
         _threadParseCount++;
+        AccumulateParseSplit(loadTicks, buildTicks,
+            _threadGeomTicks - geomBefore, _threadSkinTicks - skinBefore);
 
         if (cacheable && results.Count > 0)
         {
@@ -1278,6 +1341,10 @@ public class NifMeshBuilder
             return null;
         }
 
+        // Geometry marshaling + copy span starts here (split-timing; see _threadGeomTicks).
+        long geomStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        long shapeSkinTicks = 0;
+
         // Extract vertices
         using var nifVerts = nif.GetVertsForShape(shape);
         if (nifVerts == null || nifVerts.Count == 0)
@@ -1312,6 +1379,10 @@ public class NifMeshBuilder
         List<string>? unresolvedBones = null;
         List<string>? bonesAbsentFromSkeleton = null;
 
+        // Skinning / shape-transform pass — timed separately from geometry marshaling so
+        // the native-bulk-copy decision can tell apart what the helper fixes (geom copy)
+        // from what it doesn't (this block). Mutually exclusive branches.
+        long skinStart = System.Diagnostics.Stopwatch.GetTimestamp();
         if (skeletonNif != null && shape.HasSkinInstance())
         {
             skinning = TryApplyCpuSkinning(nif, shape, nifVerts, nifNormals, vertCount,
@@ -1330,6 +1401,7 @@ public class NifMeshBuilder
                                 || !shapeTransform.rotation.IsIdentity()
                                 || !IsZeroTranslation(shapeTransform.translation));
         }
+        shapeSkinTicks = System.Diagnostics.Stopwatch.GetTimestamp() - skinStart;
 
         // Build positions — skinned or transform-based, then convert Z-up → Y-up
         var positions = new Vector3[vertCount];
@@ -1489,6 +1561,12 @@ public class NifMeshBuilder
             indices[i * 3 + 1] = tri.p2;
             indices[i * 3 + 2] = tri.p3;
         }
+
+        // Close the geometry span. Geom = everything from GetVertsForShape through the
+        // triangle-index loop MINUS the skin/transform pass nested inside it, i.e. the
+        // pure geometry SWIG marshaling + per-element copy the native helper would remove.
+        _threadSkinTicks += shapeSkinTicks;
+        _threadGeomTicks += (System.Diagnostics.Stopwatch.GetTimestamp() - geomStart) - shapeSkinTicks;
 
         // Extract texture paths from BSShaderTextureSet
         var texturePaths = new Dictionary<int, string>();

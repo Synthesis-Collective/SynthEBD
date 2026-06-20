@@ -13,6 +13,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [BSShaderTextureSet slots](#bsshadertextureset-slots)
    - [NiAlphaProperty](#nialphaproperty)
    - [Skinning](#skinning)
+   - [Parse cost & performance](#parse-cost--performance)
    - [Dismember partitions and shape filtering](#dismember-partitions-and-shape-filtering)
    - [Shader flag inventory](#shader-flag-inventory)
    - [Override channels (textures + meshes)](#override-channels-textures--meshes)
@@ -168,6 +169,28 @@ CPU-side, in [TryApplyCpuSkinning](Nif/NifMeshBuilder.cs#L1380). For each bone t
 Per vertex: read up to 4 bone-weight pairs from `nif.GetShapeBoneWeights(...)`, accumulate the weighted bone transform on the vertex position and (with the rotation portion only) on the normal. The result becomes the renderer's `Positions` array; the original NIF positions are kept as `BindPosePositions` for BodySlide morphing.
 
 Why CPU-side skinning instead of a GPU vertex shader doing it: BodySlide morphing happens after skinning and needs to operate on the deformed positions. Doing skinning in-shader would require re-running the morph at every redraw, multiplying CPU work for no rendering gain.
+
+### Parse cost & performance
+
+Parsing the per-NPC NIFs is the dominant CPU cost of generating a mugshot, so the pipeline works hard to hide it. Two mechanisms:
+
+- **Parse cache** ([NifMeshBuilder.cs](Nif/NifMeshBuilder.cs) `BuildFromFile`): keyed on `(nifPath, nifMTime, skeletonPath, skelMTime, bipedBodyPart)`, holds cloned `BuiltMesh` snapshots. Shared body parts (`Body`/`Hands`/`Feet`/`Hair`/`Tail`) are LRU-**protected**; the per-NPC FaceGen head and null-part attire/outfit meshes are evicted first (they're one-shot). Measured hit rate ≈ 81% on a ~94-NPC mod.
+- **Prewarm offload** ([GameWindowOffscreenRenderer.cs](Offscreen/GameWindowOffscreenRenderer.cs) `PrewarmAsync` → `CharacterPreviewCache.PrewarmNpc`): the GL-free parse + DDS decode run on a thread-pool worker ahead of the single GL render thread, so by the time a tile renders it hits warm caches and the render thread pays only GL upload + draw + readback. After a full prewarm the render thread's own `parseMs` is ≈ 0; the parse cost lives on the workers.
+
+**Where the parse cost goes** (measured, prewarm-worker, ~94-NPC mod; per cache-missed part):
+
+| Phase | Share of parse | What it is |
+|---|---|---|
+| `NifFile.Load` | ~10% | native file parse — at the libnifly floor |
+| **Geometry marshaling** | **~51%** | the per-element `vectorVector3.getitem` + `.x/.y/.z` reads over verts/normals/UVs/tangents/bitangents/colors/triangles |
+| Skinning | ~36% | per-vertex bone-weight reads (same per-element marshaling) + per-bone transform setup + the C# skinning math |
+| rest | ~3% | shader/texture/alpha reads |
+
+The geometry slice is expensive because niflysharp (a SWIG binding) surfaces each `std::vector<Vector3>` as a wrapper whose indexer does **one managed→native crossing per element**, returning a finalizable `Vector3` whose `.x/.y/.z` are three more crossings — so reading one vertex costs ~4 crossings + one GC-tracked allocation. A high-poly head runs to ~190k crossings + ~48k finalizable objects. There is **no bulk-copy fast path** in the stock binding (`ToArray`/`CopyTo` are per-element), and niflysharp 2.0.x does not add one (and is net10-only, so unusable from this net8 library).
+
+The only lever that removes this is a native bulk-copy helper (`memcpy` from the contiguous `std::vector<Vector3>` into a managed `float[]`), which must live inside the niflyswig binding — a fork + native rebuild. It would roughly halve parse cost; **deferred** as of 2026-06 given the build/maintenance overhead.
+
+**Instrumentation** (gated, production-safe — zero cost unless the trigger file is present): drop `LogNifCacheDiag.txt` next to the exe → `RenderLogs/NifCacheDiag.log` prints a `parse split` line every 25 parses (load/build %, then geom/skin shares of build). Drop `LogRenderTimings.txt` → `RenderLogs/RenderTimings.csv` gets per-NPC `loadMs`/`buildShapesMs` columns (captured on the prewarm worker). Counters: `_threadLoad/Build/Geom/SkinTicks` in [NifMeshBuilder.cs](Nif/NifMeshBuilder.cs).
 
 ### Dismember partitions and shape filtering
 

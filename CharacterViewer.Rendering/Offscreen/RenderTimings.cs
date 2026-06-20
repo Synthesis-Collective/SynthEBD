@@ -38,6 +38,19 @@ public sealed class RenderTimings
     /// ResolveMs − ParseMs ≈ the clone + weight-morph cost.</summary>
     public double ParseMs { get; set; }
 
+    /// <summary>Native NifFile.Load (file parse) cost for this NPC's cache-missed
+    /// parts, summed across the prewarm worker AND any render-thread re-parse. Unlike
+    /// <see cref="ParseMs"/> (render-thread only) this captures the offloaded prewarm
+    /// parse, so for a fully-prewarmed render it is the real per-NPC parse cost. With
+    /// <see cref="BuildShapesMs"/> it splits parse into native-Load vs managed marshaling.</summary>
+    public double LoadMs { get; set; }
+
+    /// <summary>BuildAllShapes cost (C#-side per-vertex SWIG marshaling + CPU skinning)
+    /// for this NPC's cache-missed parts, summed across prewarm worker and render thread.
+    /// The companion to <see cref="LoadMs"/>; a high share here points at the managed
+    /// interop / GC cost rather than the native file parse.</summary>
+    public double BuildShapesMs { get; set; }
+
     /// <summary>ProcessPendingSceneToCompletion + mesh/texture/morph overrides:
     /// texture decode-on-miss and the GL upload of textures and vertex buffers.
     /// High value here is what would make pinning shared GL resources pay off.</summary>
