@@ -111,6 +111,26 @@ public static class BoundingBoxCriterionTree
                 Leaf(BoundingBoxCriterion.BulgePairMaxX),
             }),
         new BoundingBoxCriterionCategory(
+            "Depth Pinch / Bulge — front-back along Z (single side)",
+            "The front-back (depth) analog of Waist Pinch / Hip Bulge: slice the box into thin horizontal bands and pick from the thinnest (pinch) or thickest (bulge) band measured front-to-back along Z. The model faces -Z, so 'front' = smallest Z and 'back' = largest Z. Each row scans independently, so the front and back picks may come from different heights — use the Paired variants when you need both picks at the same height. Use for bicep bulge, belly depth, calf bulge.",
+            new[]
+            {
+                Leaf(BoundingBoxCriterion.PinchMinZ),
+                Leaf(BoundingBoxCriterion.PinchMaxZ),
+                Leaf(BoundingBoxCriterion.BulgeMinZ),
+                Leaf(BoundingBoxCriterion.BulgeMaxZ),
+            }),
+        new BoundingBoxCriterionCategory(
+            "Paired Depth-pinch / Depth-bulge — front-back along Z (joint-band)",
+            "Like Depth Pinch / Bulge but the front and back rows co-operate. They scan the shared box once, find the single thinnest (or thickest) front-to-back band, and pick from THAT band — guaranteeing both picks come from the same height. Use when a PointDistance between the pair should measure honest front-back depth (e.g. bicep thickness).",
+            new[]
+            {
+                Leaf(BoundingBoxCriterion.PinchPairMinZ),
+                Leaf(BoundingBoxCriterion.PinchPairMaxZ),
+                Leaf(BoundingBoxCriterion.BulgePairMinZ),
+                Leaf(BoundingBoxCriterion.BulgePairMaxZ),
+            }),
+        new BoundingBoxCriterionCategory(
             "Centerline-Anchored (central tube)",
             "Restrict the search to a tubular column running through the box on its central axis (the middle third of the other two coordinates), then pick the extremum on the tube's axis. Use for landmarks that should sit on the body's mid-line rather than at a box corner — navel, crown, spine.",
             new[]

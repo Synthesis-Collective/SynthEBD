@@ -138,6 +138,30 @@ public enum BoxCriterionSelection
     [ShortLabel("Paired Bone Transition Right (joint-Y)")]
     [Description("Sibling of Paired Bone Transition Left — see that entry for the joint-Y mechanic. Selects 1 vertex per row; the pair selects 2.")]
     BoneTransitionPairMaxX = 31,
+    [ShortLabel("Depth-pinch Front (Min Z)")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body is thinnest front-to-back (smallest Z-depth), then picks that band's front-side vertex (smallest Z). (Model faces -Z, so smaller Z = front.) Use for: front edge of the narrowest part of a limb segment. Selects 1 vertex. For honest front-to-back depth measurement, prefer the Paired variant.")]
+    PinchMinZ = 32,
+    [ShortLabel("Depth-pinch Back (Max Z)")]
+    [Description("Mirror of Depth-pinch Front: scans for the thinnest (front-to-back) band and picks that band's back-side vertex (largest Z). Selects 1 vertex. For depth measurement, prefer the Paired variant.")]
+    PinchMaxZ = 33,
+    [ShortLabel("Depth-bulge Front (Min Z)")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body is thickest front-to-back (largest Z-depth), then picks that band's front-side vertex (smallest Z). (Model faces -Z, so smaller Z = front.) Use for: front edge of the bicep peak, belly, or calf. Selects 1 vertex. For honest front-to-back depth measurement, prefer the Paired variant.")]
+    BulgeMinZ = 34,
+    [ShortLabel("Depth-bulge Back (Max Z)")]
+    [Description("Mirror of Depth-bulge Front: scans for the thickest (front-to-back) band and picks that band's back-side vertex (largest Z). Selects 1 vertex. For depth measurement, prefer the Paired variant.")]
+    BulgeMaxZ = 35,
+    [ShortLabel("Paired Depth-pinch Front")]
+    [Description("Co-operates with a sibling row using 'Paired Depth-pinch Back' that shares the same Shape and box. The two rows scan jointly for the single horizontal band where the body is thinnest front-to-back and pick from THAT band — front row gets the front-side vertex (smallest Z), back row gets the back-side vertex (largest Z). Guarantees both picks come from the same height, so a PointDistance between them measures honest front-to-back depth. Selects 1 vertex per row; the pair selects 2 at the same Y. Without a sibling, falls back to plain Depth-pinch Front.")]
+    PinchPairMinZ = 36,
+    [ShortLabel("Paired Depth-pinch Back")]
+    [Description("Sibling of Paired Depth-pinch Front — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    PinchPairMaxZ = 37,
+    [ShortLabel("Paired Depth-bulge Front")]
+    [Description("Co-operates with a sibling row using 'Paired Depth-bulge Back' that shares the same Shape and box. The two rows scan jointly for the single horizontal band where the body is thickest front-to-back and pick from THAT band — front row gets the front-side vertex (smallest Z), back row gets the back-side vertex (largest Z). Guarantees honest front-to-back depth measurement (e.g. bicep thickness). Selects 1 vertex per row; the pair selects 2. Without a sibling, falls back to plain Depth-bulge Front.")]
+    BulgePairMinZ = 38,
+    [ShortLabel("Paired Depth-bulge Back")]
+    [Description("Sibling of Paired Depth-bulge Front — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    BulgePairMaxZ = 39,
     [ShortLabel("Mirror Left/Right (X)")]
     [Description("Authoring shortcut: one drag, two rows. Creates 'Rightmost (Max X)' + 'Leftmost (Min X)' rows sharing this box — captures both sides of a symmetric left/right feature at once. Picks 2 vertices total.")]
     MirrorX = 100,
@@ -168,4 +192,10 @@ public enum BoxCriterionSelection
     [ShortLabel("Mirror Bone Transition (X)")]
     [Description("Authoring shortcut: one drag, two rows. Creates 'Bone Transition Left' + 'Bone Transition Right' rows sharing this box — each row walks outward from the box-center vertex on its side and stops at the first bone change. Use for: underarm-to-underarm (box centered on spine at armpit Y), wrist-to-wrist, ankle-to-ankle. Robust across body types because the algorithm reads the rig rather than the silhouette. Picks 2 vertices total.")]
     MirrorBoneTransitionX = 109,
+    [ShortLabel("Mirror Paired Depth-pinch (joint-band)")]
+    [Description("Authoring shortcut: one drag, two rows. Creates 'Paired Depth-pinch Front' + 'Paired Depth-pinch Back' rows sharing this box — both rows scan jointly for the single thinnest front-to-back band and pick from that band, so a PointDistance between them measures honest front-back depth. (Model faces -Z, so smaller Z = front.) Picks 2 vertices total at the same Y.")]
+    MirrorPinchZ = 110,
+    [ShortLabel("Mirror Paired Depth-bulge (joint-band)")]
+    [Description("Authoring shortcut: one drag, two rows. Creates 'Paired Depth-bulge Front' + 'Paired Depth-bulge Back' rows sharing this box — both rows scan jointly for the single thickest front-to-back band and pick from that band, so a PointDistance between them measures honest front-back depth (e.g. bicep thickness). (Model faces -Z, so smaller Z = front.) Picks 2 vertices total at the same Y.")]
+    MirrorBulgeZ = 111,
 }

@@ -3468,6 +3468,37 @@ public class VM_BodyTypeProfile : VM
                 KeyVertices.Remove(k);
             });
 
+        // Creates a Region-strategy key vertex referencing the first available region. A Region KV
+        // scans that region's member vertices instead of an authored AABB, so it needs at least one
+        // region to point at — when none exist we surface a notification instead of adding a row that
+        // could never resolve. The user renames the row and picks the intended region/criterion after.
+        AddKeyVertexFromRegion = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ =>
+            {
+                var firstRegion = Regions.FirstOrDefault(r => !string.IsNullOrEmpty(r.Name));
+                if (firstRegion == null)
+                {
+                    MessageWindow.DisplayNotificationOK(
+                        "No Regions Available",
+                        "A Region-strategy key vertex can't be created until one or more Regions exist. " +
+                        "Create a Region on the Regions tab first, then try again.");
+                    return;
+                }
+
+                var model = new NamedKeyVertex
+                {
+                    Name = NextDefaultName("KV", KeyVertices.Select(k => k.Name)),
+                    ShapeName = firstRegion.ShapeName ?? "",
+                    Strategy = KeyVertexStrategy.Region,
+                    RegionRefName = firstRegion.Name,
+                };
+                var vm = new VM_NamedKeyVertex(model, this);
+                KeyVertices.Add(vm);
+                SelectedKeyVertex = vm;
+                RefreshMeasurementValues();
+            });
+
         ShowPicksInViewer = new RelayCommand(
             canExecute: _ => ActiveViewer != null && KeyVertices.Count > 0,
             execute: _ =>
@@ -4738,6 +4769,8 @@ public class VM_BodyTypeProfile : VM
         BoxCriterionSelection.MirrorZ              => new[] { BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ },
         BoxCriterionSelection.MirrorPinchX         => new[] { BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX },
         BoxCriterionSelection.MirrorBulgeX         => new[] { BoundingBoxCriterion.BulgePairMaxX,  BoundingBoxCriterion.BulgePairMinX },
+        BoxCriterionSelection.MirrorPinchZ         => new[] { BoundingBoxCriterion.PinchPairMaxZ,  BoundingBoxCriterion.PinchPairMinZ },
+        BoxCriterionSelection.MirrorBulgeZ         => new[] { BoundingBoxCriterion.BulgePairMaxZ,  BoundingBoxCriterion.BulgePairMinZ },
         BoxCriterionSelection.MinYMirroredAcrossX  => new[] { BoundingBoxCriterion.MinYRightOfX,   BoundingBoxCriterion.MinYLeftOfX },
         BoxCriterionSelection.MaxYMirroredAcrossX  => new[] { BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX },
         BoxCriterionSelection.MinZMirroredAcrossX  => new[] { BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX },
@@ -4750,6 +4783,7 @@ public class VM_BodyTypeProfile : VM
     public RelayCommand AddRule { get; }
     public RelayCommand CaptureFingerprintFromActiveViewer { get; }
     public RelayCommand RemoveSelectedKeyVertex { get; }
+    public RelayCommand AddKeyVertexFromRegion { get; }
     public RelayCommand ShowPicksInViewer { get; }
     public RelayCommand CaptureSelectedPicks { get; }
     public RelayCommand SaveMeasurementsToCsv { get; }
@@ -5000,6 +5034,8 @@ public class VM_BodyTypeProfile : VM
             pick.Criterion == BoxCriterionSelection.MirrorZ ||
             pick.Criterion == BoxCriterionSelection.MirrorPinchX ||
             pick.Criterion == BoxCriterionSelection.MirrorBulgeX ||
+            pick.Criterion == BoxCriterionSelection.MirrorPinchZ ||
+            pick.Criterion == BoxCriterionSelection.MirrorBulgeZ ||
             pick.Criterion == BoxCriterionSelection.MinYMirroredAcrossX ||
             pick.Criterion == BoxCriterionSelection.MaxYMirroredAcrossX ||
             pick.Criterion == BoxCriterionSelection.MinZMirroredAcrossX ||
@@ -5021,6 +5057,8 @@ public class VM_BodyTypeProfile : VM
                 BoxCriterionSelection.MirrorZ              => (BoundingBoxCriterion.MaxZ,           BoundingBoxCriterion.MinZ),
                 BoxCriterionSelection.MirrorPinchX         => (BoundingBoxCriterion.PinchPairMaxX,  BoundingBoxCriterion.PinchPairMinX),
                 BoxCriterionSelection.MirrorBulgeX         => (BoundingBoxCriterion.BulgePairMaxX,  BoundingBoxCriterion.BulgePairMinX),
+                BoxCriterionSelection.MirrorPinchZ         => (BoundingBoxCriterion.PinchPairMaxZ,  BoundingBoxCriterion.PinchPairMinZ),
+                BoxCriterionSelection.MirrorBulgeZ         => (BoundingBoxCriterion.BulgePairMaxZ,  BoundingBoxCriterion.BulgePairMinZ),
                 BoxCriterionSelection.MinYMirroredAcrossX  => (BoundingBoxCriterion.MinYRightOfX,   BoundingBoxCriterion.MinYLeftOfX),
                 BoxCriterionSelection.MaxYMirroredAcrossX  => (BoundingBoxCriterion.MaxYRightOfX,   BoundingBoxCriterion.MaxYLeftOfX),
                 BoxCriterionSelection.MinZMirroredAcrossX  => (BoundingBoxCriterion.MinZRightOfX,   BoundingBoxCriterion.MinZLeftOfX),
@@ -6621,9 +6659,12 @@ public class VM_BodyTypeProfile : VM
             Criterion = criterion,
         };
 
-        bool wantPinch = criterion == BoundingBoxCriterion.PinchPairMinX
-                      || criterion == BoundingBoxCriterion.PinchPairMaxX;
-        var snapshot = MeasurementMath.GetPairXBinSnapshot(positions, stub, wantPinch);
+        // wantPinch and the measure axis (X for the *X family, Z for the *Z front-back family) come
+        // from the shared helpers so the overlay's per-bin pairing matches exactly what the resolver
+        // would pick for this criterion.
+        bool wantPinch = MeasurementMath.IsPairPinch(criterion);
+        int measureAxis = MeasurementMath.PinchBulgeMeasureAxis(criterion);
+        var snapshot = MeasurementMath.GetPairXBinSnapshot(positions, stub, wantPinch, measureAxis);
         if (snapshot == null)
         {
             viewer.SetMeasurementLines(null);

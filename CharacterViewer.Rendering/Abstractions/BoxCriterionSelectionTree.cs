@@ -99,6 +99,26 @@ public static class BoxCriterionSelectionTree
                 Leaf(BoxCriterionSelection.BulgePairMaxX),
             }),
         new BoxCriterionSelectionCategory(
+            "Depth Pinch / Bulge — front-back along Z (single side)",
+            "The front-back (depth) analog of Waist Pinch / Hip Bulge: slice the box into thin horizontal bands and pick from the thinnest (pinch) or thickest (bulge) band measured front-to-back along Z. Model faces -Z, so 'front' = smallest Z, 'back' = largest Z. Each row scans independently — use the Paired variants when you need both picks at the same height. Use for bicep bulge, belly depth, calf bulge.",
+            new[]
+            {
+                Leaf(BoxCriterionSelection.PinchMinZ),
+                Leaf(BoxCriterionSelection.PinchMaxZ),
+                Leaf(BoxCriterionSelection.BulgeMinZ),
+                Leaf(BoxCriterionSelection.BulgeMaxZ),
+            }),
+        new BoxCriterionSelectionCategory(
+            "Paired Depth-pinch / Depth-bulge — front-back along Z (joint-band)",
+            "Like Depth Pinch / Bulge but the front and back rows co-operate. They scan the shared box once, find the single thinnest (or thickest) front-to-back band, and pick from THAT band — guaranteeing both picks come from the same height. Use when a PointDistance between the pair should measure honest front-back depth.",
+            new[]
+            {
+                Leaf(BoxCriterionSelection.PinchPairMinZ),
+                Leaf(BoxCriterionSelection.PinchPairMaxZ),
+                Leaf(BoxCriterionSelection.BulgePairMinZ),
+                Leaf(BoxCriterionSelection.BulgePairMaxZ),
+            }),
+        new BoxCriterionSelectionCategory(
             "Centerline-Anchored (central tube)",
             "Restrict the search to a tubular column running through the box on its central axis (the middle third of the other two coordinates), then pick the extremum on the tube's axis. Use for landmarks that should sit on the body's mid-line rather than at a box corner — navel, crown, spine.",
             new[]
@@ -134,6 +154,8 @@ public static class BoxCriterionSelectionTree
                 Leaf(BoxCriterionSelection.MaxYMirroredAcrossX),
                 Leaf(BoxCriterionSelection.MinZMirroredAcrossX),
                 Leaf(BoxCriterionSelection.MaxZMirroredAcrossX),
+                Leaf(BoxCriterionSelection.MirrorPinchZ),
+                Leaf(BoxCriterionSelection.MirrorBulgeZ),
                 Leaf(BoxCriterionSelection.MirrorBoneTransitionX),
             }),
     };

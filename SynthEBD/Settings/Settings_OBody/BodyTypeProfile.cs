@@ -257,6 +257,36 @@ public enum BoundingBoxCriterion
     [ShortLabel("Paired Bone Transition Right (joint-Y)")]
     [Description("Sibling of Paired Bone Transition Left — see that entry for the joint-Y mechanic. Selects 1 vertex per row; the pair selects 2.")]
     BoneTransitionPairMaxX = 31,
+
+    // ---- Front-back (depth) pinch / bulge, measured along Z ----
+    // Direct analogs of the *X waist-pinch / hip-bulge family, but the per-band thickness is
+    // measured front-to-back along Z instead of left-to-right along X. Band slicing is still
+    // along Y (thin horizontal bands). The model faces -Z, so "front" = smallest Z (Min Z) and
+    // "back" = largest Z (Max Z). Use for depth landmarks: bicep bulge, belly depth, calf bulge.
+    [ShortLabel("Depth-pinch Front (Min Z)")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body is thinnest front-to-back (smallest Z-depth), then picks that band's front-side vertex (smallest Z). (The model faces -Z, so smaller Z = front.) Use for: marking the front edge of the narrowest part of a limb segment on a body whose narrow point varies between presets. Selects 1 vertex. For honest front-to-back depth measurement, prefer the Paired variant — it guarantees the front and back picks come from the same horizontal band.")]
+    PinchMinZ = 32,
+    [ShortLabel("Depth-pinch Back (Max Z)")]
+    [Description("Mirror of Depth-pinch Front: scans for the thinnest (front-to-back) horizontal band and picks that band's back-side vertex (largest Z). Selects 1 vertex. For front-to-back depth measurement, prefer the Paired variant.")]
+    PinchMaxZ = 33,
+    [ShortLabel("Depth-bulge Front (Min Z)")]
+    [Description("Slices the box's vertical range into thin horizontal bands, finds the band where the body is thickest front-to-back (largest Z-depth), then picks that band's front-side vertex (smallest Z). (The model faces -Z, so smaller Z = front.) Use for: marking the front edge of the thickest part of a limb segment — bicep peak, belly, calf — on a body whose bulge height varies between presets. Selects 1 vertex. For honest front-to-back depth measurement, prefer the Paired variant.")]
+    BulgeMinZ = 34,
+    [ShortLabel("Depth-bulge Back (Max Z)")]
+    [Description("Mirror of Depth-bulge Front: scans for the thickest (front-to-back) horizontal band and picks that band's back-side vertex (largest Z). Selects 1 vertex. For depth measurement, prefer the Paired variant.")]
+    BulgeMaxZ = 35,
+    [ShortLabel("Paired Depth-pinch Front")]
+    [Description("Co-operates with a sibling row using 'Paired Depth-pinch Back' that shares the same Shape and box. The two rows together scan the box, find the single horizontal band where the body is thinnest front-to-back, and pick from THAT band — front row gets the front-side vertex (smallest Z), back row gets the back-side vertex (largest Z). The joint scan guarantees both picks come from the same height, so a PointDistance between them measures honest front-to-back depth rather than a diagonal across different heights. (The model faces -Z, so smaller Z = front.) Use for: front-to-back thickness landmarks. Selects 1 vertex per row; the pair selects 2 at the same Y. Without a sibling, falls back to plain Depth-pinch Front.")]
+    PinchPairMinZ = 36,
+    [ShortLabel("Paired Depth-pinch Back")]
+    [Description("Sibling of Paired Depth-pinch Front — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    PinchPairMaxZ = 37,
+    [ShortLabel("Paired Depth-bulge Front")]
+    [Description("Co-operates with a sibling row using 'Paired Depth-bulge Back' that shares the same Shape and box. The two rows together scan the box, find the single horizontal band where the body is thickest front-to-back, and pick from THAT band — front row gets the front-side vertex (smallest Z), back row gets the back-side vertex (largest Z). Guarantees honest front-to-back depth measurement. (The model faces -Z, so smaller Z = front.) Use for: bicep-bulge / belly-depth / calf-bulge landmarks. Selects 1 vertex per row; the pair selects 2. Without a sibling, falls back to plain Depth-bulge Front.")]
+    BulgePairMinZ = 38,
+    [ShortLabel("Paired Depth-bulge Back")]
+    [Description("Sibling of Paired Depth-bulge Front — see that entry for the joint-band mechanic. Selects 1 vertex per row; the pair selects 2.")]
+    BulgePairMaxZ = 39,
 }
 
 // SymmetryAxes and BoxCriterionSelection enums moved to
@@ -922,10 +952,16 @@ public static class MeasurementMath
 
         switch (criterion)
         {
-            case BoundingBoxCriterion.PinchMinX: return FindPinchOrBulgeX(positions, in cand, leftSide: true,  wantPinch: true);
-            case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulgeX(positions, in cand, leftSide: false, wantPinch: true);
-            case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulgeX(positions, in cand, leftSide: true,  wantPinch: false);
-            case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulgeX(positions, in cand, leftSide: false, wantPinch: false);
+            case BoundingBoxCriterion.PinchMinX: return FindPinchOrBulge(positions, in cand, measureAxis: 0, lowSide: true,  wantPinch: true);
+            case BoundingBoxCriterion.PinchMaxX: return FindPinchOrBulge(positions, in cand, measureAxis: 0, lowSide: false, wantPinch: true);
+            case BoundingBoxCriterion.BulgeMinX: return FindPinchOrBulge(positions, in cand, measureAxis: 0, lowSide: true,  wantPinch: false);
+            case BoundingBoxCriterion.BulgeMaxX: return FindPinchOrBulge(positions, in cand, measureAxis: 0, lowSide: false, wantPinch: false);
+            // Front-back (Z) analogs. Band slicing stays along Y; only the measured thickness axis
+            // differs (Z = front-back). "Front" = smallest Z (Min), "back" = largest Z (Max).
+            case BoundingBoxCriterion.PinchMinZ: return FindPinchOrBulge(positions, in cand, measureAxis: 2, lowSide: true,  wantPinch: true);
+            case BoundingBoxCriterion.PinchMaxZ: return FindPinchOrBulge(positions, in cand, measureAxis: 2, lowSide: false, wantPinch: true);
+            case BoundingBoxCriterion.BulgeMinZ: return FindPinchOrBulge(positions, in cand, measureAxis: 2, lowSide: true,  wantPinch: false);
+            case BoundingBoxCriterion.BulgeMaxZ: return FindPinchOrBulge(positions, in cand, measureAxis: 2, lowSide: false, wantPinch: false);
             case BoundingBoxCriterion.BoneTransitionMinX:
             case BoundingBoxCriterion.BoneTransitionMaxX:
             {
@@ -960,14 +996,19 @@ public static class MeasurementMath
             case BoundingBoxCriterion.PinchPairMaxX:
             case BoundingBoxCriterion.BulgePairMinX:
             case BoundingBoxCriterion.BulgePairMaxX:
+            case BoundingBoxCriterion.PinchPairMinZ:
+            case BoundingBoxCriterion.PinchPairMaxZ:
+            case BoundingBoxCriterion.BulgePairMinZ:
+            case BoundingBoxCriterion.BulgePairMaxZ:
             {
+                int measureAxis = PinchBulgeMeasureAxis(criterion);
                 var sibling = findSibling?.Invoke(kv);
                 if (sibling != null)
                 {
-                    return FindPairedPinchOrBulgeX(positions, in cand, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+                    return FindPairedPinchOrBulge(positions, in cand, measureAxis, lowSide: IsPairLowSide(criterion), wantPinch: IsPairPinch(criterion));
                 }
                 // No sibling — degrade to the non-paired equivalent so the row still resolves.
-                return FindPinchOrBulgeX(positions, in cand, leftSide: IsPairLeftSide(criterion), wantPinch: IsPairPinch(criterion));
+                return FindPinchOrBulge(positions, in cand, measureAxis, lowSide: IsPairLowSide(criterion), wantPinch: IsPairPinch(criterion));
             }
             case BoundingBoxCriterion.MinYLeftOfX:  return FindExtremumOnXSide(positions, in cand, leftSide: true,  wantMax: false, useY: true);
             case BoundingBoxCriterion.MinYRightOfX: return FindExtremumOnXSide(positions, in cand, leftSide: false, wantMax: false, useY: true);
@@ -1069,12 +1110,16 @@ public static class MeasurementMath
     }
 
     /// <summary>Slice the AABB's Y range into <c>BinCount</c> equal bands; per band, record the
-    /// silhouette vertex on the chosen side (smallest X for left, largest X for right) — that vertex
-    /// is by definition the outer surface at that Y-level. Across bands, return the one whose
-    /// recorded X is closest to the midline (<paramref name="wantPinch"/>=true) or farthest from it
-    /// (<paramref name="wantPinch"/>=false). Suits waist-pinch (<c>PinchMin/MaxX</c>) and widest-hip
-    /// (<c>BulgeMin/MaxX</c>) anchors. 20 bins balances resolution vs. noise for typical box sizes.</summary>
-    private static int? FindPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, bool leftSide, bool wantPinch)
+    /// silhouette vertex on the chosen side of the measured axis (smallest value for the "low" side,
+    /// largest for the "high" side) — that vertex is by definition the outer surface at that Y-level.
+    /// Across bands, return the one whose recorded value is closest to the midline
+    /// (<paramref name="wantPinch"/>=true) or farthest from it (<paramref name="wantPinch"/>=false).
+    /// <para><paramref name="measureAxis"/> selects the thickness axis: 0 = X (left-right, waist-pinch /
+    /// hip-bulge) or 2 = Z (front-back depth, e.g. bicep bulge). Band slicing is always along Y.
+    /// <paramref name="lowSide"/>=true picks the smaller-value side (left for X, front for Z); false
+    /// picks the larger-value side (right for X, back for Z). 20 bins balances resolution vs. noise
+    /// for typical box sizes.</para></summary>
+    private static int? FindPinchOrBulge(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, int measureAxis, bool lowSide, bool wantPinch)
     {
         const int BinCount = 20;
 
@@ -1088,7 +1133,7 @@ public static class MeasurementMath
         for (int i = 0; i < BinCount; i++)
         {
             bestIdxPerBin[i] = -1;
-            bestValPerBin[i] = leftSide ? float.MaxValue : float.MinValue;
+            bestValPerBin[i] = lowSide ? float.MaxValue : float.MinValue;
         }
 
         for (int i = 0; i < positions.Length; i++)
@@ -1100,29 +1145,30 @@ public static class MeasurementMath
             if (bin < 0) bin = 0;
             else if (bin >= BinCount) bin = BinCount - 1;
 
-            if (leftSide)
+            float a = Component(in p, measureAxis);
+            if (lowSide)
             {
-                if (p.X < bestValPerBin[bin]) { bestValPerBin[bin] = p.X; bestIdxPerBin[bin] = i; }
+                if (a < bestValPerBin[bin]) { bestValPerBin[bin] = a; bestIdxPerBin[bin] = i; }
             }
             else
             {
-                if (p.X > bestValPerBin[bin]) { bestValPerBin[bin] = p.X; bestIdxPerBin[bin] = i; }
+                if (a > bestValPerBin[bin]) { bestValPerBin[bin] = a; bestIdxPerBin[bin] = i; }
             }
         }
 
         int winnerBin = -1;
         // Initial bound is set so any real per-bin extremum "wins" on the first comparison.
         float chosenVal = wantPinch
-            ? (leftSide ? float.MinValue : float.MaxValue)  // pinch-left wants LARGEST MinX; pinch-right wants SMALLEST MaxX
-            : (leftSide ? float.MaxValue : float.MinValue); // bulge-left wants SMALLEST MinX; bulge-right wants LARGEST MaxX
+            ? (lowSide ? float.MinValue : float.MaxValue)  // pinch-low wants LARGEST min; pinch-high wants SMALLEST max
+            : (lowSide ? float.MaxValue : float.MinValue); // bulge-low wants SMALLEST min; bulge-high wants LARGEST max
 
         for (int b = 0; b < BinCount; b++)
         {
             if (bestIdxPerBin[b] < 0) continue;
             float v = bestValPerBin[b];
             bool isBest = wantPinch
-                ? (leftSide ? v > chosenVal : v < chosenVal)
-                : (leftSide ? v < chosenVal : v > chosenVal);
+                ? (lowSide ? v > chosenVal : v < chosenVal)
+                : (lowSide ? v < chosenVal : v > chosenVal);
             if (isBest) { chosenVal = v; winnerBin = b; }
         }
 
@@ -1171,59 +1217,60 @@ public static class MeasurementMath
         float bandMaxY = refinedY + bandHalf;
 
         int chosenIdx = bestIdxPerBin[winnerBin];
-        float chosenX = leftSide ? float.MaxValue : float.MinValue;
+        float chosenVal2 = lowSide ? float.MaxValue : float.MinValue;
         for (int i = 0; i < positions.Length; i++)
         {
             var p = positions[i];
             if (!cand.Contains(i, p)) continue;
             if (p.Y < bandMinY || p.Y > bandMaxY) continue;
 
-            if (leftSide)
+            float a = Component(in p, measureAxis);
+            if (lowSide)
             {
-                if (p.X < chosenX) { chosenX = p.X; chosenIdx = i; }
+                if (a < chosenVal2) { chosenVal2 = a; chosenIdx = i; }
             }
             else
             {
-                if (p.X > chosenX) { chosenX = p.X; chosenIdx = i; }
+                if (a > chosenVal2) { chosenVal2 = a; chosenIdx = i; }
             }
         }
 
         return chosenIdx;
     }
 
-    /// <summary>Joint-scan variant of <see cref="FindPinchOrBulgeX"/> used by the paired criteria.
-    /// Collects both the leftmost and rightmost silhouette vertex per Y-bin, then picks the single bin
-    /// that minimizes (pinch) or maximizes (bulge) <c>maxX − minX</c>. Returns the left or right index
-    /// of that winning bin depending on <paramref name="leftSide"/>. Because both the left and right
-    /// row call into this method, they naturally return indices from the same bin — callers get a
-    /// horizontally-aligned pair without having to communicate. Includes parabolic sub-bin refinement
-    /// on the width-vs-bin curve, matching the single-side method's behavior.</summary>
-    /// <summary>Debug-overlay snapshot of one Y-bin used by <see cref="FindPairedPinchOrBulgeX"/>.
-    /// Exposes both side-vertex indices and the resulting paired width so a viewer overlay can
+    /// <summary>Single-component accessor used by the pinch/bulge helpers so one code path serves
+    /// both the X (left-right) and Z (front-back) measure axes. 0 = X, 1 = Y, 2 = Z.</summary>
+    private static float Component(in OpenTK.Mathematics.Vector3 p, int axis) => axis == 0 ? p.X : (axis == 1 ? p.Y : p.Z);
+
+    /// <summary>Debug-overlay snapshot of one Y-bin used by <see cref="FindPairedPinchOrBulge"/>.
+    /// Exposes both side-vertex indices and the resulting paired thickness so a viewer overlay can
     /// draw one line per slice and highlight the winner. <c>HasMin</c>/<c>HasMax</c> distinguish
-    /// "no vertex found on this side" (sparse bin) from a valid pick.</summary>
+    /// "no vertex found on this side" (sparse bin) from a valid pick. <c>MinX</c>/<c>MaxX</c> and
+    /// <c>Width</c> are along the snapshot's measure axis (X for the *X family, Z for the *Z family);
+    /// the field names are historical.</summary>
     public struct BulgeBinSnapshot
     {
         public int BinIndex;
         public float BinYCenter;
         public int MinVertexIndex;
         public int MaxVertexIndex;
-        public float MinX;
-        public float MaxX;
+        public float MinX;   // min along the measure axis (X or Z); see GetPairXBinSnapshot.
+        public float MaxX;   // max along the measure axis (X or Z).
         public bool HasMin;
         public bool HasMax;
         public bool IsWinner;
-        public float Width;   // maxX - minX; only meaningful when HasMin && HasMax
+        public float Width;   // maxAxis - minAxis; only meaningful when HasMin && HasMax
     }
 
     /// <summary>Public read-only inspection of the per-Y-bin pairing used internally by
-    /// <see cref="FindPairedPinchOrBulgeX"/>. Identical binning (20 bands) and identical box
+    /// <see cref="FindPairedPinchOrBulge"/>. Identical binning (20 bands) and identical box
     /// filtering, so the returned <see cref="BulgeBinSnapshot.IsWinner"/> matches what
-    /// <see cref="FindBestInBox"/> would select for the corresponding <c>BulgePair*X</c> /
-    /// <c>PinchPair*X</c> criterion. Exposed for editor overlays — the marker resolution path
-    /// continues to use the private routine. Returns null when the box is degenerate or no
-    /// vertices fall inside it.</summary>
-    public static BulgeBinSnapshot[]? GetPairXBinSnapshot(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool wantPinch)
+    /// <see cref="FindBestInBox"/> would select for the corresponding paired criterion.
+    /// <paramref name="measureAxis"/> selects the thickness axis (0 = X for the *X waist/hip family,
+    /// 2 = Z for the *Z front-back family); band slicing is always along Y. Exposed for editor
+    /// overlays — the marker resolution path continues to use the private routine. Returns null when
+    /// the box is degenerate or no vertices fall inside it.</summary>
+    public static BulgeBinSnapshot[]? GetPairXBinSnapshot(OpenTK.Mathematics.Vector3[] positions, NamedKeyVertex kv, bool wantPinch, int measureAxis = 0)
     {
         if (positions == null || positions.Length == 0) return null;
         const int BinCount = 20;
@@ -1235,14 +1282,14 @@ public static class MeasurementMath
 
         var minIdxPerBin = new int[BinCount];
         var maxIdxPerBin = new int[BinCount];
-        var minXPerBin = new float[BinCount];
-        var maxXPerBin = new float[BinCount];
+        var minValPerBin = new float[BinCount];
+        var maxValPerBin = new float[BinCount];
         for (int i = 0; i < BinCount; i++)
         {
             minIdxPerBin[i] = -1;
             maxIdxPerBin[i] = -1;
-            minXPerBin[i] = float.MaxValue;
-            maxXPerBin[i] = float.MinValue;
+            minValPerBin[i] = float.MaxValue;
+            maxValPerBin[i] = float.MinValue;
         }
 
         for (int i = 0; i < positions.Length; i++)
@@ -1254,8 +1301,9 @@ public static class MeasurementMath
             int bin = (int)((p.Y - minY) / yRange * BinCount);
             if (bin < 0) bin = 0;
             else if (bin >= BinCount) bin = BinCount - 1;
-            if (p.X < minXPerBin[bin]) { minXPerBin[bin] = p.X; minIdxPerBin[bin] = i; }
-            if (p.X > maxXPerBin[bin]) { maxXPerBin[bin] = p.X; maxIdxPerBin[bin] = i; }
+            float a = Component(in p, measureAxis);
+            if (a < minValPerBin[bin]) { minValPerBin[bin] = a; minIdxPerBin[bin] = i; }
+            if (a > maxValPerBin[bin]) { maxValPerBin[bin] = a; maxIdxPerBin[bin] = i; }
         }
 
         int winnerBin = -1;
@@ -1263,7 +1311,7 @@ public static class MeasurementMath
         for (int b = 0; b < BinCount; b++)
         {
             if (minIdxPerBin[b] < 0 || maxIdxPerBin[b] < 0) continue;
-            float width = maxXPerBin[b] - minXPerBin[b];
+            float width = maxValPerBin[b] - minValPerBin[b];
             bool isBest = wantPinch ? width < chosenWidth : width > chosenWidth;
             if (isBest) { chosenWidth = width; winnerBin = b; }
         }
@@ -1280,18 +1328,26 @@ public static class MeasurementMath
                 BinYCenter = minY + (b + 0.5f) * binHeight,
                 MinVertexIndex = hasMin ? minIdxPerBin[b] : -1,
                 MaxVertexIndex = hasMax ? maxIdxPerBin[b] : -1,
-                MinX = hasMin ? minXPerBin[b] : 0f,
-                MaxX = hasMax ? maxXPerBin[b] : 0f,
+                MinX = hasMin ? minValPerBin[b] : 0f,
+                MaxX = hasMax ? maxValPerBin[b] : 0f,
                 HasMin = hasMin,
                 HasMax = hasMax,
                 IsWinner = b == winnerBin,
-                Width = (hasMin && hasMax) ? (maxXPerBin[b] - minXPerBin[b]) : 0f,
+                Width = (hasMin && hasMax) ? (maxValPerBin[b] - minValPerBin[b]) : 0f,
             };
         }
         return result;
     }
 
-    private static int? FindPairedPinchOrBulgeX(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, bool leftSide, bool wantPinch)
+    /// <summary>Joint-scan variant of <see cref="FindPinchOrBulge"/> used by the paired criteria.
+    /// Collects both the low-side and high-side silhouette vertex per Y-bin (along
+    /// <paramref name="measureAxis"/>), then picks the single bin that minimizes (pinch) or maximizes
+    /// (bulge) the per-bin thickness. Returns the low- or high-side index of that winning bin depending
+    /// on <paramref name="lowSide"/>. Because both rows of the pair call into this method, they
+    /// naturally return indices from the same bin — callers get an aligned pair without having to
+    /// communicate.</summary>
+
+    private static int? FindPairedPinchOrBulge(OpenTK.Mathematics.Vector3[] positions, in CandidateRegion cand, int measureAxis, bool lowSide, bool wantPinch)
     {
         const int BinCount = 20;
 
@@ -1302,14 +1358,14 @@ public static class MeasurementMath
 
         var minIdxPerBin = new int[BinCount];
         var maxIdxPerBin = new int[BinCount];
-        var minXPerBin = new float[BinCount];
-        var maxXPerBin = new float[BinCount];
+        var minValPerBin = new float[BinCount];
+        var maxValPerBin = new float[BinCount];
         for (int i = 0; i < BinCount; i++)
         {
             minIdxPerBin[i] = -1;
             maxIdxPerBin[i] = -1;
-            minXPerBin[i] = float.MaxValue;
-            maxXPerBin[i] = float.MinValue;
+            minValPerBin[i] = float.MaxValue;
+            maxValPerBin[i] = float.MinValue;
         }
 
         for (int i = 0; i < positions.Length; i++)
@@ -1321,18 +1377,19 @@ public static class MeasurementMath
             if (bin < 0) bin = 0;
             else if (bin >= BinCount) bin = BinCount - 1;
 
-            if (p.X < minXPerBin[bin]) { minXPerBin[bin] = p.X; minIdxPerBin[bin] = i; }
-            if (p.X > maxXPerBin[bin]) { maxXPerBin[bin] = p.X; maxIdxPerBin[bin] = i; }
+            float a = Component(in p, measureAxis);
+            if (a < minValPerBin[bin]) { minValPerBin[bin] = a; minIdxPerBin[bin] = i; }
+            if (a > maxValPerBin[bin]) { maxValPerBin[bin] = a; maxIdxPerBin[bin] = i; }
         }
 
-        // Per-bin width. Only bins with both sides occupied are candidates — a half-populated bin
-        // has no meaningful thickness.
+        // Per-bin thickness. Only bins with both sides occupied are candidates — a half-populated
+        // bin has no meaningful thickness.
         int winnerBin = -1;
         float chosenWidth = wantPinch ? float.MaxValue : float.MinValue;
         for (int b = 0; b < BinCount; b++)
         {
             if (minIdxPerBin[b] < 0 || maxIdxPerBin[b] < 0) continue;
-            float width = maxXPerBin[b] - minXPerBin[b];
+            float width = maxValPerBin[b] - minValPerBin[b];
             bool isBest = wantPinch ? width < chosenWidth : width > chosenWidth;
             if (isBest) { chosenWidth = width; winnerBin = b; }
         }
@@ -1351,16 +1408,21 @@ public static class MeasurementMath
         // it) shows. The sub-bin precision loss is bounded by binHeight (yRange / 20),
         // typically 0.5-0.7 model units on a thigh box, which is below the noise floor
         // of subsequent measurement ratios.
-        return leftSide ? minIdxPerBin[winnerBin] : maxIdxPerBin[winnerBin];
+        return lowSide ? minIdxPerBin[winnerBin] : maxIdxPerBin[winnerBin];
     }
 
-    /// <summary>True for the six <c>*Pair*X</c> criteria that require joint sibling resolution
-    /// (four Pinch/Bulge family + two BoneTransition family).</summary>
+    /// <summary>True for the ten paired criteria that require joint sibling resolution: the
+    /// left-right (<c>*Pair*X</c>) and front-back (<c>*Pair*Z</c>) Pinch/Bulge families plus the
+    /// two BoneTransition pairs.</summary>
     public static bool IsPairCriterion(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
         || criterion == BoundingBoxCriterion.PinchPairMaxX
         || criterion == BoundingBoxCriterion.BulgePairMinX
         || criterion == BoundingBoxCriterion.BulgePairMaxX
+        || criterion == BoundingBoxCriterion.PinchPairMinZ
+        || criterion == BoundingBoxCriterion.PinchPairMaxZ
+        || criterion == BoundingBoxCriterion.BulgePairMinZ
+        || criterion == BoundingBoxCriterion.BulgePairMaxZ
         || criterion == BoundingBoxCriterion.BoneTransitionPairMinX
         || criterion == BoundingBoxCriterion.BoneTransitionPairMaxX;
 
@@ -1382,19 +1444,45 @@ public static class MeasurementMath
         BoundingBoxCriterion.PinchPairMaxX => BoundingBoxCriterion.PinchPairMinX,
         BoundingBoxCriterion.BulgePairMinX => BoundingBoxCriterion.BulgePairMaxX,
         BoundingBoxCriterion.BulgePairMaxX => BoundingBoxCriterion.BulgePairMinX,
+        BoundingBoxCriterion.PinchPairMinZ => BoundingBoxCriterion.PinchPairMaxZ,
+        BoundingBoxCriterion.PinchPairMaxZ => BoundingBoxCriterion.PinchPairMinZ,
+        BoundingBoxCriterion.BulgePairMinZ => BoundingBoxCriterion.BulgePairMaxZ,
+        BoundingBoxCriterion.BulgePairMaxZ => BoundingBoxCriterion.BulgePairMinZ,
         BoundingBoxCriterion.BoneTransitionPairMinX => BoundingBoxCriterion.BoneTransitionPairMaxX,
         BoundingBoxCriterion.BoneTransitionPairMaxX => BoundingBoxCriterion.BoneTransitionPairMinX,
         _ => throw new ArgumentException($"Not a pair criterion: {criterion}", nameof(criterion)),
     };
 
-    private static bool IsPairLeftSide(BoundingBoxCriterion criterion)
+    /// <summary>True for the "low" (smaller-coordinate) side of a paired Pinch/Bulge/BoneTransition
+    /// criterion: left for the *X families (Min X), front for the *Z families (Min Z).</summary>
+    private static bool IsPairLowSide(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
         || criterion == BoundingBoxCriterion.BulgePairMinX
+        || criterion == BoundingBoxCriterion.PinchPairMinZ
+        || criterion == BoundingBoxCriterion.BulgePairMinZ
         || criterion == BoundingBoxCriterion.BoneTransitionPairMinX;
 
-    private static bool IsPairPinch(BoundingBoxCriterion criterion)
+    /// <summary>True when a paired Pinch/Bulge criterion is a <em>pinch</em> (narrowest band) rather
+    /// than a bulge (widest band). Covers both the *X and *Z families. Public for the editor's
+    /// debug overlay, which needs the pinch/bulge flag to drive <see cref="GetPairXBinSnapshot"/>.</summary>
+    public static bool IsPairPinch(BoundingBoxCriterion criterion)
         => criterion == BoundingBoxCriterion.PinchPairMinX
-        || criterion == BoundingBoxCriterion.PinchPairMaxX;
+        || criterion == BoundingBoxCriterion.PinchPairMaxX
+        || criterion == BoundingBoxCriterion.PinchPairMinZ
+        || criterion == BoundingBoxCriterion.PinchPairMaxZ;
+
+    /// <summary>The body axis a Pinch/Bulge criterion measures thickness along: Z (2) for the
+    /// front-back (<c>*Z</c>) single-side and paired families, X (0) for the left-right (<c>*X</c>)
+    /// families and everything else. Band slicing is always along Y regardless. Public so the
+    /// editor's paired-bin overlay can pick the same axis the resolver uses.</summary>
+    public static int PinchBulgeMeasureAxis(BoundingBoxCriterion criterion) => criterion switch
+    {
+        BoundingBoxCriterion.PinchMinZ or BoundingBoxCriterion.PinchMaxZ
+        or BoundingBoxCriterion.BulgeMinZ or BoundingBoxCriterion.BulgeMaxZ
+        or BoundingBoxCriterion.PinchPairMinZ or BoundingBoxCriterion.PinchPairMaxZ
+        or BoundingBoxCriterion.BulgePairMinZ or BoundingBoxCriterion.BulgePairMaxZ => 2,
+        _ => 0,
+    };
 
     /// <summary>Scan vertices inside the AABB filtered to one side of the X=0 midline and return the
     /// index whose Y (when <paramref name="useY"/>) or Z (otherwise) is most extreme.

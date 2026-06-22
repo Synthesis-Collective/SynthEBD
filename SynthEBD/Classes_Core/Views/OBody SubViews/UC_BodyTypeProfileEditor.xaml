@@ -439,6 +439,10 @@
                                                 Margin="10,0,0,0" Padding="6,1"
                                                 ToolTip="Sends this profile's Key Vertices to the viewer as pick markers so they can be re-visualized in a new session. References that don't resolve on the current mesh are silently skipped."/>
                                         <Button Content="Remove Selected" Command="{Binding RemoveSelectedKeyVertex}" Margin="15,0,0,0" Padding="6,1"/>
+                                        <Button Content="Add from Region"
+                                                Command="{Binding AddKeyVertexFromRegion}"
+                                                Margin="10,0,0,0" Padding="6,1"
+                                                ToolTip="Adds a new Region-strategy key vertex that scans a region's member vertices instead of an authored box, pre-pointed at the first available region. Requires at least one Region (create them on the Regions tab)."/>
                                     </StackPanel>
                                     <DataGrid x:Name="KeyVerticesGrid"
                                               ItemsSource="{Binding KeyVertices}"
