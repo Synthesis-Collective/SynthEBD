@@ -430,6 +430,10 @@
                                                   IsChecked="{Binding CapturePicks}"
                                                   VerticalAlignment="Center"
                                                   ToolTip="When enabled, every pick made in the viewer is appended to this profile's Key Vertices automatically. Toggle Pick Vertex on the viewer toolbar to start picking."/>
+                                        <CheckBox Content="Pick as coordinate"
+                                                  IsChecked="{Binding PickAsCoordinate}"
+                                                  VerticalAlignment="Center" Margin="10,0,0,0"
+                                                  ToolTip="When enabled (together with 'Capture picks from viewer'), a picked vertex is stored as a Coordinate row — its zeroed-space position, re-matched to the nearest vertex at evaluation — instead of a raw Explicit index. This makes it agnostic to vertex renumbering when body type variants are rebuilt. You can also convert an existing row by changing its Strategy dropdown to Coordinate."/>
                                         <Button Content="Capture Selected Picks"
                                                 Command="{Binding CaptureSelectedPicks}"
                                                 Margin="10,0,0,0" Padding="6,1"
@@ -526,15 +530,16 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <!-- For Explicit/BoundingBox rows this shows the box min/max; for Region rows it
-                                                 is replaced by a dropdown of region names (the candidate set comes from the
-                                                 region, not a box). Visibility is switched on Strategy via EnumEqualsToVis. -->
-                                            <DataGridTemplateColumn Header="Box / Region" Width="240">
+                                            <!-- BoundingBox rows show the box min/max; Region rows show a dropdown of region
+                                                 names (candidate set comes from the region); Coordinate rows show the stored
+                                                 zeroed-space anchor (read-only). Explicit rows show nothing here — their identity
+                                                 is the Vertex Index column. Visibility is switched on Strategy via EnumEqualsToVis. -->
+                                            <DataGridTemplateColumn Header="Box / Region / Coord" Width="240">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Grid>
                                                             <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center"
-                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=!Region}">
+                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=BoundingBox}">
                                                                 <TextBlock.Text>
                                                                     <MultiBinding StringFormat="({0:F1},{1:F1},{2:F1}) / ({3:F1},{4:F1},{5:F1})">
                                                                         <Binding Path="BoxMinX"/>
@@ -551,6 +556,10 @@
                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=Region}"
                                                                       Text="{Binding RegionRefName, UpdateSourceTrigger=PropertyChanged}"
                                                                       ToolTip="Region strategy: the region whose member vertices form the candidate set. The Criterion then picks one vertex from that set. Author regions on the Regions tab."/>
+                                                            <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center"
+                                                                       Text="{Binding CoordDisplay}"
+                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=Coordinate}"
+                                                                       ToolTip="Coordinate strategy: the picked vertex's zeroed-space (sliders-0) position. At evaluation it is matched to the nearest vertex on the current zeroed mesh, so it tracks the same anatomy even when vertex indices are renumbered by a body-mod rebuild. Re-pick (with 'Pick as coordinate' on) to move it."/>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>

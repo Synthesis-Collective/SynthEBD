@@ -474,6 +474,14 @@ public static class MeasurementCacheStore
         {
             sb.Append("I=").Append(kv.VertexIndex).Append('|');
         }
+        // Coordinate strategy: the defining identity is the stored zeroed-space position. The resolved
+        // VertexIndex is a session-volatile match cache (it can re-resolve to a neighbor across mesh
+        // states), so it's excluded — exactly as the BoundingBox/Region resolved indices are. Appended
+        // only for Coordinate, so every other strategy fingerprints byte-identically to before.
+        if (kv.Strategy == KeyVertexStrategy.Coordinate)
+        {
+            sb.Append("Co=").Append(kv.CoordX).Append(',').Append(kv.CoordY).Append(',').Append(kv.CoordZ).Append('|');
+        }
         sb.Append("Cr=").Append((int)kv.Criterion).Append('|');
         sb.Append("B=").Append(kv.BoxMinX).Append(',').Append(kv.BoxMinY).Append(',').Append(kv.BoxMinZ);
         sb.Append('-').Append(kv.BoxMaxX).Append(',').Append(kv.BoxMaxY).Append(',').Append(kv.BoxMaxZ);

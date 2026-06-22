@@ -138,6 +138,18 @@ public enum KeyVertexStrategy
     /// instead of an axis-aligned box stored on the row. Band/centerline/bone criteria derive their
     /// geometric frame from the AABB of the member vertices' deformed positions.</summary>
     Region = 2,
+
+    /// <summary>A hybrid of <see cref="Explicit"/> and <see cref="Region"/>: the author picks one exact
+    /// vertex in the viewer like Explicit, but instead of the raw index the vertex's <b>zeroed-space
+    /// position</b> (<see cref="NamedKeyVertex.CoordX"/>/<see cref="NamedKeyVertex.CoordY"/>/<see cref="NamedKeyVertex.CoordZ"/>,
+    /// captured on the sliders-0 mesh at weight 0) is stored. At evaluation the position is matched to the
+    /// nearest vertex on the current zeroed mesh by <c>RegionVolumeEvaluator.MatchNearestVertex</c>, and
+    /// that index's <em>deformed</em> position is used for the measurement. This makes the handle agnostic
+    /// to the actual vertex index — and to index renumbering when a body type variant is built — while
+    /// still naming a single precise point rather than a region + criterion.
+    /// <see cref="NamedKeyVertex.VertexIndex"/> is kept only as a non-authoritative match hint /
+    /// resolved-index cache, exactly as for <see cref="BoundingBox"/>.</summary>
+    Coordinate = 3,
 }
 
 /// <summary>Extremum to select inside a <see cref="KeyVertexStrategy.BoundingBox"/> region.
@@ -312,6 +324,9 @@ public class NamedKeyVertex
     /// When <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Explicit"/>, the literal vertex index.
     /// When Strategy = <see cref="KeyVertexStrategy.BoundingBox"/>, a cache of the last resolved index
     /// (updated each time the evaluator scans the box) — valid for marker display but recomputed per evaluation.
+    /// When Strategy = <see cref="KeyVertexStrategy.Coordinate"/>, a non-authoritative match hint plus the
+    /// last index the stored <see cref="CoordX"/>/<see cref="CoordY"/>/<see cref="CoordZ"/> position resolved
+    /// to (the authoritative data is the position, never this index).
     /// </summary>
     public int VertexIndex { get; set; } = -1;
 
@@ -335,6 +350,14 @@ public class NamedKeyVertex
     /// Only consulted when <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Region"/>. Empty (the
     /// default, and what older JSON deserializes to) leaves a Region-strategy row unresolved.</summary>
     public string RegionRefName { get; set; } = "";
+
+    /// <summary>The picked vertex's position in zeroed (sliders-0) space, captured at weight 0. Only
+    /// consulted when <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Coordinate"/>; matched to the
+    /// nearest current zeroed vertex at evaluation time (renumber-stable, like a <see cref="RegionVertexEdit"/>
+    /// position). All-zero by default, so older JSON deserializes unchanged.</summary>
+    public float CoordX { get; set; }
+    public float CoordY { get; set; }
+    public float CoordZ { get; set; }
 }
 
 /// <summary>
@@ -795,6 +818,13 @@ public static class MeasurementMath
     /// Only consulted for <see cref="KeyVertexStrategy.Region"/> key vertices (to obtain their member
     /// vertex set); pass null when no Region-strategy rows are in play.</param>
     public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, out float value)
+        => TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, null, out value);
+
+    /// <param name="zeroedShapeLookup">Per-shape zeroed (sliders-0, weight-0) positions. Consulted only by
+    /// <see cref="KeyVertexStrategy.Coordinate"/> key vertices, which match their stored position to the
+    /// nearest current zeroed vertex. Pass null when no Coordinate rows are in play — such a row then
+    /// degrades to its cached <see cref="NamedKeyVertex.VertexIndex"/>, like Explicit.</param>
+    public static bool TryEvaluate(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, ShapePositionsLookup? zeroedShapeLookup, out float value)
     {
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
@@ -802,8 +832,8 @@ public static class MeasurementMath
         int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
         if (def.VertexRefNames.Count < needed) return false;
 
-        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var a)) return false;
-        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var b)) return false;
+        if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var a)) return false;
+        if (!TryResolve(def.VertexRefNames[1], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var b)) return false;
 
         switch (def.Kind)
         {
@@ -849,8 +879,8 @@ public static class MeasurementMath
                 return true;
 
             case MeasurementKind.RatioDistance:
-                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var c)) return false;
-                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out var d)) return false;
+                if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var c)) return false;
+                if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var d)) return false;
                 float num = AxisOrLength(a - b, def.NumeratorAxis);
                 float denom = AxisOrLength(c - d, def.DenominatorAxis);
                 if (denom < 1e-6f) return false;
@@ -862,7 +892,7 @@ public static class MeasurementMath
         }
     }
 
-    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, out OpenTK.Mathematics.Vector3 pos)
+    private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, ShapePositionsLookup? zeroedShapeLookup, out OpenTK.Mathematics.Vector3 pos)
     {
         pos = default;
         if (string.IsNullOrEmpty(vertexRefName)) return false;
@@ -914,6 +944,21 @@ public static class MeasurementMath
             kv.VertexIndex = idx.Value; // cache for marker display / downstream lookups
             pos = positions[idx.Value];
             return true;
+        }
+
+        if (kv.Strategy == KeyVertexStrategy.Coordinate)
+        {
+            // Match the stored zeroed-space position to the nearest current zeroed vertex (renumber-/
+            // variant-stable, like a region vertex edit), cache the resolved index, then fall through to
+            // read its DEFORMED position below. Without a zeroed lookup (older overloads / unit tests) the
+            // cached VertexIndex is kept and the row degrades to Explicit behavior.
+            var zeroed = zeroedShapeLookup?.Invoke(kv.ShapeName);
+            if (zeroed != null && zeroed.Length > 0)
+            {
+                int matched = RegionVolumeEvaluator.MatchNearestVertex(
+                    zeroed, new OpenTK.Mathematics.Vector3(kv.CoordX, kv.CoordY, kv.CoordZ), kv.VertexIndex);
+                if (matched >= 0) kv.VertexIndex = matched; // cache for marker display / downstream lookups
+            }
         }
 
         var p = lookup(kv.ShapeName, kv.VertexIndex);

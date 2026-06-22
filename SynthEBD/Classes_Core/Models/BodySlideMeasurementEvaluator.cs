@@ -132,6 +132,11 @@ public static class BodySlideMeasurementEvaluator
         // ignores it. Surface it unconditionally — the per-criterion gate in TryResolve avoids
         // the actual fetch when the row's criterion isn't BoneTransition*.
         MeasurementMath.ShapeBoneInfoLookup boneLookup = shape => viewer.GetShapeBoneInfo(shape);
+        // Zeroed (sliders-0, weight-0) positions, consulted only by Coordinate-strategy key vertices:
+        // their stored position is matched to the nearest current zeroed vertex (renumber-/variant-stable)
+        // before the deformed position is read via `lookup`. Weight 0 is the canonical undeformed reference
+        // used at both capture and match time.
+        MeasurementMath.ShapePositionsLookup zeroedShapeLookup = shape => viewer.GetZeroedShapePositions(shape, 0);
 
         if (profile.Measurements != null)
         {
@@ -159,7 +164,7 @@ public static class BodySlideMeasurementEvaluator
                         result.FailedMeasurements[def.Name] = rreason;
                     continue;
                 }
-                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, out float v))
+                if (MeasurementMath.TryEvaluate(def, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out float v))
                 {
                     result.Measurements[def.Name] = v;
                 }

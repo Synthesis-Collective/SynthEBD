@@ -3857,6 +3857,20 @@ public class VM_BodyTypeProfile : VM
             RecomputeKeyVertexResolutionStates();
         }
 
+        // Convert-on-strategy-change: promoting a row to Coordinate captures its zeroed-space anchor from
+        // the current resolved vertex, so an Explicit/BoundingBox row can become an index-agnostic point in
+        // place. Only fills an unset (all-zero) anchor, so re-touching the dropdown never clobbers a captured
+        // one; a fresh pick — or a later marker refresh once a viewer is attached — fills it otherwise.
+        if (e.PropertyName == nameof(VM_NamedKeyVertex.Strategy)
+            && sender is VM_NamedKeyVertex coordRow
+            && coordRow.Strategy == KeyVertexStrategy.Coordinate
+            && coordRow.CoordX == 0f && coordRow.CoordY == 0f && coordRow.CoordZ == 0f
+            && ActiveViewer != null
+            && TryCaptureZeroedCoord(ActiveViewer, coordRow.ShapeName, coordRow.VertexIndex, out var ccx, out var ccy, out var ccz))
+        {
+            coordRow.CoordX = ccx; coordRow.CoordY = ccy; coordRow.CoordZ = ccz;
+        }
+
         // Invalidate the measurement cache when a field that defines which vertex this KV resolves
         // to changes — i.e. the fields the fingerprint uses (MeasurementCacheStore.AppendKeyVertex):
         // ShapeName, Strategy, Criterion, and the box coords. Without this, editing a bounding box
@@ -3877,6 +3891,11 @@ public class VM_BodyTypeProfile : VM
             case nameof(VM_NamedKeyVertex.BoxMaxX):
             case nameof(VM_NamedKeyVertex.BoxMaxY):
             case nameof(VM_NamedKeyVertex.BoxMaxZ):
+            // Coordinate anchor coords are part of the fingerprint (AppendKeyVertex), so editing them
+            // must invalidate the cache exactly like the box coords do.
+            case nameof(VM_NamedKeyVertex.CoordX):
+            case nameof(VM_NamedKeyVertex.CoordY):
+            case nameof(VM_NamedKeyVertex.CoordZ):
                 RevalidateMeasurementCacheStale();
                 break;
             case nameof(VM_NamedKeyVertex.VertexIndex):
@@ -4450,6 +4469,12 @@ public class VM_BodyTypeProfile : VM
     /// <summary>When true, key-vertex picks from any viewer add a new entry to this profile.</summary>
     public bool CapturePicks { get; set; } = false;
 
+    /// <summary>When true, a captured pick is stored as a <see cref="KeyVertexStrategy.Coordinate"/> row
+    /// (zeroed-space position, index-agnostic) instead of an Explicit row. Gated by <see cref="CapturePicks"/>
+    /// like the Explicit flow; mutually a refinement of it, not an independent pick mode (the viewer's
+    /// vertex-pick mode still has to be on to register a click).</summary>
+    public bool PickAsCoordinate { get; set; } = false;
+
     /// <summary>Mirror of the viewer toolbar's <c>VM_CharacterViewer.ShowBulgeBinOverlay</c>
     /// checkbox, wired up in <see cref="AttachViewer"/>. When true, the editor draws one
     /// line per Y-bin used by the paired Pinch/Bulge X algorithm against the
@@ -4970,11 +4995,37 @@ public class VM_BodyTypeProfile : VM
             ShapeName = shapeName,
             VertexIndex = pick.VertexIndex,
         };
+        // "Pick as Coordinate": store the picked vertex as an index-agnostic zeroed-space anchor
+        // (re-matched to the nearest zeroed vertex at evaluation). The position is captured from the
+        // sliders-0 weight-0 mesh; the picked index is kept only as the match hint.
+        if (PickAsCoordinate)
+        {
+            model.Strategy = KeyVertexStrategy.Coordinate;
+            if (TryCaptureZeroedCoord(viewer, shapeName, pick.VertexIndex, out var cx, out var cy, out var cz))
+            {
+                model.CoordX = cx; model.CoordY = cy; model.CoordZ = cz;
+            }
+        }
         var vm = new VM_NamedKeyVertex(model, this);
         KeyVertices.Add(vm);
         SelectedKeyVertex = vm;
 
         RefreshMeasurementValues();
+    }
+
+    /// <summary>Reads a vertex's zeroed-space (sliders-0, weight-0) position from <paramref name="viewer"/>
+    /// for capturing a <see cref="KeyVertexStrategy.Coordinate"/> anchor. Returns false (zeroed outputs) when
+    /// the viewer/shape isn't available or the index is out of range — the caller then leaves the anchor
+    /// unset, to be filled on the next marker refresh once geometry is present.</summary>
+    private static bool TryCaptureZeroedCoord(VM_CharacterViewer viewer, string shapeName, int vertexIndex, out float x, out float y, out float z)
+    {
+        x = y = z = 0f;
+        if (viewer == null || string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return false;
+        var zeroed = viewer.GetZeroedShapePositions(shapeName, 0);
+        if (zeroed == null || vertexIndex >= zeroed.Length) return false;
+        var p = zeroed[vertexIndex];
+        x = p.X; y = p.Y; z = p.Z;
+        return true;
     }
 
     /// <summary>
@@ -6320,6 +6371,7 @@ public class VM_BodyTypeProfile : VM
                 shape => viewer.GetShapePositions(shape),
                 shape => viewer.GetShapeBoneInfo(shape),
                 resolvedRegions,
+                shape => viewer.GetZeroedShapePositions(shape, 0),
                 out float v))
             {
                 m.LiveValue = v;
@@ -6567,6 +6619,42 @@ public class VM_BodyTypeProfile : VM
             if (oldIdx >= 0 && oldIdx != idx.Value)
             {
                 viewer.MigrateKeyVertexPick(shapeName, oldIdx, idx.Value);
+            }
+        }
+
+        // Coordinate rows resolve differently from BoundingBox/Region: the stored zeroed-space anchor is
+        // matched to the nearest vertex on the CURRENT zeroed (sliders-0, weight-0) mesh — renumber-/
+        // variant-stable — and the resolved index is cached so the preview marker lands on the right vertex.
+        // Per-shape zeroed arrays are fetched once.
+        var zeroedCache = new Dictionary<string, OpenTK.Mathematics.Vector3[]?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in KeyVertices)
+        {
+            if (kv.Strategy != KeyVertexStrategy.Coordinate) continue;
+            if (string.IsNullOrEmpty(kv.ShapeName)) continue;
+            if (!zeroedCache.TryGetValue(kv.ShapeName, out var zeroed))
+            {
+                zeroed = viewer.GetZeroedShapePositions(kv.ShapeName, 0);
+                zeroedCache[kv.ShapeName] = zeroed;
+            }
+            if (zeroed == null || zeroed.Length == 0) continue;
+
+            // Late capture: a row promoted to Coordinate while no viewer was attached has an unset
+            // (all-zero) anchor but a valid hint index — fill the anchor from that index now.
+            if (kv.CoordX == 0f && kv.CoordY == 0f && kv.CoordZ == 0f
+                && kv.VertexIndex >= 0 && kv.VertexIndex < zeroed.Length)
+            {
+                var c = zeroed[kv.VertexIndex];
+                kv.CoordX = c.X; kv.CoordY = c.Y; kv.CoordZ = c.Z;
+            }
+
+            int matched = RegionVolumeEvaluator.MatchNearestVertex(
+                zeroed, new OpenTK.Mathematics.Vector3(kv.CoordX, kv.CoordY, kv.CoordZ), kv.VertexIndex);
+            if (matched < 0) continue;
+            int oldCoordIdx = kv.VertexIndex;
+            kv.VertexIndex = matched;
+            if (oldCoordIdx >= 0 && oldCoordIdx != matched)
+            {
+                viewer.MigrateKeyVertexPick(kv.ShapeName, oldCoordIdx, matched);
             }
         }
     }
@@ -9854,6 +9942,9 @@ public class VM_NamedKeyVertex : VM
         BoxMaxZ = source.BoxMaxZ;
         Criterion = source.Criterion;
         RegionRefName = source.RegionRefName ?? "";
+        CoordX = source.CoordX;
+        CoordY = source.CoordY;
+        CoordZ = source.CoordZ;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -9880,6 +9971,18 @@ public class VM_NamedKeyVertex : VM
     /// <summary>Region names available to the Region-strategy dropdown, sourced from the parent profile's
     /// Regions tab (the same list the RegionVolume measurement dropdown uses).</summary>
     public IEnumerable<string> AvailableRegionNames => _parent.AvailableRegionNames;
+
+    /// <summary>The picked vertex's zeroed-space (sliders-0, weight-0) position. Only meaningful when
+    /// <see cref="Strategy"/> = <see cref="KeyVertexStrategy.Coordinate"/>; captured at pick time (or when
+    /// a row is converted to Coordinate) and matched to the nearest current zeroed vertex at evaluation.</summary>
+    public float CoordX { get; set; }
+    public float CoordY { get; set; }
+    public float CoordZ { get; set; }
+
+    /// <summary>Read-only label for the Coordinate row's stored anchor, shown in the "Box / Region / Coord"
+    /// grid cell. Recomputed by Fody whenever any of <see cref="CoordX"/>/<see cref="CoordY"/>/<see cref="CoordZ"/>
+    /// changes.</summary>
+    public string CoordDisplay => $"({CoordX:0.##}, {CoordY:0.##}, {CoordZ:0.##})";
 
     /// <summary>True when at least one other row in the parent profile's <see cref="VM_BodyTypeProfile.KeyVertices"/>
     /// collection has the same <see cref="Name"/> (Ordinal, trimmed). Driven by
@@ -9915,6 +10018,9 @@ public class VM_NamedKeyVertex : VM
         BoxMaxZ = BoxMaxZ,
         Criterion = Criterion,
         RegionRefName = RegionRefName?.Trim() ?? "",
+        CoordX = CoordX,
+        CoordY = CoordY,
+        CoordZ = CoordZ,
     };
 }
 

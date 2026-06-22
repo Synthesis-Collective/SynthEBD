@@ -296,6 +296,43 @@ public static class RegionVolumeEvaluator
         return result;
     }
 
+    /// <summary>
+    /// Resolves a single stored zeroed-space position to a vertex index on the current mesh — the
+    /// matcher behind the <see cref="KeyVertexStrategy.Coordinate"/> key-vertex strategy, and a
+    /// single-point sibling of <see cref="MatchVertexEdits"/>. <paramref name="indexHint"/> is tried
+    /// first and returned immediately when it still sits within <paramref name="hintEps"/> of the
+    /// stored position (the unchanged-mesh fast path / a no-renumber load). Otherwise the
+    /// <b>global nearest</b> vertex is returned with no distance rejection, so the handle tracks the
+    /// same anatomy onto a renumbered or morphed body-type variant where the corresponding vertex has
+    /// shifted well beyond any epsilon. Returns -1 only when <paramref name="positions"/> is null/empty.
+    /// <para>This differs deliberately from <see cref="MatchVertexEdits"/>, which rejects matches past
+    /// its epsilon (a curated region edit that finds no near vertex is a miss to log, not a far guess):
+    /// a Coordinate key vertex is a single anchor that should always resolve to its closest counterpart,
+    /// however far the body moved under it.</para>
+    /// </summary>
+    public static int MatchNearestVertex(Vector3[] positions, Vector3 storedPos, int indexHint = -1, float hintEps = DefaultVertexEditMatchEps)
+    {
+        if (positions == null || positions.Length == 0) return -1;
+
+        // 1. Trust the hint only if it still sits on the stored position (survives a no-renumber load).
+        if (indexHint >= 0 && indexHint < positions.Length
+            && (positions[indexHint] - storedPos).LengthSquared <= hintEps * hintEps)
+        {
+            return indexHint;
+        }
+
+        // 2. Global nearest (renumber-/variant-stable). No eps cap: a Coordinate anchor always resolves
+        // to its closest counterpart, so it tracks anatomy across a rebuilt/renumbered body variant.
+        int best = 0;
+        float bestSq = (positions[0] - storedPos).LengthSquared;
+        for (int i = 1; i < positions.Length; i++)
+        {
+            float d = (positions[i] - storedPos).LengthSquared;
+            if (d < bestSq) { bestSq = d; best = i; }
+        }
+        return best;
+    }
+
     // ------------------------------------------------------------------ public math
 
     /// <summary>Six times the signed volume of the tetrahedron (origin, a, b, c): (a × b) · c. Computed in double precision.</summary>
