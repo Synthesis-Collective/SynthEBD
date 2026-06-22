@@ -177,6 +177,14 @@ public static class BodySlideMeasurementEvaluator
         // work (and produce wrong descriptors that the post-scan rebuild would overwrite).
         if (skipRules) return result;
 
+        // De-dup descriptors emitted by multiple matching rules (and by the default pass) so a
+        // single (Category, Value) doesn't appear twice in the output.
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // Match set fed to DescriptorRef conditions, and the source of truth for which Categories
+        // already produced a descriptor (so the default pass below knows which Categories to skip).
+        // Stays empty on the first rule pass for any non-aggregator rule (which is fine — they ignore it).
+        var matched = new HashSet<(string Category, string Value)>();
+
         if (profile.Rules != null)
         {
             // Aggregator rules (any condition with Kind=DescriptorRef) need to fire AFTER the
@@ -200,13 +208,6 @@ public static class BodySlideMeasurementEvaluator
 
             var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out var skipped);
 
-            // De-dup descriptors emitted by multiple matching rules so a single (Category, Value)
-            // doesn't appear twice in the output.
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            // Match set fed to DescriptorRef conditions. Stays empty on the first pass for any
-            // non-aggregator rule (which is fine — they ignore it).
-            var matched = new HashSet<(string Category, string Value)>();
-
             foreach (var rule in ordered)
             {
                 if (!MeasurementMath.RuleMatches(rule, result.Measurements, matched)) continue;
@@ -219,7 +220,50 @@ public static class BodySlideMeasurementEvaluator
             }
         }
 
+        // Per-Category default fallback: for any Category with a configured default that produced
+        // NO rule descriptor on this evaluation, emit the default value (tagged Classifier, exactly
+        // like a rule output). Runs even when the profile has no rules — a Category whose rules all
+        // failed (or that has none) "falls into" its default. Gender filtering is implicit: only
+        // gender-eligible rules populated `matched`, so a male-only rule that didn't fire for a
+        // female preset leaves the Category open to its default here.
+        foreach (var def in ComputeDefaultDescriptors(profile.DefaultDescriptorValuesByCategory, matched))
+        {
+            string key = def.Category + "::" + def.Value;
+            if (!seen.Add(key)) continue;
+            result.Descriptors.Add(new AnnotatedDescriptorSignature(def, BodyShapeAnnotationSource.Classifier));
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Computes the per-Category default descriptors to emit after the rule pass: for each
+    /// (Category -> Value) in <paramref name="defaultsByCategory"/> whose Category produced
+    /// <b>no</b> descriptor during the rule pass (i.e. no entry in <paramref name="matchedDescriptors"/>
+    /// has that Category), yields a (Category, Value) signature. Blank entries and Categories that
+    /// already matched are skipped. Pure / allocation-light (no side effects) and shared by
+    /// <see cref="Evaluate"/> and the editor's cache-rederive path
+    /// (<c>VM_BodyTypeProfile.DeriveDescriptorsFor</c>) so both produce identical defaults.
+    /// </summary>
+    public static IEnumerable<BodyShapeDescriptor.LabelSignature> ComputeDefaultDescriptors(
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        IReadOnlyCollection<(string Category, string Value)> matchedDescriptors)
+    {
+        if (defaultsByCategory == null || defaultsByCategory.Count == 0) yield break;
+
+        // Categories that already produced a descriptor — those are "covered" and get no default.
+        var matchedCategories = new HashSet<string>(StringComparer.Ordinal);
+        if (matchedDescriptors != null)
+            foreach (var m in matchedDescriptors) matchedCategories.Add(m.Category);
+
+        foreach (var pair in defaultsByCategory)
+        {
+            string category = pair.Key;
+            string value = pair.Value;
+            if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(value)) continue;
+            if (matchedCategories.Contains(category)) continue;
+            yield return new BodyShapeDescriptor.LabelSignature { Category = category, Value = value };
+        }
     }
 
     /// <summary>

@@ -967,7 +967,19 @@
                                                     <TextBlock Text="{Binding DisplayLabel}" FontWeight="Bold"/>
                                                 </HierarchicalDataTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_RuleTreeValueNode}">
-                                                    <TextBlock Text="{Binding DisplayLabel}"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+                                                        <!-- Per-value "Make Default" toggle. The default is the descriptor Value
+                                                             a preset falls into when no rule in this Category matches. Visibility
+                                                             (ShowMakeDefault) hides this on every other Value once one is marked
+                                                             default, so a Category can have at most one default. -->
+                                                        <CheckBox Content="Make Default"
+                                                                  Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                  FontSize="10" Foreground="Gray"
+                                                                  IsChecked="{Binding IsDefault, Mode=TwoWay}"
+                                                                  Visibility="{Binding ShowMakeDefault, Converter={StaticResource BoolToVis}}"
+                                                                  ToolTip="Make this the default value for its category. Any preset that matches no other rule in this category falls back to this value. Only one value per category can be the default."/>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </TreeView.Resources>
                                         </TreeView>

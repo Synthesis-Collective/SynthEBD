@@ -68,6 +68,21 @@ public class BodyTypeProfile
     public List<MeasurementRule> Rules { get; set; } = new();
 
     /// <summary>
+    /// Optional per-Category fallback descriptor value. Key = descriptor Category, Value = the
+    /// descriptor Value a preset receives for that Category when <b>no</b> <see cref="Rules"/> rule
+    /// in the same Category matched during evaluation. A Category absent from this map has no default
+    /// (the pre-feature behavior — a preset matching no rule in the Category simply gets no descriptor
+    /// for it). Authored on the editor's Rules tab via the per-value "Make Default" checkbox; at most
+    /// one Value per Category may be the default (a dictionary keyed by Category enforces this).
+    /// <para>Applied by <see cref="BodySlideMeasurementEvaluator.Evaluate"/> (and the editor's
+    /// cache-rederive path) <i>after</i> the rule pass, emitted with <c>Source = Classifier</c> exactly
+    /// like a rule-produced descriptor, so it merges into and persists in
+    /// <see cref="BodySlideSetting.BodyShapeDescriptorsByWeight"/> identically. Empty by default so
+    /// existing profiles deserialize unchanged.</para>
+    /// </summary>
+    public Dictionary<string, string> DefaultDescriptorValuesByCategory { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Per-preset descriptor annotations from the new "Label-then-suggest" workflow. Each entry
     /// records the full descriptor signatures the user assigned to one (preset, gender, weight)
     /// slice. Persisted as drafts and used as input to the Suggest Measurements / Suggest Rules

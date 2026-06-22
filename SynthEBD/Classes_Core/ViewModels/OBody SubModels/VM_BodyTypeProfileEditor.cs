@@ -3300,6 +3300,14 @@ public class VM_BodyTypeProfile : VM
                 Rules.Add(new VM_MeasurementRule(r, this));
             }
         }
+        if (_source.DefaultDescriptorValuesByCategory != null)
+        {
+            foreach (var kv in _source.DefaultDescriptorValuesByCategory)
+            {
+                if (string.IsNullOrEmpty(kv.Key) || string.IsNullOrEmpty(kv.Value)) continue;
+                _defaultValueByCategory[kv.Key] = kv.Value;
+            }
+        }
         if (_source.PresetAnnotations != null)
         {
             foreach (var pa in _source.PresetAnnotations)
@@ -4118,6 +4126,15 @@ public class VM_BodyTypeProfile : VM
     public ObservableCollection<VM_MeasurementDefinition> Measurements { get; } = new();
     public ObservableCollection<VM_MeasurementRule> Rules { get; } = new();
 
+    /// <summary>Per-Category default descriptor value (Category -> Value): the in-VM mirror of
+    /// <see cref="BodyTypeProfile.DefaultDescriptorValuesByCategory"/>. Authored via the Rules-tab
+    /// tree's per-value "Make Default" checkbox; at most one Value per Category (a Category key maps
+    /// to a single Value). Tree nodes are transient (recreated by <see cref="RebuildRuleTree"/>) so
+    /// they read/write this canonical map through <see cref="GetDefaultValueForCategory"/> /
+    /// <see cref="SetDefaultValueForCategory"/> rather than holding their own state — the choice
+    /// survives every tree rebuild. Loaded in the ctor and written back by <see cref="DumpToModel"/>.</summary>
+    private readonly Dictionary<string, string> _defaultValueByCategory = new(StringComparer.Ordinal);
+
     /// <summary>Tree representation of the Rules tab. One <see cref="VM_RuleTreeCategoryNode"/>
     /// per distinct <c>Category</c> in <see cref="VM_BodyTypeProfileEditor.AvailableDescriptors"/>,
     /// each with one <see cref="VM_RuleTreeValueNode"/> per <c>Value</c>. Rebuilt by
@@ -4798,6 +4815,51 @@ public class VM_BodyTypeProfile : VM
             .Where(v => !string.IsNullOrWhiteSpace(v))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(v => v, StringComparer.Ordinal);
+    }
+
+    /// <summary>The default descriptor Value configured for <paramref name="category"/>, or "" when
+    /// the Category has no default. Reads the canonical <see cref="_defaultValueByCategory"/> map so
+    /// the answer is stable across <see cref="RebuildRuleTree"/>. Called by every
+    /// <see cref="VM_RuleTreeValueNode"/> to compute its <c>IsDefault</c> / <c>ShowMakeDefault</c>.</summary>
+    public string GetDefaultValueForCategory(string category)
+    {
+        if (string.IsNullOrEmpty(category)) return "";
+        return _defaultValueByCategory.TryGetValue(category, out var v) ? v ?? "" : "";
+    }
+
+    /// <summary>Sets (or, when <paramref name="value"/> is null/blank, clears) the default descriptor
+    /// Value for <paramref name="category"/>. At most one default per Category — setting a new Value
+    /// replaces whatever was previously default, which is exactly the "checking Make Default un-defaults
+    /// the prior value" behavior the Rules tab needs. No-ops when nothing changes. On a real change it
+    /// re-signals every tree node in the affected Category (so all siblings' checkbox state + visibility
+    /// refresh at once) and marks scan results stale, since the default changes which descriptors
+    /// presets derive (the debounced cache-rederive picks it up — see <see cref="MarkScanResultsStale"/>).</summary>
+    public void SetDefaultValueForCategory(string category, string value)
+    {
+        if (string.IsNullOrEmpty(category)) return;
+        string newVal = value?.Trim() ?? "";
+        string curVal = GetDefaultValueForCategory(category);
+        if (string.Equals(curVal, newVal, StringComparison.Ordinal)) return;
+
+        if (string.IsNullOrEmpty(newVal)) _defaultValueByCategory.Remove(category);
+        else _defaultValueByCategory[category] = newVal;
+
+        RefreshDefaultStateForCategory(category);
+        MarkScanResultsStale();
+    }
+
+    /// <summary>Re-raises <c>IsDefault</c> / <c>ShowMakeDefault</c> change notifications on every
+    /// value node under <paramref name="category"/>'s tree node. Those properties are computed from
+    /// <see cref="_defaultValueByCategory"/> (backing state outside the node), so Fody can't auto-notify
+    /// when a sibling flips the default — this hand-signals all of them after a default change.</summary>
+    private void RefreshDefaultStateForCategory(string category)
+    {
+        foreach (var catNode in RuleTreeCategories)
+        {
+            if (catNode == null || !string.Equals(catNode.Category, category, StringComparison.Ordinal)) continue;
+            foreach (var valNode in catNode.Values) valNode?.RefreshDefaultState();
+            break;
+        }
     }
 
     /// <summary>Returns the subset of <see cref="AvailableDescriptors"/> that the
@@ -8022,6 +8084,7 @@ public class VM_BodyTypeProfile : VM
             Regions = Regions.Select(r => r.DumpToModel()).ToList(),
             Measurements = Measurements.Select(m => m.DumpToModel()).ToList(),
             Rules = Rules.Select(r => r.DumpToModel()).ToList(),
+            DefaultDescriptorValuesByCategory = new Dictionary<string, string>(_defaultValueByCategory, StringComparer.Ordinal),
             PresetAnnotations = PresetAnnotations.Select(CloneAnnotation).ToList(),
             AnnotatorPrefs = CloneAnnotatorPrefs(AnnotatorPrefs),
         };
@@ -9432,6 +9495,16 @@ public class VM_BodyTypeProfile : VM
                 _parent.AvailableDescriptors.RemoveAt(i);
             }
         }
+
+        // If the deleted Value was its Category's default, clear it so no dangling default
+        // lingers in the map after the catalog entry is gone. Clearing also re-shows the
+        // "Make Default" checkbox on any surviving sibling (RefreshDefaultStateForCategory runs
+        // against the rebuilt tree). Catalog removal already triggers RebuildRuleTree via
+        // AvailableDescriptors.CollectionChanged, so the node set is current by the time this runs.
+        if (string.Equals(GetDefaultValueForCategory(category), value, StringComparison.Ordinal))
+        {
+            SetDefaultValueForCategory(category, "");
+        }
     }
 
     /// <summary>Re-derives one cache entry's descriptor list by running the profile's
@@ -9445,7 +9518,7 @@ public class VM_BodyTypeProfile : VM
     {
         var result = new List<BodyShapeDescriptor.LabelSignature>();
         if (!MeasurementCache.TryGetValue(key, out var entry)) return result;
-        if (profileModel?.Rules == null) return result;
+        if (profileModel == null) return result;
 
         // RuleMatches expects float values, not float?. A null cache entry means the
         // evaluator failed to compute that measurement, so any rule depending on it
@@ -9459,15 +9532,18 @@ public class VM_BodyTypeProfile : VM
         // rules see the matched set, then iterate. Gender is taken from the cache key — every
         // cached entry was scanned with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = new List<MeasurementRule>();
-        foreach (var rule in profileModel.Rules)
+        if (profileModel.Rules != null)
         {
-            if (rule == null) continue;
-            if (rule.IsDraft && !includeDrafts) continue;
-            if (rule.Descriptor == null
-                || string.IsNullOrEmpty(rule.Descriptor.Category)
-                || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
-            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, key.Gender)) continue;
-            eligible.Add(rule);
+            foreach (var rule in profileModel.Rules)
+            {
+                if (rule == null) continue;
+                if (rule.IsDraft && !includeDrafts) continue;
+                if (rule.Descriptor == null
+                    || string.IsNullOrEmpty(rule.Descriptor.Category)
+                    || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
+                if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, key.Gender)) continue;
+                eligible.Add(rule);
+            }
         }
         var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out _);
 
@@ -9486,6 +9562,16 @@ public class VM_BodyTypeProfile : VM
                 Category = rule.Descriptor.Category,
                 Value = rule.Descriptor.Value,
             });
+        }
+
+        // Mirror BodySlideMeasurementEvaluator.Evaluate's default pass so the editor's cached
+        // Match-Presets display agrees with a fresh evaluation: emit each Category's default for
+        // any Category that produced no rule descriptor on this slice.
+        foreach (var def in BodySlideMeasurementEvaluator.ComputeDefaultDescriptors(profileModel.DefaultDescriptorValuesByCategory, matched))
+        {
+            string k = def.Category + "::" + def.Value;
+            if (!seen.Add(k)) continue;
+            result.Add(new BodyShapeDescriptor.LabelSignature { Category = def.Category, Value = def.Value });
         }
         return result;
     }
@@ -10656,6 +10742,45 @@ public class VM_RuleTreeValueNode : VM
     public int RuleCount { get; set; }
 
     public string DisplayLabel => RuleCount > 0 ? $"{Value} ({RuleCount})" : Value;
+
+    /// <summary>True when this Value is its Category's default fallback (the value a preset receives
+    /// when no rule in the Category matches). TwoWay-bound to the Rules-tab "Make Default" checkbox.
+    /// Delegates to the parent profile's canonical map (<see cref="VM_BodyTypeProfile.GetDefaultValueForCategory"/>)
+    /// so the choice survives <see cref="VM_BodyTypeProfile.RebuildRuleTree"/>; the setter routes through
+    /// <see cref="VM_BodyTypeProfile.SetDefaultValueForCategory"/>, which replaces any sibling that was
+    /// previously the default (enforcing one-default-per-Category) and re-signals every sibling node.
+    /// Not an auto-property — Fody can't weave it because the backing state lives on the parent.</summary>
+    public bool IsDefault
+    {
+        get => string.Equals(_parent.GetDefaultValueForCategory(Category), Value, StringComparison.Ordinal);
+        set => _parent.SetDefaultValueForCategory(Category, value ? Value : "");
+    }
+
+    /// <summary>Whether the "Make Default" checkbox is shown for this Value. Visible when this Value is
+    /// already the default (so the user can un-set it) or when the Category has no default yet; hidden
+    /// once a <i>different</i> Value in the same Category becomes the default — so only one default can
+    /// ever be chosen, which is the requested "checking it hides Make Default for all other values in
+    /// the category" behavior. Computed on demand from the parent map and re-signalled via
+    /// <see cref="RefreshDefaultState"/> whenever any sibling changes.</summary>
+    public bool ShowMakeDefault
+    {
+        get
+        {
+            string cur = _parent.GetDefaultValueForCategory(Category);
+            return string.IsNullOrEmpty(cur) || string.Equals(cur, Value, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>Re-raises change notification for the computed <see cref="IsDefault"/> and
+    /// <see cref="ShowMakeDefault"/> properties. Their backing state lives on the parent profile, so
+    /// Fody can't auto-notify when a sibling flips the Category's default — the profile calls this on
+    /// every node in the Category after a default change so each checkbox refreshes its checked state
+    /// and visibility together.</summary>
+    public void RefreshDefaultState()
+    {
+        ManuallyRaisePropertyChanged(nameof(IsDefault));
+        ManuallyRaisePropertyChanged(nameof(ShowMakeDefault));
+    }
 }
 
 /// <summary>Row VM for the Rules-tab "presets matching this rule node" list. One row per
