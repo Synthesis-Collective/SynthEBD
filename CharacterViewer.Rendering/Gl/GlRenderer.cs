@@ -1287,11 +1287,13 @@ public class GlRenderer : IDisposable
     /// the SSAO output FBO at the current viewport size. Same lifecycle
     /// as the host's MSAA FBO: re-allocated when the viewport size
     /// changes, otherwise reused across renders.</summary>
-    private void EnsureSsaoFbos(int width, int height)
+    /// <summary>Deletes the viewport-sized SSAO / depth-prepass FBOs and their
+    /// attachments (the resources EnsureSsaoFbos reallocates on a size change),
+    /// resetting each handle to -1. Does NOT touch _ssaoNoiseTex, which is created
+    /// once and reused across resizes -- Dispose deletes that separately. Shared by
+    /// the resize path and Dispose so the teardown set stays in one place.</summary>
+    private void DestroySsaoFbos()
     {
-        if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
-
-        // Tear down existing resources before reallocating.
         if (_depthPrepassDepthTex != -1) { GL.DeleteTexture(_depthPrepassDepthTex); _depthPrepassDepthTex = -1; }
         if (_depthPrepassNormalTex != -1) { GL.DeleteTexture(_depthPrepassNormalTex); _depthPrepassNormalTex = -1; }
         if (_depthPrepassFbo != -1) { GL.DeleteFramebuffer(_depthPrepassFbo); _depthPrepassFbo = -1; }
@@ -1299,6 +1301,14 @@ public class GlRenderer : IDisposable
         if (_ssaoFbo != -1) { GL.DeleteFramebuffer(_ssaoFbo); _ssaoFbo = -1; }
         if (_ssaoBlurTex != -1) { GL.DeleteTexture(_ssaoBlurTex); _ssaoBlurTex = -1; }
         if (_ssaoBlurFbo != -1) { GL.DeleteFramebuffer(_ssaoBlurFbo); _ssaoBlurFbo = -1; }
+    }
+
+    private void EnsureSsaoFbos(int width, int height)
+    {
+        if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
+
+        // Tear down existing resources before reallocating.
+        DestroySsaoFbos();
 
         // Depth prepass texture: depth-only single-sample so SSAO can
         // sample it with bilinear filtering.
@@ -2170,8 +2180,34 @@ public class GlRenderer : IDisposable
             _shader?.Dispose();
             _debugShader?.Dispose();
             _wireframeShader?.Dispose();
+
+            // The shadow + SSAO shader programs, the default cubemap, the SSAO
+            // fullscreen VAO, and the lazily-created shadow / SSAO FBOs were all
+            // created in Initialize()/EnsureShadowFbo()/EnsureSsaoFbos() but were
+            // previously NOT deleted here. A fresh GlRenderer is built and disposed
+            // for every offscreen mugshot, so each render leaked these GL objects.
+            // Driver-side program/texture/FBO memory is unmanaged (invisible to the
+            // GC), which is the source of the monotonic native memory climb during
+            // batch mugshot generation. Keep this symmetric with the resource set
+            // enumerated in ForgetResourcesFromDeadContext().
+            _shadowShader?.Dispose();
+            _depthOnlyShader?.Dispose();
+            _ssaoShader?.Dispose();
+            _ssaoBlurShader?.Dispose();
+
             if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
             if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
+            if (_ssaoFullscreenVao != -1) GL.DeleteVertexArray(_ssaoFullscreenVao);
+            if (_defaultBlackCubemap != -1) GL.DeleteTexture(_defaultBlackCubemap);
+
+            // Shadow FBO + depth texture (created lazily by EnsureShadowFbo).
+            if (_shadowDepthTex != -1) GL.DeleteTexture(_shadowDepthTex);
+            if (_shadowFbo != -1) GL.DeleteFramebuffer(_shadowFbo);
+
+            // Viewport-sized SSAO / depth-prepass FBOs + the once-created noise tex.
+            DestroySsaoFbos();
+            if (_ssaoNoiseTex != -1) GL.DeleteTexture(_ssaoNoiseTex);
+
             _disposed = true;
         }
     }
