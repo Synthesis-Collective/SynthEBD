@@ -68,23 +68,40 @@ public class CharacterPreviewCache
     private readonly object _meshPathsLock = new();
     private object? _meshPathsInvalidationToken;
 
-    // Sized for ~4 full NPCs' worth of unique diffuse/normal/specular/env maps
-    // (head + body + hands + feet + hair ≈ 30 textures each). LRU eviction is
-    // enough since the preset-switch hot path reloads the same NPC's textures.
-    private const int PixelCacheMaxEntries = 128;
+    // Decoded BGRA32 pixel buffers, evicted by a dynamic byte budget rather than a
+    // fixed entry count: a 4K texture is ~16x the bytes of a 1K one, so a count cap
+    // could mean anywhere from a few hundred MB to several GB of resident pixels.
+    // The budget tracks free system RAM (see SystemMemoryBudget) so the cache grows
+    // to use spare memory on a big machine and shrinks on a constrained one. This is
+    // the dominant in-RAM cache, so it gets the largest share of free RAM, and its
+    // ceiling is a share of total RAM (not a fixed cap) so a high-RAM host running
+    // batched 4K/8K renders isn't throttled.
+    private const long PixelCacheMinBudgetBytes = 64L * 1024 * 1024;        // 64 MB floor
+    private const double PixelCacheMaxFractionOfTotal = 0.6;                // ceiling: 60% of RAM
+    private const double PixelCacheFreeRamFraction = 0.5;
+    private const int PixelCacheRepollEveryAdds = 32;
     private readonly Dictionary<string, DdsPixels?> _pixelCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _pixelLru = new();
     private readonly object _pixelLock = new();
+    private long _pixelBytes;
+    private long _pixelBudgetBytes;
+    private int _pixelAddsSinceRepoll;
 
-    // Parallel cache for cubemap DDS payloads. Kept separate from _pixelCache
-    // because the value type differs (six face buffers vs one) and a single
-    // texture path can't legitimately be both at once. Sized smaller — the
-    // typical NPC pulls one envmap (and many share the default cubemap), so
-    // 16 slots covers a working set of ~16 distinct cubemaps.
-    private const int CubemapCacheMaxEntries = 16;
+    // Parallel cache for cubemap DDS payloads (six face buffers each). Kept
+    // separate from _pixelCache because the value type differs and a single
+    // texture path can't legitimately be both at once. Byte-budgeted like the
+    // pixel cache but with a much smaller share of free RAM: a typical NPC pulls
+    // one envmap and many share the default cubemap, so the working set is tiny.
+    private const long CubemapCacheMinBudgetBytes = 16L * 1024 * 1024;       // 16 MB floor
+    private const double CubemapCacheMaxFractionOfTotal = 0.1;               // ceiling: 10% of RAM
+    private const double CubemapCacheFreeRamFraction = 0.1;
+    private const int CubemapCacheRepollEveryAdds = 8;
     private readonly Dictionary<string, DdsCubemapPixels?> _cubemapCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _cubemapLru = new();
     private readonly object _cubemapLock = new();
+    private long _cubemapBytes;
+    private long _cubemapBudgetBytes;
+    private int _cubemapAddsSinceRepoll;
 
     // Cumulative wall-clock spent in actual DDS decode (cache misses only — hits
     // don't reach the decode call). Lets a profiling host snapshot the delta
@@ -124,6 +141,11 @@ public class CharacterPreviewCache
         _logger = logger;
         _logGate = logGate;
         MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver);
+
+        _pixelBudgetBytes = SystemMemoryBudget.Compute(
+            0, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
+        _cubemapBudgetBytes = SystemMemoryBudget.Compute(
+            0, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
     }
 
     /// <summary>
@@ -242,11 +264,27 @@ public class CharacterPreviewCache
 
             _pixelCache[relativeGamePath] = decoded;
             _pixelLru.AddFirst(relativeGamePath);
-            while (_pixelLru.Count > PixelCacheMaxEntries)
+            _pixelBytes += decoded.Value.Data.Length;
+
+            // Periodically re-evaluate the budget against current free RAM so the
+            // cache expands into spare memory and contracts when it tightens.
+            if (++_pixelAddsSinceRepoll >= PixelCacheRepollEveryAdds)
             {
-                var oldest = _pixelLru.Last!.Value;
+                _pixelAddsSinceRepoll = 0;
+                _pixelBudgetBytes = SystemMemoryBudget.Compute(
+                    _pixelBytes, PixelCacheFreeRamFraction,
+                    PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
+            }
+
+            // Evict LRU until within budget, but always keep the entry just added
+            // (a single texture larger than the whole budget must not loop forever).
+            while (_pixelBytes > _pixelBudgetBytes && _pixelLru.Count > 1)
+            {
+                var oldestKey = _pixelLru.Last!.Value;
                 _pixelLru.RemoveLast();
-                _pixelCache.Remove(oldest);
+                if (_pixelCache.TryGetValue(oldestKey, out var evicted) && evicted.HasValue)
+                    _pixelBytes -= evicted.Value.Data.Length;
+                _pixelCache.Remove(oldestKey);
             }
         }
 
@@ -261,6 +299,16 @@ public class CharacterPreviewCache
     /// callers from the direct Pfim path to this cached path yields pixel-
     /// identical output.
     /// </summary>
+    /// <summary>Total bytes held by a cubemap payload: the sum of its six face
+    /// buffers. Used for the cubemap cache's byte-budget accounting.</summary>
+    private static long CubemapByteSize(DdsCubemapPixels cubemap)
+    {
+        long total = 0;
+        foreach (var face in cubemap.Faces)
+            total += face?.Length ?? 0;
+        return total;
+    }
+
     private DdsPixels? DecodeDds(string relativeGamePath)
     {
         string? resolved = _assetResolver.ResolveAssetPath(relativeGamePath);
@@ -322,11 +370,23 @@ public class CharacterPreviewCache
 
             _cubemapCache[relativeGamePath] = decoded;
             _cubemapLru.AddFirst(relativeGamePath);
-            while (_cubemapLru.Count > CubemapCacheMaxEntries)
+            _cubemapBytes += CubemapByteSize(decoded.Value);
+
+            if (++_cubemapAddsSinceRepoll >= CubemapCacheRepollEveryAdds)
             {
-                var oldest = _cubemapLru.Last!.Value;
+                _cubemapAddsSinceRepoll = 0;
+                _cubemapBudgetBytes = SystemMemoryBudget.Compute(
+                    _cubemapBytes, CubemapCacheFreeRamFraction,
+                    CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
+            }
+
+            while (_cubemapBytes > _cubemapBudgetBytes && _cubemapLru.Count > 1)
+            {
+                var oldestKey = _cubemapLru.Last!.Value;
                 _cubemapLru.RemoveLast();
-                _cubemapCache.Remove(oldest);
+                if (_cubemapCache.TryGetValue(oldestKey, out var evicted) && evicted.HasValue)
+                    _cubemapBytes -= CubemapByteSize(evicted.Value);
+                _cubemapCache.Remove(oldestKey);
             }
         }
 
@@ -739,11 +799,13 @@ public class CharacterPreviewCache
         {
             _pixelCache.Clear();
             _pixelLru.Clear();
+            _pixelBytes = 0;
         }
         lock (_cubemapLock)
         {
             _cubemapCache.Clear();
             _cubemapLru.Clear();
+            _cubemapBytes = 0;
         }
         MeshBuilder.ClearCache();
     }

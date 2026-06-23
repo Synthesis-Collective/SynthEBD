@@ -361,6 +361,10 @@ public class NifMeshBuilder
         /// filter in BuildAllShapes, so it must be part of the cache key.</summary>
         public string? BipedBodyPart { get; init; }
         public required List<BuiltMesh> Meshes { get; init; }
+        /// <summary>Estimated bytes held by <see cref="Meshes"/> (vertex/index
+        /// arrays + skinning), stamped at insert for the byte-budget accounting so
+        /// eviction doesn't have to re-walk the arrays.</summary>
+        public long Bytes { get; init; }
     }
 
     // 96 (was 16, then 32). The offscreen prewarm pipeline warms this cache from
@@ -376,8 +380,24 @@ public class NifMeshBuilder
     // NPCs. Must exceed (maxParallelRenders + 1) × ~9 to avoid re-introducing the
     // thrash; revisit if MaxParallelPortraitRenders is raised well above 4.
     private const int CacheMaxEntries = 96;
+    // RAM-aware byte ceiling layered ON TOP of the entry-count cap above. The count
+    // cap stays the primary mechanism because it is tuned to the parallel-prewarm
+    // working set (see note above); the byte budget is a safety bound so a set of
+    // pathologically large meshes can't balloon RAM. Its floor (256 MB) sits above
+    // the ~190 MB worst-case footprint of 96 normal entries, so on any machine the
+    // byte ceiling only trips for unusually large meshes and never evicts below the
+    // working set the count cap maintains. Its ceiling is a share of total RAM (not
+    // a fixed cap) so it scales with the host and tracks free RAM like the other
+    // in-RAM caches (see SystemMemoryBudget).
+    private const long CacheMinBudgetBytes = 256L * 1024 * 1024;        // 256 MB floor
+    private const double CacheMaxFractionOfTotal = 0.4;                 // ceiling: 40% of RAM
+    private const double CacheFreeRamFraction = 0.25;
+    private const int CacheRepollEveryAdds = 16;
     private readonly LinkedList<NifCacheEntry> _cache = new();
     private readonly object _cacheLock = new();
+    private long _cacheBytes;
+    private long _cacheBudgetBytes;
+    private int _cacheAddsSinceRepoll;
 
     // --- Opt-in parsed-NIF cache diagnostics (drop a LogNifCacheDiag.txt next to
     // the exe). Appends one line per lookup outcome to RenderLogs/NifCacheDiag.log
@@ -475,7 +495,38 @@ public class NifMeshBuilder
     /// </summary>
     public void ClearCache()
     {
-        lock (_cacheLock) _cache.Clear();
+        lock (_cacheLock)
+        {
+            _cache.Clear();
+            _cacheBytes = 0;
+        }
+    }
+
+    /// <summary>Estimates the resident bytes of a built-mesh snapshot for the
+    /// cache's byte-budget accounting: the per-vertex arrays (positions, normals,
+    /// tangents, bitangents, UVs, the optional bind-pose / weight-companion arrays)
+    /// plus indices and flat skinning data. Approximate by design (it omits small
+    /// scalar fields and dictionary overhead) since it only drives a safety
+    /// ceiling, not exact bookkeeping. Vector3 = 12 bytes, Vector2 = 8 bytes.</summary>
+    private static long EstimateMeshListBytes(List<BuiltMesh> meshes)
+    {
+        static long Vec3(System.Numerics.Vector3[]? a) => (long)(a?.Length ?? 0) * 12;
+
+        long bytes = 0;
+        foreach (var m in meshes)
+        {
+            bytes += Vec3(m.Positions) + Vec3(m.Normals) + Vec3(m.Tangents) + Vec3(m.Bitangents);
+            bytes += (long)(m.Indices?.Length ?? 0) * sizeof(int);
+            bytes += (long)(m.TextureCoordinates?.Length ?? 0) * 8; // Vector2
+            bytes += Vec3(m.BindPosePositions) + Vec3(m.BindPoseNormals);
+            bytes += Vec3(m.Weight0BindPosePositions) + Vec3(m.Weight1BindPosePositions);
+            if (m.Skinning != null)
+            {
+                bytes += (long)(m.Skinning.VertBoneIndices?.Length ?? 0) * sizeof(int);
+                bytes += (long)(m.Skinning.VertBoneWeights?.Length ?? 0) * sizeof(float);
+            }
+        }
+        return bytes;
     }
 
     /// <summary>
@@ -570,6 +621,7 @@ public class NifMeshBuilder
             // Store a deep-cloned snapshot so future in-place mutations of the
             // returned list (BlendWeightMorph) don't corrupt subsequent hits.
             var snapshot = CloneBuiltMeshList(results);
+            long snapshotBytes = EstimateMeshListBytes(snapshot);
             lock (_cacheLock)
             {
                 _cache.AddFirst(new NifCacheEntry
@@ -580,18 +632,35 @@ public class NifMeshBuilder
                     SkeletonMTimeTicks = skelMTime,
                     BipedBodyPart = bipedBodyPart,
                     Meshes = snapshot,
+                    Bytes = snapshotBytes,
                 });
-                // Evict to the cap, but protect the shared body-part parses
-                // (femalebody / hands / feet / hair, reused across all/most NPCs)
-                // from being displaced by one-shot entries. Outfits are diverse and
-                // per-NPC FaceGen heads are unique, so attire (null body part) and
-                // Head are evicted first; only if every remaining entry is a shared
-                // part do we evict the oldest of those (prevents starvation). The
-                // analogous diverse-outfit vs shared-skin TEXTURE split is handled
-                // by the resident GL texture cache's segmented LRU, so it isn't
-                // re-implemented here.
-                while (_cache.Count > CacheMaxEntries)
-                    _cache.Remove(OldestEvictable());
+                _cacheBytes += snapshotBytes;
+
+                // Periodically re-evaluate the byte budget against current free RAM.
+                if (_cacheBudgetBytes == 0 || ++_cacheAddsSinceRepoll >= CacheRepollEveryAdds)
+                {
+                    _cacheAddsSinceRepoll = 0;
+                    _cacheBudgetBytes = SystemMemoryBudget.Compute(
+                        _cacheBytes, CacheFreeRamFraction, CacheMinBudgetBytes, CacheMaxFractionOfTotal);
+                }
+
+                // Evict by the count cap, plus the byte ceiling as a safety bound,
+                // but protect the shared body-part parses (femalebody / hands / feet
+                // / hair, reused across all/most NPCs) from being displaced by
+                // one-shot entries. Outfits are diverse and per-NPC FaceGen heads are
+                // unique, so attire (null body part) and Head are evicted first; only
+                // if every remaining entry is a shared part do we evict the oldest of
+                // those (prevents starvation). The analogous diverse-outfit vs
+                // shared-skin TEXTURE split is handled by the resident GL texture
+                // cache's segmented LRU, so it isn't re-implemented here. The
+                // _cache.Count > 1 guard keeps a single oversized entry from looping.
+                while (_cache.Count > CacheMaxEntries ||
+                       (_cacheBytes > _cacheBudgetBytes && _cache.Count > 1))
+                {
+                    var victim = OldestEvictable();
+                    _cacheBytes -= victim.Value.Bytes;
+                    _cache.Remove(victim);
+                }
             }
         }
 
