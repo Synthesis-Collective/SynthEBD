@@ -152,6 +152,13 @@ public class GlRenderer : IDisposable
     /// Radius=0.7, Intensity=0.3.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
+    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// (legacy hardcoded look); &gt;1 brightens, &lt;1 darkens. Scales the
+    /// linear color into the ACES curve. Folded under the tone-mapping
+    /// path in basic.frag, so it only takes effect when tone-mapping is
+    /// on; the legacy linear pipeline stays untouched when it is off.</summary>
+    public float Exposure { get; set; } = 1.0f;
+
     // ── Skin-tint debug toggles (interactive, runtime-flippable) ─────
     // Promoted from shader-side const to renderer property so the
     // operator can be flipped at runtime without re-loading the scene
@@ -685,6 +692,7 @@ public class GlRenderer : IDisposable
             (float)viewportWidth, (float)viewportHeight);
         _shader.SetFloat("u_vignetteRadius", VignetteRadius);
         _shader.SetFloat("u_vignetteIntensity", VignetteIntensity);
+        _shader.SetFloat("u_exposure", Exposure);
         _shader.SetBool("u_skinTintApplyToFace", SkinTintApplyToFace);
         _shader.SetInt("u_skinTintOperator", SkinTintOperator);
         _shader.SetFloat("u_skinTintLerpStrength", SkinTintLerpStrength);

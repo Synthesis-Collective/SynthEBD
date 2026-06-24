@@ -103,6 +103,15 @@
                                    FormatString="0.00"
                                    ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black. Approximates the pre-2.5.15 hardcoded vignette at ~0.3."/>
 
+                <TextBlock Text="Exposure:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="15,0,4,0"
+                           ToolTip="Brightness of the tone-mapped image. 1.0 = neutral; higher = brighter, lower = darker. Only takes effect when tone-mapping is on."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0.25" Maximum="3" Increment="0.05"
+                                   Value="{Binding Exposure}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Tone-map exposure multiplier. 1.0 = neutral (the default look); higher brightens toward the blown-out in-game look, lower darkens. Only takes effect when tone-mapping is on."/>
+
                 <CheckBox Content="Wireframe missing-tex" FontSize="11" Foreground="#FFAAAAAA"
                           Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding RenderMissingTextureAsWireframe}"

@@ -325,6 +325,13 @@ public sealed class OffscreenRenderRequest
     /// behavior is approximately Radius=0.7 / Intensity=0.3.</summary>
     public float VignetteIntensity { get; init; } = 0f;
 
+    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// (the legacy hardcoded look); &gt;1 brightens, &lt;1 darkens. Scales
+    /// the linear color into the ACES curve. Folded under the tone-mapping
+    /// path in basic.frag, so it only takes effect when
+    /// <see cref="EnableToneMapping"/> is on. Default 1.0 for back-compat.</summary>
+    public float Exposure { get; init; } = 1.0f;
+
     /// <summary>Optional thread-agnostic diagnostic sink for per-render
     /// decisions the renderer would otherwise emit silently — currently the
     /// MeshAware camera fitter's per-shape bbox / union / distance trace.

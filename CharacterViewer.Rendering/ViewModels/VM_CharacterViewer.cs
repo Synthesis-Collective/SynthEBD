@@ -392,6 +392,12 @@ public class VM_CharacterViewer : ViewerVm
     /// 1.0 = corners to black.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
+    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// (the legacy look); &gt;1 brightens, &lt;1 darkens. Scales the linear
+    /// color into the ACES curve. Folded under <see cref="EnableToneMapping"/>
+    /// in basic.frag, so it only takes effect when tone-mapping is on.</summary>
+    public float Exposure { get; set; } = 1.0f;
+
     // ── Skin-tint debug toggles ──────────────────────────────────────
     /// <summary>Debug: when true, the QNAM tint that body shapes receive
     /// is also applied to ShaderType==4 face shapes. See
@@ -932,6 +938,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.VignetteRadius = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.VignetteIntensity)
             .Subscribe(v => Renderer.VignetteIntensity = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.Exposure)
+            .Subscribe(v => Renderer.Exposure = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SkinTintApplyToFace)
             .Subscribe(v => Renderer.SkinTintApplyToFace = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SkinTintOperator)
@@ -1381,7 +1389,8 @@ public class VM_CharacterViewer : ViewerVm
             $"EyeCatchlight={EnableEyeCatchlight}, " +
             $"SSS={SubsurfaceStrength:F3}, " +
             $"SkinSat={SkinSaturationBoost:F3}, " +
-            $"Vignette(R={VignetteRadius:F2} I={VignetteIntensity:F2})");
+            $"Vignette(R={VignetteRadius:F2} I={VignetteIntensity:F2}), " +
+            $"Exposure={Exposure:F2}");
         _logger.LogMessage($"CharacterViewer: CAMERA — FOV={FieldOfView:F1}°, " +
             $"Distance={Camera.Distance:F2}, " +
             $"Az={Camera.Azimuth:F1}°, El={Camera.Elevation:F1}°, " +

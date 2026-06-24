@@ -157,6 +157,11 @@ uniform float u_subsurfaceStrength;
 uniform float u_skinSaturationBoost;
 uniform float u_vignetteRadius;
 uniform float u_vignetteIntensity;
+// Tone-map exposure multiplier (interactive). 1.0 = neutral (the legacy
+// hardcoded look); >1 brightens, <1 darkens. Scales the linear color
+// going into the ACES curve. Gated under u_enableToneMapping like the
+// rest of the finishing stage, so the off path stays bit-for-bit legacy.
+uniform float u_exposure;
 // Skin-tint debug operator (interactive selector). 0 = multiply
 // (production default), 1 = overlay, 2 = linear-space multiply,
 // 3 = gamma-aware multiply, 4 = lerp(strength), 5 = lerp weighted by
@@ -763,7 +768,9 @@ void main()
 
         // Slight exposure pull-down: the lit color sits ~1.0-1.5 in linear
         // space typically; 0.6 keeps the tone-curve toe in a useful range.
-        vec3 c = finalColor * 0.6;
+        // u_exposure (default 1.0) scales this baseline so the user can
+        // brighten/darken the tone-mapped result without re-balancing lights.
+        vec3 c = finalColor * 0.6 * u_exposure;
         c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
         float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
         c = mix(vec3(lum), c, 1.10);

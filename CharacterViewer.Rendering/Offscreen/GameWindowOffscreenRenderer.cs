@@ -586,6 +586,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.SkinSaturationBoost = request.SkinSaturationBoost;
         vm.VignetteRadius = request.VignetteRadius;
         vm.VignetteIntensity = request.VignetteIntensity;
+        vm.Exposure = request.Exposure;
 
         long tSetupDone = Stopwatch.GetTimestamp();
 
