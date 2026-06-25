@@ -691,13 +691,26 @@ void main()
             // AO modulates the diffuse + indirect-fill terms but not
             // specular (real specular doesn't get occluded by nearby
             // crevices the way diffuse light does).
-            if (u_specularAchromatic) {
+            if (u_specularAchromatic && !is_hair_tint) {
                 // Game-faithful dielectric specular: skin's highlight is a
                 // near-white surface reflection, not tinted by albedo.
                 // NifSkope sk_default.frag: color = albedo*(diffuse+emissive)
                 // + spec. Community Shaders accumulates specular additively.
                 // So tint only the diffuse/indirect terms by albedo and add
                 // the already-light-colored specular on top.
+                //
+                // Hair (BSLSP_HAIRTINT, is_hair_tint) is deliberately EXCLUDED
+                // and falls through to the legacy albedo-multiplied branch
+                // below. Hair is not a near-white dielectric: vanilla hair
+                // carries a broad low-exponent specular lobe (glossiness ~10)
+                // with a white specularColor and NO specular map, so specMask
+                // stays 1.0 across the whole shape. Added achromatically on
+                // top, summed over every directional light, that lobe blows
+                // the hair out to a luminescent halo (e.g. vanilla Aela).
+                // Multiplying it through the dark hair albedo (legacy path)
+                // keeps it a dim fiber sheen -- the correct, pre-2e437ea look.
+                // Mod hair that authored specular off / black (e.g. Bijin)
+                // emits zero specular either way and is unaffected.
                 finalColor += (diffuse + backlight + rimlight) * ao * baseColor.rgb;
                 finalColor += specular;
             } else {
