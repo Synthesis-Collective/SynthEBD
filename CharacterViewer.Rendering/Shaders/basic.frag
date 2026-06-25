@@ -147,6 +147,19 @@ uniform bool u_enableAO;
 uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
 uniform bool u_enableEyeCatchlight;
+// Skin-shading correctness toggles (host checkboxes, read each frame).
+// u_specularAchromatic: when true, dielectric (skin) specular is added on
+// top of the albedo*light term instead of being multiplied through
+// baseColor.rgb -- matches NifSkope sk_default.frag (color = albedo *
+// (diffuse + emissive) + spec) and Community Shaders' additive specular.
+// Off restores the legacy albedo-tinted specular for A/B comparison.
+uniform bool u_specularAchromatic;
+// u_skinFaithfulSoftLight: when true, the skin soft-lighting term uses the
+// NifSkope / Community Shaders wrap formulation at honest material strength
+// (sqrt(rolloff)) so the terminator warmth is visible; off uses the legacy
+// terminator-delta + transmission term. Both still scale by
+// u_subsurfaceStrength, so set that ~1.0 to see honest strength.
+uniform bool u_skinFaithfulSoftLight;
 uniform float u_subsurfaceStrength;
 // Skin-only saturation multiplier applied post-tint, pre-lighting.
 // 1.0 = no-op (default). >1 boosts chroma along the original hue
@@ -633,47 +646,65 @@ void main()
                 // skin (orcs, dark-skinned NPCs) keep their hue.
                 vec3 sss_color = mix(vec3(1.0, 0.35, 0.25), baseColor.rgb, 0.4);
 
-                // Forward scatter: wrap-lighting per BSLighting
-                // "Subsurface Rolloff" semantics. R=0 = lambert,
-                // R=1 = half-lambert, in between extends the wrap
-                // into shadow proportionally.
+                // Subsurface wrap term. Both branches start from N.L; the
+                // subsurfaceRolloff is the Bethesda "Subsurface Rolloff"
+                // wrap parameter.
                 float NdotL = dot(normal_viewSpace, lightDir);
-                float R = clamp(subsurfaceRolloff, 0.001, 1.0);
-                float wrap = max((NdotL + R) / (1.0 + R), 0.0);
-                float lambert = max(NdotL, 0.0);
-
-                // Forward-scatter delta: the part of the wrap that
-                // bleeds past the standard lambert terminator. Zero
-                // on fully-lit pixels (wrap == lambert) so we don't
-                // add a fixed-hue brightening that desaturates the
-                // surface; positive only at/past the terminator,
-                // peaking at NdotL = 0 with magnitude R/(1+R). This
-                // is conceptually what pre-integrated SSS (Penner
-                // 2011) does -- only the terminator gets warmth.
-                float fwd_amount = max(wrap - lambert, 0.0);
-
-                // Back scatter / translucency: bright where the light
-                // is BEHIND the surface relative to the viewer. The
-                // viewDir is normalize(-v_viewSpacePos), so a fragment
-                // facing AWAY from the camera but TOWARD the light has
-                // (-NdotL) > 0. pow tightens the falloff so only thin
-                // backlit edges glow.
-                float backlit = max(-NdotL, 0.0);
-                backlit = pow(backlit, 3.0);
-
-                // Combine: terminator bleed + back-scatter ear/nose
-                // glow. Forward is the delta over lambert, not a
-                // wholesale brightening of the lit side.
-                vec3 forward = sss_color * fwd_amount;
-                vec3 transmission = sss_color * backlit * 0.6;
-                subsurface = lightColor * sss_mask * (forward + transmission)
-                           * u_subsurfaceStrength;
+                if (u_skinFaithfulSoftLight) {
+                    // Game-faithful soft-lighting, per NifSkope
+                    // sk_default.frag and Community Shaders'
+                    // GetSoftLightMultiplier: a wrapped half-lambert
+                    // weighted toward the terminator by smoothstep and
+                    // driven at honest material strength sqrt(rolloff), so
+                    // the warm terminator band is visible instead of
+                    // washing out. We reuse the plumbed subsurfaceRolloff
+                    // (~0.3) as a proxy for the material soft-lighting value
+                    // (~0.4) -- a minor, intentional deviation. sss_color
+                    // keeps our warm-flesh bias (a deliberate deviation
+                    // from NifSkope's raw mask color, since our mask is a
+                    // single channel).
+                    float e1 = clamp(subsurfaceRolloff, 0.0, 1.0);
+                    float wrap = (NdotL + e1) / (1.0 + e1);
+                    // smoothstep(0,1,1-NdotL) is the spec-valid equivalent of
+                    // NifSkope's smoothstep(1,0,NdotL): full at the
+                    // terminator/backlit side, fading to 0 where fully lit.
+                    float soft = max(wrap, 0.0)
+                               * smoothstep(0.0, 1.0, 1.0 - NdotL)
+                               * sqrt(e1);
+                    subsurface = soft * sss_mask * sss_color * lightColor
+                               * u_subsurfaceStrength;
+                } else {
+                    // Legacy terminator-delta forward scatter + cubic
+                    // back-scatter transmission. Kept for A/B comparison.
+                    float R = clamp(subsurfaceRolloff, 0.001, 1.0);
+                    float wrap = max((NdotL + R) / (1.0 + R), 0.0);
+                    float lambert = max(NdotL, 0.0);
+                    float fwd_amount = max(wrap - lambert, 0.0);
+                    float backlit = pow(max(-NdotL, 0.0), 3.0);
+                    vec3 forward = sss_color * fwd_amount;
+                    vec3 transmission = sss_color * backlit * 0.6;
+                    subsurface = lightColor * sss_mask * (forward + transmission)
+                               * u_subsurfaceStrength;
+                }
             }
 
             // AO modulates the diffuse + indirect-fill terms but not
             // specular (real specular doesn't get occluded by nearby
             // crevices the way diffuse light does).
-            finalColor += ((diffuse + backlight + rimlight) * ao + specular) * baseColor.rgb;
+            if (u_specularAchromatic) {
+                // Game-faithful dielectric specular: skin's highlight is a
+                // near-white surface reflection, not tinted by albedo.
+                // NifSkope sk_default.frag: color = albedo*(diffuse+emissive)
+                // + spec. Community Shaders accumulates specular additively.
+                // So tint only the diffuse/indirect terms by albedo and add
+                // the already-light-colored specular on top.
+                finalColor += (diffuse + backlight + rimlight) * ao * baseColor.rgb;
+                finalColor += specular;
+            } else {
+                // Legacy: specular multiplied through baseColor.rgb, which
+                // dims and skin-tints the highlight. Kept for A/B.
+                finalColor += ((diffuse + backlight + rimlight) * ao + specular) * baseColor.rgb;
+            }
             // SSS is added separately so its warm-flesh tint isn't
             // double-multiplied by the surface color - sss_color already
             // mixes baseColor in at the right ratio. AO still modulates

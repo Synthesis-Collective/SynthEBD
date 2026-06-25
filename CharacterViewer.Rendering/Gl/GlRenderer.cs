@@ -124,6 +124,21 @@ public class GlRenderer : IDisposable
     /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
 
+    /// <summary>When true (default), dielectric/skin specular is added on
+    /// top of the albedo*light term in basic.frag instead of being
+    /// multiplied through the base color. Matches NifSkope sk_default.frag
+    /// (color = albedo*(diffuse+emissive) + spec) and Community Shaders'
+    /// additive specular; off restores the legacy albedo-tinted highlight
+    /// for A/B comparison. Read each frame.</summary>
+    public bool SpecularAchromatic { get; set; } = true;
+
+    /// <summary>When true (default), the skin soft-lighting / SSS term uses
+    /// the NifSkope / Community Shaders wrap formulation at honest material
+    /// strength (sqrt(rolloff)); off uses the legacy terminator-delta +
+    /// transmission term. Both scale by <see cref="SubsurfaceStrength"/>.
+    /// Read each frame.</summary>
+    public bool SkinFaithfulSoftLight { get; set; } = true;
+
     /// <summary>SSS strength multiplier (2.5.14+). 0 disables the
     /// corrected SSS pipeline (matches pre-2.5.14 visual when paired
     /// with the v5 stamped hash). 1.0 = honest SSS at source rolloff
@@ -683,6 +698,8 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableShadows", EnableShadows);
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
+        _shader.SetBool("u_specularAchromatic", SpecularAchromatic);
+        _shader.SetBool("u_skinFaithfulSoftLight", SkinFaithfulSoftLight);
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
         _shader.SetFloat("u_skinSaturationBoost", SkinSaturationBoost);
         // u_screenSize is consumed by both the SSAO sample lookup AND

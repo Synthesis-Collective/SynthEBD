@@ -368,6 +368,18 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Eye catch-light toggle (2.5.13+).</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
 
+    /// <summary>Achromatic (dielectric) skin specular toggle. When true
+    /// (default), specular is added on top of the albedo*light term rather
+    /// than tinted by the base color, matching NifSkope / Community Shaders.
+    /// Mirrors to <see cref="GlRenderer.SpecularAchromatic"/>.</summary>
+    public bool SpecularAchromatic { get; set; } = true;
+
+    /// <summary>Game-faithful skin soft-lighting toggle. When true
+    /// (default), the SSS term uses the NifSkope / Community Shaders wrap at
+    /// honest material strength. Mirrors to
+    /// <see cref="GlRenderer.SkinFaithfulSoftLight"/>.</summary>
+    public bool SkinFaithfulSoftLight { get; set; } = true;
+
     /// <summary>Subsurface scattering strength multiplier (2.5.14+). 0
     /// disables SSS contribution from the corrected pipeline; 1.0 is
     /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
@@ -930,6 +942,10 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SsaoIntensity = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableEyeCatchlight)
             .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SpecularAchromatic)
+            .Subscribe(v => Renderer.SpecularAchromatic = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinFaithfulSoftLight)
+            .Subscribe(v => Renderer.SkinFaithfulSoftLight = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SubsurfaceStrength)
             .Subscribe(v => Renderer.SubsurfaceStrength = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SkinSaturationBoost)

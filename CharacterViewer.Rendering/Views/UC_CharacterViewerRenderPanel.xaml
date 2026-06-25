@@ -164,6 +164,29 @@
             </WrapPanel>
         </Border>
 
+        <!-- Row: skin-shading correctness toggles (game-faithful specular +
+             soft-lighting). Gated on the Row 1 "Shader Troubleshooting" toggle;
+             both default ON, so the corrected look ships by default and these
+             are exposed only for A/B comparison against the legacy behavior. -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsChecked, ElementName=ShaderTroubleshootingCheck, Converter={StaticResource BoolToVis}}">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Skin Shading" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <CheckBox Content="Achromatic spec" FontSize="11" Foreground="#FFAAAAAA"
+                          VerticalAlignment="Center"
+                          IsChecked="{Binding SpecularAchromatic}"
+                          ToolTip="Game-faithful dielectric specular: adds the skin highlight on top of the lit albedo instead of multiplying it through the skin color, so the sheen reads as a bright near-white reflection (matches NifSkope sk_default.frag and Community Shaders). Off: legacy albedo-tinted (dimmer, skin-colored) highlight."/>
+
+                <CheckBox Content="Faithful SSS" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding SkinFaithfulSoftLight}"
+                          ToolTip="Game-faithful skin soft-lighting: the NifSkope / Community Shaders wrap term at honest material strength (sqrt of the NIF subsurface rolloff), so the warm terminator band is visible. Off: legacy terminator-delta + transmission term. Scaled by the SSS strength field above. Note: a black/placeholder _sk subsurface map (some mods ship these) yields no SSS in either mode."/>
+            </WrapPanel>
+        </Border>
+
         <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override).
              Gated on the Row 1 "Shader Troubleshooting" toggle - this row is debug-only. -->
         <Border Background="#FF222222" Padding="6 3"
