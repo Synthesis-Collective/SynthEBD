@@ -4642,6 +4642,50 @@ public class VM_CharacterViewer : ViewerVm
                 foreach (var kv in ov.Textures)
                     effectiveTextures[kv.Key] = kv.Value;
 
+            // Armor skin inheritance. An armor NIF's bare-skin shapes (ShaderType 5,
+            // ST_SkinTint -- the exposed shoulders/arms/midriff baked into a cuirass,
+            // textured below with the QNAM skin tint) ship a PLACEHOLDER body diffuse
+            // (typically MaleBody_1.dds). The engine paints the ACTOR's race skin onto
+            // them -- the same skin the base body uses -- UNLESS the ArmorAddon carries
+            // its own SkinTexture (NAM0), which takes precedence per slot. Without this,
+            // a distinct-skinned race (e.g. Snow Elf, whose body is MaleBodySnowElf.dds)
+            // renders default-tan arms under armor while the face/bare body stay pale.
+            // We reuse the host-resolved base-body skin TXST (race skin) already cached
+            // in _cachedMeshPaths.TxstTextures: the Body set for body/forearm/calf/feet
+            // skin, the Hands set for hand-slot pieces (gauntlets). The ShaderType==5
+            // gate keeps this off the metal shapes for free.
+            //
+            // CAVEAT (intentionally documented): this is the OBSERVED engine result, not
+            // behavior taken from authoritative documentation. It was confirmed with
+            // Knight-Paladin Gelebor in the Ancient Falmer cuirass -- the ArmorAddon's
+            // NAM0 skin texture is empty and the cuirass NIF references MaleBody_1.dds,
+            // yet in-game his arms are as pale as his face, so the only possible source
+            // is the SnowElfRace skin. This contradicts a fair amount of online "lore"
+            // that says armor uses its own baked skin texture. There may be tertiary /
+            // advanced engine behavior (per-armor skin swaps, skin-tone interactions,
+            // race-specific armatures) we are NOT modeling here. See RENDERING_PIPELINE.md
+            // ("Armor skin inheritance").
+            if (b.ShaderType == 5 && _cachedMeshPaths != null)
+            {
+                // Hands slot bit = 1 << (33 - 30) = 8 in the MeshOverride slot encoding.
+                string raceSkinPart = (ov.BipedSlots & (1 << 3)) != 0 ? "Hands" : "Body";
+                if (_cachedMeshPaths.TxstTextures.TryGetValue(raceSkinPart, out var raceSkinTxst))
+                {
+                    bool appliedAny = false;
+                    foreach (var (slot, path) in raceSkinTxst)
+                        if (ov.Textures == null || !ov.Textures.ContainsKey(slot))
+                        {
+                            effectiveTextures[slot] = path;
+                            appliedAny = true;
+                        }
+                    if (appliedAny)
+                        LogVerbose("CharacterViewer: armor skin inheritance applied race-skin '" +
+                            raceSkinPart + "' TXST to skin shape '" + b.ShapeName + "' of override '" +
+                            ov.Key + "' (diffuse=" + (effectiveTextures.TryGetValue(0, out var d0)
+                                ? System.IO.Path.GetFileName(d0) : "(none)") + ")");
+                }
+            }
+
             bool isHairTint = false;
             float hairR = 0, hairG = 0, hairB = 0;
             bool isFaceTint = false;
