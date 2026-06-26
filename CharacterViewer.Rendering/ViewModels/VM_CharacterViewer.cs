@@ -181,6 +181,17 @@ public class VM_CharacterViewer : ViewerVm
     /// is needed. Empty string when no NPC is loaded.</summary>
     private string _currentLoadedIdentityKey = "";
 
+    /// <summary>One-shot flag forcing the next <see cref="LoadAsync"/> to bypass
+    /// its same-identity short-circuit and fully rebuild. Set by
+    /// <see cref="RequestReload"/> whenever the lib raises
+    /// <see cref="ReloadRequested"/> because an upload-time-consumed setting
+    /// (e.g. <see cref="RenderMissingTextureAsWireframe"/>,
+    /// <see cref="UseBlankDetailFallback"/>) changed: the host responds by
+    /// reloading the SAME NPC, so without this the short-circuit would skip the
+    /// rebuild and the toggle would never take visible effect. Reset once a load
+    /// proceeds past the short-circuit.</summary>
+    private bool _forceRebuildNextLoad;
+
     /// <summary>Head-mesh override path baked into the currently-installed scene
     /// (absolute path from the host's FaceGen preview output), or null if the
     /// scene used the NPC's resolved head mesh. Compared case-insensitively as
@@ -1016,7 +1027,7 @@ public class VM_CharacterViewer : ViewerVm
         // fire a reload before any host has wired the handler.
         this.WhenAnyValue(x => x.UseBlankDetailFallback)
             .Skip(1)
-            .Subscribe(_ => ReloadRequested?.Invoke())
+            .Subscribe(_ => RequestReload())
             .DisposeWith(_disposables);
 
         // RenderMissingTextureAsWireframe is consumed during ApplyMaterial
@@ -1026,7 +1037,7 @@ public class VM_CharacterViewer : ViewerVm
         // doesn't fire a reload before any host has wired the handler.
         this.WhenAnyValue(x => x.RenderMissingTextureAsWireframe)
             .Skip(1)
-            .Subscribe(_ => ReloadRequested?.Invoke())
+            .Subscribe(_ => RequestReload())
             .DisposeWith(_disposables);
 
         // BackgroundColor (System.Windows.Media.Color, 0..255 channels) ->
@@ -3772,6 +3783,19 @@ public class VM_CharacterViewer : ViewerVm
     //  LOADING — Full NPC
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>Raises <see cref="ReloadRequested"/> after marking the next
+    /// <see cref="LoadAsync"/> to force a full rebuild. Used by the toggles
+    /// whose effect is baked in at mesh-upload time (so they can't be applied to
+    /// an already-loaded scene): the host reacts by reloading the SAME NPC, and
+    /// the same-identity short-circuit in LoadAsync would otherwise skip that
+    /// rebuild — leaving the toggle with no visible effect. See
+    /// <see cref="_forceRebuildNextLoad"/>.</summary>
+    private void RequestReload()
+    {
+        _forceRebuildNextLoad = true;
+        ReloadRequested?.Invoke();
+    }
+
     /// <summary>
     /// Neutral cache-driven load entry. Resolves <paramref name="identity"/>
     /// to a <see cref="ResolvedNpcMeshPaths"/> through the preview cache
@@ -3828,12 +3852,17 @@ public class VM_CharacterViewer : ViewerVm
             && _meshesByBodyPart.Count > 0
             && identity.CacheKey == _currentLoadedIdentityKey
             && overrideHeadMeshAbsolutePath == null
-            && _currentHeadMeshOverride == null)
+            && _currentHeadMeshOverride == null
+            && !_forceRebuildNextLoad)
         {
             LogVerbose("CharacterViewer: LoadAsync same-identity short-circuit (" +
                 identity.CacheKey + ")");
             return;
         }
+
+        // Proceeding with a real rebuild — consume the one-shot force flag so a
+        // later defensive same-identity LoadAsync can short-circuit normally.
+        _forceRebuildNextLoad = false;
 
         _loadCts?.Cancel();
         var cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
