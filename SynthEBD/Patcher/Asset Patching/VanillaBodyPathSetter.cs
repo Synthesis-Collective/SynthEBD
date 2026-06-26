@@ -9,6 +9,7 @@ using Mutagen.Bethesda.Synthesis;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -33,8 +34,9 @@ public class VanillaBodyPathSetter
     private readonly PatchableRaceResolver _raceResolver;
     private readonly SurrogateNPCProvider _surrogateNpcProvider;
     private readonly SkyPatcherInterface _skyPatcherInterface;
-    /// <summary>Injects environment, patcher state, logging, status-bar UI, race resolution, surrogate NPCs, and the SkyPatcher interface.</summary>
-    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface)
+    private readonly GameAssetResolver _assetResolver;
+    /// <summary>Injects environment, patcher state, logging, status-bar UI, race resolution, surrogate NPCs, the SkyPatcher interface, and the (loose+BSA) asset resolver used for UBE morph-tri existence checks.</summary>
+    public VanillaBodyPathSetter(IEnvironmentStateProvider environmentStateProvider, PatcherState patcherState, Logger logger, VM_StatusBar statusBar, PatchableRaceResolver raceResolver, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface, GameAssetResolver assetResolver)
     {
         _environmentStateProvider = environmentStateProvider;
         _patcherState = patcherState;
@@ -43,6 +45,7 @@ public class VanillaBodyPathSetter
         _raceResolver = raceResolver;
         _surrogateNpcProvider = surrogateNpcProvider;
         _skyPatcherInterface = skyPatcherInterface;
+        _assetResolver = assetResolver;
     }
 
     /// <summary>
@@ -426,6 +429,24 @@ public class VanillaBodyPathSetter
     /// <param name="vanillaPath">The race-default path used for the comparison.</param>
     private bool ArmatureHasVanillaPath(IArmorAddonGetter armaGetter, BipedObjectFlag currentBodyPart, Gender currentGender, INpcGetter npcGetter, out string vanillaPath) // function assumes that IsBodyArmature() has been called so potential null refs have been checked.
     {
+        // UBE-aware handling: when enabled, a UBE body (recognized by its "!UBE" mesh path) is either preserved
+        // (its morph .tri is present, so it morphs correctly in place) or treated as needing the canonical UBE base
+        // body (its .tri is missing). Returning true here = "already correct, leave alone"; returning false hands
+        // the caller the UBE-canonical path to write. Non-UBE armatures fall through to the race-default logic below.
+        if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath
+            && _patcherState.TexMeshSettings.bAllowUBEBodyPaths
+            && TryEvaluateUbeBody(armaGetter, currentBodyPart, currentGender, out bool preserveUbe, out string ubeCanonicalPath))
+        {
+            if (preserveUbe)
+            {
+                vanillaPath = GetWorldModelPath(armaGetter, currentGender) ?? string.Empty;
+                return true;
+            }
+            vanillaPath = ubeCanonicalPath;
+            var currentUbePath = GetWorldModelPath(armaGetter, currentGender);
+            return currentUbePath != null && currentUbePath.Equals(ubeCanonicalPath, StringComparison.OrdinalIgnoreCase);
+        }
+
         if (!GetArmatureVanillaPath(currentBodyPart, currentGender, npcGetter, out vanillaPath))
         {
             return true; // can't evaluate, so can't operate on this armature - assume it already has its vanilla path
@@ -573,4 +594,108 @@ public class VanillaBodyPathSetter
         BipedObjectFlag.Feet,
         BipedObjectFlag.Tail
     };
+
+    /// <summary>
+    /// Canonical UBE base-body mesh paths (the "Zeroed Sliders - UBE" install) per body slot, used as the remap
+    /// target when a UBE body's morph .tri is missing. Female-only; UBE has no male body, so a UBE-pathed male
+    /// armature (which should not occur) is preserved rather than remapped. Paths are meshes-relative (no "meshes\").
+    /// </summary>
+    private static readonly Dictionary<BipedObjectFlag, string> UbeCanonicalFemalePaths = new()
+    {
+        { BipedObjectFlag.Body, @"!UBE\Body\femalebody_tangent.nif" },
+        { BipedObjectFlag.Feet, @"!UBE\Feet\femalefeet_tangent.nif" },
+        { BipedObjectFlag.Hands, @"!UBE\Hands\femalehands_tangent.nif" },
+    };
+
+    /// <summary>Returns true if a mesh path contains the UBE marker folder token "!UBE" (case-insensitive).</summary>
+    private static bool IsUbePath(string? path) =>
+        !string.IsNullOrEmpty(path) && path.Contains("!UBE", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Returns the gender-appropriate world-model mesh path of an armature (meshes-relative), or null.</summary>
+    private static string? GetWorldModelPath(IArmorAddonGetter armaGetter, Gender currentGender)
+    {
+        var model = currentGender switch
+        {
+            Gender.Female => armaGetter.WorldModel?.Female,
+            Gender.Male => armaGetter.WorldModel?.Male,
+            _ => null
+        };
+        return model?.File.GivenPath.ToString();
+    }
+
+    /// <summary>
+    /// Evaluates whether an armature's gender world-model path is a UBE body ("!UBE" in the path) and, if so, whether
+    /// it should be preserved (its sibling morph .tri exists on disk) or remapped to the canonical UBE base body for
+    /// its slot (the .tri is missing). Returns false for non-UBE armatures so they fall through to race-default handling.
+    /// </summary>
+    /// <param name="preserve">True = leave the UBE body's path untouched; false = rewrite it to <paramref name="canonicalUbePath"/>.</param>
+    /// <param name="canonicalUbePath">The canonical UBE base mesh path to remap to (meaningful only when <paramref name="preserve"/> is false).</param>
+    /// <returns>True if the armature is a UBE body handled here.</returns>
+    private bool TryEvaluateUbeBody(IArmorAddonGetter armaGetter, BipedObjectFlag currentBodyPart, Gender currentGender, out bool preserve, out string canonicalUbePath)
+    {
+        preserve = true;
+        canonicalUbePath = string.Empty;
+
+        var currentPath = GetWorldModelPath(armaGetter, currentGender);
+        if (!IsUbePath(currentPath))
+        {
+            return false; // not a UBE body - normal race-default handling applies
+        }
+
+        if (UbeSiblingTriExists(currentPath!))
+        {
+            return true; // morph .tri present - preserve the UBE body in place
+        }
+
+        // .tri missing: the body cannot be morphed where it is, so remap to the canonical UBE base body for its slot.
+        // If there is no canonical target (e.g. a male UBE path, or an unmapped slot), preserve rather than risk a
+        // wrong remap.
+        if (UbeCanonicalFemalePaths.TryGetValue(currentBodyPart, out var canonical))
+        {
+            preserve = false;
+            canonicalUbePath = canonical;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Returns whether the sibling morph .tri for a UBE body mesh exists (loose file or any BSA, via the asset
+    /// resolver). On any failure to derive or resolve the path, returns true (assume present) so a working UBE body
+    /// is never wrongly remapped.
+    /// </summary>
+    private bool UbeSiblingTriExists(string worldModelMeshPath)
+    {
+        try
+        {
+            var triSubPath = DeriveSiblingTriPath(worldModelMeshPath);
+            if (string.IsNullOrEmpty(triSubPath))
+            {
+                return true;
+            }
+            // GameAssetResolver expects a game-relative path including the "meshes\" prefix.
+            var resolved = _assetResolver.ResolveAssetPath(Path.Combine("meshes", triSubPath));
+            return !string.IsNullOrWhiteSpace(resolved);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage("Vanilla body path setter: could not check the UBE morph .tri for '" + worldModelMeshPath + "': " + ex.Message + ". Preserving the body.");
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Derives the canonical sibling .tri path for a body mesh path: strips a trailing _0/_1 weight suffix and swaps
+    /// the extension to .tri (femalebody_tangent_1.nif -> femalebody_tangent.tri), preserving the directory.
+    /// </summary>
+    private static string DeriveSiblingTriPath(string meshPath)
+    {
+        if (string.IsNullOrEmpty(meshPath)) return string.Empty;
+        var dir = Path.GetDirectoryName(meshPath) ?? string.Empty;
+        var fileName = Path.GetFileNameWithoutExtension(meshPath);
+        if (fileName.EndsWith("_0", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith("_1", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = fileName.Substring(0, fileName.Length - 2);
+        }
+        return Path.Combine(dir, fileName + ".tri");
+    }
 }

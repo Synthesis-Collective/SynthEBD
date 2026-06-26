@@ -112,7 +112,11 @@
             <CheckBox Grid.Row="7" Grid.Column="1"  IsChecked="{Binding Path=bEnableAssetReplacers, Mode=TwoWay}"></CheckBox>
 
             <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
-            <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
+            <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
+                <TextBlock Margin="20 0 5 0" VerticalAlignment="Center" Text="Allow UBE" Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}" ToolTip="Preserve UBE bodies (recognized by their '!UBE' mesh path) instead of forcing them to the CBBE/UNP vanilla path, which would break them. A UBE body is only remapped to the canonical UBE base body when its morph .tri file is missing." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bAllowUBEBodyPaths, Mode=TwoWay}" Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
 
             <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" ToolTip="If an NPC has one of these armor EditorIDs assigned as its skin, completely replace it rather than trying to patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">

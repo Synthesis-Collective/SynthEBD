@@ -345,6 +345,7 @@ public class VM_SettingsTexMesh : VM
     public bool bApplyToNPCsWithCustomSkins { get; set; } = true;
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     public bool bForceVanillaBodyMeshPath { get; set; } = false;
+    public bool bAllowUBEBodyPaths { get; set; } = true;
     public bool bEnableAssetReplacers { get; set; } = true;
     public bool bDisplayPopupAlerts { get; set; } = true;
     public bool bGenerateAssignmentLog { get; set; } = true;
@@ -446,6 +447,7 @@ public class VM_SettingsTexMesh : VM
         bApplyToNPCsWithCustomFaces = model.bApplyToNPCsWithCustomFaces;
         bEnableAssetReplacers = model.bEnableAssetReplacers;
         bForceVanillaBodyMeshPath = model.bForceVanillaBodyMeshPath;
+        bAllowUBEBodyPaths = model.bAllowUBEBodyPaths;
         bDisplayPopupAlerts = model.bDisplayPopupAlerts;
         bGenerateAssignmentLog = model.bGenerateAssignmentLog;
         // Migrate legacy bShowPreviewImages bool if the new PreviewMode field wasn't
@@ -495,6 +497,7 @@ public class VM_SettingsTexMesh : VM
         model.bApplyToNPCsWithCustomFaces = bApplyToNPCsWithCustomFaces;
         model.bEnableAssetReplacers = bEnableAssetReplacers;
         model.bForceVanillaBodyMeshPath = bForceVanillaBodyMeshPath;
+        model.bAllowUBEBodyPaths = bAllowUBEBodyPaths;
         model.bDisplayPopupAlerts = bDisplayPopupAlerts;
         model.bGenerateAssignmentLog = bGenerateAssignmentLog;
         model.PreviewMode = PreviewMode;

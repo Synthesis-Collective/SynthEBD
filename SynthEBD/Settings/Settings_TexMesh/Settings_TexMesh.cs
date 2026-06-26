@@ -28,6 +28,10 @@ public class Settings_TexMesh
     public bool bApplyToNPCsWithCustomFaces { get; set; } = true;
     /// <summary>Force the vanilla body mesh path even when an NPC references a custom one.</summary>
     public bool bForceVanillaBodyMeshPath { get; set; } = false;
+    /// <summary>When forcing vanilla body paths, recognize UBE bodies (by their "!UBE" mesh path) and leave them
+    /// untouched instead of clobbering them to the CBBE/UNP vanilla path. A UBE body is only remapped to the
+    /// canonical UBE base body when its morph .tri is missing (so it could not be morphed in place anyway).</summary>
+    public bool bAllowUBEBodyPaths { get; set; } = true;
     /// <summary>Enable asset-replacer sub-records that swap specific existing assets.</summary>
     public bool bEnableAssetReplacers { get; set; } = true;
     public bool bDisplayPopupAlerts { get; set; } = true;
