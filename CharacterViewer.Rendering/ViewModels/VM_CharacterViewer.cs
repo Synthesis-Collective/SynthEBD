@@ -380,6 +380,35 @@ public class VM_CharacterViewer : ViewerVm
     /// <see cref="GlRenderer.SkinFaithfulSoftLight"/>.</summary>
     public bool SkinFaithfulSoftLight { get; set; } = true;
 
+    /// <summary>Hair finishing toggle (default ON). When true, hair pixels skip
+    /// the fresnel contour darkening and use a gentler exposure pull-down, so
+    /// the brown hair midtone is not crushed by the skin-tuned finishing
+    /// chain. Mirrors to <see cref="GlRenderer.TonemapHairRelief"/>.</summary>
+    public bool TonemapHairRelief { get; set; } = true;
+
+    /// <summary>Toggle (default ON). When true, directional lights get a
+    /// noon-sun gain (<see cref="DaylightBoostIntensity"/>) + slight warmth
+    /// (ambient untouched), lifting blonde hair toward its in-game daylight
+    /// look without hand-tuning the Key light. Mirrors to
+    /// <see cref="GlRenderer.DaylightBoost"/>.</summary>
+    public bool DaylightBoost { get; set; } = true;
+
+    /// <summary>Directional-light gain when <see cref="DaylightBoost"/> is on.
+    /// 1.0 = warmth only; higher brightens. Mirrors to
+    /// <see cref="GlRenderer.DaylightBoostIntensity"/>.</summary>
+    public float DaylightBoostIntensity { get; set; } = 1.1f;
+
+    /// <summary>Toggle (default ON, needs tone-mapping). When true, a
+    /// bright-pass + blur bloom glow is composited over the scene so hair
+    /// highlights bleed into the soft halo the engine produces. Mirrors to
+    /// <see cref="GlRenderer.EnableBloom"/>.</summary>
+    public bool EnableBloom { get; set; } = true;
+
+    /// <summary>Bloom composite gain when <see cref="EnableBloom"/> is on. 0 =
+    /// no visible glow; higher = stronger. Mirrors to
+    /// <see cref="GlRenderer.BloomIntensity"/>.</summary>
+    public float BloomIntensity { get; set; } = 0.7f;
+
     /// <summary>Subsurface scattering strength multiplier (2.5.14+). 0
     /// disables SSS contribution from the corrected pipeline; 1.0 is
     /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
@@ -946,6 +975,16 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SpecularAchromatic = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SkinFaithfulSoftLight)
             .Subscribe(v => Renderer.SkinFaithfulSoftLight = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.TonemapHairRelief)
+            .Subscribe(v => Renderer.TonemapHairRelief = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.DaylightBoost)
+            .Subscribe(v => Renderer.DaylightBoost = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.DaylightBoostIntensity)
+            .Subscribe(v => Renderer.DaylightBoostIntensity = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableBloom)
+            .Subscribe(v => Renderer.EnableBloom = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.BloomIntensity)
+            .Subscribe(v => Renderer.BloomIntensity = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SubsurfaceStrength)
             .Subscribe(v => Renderer.SubsurfaceStrength = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SkinSaturationBoost)

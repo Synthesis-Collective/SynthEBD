@@ -112,6 +112,31 @@
                                    FormatString="0.00"
                                    ToolTip="Tone-map exposure multiplier. 1.0 = neutral (the default look); higher brightens toward the blown-out in-game look, lower darkens. Only takes effect when tone-mapping is on."/>
 
+                <CheckBox Content="Hair relief" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding TonemapHairRelief}"
+                          ToolTip="Hair pixels skip the fresnel silhouette darkening (which lands on wispy strand edges) and use a gentler exposure pull-down into the ACES curve, so the brown hair midtone is not crushed by the skin-tuned finishing chain. Skin and everything else are untouched. Only takes effect when Tone-mapping is on."/>
+
+                <CheckBox Content="Daylight" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding DaylightBoost}"
+                          ToolTip="Scale the directional lights by a noon-sun gain and warm them slightly (ambient untouched), lifting blonde hair toward its in-game daylight appearance without hand-tuning the Key light. Composes with whatever Light Layout / manual lights are active."/>
+                <xctk:DoubleUpDown Width="55" Minimum="1.0" Maximum="3" Increment="0.1"
+                                   Value="{Binding DaylightBoostIntensity}" VerticalAlignment="Center"
+                                   Margin="4,0,0,0" Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Directional-light gain when Daylight is on. 1.0 = warmth only (no brightening); higher brightens. Default 1.5."/>
+
+                <CheckBox Content="Bloom" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding EnableBloom}"
+                          ToolTip="Bright-pass + blur glow so hair highlights bleed into the soft halo the engine produces, reproducing the perceptual 'blonde'. Affects the whole frame. Only takes effect when Tone-mapping is on."/>
+                <xctk:DoubleUpDown Width="55" Minimum="0" Maximum="2" Increment="0.05"
+                                   Value="{Binding BloomIntensity}" VerticalAlignment="Center"
+                                   Margin="4,0,0,0" Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Bloom composite strength. 0 = no visible glow; higher = stronger. Default 0.7. Only takes effect when Bloom + Tone-mapping are on."/>
+
                 <CheckBox Content="Wireframe missing-tex" FontSize="11" Foreground="#FFAAAAAA"
                           Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding RenderMissingTextureAsWireframe}"

@@ -160,6 +160,23 @@ uniform bool u_specularAchromatic;
 // terminator-delta + transmission term. Both still scale by
 // u_subsurfaceStrength, so set that ~1.0 to see honest strength.
 uniform bool u_skinFaithfulSoftLight;
+// --- Hair / daylight finishing toggles (host-controlled, read each frame) ---
+// These target the documented reasons blonde hair renders darker here than in
+// the engine (see the hair notes below).
+//
+// u_tonemapHairRelief: when true, hair pixels skip the fresnel contour
+// darkening and use a gentler exposure pull-down (0.8 vs 0.6) into the ACES
+// curve, so the brown hair midtone is not crushed the way the skin-tuned
+// finishing chain crushes it. Skin and everything else are untouched.
+uniform bool u_tonemapHairRelief;
+// u_daylightBoost: when true, directional lights (not ambient) are scaled by
+// u_daylightBoostIntensity and warmed slightly, lifting blonde hair toward its
+// in-game daylight appearance without the user hand-tuning the Key light.
+// Composes additively with whatever preset/manual lights are active.
+uniform bool u_daylightBoost;
+// Directional-light gain when u_daylightBoost is on. 1.0 = warmth only (no
+// brightening); higher brightens. The warm tint is fixed.
+uniform float u_daylightBoostIntensity;
 uniform float u_subsurfaceStrength;
 // Skin-only saturation multiplier applied post-tint, pre-lighting.
 // 1.0 = no-op (default). >1 boosts chroma along the original hue
@@ -571,6 +588,13 @@ void main()
         }
         else if (lights[i].type == 2) {
             // Directional
+            // Daylight boost: a noon-sun gain + slight warm tint on the
+            // directional lights only (ambient is left alone), so blonde
+            // hair reads blonde without hand-tuning the Key arrow. Off by
+            // default -- this scales the lit terms, not the ambient fill.
+            if (u_daylightBoost) {
+                lightColor *= u_daylightBoostIntensity * vec3(1.0, 0.97, 0.90);
+            }
             vec3 lightDir = normalize(lights[i].direction);
             vec3 viewDir = normalize(-v_viewSpacePos);
 
@@ -699,18 +723,18 @@ void main()
                 // So tint only the diffuse/indirect terms by albedo and add
                 // the already-light-colored specular on top.
                 //
-                // Hair (BSLSP_HAIRTINT, is_hair_tint) is deliberately EXCLUDED
-                // and falls through to the legacy albedo-multiplied branch
-                // below. Hair is not a near-white dielectric: vanilla hair
-                // carries a broad low-exponent specular lobe (glossiness ~10)
-                // with a white specularColor and NO specular map, so specMask
-                // stays 1.0 across the whole shape. Added achromatically on
-                // top, summed over every directional light, that lobe blows
-                // the hair out to a luminescent halo (e.g. vanilla Aela).
+                // Hair (BSLSP_HAIRTINT, is_hair_tint) is EXCLUDED and falls
+                // through to the legacy albedo-multiplied branch below. Vanilla
+                // hair carries a broad low-exponent specular lobe (glossiness
+                // ~10) with a white specularColor and NO specular map, so
+                // specMask stays 1.0 across the whole shape. Added achromatically
+                // on top, summed over every directional light, that lobe blows
+                // the hair out to a luminescent halo (e.g. vanilla Aela), and on
+                // hair with a real lobe (e.g. Bijin) it reads metallic.
                 // Multiplying it through the dark hair albedo (legacy path)
-                // keeps it a dim fiber sheen -- the correct, pre-2e437ea look.
-                // Mod hair that authored specular off / black (e.g. Bijin)
-                // emits zero specular either way and is unaffected.
+                // keeps it a dim fiber sheen -- the engine-faithful look. Blonde
+                // brightness is instead recovered by the daylight / bloom /
+                // tonemap-relief finishing toggles, not by hair specular.
                 finalColor += (diffuse + backlight + rimlight) * ao * baseColor.rgb;
                 finalColor += specular;
             } else {
@@ -806,15 +830,23 @@ void main()
         // grazing-angle reflections + microfacet shadowing. Folded
         // under the tone-mapping toggle since both are "finishing"
         // touches that ship together.
+        // Hair relief (off by default): hair strands graze the view at the
+        // silhouette, so the fresnel contour darkening lands right on the
+        // wispy edges and reads as a darker, browner outline. When relieving
+        // hair, skip it for hair pixels (skin/everything else untouched).
+        bool hairRelief = u_tonemapHairRelief && is_hair_tint;
         vec3 viewDirCam = normalize(-v_viewSpacePos);
         float fresnel = pow(1.0 - max(dot(normal_viewSpace, viewDirCam), 0.0), 4.0);
-        finalColor *= mix(1.0, 0.85, fresnel);
+        finalColor *= mix(1.0, hairRelief ? 1.0 : 0.85, fresnel);
 
         // Slight exposure pull-down: the lit color sits ~1.0-1.5 in linear
         // space typically; 0.6 keeps the tone-curve toe in a useful range.
         // u_exposure (default 1.0) scales this baseline so the user can
         // brighten/darken the tone-mapped result without re-balancing lights.
-        vec3 c = finalColor * 0.6 * u_exposure;
+        // Hair relief lifts that baseline toward 0.8 so the brown hair midtone
+        // is not crushed as hard by the skin-tuned ACES toe.
+        float preExp = hairRelief ? 0.8 : 0.6;
+        vec3 c = finalColor * preExp * u_exposure;
         c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
         float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
         c = mix(vec3(lum), c, 1.10);

@@ -62,6 +62,24 @@ public class GlRenderer : IDisposable
     private Vector3[]? _ssaoSampleKernel;
     private const int SsaoKernelSize = 16;
     private const int SsaoNoiseSize = 4;
+
+    // Bloom post-process (off by default; gated on EnableBloom + tone-mapping).
+    // _bloomSceneTex receives the resolved scene color (MSAA-blit from the
+    // bound draw FBO); A/B are full-res Rgba8 ping-pong targets for the
+    // bright-pass + separable Gaussian. Reuses _ssaoFullscreenVao + the
+    // fullscreen.vert oversized-triangle. All lifecycle mirrors the SSAO FBOs.
+    private GlShaderProgram? _bloomShader;
+    private int _bloomSceneFbo = -1;
+    private int _bloomSceneTex = -1;
+    private int _bloomFboA = -1;
+    private int _bloomTexA = -1;
+    private int _bloomFboB = -1;
+    private int _bloomTexB = -1;
+    private (int Width, int Height) _bloomFboSize;
+    // Bright-pass shape (hardcoded; the host exposes the composite intensity
+    // via the BloomIntensity property).
+    private const float BloomThreshold = 0.55f;
+    private const float BloomSoftKnee = 0.35f;
     private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
     private bool _initialized;
@@ -138,6 +156,34 @@ public class GlRenderer : IDisposable
     /// transmission term. Both scale by <see cref="SubsurfaceStrength"/>.
     /// Read each frame.</summary>
     public bool SkinFaithfulSoftLight { get; set; } = true;
+
+    /// <summary>Hair finishing toggle (default ON): when true, hair pixels skip
+    /// the fresnel contour darkening and use a gentler exposure pull-down into
+    /// the ACES curve, so the brown hair midtone is not crushed by the
+    /// skin-tuned finishing chain. Skin is untouched. Read each frame.</summary>
+    public bool TonemapHairRelief { get; set; } = true;
+
+    /// <summary>Toggle (default ON): when true, directional lights are scaled
+    /// by <see cref="DaylightBoostIntensity"/> and warmed slightly (ambient
+    /// untouched), lifting blonde hair toward its in-game daylight appearance
+    /// without hand-tuning the Key light. Composes with active preset/manual
+    /// lights. Read each frame.</summary>
+    public bool DaylightBoost { get; set; } = true;
+
+    /// <summary>Directional-light gain applied when <see cref="DaylightBoost"/>
+    /// is on. 1.0 = warmth only (no brightening); higher brightens. Read each
+    /// frame.</summary>
+    public float DaylightBoostIntensity { get; set; } = 1.1f;
+
+    /// <summary>Toggle (default ON, needs tone-mapping): when true a bright-pass
+    /// + blur bloom is composited over the scene so hair highlights bleed into
+    /// the soft glow the engine produces. Post pass in <see cref="Render"/> on
+    /// the resolved scene color; affects the whole frame. Read each frame.</summary>
+    public bool EnableBloom { get; set; } = true;
+
+    /// <summary>Bloom composite gain applied when <see cref="EnableBloom"/> is
+    /// on. 0 = no visible glow; higher = stronger. Read each frame.</summary>
+    public float BloomIntensity { get; set; } = 0.7f;
 
     /// <summary>SSS strength multiplier (2.5.14+). 0 disables the
     /// corrected SSS pipeline (matches pre-2.5.14 visual when paired
@@ -573,6 +619,12 @@ public class GlRenderer : IDisposable
         _ssaoBlurShader.Use();
         _ssaoBlurShader.SetInt("u_ssaoTex", 0);
 
+        // Bloom post-process shader (bright-pass + separable blur + composite
+        // scale, selected by u_pass). Single sampler on unit 0.
+        _bloomShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "bloom.frag");
+        _bloomShader.Use();
+        _bloomShader.SetInt("u_tex", 0);
+
         // basic.frag samples the AO map via texture unit 9 (8 is the
         // shadow map, 0..7 are the standard material slots).
         _shader.Use();
@@ -700,6 +752,9 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
         _shader.SetBool("u_specularAchromatic", SpecularAchromatic);
         _shader.SetBool("u_skinFaithfulSoftLight", SkinFaithfulSoftLight);
+        _shader.SetBool("u_tonemapHairRelief", TonemapHairRelief);
+        _shader.SetBool("u_daylightBoost", DaylightBoost);
+        _shader.SetFloat("u_daylightBoostIntensity", DaylightBoostIntensity);
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
         _shader.SetFloat("u_skinSaturationBoost", SkinSaturationBoost);
         // u_screenSize is consumed by both the SSAO sample lookup AND
@@ -831,6 +886,14 @@ public class GlRenderer : IDisposable
         }
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
+
+        // Bloom post-process (off by default; needs tone-mapping for a
+        // meaningful glow). Runs on the fully composited character scene but
+        // BEFORE the gizmo / marker / light-arrow overlays, so those stay
+        // crisp. RenderBloom restores the bound FBO + depth/blend/sRGB state
+        // for the overlay draws that follow.
+        if (EnableBloom && EnableToneMapping)
+            RenderBloom(viewportWidth, viewportHeight);
 
         // Wireframe overlay: drawn after alpha-blend so its lines layer on top
         // of the solid surface. Uses glPolygonOffset to avoid z-fighting.
@@ -1326,6 +1389,159 @@ public class GlRenderer : IDisposable
         if (_ssaoFbo != -1) { GL.DeleteFramebuffer(_ssaoFbo); _ssaoFbo = -1; }
         if (_ssaoBlurTex != -1) { GL.DeleteTexture(_ssaoBlurTex); _ssaoBlurTex = -1; }
         if (_ssaoBlurFbo != -1) { GL.DeleteFramebuffer(_ssaoBlurFbo); _ssaoBlurFbo = -1; }
+    }
+
+    /// <summary>Deletes the viewport-sized bloom FBOs + textures, resetting
+    /// each handle to -1. Mirrors <see cref="DestroySsaoFbos"/>; shared by the
+    /// resize path and Dispose.</summary>
+    private void DestroyBloomFbos()
+    {
+        if (_bloomSceneTex != -1) { GL.DeleteTexture(_bloomSceneTex); _bloomSceneTex = -1; }
+        if (_bloomSceneFbo != -1) { GL.DeleteFramebuffer(_bloomSceneFbo); _bloomSceneFbo = -1; }
+        if (_bloomTexA != -1) { GL.DeleteTexture(_bloomTexA); _bloomTexA = -1; }
+        if (_bloomFboA != -1) { GL.DeleteFramebuffer(_bloomFboA); _bloomFboA = -1; }
+        if (_bloomTexB != -1) { GL.DeleteTexture(_bloomTexB); _bloomTexB = -1; }
+        if (_bloomFboB != -1) { GL.DeleteFramebuffer(_bloomFboB); _bloomFboB = -1; }
+        _bloomFboSize = (0, 0);
+    }
+
+    /// <summary>Lazily (re)creates the three full-res Rgba8 bloom FBOs sized to
+    /// the viewport. Reused across same-size renders; reallocated on resize.
+    /// Returns false if creation fails (bloom is then skipped).</summary>
+    private bool EnsureBloomFbos(int width, int height)
+    {
+        if (_bloomFboSize == (width, height) && _bloomSceneFbo != -1) return true;
+
+        DestroyBloomFbos();
+
+        _bloomSceneFbo = CreateBloomTarget(width, height, out _bloomSceneTex);
+        _bloomFboA = CreateBloomTarget(width, height, out _bloomTexA);
+        _bloomFboB = CreateBloomTarget(width, height, out _bloomTexB);
+
+        bool ok = _bloomSceneFbo != -1 && _bloomFboA != -1 && _bloomFboB != -1;
+        if (!ok) { DestroyBloomFbos(); return false; }
+
+        _bloomFboSize = (width, height);
+        return true;
+    }
+
+    /// <summary>Creates a single full-res Rgba8 color FBO (linear-filtered,
+    /// clamp-to-edge) for a bloom stage. Returns the FBO handle (or -1) and
+    /// outputs the color texture handle.</summary>
+    private int CreateBloomTarget(int width, int height, out int tex)
+    {
+        tex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, tex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8,
+            width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        int fbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, tex, 0);
+        if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer)
+            != FramebufferErrorCode.FramebufferComplete)
+        {
+            GL.DeleteFramebuffer(fbo);
+            GL.DeleteTexture(tex);
+            tex = -1;
+            return -1;
+        }
+        return fbo;
+    }
+
+    /// <summary>Post-tonemap bloom. Captures the composited scene color from
+    /// the currently-bound draw FBO (MSAA-resolved via a blit), runs a
+    /// bright-pass + two-iteration separable Gaussian into the ping-pong FBOs,
+    /// then additively composites the glow back over the scene. Restores the
+    /// bound FBO + viewport + depth/blend/sRGB state on exit so the overlay
+    /// draws that follow are unaffected. Only called when EnableBloom +
+    /// EnableToneMapping are both on.</summary>
+    private void RenderBloom(int width, int height)
+    {
+        if (_bloomShader == null || _ssaoFullscreenVao == -1) return;
+        if (width <= 0 || height <= 0) return;
+        if (!EnsureBloomFbos(width, height)) return;
+
+        // The bound draw FBO is the host's scene target (GLWpfControl's FBO or
+        // the offscreen MSAA FBO). Capture it so we can read from / restore it.
+        GL.GetInteger(GetPName.DrawFramebufferBinding, out int hostFbo);
+
+        // Add the (display-encoded) glow directly to the (display-encoded)
+        // scene: disable sRGB encoding for every bloom stage so no stage
+        // re-gamma-encodes. Restored to the post-tone-map state at the end.
+        GL.Disable(EnableCap.FramebufferSrgb);
+        GL.Disable(EnableCap.DepthTest);
+        GL.Disable(EnableCap.Blend);
+        GL.Viewport(0, 0, width, height);
+
+        // 1) Resolve the bound (possibly MSAA) scene color into a single-sample
+        //    texture. Nearest filter: an MSAA resolve already averages samples
+        //    (Linear here would double-blur), and for a non-MSAA source it is a
+        //    straight copy.
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, hostFbo);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, _bloomSceneFbo);
+        GL.BlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+            ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+
+        _bloomShader.Use();
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.ActiveTexture(TextureUnit.Texture0);
+
+        // 2) Bright-pass: scene -> A.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboA);
+        _bloomShader.SetInt("u_pass", 0);
+        _bloomShader.SetFloat("u_threshold", BloomThreshold);
+        _bloomShader.SetFloat("u_softKnee", BloomSoftKnee);
+        GL.BindTexture(TextureTarget.Texture2D, _bloomSceneTex);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+        // 3) Separable Gaussian, two iterations (H,V,H,V) ping-ponging A<->B.
+        float tx = 1f / width, ty = 1f / height;
+        _bloomShader.SetInt("u_pass", 1);
+        for (int iter = 0; iter < 2; iter++)
+        {
+            // Horizontal: A -> B
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboB);
+            _bloomShader.SetVector2("u_direction", tx, 0f);
+            GL.BindTexture(TextureTarget.Texture2D, _bloomTexA);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            // Vertical: B -> A
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboA);
+            _bloomShader.SetVector2("u_direction", 0f, ty);
+            GL.BindTexture(TextureTarget.Texture2D, _bloomTexB);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        // 4) Composite the blurred glow (in A) additively over the scene.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+        GL.Viewport(0, 0, width, height);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+        _bloomShader.SetInt("u_pass", 2);
+        _bloomShader.SetFloat("u_intensity", BloomIntensity);
+        GL.BindTexture(TextureTarget.Texture2D, _bloomTexA);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+        // Restore state for the overlay draws that follow (matches the
+        // post-alpha-blend state in Render(): depth on, blend off, depth-write
+        // on, and sRGB encoding back on since tone-mapping is enabled here).
+        GL.BindVertexArray(0);
+        GL.BindTexture(TextureTarget.Texture2D, 0);
+        GL.Disable(EnableCap.Blend);
+        GL.Enable(EnableCap.DepthTest);
+        GL.DepthMask(true);
+        GL.Enable(EnableCap.FramebufferSrgb);
     }
 
     private void EnsureSsaoFbos(int width, int height)
@@ -2219,6 +2435,7 @@ public class GlRenderer : IDisposable
             _depthOnlyShader?.Dispose();
             _ssaoShader?.Dispose();
             _ssaoBlurShader?.Dispose();
+            _bloomShader?.Dispose();
 
             if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
             if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
@@ -2232,6 +2449,9 @@ public class GlRenderer : IDisposable
             // Viewport-sized SSAO / depth-prepass FBOs + the once-created noise tex.
             DestroySsaoFbos();
             if (_ssaoNoiseTex != -1) GL.DeleteTexture(_ssaoNoiseTex);
+
+            // Viewport-sized bloom FBOs (created lazily by EnsureBloomFbos).
+            DestroyBloomFbos();
 
             _disposed = true;
         }
@@ -2268,6 +2488,14 @@ public class GlRenderer : IDisposable
         _ssaoNoiseTex = -1;
         _ssaoFullscreenVao = -1;
         _ssaoFboSize = (0, 0);
+        _bloomShader = null;
+        _bloomSceneFbo = -1;
+        _bloomSceneTex = -1;
+        _bloomFboA = -1;
+        _bloomTexA = -1;
+        _bloomFboB = -1;
+        _bloomTexB = -1;
+        _bloomFboSize = (0, 0);
         _debugVao = 0;
         _debugVbo = 0;
         _initialized = false;

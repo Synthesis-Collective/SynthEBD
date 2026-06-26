@@ -587,6 +587,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.VignetteRadius = request.VignetteRadius;
         vm.VignetteIntensity = request.VignetteIntensity;
         vm.Exposure = request.Exposure;
+        vm.TonemapHairRelief = request.TonemapHairRelief;
+        vm.DaylightBoost = request.DaylightBoost;
+        vm.DaylightBoostIntensity = request.DaylightBoostIntensity;
+        vm.EnableBloom = request.EnableBloom;
+        vm.BloomIntensity = request.BloomIntensity;
 
         long tSetupDone = Stopwatch.GetTimestamp();
 

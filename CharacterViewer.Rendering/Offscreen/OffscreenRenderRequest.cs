@@ -332,6 +332,29 @@ public sealed class OffscreenRenderRequest
     /// <see cref="EnableToneMapping"/> is on. Default 1.0 for back-compat.</summary>
     public float Exposure { get; init; } = 1.0f;
 
+    /// <summary>Hair finishing relief. When true, hair pixels skip the fresnel
+    /// contour darkening and use a gentler exposure pull-down, so blonde hair
+    /// is not crushed toward brown by the skin-tuned tone-map chain. Default
+    /// false for back-compat; only meaningful with tone-mapping on.</summary>
+    public bool TonemapHairRelief { get; init; } = false;
+
+    /// <summary>Daylight boost: scales the directional lights by
+    /// <see cref="DaylightBoostIntensity"/> + slight warmth (ambient
+    /// untouched). Default false for back-compat.</summary>
+    public bool DaylightBoost { get; init; } = false;
+
+    /// <summary>Directional-light gain when <see cref="DaylightBoost"/> is on.
+    /// 1.0 = warmth only; higher brightens. Default 1.5.</summary>
+    public float DaylightBoostIntensity { get; init; } = 1.5f;
+
+    /// <summary>Bloom: bright-pass + blur glow composited over the scene.
+    /// Default false for back-compat; only meaningful with tone-mapping on.</summary>
+    public bool EnableBloom { get; init; } = false;
+
+    /// <summary>Bloom composite gain when <see cref="EnableBloom"/> is on.
+    /// 0 = no glow; higher = stronger. Default 0.7.</summary>
+    public float BloomIntensity { get; init; } = 0.7f;
+
     /// <summary>Optional thread-agnostic diagnostic sink for per-render
     /// decisions the renderer would otherwise emit silently — currently the
     /// MeshAware camera fitter's per-shape bbox / union / distance trace.
