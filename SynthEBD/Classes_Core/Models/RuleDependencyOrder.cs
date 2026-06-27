@@ -48,82 +48,10 @@ public static class RuleDependencyOrder
         skipped = new List<MeasurementRule>();
         if (rules == null || rules.Count == 0) return new List<MeasurementRule>();
 
-        // Build producer index: (Category, Value) → list of rules that emit that descriptor.
-        // A descriptor can have multiple producers (alternative rule paths to the same label).
-        // Also index producers by Category alone: a CROSS-category DescriptorRef depends on the
-        // referenced Category being FULLY resolved (every one of its rules tried), so a default
-        // materialized for that Category once its rules all fail is visible to the aggregator
-        // (see BodySlideMeasurementEvaluator.RunClassifierRules).
-        var producers = new Dictionary<(string Category, string Value), List<int>>();
-        var producersByCategory = new Dictionary<string, List<int>>();
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var r = rules[i];
-            if (r?.Descriptor == null) continue;
-            var key = (r.Descriptor.Category ?? "", r.Descriptor.Value ?? "");
-            if (string.IsNullOrEmpty(key.Item1) || string.IsNullOrEmpty(key.Item2)) continue;
-            if (!producers.TryGetValue(key, out var list))
-            {
-                list = new List<int>();
-                producers[key] = list;
-            }
-            list.Add(i);
-            if (!producersByCategory.TryGetValue(key.Item1, out var catList))
-            {
-                catList = new List<int>();
-                producersByCategory[key.Item1] = catList;
-            }
-            catList.Add(i);
-        }
-
-        // Adjacency: for each rule i, the set of rule indices it depends on.
-        // Edge i → j means "j must come before i" (i references something j produces).
-        // Self-edges (a rule that depends on its own descriptor via a DescriptorRef to its
-        // own (Cat, Val)) are tolerated by Kahn's algorithm — the rule has in-degree ≥ 1
-        // from itself, never reaches zero, and ends up in <paramref name="skipped"/>.
-        var dependsOn = new List<HashSet<int>>(rules.Count);
-        for (int i = 0; i < rules.Count; i++) dependsOn.Add(new HashSet<int>());
-
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var r = rules[i];
-            if (r?.GroupsORlogic == null) continue;
-            var ownCat = r.Descriptor?.Category ?? "";
-            foreach (var group in r.GroupsORlogic)
-            {
-                if (group?.ConditionsANDlogic == null) continue;
-                foreach (var cond in group.ConditionsANDlogic)
-                {
-                    if (cond == null) continue;
-                    if (cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
-                    var refCat = cond.RefCategory ?? "";
-                    var refVal = cond.RefValue ?? "";
-                    if (string.IsNullOrEmpty(refCat) || string.IsNullOrEmpty(refVal)) continue;
-
-                    // CROSS-category reference: depend on EVERY producer of the referenced
-                    // Category, so this (aggregator) rule is ordered after the Category is fully
-                    // evaluated — which is the point at which the Category's default is
-                    // materialized if no rule produced it. That makes a positive ref to a
-                    // default-only value (e.g. [Belly:Normal], whose explicit rule is
-                    // disabled/deleted) actually fire. Cross-category producers can never include
-                    // rule i itself (different Category), so this adds no self-edge.
-                    bool crossCategory = !string.Equals(refCat, ownCat, System.StringComparison.Ordinal);
-                    if (crossCategory && producersByCategory.TryGetValue(refCat, out var catProducers))
-                    {
-                        foreach (var producerIdx in catProducers) dependsOn[i].Add(producerIdx);
-                    }
-                    // INTRA-category reference (or a Category with no producers): keep the narrow
-                    // (Category, Value) dependency. Intra-category must stay narrow so a within-
-                    // category aggregator (e.g. Belly:Chubby → [NOT Belly:Pregnant]) doesn't depend
-                    // on the whole Belly category, which would include itself and drop it into the
-                    // cycle bucket.
-                    else if (producers.TryGetValue((refCat, refVal), out var producerIdxs))
-                    {
-                        foreach (var producerIdx in producerIdxs) dependsOn[i].Add(producerIdx);
-                    }
-                }
-            }
-        }
+        // Build the descriptor-dependency graph. The cross- vs intra-category edge rule lives in
+        // the shared BuildDependencyGraph helper so SortByDescriptorDependencies and
+        // WouldCreateCycle can never disagree on what an edge means.
+        var (_, _, dependsOn) = BuildDependencyGraph(rules);
 
         // Kahn's algorithm. In-degree starts as |dependsOn[i]|. Walk rules in input order
         // pushing zero-in-degree ones into a queue; pop, append to output, decrement
@@ -167,15 +95,105 @@ public static class RuleDependencyOrder
     }
 
     /// <summary>
+    /// Builds the descriptor-dependency graph shared by <see cref="SortByDescriptorDependencies"/>
+    /// and <see cref="WouldCreateCycle"/>, so the two never drift on the cross- vs intra-category
+    /// edge rule. Returns:
+    /// <list type="bullet">
+    /// <item><description><c>ByValue</c>: producers indexed by (Category, Value).</description></item>
+    /// <item><description><c>ByCategory</c>: producers indexed by Category alone.</description></item>
+    /// <item><description><c>DependsOn</c>: forward adjacency — <c>DependsOn[i]</c> is the set of
+    /// rule indices rule <c>i</c> must run after.</description></item>
+    /// </list>
+    /// A <b>cross-category</b> DescriptorRef (the rule references a different Category than it
+    /// produces) depends on EVERY producer of the referenced Category, so the rule is ordered after
+    /// that Category is fully resolved (and its default materialized — see
+    /// <see cref="BodySlideMeasurementEvaluator.RunClassifierRules"/>). An <b>intra-category</b> ref
+    /// keeps the narrow (Category, Value) dependency so a within-category aggregator doesn't depend
+    /// on its own Category (which would include itself and form a cycle). Cross-category producers
+    /// can never include the referencing rule itself (different Category), so they add no self-edge.
+    /// </summary>
+    private static (Dictionary<(string Category, string Value), List<int>> ByValue,
+                    Dictionary<string, List<int>> ByCategory,
+                    List<HashSet<int>> DependsOn)
+        BuildDependencyGraph(IReadOnlyList<MeasurementRule> rules)
+    {
+        var producers = new Dictionary<(string Category, string Value), List<int>>();
+        var producersByCategory = new Dictionary<string, List<int>>();
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var r = rules[i];
+            if (r?.Descriptor == null) continue;
+            var key = (r.Descriptor.Category ?? "", r.Descriptor.Value ?? "");
+            if (string.IsNullOrEmpty(key.Item1) || string.IsNullOrEmpty(key.Item2)) continue;
+            if (!producers.TryGetValue(key, out var list))
+            {
+                list = new List<int>();
+                producers[key] = list;
+            }
+            list.Add(i);
+            if (!producersByCategory.TryGetValue(key.Item1, out var catList))
+            {
+                catList = new List<int>();
+                producersByCategory[key.Item1] = catList;
+            }
+            catList.Add(i);
+        }
+
+        // Adjacency: for each rule i, the set of rule indices it depends on. Edge i → j means
+        // "j must come before i" (i references something j produces). Self-edges (a rule whose
+        // intra-category DescriptorRef targets its own (Cat, Val)) are tolerated by Kahn's
+        // algorithm — the rule never reaches in-degree zero and ends up in `skipped`.
+        var dependsOn = new List<HashSet<int>>(rules.Count);
+        for (int i = 0; i < rules.Count; i++) dependsOn.Add(new HashSet<int>());
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var r = rules[i];
+            if (r?.GroupsORlogic == null) continue;
+            var ownCat = r.Descriptor?.Category ?? "";
+            foreach (var group in r.GroupsORlogic)
+            {
+                if (group?.ConditionsANDlogic == null) continue;
+                foreach (var cond in group.ConditionsANDlogic)
+                {
+                    if (cond == null) continue;
+                    if (cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
+                    var refCat = cond.RefCategory ?? "";
+                    var refVal = cond.RefValue ?? "";
+                    if (string.IsNullOrEmpty(refCat) || string.IsNullOrEmpty(refVal)) continue;
+
+                    bool crossCategory = !string.Equals(refCat, ownCat, System.StringComparison.Ordinal);
+                    if (crossCategory && producersByCategory.TryGetValue(refCat, out var catProducers))
+                    {
+                        foreach (var producerIdx in catProducers) dependsOn[i].Add(producerIdx);
+                    }
+                    else if (producers.TryGetValue((refCat, refVal), out var producerIdxs))
+                    {
+                        foreach (var producerIdx in producerIdxs) dependsOn[i].Add(producerIdx);
+                    }
+                }
+            }
+        }
+
+        return (producers, producersByCategory, dependsOn);
+    }
+
+    /// <summary>
     /// True when adding a <see cref="MeasurementConditionKind.DescriptorRef"/> from rule
     /// <paramref name="ruleIdx"/> targeting descriptor <paramref name="refCategory"/> /
     /// <paramref name="refValue"/> would create a cycle in the dependency graph.
     /// Used by the editor to pre-filter the Value dropdown so the user can't pick a
     /// cycle-inducing target. O(rules + edges) per call via DFS reachability.
     ///
-    /// Algorithm: a new edge ruleIdx → producer creates a cycle iff there's an existing
-    /// path producer → ... → ruleIdx. Run DFS from each producer of (refCategory, refValue)
-    /// looking for ruleIdx.
+    /// Mirrors <see cref="SortByDescriptorDependencies"/>'s edge model (both build the graph via
+    /// <see cref="BuildDependencyGraph"/>): the proposed edge is CROSS-category when
+    /// <paramref name="refCategory"/> differs from the rule's own Category, in which case it targets
+    /// EVERY producer of <paramref name="refCategory"/> — not just the named Value — so the editor
+    /// grays out exactly the choices the sort would otherwise drop as cyclic. An intra-category ref
+    /// targets only producers of the specific (Category, Value).
+    ///
+    /// Algorithm: adding edge ruleIdx → target creates a cycle iff the existing graph already has a
+    /// path target → ... → ruleIdx along depends-on edges. DFS from each target producer.
     /// </summary>
     public static bool WouldCreateCycle(
         IReadOnlyList<MeasurementRule> rules,
@@ -186,80 +204,33 @@ public static class RuleDependencyOrder
         if (rules == null || ruleIdx < 0 || ruleIdx >= rules.Count) return false;
         if (string.IsNullOrEmpty(refCategory) || string.IsNullOrEmpty(refValue)) return false;
 
-        // Find producers of the target descriptor.
-        var producers = new List<int>();
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var r = rules[i];
-            if (r?.Descriptor == null) continue;
-            if (string.Equals(r.Descriptor.Category, refCategory, System.StringComparison.Ordinal)
-                && string.Equals(r.Descriptor.Value, refValue, System.StringComparison.Ordinal))
-            {
-                producers.Add(i);
-            }
-        }
-        if (producers.Count == 0) return false; // referencing a descriptor no rule produces — no cycle (yet)
+        var (producersByValue, producersByCategory, dependsOn) = BuildDependencyGraph(rules);
 
-        // Self-reference always creates a cycle.
-        if (producers.Contains(ruleIdx)) return true;
+        // The producers the proposed edge would point at — the SAME set SortByDescriptorDependencies
+        // would wire up. Cross-category: every producer of refCategory; intra-category: producers of
+        // the specific (refCategory, refValue).
+        var ownCat = rules[ruleIdx]?.Descriptor?.Category ?? "";
+        bool crossCategory = !string.Equals(refCategory, ownCat, System.StringComparison.Ordinal);
+        List<int> targetProducers = null;
+        if (crossCategory) producersByCategory.TryGetValue(refCategory, out targetProducers);
+        else producersByValue.TryGetValue((refCategory, refValue), out targetProducers);
 
-        // Edge i → j means "i depends on j" (i has a DescriptorRef pointing to j's descriptor;
-        // at evaluation time j must run before i). Adding the proposed edge ruleIdx → producer
-        // creates a cycle iff the existing graph already has a path producer → ... → ruleIdx
-        // walked in the SAME (depends-on) direction. We DFS from each producer along
-        // depends-on edges (forward direction) and report a cycle if we reach ruleIdx.
+        // Referencing a descriptor/Category no rule produces — the sort adds no edge for it (the
+        // Category's default, if any, materializes without a graph edge), so no cycle is possible.
+        if (targetProducers == null || targetProducers.Count == 0) return false;
+
+        // Self-reference (an intra-category ref to the rule's own descriptor) always cycles.
+        if (targetProducers.Contains(ruleIdx)) return true;
+
+        // DFS from each target producer walking depends-on edges; reaching ruleIdx means the existing
+        // graph has target → ... → ruleIdx, so the new ruleIdx → target edge closes the loop.
         //
-        // Subtle: walking through "dependents" (rules that reference X) is the WRONG
-        // direction — that finds rules that are transitive PREDECESSORS of the producer
-        // (i.e., already depend on it), not rules the producer depends on. The earlier
-        // version of this function walked dependents and over-flagged "redundant parallel
-        // path" edges as cycles, blanking valid combobox choices in the rule editor when a
-        // body type profile contained two DescriptorRef chains pointing to the same target.
-
-        // Pre-index: producer key → producer rule indices.
-        var producerIndex = new Dictionary<(string Cat, string Val), List<int>>();
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var r = rules[i];
-            if (r?.Descriptor == null) continue;
-            (string Cat, string Val) key = (r.Descriptor.Category ?? "", r.Descriptor.Value ?? "");
-            if (string.IsNullOrEmpty(key.Cat) || string.IsNullOrEmpty(key.Val)) continue;
-            if (!producerIndex.TryGetValue(key, out var list))
-            {
-                list = new List<int>();
-                producerIndex[key] = list;
-            }
-            list.Add(i);
-        }
-
-        // Forward adjacency: dependsOn[i] = producer rule indices that rule i directly
-        // depends on via its own DescriptorRef conditions.
-        var dependsOn = new List<HashSet<int>>(rules.Count);
-        for (int i = 0; i < rules.Count; i++) dependsOn.Add(new HashSet<int>());
-        for (int i = 0; i < rules.Count; i++)
-        {
-            var r = rules[i];
-            if (r?.GroupsORlogic == null) continue;
-            foreach (var group in r.GroupsORlogic)
-            {
-                if (group?.ConditionsANDlogic == null) continue;
-                foreach (var cond in group.ConditionsANDlogic)
-                {
-                    if (cond == null) continue;
-                    if (cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
-                    var refKey = (cond.RefCategory ?? "", cond.RefValue ?? "");
-                    if (string.IsNullOrEmpty(refKey.Item1) || string.IsNullOrEmpty(refKey.Item2)) continue;
-                    if (!producerIndex.TryGetValue(refKey, out var producerIdxs)) continue;
-                    foreach (var producerIdx in producerIdxs) dependsOn[i].Add(producerIdx);
-                }
-            }
-        }
-
-        // DFS from each producer of the target descriptor walking depends-on edges; reach
-        // ruleIdx → adding ruleIdx → producer closes the cycle producer → ... → ruleIdx → producer.
+        // Walk depends-on (forward) edges, NOT dependents — walking dependents finds rules that
+        // already depend on the producer (the wrong direction) and over-flags redundant parallel
+        // DescriptorRef chains pointing at the same target as cycles, blanking valid combobox choices.
         var visited = new bool[rules.Count];
         var stack = new Stack<int>();
-        foreach (var p in producers) stack.Push(p);
+        foreach (var p in targetProducers) stack.Push(p);
         while (stack.Count > 0)
         {
             int cur = stack.Pop();
