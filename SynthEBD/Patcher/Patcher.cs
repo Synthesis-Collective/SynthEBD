@@ -70,7 +70,8 @@ public class Patcher
     private Dictionary<FormKey, (NPCInfo NpcInfo, List<SelectedAssetContainer> Assets)> _assetAssignmentTransfers = new(); // Storage for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
     private Dictionary<FormKey, (NPCInfo NpcInfo, Dictionary<HeadPart.TypeEnum, FormKey> HeadParts)> _assignedHeadPartTransfers = new(); // for moving assignments between selection (to be parallelized) and application (serial). Keyed by NPC FormKey for uniqueness.
     private Dictionary<FormKey, (NPCInfo NpcInfo, float Height)> _heightAssignmentTransfers = new(); // storage for moving assignments between selection and application. Keyed by NPC FormKey for uniqueness.
-    
+    private Dictionary<FormKey, NPCInfo> _npcInfoByFormKey = new(); // retains every per-NPC context built during selection so post-selection passes (e.g. forced vanilla body paths) can reuse the same NPCInfo -- and thus its verbose-logging report -- by FormKey. Keyed by OriginalNPC FormKey. As with the transfer dictionaries above, this is a FormKey-keyed accumulator to synchronize if AssignmentLoop is parallelized.
+
     /// <summary>Accumulates per-race/per-gender assignable-vs-assigned counts for the post-run primary asset coverage report.</summary>
     private AssetStatsTracker _assetsStatsTracker { get; set; }
     /// <summary>Running count of NPCs processed in the assignment loop; drives progress display.</summary>
@@ -279,6 +280,7 @@ public class Patcher
         _raceResolver.ResolvePatchableRaces();
         _uniqueNPCData.Reinitialize();
         NPCInfo.ResetLinkGroupCache(); // reset the per-run linked-group cache so a re-run in the same session is not poisoned by stale group infos
+        _npcInfoByFormKey = new(); // reset the per-run NPCInfo lookup used by post-selection passes (forced vanilla body paths)
         HashSet<LinkedNPCGroupInfo> generatedLinkGroups = new HashSet<LinkedNPCGroupInfo>();
         HashSet<INpcGetter> skippedLinkedNPCs = new HashSet<INpcGetter>();
 
@@ -621,7 +623,7 @@ public class Patcher
         // Now that potential body modifications are complete, set vanilla mesh paths if necessary
         if (_patcherState.TexMeshSettings.bForceVanillaBodyMeshPath)
         {
-            _vanillaBodyPathSetter.SetVanillaBodyMeshPaths(outputMod, allNPCs);
+            _vanillaBodyPathSetter.SetVanillaBodyMeshPaths(outputMod, allNPCs, _npcInfoByFormKey);
         }
 
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
@@ -956,6 +958,7 @@ public class Patcher
 
             var currentNPCInfo = _npcInfoFactory(npc, linkedGroupsHashSet, generatedLinkGroups);
             _logger.CurrentNPCInfo = currentNPCInfo;
+            _npcInfoByFormKey[currentNPCInfo.OriginalNPC.FormKey] = currentNPCInfo; // retain so the post-selection forced-vanilla-body-path pass can reuse this NPC's verbose-logging report
             Npc npcRecord = null;
 
             #region Detailed logging
