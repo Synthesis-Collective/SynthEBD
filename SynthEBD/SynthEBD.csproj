@@ -249,7 +249,6 @@
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
     <PackageReference Include="ReactiveUI.Events.WPF" Version="15.1.1" />
     <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
-    <PackageReference Include="SharpCompress" Version="0.42.0" />
   </ItemGroup>
 
   <!-- Shaders moved to CharacterViewer.Rendering project; their Content/CopyToOutputDirectory

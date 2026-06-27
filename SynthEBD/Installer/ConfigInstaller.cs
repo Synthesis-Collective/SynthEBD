@@ -6,11 +6,6 @@ using DynamicData;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
-using SharpCompress.Archives.Rar;
-using SharpCompress.Archives.SevenZip;
-using SharpCompress.Archives.Zip;
-using SharpCompress.Common;
-using SharpCompress.Readers;
 
 namespace SynthEBD;
 
@@ -595,56 +590,6 @@ public class ConfigInstaller
             subgroupPaths.AddRange(GetSubgroupPaths(sg));
         }
         return subgroupPaths;
-    }
-
-    /// <summary>Synchronously extracts a .7z/.rar/.zip archive to <paramref name="destinationPath"/> via SharpCompress,
-    /// auto-detecting the format. Returns false (with an error window) for unsupported formats. Sets the wait cursor.</summary>
-    private bool ExtractArchive(string archivePath, string destinationPath)
-    {
-        Cursor.Current = Cursors.WaitCursor;
-        FileInfo archiveInfo = new FileInfo(archivePath);
-        if (SevenZipArchive.IsSevenZipFile(archiveInfo))
-        {
-            var zArchive = SevenZipArchive.Open(archiveInfo, new ReaderOptions());
-            using (var reader = zArchive.ExtractAllEntries())
-            {
-                var options = new ExtractionOptions() { Overwrite = true };
-                options.ExtractFullPath = true;
-                reader.WriteAllToDirectory(destinationPath, options);
-            }
-            Cursor.Current = Cursors.Default;
-            return true;
-        }
-        else if (RarArchive.IsRarFile(archivePath))
-        {
-            var rArchive = RarArchive.Open(archiveInfo, new ReaderOptions());
-            using (var reader = rArchive.ExtractAllEntries())
-            {
-                var options = new ExtractionOptions() { Overwrite = true };
-                options.ExtractFullPath = true;
-                reader.WriteAllToDirectory(destinationPath, options);
-            }
-            Cursor.Current = Cursors.Default;
-            return true;
-        }
-        else if (ZipArchive.IsZipFile(archivePath))
-        {
-            var ziArchive = ZipArchive.Open(archiveInfo, new ReaderOptions());
-            using (var reader = ziArchive.ExtractAllEntries())
-            {
-                var options = new ExtractionOptions() { Overwrite = true };
-                options.ExtractFullPath = true;
-                reader.WriteAllToDirectory(destinationPath, options);
-            }
-            Cursor.Current = Cursors.Default;
-            return true;
-        }
-        else
-        {
-            Cursor.Current = Cursors.Default;
-            MessageWindow.DisplayNotificationOK("Installation error", "Could not extract the config archive. Valid formats are .7z, .zip, and .rar.");
-            return false;
-        }
     }
 
     /// <summary>Returns every source file path referenced by the asset pack's main and replacer subgroup trees.</summary>
