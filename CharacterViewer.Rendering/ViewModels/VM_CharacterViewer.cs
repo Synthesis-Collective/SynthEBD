@@ -3687,6 +3687,32 @@ public class VM_CharacterViewer : ViewerVm
         _ => 10,
     };
 
+    /// <summary>
+    /// True if a shape is an invisible physics/collision proxy that should not be
+    /// rendered. SMP-enabled hair (and some armor) ships collision bodies — e.g.
+    /// "_BDO_colHeadBDOH", a capsule that encloses the head — textured with a
+    /// fully-transparent placeholder ("0alfa.dds": white RGB, alpha 0) and carrying
+    /// NO NiAlphaProperty. In-game the physics system detaches them from the render
+    /// graph; with no physics here they would otherwise rasterize as an opaque white
+    /// blob over the face/body. We detect the transparent-placeholder diffuse
+    /// directly — name-independent, since authors choose collision-shape names
+    /// freely. Gated on no alpha blend/test so a shape that legitimately relies on
+    /// alpha is never culled, and only RGBA-format DDS can read as fully transparent
+    /// (see <see cref="CharacterPreviewCache.IsFullyTransparent"/>), so ordinary
+    /// opaque skin/armor diffuse never matches. <paramref name="effectiveTextures"/>
+    /// is the post-override texture set so a real diffuse swapped in over the
+    /// placeholder correctly spares the shape.
+    /// </summary>
+    private bool IsInvisibleCollisionProxy(NifMeshBuilder.BuiltMesh built,
+        IReadOnlyDictionary<int, string> effectiveTextures)
+        => !built.HasAlphaBlend && !built.HasAlphaTest
+            && effectiveTextures.TryGetValue(0, out var diffuse)
+            && _previewCache.IsFullyTransparent(diffuse);
+
+    private void LogCollisionProxyCull(NifMeshBuilder.BuiltMesh built)
+        => LogVerbose("CharacterViewer: Skipping shape '" + built.ShapeName +
+            "' (fully-transparent diffuse with no alpha property - invisible physics/collision proxy)");
+
     /// <summary>Uploads one shape's GL mesh + textures and registers it in the
     /// per-body-part dictionaries. Mirrors the inner loop body the single-frame
     /// install used; called once per shape from the sliced install loop.</summary>
@@ -3694,6 +3720,16 @@ public class VM_CharacterViewer : ViewerVm
     {
         // Cheap pre-shape bail: avoids creating a GL mesh we'd only tear down.
         RenderCancellation.ThrowIfCancellationRequested();
+
+        // Cull invisible physics/collision proxies before the geometry upload. The
+        // diffuse is read straight from the NIF texture set: these proxies are
+        // ShaderType 0, so the ShaderType-5-only TXST skin overrides applied later
+        // in InstallOneShapeTextures never change slot 0 here.
+        if (IsInvisibleCollisionProxy(shape.Built, shape.Built.TexturePaths))
+        {
+            LogCollisionProxyCull(shape.Built);
+            return;
+        }
 
         var glMesh = CreateGlMesh(shape.Built);
         glMesh.MeshSource = shape.MeshSource;
@@ -4754,6 +4790,17 @@ public class VM_CharacterViewer : ViewerVm
                 }
             }
 
+            // Cull invisible physics/collision proxies (e.g. SMP armor collision
+            // bodies). Checked against the post-override texture set so a real
+            // diffuse swapped in over the placeholder spares the shape. glMesh is
+            // already built here, so dispose it (as the cancellation path does).
+            if (IsInvisibleCollisionProxy(b, effectiveTextures))
+            {
+                LogCollisionProxyCull(b);
+                glMesh.Dispose();
+                continue;
+            }
+
             bool isHairTint = false;
             float hairR = 0, hairG = 0, hairB = 0;
             bool isFaceTint = false;
@@ -5176,6 +5223,15 @@ public class VM_CharacterViewer : ViewerVm
         // Install fresh head shape(s). Mirrors the Head branch of ProcessPendingScene.
         foreach (var built in meshes)
         {
+            // Cull invisible physics/collision proxies before the geometry upload.
+            // Head never has TxstTextures overrides, so the NIF texture set is the
+            // effective one.
+            if (IsInvisibleCollisionProxy(built, built.TexturePaths))
+            {
+                LogCollisionProxyCull(built);
+                continue;
+            }
+
             var glMesh = CreateGlMesh(built);
 
             var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);

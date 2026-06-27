@@ -87,6 +87,14 @@ public class CharacterPreviewCache
     private long _pixelBudgetBytes;
     private int _pixelAddsSinceRepoll;
 
+    // path -> "decodes to a fully-transparent image" verdict (see
+    // IsFullyTransparent). A texture's alpha content is fixed for the session,
+    // so this is cached independently of the pixel LRU and never evicted —
+    // re-deciding after a pixel-cache eviction would needlessly re-decode. One
+    // bool per unique path, so the footprint is negligible.
+    private readonly Dictionary<string, bool> _fullyTransparentCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _transparencyLock = new();
+
     // Parallel cache for cubemap DDS payloads (six face buffers each). Kept
     // separate from _pixelCache because the value type differs and a single
     // texture path can't legitimately be both at once. Byte-budgeted like the
@@ -289,6 +297,48 @@ public class CharacterPreviewCache
         }
 
         return decoded;
+    }
+
+    /// <summary>
+    /// True if the texture at <paramref name="relativeGamePath"/> decodes to a
+    /// fully-transparent image — every texel's alpha is exactly 0.
+    ///
+    /// Used to cull SMP/physics collision-proxy shapes: SMP-enabled hair (and
+    /// some armor) ship invisible collision bodies textured with a zero-alpha
+    /// placeholder (e.g. "0alfa.dds": white RGB, alpha 0) and carrying NO
+    /// NiAlphaProperty. In-game the physics system detaches them from the render
+    /// graph; with no physics here they would otherwise rasterize as opaque white
+    /// over the face/body. Only RGBA-format DDS can satisfy this — <see
+    /// cref="PfimageToBgra32"/> forces alpha to 255 for the non-alpha formats — so
+    /// the check never fires on ordinary opaque skin/armor diffuse.
+    ///
+    /// Returns false for an empty path or a texture that can't be decoded. The
+    /// verdict is cached for the session.
+    /// </summary>
+    public bool IsFullyTransparent(string? relativeGamePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeGamePath)) return false;
+
+        lock (_transparencyLock)
+            if (_fullyTransparentCache.TryGetValue(relativeGamePath, out bool cached))
+                return cached;
+
+        var pixels = GetOrLoadDdsPixels(relativeGamePath);
+        bool verdict = pixels != null && IsAllAlphaZero(pixels.Value.Data);
+
+        lock (_transparencyLock)
+            _fullyTransparentCache[relativeGamePath] = verdict;
+        return verdict;
+    }
+
+    // BGRA32: alpha is every 4th byte (offset +3). The early-out on the first
+    // non-transparent texel keeps this O(1) for ordinary opaque diffuse, where
+    // the very first texel is already opaque.
+    private static bool IsAllAlphaZero(byte[] bgra)
+    {
+        for (int i = 3; i < bgra.Length; i += 4)
+            if (bgra[i] != 0) return false;
+        return true;
     }
 
     /// <summary>
