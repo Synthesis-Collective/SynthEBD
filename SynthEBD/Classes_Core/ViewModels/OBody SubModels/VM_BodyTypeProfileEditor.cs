@@ -6408,11 +6408,13 @@ public class VM_BodyTypeProfile : VM
         PreviewMatches.Clear();
         int drafts = 0, promoted = 0;
 
-        // Same topo-sort the production evaluator uses, so DescriptorRef-kind conditions
-        // see the upstream matches that should already have fired by the time their parent
-        // rule's predicate is checked. The preview pane is intentionally not gated on IsDraft
-        // (the user wants to see what draft rules would emit), so aggregators referencing
-        // draft descriptors light up here.
+        // Same dependency-ordered pass + per-Category default materialization the production
+        // evaluator uses (BodySlideMeasurementEvaluator.RunClassifierRules), so DescriptorRef-kind
+        // conditions see the upstream matches — including a Category's materialized default value —
+        // by the time their parent rule's predicate runs. The preview pane is intentionally not
+        // gated on IsDraft (the user wants to see what draft rules would emit), so aggregators
+        // referencing draft descriptors light up here. Materialized Category defaults are not shown
+        // as their own rows; only their visibility to aggregators matters for the preview.
         var eligibleModels = new List<MeasurementRule>();
         var ruleVMByModel = new Dictionary<MeasurementRule, VM_MeasurementRule>(ReferenceEqualityComparer.Instance);
         foreach (var r in Rules)
@@ -6424,24 +6426,21 @@ public class VM_BodyTypeProfile : VM
             eligibleModels.Add(m);
             ruleVMByModel[m] = r;
         }
-        var orderedModels = RuleDependencyOrder.SortByDescriptorDependencies(eligibleModels, out _);
 
-        var matched = new HashSet<(string Category, string Value)>();
-        foreach (var model in orderedModels)
-        {
-            if (!MeasurementMath.RuleMatches(model, meas, matched)) continue;
-
-            var sourceVm = ruleVMByModel[model];
-            matched.Add((model.Descriptor.Category, model.Descriptor.Value));
-            PreviewMatches.Add(new VM_PreviewMatch
+        var previewDefaults = BodySlideMeasurementEvaluator.RunClassifierRules(
+            eligibleModels, meas, _defaultValueByCategory,
+            (model, matched) =>
             {
-                Category = sourceVm.DescriptorCategory,
-                Value = sourceVm.DescriptorValue,
-                IsDraft = sourceVm.IsDraft,
-                ConditionTrace = BuildMatchTrace(model, meas, matched),
+                var sourceVm = ruleVMByModel[model];
+                PreviewMatches.Add(new VM_PreviewMatch
+                {
+                    Category = sourceVm.DescriptorCategory,
+                    Value = sourceVm.DescriptorValue,
+                    IsDraft = sourceVm.IsDraft,
+                    ConditionTrace = BuildMatchTrace(model, meas, matched),
+                });
+                if (sourceVm.IsDraft) drafts++; else promoted++;
             });
-            if (sourceVm.IsDraft) drafts++; else promoted++;
-        }
 
         if (meas.Count == 0)
         {
@@ -6462,7 +6461,12 @@ public class VM_BodyTypeProfile : VM
         }
 
         // Publish the firing-descriptor set + live state for the per-condition readouts, then
-        // refresh them so each condition's green/red badge reflects this preset.
+        // refresh them so each condition's green/red badge reflects this preset. The set mirrors
+        // the evaluator's matched set: rule matches PLUS the Category defaults that materialized,
+        // so a DescriptorRef condition pointing at a default value reads as satisfied here too.
+        var matched = new HashSet<(string Category, string Value)>();
+        foreach (var pm in PreviewMatches) matched.Add((pm.Category, pm.Value));
+        foreach (var d in previewDefaults) matched.Add((d.Category, d.Value));
         PreviewMatchedDescriptors = matched;
         HasLivePreview = meas.Count > 0;
         RefreshAllConditionReadouts();
@@ -9656,47 +9660,31 @@ public class VM_BodyTypeProfile : VM
         foreach (var kv in entry.Measurements)
             if (kv.Value.HasValue) floats[kv.Key] = kv.Value.Value;
 
-        // Mirror BodySlideMeasurementEvaluator.Evaluate: filter eligible rules (by gender +
-        // draft status + valid descriptor), topo-sort by descriptor dependencies so aggregator
-        // rules see the matched set, then iterate. Gender is taken from the cache key — every
-        // cached entry was scanned with a known (PresetLabel, Gender, Weight) coordinate.
-        var eligible = new List<MeasurementRule>();
-        if (profileModel.Rules != null)
-        {
-            foreach (var rule in profileModel.Rules)
-            {
-                if (rule == null) continue;
-                if (rule.IsDraft && !includeDrafts) continue;
-                if (rule.Descriptor == null
-                    || string.IsNullOrEmpty(rule.Descriptor.Category)
-                    || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
-                if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, key.Gender)) continue;
-                eligible.Add(rule);
-            }
-        }
-        var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out _);
+        // Shared classifier pass — identical semantics to BodySlideMeasurementEvaluator.Evaluate
+        // (filter eligible by gender/draft/valid descriptor, dependency-order so aggregators see the
+        // matched set, materialize each Category's default as it resolves so aggregators referencing
+        // a default value fire). Gender is taken from the cache key — every cached entry was scanned
+        // with a known (PresetLabel, Gender, Weight) coordinate.
+        var eligible = BodySlideMeasurementEvaluator.FilterEligibleRules(profileModel.Rules, key.Gender, includeDrafts);
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var matched = new HashSet<(string Category, string Value)>();
-        foreach (var rule in ordered)
-        {
-            if (!MeasurementMath.RuleMatches(rule, floats, matched)) continue;
-
-            string k = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
-            if (!seen.Add(k)) continue;
-
-            matched.Add((rule.Descriptor.Category, rule.Descriptor.Value));
-            result.Add(new BodyShapeDescriptor.LabelSignature
+        var defaults = BodySlideMeasurementEvaluator.RunClassifierRules(
+            eligible, floats, profileModel.DefaultDescriptorValuesByCategory,
+            (rule, _) =>
             {
-                Category = rule.Descriptor.Category,
-                Value = rule.Descriptor.Value,
+                string k = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
+                if (seen.Add(k))
+                    result.Add(new BodyShapeDescriptor.LabelSignature
+                    {
+                        Category = rule.Descriptor.Category,
+                        Value = rule.Descriptor.Value,
+                    });
             });
-        }
 
-        // Mirror BodySlideMeasurementEvaluator.Evaluate's default pass so the editor's cached
-        // Match-Presets display agrees with a fresh evaluation: emit each Category's default for
-        // any Category that produced no rule descriptor on this slice.
-        foreach (var def in BodySlideMeasurementEvaluator.ComputeDefaultDescriptors(profileModel.DefaultDescriptorValuesByCategory, matched))
+        // Default pass: emit each Category's default for any Category that produced no rule
+        // descriptor on this slice, so the editor's cached Match-Presets display agrees with a
+        // fresh evaluation.
+        foreach (var def in defaults)
         {
             string k = def.Category + "::" + def.Value;
             if (!seen.Add(k)) continue;

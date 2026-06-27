@@ -27,6 +27,15 @@ public static class RuleDependencyOrder
     /// (Kahn's algorithm with FIFO ready-queue) so the legacy "declaration order" stays
     /// the tiebreaker for stability.
     ///
+    /// A <b>cross-category</b> DescriptorRef (R references a different Category than R produces)
+    /// is ordered after <em>every</em> producer of the referenced Category — not just the single
+    /// (Category, Value) it names — so the Category is fully resolved before R runs. This is what
+    /// lets <see cref="BodySlideMeasurementEvaluator.RunClassifierRules"/> materialize that
+    /// Category's default into the matched set before R, so a positive ref to a default-only value
+    /// (an explicit rule disabled in favor of the per-Category default) fires. <b>Intra-category</b>
+    /// refs keep the narrow (Category, Value) dependency to avoid a rule depending on its own
+    /// Category (which would include itself and land in <paramref name="skipped"/>).
+    ///
     /// <paramref name="skipped"/> receives any rules that couldn't be placed because they
     /// were part of a cycle (or transitively depended on a cycle). Callers should treat
     /// these as inert for evaluation — emitting them in arbitrary order would write
@@ -41,7 +50,12 @@ public static class RuleDependencyOrder
 
         // Build producer index: (Category, Value) → list of rules that emit that descriptor.
         // A descriptor can have multiple producers (alternative rule paths to the same label).
+        // Also index producers by Category alone: a CROSS-category DescriptorRef depends on the
+        // referenced Category being FULLY resolved (every one of its rules tried), so a default
+        // materialized for that Category once its rules all fail is visible to the aggregator
+        // (see BodySlideMeasurementEvaluator.RunClassifierRules).
         var producers = new Dictionary<(string Category, string Value), List<int>>();
+        var producersByCategory = new Dictionary<string, List<int>>();
         for (int i = 0; i < rules.Count; i++)
         {
             var r = rules[i];
@@ -54,6 +68,12 @@ public static class RuleDependencyOrder
                 producers[key] = list;
             }
             list.Add(i);
+            if (!producersByCategory.TryGetValue(key.Item1, out var catList))
+            {
+                catList = new List<int>();
+                producersByCategory[key.Item1] = catList;
+            }
+            catList.Add(i);
         }
 
         // Adjacency: for each rule i, the set of rule indices it depends on.
@@ -68,6 +88,7 @@ public static class RuleDependencyOrder
         {
             var r = rules[i];
             if (r?.GroupsORlogic == null) continue;
+            var ownCat = r.Descriptor?.Category ?? "";
             foreach (var group in r.GroupsORlogic)
             {
                 if (group?.ConditionsANDlogic == null) continue;
@@ -75,12 +96,30 @@ public static class RuleDependencyOrder
                 {
                     if (cond == null) continue;
                     if (cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
-                    var refKey = (cond.RefCategory ?? "", cond.RefValue ?? "");
-                    if (string.IsNullOrEmpty(refKey.Item1) || string.IsNullOrEmpty(refKey.Item2)) continue;
-                    if (!producers.TryGetValue(refKey, out var producerIdxs)) continue;
-                    foreach (var producerIdx in producerIdxs)
+                    var refCat = cond.RefCategory ?? "";
+                    var refVal = cond.RefValue ?? "";
+                    if (string.IsNullOrEmpty(refCat) || string.IsNullOrEmpty(refVal)) continue;
+
+                    // CROSS-category reference: depend on EVERY producer of the referenced
+                    // Category, so this (aggregator) rule is ordered after the Category is fully
+                    // evaluated — which is the point at which the Category's default is
+                    // materialized if no rule produced it. That makes a positive ref to a
+                    // default-only value (e.g. [Belly:Normal], whose explicit rule is
+                    // disabled/deleted) actually fire. Cross-category producers can never include
+                    // rule i itself (different Category), so this adds no self-edge.
+                    bool crossCategory = !string.Equals(refCat, ownCat, System.StringComparison.Ordinal);
+                    if (crossCategory && producersByCategory.TryGetValue(refCat, out var catProducers))
                     {
-                        dependsOn[i].Add(producerIdx);
+                        foreach (var producerIdx in catProducers) dependsOn[i].Add(producerIdx);
+                    }
+                    // INTRA-category reference (or a Category with no producers): keep the narrow
+                    // (Category, Value) dependency. Intra-category must stay narrow so a within-
+                    // category aggregator (e.g. Belly:Chubby → [NOT Belly:Pregnant]) doesn't depend
+                    // on the whole Belly category, which would include itself and drop it into the
+                    // cycle bucket.
+                    else if (producers.TryGetValue((refCat, refVal), out var producerIdxs))
+                    {
+                        foreach (var producerIdx in producerIdxs) dependsOn[i].Add(producerIdx);
                     }
                 }
             }

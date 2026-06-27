@@ -185,53 +185,26 @@ public static class BodySlideMeasurementEvaluator
         // De-dup descriptors emitted by multiple matching rules (and by the default pass) so a
         // single (Category, Value) doesn't appear twice in the output.
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        // Match set fed to DescriptorRef conditions, and the source of truth for which Categories
-        // already produced a descriptor (so the default pass below knows which Categories to skip).
-        // Stays empty on the first rule pass for any non-aggregator rule (which is fine — they ignore it).
-        var matched = new HashSet<(string Category, string Value)>();
 
-        if (profile.Rules != null)
-        {
-            // Aggregator rules (any condition with Kind=DescriptorRef) need to fire AFTER the
-            // rules they reference, so the matched-descriptor set is populated when their
-            // predicate is evaluated. RuleDependencyOrder topo-sorts the eligible rules; rules
-            // caught in a cycle are dropped from the sort and logged (the UI prevents cycles
-            // at edit time, but hand-edited JSON could still produce one).
-            var eligible = new List<MeasurementRule>();
-            foreach (var rule in profile.Rules)
+        // Shared classifier pass. Aggregator rules (Kind=DescriptorRef) fire AFTER the rules they
+        // reference; RuleDependencyOrder topo-sorts to guarantee that, and RunClassifierRules
+        // materializes each Category's default the moment that Category resolves — so an aggregator
+        // referencing a default value (e.g. [Belly:Normal]) sees it. Gender filtering is via
+        // FilterEligibleRules: a male-only rule that didn't fire for a female preset leaves its
+        // Category open to its default.
+        var eligible = FilterEligibleRules(profile.Rules, evaluationGender, includeDrafts);
+        var defaultDescriptors = RunClassifierRules(
+            eligible, result.Measurements, profile.DefaultDescriptorValuesByCategory,
+            (rule, _) =>
             {
-                if (rule == null) continue;
-                if (rule.IsDraft && !includeDrafts) continue;
-                if (rule.Descriptor == null
-                    || string.IsNullOrEmpty(rule.Descriptor.Category)
-                    || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
-                // Gender filter: rules tagged Male only fire when evaluating a male preset,
-                // Female only for female. Either rules always pass. See RuleGenderMatches.
-                if (!RuleGenderMatches(rule.Gender, evaluationGender)) continue;
-                eligible.Add(rule);
-            }
-
-            var ordered = RuleDependencyOrder.SortByDescriptorDependencies(eligible, out var skipped);
-
-            foreach (var rule in ordered)
-            {
-                if (!MeasurementMath.RuleMatches(rule, result.Measurements, matched)) continue;
-
                 string key = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
-                if (!seen.Add(key)) continue;
+                if (seen.Add(key))
+                    result.Descriptors.Add(new AnnotatedDescriptorSignature(rule.Descriptor, BodyShapeAnnotationSource.Classifier));
+            });
 
-                matched.Add((rule.Descriptor.Category, rule.Descriptor.Value));
-                result.Descriptors.Add(new AnnotatedDescriptorSignature(rule.Descriptor, BodyShapeAnnotationSource.Classifier));
-            }
-        }
-
-        // Per-Category default fallback: for any Category with a configured default that produced
-        // NO rule descriptor on this evaluation, emit the default value (tagged Classifier, exactly
-        // like a rule output). Runs even when the profile has no rules — a Category whose rules all
-        // failed (or that has none) "falls into" its default. Gender filtering is implicit: only
-        // gender-eligible rules populated `matched`, so a male-only rule that didn't fire for a
-        // female preset leaves the Category open to its default here.
-        foreach (var def in ComputeDefaultDescriptors(profile.DefaultDescriptorValuesByCategory, matched))
+        // Per-Category default fallback, tagged Classifier exactly like a rule output, for any
+        // Category with a configured default that produced no rule descriptor on this evaluation.
+        foreach (var def in defaultDescriptors)
         {
             string key = def.Category + "::" + def.Value;
             if (!seen.Add(key)) continue;
@@ -269,6 +242,121 @@ public static class BodySlideMeasurementEvaluator
             if (matchedCategories.Contains(category)) continue;
             yield return new BodyShapeDescriptor.LabelSignature { Category = category, Value = value };
         }
+    }
+
+    /// <summary>
+    /// Builds the eligible-rule list shared by every evaluation path: drops draft rules (unless
+    /// <paramref name="includeDrafts"/>), rules with a blank Category/Value descriptor, and rules
+    /// whose <see cref="MeasurementRule.Gender"/> filter excludes <paramref name="evaluationGender"/>
+    /// (see <see cref="RuleGenderMatches"/>). Centralized so <see cref="Evaluate"/> and the editor's
+    /// cache-rederive path can't drift on the eligibility predicate.
+    /// </summary>
+    public static List<MeasurementRule> FilterEligibleRules(
+        IEnumerable<MeasurementRule> rules, Gender? evaluationGender, bool includeDrafts)
+    {
+        var eligible = new List<MeasurementRule>();
+        if (rules == null) return eligible;
+        foreach (var rule in rules)
+        {
+            if (rule == null) continue;
+            if (rule.IsDraft && !includeDrafts) continue;
+            if (rule.Descriptor == null
+                || string.IsNullOrEmpty(rule.Descriptor.Category)
+                || string.IsNullOrEmpty(rule.Descriptor.Value)) continue;
+            if (!RuleGenderMatches(rule.Gender, evaluationGender)) continue;
+            eligible.Add(rule);
+        }
+        return eligible;
+    }
+
+    /// <summary>
+    /// The core classifier rule pass, shared by scan-time <see cref="Evaluate"/>, the editor's
+    /// cache-rederive <c>DeriveDescriptorsFor</c>, and the live preview pane. Runs
+    /// <paramref name="eligibleRules"/> in dependency order (<see cref="RuleDependencyOrder.SortByDescriptorDependencies"/>)
+    /// and — the key behavior — <b>materializes a Category's configured default into the matched
+    /// set the moment that Category is fully evaluated with no rule match</b>, i.e. BEFORE any
+    /// later aggregator (<see cref="MeasurementConditionKind.DescriptorRef"/>) rule that depends on
+    /// the Category runs. This makes a "primary" Category's default value visible to "secondary"
+    /// aggregator rules — e.g. <c>Realism:UnrealisticChest</c>'s <c>[Belly:Normal]</c> branch fires
+    /// when the belly fell through to its <c>Normal</c> default. The previous "apply every default
+    /// after the whole rule pass" ordering could never satisfy such a reference, so those branches
+    /// were silently dead (and could be authored as the now-redundant explicit middle-bin rule).
+    ///
+    /// <para><paramref name="onRuleMatched"/> is invoked once for EACH matching rule, in evaluation
+    /// order, with the live matched-descriptor set (valid only for the duration of the call — for
+    /// trace building / per-rule display). Callers that want one descriptor per (Category, Value)
+    /// de-dup on their side, exactly as before.</para>
+    ///
+    /// <para>Returns the per-Category default descriptors to emit (Categories that produced no rule
+    /// descriptor), in <paramref name="defaultsByCategory"/> order — identical content to the old
+    /// <see cref="ComputeDefaultDescriptors"/> tail. Output ordering is therefore unchanged; only
+    /// the aggregator-visibility of defaults moved earlier in the pass.</para>
+    /// </summary>
+    public static List<BodyShapeDescriptor.LabelSignature> RunClassifierRules(
+        IReadOnlyList<MeasurementRule> eligibleRules,
+        IReadOnlyDictionary<string, float> measurements,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Action<MeasurementRule, IReadOnlySet<(string Category, string Value)>> onRuleMatched)
+    {
+        var ordered = RuleDependencyOrder.SortByDescriptorDependencies(
+            eligibleRules ?? Array.Empty<MeasurementRule>(), out _);
+
+        // `matched` = rule descriptors PLUS materialized Category defaults. This is what the
+        // aggregator (DescriptorRef) conditions read, so defaults are visible to them.
+        var matched = new HashSet<(string Category, string Value)>();
+        // Rule-only matches (no materialized defaults) drive which Categories still fall to default.
+        var ruleMatchedCategories = new HashSet<string>(StringComparer.Ordinal);
+        var ruleMatchedPairs = new HashSet<(string Category, string Value)>();
+
+        var defaults = defaultsByCategory ?? new Dictionary<string, string>();
+
+        // The point after which each Category is fully resolved = the position of its last producer
+        // rule in the ordered list. (Ascending loop, last write wins == max index.)
+        var lastProducerIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var cat = ordered[i].Descriptor?.Category;
+            if (string.IsNullOrEmpty(cat)) continue;
+            lastProducerIndex[cat] = i;
+        }
+
+        // A Category with a default but NO producer rule can never be rule-matched, so its default
+        // is materialized up front — visible to any aggregator regardless of order.
+        foreach (var kvp in defaults)
+        {
+            if (string.IsNullOrEmpty(kvp.Key) || string.IsNullOrEmpty(kvp.Value)) continue;
+            if (!lastProducerIndex.ContainsKey(kvp.Key)) matched.Add((kvp.Key, kvp.Value));
+        }
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var rule = ordered[i];
+            if (MeasurementMath.RuleMatches(rule, measurements, matched))
+            {
+                var pair = (rule.Descriptor.Category, rule.Descriptor.Value);
+                matched.Add(pair);
+                ruleMatchedCategories.Add(rule.Descriptor.Category);
+                ruleMatchedPairs.Add(pair);
+                onRuleMatched?.Invoke(rule, matched);
+            }
+
+            // Reached the last producer of this rule's Category and nothing produced it: materialize
+            // its default now so aggregators depending on this Category (ordered strictly later by
+            // RuleDependencyOrder's cross-category edges) see the default value.
+            var resolvedCat = rule.Descriptor?.Category;
+            if (!string.IsNullOrEmpty(resolvedCat)
+                && lastProducerIndex.TryGetValue(resolvedCat, out int last) && last == i
+                && !ruleMatchedCategories.Contains(resolvedCat)
+                && defaults.TryGetValue(resolvedCat, out var defVal)
+                && !string.IsNullOrEmpty(defVal))
+            {
+                matched.Add((resolvedCat, defVal));
+            }
+        }
+
+        // Output defaults: exactly the Categories no rule produced, in defaults-dictionary order —
+        // unchanged from the legacy tail (the materialized set above is the same set of Categories).
+        return ComputeDefaultDescriptors(defaults, ruleMatchedPairs).ToList();
     }
 
     /// <summary>
