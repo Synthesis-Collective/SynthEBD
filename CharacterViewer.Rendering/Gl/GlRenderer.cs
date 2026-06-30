@@ -82,6 +82,10 @@ public class GlRenderer : IDisposable
     private const float BloomSoftKnee = 0.35f;
     private int _debugVbo;
     private readonly List<GlMesh> _meshes = new();
+
+    // Scratch list for the alpha-blend pass: the blended subset of _meshes,
+    // sorted back-to-front each frame. Reused to avoid per-frame allocation.
+    private readonly List<GlMesh> _blendDrawList = new();
     private bool _initialized;
     private bool _disposed;
     // 1x1 black cubemap bound to texture unit 6 whenever the active mesh has
@@ -679,8 +683,20 @@ public class GlRenderer : IDisposable
     /// the top of <see cref="Render"/>. Hosts wire this to their per-render
     /// capture file so renderer-side state (GL_FRAMEBUFFER_SRGB, viewport,
     /// bound FBO, color-attachment format) lands alongside the host-side
-    /// resolver / lighting / material trace. Null = no emission.</summary>
-    public Action<string>? DiagnosticLog { get; set; }
+    /// resolver / lighting / material trace. Null = no emission.
+    /// Re-binding the sink (new capture session) re-arms the one-shot dumps so
+    /// each capture file gets its own GL-state + draw-list trace.</summary>
+    public Action<string>? DiagnosticLog
+    {
+        get => _diagnosticLog;
+        set
+        {
+            _diagnosticLog = value;
+            _glStateLogged = false;
+            _drawListLogged = false;
+        }
+    }
+    private Action<string>? _diagnosticLog;
 
     /// <summary>
     /// Renders all meshes with the given camera matrices.
@@ -691,6 +707,7 @@ public class GlRenderer : IDisposable
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
 
         EmitGlStateDiagnostic(viewportWidth, viewportHeight);
+        EmitDrawListDiagnostic();
 
         // Camera matrices (computed up here so the pre-passes share them
         // with the main pass below).
@@ -850,16 +867,46 @@ public class GlRenderer : IDisposable
             DrawMesh(mesh);
         }
 
-        // Pass 2: Alpha-blended meshes (transparency). Depth writes OFF for
-        // correct back-to-front compositing. Shapes with the alpha-blend bit
-        // come here regardless of whether the alpha-test bit is also set —
-        // the per-shape `use_alpha_test` uniform (set in DrawMesh) handles
-        // any sub-threshold discard. This matches Portrait Creator's
+        // Pass 2: Alpha-blended meshes (transparency). Shapes with the
+        // alpha-blend bit come here regardless of whether the alpha-test bit is
+        // also set — the per-shape `use_alpha_test` uniform (set in DrawMesh)
+        // handles any sub-threshold discard. This matches Portrait Creator's
         // classification ("alphaBlend wins"), and gives hair / beard / brow
-        // edges the soft fade that comes from blending raw alpha values
-        // with the surface beneath, instead of a hard cutout.
+        // edges the soft fade that comes from blending raw alpha values with
+        // the surface beneath, instead of a hard cutout.
+        //
+        // Depth-write is decided PER SHAPE, not disabled wholesale, matching
+        // NifSkope (renderer.cpp: `if (!depthWrite || translucent)
+        // glDepthMask(GL_FALSE)`). Solid blended geometry — e.g. an SMP beard,
+        // which carries SLSF2_ZBuffer_Write and an opaque material alpha — keeps
+        // depth-write ON so it occludes the neck/body behind it; the blend only
+        // softens its cutout edges. Overlay decals (brows, eyelashes, face
+        // marks: ZBuffer_Write clear) and genuinely translucent materials
+        // (material alpha < 1) keep depth-write OFF so they composite over what's
+        // beneath without writing depth. Disabling depth-write for ALL blended
+        // shapes (the prior behavior) made solid blended beards render
+        // see-through.
         GL.Enable(EnableCap.Blend);
-        GL.DepthMask(false);
+
+        // Collect the blended subset and sort it back-to-front by camera
+        // distance, so overlapping transparent surfaces composite in the right
+        // order once depth-write is re-enabled for the solid ones. (NifSkope's
+        // secondPass.alphaSort.) All shapes share the single u_model matrix, so
+        // a world-space center distance gives a correct global ordering.
+        _blendDrawList.Clear();
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (!mesh.HasAlphaBlend) continue;
+            _blendDrawList.Add(mesh);
+        }
+        var modelForSort = model;
+        var camForSort = camPos;
+        _blendDrawList.Sort((a, b) =>
+            CameraDistanceSq(b, modelForSort, camForSort)
+                .CompareTo(CameraDistanceSq(a, modelForSort, camForSort)));
+
         // Per-mesh src/dst blend factors honored from NiAlphaProperty.
         // The vast majority of alpha-blended actor shapes use SRC_ALPHA /
         // INV_SRC_ALPHA (standard "over" transparency), but some authored
@@ -869,12 +916,11 @@ public class GlRenderer : IDisposable
         // add brightness. Honoring per-mesh factors removes the need for
         // any special-case shader hack to handle the cornea.
         int curSrc = -1, curDst = -1;
-        foreach (var mesh in _meshes)
+        // Depth mask currently TRUE (left by passes 0/1); track so we only
+        // flip GL state when a shape actually differs.
+        bool curDepthWrite = true;
+        foreach (var mesh in _blendDrawList)
         {
-            if (!mesh.ShouldRender) continue;
-            if (mesh.RenderAsWireframeFallback) continue;
-            if (!mesh.HasAlphaBlend) continue;
-
             if (mesh.SrcBlendIndex != curSrc || mesh.DstBlendIndex != curDst)
             {
                 GL.BlendFunc(MapBethesdaBlendFactor(mesh.SrcBlendIndex),
@@ -882,6 +928,15 @@ public class GlRenderer : IDisposable
                 curSrc = mesh.SrcBlendIndex;
                 curDst = mesh.DstBlendIndex;
             }
+
+            // Write depth only for solid, opaque-material blended shapes.
+            bool writeDepth = mesh.DepthWrite && mesh.MaterialAlpha >= 1f;
+            if (writeDepth != curDepthWrite)
+            {
+                GL.DepthMask(writeDepth);
+                curDepthWrite = writeDepth;
+            }
+
             DrawMesh(mesh);
         }
         GL.Disable(EnableCap.Blend);
@@ -2130,6 +2185,18 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>
+    /// World-space squared distance from the camera eye to a mesh's model-local
+    /// centroid (transformed by the shared u_model matrix). Used to sort the
+    /// alpha-blend pass back-to-front. Squared distance is enough for ordering.
+    /// </summary>
+    private static float CameraDistanceSq(GlMesh mesh, Matrix4 model, Vector3 camPos)
+    {
+        var lc = mesh.LocalCenter; // System.Numerics.Vector3 (model-local)
+        var world = Vector3.TransformPosition(new Vector3(lc.X, lc.Y, lc.Z), model);
+        return (world - camPos).LengthSquared;
+    }
+
+    /// <summary>
     /// Maps a Bethesda NiAlphaProperty blend-factor enum index (as stored in
     /// flags bits 1-4 / 5-8) to the corresponding OpenTK BlendingFactor.
     /// The Bethesda enum order matches the GL convention 1-to-1 except that
@@ -2261,6 +2328,46 @@ public class GlRenderer : IDisposable
     // frame of the live preview's continuous render loop. Reset to false when
     // the host re-binds <see cref="DiagnosticLog"/> (typically per capture session).
     private bool _glStateLogged;
+    private bool _drawListLogged;
+
+    /// <summary>One-shot per-capture dump of the actual draw list: for every
+    /// mesh, which of the three solid passes it lands in (or whether it's
+    /// skipped/hidden or downgraded to wireframe for a missing diffuse), plus
+    /// the alpha-mode flags that decide coverage. Lets us see, from the capture
+    /// file alone, whether a translucent-looking shape is genuinely going to the
+    /// blend pass, whether an expected opaque layer is silently absent, and what
+    /// per-shape depth-write the blend pass resolves. Gated like
+    /// <see cref="EmitGlStateDiagnostic"/> so the live preview's continuous loop
+    /// doesn't spam it.</summary>
+    private void EmitDrawListDiagnostic()
+    {
+        var sink = DiagnosticLog;
+        if (sink == null || _drawListLogged) return;
+        // The renderer's mesh list is populated later than the first render
+        // ticks (the scene-install queue drains in ProcessPendingScene), so on
+        // early frames _meshes is still empty. Don't consume the one-shot guard
+        // until there's actually a scene to describe, or we'd log nothing.
+        if (_meshes.Count == 0) return;
+        _drawListLogged = true;
+        try
+        {
+            foreach (var m in _meshes)
+            {
+                string pass;
+                if (!m.ShouldRender) pass = "SKIP(hidden)";
+                else if (m.RenderAsWireframeFallback) pass = "WIREFRAME(no-diffuse)";
+                else if (!m.UseAlphaTest && !m.HasAlphaBlend) pass = "0-opaque";
+                else if (m.UseAlphaTest && !m.HasAlphaBlend) pass = "1-alphaTest";
+                else pass = "2-alphaBlend";
+                bool effDepthWrite = m.HasAlphaBlend ? (m.DepthWrite && m.MaterialAlpha >= 1f) : true;
+                sink($"CharacterViewer: DRAWLIST '{m.ShapeName}' pass={pass} " +
+                    $"aTest={m.UseAlphaTest} thr={m.AlphaThreshold:F2} aBlend={m.HasAlphaBlend} " +
+                    $"zWrite={m.DepthWrite} matA={m.MaterialAlpha:F2} effDepthWrite={effDepthWrite} " +
+                    $"hairTint={m.IsHairTintShader} doubleSided={m.IsDoubleSided}");
+            }
+        }
+        catch { /* swallow; diagnostic is best-effort */ }
+    }
 
     /// <summary>Queries and emits the renderer's current GL state to
     /// <see cref="DiagnosticLog"/> once per assignment of that delegate. The

@@ -187,6 +187,26 @@ public class NifMeshBuilder
         public bool HasAlphaBlend { get; init; }
 
         /// <summary>
+        /// True if this shape's BSLightingShaderProperty has SLSF2_ZBuffer_Write
+        /// (shaderFlags2 bit 0) — i.e. the NIF wants this shape to write depth.
+        /// Drives the alpha-blend pass's per-shape depth masking: solid blended
+        /// geometry (e.g. an SMP beard) carries this flag and must occlude what's
+        /// behind it, while overlay decals (brows, eyelashes, face marks) leave it
+        /// clear so they composite without writing depth. Mirrors NifSkope's
+        /// <c>depthWrite = hasSF2(SLSF2_ZBuffer_Write)</c>. Defaults true (the
+        /// common case for opaque/cutout shapes that have no reason to skip depth).
+        /// </summary>
+        public bool ZBufferWrite { get; init; } = true;
+
+        /// <summary>
+        /// Material alpha (BSLightingShaderProperty.alpha, 0–1). &lt; 1 marks a
+        /// genuinely translucent shape, which — like NifSkope's
+        /// <c>translucent = (alpha &lt; 1.0)</c> — keeps depth-write off even when
+        /// ZBuffer_Write is set. Defaults 1.0 (fully opaque material).
+        /// </summary>
+        public float MaterialAlpha { get; init; } = 1f;
+
+        /// <summary>
         /// Alpha test threshold from NiAlphaProperty (0–1 range).
         /// </summary>
         public float AlphaThreshold { get; init; }
@@ -273,6 +293,7 @@ public class NifMeshBuilder
     private const uint SLSF1_OwnEmit               = 1u << 22;
 
     // --- SLSF2 (shaderFlags2) ---
+    private const uint SLSF2_ZBufferWrite           = 1u << 0;
     private const uint SLSF2_DoubleSided            = 1u << 4;
     private const uint SLSF2_VertexColors           = 1u << 5;
     private const uint SLSF2_GlowMap                = 1u << 6;
@@ -1003,6 +1024,8 @@ public class NifMeshBuilder
         DismemberPartitions = b.DismemberPartitions,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
+        ZBufferWrite = b.ZBufferWrite,
+        MaterialAlpha = b.MaterialAlpha,
         AlphaThreshold = b.AlphaThreshold,
         SrcBlendIndex = b.SrcBlendIndex,
         DstBlendIndex = b.DstBlendIndex,
@@ -1652,6 +1675,7 @@ public class NifMeshBuilder
         (float R, float G, float B)? hairTintColor = null;
         float glossiness = 80f;
         float specularStrength = 1f;
+        float materialAlpha = 1f;
         Vector3 specularColor = Vector3.One;
         float subsurfaceRolloff = 0f;
         float greyscaleToPaletteScale = 1f;
@@ -1680,6 +1704,9 @@ public class NifMeshBuilder
                     glossiness = bslsp.glossiness;
                     specularStrength = bslsp.specularStrength;
                     try { skinTintAlpha = bslsp.skinTintAlpha; } catch { }
+                    // Material alpha (< 1 = translucent); used alongside
+                    // ZBuffer_Write to decide depth masking in the blend pass.
+                    try { materialAlpha = bslsp.alpha; } catch { }
 
                     // Extract additional properties safely
                     try { subsurfaceRolloff = bslsp.subsurfaceRolloff; } catch { }
@@ -1909,12 +1936,15 @@ public class NifMeshBuilder
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
+        bool zBufferWrite = (shaderFlags2 & SLSF2_ZBufferWrite) != 0;
         LogVerbose("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
             ", MSN=" + isModelSpaceNormals +
             (hasAlphaTest ? ", alphaTest threshold=" + alphaThreshold.ToString("F2") : "") +
             (hasAlphaBlend ? ", alphaBlend" : "") +
+            (hasAlphaBlend && !zBufferWrite ? ", noZWrite" : "") +
+            (materialAlpha < 1f ? ", matAlpha=" + materialAlpha.ToString("F2") : "") +
             (isDoubleSided ? ", doubleSided" : "") +
             (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
 
@@ -1961,6 +1991,8 @@ public class NifMeshBuilder
             DismemberPartitions = dismemberPartitions,
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
+            ZBufferWrite = zBufferWrite,
+            MaterialAlpha = materialAlpha,
             AlphaThreshold = alphaThreshold,
             SrcBlendIndex = srcBlendIndex,
             DstBlendIndex = dstBlendIndex,

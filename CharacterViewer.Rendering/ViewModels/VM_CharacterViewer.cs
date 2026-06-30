@@ -4327,6 +4327,14 @@ public class VM_CharacterViewer : ViewerVm
         // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
         glMesh.IsDoubleSided = built.IsDoubleSided;
 
+        // Depth-write + material alpha. Set unconditionally (independent of the
+        // alpha-test/blend branch below) so the alpha-blend pass can decide, per
+        // shape, whether to write depth: solid blended geometry (ZBuffer_Write
+        // set, opaque material) occludes what's behind it; overlay decals and
+        // translucent materials do not. See GlRenderer Pass 2.
+        glMesh.DepthWrite = built.ZBufferWrite;
+        glMesh.MaterialAlpha = built.MaterialAlpha;
+
         // Alpha test / blend
         if (built.HasAlphaTest || built.HasAlphaBlend)
         {

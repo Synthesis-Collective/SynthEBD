@@ -47,6 +47,20 @@ public class GlMesh : IDisposable
     public bool HasAlphaBlend { get; set; }
     public bool IsDoubleSided { get; set; }
 
+    /// <summary>Whether this shape writes to the depth buffer, from the NIF's
+    /// SLSF2_ZBuffer_Write flag (NifMeshBuilder). Only consulted in the
+    /// alpha-blend pass: solid blended geometry (e.g. an SMP beard) keeps this
+    /// true so it occludes what's behind it, while overlay decals (brows,
+    /// eyelashes, face marks) ship it false so they composite without writing
+    /// depth. Opaque and alpha-test passes always write depth. Defaults true.</summary>
+    public bool DepthWrite { get; set; } = true;
+
+    /// <summary>Material alpha (BSLightingShaderProperty.alpha). &lt; 1 marks a
+    /// genuinely translucent material, which keeps depth-write off in the blend
+    /// pass even when <see cref="DepthWrite"/> is set — mirroring NifSkope's
+    /// <c>translucent</c> test. Defaults 1.0 (opaque).</summary>
+    public float MaterialAlpha { get; set; } = 1f;
+
     /// <summary>SrcBlend factor for the alpha-blend pass, as a Bethesda enum
     /// index (0=ONE, 1=ZERO, 2=SRC_COLOR, ..., 6=SRC_ALPHA, 7=INV_SRC_ALPHA, ...).
     /// Read from NiAlphaProperty.flags bits 1-4 by NifMeshBuilder; mapped to
@@ -182,6 +196,32 @@ public class GlMesh : IDisposable
     // CPU-side geometry for ray-based hit testing
     public System.Numerics.Vector3[]? CpuPositions { get; set; }
     public int[]? CpuIndices { get; set; }
+
+    private System.Numerics.Vector3? _localCenter;
+
+    /// <summary>Model-local centroid of the shape's vertices, computed once from
+    /// <see cref="CpuPositions"/> and cached. Used by the alpha-blend pass to
+    /// sort shapes back-to-front by camera distance so overlapping transparent
+    /// surfaces composite in the correct order. Returns the origin if no CPU
+    /// positions are present.</summary>
+    public System.Numerics.Vector3 LocalCenter
+    {
+        get
+        {
+            if (_localCenter == null)
+            {
+                var c = System.Numerics.Vector3.Zero;
+                var p = CpuPositions;
+                if (p != null && p.Length > 0)
+                {
+                    for (int i = 0; i < p.Length; i++) c += p[i];
+                    c /= p.Length;
+                }
+                _localCenter = c;
+            }
+            return _localCenter.Value;
+        }
+    }
 
     // CPU-side per-vertex skin weights. Both arrays are flat with 4 entries per
     // vertex (CpuBoneIndices[vi*4 + k] is the k-th bone for vertex vi, with
