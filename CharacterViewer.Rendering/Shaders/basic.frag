@@ -574,7 +574,19 @@ void main()
     // lash-edge artifact entirely. Lashes still occlude AO on the
     // surrounding face skin, which is the contact-shadow we want to
     // keep (e.g. faint darkening under the upper lid on the cheekbone).
-    float ao = (u_enableAO && !is_eye) ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
+    //
+    // Hair/beard shapes (is_hair_tint) opt OUT for the same reason, more
+    // severely: a beard is thin strand geometry sitting directly in front of
+    // the body (collar, neck, jaw), which is well within the AO sample radius.
+    // Screen-space AO then occludes every strand against the body just behind
+    // it, painting the underlying surface's shading - and its silhouette edges
+    // (e.g. a shirt-collar line) - straight onto the strands, so the beard
+    // reads as translucent/tinted by whatever is behind it. Strand cards have
+    // no meaningful diffuse self-AO at this scale anyway, so skipping AO on
+    // hair costs nothing visual and removes the bleed-through entirely. Hair
+    // still occludes AO on the face/body around it via the depth prepass.
+    float ao = (u_enableAO && !is_eye && !is_hair_tint)
+        ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
 
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].type == 0) continue;
