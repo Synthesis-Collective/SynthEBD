@@ -140,6 +140,18 @@ public class GlRenderer : IDisposable
     public float SsaoBias { get; set; } = 0.05f;
     /// <summary>SSAO power-curve exponent.</summary>
     public float SsaoIntensity { get; set; } = 1.5f;
+    /// <summary>Assumed occluder thickness in world units. An occluder only
+    /// darkens a fragment when its depth is within ~this distance; geometry
+    /// farther behind is treated as a separate surface seen through a gap and
+    /// does not occlude. Stops screen-space AO from painting the body behind
+    /// thin hair/beard strands onto them, and reduces silhouette haloing. At
+    /// Skyrim head scale (head ~22 units) ~2 units rejects the body behind a
+    /// beard while keeping sub-unit face-crevice contact shadows. Also drives
+    /// the bilateral SSAO blur's depth-similarity threshold. ~1.5 fully
+    /// rejects a body ~3 units behind a beard while keeping sub-1.5-unit
+    /// face-crevice contact shadows; raise it toward the sample radius for
+    /// softer/broader AO, lower it for crevice-only.</summary>
+    public float SsaoThickness { get; set; } = 1.5f;
 
     /// <summary>Eye catch-light toggle (2.5.13+). When true, basic.frag
     /// adds a tight high-glossiness specular spot from the key light
@@ -622,6 +634,7 @@ public class GlRenderer : IDisposable
         _ssaoBlurShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "ssao_blur.frag");
         _ssaoBlurShader.Use();
         _ssaoBlurShader.SetInt("u_ssaoTex", 0);
+        _ssaoBlurShader.SetInt("u_depthTex", 1);
 
         // Bloom post-process shader (bright-pass + separable blur + composite
         // scale, selected by u_pass). Single sampler on unit 0.
@@ -741,7 +754,7 @@ public class GlRenderer : IDisposable
             RenderDepthPrepass(ref modelMat, ref viewMatPre, ref projMatPre,
                 viewportWidth, viewportHeight);
             ComputeSsao(ref projMatPre, viewportWidth, viewportHeight);
-            BlurSsao(viewportWidth, viewportHeight);
+            BlurSsao(ref projMatPre, viewportWidth, viewportHeight);
         }
 
         if (needsHostFboRestore)
@@ -1841,6 +1854,7 @@ public class GlRenderer : IDisposable
         _ssaoShader.SetFloat("u_radius", SsaoRadius);
         _ssaoShader.SetFloat("u_bias", SsaoBias);
         _ssaoShader.SetFloat("u_intensity", SsaoIntensity);
+        _ssaoShader.SetFloat("u_thickness", SsaoThickness);
 
         GL.Disable(EnableCap.DepthTest);
         GL.BindVertexArray(_ssaoFullscreenVao);
@@ -1854,7 +1868,7 @@ public class GlRenderer : IDisposable
     /// writes to <see cref="_ssaoBlurTex"/> which the main pass binds
     /// instead of the raw output. Caller must restore previously bound
     /// FBO + viewport.</summary>
-    private void BlurSsao(int width, int height)
+    private void BlurSsao(ref Matrix4 projection, int width, int height)
     {
         if (_ssaoBlurShader == null) return;
 
@@ -1865,6 +1879,15 @@ public class GlRenderer : IDisposable
 
         _ssaoBlurShader.Use();
         _ssaoBlurShader.SetVector2("u_texelSize", 1f / width, 1f / height);
+        // Bilateral guard: reconstruct view-space depth (u_invProjection) and
+        // reject neighbors more than SsaoThickness units away so AO doesn't
+        // average across surfaces (e.g. body-in-gaps onto beard strands).
+        var invProj = projection.Inverted();
+        _ssaoBlurShader.SetMatrix4("u_invProjection", ref invProj);
+        _ssaoBlurShader.SetFloat("u_depthThreshold", SsaoThickness);
+        // depth G-buffer on unit 1 for the depth-similarity test.
+        GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
         GL.ActiveTexture(TextureUnit.Texture0);
         GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
 

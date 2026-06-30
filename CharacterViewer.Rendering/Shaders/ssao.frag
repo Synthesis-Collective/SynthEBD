@@ -29,6 +29,11 @@ uniform vec2 u_noiseScale;
 uniform float u_radius;
 uniform float u_bias;
 uniform float u_intensity;
+// Assumed occluder thickness in view-space units. An occluder only darkens a
+// fragment when its depth is within ~u_thickness of that fragment; geometry
+// farther away is treated as a separate surface seen past this one (background
+// through a gap) rather than a local crevice wall. See the rejection below.
+uniform float u_thickness;
 
 vec3 viewPosFromDepth(vec2 uv)
 {
@@ -77,10 +82,19 @@ void main()
         // Read the actual scene depth at the projected screen position.
         float sampleSceneZ = viewPosFromDepth(offset.xy).z;
 
-        // Range check: only count occluders that are within u_radius of
-        // the fragment in view space - prevents distant geometry behind
-        // the head from contributing fake occlusion to the face.
-        float rangeCheck = smoothstep(0.0, 1.0, u_radius / abs(fragPos.z - sampleSceneZ));
+        // Occluder-thickness rejection (range-limit by depth delta). Only
+        // count occluders whose depth is within ~u_thickness of the fragment;
+        // geometry much farther in depth is a separate surface seen past this
+        // one - e.g. the body (collar/neck/jaw) a few units behind a thin
+        // beard strand, or distant background behind a silhouette - not a
+        // local crevice wall, so it must not darken this fragment. dz <
+        // thickness keeps full weight; dz > 2*thickness is fully rejected;
+        // smooth between to avoid a hard depth ring. This is the hemisphere-
+        // kernel analogue of GTAO's occluder-thickness heuristic (Community
+        // Shaders' Screen Space GI uses the same idea), and it both fixes hair
+        // bleed-through and reduces the classic SSAO halo around silhouettes.
+        float dz = abs(fragPos.z - sampleSceneZ);
+        float rangeCheck = 1.0 - smoothstep(u_thickness, 2.0 * u_thickness, dz);
 
         // Bias: sample only counts if it's closer to the camera than
         // the test position by more than u_bias world units.
