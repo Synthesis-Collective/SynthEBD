@@ -711,38 +711,70 @@ public class VanillaBodyPathSetter
 
     /// <summary>
     /// Builds <see cref="PathsByRaceGender"/> by reading each patchable race's skin armor armatures and recording
-    /// the male/female world-model body/hands/feet/tail mesh paths as that race's vanilla defaults.
+    /// the male/female world-model body/hands/feet/tail mesh paths as that race's vanilla defaults. A race that does
+    /// not itself define a body part (its <c>Skin</c> is unset, or its skin armatures are keyed to a parent race) has
+    /// the gap filled by walking the race's <c>ArmorRace</c> (RNAM) chain, since RNAM is the race the engine sources
+    /// body armatures from. This is what makes custom races such as RedguardRaceZuri — whose RNAM points at vanilla
+    /// RedguardRace — resolve to the vanilla body/hands/feet meshes rather than producing no default at all.
     /// </summary>
     private void InitializeDefaultMeshPaths()
     {
         foreach (var raceFK in _raceResolver.PatchableRaceFormKeys)
         {
-            PathsByRaceGender.Add(raceFK, new Dictionary<Gender, Dictionary<BipedObjectFlag, string>>());
-            PathsByRaceGender[raceFK].Add(Gender.Male, new Dictionary<BipedObjectFlag, string>());
-            PathsByRaceGender[raceFK].Add(Gender.Female, new Dictionary<BipedObjectFlag, string>());
-
-            if (_environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(raceFK, out var raceGetter) && raceGetter.Skin != null && !raceGetter.Skin.IsNull && _environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var skinGetter) && skinGetter.Armature != null)
+            var maleDefaults = new Dictionary<BipedObjectFlag, string>();
+            var femaleDefaults = new Dictionary<BipedObjectFlag, string>();
+            PathsByRaceGender[raceFK] = new Dictionary<Gender, Dictionary<BipedObjectFlag, string>>
             {
-                foreach (var armaLink in skinGetter.Armature)
+                { Gender.Male, maleDefaults },
+                { Gender.Female, femaleDefaults },
+            };
+
+            // Read the race's own Skin first, then follow the ArmorRace (RNAM) chain to fill any body parts still
+            // missing. The visited set guards against RNAM self-references and cycles.
+            var visited = new HashSet<FormKey>();
+            var currentFK = raceFK;
+            while (!currentFK.IsNull && visited.Add(currentFK)
+                && _environmentStateProvider.LinkCache.TryResolve<IRaceGetter>(currentFK, out var raceGetter))
+            {
+                PopulateRaceDefaultsFromSkin(raceGetter, currentFK, maleDefaults, femaleDefaults);
+                currentFK = raceGetter.ArmorRace?.FormKey ?? default;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads <paramref name="raceGetter"/>'s Skin armor and, for each tracked body part not already populated, records
+    /// the male/female world-model mesh paths of armatures that apply to <paramref name="matchRaceFK"/> (their
+    /// <c>Race</c> or <c>AdditionalRaces</c>). Existing entries are never overwritten, so a race earlier in the
+    /// resolution chain (the race itself, then each ArmorRace) wins over a later fallback.
+    /// </summary>
+    private void PopulateRaceDefaultsFromSkin(IRaceGetter raceGetter, FormKey matchRaceFK, Dictionary<BipedObjectFlag, string> maleDefaults, Dictionary<BipedObjectFlag, string> femaleDefaults)
+    {
+        if (raceGetter.Skin == null || raceGetter.Skin.IsNull
+            || !_environmentStateProvider.LinkCache.TryResolve<IArmorGetter>(raceGetter.Skin.FormKey, out var skinGetter)
+            || skinGetter.Armature == null)
+        {
+            return;
+        }
+
+        foreach (var armaLink in skinGetter.Armature)
+        {
+            if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter)
+                && armaGetter.BodyTemplate != null
+                && (armaGetter.Race != null && armaGetter.Race.FormKey.Equals(matchRaceFK)
+                    || armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Any(x => x.FormKey.Equals(matchRaceFK))))
+            {
+                foreach (var bodyFlag in BodyFlags)
                 {
-                    if (armaLink.TryResolve(_environmentStateProvider.LinkCache, out var armaGetter)
-                        && armaGetter.BodyTemplate != null
-                        && (armaGetter.Race != null && armaGetter.Race.FormKey.Equals(raceFK) || armaGetter.AdditionalRaces != null && armaGetter.AdditionalRaces.Contains(raceGetter)))
+                    if (!armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(bodyFlag)) { continue; }
+
+                    if (!maleDefaults.ContainsKey(bodyFlag) && armaGetter.WorldModel?.Male?.File != null)
                     {
-                        foreach (var bodyFlag in BodyFlags)
-                        {
-                            if (armaGetter.BodyTemplate.FirstPersonFlags.HasFlag(bodyFlag))
-                            {
-                                if (!PathsByRaceGender[raceFK][Gender.Male].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Male != null && armaGetter.WorldModel.Male.File != null)
-                                {
-                                    PathsByRaceGender[raceFK][Gender.Male].Add(bodyFlag, armaGetter.WorldModel.Male.File);
-                                }
-                                if (!PathsByRaceGender[raceFK][Gender.Female].ContainsKey(bodyFlag) && armaGetter.WorldModel != null && armaGetter.WorldModel.Female != null && armaGetter.WorldModel.Female.File != null)
-                                {
-                                    PathsByRaceGender[raceFK][Gender.Female].Add(bodyFlag, armaGetter.WorldModel.Female.File);
-                                }
-                            }
-                        }
+                        maleDefaults.Add(bodyFlag, armaGetter.WorldModel.Male.File);
+                    }
+                    if (!femaleDefaults.ContainsKey(bodyFlag) && armaGetter.WorldModel?.Female?.File != null)
+                    {
+                        femaleDefaults.Add(bodyFlag, armaGetter.WorldModel.Female.File);
                     }
                 }
             }
