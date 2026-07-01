@@ -2,8 +2,18 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    <!-- ReactiveUI.WPF 23.x (pulled transitively by Mutagen.Bethesda.WPF 0.54.0 via Noggog.WPF)
+         ships its WPF assembly only for net*-windows10.0.19041; a plain net10.0-windows
+         (=windows7.0) is too low and silently falls back to the .NET Framework 4.6.2 build,
+         which breaks ReactiveUI/System.Reactive type resolution. Pin the Windows platform
+         version so the real .NET 10 Windows assets resolve. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <!-- Mark the apphost NOT CET-compatible so Windows doesn't enable the CET hardware shadow
+         stack for the process. The shadow stack fights runtime API-hooking / DLL injection, which
+         is exactly what Mod Organizer 2's USVFS does — with CET on, launching under MO2 crashes
+         at native init (0xc0000005 in an "unknown" module, before any managed code). Harmless for
+         standalone launches; only relaxes a security hardening this tool doesn't rely on. -->
+    <CETCompat>false</CETCompat>
     <UseWPF>true</UseWPF>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <ApplicationIcon>InternalData\Visual\SynthEBDicon.ico</ApplicationIcon>
@@ -233,22 +243,35 @@
 
   <ItemGroup>
     <PackageReference Include="AlphaFS" Version="2.2.6" />
+    <PackageReference Include="Autofac" Version="9.3.0" />
     <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
-    <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
+    <!-- 5.0.0 -> 5.1.2: Mutagen.Bethesda.WPF 0.54.0 requires Extended.Wpf.Toolkit >= 5.1.2 (NU1605). -->
+    <PackageReference Include="Extended.Wpf.Toolkit" Version="5.1.2" />
     <PackageReference Include="gong-wpf-dragdrop" Version="4.0.0" />
     <!-- HelixToolkit removed — replaced by OpenTK custom renderer -->
     <PackageReference Include="Microsoft.ML" Version="3.0.0" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
-    <PackageReference Include="Mutagen.Bethesda" Version="0.51.0" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.54.0" />
+    <!-- Declared explicitly (matches NPC2) even though the Mutagen.Bethesda meta doesn't list it and it
+         also arrives transitively via Synthesis: SynthEBD's entire settings/config serialization hard-depends
+         on Mutagen.Bethesda.Json's AddMutagenConverters() (JSONhandler.cs) for FormKey/ModKey Newtonsoft
+         (de)serialization, so pin it first-class rather than relying on the Synthesis transitive edge. -->
+    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.54.0" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.4.0" />
-    <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.35.0" />
-    <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.35.0" />
+    <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.36.0" />
+    <PackageReference Include="Mutagen.Bethesda.Synthesis.WPF" Version="0.36.0" />
+    <!-- App.xaml consumes Mutagen.Bethesda.WPF's Everything.xaml theming; pin it explicitly to
+         0.54.0 (also pulled transitively via Synthesis.WPF) so the windows10.0.19041 asset resolves. -->
+    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.54.0" />
     <PackageReference Include="niflysharp" Version="1.3.0" />
     <PackageReference Include="OpenTK.GLWpfControl" Version="4.3.3" />
     <PackageReference Include="Pfim" Version="0.11.4" />
     <PackageReference Include="PropertyChanged.Fody" Version="4.1.0" />
     <PackageReference Include="ReactiveUI.Events.WPF" Version="15.1.1" />
     <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
+    <!-- ReactiveUI 23.x (Noggog.WPF 4.3.0 baseline). Explicit so the WPF platform services,
+         RxAppBuilder, and RxSchedulers resolve against the net10 windows10.0.19041 asset. -->
+    <PackageReference Include="ReactiveUI.WPF" Version="23.2.28" />
   </ItemGroup>
 
   <!-- Shaders moved to CharacterViewer.Rendering project; their Content/CopyToOutputDirectory

@@ -1,4 +1,4 @@
-﻿using Microsoft.IO;
+﻿using System.IO; // Path.Combine — previously pulled in via the now-removed `using Microsoft.IO;`
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Converters;
 

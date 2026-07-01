@@ -28,7 +28,9 @@ namespace SynthEBD
             _7z = sevenZ;
 
             consoleUpdates
-               .ObserveOnGui()
+               // Noggog.WPF removed ObserveOnGui() in 4.x; ObserveOn(RxApp.MainThreadScheduler) is the
+               // exact equivalent (marshal onto the UI dispatcher) and matches this repo's other call sites.
+               .ObserveOn(RxApp.MainThreadScheduler)
                .Buffer(TimeSpan.FromMilliseconds(100), 100)
                .Where(list => list.Count > 0)
                .Subscribe(i =>

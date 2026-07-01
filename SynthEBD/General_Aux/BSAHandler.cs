@@ -27,7 +27,11 @@ public class PathedArchiveReader
 /// contain path Y?" without opening the archive — deferring the (expensive) reader creation until a
 /// file is actually extracted.
 /// </summary>
-public class BSAHandler : ViewModel
+// Inherits SynthEBD's own VM base (an IDisposableDropoff) rather than Noggog.WPF.ViewModel: the only
+// thing this backend service needed from a base was the DisposeWith(this) drop-off target below, and VM
+// supplies that identically. VM also lives in this assembly, so the WPF markup-compile temp project sees
+// it directly (the transitive Noggog.WPF reference isn't resolved in that pass, which broke the old base).
+public class BSAHandler : VM
 {
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;

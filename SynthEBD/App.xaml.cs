@@ -9,6 +9,8 @@ using System.Reflection;
 using System.Text;
 using System.Windows;
 using Mutagen.Bethesda;
+using ReactiveUI;
+using ReactiveUI.Builder;
 
 namespace SynthEBD;
 
@@ -35,7 +37,33 @@ public partial class App : Application
     /// </summary>
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Last-ditch crash logging to CrashLog.txt next to the exe. The rich XAML-wired
+        // DispatcherUnhandledException handler (Application_DispatcherUnhandledException) needs the
+        // fully built container/state and only sees UI-thread exceptions; these two backstops also
+        // catch background-thread and pre-UI crashes (notably under a mod manager's VFS, where a
+        // startup crash otherwise leaves no window and no log). Both handlers coexist.
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) => LogCrash("AppDomain.UnhandledException", ev.ExceptionObject as Exception);
+        this.DispatcherUnhandledException += (_, ev) => LogCrash("DispatcherUnhandledException", ev.Exception);
+
         base.OnStartup(e);
+
+        // ReactiveUI 20+ no longer self-initializes on assembly load (older ReactiveUI did, which is
+        // why SynthEBD never needed this before). Its WPF platform services (IActivationForViewFetcher,
+        // binding converters, the dispatcher scheduler) must be registered via the RxAppBuilder before
+        // the first view/ViewModel is created — otherwise every WhenAnyValue/WhenActivated throws
+        // "ReactiveUI has not been initialized". All three Synthesis entry points below (standalone UI,
+        // OpenForSettings, and even the headless RunPatch/CanRunPatch — which resolve settings VMs via
+        // SaveLoader) construct ReactiveObjects, so initialize here once, before the pipeline runs.
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithWpf()
+            .BuildApp();
+
+        // CRITICAL — set before any ReactiveCommand/WhenAnyValue is created below. ReactiveCommand and
+        // POCOObservableForProperty capture RxSchedulers.MainThreadScheduler at creation time. The
+        // RxAppBuilder leaves it as DefaultScheduler (the thread pool; WithWpf()'s WaitForDispatcherScheduler
+        // does not stick), so off-thread emissions would read WPF DependencyObjects from a pool thread and
+        // throw cross-thread InvalidOperationExceptions. Force the real UI dispatcher (resolvable from any thread).
+        RxSchedulers.MainThreadScheduler = new System.Reactive.Concurrency.DispatcherScheduler(Application.Current.Dispatcher);
 
         SynthesisPipeline.Instance
             .SetOpenForSettings(OpenForSettings)
@@ -45,6 +73,23 @@ public partial class App : Application
             .SetForWpf()
             .Run(e.Args)
             .Wait();
+    }
+
+    /// <summary>
+    /// Last-ditch crash logger: appends an unhandled exception to CrashLog.txt next to the exe so
+    /// failures that occur before (or instead of) any UI — notably when launched under a mod
+    /// manager's virtual file system — leave a diagnosable trace instead of silently vanishing.
+    /// Complements the detailed <see cref="Application_DispatcherUnhandledException"/> report.
+    /// </summary>
+    private static void LogCrash(string source, Exception? ex)
+    {
+        try
+        {
+            File.AppendAllText(
+                Path.Combine(AppContext.BaseDirectory, "CrashLog.txt"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {source}:{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch { /* nothing more we can do */ }
     }
 
     /// <summary>

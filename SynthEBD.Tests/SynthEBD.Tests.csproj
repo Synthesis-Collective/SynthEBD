@@ -1,10 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0-windows</TargetFramework>
+        <!-- Match the app's Windows platform floor (references SynthEBD + CharacterViewer.Rendering,
+             both on net*-windows10.0.19041 for the ReactiveUI.WPF 23.x assets). -->
+        <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>true</ImplicitUsings>
         <IsPackable>false</IsPackable>
+        <UseWPF>true</UseWPF>
     </PropertyGroup>
 
     <ItemGroup>

@@ -1,4 +1,6 @@
 using System.Windows;
+using ReactiveUI;
+using ReactiveUI.Builder;
 
 namespace SynthEBD.CLI;
 
@@ -41,6 +43,17 @@ internal static class Program
         bool verbCompleted = false;
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+
+        // ReactiveUI 20+ no longer self-initializes on assembly load; SynthEBD's object graph resolves
+        // ReactiveObjects/ViewModels that use WhenAnyValue, which throw "ReactiveUI has not been
+        // initialized" until the RxAppBuilder has run. Mirror App.OnStartup: register the WPF platform
+        // services here (on this STA thread that owns the Application), then force the main-thread
+        // scheduler onto the real dispatcher (the builder leaves it on the thread pool).
+        RxAppBuilder.CreateReactiveUIBuilder()
+            .WithWpf()
+            .BuildApp();
+        RxSchedulers.MainThreadScheduler = new System.Reactive.Concurrency.DispatcherScheduler(app.Dispatcher);
+
         app.DispatcherUnhandledException += (_, e) =>
         {
             if (verbCompleted)

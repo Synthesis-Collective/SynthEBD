@@ -6,6 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reactive.Disposables;
+// ReactiveUI 23 / System.Reactive moved the DisposeWith(CompositeDisposable) extension from
+// System.Reactive.Disposables.DisposableMixins to System.Reactive.Disposables.Fluent. This VM
+// disposes into a CompositeDisposable (_disposables) and has no Noggog IDisposableDropoff overload
+// in scope, so it needs the new namespace. (SynthEBD's VMs bind DisposeWith via Noggog instead.)
+using System.Reactive.Disposables.Fluent;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;

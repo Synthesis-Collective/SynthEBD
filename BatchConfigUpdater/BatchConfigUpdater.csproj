@@ -2,16 +2,18 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <!-- Retargeted with the rest of the repo. References SynthEBD (net10.0-windows10.0.19041),
+         so it must target the same floor. Not in SynthEBD.sln / CI; auxiliary dev tool. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="3.0.0" />
-    <PackageReference Include="Mutagen.Bethesda.Json" Version="0.44.0" />
-    <PackageReference Include="Mutagen.Bethesda.Skyrim" Version="0.44.0" />
-    <PackageReference Include="Mutagen.Bethesda.WPF" Version="0.44.0" />
+    <!-- Bumped 0.44.0 -> 0.54.0 to unify with SynthEBD's Mutagen graph (this code uses no Mutagen
+         API directly; the meta package covers what SynthEBD's AssetPack model needs transitively). -->
+    <PackageReference Include="Mutagen.Bethesda" Version="0.54.0" />
   </ItemGroup>
 
   <ItemGroup>

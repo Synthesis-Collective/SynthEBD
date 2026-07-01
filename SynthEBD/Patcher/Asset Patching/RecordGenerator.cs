@@ -699,7 +699,10 @@ public class RecordGenerator
     public static dynamic GetOrAddGenericRecordAsOverride(IMajorRecordGetter recordGetter, ISkyrimMod outputMod)
     {
         dynamic group = GetPatchRecordGroup(recordGetter, outputMod);
-        return OverrideMixIns.GetOrAddAsOverride(group, recordGetter);
+        // Mutagen 0.54 split the group+record GetOrAddAsOverride overload out of OverrideMixIns into
+        // GetOrAddAsOverrideMixIns (OverrideMixIns' remaining overloads take an ILinkCache, hence the
+        // former CS1503). Same (group, recordGetter) arguments.
+        return GetOrAddAsOverrideMixIns.GetOrAddAsOverride(group, recordGetter);
     }
 
     /// <summary>Returns the output mod's top-level group matching the record getter's registered getter type.</summary>
