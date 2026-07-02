@@ -32,6 +32,10 @@ public class Settings_General
     public string NPC2TokenPath { get; set; } = "";
     /// <summary>Persist assignments between runs so an NPC keeps the same appearance.</summary>
     public bool bEnableConsistency { get; set; } = true;
+    /// <summary>Automatically split the standalone output plugin into multiple files
+    /// (SynthEBD.esp, SynthEBD_2.esp, ...) if it would otherwise exceed Skyrim's 255-master
+    /// limit. Only triggers on overflow, so a normal-sized patch stays a single plugin.</summary>
+    public bool AutoSplitOutput { get; set; } = true;
     public bool ExcludePlayerCharacter { get; set; } = true;
     /// <summary>Exclude preset/template NPCs (e.g. character-creation presets) from patching.</summary>
     public bool ExcludePresets { get; set; } = true;

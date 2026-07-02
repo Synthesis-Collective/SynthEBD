@@ -336,6 +336,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool bChangeHeadParts { get; set; } = false;
     public bool bHeadPartsExcludeCustomHeads { get; set; } = true;
     public bool bEnableConsistency { get; set; } = true;
+    public bool AutoSplitOutput { get; set; } = true;
     public bool bLinkNPCsWithSameName { get; set; } = true;
     public ObservableCollection<VM_CollectionMemberString> LinkedNameExclusions { get; set; } = new();
     public ObservableCollection<VM_LinkedNPCGroup> LinkedNPCGroups { get; set; } = new();
@@ -420,6 +421,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         bChangeHeadParts = model.bChangeHeadParts;
         bHeadPartsExcludeCustomHeads = model.bHeadPartsExcludeCustomHeads;
         bEnableConsistency = model.bEnableConsistency;
+        AutoSplitOutput = model.AutoSplitOutput;
         ExcludePlayerCharacter = model.ExcludePlayerCharacter;
         ExcludePresets = model.ExcludePresets;
         bLinkNPCsWithSameName = model.bLinkNPCsWithSameName;
@@ -486,6 +488,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.bHeadPartsExcludeCustomHeads = bHeadPartsExcludeCustomHeads;
         model.OutputDataFolder = OutputDataFolder;
         model.bEnableConsistency = bEnableConsistency;
+        model.AutoSplitOutput = AutoSplitOutput;
         model.ExcludePlayerCharacter = ExcludePlayerCharacter;
         model.ExcludePresets = ExcludePresets;
         model.bLinkNPCsWithSameName = bLinkNPCsWithSameName;

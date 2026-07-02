@@ -872,20 +872,31 @@ public class Patcher
         _faceGenPatcher.DisposeCaches();
         _faceGenPatcher.SaveBsaIndexCache();
         
-        if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
-        {
-            _skyPatcherInterface.WriteIni();
-        }
-
         if (_patcherState.GeneralSettings.bChangeMeshesOrTextures)
         {
             _assetsStatsTracker.WriteReport();
         }
 
+        // Write the plugin BEFORE the SkyPatcher .ini: when "Split Output if Over Master Limit" is on and
+        // the output overflows the 255-master limit, the split relocates surrogate/duplicated records into
+        // "<name>_2.esp" etc., so the .ini's FormKeys must be remapped from the true on-disk split
+        // locations. Only the standalone run writes the plugin here (Synthesis writes it after RunPatcher
+        // returns and controls its own splitting), so the remap only applies there.
+        IReadOnlyDictionary<FormKey, FormKey>? skyPatcherRemap = null;
         if (_environmentProvider.RunMode == EnvironmentMode.Standalone)
         {
             string patchOutputPath = System.IO.Path.Combine(_paths.OutputDataFolder, _environmentProvider.OutputMod.ModKey.ToString());
-            PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider);
+            PatcherIO.WritePatch(patchOutputPath, outputMod, _logger, _environmentProvider, _patcherState.GeneralSettings.AutoSplitOutput);
+
+            if (_patcherState.GeneralSettings.AutoSplitOutput && _skyPatcherInterface.HasEntries())
+            {
+                skyPatcherRemap = PatcherIO.BuildSplitFormKeyRemap(outputMod, patchOutputPath, _environmentProvider, _logger);
+            }
+        }
+
+        if (_skyPatcherInterface.HasEntries()) // place outside of the Textures and Meshes block because it can also have entries from the Vanilla Body Mesh Setter
+        {
+            _skyPatcherInterface.WriteIni(skyPatcherRemap);
         }
 
         _logger.StopTimer();

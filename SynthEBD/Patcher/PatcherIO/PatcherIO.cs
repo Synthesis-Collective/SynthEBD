@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Mutagen.Bethesda.Skyrim;
 using System.IO;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Analysis;
 using Mutagen.Bethesda.Plugins.Analysis.DI;
 using Mutagen.Bethesda.Plugins.Exceptions;
+using Noggog;
 
 namespace SynthEBD;
 
@@ -71,8 +74,12 @@ public class PatcherIO
         }
     }
 
-    /// <summary>Writes the generated output plugin to disk (deleting any previous version first), honoring the load order. Surfaces a too-many-masters error with a SkyPatcher-mode hint; the commented-out block is a disabled multi-plugin split fallback.</summary>
-    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider environmentProvider)
+    /// <summary>Writes the generated output plugin to disk (deleting any previous version first), honoring the load order.
+    /// When <paramref name="autoSplit"/> is set, chains Mutagen's <c>WithAutoSplit()</c> so an output that would exceed
+    /// Skyrim's 255-master limit is split into &lt;name&gt;.esp/&lt;name&gt;_2.esp/... instead of throwing; otherwise a
+    /// too-many-masters overflow surfaces an error with a SkyPatcher-mode / Split-Output hint. The commented-out block is
+    /// a superseded manual multi-plugin split fallback.</summary>
+    public static void WritePatch(string patchOutputPath, ISkyrimMod outputMod, Logger logger, IEnvironmentStateProvider environmentProvider, bool autoSplit)
     {
         string errStr = "";
         if (File.Exists(patchOutputPath))
@@ -95,15 +102,30 @@ public class PatcherIO
             logger.LogMessage("Writing output file to " + patchOutputPath + ".");
             try
             {
-                outputMod.BeginWrite
-                    .ToPath(patchOutputPath)
-                    .WithLoadOrder(environmentProvider.LoadOrder)
-                    .Write();
+                // WithAutoSplit() first attempts a normal single-file write and only splits into
+                // <name>.esp/<name>_2.esp/... if the output would exceed Skyrim's 255-master limit,
+                // so the common (non-overflow) case is unchanged. When disabled, an overflow throws
+                // TooManyMastersException as before.
+                if (autoSplit)
+                {
+                    outputMod.BeginWrite
+                        .ToPath(patchOutputPath)
+                        .WithLoadOrder(environmentProvider.LoadOrder)
+                        .WithAutoSplit()
+                        .Write();
+                }
+                else
+                {
+                    outputMod.BeginWrite
+                        .ToPath(patchOutputPath)
+                        .WithLoadOrder(environmentProvider.LoadOrder)
+                        .Write();
+                }
             }
             catch (TooManyMastersException)
             {
                 logger.CallTimedLogErrorWithStatusUpdateAsync(
-                    "Error: Too many masters for a single plugin file. Please try enabling SkyPatcher Mode in SynthEBD's Texture and/or Height menus",
+                    "Error: Too many masters for a single plugin file. Please try enabling SkyPatcher Mode in SynthEBD's Texture and/or Height menus, or enable \"Split Output if Over Master Limit\" in General Settings.",
                     ErrorType.Error,
                     5);
             }
@@ -144,6 +166,71 @@ public class PatcherIO
             logger.LogMessage("Failed to write new patch. Error: " + Environment.NewLine + errStr);
             logger.LogErrorWithStatusUpdate("Could not write output file to " + patchOutputPath, ErrorType.Error);
         }
+    }
+
+    /// <summary>
+    /// After an auto-split write, the surrogate/duplicated records the SkyPatcher .ini points at may have
+    /// moved from "&lt;name&gt;.esp" into "&lt;name&gt;_2.esp"/etc. (their local FormID is preserved, only the
+    /// plugin changes). Reads the written split files back and returns a map from each original
+    /// output-plugin FormKey to its true post-split FormKey, or <c>null</c> when the output was not split
+    /// (the common case, where the .ini needs no remapping). Donor-plugin references are never in the map,
+    /// so they are left untouched by the caller.
+    /// </summary>
+    public static IReadOnlyDictionary<FormKey, FormKey>? BuildSplitFormKeyRemap(ISkyrimMod outputMod, string patchOutputPath, IEnvironmentStateProvider environmentProvider, Logger logger)
+    {
+        var outputModKey = outputMod.ModKey;
+
+        List<FilePath> splitFiles;
+        try
+        {
+            splitFiles = MultiModFileAnalysis.GetSplitModFiles(new ModPath(outputModKey, patchOutputPath));
+        }
+        catch (Exception ex)
+        {
+            // GetSplitModFiles throws on an inconsistent on-disk state; fall back to no remap.
+            logger.LogMessage("Could not enumerate split output files for SkyPatcher remap: " + ex.Message);
+            return null;
+        }
+
+        if (splitFiles.Count <= 1)
+        {
+            return null; // Not split - the in-memory FormKeys are already correct.
+        }
+
+        var remap = new Dictionary<FormKey, FormKey>();
+        foreach (var fp in splitFiles)
+        {
+            string filePath = fp;
+            var fileModKey = ModKey.FromFileName(Path.GetFileName(filePath));
+
+            // The base file keeps the original ModKey, so its records still resolve as
+            // "<name>.esp|ID" - no remap needed for those.
+            if (fileModKey.Equals(outputModKey)) continue;
+
+            try
+            {
+                using var mod = SkyrimMod.CreateFromBinaryOverlay(filePath, environmentProvider.SkyrimVersion);
+                foreach (var rec in mod.EnumerateMajorRecords())
+                {
+                    // Only records mastered to this split file were created in the output plugin
+                    // (surrogate NPCs + duplicated/surrogate armors). Overrides keep their donor
+                    // ModKey and must be left alone.
+                    if (!rec.FormKey.ModKey.Equals(fileModKey)) continue;
+                    remap[new FormKey(outputModKey, rec.FormKey.ID)] = rec.FormKey;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogMessage("Could not read split output file '" + filePath + "' for SkyPatcher remap: " + ex.Message);
+            }
+        }
+
+        if (remap.Count > 0)
+        {
+            logger.LogMessage("Auto-split relocated " + remap.Count + " output record(s); remapped SkyPatcher .ini references across " + splitFiles.Count + " files.");
+            return remap;
+        }
+        return null;
     }
 
     /// <summary>Copies a resource file to a destination (overwriting), returning whether it succeeded.</summary>
