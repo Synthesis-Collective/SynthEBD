@@ -145,6 +145,10 @@ public class CliOptions
     /// Empty = just the default theme.</summary>
     public List<string> Themes { get; } = new();
 
+    /// <summary>Disclosure modes to sweep for ui-screenshot. Empty = whatever mode the loaded
+    /// settings put the UI in.</summary>
+    public List<UiDisplayMode> Modes { get; } = new();
+
     /// <summary>Window size forced onto MainWindow for deterministic ui-screenshot captures.</summary>
     public int WindowWidth { get; private set; } = 1600;
     public int WindowHeight { get; private set; } = 1000;
@@ -256,7 +260,9 @@ UI-SCREENSHOT OPTIONS:
                            without the VM_ prefix (e.g. Settings_General, SettingsTexMesh) or the
                            nav command suffix (e.g. SG, TM). Repeatable. Default: every menu.
   --theme <name>           Sweep this theme (a Themes\*.xaml name, e.g. Dark). Repeatable.
-                           Default: the default theme only. PNGs land in <out>\<theme>\.
+                           Default: the default theme only. PNGs land in <out>\<theme>\<mode>\.
+  --mode <name>            Sweep this disclosure mode (Use, Customize, Troubleshoot). Repeatable.
+                           Default: the mode the loaded settings put the UI in.
   --width <px>             Window width for the capture (default 1600).
   --height <px>            Window height for the capture (default 1000).
   --settle-ms <n>          Wait after layout settles before each capture (default 250).
@@ -416,6 +422,15 @@ EXIT CODES:
                     break;
                 case "--theme":
                     options.Themes.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--mode":
+                    var modeValue = TakeValue(args, ref i, flag);
+                    if (!Enum.TryParse<UiDisplayMode>(modeValue, ignoreCase: true, out var uiMode))
+                    {
+                        throw new CliArgumentException("Unrecognized --mode \"" + modeValue + "\". Valid values: " +
+                                                       string.Join(", ", Enum.GetNames<UiDisplayMode>()));
+                    }
+                    options.Modes.Add(uiMode);
                     break;
                 case "--width":
                     options.WindowWidth = TakePositiveIntValue(args, ref i, flag);

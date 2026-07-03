@@ -32,6 +32,10 @@ public static class UiScreenshotVerb
             return 2;
         }
 
+        // Set BEFORE the bootstrap: settings load can migrate the disclosure mode, and no dialog
+        // may ever block an automated run.
+        UiModeController.Instance.SuppressModeChangeWarnings = true;
+
         if (!CliBootstrapper.TryCreate(options, out var bootstrapper, out string failureReason) || bootstrapper == null)
         {
             Console.Error.WriteLine("ui-screenshot: environment/settings failed to load: " + failureReason);
@@ -49,6 +53,8 @@ public static class UiScreenshotVerb
 
             var themes = options.Themes.Any() ? options.Themes : new List<string> { ThemeManager.DefaultThemeName };
             ThemeManager.ApplyTheme(themes[0]);
+
+            var modes = options.Modes.Any() ? options.Modes : new List<UiDisplayMode> { UiModeController.Instance.DisplayMode };
 
             var window = new MainWindow
             {
@@ -69,33 +75,39 @@ public static class UiScreenshotVerb
                 ThemeManager.ApplyTheme(theme);
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
 
-                int index = 0;
-                foreach (var (commandName, command) in EnumerateNavCommands(navPanel))
+                foreach (var mode in modes)
                 {
-                    index++;
-                    command.Execute(null);
+                    UiModeController.Instance.DisplayMode = mode;
                     await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
 
-                    var menuName = displayedItem.DisplayedViewModel?.GetType().Name.RemovePrefix("VM_") ?? commandName;
-                    if (options.Menus.Any()
-                        && !options.Menus.Contains(menuName, StringComparer.OrdinalIgnoreCase)
-                        && !options.Menus.Contains(commandName, StringComparer.OrdinalIgnoreCase))
+                    int index = 0;
+                    foreach (var (commandName, command) in EnumerateNavCommands(navPanel))
                     {
-                        continue;
-                    }
-
-                    if (options.ExpandExpanders)
-                    {
-                        ExpandAllExpanders(window);
+                        index++;
+                        command.Execute(null);
                         await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
-                    }
 
-                    var fileName = index.ToString("D2") + "-" + menuName + ".png";
-                    var filePath = Path.Combine(options.OutPath!, theme, fileName);
-                    await WpfCapture.SaveWindowPngAsync(window, filePath, options.SettleMs);
-                    Console.Error.WriteLine("ui-screenshot: captured " + theme + "\\" + fileName);
-                    resultWriter.WriteLine(filePath);
-                    captured++;
+                        var menuName = displayedItem.DisplayedViewModel?.GetType().Name.RemovePrefix("VM_") ?? commandName;
+                        if (options.Menus.Any()
+                            && !options.Menus.Contains(menuName, StringComparer.OrdinalIgnoreCase)
+                            && !options.Menus.Contains(commandName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        if (options.ExpandExpanders)
+                        {
+                            ExpandAllExpanders(window);
+                            await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                        }
+
+                        var fileName = index.ToString("D2") + "-" + menuName + ".png";
+                        var filePath = Path.Combine(options.OutPath!, theme, mode.ToString(), fileName);
+                        await WpfCapture.SaveWindowPngAsync(window, filePath, options.SettleMs);
+                        Console.Error.WriteLine("ui-screenshot: captured " + theme + "\\" + mode + "\\" + fileName);
+                        resultWriter.WriteLine(filePath);
+                        captured++;
+                    }
                 }
             }
 

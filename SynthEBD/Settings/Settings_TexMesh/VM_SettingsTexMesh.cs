@@ -98,7 +98,10 @@ public class VM_SettingsTexMesh : VM
 
         AssetPacks.ToObservableChangeSet().Subscribe(_ => RefreshDisplayedAssetPackString()).DisposeWith(this);
 
-        general.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
+        // Local mirror of the global disclosure mode (the XAML row-height bindings on this menu
+        // consume the bool); driven by the UiModeController singleton rather than a per-menu toggle.
+        UiModeController.Instance.WhenAnyValue(x => x.DisplayMode)
+            .Subscribe(x => bShowTroubleshootingSettings = x == UiDisplayMode.Troubleshoot).DisposeWith(this);
 
         Observable.CombineLatest(
                 this.WhenAnyValue(x => x.bShowTroubleshootingSettings),

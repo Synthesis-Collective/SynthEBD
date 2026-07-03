@@ -251,23 +251,28 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             }
         );
 
-        ToggleTroubleShootingSettingsDisplay = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
+        // One-time warning when entering Troubleshoot mode via the global mode selector (the
+        // successor of the old Show Troubleshooting Settings toggle's confirmation); declining
+        // reverts to Customize. Only fires on USER-initiated changes: the IsCurrentlyLoading guard
+        // (same pattern as the head-part warning) keeps the settings-load migration from popping a
+        // modal at startup, and the harness suppresses it so automated sweeps can't block.
+        UiModeController.Instance.WhenAnyValue(x => x.DisplayMode).Subscribe(mode =>
+        {
+            if (mode == UiDisplayMode.Troubleshoot
+                && !IsCurrentlyLoading
+                && !_bTroubleshootingWarningDisplayed
+                && !UiModeController.Instance.SuppressModeChangeWarnings)
             {
-                if (bShowTroubleshootingSettings)
+                if (MessageWindow.DisplayNotificationYesNo("Are you sure?", "These settings are only meant for troubleshooting. Do not change them unless you know what you're doing or have been instructed to do so."))
                 {
-                    bShowTroubleshootingSettings = false;
-                    TroubleShootingSettingsToggleLabel = _troubleShootingSettingsShowText;
-                }
-                else if (_bTroubleshootingWarningDisplayed || MessageWindow.DisplayNotificationYesNo("Are you sure?", "These settings are only meant for troubleshooting. Do not change them unless you know what you're doing or have been instructed to do so."))
-                {
-                    bShowTroubleshootingSettings = true;
                     _bTroubleshootingWarningDisplayed = true;
-                    TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
+                }
+                else
+                {
+                    UiModeController.Instance.DisplayMode = UiDisplayMode.Customize;
                 }
             }
-        );
+        }).DisposeWith(this);
 
         ResetTroubleShootingToDefaultCommand = new RelayCommand(
             canExecute: _ => true,
@@ -377,13 +382,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public RelayCommand ClearNPC2Token { get; }
     public bool IsStandalone { get; set; }
     public bool bFilterNPCsByArmature { get; set; } = true;
-    public bool bShowTroubleshootingSettings { get; set; } = false;
     private bool _bTroubleshootingWarningDisplayed { get; set; } = false;
-    public RelayCommand ToggleTroubleShootingSettingsDisplay { get; }
     public RelayCommand ResetTroubleShootingToDefaultCommand { get; }
-    public string TroubleShootingSettingsToggleLabel { get; set; } = _troubleShootingSettingsShowText;
-    private const string _troubleShootingSettingsShowText = "Show Troubleshooting Settings";
-    private const string _troubleShootingSettingsHideText = "Hide Troubleshooting Settings";
     private bool _bHeadPartWarningDisplayed { get; set; } = false;
     public ObservableCollection<ModKey> BlockedModsFromImport { get; set; } = new();
     public bool bShow3DPreview { get; set; } = true;
@@ -451,8 +451,14 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         bFilterNPCsByArmature = model.bFilterNPCsByArmature;
         Close7ZipWhenFinished = model.Close7ZipWhenFinished;
         BlockedModsFromImport = new(model.BlockedModsFromImport);
-        bShowTroubleshootingSettings = model.bShowTroubleshootingSettings;
         _bTroubleshootingWarningDisplayed = model.bTroubleShootingWarningDisplayed;
+        // Global disclosure mode. Migration for settings predating DisplayMode: users who had
+        // troubleshooting settings shown land in Troubleshoot; everyone else lands in Customize
+        // (today's default view IS the full customization view). Fresh installs start in Use.
+        // The warning flag is read above so entering Troubleshoot here can't re-prompt.
+        UiModeController.Instance.DisplayMode =
+            model.bFirstRun ? UiDisplayMode.Use
+            : model.DisplayMode ?? (model.bShowTroubleshootingSettings ? UiDisplayMode.Troubleshoot : UiDisplayMode.Customize);
         bShow3DPreview = model.bShow3DPreview;
         SpecificNPCPreviewerWidth = model.SpecificNPCPreviewerWidth;
         ConsistencyPreviewerWidth = model.ConsistencyPreviewerWidth;
@@ -464,10 +470,6 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
             model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
         CharacterViewerVerboseLog = model.CharacterViewerVerboseLog;
         TextureLoadStrategy = model.TextureLoadStrategy;
-        if (bShowTroubleshootingSettings)
-        {
-            TroubleShootingSettingsToggleLabel = _troubleShootingSettingsHideText;
-        }
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
     }
@@ -521,7 +523,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.DetailedReportSelector = DetailedReportSelector.DumpToModel();
         model.bFilterNPCsByArmature = bFilterNPCsByArmature;
         model.Close7ZipWhenFinished = Close7ZipWhenFinished;
-        model.bShowTroubleshootingSettings = bShowTroubleshootingSettings;
+        model.DisplayMode = UiModeController.Instance.DisplayMode;
+        // Keep writing the legacy flag so downgrading to an older SynthEBD behaves sanely.
+        model.bShowTroubleshootingSettings = UiModeController.Instance.DisplayMode == UiDisplayMode.Troubleshoot;
         model.BlockedModsFromImport = new(BlockedModsFromImport);
         model.bTroubleShootingWarningDisplayed = _bTroubleshootingWarningDisplayed;
         model.bHeadPartWarningDisplayed = _bHeadPartWarningDisplayed;

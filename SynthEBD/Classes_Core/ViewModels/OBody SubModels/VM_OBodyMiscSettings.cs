@@ -38,7 +38,7 @@ public class VM_OBodyMiscSettings : VM
             }
         }).DisposeWith(this);
 
-        generalSettingsVM.WhenAnyValue(x => x.bShowTroubleshootingSettings).Subscribe(x => bShowTroubleshootingSettings = x).DisposeWith(this);
+        UiModeController.Instance.WhenAnyValue(x => x.DisplayMode).Subscribe(x => bShowTroubleshootingSettings = x == UiDisplayMode.Troubleshoot).DisposeWith(this);
 
         this.WhenAnyValue(x => x.OBodySelectionMode).Subscribe(mode => ShowOBodyNativeOptions = mode == OBodySelectionMode.Native).DisposeWith(this);
 

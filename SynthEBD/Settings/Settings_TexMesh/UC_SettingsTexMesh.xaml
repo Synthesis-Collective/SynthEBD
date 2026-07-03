@@ -12,6 +12,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
     </UserControl.Resources>
 
     <Grid>
@@ -32,8 +33,11 @@
                 </RowDefinition.Style>
             </RowDefinition>
 
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
+            <!-- The config-editor toolbar and editor pane are Customize-level; in Use mode this
+                 menu reduces to config selection/installation. (Phase 4 of the UI overhaul moves
+                 the editor to its own page.) -->
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize:Star}"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -52,25 +56,25 @@
                 <!-- 1 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 2 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 3 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 4 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 5 -->
-                <RowDefinition Height="auto" x:Name="row5"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}" x:Name="row5"/>
                 <!-- 6 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 7 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 8 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 9 -->
                 <RowDefinition Height="{Binding bShowEBDOptions, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 10 -->
-                <RowDefinition Height="auto" x:Name="row10"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}" x:Name="row10"/>
                 <!-- 11 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 12 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 13 -->
@@ -82,7 +86,7 @@
                 <!-- 16 -->
                 <RowDefinition Height="auto"/>
                 <!-- 17 -->
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 18 -->
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>

@@ -12,6 +12,7 @@
     <UserControl.Resources>
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
     
@@ -24,6 +25,9 @@
                 <!-- Do not add last column to SharedSizeGroup: * behaves like auto: https://stackoverflow.com/questions/4664008/grids-sharedsizegroup-and-sizing -->
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+                <!-- Row heights implement the global [Use][Customize][Troubleshoot] disclosure
+                     levels: rows gated with UiModeRowHeight collapse below their minimum level.
+                     Ungated (auto) rows are Use-level. -->
                 <RowDefinition Height="{Binding IsStandalone, Converter={StaticResource GridHeightToggler}}" x:Name="row0"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
@@ -32,33 +36,36 @@
                 <RowDefinition Height="auto"  x:Name="row5"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" />
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"  x:Name="row10"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}" />
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"  x:Name="row10"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <RowDefinition Height="{Binding ShowEasyNPCPath, Converter={StaticResource GridHeightToggler}}"/>
                 <RowDefinition Height="{Binding ShowNPC2Path, Converter={StaticResource GridHeightToggler}}"  x:Name="row15"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"   x:Name="row20"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" x:Name="row25"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}" />
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"   x:Name="row20"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}" x:Name="row25"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <!-- Advanced-selector checkbox row (28) is Troubleshoot-gated and its selector row
+                     (29) is gated by the checkbox value (these two gates were previously swapped,
+                     which made the checkbox row hide itself until already enabled). -->
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}" />
+                <RowDefinition Height="{Binding bUseDetailedReportSelection, Converter={StaticResource GridHeightToggler}}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
@@ -271,7 +278,8 @@
             <TextBlock Grid.Column="0" Grid.Row="32" ToolTip="When SynthEBD is operating in Attempt to Avoid Override (a.k.a. SkyPatcher) mode, NPCs and their dependencies will be merged into the patch to avoid creating dependencies. Records from these mods will not be merged in." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Do Not Merge In Records From</TextBlock>
             <plugins:ModKeyMultiPicker Grid.Column="2" Grid.Row="32"  ModKeys="{Binding BlockedModsFromImport}"  SearchableMods="{Binding LoadOrder}" />
             
-            <Button Grid.Column="0" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="{DynamicResource ActionAccentForeground}" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
+            <!-- The old Show/Hide Troubleshooting Settings toggle was replaced by the global
+                 [Use][Customize][Troubleshoot] selector in the main window header. -->
             <Button Grid.Column="2" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="{DynamicResource ActionAccentForeground}" Content="Reset Troubleshooting Settings to Defaults"/>
 
             <TextBlock Grid.Column="0" Grid.Row="34" ToolTip="NPCs used as the model when previewing subgroup textures and headparts in the 3D Character Viewer. One male/female NPC per patchable race, plus a Default fallback." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Nif Preview Options</TextBlock>

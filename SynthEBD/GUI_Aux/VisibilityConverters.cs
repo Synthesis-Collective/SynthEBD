@@ -214,3 +214,66 @@ public class InvertableBooleanToVisibilityConverter : IValueConverter
         return null;
     }
 }
+/// <summary>Shows an element when the active <see cref="UiDisplayMode"/> is at or above the
+/// minimum level named by the <c>ConverterParameter</c> (e.g. <c>Customize</c>). Bind the source
+/// to <see cref="UiModeController.Instance"/>.<see cref="UiModeController.DisplayMode"/>.</summary>
+[ValueConversion(typeof(UiDisplayMode), typeof(Visibility))]
+public class UiModeToVisibilityConverter : IValueConverter
+{
+    /// <summary>Returns <c>Visible</c> iff the current mode is at or above the parameter's level.</summary>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var currentMode = (UiDisplayMode)value;
+        var minimumMode = Enum.Parse<UiDisplayMode>((string)parameter);
+        return currentMode >= minimumMode ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Not used; returns <c>null</c>.</summary>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
+}
+
+/// <summary>Row-collapse variant of <see cref="UiModeToVisibilityConverter"/> for the
+/// RowDefinition.Height gating pattern (see <see cref="BoolToGridRowHeightConverter"/>): returns
+/// <c>Auto</c> (or <c>*</c> when the parameter carries the <c>:Star</c> suffix, e.g.
+/// <c>Customize:Star</c>) when the current mode is at or above the parameter's minimum level,
+/// otherwise a zero height.</summary>
+[ValueConversion(typeof(UiDisplayMode), typeof(GridLength))]
+public class UiModeToGridRowHeightConverter : IValueConverter
+{
+    /// <summary>Returns the row height for the current mode (see class summary).</summary>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var currentMode = (UiDisplayMode)value;
+        var parts = ((string)parameter).Split(':');
+        var minimumMode = Enum.Parse<UiDisplayMode>(parts[0]);
+        bool star = parts.Length > 1 && string.Equals(parts[1], "Star", StringComparison.OrdinalIgnoreCase);
+        if (currentMode >= minimumMode)
+        {
+            return star ? new GridLength(1, GridUnitType.Star) : new GridLength(1, GridUnitType.Auto);
+        }
+        return new GridLength(0);
+    }
+
+    /// <summary>Not used; returns <c>null</c>.</summary>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
+}
+
+/// <summary>Two-way equality converter for binding a RadioButton's <c>IsChecked</c> to a
+/// <see cref="UiDisplayMode"/> property: checked iff the value equals the mode named by the
+/// <c>ConverterParameter</c>; checking writes that mode back.</summary>
+[ValueConversion(typeof(UiDisplayMode), typeof(bool))]
+public class UiModeEqualsToBoolConverter : IValueConverter
+{
+    /// <summary>True iff the current mode equals the parameter's mode.</summary>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value.ToString() == (string)parameter;
+    }
+
+    /// <summary>Writes the parameter's mode back when checked; no-ops when unchecked (another
+    /// radio button in the group performs the write).</summary>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is true ? Enum.Parse<UiDisplayMode>((string)parameter) : System.Windows.Data.Binding.DoNothing;
+    }
+}

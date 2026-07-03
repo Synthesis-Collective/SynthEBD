@@ -1,0 +1,55 @@
+<UserControl x:Class="SynthEBD.UC_UiModeSelector"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             mc:Ignorable="d">
+
+    <!-- The global [Use][Customize][Troubleshoot] progressive-disclosure selector. Placed once in
+         the MainWindow header so it appears in a consistent corner of every menu; it binds the
+         singleton UiModeController, so flipping it anywhere changes the mode app-wide. -->
+
+    <UserControl.Resources>
+        <local:UiModeEqualsToBoolConverter x:Key="ModeEquals"/>
+        <Style x:Key="SegmentStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryForeground}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root" Background="Transparent" CornerRadius="2" Padding="10,3" Margin="1" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ButtonHoverBackground}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentForeground}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3">
+        <StackPanel Orientation="Horizontal">
+            <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Use"
+                         IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Use, Mode=TwoWay}"
+                         ToolTip="Show only what's needed to install content and run the patcher. Distribution rules and advanced options are hidden."
+                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Customize"
+                         IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Customize, Mode=TwoWay}"
+                         ToolTip="Also show customization options: distribution rules, race/attribute groupings, and integrations."
+                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Troubleshoot"
+                         IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Troubleshoot, Mode=TwoWay}"
+                         ToolTip="Also show diagnostic and compatibility switches. Don't change these unless you know what you're doing or have been instructed to."
+                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

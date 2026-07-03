@@ -298,7 +298,14 @@ public class Settings_General
     public DetailedReportNPCSelector DetailedReportSelector { get; set; } = new();
     /// <summary>In NPC pickers, filter the list to NPCs that share the selected NPC's armature.</summary>
     public bool bFilterNPCsByArmature { get; set; } = true;
+    /// <summary>LEGACY (superseded by <see cref="DisplayMode"/>): whether troubleshooting settings
+    /// were shown. Still written on save so downgrading to an older SynthEBD behaves sanely, and
+    /// read as the migration source when <see cref="DisplayMode"/> is absent from the JSON.</summary>
     public bool bShowTroubleshootingSettings { get; set; } = false;
+    /// <summary>The global progressive-disclosure mode. Nullable so settings files predating the
+    /// mode can be told apart from an explicit choice (null = migrate from
+    /// <see cref="bShowTroubleshootingSettings"/>).</summary>
+    public UiDisplayMode? DisplayMode { get; set; } = null;
     /// <summary>Tracks whether the troubleshooting-settings warning has already been shown (one-time UI flag).</summary>
     public bool bTroubleShootingWarningDisplayed { get; set; } = false;
     /// <summary>Tracks whether the head-part patching warning has already been shown (one-time UI flag).</summary>
