@@ -62,6 +62,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SubgroupTextureMapper>().AsSelf().SingleInstance();
         builder.RegisterType<FaceGenPreviewService>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_ConfigEditor>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_SettingsDestandalone>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsBodyGen>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsOBody>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsHeight>().AsSelf().SingleInstance();

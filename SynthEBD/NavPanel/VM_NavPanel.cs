@@ -12,6 +12,8 @@ public class VM_NavPanel : VM
 {
     public ICommand ClickSG { get; }
     public ICommand ClickTM { get; }
+    public ICommand ClickCE { get; }
+    public ICommand ClickDS { get; }
     public ICommand ClickBG { get; }
     public ICommand ClickOB { get; }
     public ICommand ClickH { get; }
@@ -37,6 +39,8 @@ public class VM_NavPanel : VM
         VM_Settings_General settingsGeneral,
         PatcherState patcherState,
         VM_SettingsTexMesh texMesh,
+        VM_ConfigEditor configEditor,
+        VM_SettingsDestandalone destandalone,
         VM_SettingsBodyGen bodyGenSettingsVm,
         VM_SettingsOBody oBody,
         VM_SettingsHeight height,
@@ -60,6 +64,14 @@ public class VM_NavPanel : VM
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = texMesh
         ) ;
+        ClickCE = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => displayedItemVm.DisplayedViewModel = configEditor
+        );
+        ClickDS = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => displayedItemVm.DisplayedViewModel = destandalone
+        );
         ClickBG = new RelayCommand(
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = bodyGenSettingsVm

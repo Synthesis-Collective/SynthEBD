@@ -13,31 +13,12 @@
         <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
         <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
+        <local:UiModeToVisibilityConverter x:Key="UiModeVis"/>
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition>
-                <RowDefinition.Style>
-                    <Style TargetType="RowDefinition">
-                        <Setter Property="Height" Value="auto" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding bShowMenuButtons}" Value="False">
-                                <Setter Property="Height" Value="0" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding bShowMenuButtons}" Value="True">
-                                <Setter Property="Height" Value="auto" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </RowDefinition.Style>
-            </RowDefinition>
-
-            <!-- The config-editor toolbar and editor pane are Customize-level; in Use mode this
-                 menu reduces to config selection/installation. (Phase 4 of the UI overhaul moves
-                 the editor to its own page.) -->
-            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
-            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize:Star}"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -66,28 +47,24 @@
                 <!-- 6 -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 7 -->
-                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
-                <!-- 8 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <!-- 9 -->
+                <!-- 8 (was 9; Force-vanilla row moved to the Destandalone page) -->
                 <RowDefinition Height="{Binding bShowEBDOptions, Converter={StaticResource GridHeightToggler}}"/>
-                <!-- 10 -->
+                <!-- 9 -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}" x:Name="row10"/>
-                <!-- 11 -->
-                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <!-- 10 (was 11) -->
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+                <!-- 11 (was 13; Subgroup-preview row moved to the Config Editor page) -->
+                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 12 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
                 <!-- 13 -->
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <!-- 14 -->
-                <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
-                <!-- 15 -->
                 <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}" x:Name="row15"/>
-                <!-- 16 -->
+                <!-- 14 -->
                 <RowDefinition Height="auto"/>
-                <!-- 17 -->
+                <!-- 15 -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
-                <!-- 18 -->
+                <!-- 16 -->
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
@@ -115,15 +92,8 @@
             <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" ToolTip="Allow config files to distribute asset replacers" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Enable Asset Replacers</TextBlock>
             <CheckBox Grid.Row="7" Grid.Column="1"  IsChecked="{Binding Path=bEnableAssetReplacers, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body meshes so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
-            <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
-                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"></CheckBox>
-                <TextBlock Margin="20 0 5 0" VerticalAlignment="Center" Text="Allow UBE" Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}" ToolTip="Preserve UBE bodies (recognized by their '!UBE' mesh path) instead of forcing them to the CBBE/UNP vanilla path, which would break them. A UBE body is only remapped to the canonical UBE base body when its morph .tri file is missing." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bAllowUBEBodyPaths, Mode=TwoWay}" Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
-
-            <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" ToolTip="If an NPC has one of these armor EditorIDs assigned as its skin, completely replace it rather than trying to patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
+            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" ToolTip="If an NPC has one of these armor EditorIDs assigned as its skin, completely replace it rather than trying to patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <WrapPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1">
                 <Expander>
                     <WrapPanel Orientation="Horizontal">
                         <StackPanel>
@@ -152,8 +122,8 @@
                 <CheckBox IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
             </WrapPanel>
 
-            <TextBlock Grid.Row="10" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
-            <WrapPanel Orientation="Horizontal" Grid.Row="10" Grid.Column="1">
+            <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
+            <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
                 <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Global Script</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
 
@@ -189,30 +159,23 @@
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bNewEBDModeVerbose, Mode=TwoWay}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}"/>
             </WrapPanel>
 
-            <TextBlock Grid.Row="11" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
-            <CheckBox Grid.Row="11"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="10" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
+            <CheckBox Grid.Row="10"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="12"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Subgroup preview mode: None, DDS thumbnails (Image), or 3D render of an NPC with the subgroup's textures applied (Render)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup preview</TextBlock>
-            <StackPanel Grid.Row="12"  Grid.Column="1" Orientation="Horizontal">
-                <ComboBox ItemsSource="{Binding PreviewModeOptions}" SelectedItem="{Binding PreviewMode, Mode=TwoWay}" MinWidth="80" />
-                <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" ToolTip="Lower this value if the preview images are using too much memory" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-                <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
+            <TextBlock Grid.Row="11"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>
+            <CheckBox Grid.Row="11"  Grid.Column="1" IsChecked="{Binding Path=bCacheRecords, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="13"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>
-            <CheckBox Grid.Row="13"  Grid.Column="1" IsChecked="{Binding Path=bCacheRecords, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="12" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's skin texture has an Alt Textures list that references a texture set that SynthEBD replaced, patch that Alt Textures entry to use the new texture" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Skin Alternate Textures</TextBlock>
+            <CheckBox Grid.Row="12" Grid.Column="1"  IsChecked="{Binding Path=bPatchSkinAltTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="14" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's skin texture has an Alt Textures list that references a texture set that SynthEBD replaced, patch that Alt Textures entry to use the new texture" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Skin Alternate Textures</TextBlock>
-            <CheckBox Grid.Row="14" Grid.Column="1"  IsChecked="{Binding Path=bPatchSkinAltTextures, Mode=TwoWay}"></CheckBox>
+            <TextBlock Grid.Row="13" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's armor references its body texture, patch the armor as well" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Armor Textures</TextBlock>
+            <CheckBox Grid.Row="13" Grid.Column="1"  IsChecked="{Binding Path=bPatchArmors, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="15" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's armor references its body texture, patch the armor as well" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Armor Textures</TextBlock>
-            <CheckBox Grid.Row="15" Grid.Column="1"  IsChecked="{Binding Path=bPatchArmors, Mode=TwoWay}"></CheckBox>
-
-            <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
-            <StackPanel Grid.Row="16" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
+            <StackPanel Grid.Row="14" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5 0 5 0" ToolTip="Restore default asset path trimming entries" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Restore Defaults</Button>
             </StackPanel>
-            <Expander Grid.Row="16" Grid.Column="1" >
+            <Expander Grid.Row="14" Grid.Column="1" >
                 <StackPanel>
                     <ItemsControl ItemsSource="{Binding TrimPaths, UpdateSourceTrigger=Default}">
                         <ItemsControl.ItemTemplate>
@@ -232,13 +195,13 @@
                 </StackPanel>
             </Expander>
 
-            <TextBlock Grid.Row="17"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
-            <StackPanel Grid.Row="17"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
+            <TextBlock Grid.Row="15"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
+            <StackPanel Grid.Row="15"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
                 <TextBlock VerticalAlignment="Center" Text="Select"/>
                 <Button Command="{Binding SelectConfigsAll}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0" ToolTip="Enable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
                 <Button Command="{Binding SelectConfigsNone}" Foreground="{DynamicResource ActionDangerForeground}" Margin="5 0 5 0" ToolTip="Disable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">None</Button>
             </StackPanel>
-            <Expander Grid.Row="17"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
+            <Expander Grid.Row="15"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
                 <ItemsControl ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_AssetPack}">
@@ -251,52 +214,19 @@
                 </ItemsControl>
             </Expander>
 
-            <TextBlock Grid.Row="18" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
-            <Expander Grid.Row="18" Grid.Column="1" >
+            <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <Expander Grid.Row="16" Grid.Column="1" >
                 <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
             </Expander>
         </Grid>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal">
-            <Button Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
-            <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" ToolTip="Split screen for config editor to drag and drop subgroups between config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Split Screen Config Editor</Button>
-            <Button Margin="10 0 0 0" HorizontalAlignment="Right" Command="{Binding MenuButtonsToggle}" ToolTip="Toggle main settings visibility to give the config editor more screen space" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding MenuButtonToggleStr}" />
-            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Edit all/selected config files simultaneously" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Actions</Button>
-        </StackPanel>
-
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition>
-                    <ColumnDefinition.Style>
-                        <Style TargetType="ColumnDefinition">
-                            <Setter Property="Width" Value="*" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding bShowSecondaryAssetPack}" Value="False">
-                                    <Setter Property="Width" Value="0" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding bShowSecondaryAssetPack}" Value="True">
-                                    <Setter Property="Width" Value="*" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ColumnDefinition.Style>
-                </ColumnDefinition>
-            </Grid.ColumnDefinitions>
-
-            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="#5844b4" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" />
-            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="1" Background="{DynamicResource SecondaryBackground}" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
-        </Grid>
-
-        <WrapPanel Grid.Row="3" Orientation="Horizontal">
+        <!-- The config-editor toolbar and editor pane moved to the Config Editor page
+             (UC_ConfigEditor); Destandalone patching moved to its own page (UC_SettingsDestandalone). -->
+        <WrapPanel Grid.Row="1" Orientation="Horizontal">
             <Button Command="{Binding InstallFromArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
             <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
-            <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
-            <Button Command="{Binding CreateConfigArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
-            <Button Command="{Binding SimulateDistribution}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
+            <Button Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
+            <Button Command="{Binding SimulateDistribution}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
         </WrapPanel>
     </Grid>
 </UserControl>

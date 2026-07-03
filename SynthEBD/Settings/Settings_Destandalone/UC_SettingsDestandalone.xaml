@@ -1,0 +1,48 @@
+<UserControl x:Class="SynthEBD.UC_SettingsDestandalone"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD" d:DataContext="{d:DesignInstance Type=local:VM_SettingsDestandalone}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:UiModeToVisibilityConverter x:Key="UiModeVis"/>
+    </UserControl.Resources>
+
+    <!-- The inner DataContext is the shared VM_SettingsTexMesh: the flags persist in
+         TexMeshSettings.json (deliberately, for backward compatibility) even though the feature
+         has its own page. -->
+    <StackPanel DataContext="{Binding TexMesh}" MaxWidth="950" HorizontalAlignment="Left">
+
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}" Margin="0 0 0 12">
+            Destandalone patching forces patched NPCs to use the vanilla body mesh paths instead of
+            the standalone body meshes their config files would normally assign. Use this when your
+            own body setup (e.g. your BodySlide output) should apply to every patched NPC, so config
+            files don't need to ship their own pre-built bodies.
+        </TextBlock>
+
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body mesh paths so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
+            <CheckBox Margin="10 0 0 0" VerticalAlignment="Center" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6"
+                    Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal"
+                        Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}">
+                <TextBlock VerticalAlignment="Center" Text="Allow UBE" ToolTip="Preserve UBE bodies (recognized by their '!UBE' mesh path) instead of forcing them to the CBBE/UNP vanilla path, which would break them. A UBE body is only remapped to the canonical UBE base body when its morph .tri file is missing." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <CheckBox Margin="10 0 0 0" VerticalAlignment="Center" IsChecked="{Binding Path=bAllowUBEBodyPaths, Mode=TwoWay}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}" Margin="0 6 0 0"
+                   Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}">
+            Notes: when SkyPatcher mode is enabled for asset patching, the vanilla paths are applied
+            through SkyPatcher skin directives instead of WornArmor overrides. Individual NPCs or
+            whole plugins can be exempted with the "Vanilla Body Path" flag in the Block List. This
+            feature only acts on NPCs when "Apply Textures and Meshes" is enabled.
+        </TextBlock>
+    </StackPanel>
+</UserControl>

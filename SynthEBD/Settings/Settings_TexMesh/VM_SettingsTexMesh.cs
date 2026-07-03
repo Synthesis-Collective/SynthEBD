@@ -315,18 +315,8 @@ public class VM_SettingsTexMesh : VM
            }
        );
 
-        MenuButtonsToggle = new RelayCommand(
-           canExecute: _ => true,
-           execute: _ =>
-           {
-               bShowMenuButtons = !bShowMenuButtons;
-               switch (bShowMenuButtons)
-               {
-                   case true: MenuButtonToggleStr = "Full Height Config Editor"; break;
-                   case false: MenuButtonToggleStr = "Split Height Config Editor"; break;
-               }
-           }
-       );
+        // The old MenuButtonsToggle command (hiding the settings grid to give the embedded config
+        // editor more space) was retired when the editor moved to its own page (VM_ConfigEditor).
 
         ShowBatchActionsMenu = new RelayCommand(
            canExecute: _ => true,
@@ -375,8 +365,6 @@ public class VM_SettingsTexMesh : VM
     /// <summary>Computed: true only when <see cref="PreviewMode"/> is Render.</summary>
     public bool bShowRenderPreview => PreviewMode == PreviewMode.Render;
     public int MaxPreviewImageSize { get; set; } = 1024;
-    public bool bShowMenuButtons { get; set; } = true;
-    public string MenuButtonToggleStr { get; set; } = "Full Height Config Editor";
     public bool bPatchArmors { get; set; } = true;
     public bool bPatchSkinAltTextures { get; set; } = true;
     public bool bSkyPatcherModeAssets { get; set; } = false;
@@ -398,7 +386,6 @@ public class VM_SettingsTexMesh : VM
     public RelayCommand InstallFromJson { get; }
     public RelayCommand CreateConfigArchive { get; }
     public RelayCommand SplitScreenToggle { get; }
-    public RelayCommand MenuButtonsToggle { get; }
     public RelayCommand AddTriggerEvent { get; }
     public RelayCommand AddStrippedWNAM { get; }
     public RelayCommand ImportStrippedWNAMsFromMod { get; }
