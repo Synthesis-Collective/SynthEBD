@@ -8,7 +8,7 @@ SynthEBD is a standalone WPF patcher (the Mutagen-based successor to the zEBD zE
 
 ## Build, run, test
 
-The solution targets **.NET 8** (WPF, `net8.0`, Windows-only). Use the same commands as CI ([.github/workflows/publish.yml](.github/workflows/publish.yml)):
+The solution targets **.NET 10** (WPF, `net10.0-windows10.0.19041.0`, Windows-only). Use the same commands as CI ([.github/workflows/publish.yml](.github/workflows/publish.yml)):
 
 ```powershell
 dotnet restore SynthEBD.sln
@@ -35,13 +35,19 @@ Tests cover the BodySlide group classifier (ML.NET-based), form-key replacement 
 - **SynthEBD/** — the main WPF/Synthesis application (WinExe entry point).
 - **CharacterViewer.Rendering/** — standalone OpenTK/OpenGL 4.3 renderer library (replaced HelixToolkit), referenced by SynthEBD via `ProjectReference`.
 - **SynthEBD.Tests/** — xUnit test project (not in the .sln).
-- **SynthEBD.CLI/** — headless console front-end (`validate`/`scan`/`draft`/`simulate`/`package`/`archive-*` verbs) for AI-assisted config authoring. Bootstraps the full object graph the same way the integration-test harness does (STA WPF `Application` + Autofac + `SaveLoader`); stdout is reserved for results (`--json`), all logging goes to stderr. Published into the same folder as SynthEBD.exe by the release workflow.
+- **SynthEBD.CLI/** — headless console front-end (`validate`/`scan`/`draft`/`simulate`/`package`/`archive-*` verbs) for AI-assisted config authoring, plus the **`ui-screenshot`** verb: the UI's automated visual-QA harness (shows the real MainWindow against the real settings/environment, flips every nav menu by reflection over `VM_NavPanel`'s `Click*` commands, and captures PNGs; sweeps `--theme` and `--mode`, `--expand-expanders` opens all expanders; never writes settings back because it skips `MainWindow_ViewModel.Init()`). It runs on `UiHarnessApp.xaml`, whose resource block must be kept in **lockstep with App.xaml**. Bootstraps the full object graph the same way the integration-test harness does (STA WPF `Application` + Autofac + `SaveLoader`); stdout is reserved for results (`--json`), all logging goes to stderr. Published into the same folder as SynthEBD.exe by the release workflow.
 - **AISkills/** — agent-portable Skill documentation (`synthebd-config-authoring/`) teaching an LLM the config-authoring workflow against the CLI; zipped into releases. Keep it in lockstep with CLI/config-format changes.
 - **BatchConfigUpdater/** — auxiliary tool.
 
 ## Architecture of the main app (SynthEBD/)
 
 **Composition / entry point.** [App.xaml.cs](SynthEBD/App.xaml.cs) is the entry point and wires up **Autofac** DI via [MainModule.cs](SynthEBD/MainModule.cs) (registers singletons like `Logger`, `PatcherState`, `SaveLoader`, settings IO handlers, plus factory delegates for transient VMs). There are three startup paths driven by the Synthesis pipeline: standalone UI, `OpenForSettings` (settings UI inside Synthesis), and `CanRunPatch` (validation). `SynthEBDPaths` resolves all settings/output directories.
+
+**UI shell & conventions (post-overhaul).** The app opens on a **Dashboard** ([Dashboard/](SynthEBD/Dashboard/)) of per-module tiles with status readouts and power toggles bridged to the module enable flags. Three UI systems govern every menu:
+- **Themes** — loose `Themes\*.xaml` semantic-brush dictionaries hot-swapped at runtime by [ThemeManager](SynthEBD/Themes/ThemeManager.cs) (merged LAST so their implicit styles win; `Dark.xaml` is also embedded as fallback). Theme files must be fully self-contained (StaticResource only within the file) and ASCII-only; keep the style sections identical across theme files, varying only the palette. The MahApps dictionaries in App.xaml are a **resource donor only** for Noggog/Mutagen WPF's deferred references — nothing derives from MahApps controls anymore, and they cannot be moved behind a `Source=` aggregator (deferred StaticResource resolution breaks).
+- **Progressive disclosure** — the global `[Use][Customize][Troubleshoot]` mode ([UiModeController](SynthEBD/GUI_Aux/UiModeController.cs) singleton, persisted as `GeneralSettings.DisplayMode`). Menus gate rows/elements with `UiModeToGridRowHeightConverter`/`UiModeToVisibilityConverter` bound to `UiModeController.Instance` with a minimum-level `ConverterParameter` (`Customize:Star` for star-height rows). New settings should be classified into one of the three levels.
+- **3-part tooltips** — controls carry `local:DocTooltip.Key="Menu.Element"` resolving into the [UiDocs](SynthEBD/GUI_Aux/Docs/UiDocs.cs) registry (Layperson/Technical/Motivation sections, rendered by the implicit `UiDocEntry` template). New controls in migrated menus should register a UiDocs entry; a test enforces key parity.
+- **Named FormKey pickers** — use [UC_NamedFormKeyPicker / UC_NamedFormKeyMultiPicker](SynthEBD/GUI_Aux/Controls/) (Name → EditorID → FormKey display via the background [RecordNameIndexer](SynthEBD/GUI_Aux/Controls/RecordNameIndexer.cs)), NOT Mutagen's FormKey pickers. ModKey pickers remain Mutagen controls.
 
 **MVVM + reactive conventions.**
 - All view models inherit from [Classes_Aux/ViewModels/VM.cs](SynthEBD/Classes_Aux/ViewModels/VM.cs) (implements `INotifyPropertyChanged` + `IDisposableDropoff`, owns a `CompositeDisposable`).
