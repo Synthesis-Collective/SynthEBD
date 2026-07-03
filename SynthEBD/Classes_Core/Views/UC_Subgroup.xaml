@@ -92,7 +92,7 @@
         <TextBox Grid.Row="7" Grid.Column="1" MinWidth="150" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
 
         <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="8" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <local:UC_NamedFormKeyMultiPicker Grid.Row="8" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this subgroup may be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="9" Grid.Column="1"  Content="{Binding AllowedRaceGroupings}">
@@ -104,7 +104,7 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="10" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <local:UC_NamedFormKeyMultiPicker Grid.Row="10" Grid.Column="1" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this subgroup may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="11" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">

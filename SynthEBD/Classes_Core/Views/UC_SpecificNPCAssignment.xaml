@@ -47,7 +47,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" ToolTip="Select the subject of this Specific NPC Assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPC</TextBlock>
-            <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+            <local:UC_NamedFormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCFormKey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Asset config file that must be assigned to this NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Forced Asset Pack</TextBlock>
             <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Path=AvailableAssetPacks}" DisplayMemberPath="GroupName" SelectedValue="{Binding ForcedAssetPack, Mode=TwoWay}" />

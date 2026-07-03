@@ -122,7 +122,7 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="{x:Type local:VM_OBodyPreviewWeightRow}">
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding MaleApplicable}">
-                                <plugins:FormKeyPicker FormKey="{Binding MaleNpc, Mode=TwoWay}"
+                                <local:UC_NamedFormKeyPicker FormKey="{Binding MaleNpc, Mode=TwoWay}"
                                                        LinkCache="{Binding lk}"
                                                        ScopedTypes="{Binding NPCPickerFormKeys}"
                                                        MinWidth="240"/>
@@ -137,7 +137,7 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="{x:Type local:VM_OBodyPreviewWeightRow}">
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding FemaleApplicable}">
-                                <plugins:FormKeyPicker FormKey="{Binding FemaleNpc, Mode=TwoWay}"
+                                <local:UC_NamedFormKeyPicker FormKey="{Binding FemaleNpc, Mode=TwoWay}"
                                                        LinkCache="{Binding lk}"
                                                        ScopedTypes="{Binding NPCPickerFormKeys}"
                                                        MinWidth="240"/>

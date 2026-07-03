@@ -100,7 +100,7 @@
                                   IsChecked="{Binding LockPreviewNpc, Mode=TwoWay}"
                                   ToolTip="Keep the current preview NPC even if the selected subgroup's race distribution rules would otherwise switch it."
                                   ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>
+                        <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>
                     </DockPanel>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="MediumPurple"/>

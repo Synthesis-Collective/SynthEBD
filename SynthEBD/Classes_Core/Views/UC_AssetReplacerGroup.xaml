@@ -52,6 +52,6 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Select an NPC who has the target for this replacer (for path verification only - this selection has no impact on patching)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Reference NPC</TextBlock>
-        <plugins:FormKeyPicker MaxHeight="500" Grid.Row="3" Grid.Column="1" MinWidth="150" FormKey="{Binding TemplateNPCFK}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCType}"/>
+        <local:UC_NamedFormKeyPicker MaxHeight="500" Grid.Row="3" Grid.Column="1" MinWidth="150" FormKey="{Binding TemplateNPCFK}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCType}"/>
     </Grid>
 </UserControl>

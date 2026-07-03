@@ -108,7 +108,7 @@
                 </ContentPresenter>
 
                 <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this morph can be assigned (blank = any)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="6" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="6" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
                 <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this morph can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="7" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
@@ -120,7 +120,7 @@
                 </ContentPresenter>
 
                 <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this morph may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
                 <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races groupings to which this morph may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">

@@ -25,7 +25,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Select NPC: " Foreground="White"/>
-        <plugins:FormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformkey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+        <local:UC_NamedFormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformkey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Has Attributes: " Foreground="White"/>
         <TextBlock Grid.Row="1" Grid.Column="1" Foreground="{Binding RestrictionColor}" Text="{Binding HasRestrictions}"/>

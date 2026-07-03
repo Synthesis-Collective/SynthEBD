@@ -63,7 +63,7 @@
                             <Button  Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" Foreground="Firebrick">X</Button>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Select the races to include in this height group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Races</TextBlock>
-                            <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
+                            <local:UC_NamedFormKeyMultiPicker MaxHeight="500" FormKeys="{Binding Races}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}" Grid.Row="1" Grid.Column="1" />
 
                             <TextBlock Grid.Row="2" Grid.Column="0" ToolTip="Distribute heights by equal probability or on a bell curve" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Mode</TextBlock>
                             <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=DistributionMode, Mode=TwoWay}" />

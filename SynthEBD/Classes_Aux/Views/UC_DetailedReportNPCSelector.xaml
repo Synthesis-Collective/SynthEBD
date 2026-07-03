@@ -34,7 +34,7 @@
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=AllowNonUnique, Mode=TwoWay}"></CheckBox>
 
         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to log" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="2" Grid.Column="2" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <local:UC_NamedFormKeyMultiPicker Grid.Row="2" Grid.Column="2" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to log" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="3" Grid.Column="3"  Content="{Binding AllowedRaceGroupings}">
@@ -46,7 +46,7 @@
         </ContentPresenter>
 
         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races which should not be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-        <plugins:FormKeyMultiPicker Grid.Row="4" Grid.Column="4" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
+        <local:UC_NamedFormKeyMultiPicker Grid.Row="4" Grid.Column="4" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
         <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races groupings which should not be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">

@@ -50,11 +50,11 @@
                 <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Visibility="{Binding Path=ShowValueFormKeyPicker, Converter={StaticResource BoolToVis}}">Select record below</TextBlock>
                 <ComboBox Grid.Row="1" Grid.Column="3" SelectedValue="{Binding ValueStr}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BoolVals}}}"  IsSynchronizedWithCurrentItem="false" Visibility="{Binding Path=ShowValueBoolPicker, Converter={StaticResource BoolToVis}}"/>
 
-                <plugins:FormKeyMultiPicker Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" MaxHeight="500" FormKeys="{Binding ValueFKs}" ScopedTypes="{Binding ValueFKtypeCollection}" LinkCache="{Binding LinkCache}" Visibility="{Binding Path=ShowValueFormKeyPicker, Converter={StaticResource BoolToVis}}" Margin="0 5 0 5" BorderThickness="1" BorderBrush="#5844b4"/>
+                <local:UC_NamedFormKeyMultiPicker Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" MaxHeight="500" FormKeys="{Binding ValueFKs}" ScopedTypes="{Binding ValueFKtypeCollection}" LinkCache="{Binding LinkCache}" Visibility="{Binding Path=ShowValueFormKeyPicker, Converter={StaticResource BoolToVis}}" Margin="0 5 0 5" BorderThickness="1" BorderBrush="#5844b4"/>
 
 
                 <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">Reference NPC</TextBlock>
-                <plugins:FormKeyPicker Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" MaxHeight="500" FormKey="{Binding ReferenceNPCFormKey}" ScopedTypes="{Binding ReferenceNPCType}" LinkCache="{Binding LinkCache}" Margin="0 5 0 5" BorderThickness="1" BorderBrush="#5844b4"/>
+                <local:UC_NamedFormKeyPicker Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" MaxHeight="500" FormKey="{Binding ReferenceNPCFormKey}" ScopedTypes="{Binding ReferenceNPCType}" LinkCache="{Binding LinkCache}" Margin="0 5 0 5" BorderThickness="1" BorderBrush="#5844b4"/>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">Result</TextBlock>
                 <TextBlock Grid.Row="4" Grid.Column="1"  Grid.ColumnSpan="3" VerticalAlignment="Center" Text="{Binding EvalResult}" Foreground="{Binding Path=StatusFontColor}"/>

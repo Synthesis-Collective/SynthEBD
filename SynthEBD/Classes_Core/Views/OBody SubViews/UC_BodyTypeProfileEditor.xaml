@@ -336,7 +336,7 @@
                               SelectedItem="{Binding PreviewWeight}"/>
                     <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
                         <TextBlock Text="NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}"
+                        <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}"
                                                LinkCache="{Binding lk}"
                                                ScopedTypes="{Binding NPCPickerFormKeys}"
                                                MaxHeight="180" MinWidth="180"

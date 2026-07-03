@@ -43,7 +43,7 @@
                 <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 4">
                     <DockPanel LastChildFill="True">
                         <TextBlock Text="Preview NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0 0 5 0"/>
-                        <plugins:FormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"
+                        <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"
                                                ToolTip="Override the preview NPC. Leave blank to use the weight-based default configured in OBody preview settings."
                                                ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                     </DockPanel>
@@ -146,7 +146,7 @@
                 <Button Grid.Row="7" Grid.Column="2" HorizontalAlignment="Left" Content="Accept Auto-Annotated Descriptors (All Slots)" Foreground="LightGreen" Margin="0 0 0 5" Command="{Binding AcceptAutoAnnotations}" Visibility="{Binding ShowAcceptAnnotationsButton, Converter={StaticResource BoolToVis}}"/>
 
                 <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset can be assigned (blank = All)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
                 <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
@@ -158,7 +158,7 @@
                 </ContentPresenter>
 
                 <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
-                <plugins:FormKeyMultiPicker MaxHeight="500" Grid.Row="10" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
+                <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="10" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
                 <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race Groupings to which this BodySlide preset cannot be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="11" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">

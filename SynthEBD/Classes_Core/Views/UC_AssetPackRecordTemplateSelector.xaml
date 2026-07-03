@@ -23,7 +23,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Default template NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Default Template</TextBlock>
-            <plugins:FormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
+            <local:UC_NamedFormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
             <StackPanel Grid.Row="1" Grid.Column="0">
                 <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Paths within the default record template to which the races of patched NPCs must be added" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Races Paths</TextBlock>
