@@ -12,7 +12,7 @@ namespace SynthEBD;
 /// </summary>
 public class VM_RunButton : VM
 {
-    private readonly StandaloneRunEnvironmentStateProvider _environmentProvider;
+    private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
     private readonly VM_SettingsTexMesh _texMeshSettingsVm;
     private readonly PatcherState _state;
@@ -26,7 +26,7 @@ public class VM_RunButton : VM
     /// debugging.)
     /// </summary>
     public VM_RunButton(
-        StandaloneRunEnvironmentStateProvider environmentProvider,
+        IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
         VM_SettingsTexMesh texMeshSettingsVM, 
         VM_ConsistencyUI consistencyUi,
@@ -72,7 +72,10 @@ public class VM_RunButton : VM
                 logDisplay.SwitchViewToLogDisplay();
                 viewModelLoader.DumpViewModelsToModels();
                 if (!_preRunValidation.ValidatePatcherState()) { return; }
-                if (HasBeenRun) { _environmentProvider.UpdateEnvironment(); } // resets the output mod to a new state so that previous patcher runs from current session get overwritten instead of added on to.
+                // Resets the output mod to a new state so that previous patcher runs from the current session get
+                // overwritten instead of added on to. UpdateEnvironment is standalone-specific (the interface is
+                // injected so non-GUI hosts like the CLI screenshot harness can construct this VM).
+                if (HasBeenRun && _environmentProvider is StandaloneRunEnvironmentStateProvider standaloneEnvironment) { standaloneEnvironment.UpdateEnvironment(); }
                 _logger.ClearStatusError();
 
                 if (_patcherState.GeneralSettings.BodySelectionMode == BodyShapeSelectionMode.BodySlide && !_miscValidation.VerifyBodySlideAnnotations(_patcherState.OBodySettings))

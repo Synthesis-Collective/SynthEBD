@@ -15,6 +15,7 @@ public enum CliVerb
     ArchiveList,
     ArchiveExtract,
     VerifyInstall,
+    UiScreenshot,
 }
 
 /// <summary>How the draft verb disposes of duplicate (byte-identical) textures.</summary>
@@ -135,6 +136,22 @@ public class CliOptions
     /// <summary>Folder containing the dependency archives (matched by DownloadInfo.ExpectedFileName) for verify-install.</summary>
     public string? DownloadsDir { get; private set; }
 
+    /// <summary>Menus to capture for ui-screenshot, matched case-insensitively against the displayed
+    /// view-model name without its VM_ prefix (e.g. "Settings_General") or the nav command name without
+    /// its Click prefix (e.g. "SG"). Empty = capture every menu.</summary>
+    public List<string> Menus { get; } = new();
+
+    /// <summary>Window size forced onto MainWindow for deterministic ui-screenshot captures.</summary>
+    public int WindowWidth { get; private set; } = 1600;
+    public int WindowHeight { get; private set; } = 1000;
+
+    /// <summary>Milliseconds ui-screenshot waits after layout settles before capturing each menu,
+    /// letting asynchronously-loaded content (preview images, GL surfaces) appear.</summary>
+    public int SettleMs { get; private set; } = 250;
+
+    /// <summary>When set, ui-screenshot expands every Expander in the visual tree before capturing.</summary>
+    public bool ExpandExpanders { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -156,6 +173,9 @@ VERBS:
                (config archive contents + dependency archive contents, prefix-routed).
   archive-list     List the file entries of a 7z/zip/rar archive via the bundled 7-Zip.
   archive-extract  Extract a 7z/zip/rar archive via the bundled 7-Zip.
+  ui-screenshot    Show the real SynthEBD main window against the real settings/environment, flip
+               through every navigation menu, and capture a PNG of each (automated visual QA).
+               Never writes settings back to disk.
   help         Show this help.
 
 WORKING-FOLDER LAYOUT (scan/draft):
@@ -226,6 +246,16 @@ PACKAGE / ARCHIVE OPTIONS:
   --downloads <dir>        Folder containing the dependency archives the manifest's DownloadInfo
                            references (matched by ExpectedFileName); used by verify-install.
 
+UI-SCREENSHOT OPTIONS:
+  --out <dir>              Output folder for the captured PNGs (required; created if missing).
+  --menu <name>            Capture only this menu, matched against the displayed view-model name
+                           without the VM_ prefix (e.g. Settings_General, SettingsTexMesh) or the
+                           nav command suffix (e.g. SG, TM). Repeatable. Default: every menu.
+  --width <px>             Window width for the capture (default 1600).
+  --height <px>            Window height for the capture (default 1000).
+  --settle-ms <n>          Wait after layout settles before each capture (default 250).
+  --expand-expanders       Expand every Expander in the menu before capturing.
+
 EXIT CODES:
   0  success / all configs valid / every simulated NPC received assignments
   1  validation errors found / at least one simulated NPC received no assignments
@@ -251,6 +281,7 @@ EXIT CODES:
             "verify-install" => CliVerb.VerifyInstall,
             "archive-list" => CliVerb.ArchiveList,
             "archive-extract" => CliVerb.ArchiveExtract,
+            "ui-screenshot" => CliVerb.UiScreenshot,
             "help" or "--help" or "-h" or "-?" or "/?" => CliVerb.Help,
             _ => throw new CliArgumentException("Unknown verb: " + args[0]),
         };
@@ -374,6 +405,26 @@ EXIT CODES:
                 case "--downloads":
                     options.DownloadsDir = TakeDirectoryValue(args, ref i, flag);
                     break;
+                case "--menu":
+                    options.Menus.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--width":
+                    options.WindowWidth = TakePositiveIntValue(args, ref i, flag);
+                    break;
+                case "--height":
+                    options.WindowHeight = TakePositiveIntValue(args, ref i, flag);
+                    break;
+                case "--settle-ms":
+                    var settleStr = TakeValue(args, ref i, flag);
+                    if (!int.TryParse(settleStr, out int settleMs) || settleMs < 0)
+                    {
+                        throw new CliArgumentException("--settle-ms requires a non-negative integer, got \"" + settleStr + "\"");
+                    }
+                    options.SettleMs = settleMs;
+                    break;
+                case "--expand-expanders":
+                    options.ExpandExpanders = true;
+                    break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
             }
@@ -403,6 +454,10 @@ EXIT CODES:
         {
             throw new CliArgumentException("verify-install requires exactly one of --archive or --staging");
         }
+        if (options.Verb == CliVerb.UiScreenshot && options.OutPath == null)
+        {
+            throw new CliArgumentException("ui-screenshot requires --out <dir>");
+        }
         if (options.Verb == CliVerb.Draft)
         {
             if (options.ConfigName.IsNullOrWhitespace())
@@ -431,6 +486,17 @@ EXIT CODES:
         }
         i++;
         return args[i];
+    }
+
+    /// <summary>Like <see cref="TakeValue"/> but requires a positive integer.</summary>
+    private static int TakePositiveIntValue(string[] args, ref int i, string flag)
+    {
+        var value = TakeValue(args, ref i, flag);
+        if (!int.TryParse(value, out int result) || result < 1)
+        {
+            throw new CliArgumentException(flag + " requires a positive integer, got \"" + value + "\"");
+        }
+        return result;
     }
 
     /// <summary>Like <see cref="TakeValue"/> but also requires the value to be an existing directory,

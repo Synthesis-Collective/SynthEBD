@@ -42,7 +42,11 @@ internal static class Program
         int exitCode = 2;
         bool verbCompleted = false;
 
-        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        // The ui-screenshot verb shows the real MainWindow, which needs the GUI's full resource set;
+        // that set only resolves correctly when loaded through a XAML-defined Application
+        // (UiHarnessApp.xaml). All other verbs run headless on a bare Application.
+        Application app = options.Verb == CliVerb.UiScreenshot ? new UiHarnessApp() : new Application();
+        app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         // ReactiveUI 20+ no longer self-initializes on assembly load; SynthEBD's object graph resolves
         // ReactiveObjects/ViewModels that use WhenAnyValue, which throw "ReactiveUI has not been
@@ -86,6 +90,7 @@ internal static class Program
                     CliVerb.VerifyInstall => await VerifyInstallVerb.RunAsync(options, resultWriter),
                     CliVerb.ArchiveList => await PackageVerb.RunListAsync(options, resultWriter),
                     CliVerb.ArchiveExtract => await PackageVerb.RunExtractAsync(options, resultWriter),
+                    CliVerb.UiScreenshot => await UiScreenshotVerb.RunAsync(options, resultWriter),
                     _ => throw new InvalidOperationException("Unhandled verb: " + options.Verb),
                 };
             }
