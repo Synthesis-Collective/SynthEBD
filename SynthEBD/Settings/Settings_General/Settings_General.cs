@@ -10,6 +10,8 @@ namespace SynthEBD;
 public class Settings_General
 {
     public bool bShowToolTips { get; set; } = true;
+    /// <summary>Display name of the active UI theme (a Themes\*.xaml file name).</summary>
+    public string ThemeName { get; set; } = ThemeManager.DefaultThemeName;
     /// <summary>Master switch for the Assets axis (texture/mesh patching).</summary>
     public bool bChangeMeshesOrTextures { get; set; } = true;
     /// <summary>Which body-shape system is active (none, BodyGen, or BodySlide).</summary>

@@ -101,6 +101,7 @@ public partial class App : Application
     /// <returns>0 to signal success to the Synthesis pipeline.</returns>
     public int StandaloneOpen()
     {
+        ThemeManager.ApplyTheme(ThemeManager.DefaultThemeName);
         var window = new MainWindow();
 
         var assembly = Assembly.GetEntryAssembly() ?? throw new ArgumentNullException();
@@ -141,6 +142,7 @@ public partial class App : Application
     /// <returns>0 to signal success to the Synthesis pipeline.</returns>
     public int OpenForSettings(IOpenForSettingsState state)
     {
+        ThemeManager.ApplyTheme(ThemeManager.DefaultThemeName);
         var window = new MainWindow();
 
         var builder = new ContainerBuilder();

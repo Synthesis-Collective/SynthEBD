@@ -31,8 +31,12 @@ public static class WpfCapture
         }
 
         var dpi = VisualTreeHelper.GetDpi(window);
-        int pixelWidth = (int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX);
-        int pixelHeight = (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY);
+        // Window.ActualHeight includes the native title bar and borders, which are not part of the
+        // window's VISUAL (they are non-client chrome) - sizing by it leaves a dead strip in the
+        // capture. The descendant bounds cover exactly the rendered client content.
+        var bounds = VisualTreeHelper.GetDescendantBounds(window);
+        int pixelWidth = (int)Math.Ceiling(bounds.Right * dpi.DpiScaleX);
+        int pixelHeight = (int)Math.Ceiling(bounds.Bottom * dpi.DpiScaleY);
         if (pixelWidth <= 0 || pixelHeight <= 0)
         {
             throw new InvalidOperationException("Window has no rendered size to capture (is it shown and laid out?).");

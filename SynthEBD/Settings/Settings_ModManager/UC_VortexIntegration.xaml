@@ -24,6 +24,6 @@
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding StagingFolderPath}"/>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="FilePath Length Limit" VerticalAlignment="Center" ToolTip="Maximum file path of an installed asset before path shortening functionality is triggered" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-        <xctk:IntegerUpDown Grid.Row="2" Grid.Column="2" Value="{Binding FilePathLimit}" Foreground="White" MinWidth="25"/>
+        <xctk:IntegerUpDown Grid.Row="2" Grid.Column="2" Value="{Binding FilePathLimit}" Foreground="{DynamicResource PrimaryForeground}" MinWidth="25"/>
     </Grid>
 </UserControl>

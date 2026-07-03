@@ -28,9 +28,9 @@
 
         <TextBlock Grid.Column="0" Grid.Row="2"  ToolTip="Find your game data folder (e.g. Steam Library\steamapps\common\Skyrim\Data)">Game Data Directory</TextBlock>
         <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
-            <Button VerticalAlignment="Center" Command="{Binding SelectGameDataFolder}" Foreground="LightGreen">Select</Button>
-            <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
-            <Button VerticalAlignment="Center" Command="{Binding ClearGameDataFolder}" Foreground="Firebrick">Clear</Button>
+            <Button VerticalAlignment="Center" Command="{Binding SelectGameDataFolder}" Foreground="{DynamicResource ActionGoodForeground}">Select</Button>
+            <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button VerticalAlignment="Center" Command="{Binding ClearGameDataFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
         </StackPanel>
     </Grid>
 </UserControl>

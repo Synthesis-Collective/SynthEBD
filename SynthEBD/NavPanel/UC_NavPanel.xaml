@@ -15,17 +15,17 @@
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" HorizontalAlignment="Center" FontSize="18">SynthEBD</TextBlock>
         <StackPanel Grid.Row="1">
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSG}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" IsChecked="True">General Settings</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickTM}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Textures and Meshes</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBG}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">BodyGen Integration</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickOB}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">(O/Auto)Body Integration</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickH}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Height Assignment</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickHP}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Head Parts</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSA}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Specific NPC Assignments</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickC}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Consistency</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBL}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Block List</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickMM}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Mod Manager Integration</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickLog}" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center">Status Log</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSG}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center" IsChecked="True">General Settings</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickTM}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Textures and Meshes</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBG}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">BodyGen Integration</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickOB}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">(O/Auto)Body Integration</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickH}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Height Assignment</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickHP}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Head Parts</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSA}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Specific NPC Assignments</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickC}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Consistency</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBL}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Block List</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickMM}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Mod Manager Integration</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickLog}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Status Log</RadioButton>
         </StackPanel>
         <TextBlock Grid.Row="2" HorizontalAlignment="Center" Text="{Binding Version}"/>
     </Grid>

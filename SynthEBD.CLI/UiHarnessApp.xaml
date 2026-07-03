@@ -11,12 +11,13 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!--  MahApps.Metro resource dictionaries.  -->
+                <!-- In lockstep with App.xaml: MahApps dictionaries are retained ONLY as a resource
+                     donor for Noggog/Mutagen's deferred references; control chrome comes from the
+                     SynthEBD theme system (the verb applies the active Themes\*.xaml via
+                     ThemeManager on top of this block, merged last so its implicit styles win). -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.Buttons.xaml" />
-
-                <!--  Purple Accent and AppTheme setting  -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Dark.Purple.xaml" />
 
                 <!--  Noggog.WPF Theming  -->
@@ -26,14 +27,6 @@
                 <ResourceDictionary Source="pack://application:,,,/Mutagen.Bethesda.WPF;component/Everything.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
-
-            <Style TargetType="Button" BasedOn="{StaticResource Noggog.Styles.Button}">
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Opacity" Value="0.7"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
 
             <SolidColorBrush x:Key="ComboBox.Static.Background" Color="Transparent"/>
             <SolidColorBrush x:Key="ComboBox.Static.Border" Color="Transparent"/>

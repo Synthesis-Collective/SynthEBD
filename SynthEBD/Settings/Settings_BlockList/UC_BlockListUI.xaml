@@ -37,7 +37,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedNPC}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedNPC}" CommandParameter="{Binding}" Foreground="{DynamicResource ActionDangerForeground}">X</Button>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -67,7 +67,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedPlugin}" CommandParameter="{Binding}" Foreground="Firebrick">X</Button>
+                                <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveBlockedPlugin}" CommandParameter="{Binding}" Foreground="{DynamicResource ActionDangerForeground}">X</Button>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

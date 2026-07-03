@@ -1,4 +1,3 @@
-using MahApps.Metro.IconPacks;
 using Mutagen.Bethesda.Skyrim;
 using Noggog;
 using System;

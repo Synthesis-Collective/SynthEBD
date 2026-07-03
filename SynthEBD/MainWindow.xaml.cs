@@ -4,10 +4,11 @@ using Autofac;
 namespace SynthEBD;
 
 /// <summary>
-/// Main application window (a MahApps MetroWindow). Its DataContext is set to the
+/// Main application window (a themed plain Window; native title bar dark/light mode is kept in
+/// sync by <see cref="TitleBarThemingBehavior"/>). Its DataContext is set to the
 /// <see cref="MainWindow_ViewModel"/> by the active <see cref="App"/> startup path.
 /// </summary>
-public partial class MainWindow : MahApps.Metro.Controls.MetroWindow
+public partial class MainWindow : Window
 {
     /// <summary>Initializes the window and sizes it relative to the primary screen.</summary>
     public MainWindow()

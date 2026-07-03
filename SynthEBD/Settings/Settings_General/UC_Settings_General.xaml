@@ -66,13 +66,17 @@
 
             <TextBlock Grid.Column="0" Grid.Row="1" ToolTip="Folder to which generated plugin and other files will be written" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Data Folder</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">
-                <Button VerticalAlignment="Center" Command="{Binding SelectOutputFolder}" Foreground="LightGreen">Select</Button>
-                <TextBlock Background="Black" HorizontalAlignment="Left" Text="{Binding Path=OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
-                <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="Firebrick">Clear</Button>
+                <Button VerticalAlignment="Center" Command="{Binding SelectOutputFolder}" Foreground="{DynamicResource ActionGoodForeground}">Select</Button>
+                <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" Text="{Binding Path=OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="2" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
+            <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
+                <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
+                <TextBlock Margin="25 0 5 0" VerticalAlignment="Center" ToolTip="Select the UI color theme. Themes are loose .xaml files in the Themes folder next to SynthEBD.exe; you can add your own." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Theme</TextBlock>
+                <ComboBox MinWidth="120" VerticalAlignment="Center" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedThemeName, Mode=TwoWay}"/>
+            </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Allow modification of textures, meshes, and/or other game assets referenced in plugins" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Apply Textures and Meshes</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="3" IsChecked="{Binding Path=bChangeMeshesOrTextures, Mode=TwoWay}"></CheckBox>
@@ -114,9 +118,9 @@
 
             <TextBlock Grid.Column="0" Grid.Row="13" ToolTip="Folder from which settings should be loaded. Must be named SynthEBD." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">Portable Settings Folder</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="13" Orientation="Horizontal" Visibility="{Binding SettingsSourceProvider.UsePortableSettings, Converter={StaticResource BoolToVis}}">
-                <Button VerticalAlignment="Center" Command="{Binding SelectPortableSettingsFolder}"  Foreground="LightGreen">Search</Button>
-                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding Path=SettingsSourceProvider.PortableSettingsFolder, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
-                <Button VerticalAlignment="Center" Command="{Binding ClearPortableSettingsFolder}" Foreground="Firebrick">Clear</Button>
+                <Button VerticalAlignment="Center" Command="{Binding SelectPortableSettingsFolder}"  Foreground="{DynamicResource ActionGoodForeground}">Search</Button>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource TextBoxBackground}" Text="{Binding Path=SettingsSourceProvider.PortableSettingsFolder, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
+                <Button VerticalAlignment="Center" Command="{Binding ClearPortableSettingsFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="14" VerticalAlignment="Center" ToolTip="Select the type of Appearance Merge Patcher you are using, if any. This allows SynthEBD to properly identify which mod is providing each NPC's appearance." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Appearance Merge Patcher</TextBlock>
@@ -124,16 +128,16 @@
 
             <TextBlock Grid.Column="0" Grid.Row="15" ToolTip="Generate this in EasyNPC by going to Profile, and click the disk icon on the top right." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowEasyNPCPath, Converter={StaticResource BoolToVis}}">EasyNPC Profile Path</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="15" Orientation="Horizontal" Visibility="{Binding ShowEasyNPCPath, Converter={StaticResource BoolToVis}}">
-                <Button VerticalAlignment="Center" Command="{Binding SelectEasyNPCProfile}"  Foreground="LightGreen">Search</Button>
-                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding EasyNPCprofilePath, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
-                <Button VerticalAlignment="Center" Command="{Binding ClearEasyNPCProfile}" Foreground="Firebrick">Clear</Button>
+                <Button VerticalAlignment="Center" Command="{Binding SelectEasyNPCProfile}"  Foreground="{DynamicResource ActionGoodForeground}">Search</Button>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource TextBoxBackground}" Text="{Binding EasyNPCprofilePath, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
+                <Button VerticalAlignment="Center" Command="{Binding ClearEasyNPCProfile}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="16" ToolTip="Path to the NPC_Token.json file generated by NPC Plugin Chooser 2. This file is typically located in your Data folder or mod output folder." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ShowNPC2Path, Converter={StaticResource BoolToVis}}">NPC2 Token Path</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="16" Orientation="Horizontal" Visibility="{Binding ShowNPC2Path, Converter={StaticResource BoolToVis}}">
-                <Button VerticalAlignment="Center" Command="{Binding SelectNPC2Token}"  Foreground="LightGreen">Search</Button>
-                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="Black" Text="{Binding NPC2TokenPath, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
-                <Button VerticalAlignment="Center" Command="{Binding ClearNPC2Token}" Foreground="Firebrick">Clear</Button>
+                <Button VerticalAlignment="Center" Command="{Binding SelectNPC2Token}"  Foreground="{DynamicResource ActionGoodForeground}">Search</Button>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource TextBoxBackground}" Text="{Binding NPC2TokenPath, UpdateSourceTrigger=PropertyChanged}" Margin="5 0 5 0"/>
+                <Button VerticalAlignment="Center" Command="{Binding ClearNPC2Token}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.Row="17" ToolTip="Apply the same settings to NPCs that are flagged unique and share the same name and gender" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Link NPCs with Same Name</TextBlock>
@@ -152,12 +156,12 @@
                             <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
-                                    <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
+                                    <Button Command="{Binding DeleteCommand}" Foreground="{DynamicResource ActionDangerForeground}">X</Button>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddLinkedNPCNameExclusion}" Foreground="LightGreen">Add New</Button>
+                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddLinkedNPCNameExclusion}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                 </Grid>
             </Expander>
 
@@ -184,13 +188,13 @@
                                         <plugins:FormKeyMultiPicker MaxHeight="500" FormKeys="{Binding NPCFormKeys}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" Height="150" />
                                         <TextBlock ToolTip="Assets and settings applied to this NPC will also be applied to the other NPCs within this group" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Primary NPC</TextBlock>
                                         <ComboBox ItemsSource="{Binding PrimaryCandidates}" SelectedItem="{Binding Primary}"/>
-                                        <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveLinkedNPCGroup}" CommandParameter="{Binding}" Foreground="FireBrick">Remove</Button>
+                                        <Button Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveLinkedNPCGroup}" CommandParameter="{Binding}" Foreground="{DynamicResource ActionDangerForeground}">Remove</Button>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddLinkedNPCGroup}" Foreground="LightGreen">Add New</Button>
+                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddLinkedNPCGroup}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                 </Grid>
             </Expander>
 
@@ -209,11 +213,11 @@
                     <ItemsControl Grid.Row="0"  ItemsSource="{Binding raceAliases, UpdateSourceTrigger=PropertyChanged}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type local:VM_RaceAlias}">
-                                <local:UC_RaceAlias Background="Black" Margin="0 0 0 10"/>
+                                <local:UC_RaceAlias Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceAlias}" Foreground="LightGreen">Add New</Button>
+                    <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceAlias}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                 </Grid>
             </Expander>
 
@@ -267,15 +271,15 @@
             <TextBlock Grid.Column="0" Grid.Row="32" ToolTip="When SynthEBD is operating in Attempt to Avoid Override (a.k.a. SkyPatcher) mode, NPCs and their dependencies will be merged into the patch to avoid creating dependencies. Records from these mods will not be merged in." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Do Not Merge In Records From</TextBlock>
             <plugins:ModKeyMultiPicker Grid.Column="2" Grid.Row="32"  ModKeys="{Binding BlockedModsFromImport}"  SearchableMods="{Binding LoadOrder}" />
             
-            <Button Grid.Column="0" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="MediumPurple" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
-            <Button Grid.Column="2" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="MediumPurple" Content="Reset Troubleshooting Settings to Defaults"/>
+            <Button Grid.Column="0" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ToggleTroubleShootingSettingsDisplay}"  Foreground="{DynamicResource ActionAccentForeground}" Content="{Binding TroubleShootingSettingsToggleLabel}"/>
+            <Button Grid.Column="2" Grid.Row="33" VerticalAlignment="Bottom" HorizontalAlignment="Left" Command="{Binding ResetTroubleShootingToDefaultCommand}"  Foreground="{DynamicResource ActionAccentForeground}" Content="Reset Troubleshooting Settings to Defaults"/>
 
             <TextBlock Grid.Column="0" Grid.Row="34" ToolTip="NPCs used as the model when previewing subgroup textures and headparts in the 3D Character Viewer. One male/female NPC per patchable race, plus a Default fallback." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Nif Preview Options</TextBlock>
             <Expander Grid.Column="2" Grid.Row="34" Header="" ExpandDirection="Down" DataContext="{Binding PreviewNpcs}">
                 <StackPanel>
-                    <Border BorderBrush="MediumPurple" BorderThickness="1" Margin="0 0 0 5" Padding="3">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 0 5" Padding="3">
                         <StackPanel>
-                            <TextBlock Text="Default (used when a race is unmapped)" Foreground="MediumPurple" FontWeight="Bold"/>
+                            <TextBlock Text="Default (used when a race is unmapped)" Foreground="{DynamicResource ActionAccentForeground}" FontWeight="Bold"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="150"/>

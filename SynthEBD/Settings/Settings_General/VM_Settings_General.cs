@@ -85,6 +85,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         this.WhenAnyValue(x => x.bShowToolTips)
             .Subscribe(x => TooltipController.Instance.DisplayToolTips = x).DisposeWith(this);
 
+        this.WhenAnyValue(x => x.SelectedThemeName)
+            .Subscribe(x => ThemeManager.ApplyTheme(x)).DisposeWith(this);
+
         this.WhenAnyValue(x => x.Close7ZipWhenFinished)
             .Subscribe(x => {
                 if (_patcherState.GeneralSettings != null)
@@ -327,6 +330,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool ShowEasyNPCPath { get; set; } = false;
     public bool ShowNPC2Path { get; set; } = false;
     public bool bShowToolTips { get; set; } = true;
+    public string SelectedThemeName { get; set; } = ThemeManager.DefaultThemeName;
+    public ObservableCollection<string> AvailableThemes { get; set; } = new(ThemeManager.GetAvailableThemes());
     public bool bChangeMeshesOrTextures { get; set; } = true;
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
@@ -413,6 +418,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         EasyNPCprofilePath = model.EasyNPCprofilePath;
         NPC2TokenPath = model.NPC2TokenPath;
         bShowToolTips = model.bShowToolTips;
+        SelectedThemeName = model.ThemeName;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         BodySelectionMode = model.BodySelectionMode;
         BSSelectionMode = model.BSSelectionMode;
@@ -480,6 +486,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.EasyNPCprofilePath = EasyNPCprofilePath;
         model.NPC2TokenPath = NPC2TokenPath;
         model.bShowToolTips = bShowToolTips;
+        model.ThemeName = SelectedThemeName;
         model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
         model.BodySelectionMode = BodySelectionMode;
         model.BSSelectionMode = BSSelectionMode;

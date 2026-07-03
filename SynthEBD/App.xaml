@@ -8,12 +8,17 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!--  MahApps.Metro resource dictionaries.  -->
+                <!-- Control chrome comes from the SynthEBD theme system (loose Themes\*.xaml files
+                     applied at startup by ThemeManager, merged LAST so their implicit styles win
+                     app-wide). The MahApps dictionaries below are retained ONLY as a resource donor:
+                     Noggog.WPF/Mutagen.Bethesda.WPF's compiled styles hold deferred StaticResource
+                     references to MahApps keys (verified: removing these fails with "Cannot find
+                     resource named 'MahApps.Styles.TextBox'"). Nothing derives from MahApps controls
+                     anymore, and its implicit styles are overridden by the theme.
+                     Keep this resource block in lockstep with SynthEBD.CLI\UiHarnessApp.xaml. -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.Buttons.xaml" />
-
-                <!--  Purple Accent and AppTheme setting  -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Dark.Purple.xaml" />
 
                 <!--  Noggog.WPF Theming  -->
@@ -24,24 +29,8 @@
 
             </ResourceDictionary.MergedDictionaries>
 
-            <Style TargetType="Button" BasedOn="{StaticResource Noggog.Styles.Button}">
-                <!--
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border CornerRadius="3"  BorderBrush="WhiteSmoke" BorderThickness="1" >
-                                <ContentPresenter x:Name="contentPresenter" ContentTemplate="{TemplateBinding ContentTemplate}" Content="{TemplateBinding Content}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-                -->
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Opacity" Value="0.7"/>
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
+            <!-- The old implicit Button style (Noggog flat + hover opacity fade) is gone: the
+                 active theme supplies the beveled Button/ToggleButton styles. -->
 
             <SolidColorBrush x:Key="ComboBox.Static.Background" Color="Transparent"/>
             <SolidColorBrush x:Key="ComboBox.Static.Border" Color="Transparent"/>

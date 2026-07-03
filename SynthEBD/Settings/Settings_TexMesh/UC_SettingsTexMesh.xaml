@@ -124,23 +124,23 @@
                     <WrapPanel Orientation="Horizontal">
                         <StackPanel>
                             <ScrollViewer MaxHeight="500">
-                                <ListBox ItemsSource="{Binding StrippedSkinWNAMs}" BorderThickness="1" BorderBrush="LightBlue">
+                                <ListBox ItemsSource="{Binding StrippedSkinWNAMs}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="2 0 2 0">
                                                 <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <Button Content="x" Foreground="Firebrick" Command="{Binding DeleteCommand}"/>
+                                                <Button Content="x" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeleteCommand}"/>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </ScrollViewer>
-                            <Button Content="Add New" Foreground="LightGreen" Command="{Binding AddStrippedWNAM}"/>
+                            <Button Content="Add New" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddStrippedWNAM}"/>
                         </StackPanel>
                         <StackPanel Margin="10 0 0 0">
-                            <Button VerticalAlignment="Top" Content="Add all armors from mod: " Foreground="MediumPurple" Command="{Binding ImportStrippedWNAMsFromMod}" ToolTip="Do not import your EasyNPC plugin here. Instead, check the EasyNPC Compatibility Mode box." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                            <Button VerticalAlignment="Top" Content="Add all armors from mod: " Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ImportStrippedWNAMsFromMod}" ToolTip="Do not import your EasyNPC plugin here. Instead, check the EasyNPC Compatibility Mode box." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                             <plugins:ModKeyPicker ModKey="{Binding SelectedStrippedWNAMmodKey}" SearchableMods="{Binding LoadOrder}" />
-                            <Button VerticalAlignment="Top" Content="Undo" Foreground="Firebrick" Command="{Binding UndoImportStrippedWNAMsFromMod}"/>
+                            <Button VerticalAlignment="Top" Content="Undo" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding UndoImportStrippedWNAMsFromMod}"/>
                         </StackPanel>
                     </WrapPanel>
                 </Expander>
@@ -173,12 +173,12 @@
                                 <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBox Text="{Binding Content}" MinWidth="100"></TextBox>
-                                        <Button Command="{Binding DeleteCommand}" Foreground="FireBrick">X</Button>
+                                        <Button Command="{Binding DeleteCommand}" Foreground="{DynamicResource ActionDangerForeground}">X</Button>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTriggerEvent}" Foreground="LightGreen">Add New</Button>
+                        <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTriggerEvent}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                     </Grid>
                 </Expander>
                 <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Show notifications in top left corner and write detailed events to Papyrus log (recommmended for testing only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">Verbose</TextBlock>
@@ -206,7 +206,7 @@
 
             <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
             <StackPanel Grid.Row="16" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="MediumPurple" Margin="5 0 5 0" ToolTip="Restore default asset path trimming entries" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Restore Defaults</Button>
+                <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5 0 5 0" ToolTip="Restore default asset path trimming entries" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Restore Defaults</Button>
             </StackPanel>
             <Expander Grid.Row="16" Grid.Column="1" >
                 <StackPanel>
@@ -219,23 +219,23 @@
                                     <TextBlock VerticalAlignment="Center">\" from ".</TextBlock>
                                     <TextBox Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" MinWidth="35" HorizontalContentAlignment="Left"/>
                                     <TextBlock VerticalAlignment="Center">" file paths</TextBlock>
-                                    <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTrimPath}" CommandParameter="{Binding}" Foreground="FireBrick" Margin="5 0 0 0">X</Button>
+                                    <Button VerticalAlignment="Center" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveTrimPath}" CommandParameter="{Binding}" Foreground="{DynamicResource ActionDangerForeground}" Margin="5 0 0 0">X</Button>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <Button Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTrimPath}" Foreground="LightGreen">Add New</Button>
+                    <Button Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTrimPath}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                 </StackPanel>
             </Expander>
 
             <TextBlock Grid.Row="17"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
             <StackPanel Grid.Row="17"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
                 <TextBlock VerticalAlignment="Center" Text="Select"/>
-                <Button Command="{Binding SelectConfigsAll}" Foreground="LightGreen" Margin="5 0 5 0" ToolTip="Enable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
-                <Button Command="{Binding SelectConfigsNone}" Foreground="Firebrick" Margin="5 0 5 0" ToolTip="Disable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">None</Button>
+                <Button Command="{Binding SelectConfigsAll}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0" ToolTip="Enable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
+                <Button Command="{Binding SelectConfigsNone}" Foreground="{DynamicResource ActionDangerForeground}" Margin="5 0 5 0" ToolTip="Disable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">None</Button>
             </StackPanel>
             <Expander Grid.Row="17"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
-                <ItemsControl ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" BorderBrush="MediumPurple" BorderThickness="1">
+                <ItemsControl ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_AssetPack}">
                             <DockPanel>
@@ -254,10 +254,10 @@
         </Grid>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal">
-            <Button Command="{Binding ValidateAll}" Foreground="MediumPurple" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
-            <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" Foreground="White" ToolTip="Split screen for config editor to drag and drop subgroups between config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Split Screen Config Editor</Button>
-            <Button Margin="10 0 0 0" HorizontalAlignment="Right" Command="{Binding MenuButtonsToggle}" Foreground="White" ToolTip="Toggle main settings visibility to give the config editor more screen space" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding MenuButtonToggleStr}" />
-            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="MediumPurple" ToolTip="Edit all/selected config files simultaneously" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Actions</Button>
+            <Button Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
+            <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" ToolTip="Split screen for config editor to drag and drop subgroups between config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Split Screen Config Editor</Button>
+            <Button Margin="10 0 0 0" HorizontalAlignment="Right" Command="{Binding MenuButtonsToggle}" ToolTip="Toggle main settings visibility to give the config editor more screen space" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding MenuButtonToggleStr}" />
+            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Edit all/selected config files simultaneously" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Actions</Button>
         </StackPanel>
 
         <Grid Grid.Row="2">
@@ -283,16 +283,16 @@
                 </ColumnDefinition>
             </Grid.ColumnDefinitions>
 
-            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="0" Background="Black" BorderBrush="#5844b4" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" />
-            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="1" Background="Black" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
+            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="#5844b4" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" />
+            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="1" Background="{DynamicResource SecondaryBackground}" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
         </Grid>
 
         <WrapPanel Grid.Row="3" Orientation="Horizontal">
-            <Button Command="{Binding InstallFromArchive}" Foreground="LightGreen" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
+            <Button Command="{Binding InstallFromArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
             <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
-            <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="LightGreen" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
-            <Button Command="{Binding CreateConfigArchive}" Foreground="LightGreen" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
-            <Button Command="{Binding SimulateDistribution}" Foreground="MediumPurple" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
+            <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
+            <Button Command="{Binding CreateConfigArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
+            <Button Command="{Binding SimulateDistribution}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
         </WrapPanel>
     </Grid>
 </UserControl>

@@ -1,5 +1,4 @@
-﻿<mahapps:MetroWindow x:Class="SynthEBD.MainWindow"
-                     xmlns:mahapps="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+﻿<Window x:Class="SynthEBD.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -8,11 +7,14 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:MainWindow_ViewModel}"
         mc:Ignorable="d"
-        Title="" Left="0" Top="0"
-        SaveWindowPosition="True">
+        Title="SynthEBD" Left="0" Top="0"
+        Style="{DynamicResource ThemedWindowStyle}">
 
     <!--xmlns:i is from https://stackoverflow.com/questions/20346746/how-to-use-application-exit-event-in-wpf -->
     <!--https://stackoverflow.com/questions/20743961/the-name-interaction-does-not-exist-in-the-namespace-http-schemas-microsoft/37906343-->
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="10"/>
@@ -27,6 +29,8 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3" Background="{DynamicResource NavBarBackground}"/>
+
         <ContentPresenter Content="{Binding NavViewModel}" Grid.Column="1" Margin="0, 0, 10, 0">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_NavPanel}">
@@ -35,15 +39,9 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Rectangle Grid.Column="2" Grid.Row="0" Grid.RowSpan="3">
-            <Rectangle.Fill>black
-            </Rectangle.Fill>
-        </Rectangle>
+        <Rectangle Grid.Column="2" Grid.Row="0" Grid.RowSpan="3" Fill="{DynamicResource BorderBrush}"/>
 
-        <Rectangle Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5">
-            <Rectangle.Fill>black
-            </Rectangle.Fill>
-        </Rectangle>
+        <Rectangle Grid.Row="1" Grid.Column="3" Fill="{DynamicResource BorderBrush}"/>
 
         <ContentPresenter Content="{Binding Display.DisplayedViewModel}" Grid.Column="3" Grid.Row="0" Margin="10, 0, 0, 0">
             <ContentPresenter.Resources>
@@ -83,7 +81,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <ContentPresenter Content="{Binding RunButtonVM}" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="4">
+        <ContentPresenter Content="{Binding RunButtonVM}" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RunButton}">
                     <local:UC_RunButton/>
@@ -91,7 +89,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <ContentPresenter Content="{Binding StatusBarVM}" Grid.Column="3" Grid.Row="4">
+        <ContentPresenter Content="{Binding StatusBarVM}" Grid.Column="3" Grid.Row="2">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_StatusBar}">
                     <local:UC_StatusBar/>
@@ -99,7 +97,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
     </Grid>
-</mahapps:MetroWindow>
+</Window>
 
 
     

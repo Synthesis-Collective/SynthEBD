@@ -48,7 +48,7 @@
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" Text="{Binding DispName, UpdateSourceTrigger=PropertyChanged}" MinWidth="100" />
-                            <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveAssignment}" CommandParameter="{Binding}" Foreground="Firebrick" ToolTip="Remove this assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">X</Button>
+                            <Button Grid.Column="1" HorizontalAlignment="Right" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.RemoveAssignment}" CommandParameter="{Binding}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Remove this assignment" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">X</Button>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -64,7 +64,7 @@
         </ContentPresenter>
 
         <Button Grid.Row="3" Grid.Column="0" Command="{Binding ImportFromZEBDcommand}" Foreground="BlueViolet" ToolTip="Import SpecificNPCAssignments.json from zEBD" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import from zEBD</Button>
-        <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Command="{Binding ImportBodyGenMorphsIni}" Foreground="MediumPurple" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Import BodyGen Morphs.ini</Button>
+        <Button Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Command="{Binding ImportBodyGenMorphsIni}" Foreground="{DynamicResource ActionAccentForeground}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Import BodyGen Morphs.ini</Button>
         <Button Grid.Row="5" Grid.Column="0" Command="{Binding Save}" Foreground="BlueViolet">Save</Button>
     </Grid>
 </UserControl>

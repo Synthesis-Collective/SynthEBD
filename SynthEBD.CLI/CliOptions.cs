@@ -141,6 +141,10 @@ public class CliOptions
     /// its Click prefix (e.g. "SG"). Empty = capture every menu.</summary>
     public List<string> Menus { get; } = new();
 
+    /// <summary>Themes to sweep for ui-screenshot (each applied via ThemeManager before its pass).
+    /// Empty = just the default theme.</summary>
+    public List<string> Themes { get; } = new();
+
     /// <summary>Window size forced onto MainWindow for deterministic ui-screenshot captures.</summary>
     public int WindowWidth { get; private set; } = 1600;
     public int WindowHeight { get; private set; } = 1000;
@@ -251,6 +255,8 @@ UI-SCREENSHOT OPTIONS:
   --menu <name>            Capture only this menu, matched against the displayed view-model name
                            without the VM_ prefix (e.g. Settings_General, SettingsTexMesh) or the
                            nav command suffix (e.g. SG, TM). Repeatable. Default: every menu.
+  --theme <name>           Sweep this theme (a Themes\*.xaml name, e.g. Dark). Repeatable.
+                           Default: the default theme only. PNGs land in <out>\<theme>\.
   --width <px>             Window width for the capture (default 1600).
   --height <px>            Window height for the capture (default 1000).
   --settle-ms <n>          Wait after layout settles before each capture (default 250).
@@ -407,6 +413,9 @@ EXIT CODES:
                     break;
                 case "--menu":
                     options.Menus.Add(TakeValue(args, ref i, flag));
+                    break;
+                case "--theme":
+                    options.Themes.Add(TakeValue(args, ref i, flag));
                     break;
                 case "--width":
                     options.WindowWidth = TakePositiveIntValue(args, ref i, flag);
