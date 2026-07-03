@@ -339,6 +339,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<string> AvailableThemes { get; set; } = new(ThemeManager.GetAvailableThemes());
     public bool bChangeMeshesOrTextures { get; set; } = true;
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
+    public BodyShapeSelectionMode LastBodySelectionMode { get; set; } = BodyShapeSelectionMode.BodySlide;
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     public bool ExcludePlayerCharacter { get; set; } = true;
     public bool ExcludePresets { get; set; } = true;
@@ -421,6 +422,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         SelectedThemeName = model.ThemeName;
         bChangeMeshesOrTextures = model.bChangeMeshesOrTextures;
         BodySelectionMode = model.BodySelectionMode;
+        LastBodySelectionMode = model.LastBodySelectionMode == BodyShapeSelectionMode.None ? BodyShapeSelectionMode.BodySlide : model.LastBodySelectionMode;
         BSSelectionMode = model.BSSelectionMode;
         bChangeHeight = model.bChangeHeight;
         _bHeadPartWarningDisplayed = model.bHeadPartWarningDisplayed; // has to copy in before bChangeHeadParts
@@ -491,6 +493,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.ThemeName = SelectedThemeName;
         model.bChangeMeshesOrTextures = bChangeMeshesOrTextures;
         model.BodySelectionMode = BodySelectionMode;
+        model.LastBodySelectionMode = LastBodySelectionMode;
         model.BSSelectionMode = BSSelectionMode;
         model.bChangeHeight = bChangeHeight;
         model.bChangeHeadParts = bChangeHeadParts;

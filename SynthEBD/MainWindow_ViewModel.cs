@@ -37,6 +37,7 @@ public class MainWindow_ViewModel : VM
         PatcherState patcherState,
         ViewModelLoader viewModelLoader,
         VM_Settings_General settingsGeneral,
+        VM_Dashboard dashboard,
         DisplayedItemVm display,
         VM_StatusBar statusBar,
         VM_NavPanel navPanel,
@@ -66,8 +67,8 @@ public class MainWindow_ViewModel : VM
         NavViewModel = _navPanel;
         _paths = paths;
 
-        // Start on the settings VM
-        Display.DisplayedViewModel = _settingsGeneral;
+        // Start on the Dashboard home page
+        Display.DisplayedViewModel = dashboard;
     }
 
     /// <summary>Registers the application Exit handler that persists state on shutdown.</summary>

@@ -10,6 +10,7 @@ namespace SynthEBD;
 /// </summary>
 public class VM_NavPanel : VM
 {
+    public ICommand ClickDash { get; }
     public ICommand ClickSG { get; }
     public ICommand ClickTM { get; }
     public ICommand ClickCE { get; }
@@ -27,7 +28,7 @@ public class VM_NavPanel : VM
     /// <summary>SynthEBD version string shown in the nav panel (from <see cref="PatcherState.Version"/>).</summary>
     public string Version { get; }
 
-    private readonly VM_Settings_General _settingsGeneral;
+    private readonly VM_Dashboard _dashboard;
     private readonly DisplayedItemVm _displayedItemVM;
 
     /// <summary>
@@ -36,6 +37,7 @@ public class VM_NavPanel : VM
     /// </summary>
     public VM_NavPanel(
         DisplayedItemVm displayedItemVm,
+        VM_Dashboard dashboard,
         VM_Settings_General settingsGeneral,
         PatcherState patcherState,
         VM_SettingsTexMesh texMesh,
@@ -51,9 +53,14 @@ public class VM_NavPanel : VM
         VM_BlockListUI blockListUi,
         VM_SettingsModManager modManager)
     {
-        _settingsGeneral = settingsGeneral;
+        _dashboard = dashboard;
         _displayedItemVM = displayedItemVm;
         Version = PatcherState.Version;
+
+        ClickDash = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => displayedItemVm.DisplayedViewModel = dashboard
+        );
 
         ClickSG = new RelayCommand(
             canExecute: _ => true,
@@ -110,9 +117,9 @@ public class VM_NavPanel : VM
         );
     }
 
-    /// <summary>Navigates to the General Settings view (the main menu).</summary>
+    /// <summary>Navigates to the Dashboard (the home page).</summary>
     public void GoToMainMenu()
     {
-        _displayedItemVM.DisplayedViewModel = _settingsGeneral;
+        _displayedItemVM.DisplayedViewModel = _dashboard;
     }
 }

@@ -16,6 +16,9 @@ public class Settings_General
     public bool bChangeMeshesOrTextures { get; set; } = true;
     /// <summary>Which body-shape system is active (none, BodyGen, or BodySlide).</summary>
     public BodyShapeSelectionMode BodySelectionMode { get; set; } = BodyShapeSelectionMode.None;
+    /// <summary>The last non-None <see cref="BodySelectionMode"/>, restored when the Dashboard's
+    /// Body Shape power toggle is switched back on.</summary>
+    public BodyShapeSelectionMode LastBodySelectionMode { get; set; } = BodyShapeSelectionMode.BodySlide;
     /// <summary>When using BodySlide, which selector picks the preset (OBody or AutoBody).</summary>
     public BodySlideSelectionMode BSSelectionMode { get; set; } = BodySlideSelectionMode.OBody;
     /// <summary>Master switch for the Height axis.</summary>

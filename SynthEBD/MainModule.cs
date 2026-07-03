@@ -61,6 +61,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<PreviewNpcResolver>().AsSelf().SingleInstance();
         builder.RegisterType<SubgroupTextureMapper>().AsSelf().SingleInstance();
         builder.RegisterType<FaceGenPreviewService>().AsSelf().SingleInstance();
+        builder.RegisterType<VM_Dashboard>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsTexMesh>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigEditor>().AsSelf().SingleInstance();
         builder.RegisterType<VM_SettingsDestandalone>().AsSelf().SingleInstance();

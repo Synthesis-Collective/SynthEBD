@@ -15,7 +15,8 @@
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" HorizontalAlignment="Center" FontSize="18">SynthEBD</TextBlock>
         <StackPanel Grid.Row="1">
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSG}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center" IsChecked="True">General Settings</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickDash}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center" IsChecked="True">Dashboard</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickSG}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">General Settings</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickTM}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Asset Patching</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickCE}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">Config Editor</RadioButton>
             <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" Command="{Binding ClickBG}" Style="{DynamicResource NavToggleButtonStyle}" HorizontalContentAlignment="Center">BodyGen Integration</RadioButton>
