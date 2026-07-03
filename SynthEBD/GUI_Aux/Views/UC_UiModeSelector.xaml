@@ -40,16 +40,13 @@
         <StackPanel Orientation="Horizontal">
             <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Use"
                          IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Use, Mode=TwoWay}"
-                         ToolTip="Show only what's needed to install content and run the patcher. Distribution rules and advanced options are hidden."
-                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                         local:DocTooltip.Key="Shell.UseMode"/>
             <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Customize"
                          IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Customize, Mode=TwoWay}"
-                         ToolTip="Also show customization options: distribution rules, race/attribute groupings, and integrations."
-                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                         local:DocTooltip.Key="Shell.CustomizeMode"/>
             <RadioButton GroupName="UiMode" Style="{StaticResource SegmentStyle}" Content="Troubleshoot"
                          IsChecked="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource ModeEquals}, ConverterParameter=Troubleshoot, Mode=TwoWay}"
-                         ToolTip="Also show diagnostic and compatibility switches. Don't change these unless you know what you're doing or have been instructed to."
-                         ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                         local:DocTooltip.Key="Shell.TroubleshootMode"/>
         </StackPanel>
     </Border>
 </UserControl>

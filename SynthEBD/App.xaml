@@ -32,6 +32,20 @@
             <!-- The old implicit Button style (Noggog flat + hover opacity fade) is gone: the
                  active theme supplies the beveled Button/ToggleButton styles. -->
 
+            <!-- Rich 3-part tooltip rendering: elements carrying local:DocTooltip.Key get a
+                 UiDocEntry as their ToolTip, rendered by this implicit template. -->
+            <local:StringToVisibilityConverter x:Key="DocSectionToVis"/>
+            <DataTemplate DataType="{x:Type local:UiDocEntry}">
+                <StackPanel MaxWidth="420">
+                    <TextBlock Text="What it does" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Layperson, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Layperson}" TextWrapping="Wrap" Margin="0 1 0 7" Visibility="{Binding Layperson, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="Technical" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Technical, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Technical}" TextWrapping="Wrap" Margin="0 1 0 7" Visibility="{Binding Technical, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="Why it exists" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Motivation, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Motivation}" TextWrapping="Wrap" Margin="0 1 0 0" Visibility="{Binding Motivation, Converter={StaticResource DocSectionToVis}}"/>
+                </StackPanel>
+            </DataTemplate>
+
             <SolidColorBrush x:Key="ComboBox.Static.Background" Color="Transparent"/>
             <SolidColorBrush x:Key="ComboBox.Static.Border" Color="Transparent"/>
             <SolidColorBrush x:Key="ComboBox.Static.Glyph" Color="White"/>

@@ -22,10 +22,11 @@ public class VM_DashboardTile : VM
     private readonly Func<string> _statusProvider;
     private readonly Func<TileHealth> _healthProvider;
 
-    public VM_DashboardTile(string title, bool hasPowerToggle, Func<string> statusProvider,
+    public VM_DashboardTile(string title, string docKey, bool hasPowerToggle, Func<string> statusProvider,
         Func<TileHealth> healthProvider, Action navigate)
     {
         Title = title;
+        DocKey = docKey;
         HasPowerToggle = hasPowerToggle;
         _statusProvider = statusProvider;
         _healthProvider = healthProvider;
@@ -34,6 +35,8 @@ public class VM_DashboardTile : VM
     }
 
     public string Title { get; }
+    /// <summary>UiDocs key for the tile's rich tooltip (bound by the shared tile template).</summary>
+    public string DocKey { get; }
     public bool HasPowerToggle { get; }
     /// <summary>Two-way bridge to the module's enable flag; the dashboard wires both directions.</summary>
     public bool IsPowered { get; set; }

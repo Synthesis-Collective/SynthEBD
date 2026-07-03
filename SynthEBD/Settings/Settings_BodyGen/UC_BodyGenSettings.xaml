@@ -31,29 +31,29 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Edit/view a BodyGen config for female NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Current Female Config</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.CurrentFemaleConfig">Current Female Config</TextBlock>
             <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="150" Margin="0 0 25 0" ItemsSource="{Binding FemaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentFemaleConfig}" IsSynchronizedWithCurrentItem="True"></ComboBox>
-            <TextBlock Grid.Row="0" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Edit/view a BodyGen config for male NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Current Male Config</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.CurrentMaleConfig">Current Male Config</TextBlock>
             <ComboBox Grid.Row="0" Grid.Column="3" MinWidth="150" ItemsSource="{Binding MaleConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding CurrentMaleConfig}"></ComboBox>
 
-            <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddNewFemaleConfig}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
-            <RadioButton Grid.Row="1" Grid.Column="1" IsChecked="{Binding DisplayedConfigIsFemale, Mode=TwoWay}" Command="{Binding DisplayFemaleConfig}">Displayed</RadioButton>
-            <Button Grid.Row="1" Grid.Column="2" Command="{Binding AddNewMaleConfig}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
-            <RadioButton Grid.Row="1" Grid.Column="3" IsChecked="{Binding DisplayedConfigIsMale, Mode=TwoWay}"  Command="{Binding DisplayMaleConfig}">Displayed</RadioButton>
+            <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddNewFemaleConfig}" Foreground="{DynamicResource ActionGoodForeground}" local:DocTooltip.Key="BodyGen.AddNewConfig">Add New</Button>
+            <RadioButton Grid.Row="1" Grid.Column="1" IsChecked="{Binding DisplayedConfigIsFemale, Mode=TwoWay}" Command="{Binding DisplayFemaleConfig}" local:DocTooltip.Key="BodyGen.DisplayedConfig">Displayed</RadioButton>
+            <Button Grid.Row="1" Grid.Column="2" Command="{Binding AddNewMaleConfig}" Foreground="{DynamicResource ActionGoodForeground}" local:DocTooltip.Key="BodyGen.AddNewConfig">Add New</Button>
+            <RadioButton Grid.Row="1" Grid.Column="3" IsChecked="{Binding DisplayedConfigIsMale, Mode=TwoWay}"  Command="{Binding DisplayMaleConfig}" local:DocTooltip.Key="BodyGen.DisplayedConfig">Displayed</RadioButton>
 
             <!-- Preview NPC + slider group used by the in-line CharacterViewer in each
                  BodyGen template editor. Stored globally (not per BodyGen JSON) so
                  shared configs don't carry a FormKey from the authoring user's load
                  order. Split by gender because CBBE/UNP and SAM/HIMBO rigs typically
                  don't share a single preview NPC. -->
-            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 10 15 0" VerticalAlignment="Center" ToolTip="NPC used as the preview body in the female-config template editor" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Female Preview NPC</TextBlock>
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 10 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.FemalePreviewNpc">Female Preview NPC</TextBlock>
             <local:UC_NamedFormKeyPicker Grid.Row="2" Grid.Column="1" MinWidth="150" Margin="0 10 25 0" FormKey="{Binding PreviewNpcFemale, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NpcPickerFormKeys}"/>
-            <TextBlock Grid.Row="2" Grid.Column="2" Margin="0 10 15 0" VerticalAlignment="Center" ToolTip="NPC used as the preview body in the male-config template editor" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Preview NPC</TextBlock>
+            <TextBlock Grid.Row="2" Grid.Column="2" Margin="0 10 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.MalePreviewNpc">Male Preview NPC</TextBlock>
             <local:UC_NamedFormKeyPicker Grid.Row="2" Grid.Column="3" MinWidth="150" Margin="0 10 0 0" FormKey="{Binding PreviewNpcMale, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NpcPickerFormKeys}"/>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 5 15 0" VerticalAlignment="Center" ToolTip="Slider group (body type, e.g. CBBE, UNP, 3BA) used to resolve morph data when previewing female BodyGen templates" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Female Slider Group</TextBlock>
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 5 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.FemalePreviewSliderGroup">Female Slider Group</TextBlock>
             <TextBox Grid.Row="3" Grid.Column="1" MinWidth="150" Margin="0 5 25 0" Text="{Binding PreviewSliderGroupFemale, UpdateSourceTrigger=PropertyChanged}"/>
-            <TextBlock Grid.Row="3" Grid.Column="2" Margin="0 5 15 0" VerticalAlignment="Center" ToolTip="Slider group (body type, e.g. HIMBO, SAM) used to resolve morph data when previewing male BodyGen templates" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Male Slider Group</TextBlock>
+            <TextBlock Grid.Row="3" Grid.Column="2" Margin="0 5 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGen.MalePreviewSliderGroup">Male Slider Group</TextBlock>
             <TextBox Grid.Row="3" Grid.Column="3" MinWidth="150" Margin="0 5 0 0" Text="{Binding PreviewSliderGroupMale, UpdateSourceTrigger=PropertyChanged}"/>
         </Grid>
 

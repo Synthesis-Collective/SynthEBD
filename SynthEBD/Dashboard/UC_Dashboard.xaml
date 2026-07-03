@@ -11,8 +11,7 @@
 
         <!-- Pill-style power toggle. -->
         <Style x:Key="PowerSliderStyle" TargetType="ToggleButton">
-            <Setter Property="ToolTip" Value="Enable or disable this module"/>
-            <Setter Property="ToolTipService.IsEnabled" Value="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Setter Property="local:DocTooltip.Key" Value="Dashboard.PowerToggle"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -43,7 +42,7 @@
         <!-- The whole tile is a click target that navigates to the module's detail menu; the
              power toggle inside handles its own clicks without triggering navigation. -->
         <DataTemplate DataType="{x:Type local:VM_DashboardTile}">
-            <Button Command="{Binding Open}" Margin="7" ToolTip="Open this module's detail menu" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+            <Button Command="{Binding Open}" Margin="7" local:DocTooltip.Key="{Binding DocKey}">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="TileBorder" Background="{DynamicResource TileBackground}"

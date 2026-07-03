@@ -20,17 +20,17 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal">
-            <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="{DynamicResource ActionGoodForeground}" ToolTip="Create your own blank config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Create New Config File</Button>
-            <Button Margin="10 0 0 0" Command="{Binding CreateConfigArchive}" Foreground="{DynamicResource ActionGoodForeground}" ToolTip="Package your config file(s) into an installer archive" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Package Config File(s)</Button>
-            <Button Margin="10 0 0 0" Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
-            <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" ToolTip="Split screen to drag and drop subgroups between config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Split Screen Config Editor</Button>
-            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Edit all/selected config files simultaneously" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Batch Actions</Button>
+            <Button Command="{Binding AddNewAssetPackConfigFile}" Foreground="{DynamicResource ActionGoodForeground}" local:DocTooltip.Key="ConfigEditor.CreateNewConfig">Create New Config File</Button>
+            <Button Margin="10 0 0 0" Command="{Binding CreateConfigArchive}" Foreground="{DynamicResource ActionGoodForeground}" local:DocTooltip.Key="ConfigEditor.PackageConfigs">Package Config File(s)</Button>
+            <Button Margin="10 0 0 0" Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" local:DocTooltip.Key="ConfigEditor.ValidateConfigs">Validate Configs</Button>
+            <Button Margin="10 0 0 0" Command="{Binding SplitScreenToggle}" local:DocTooltip.Key="ConfigEditor.SplitScreen">Split Screen Config Editor</Button>
+            <Button Margin="10 0 0 0" Command="{Binding ShowBatchActionsMenu}" Foreground="{DynamicResource ActionAccentForeground}" local:DocTooltip.Key="ConfigEditor.BatchActions">Batch Actions</Button>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0 5 0 5">
-            <TextBlock VerticalAlignment="Center" ToolTip="Subgroup preview mode: None, DDS thumbnails (Image), or 3D render of an NPC with the subgroup's textures applied (Render)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Subgroup preview</TextBlock>
+            <TextBlock VerticalAlignment="Center" local:DocTooltip.Key="ConfigEditor.SubgroupPreview">Subgroup preview</TextBlock>
             <ComboBox Margin="5 0 0 0" ItemsSource="{Binding PreviewModeOptions}" SelectedItem="{Binding PreviewMode, Mode=TwoWay}" MinWidth="80" />
-            <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" ToolTip="Lower this value if the preview images are using too much memory" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Preview Image Maximum Size" VerticalAlignment="Center" Margin="5 0 5 0" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="ConfigEditor.MaxPreviewImageSize"/>
             <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=MaxPreviewImageSize}" Visibility="{Binding Path = bShowPreviewImages, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
 

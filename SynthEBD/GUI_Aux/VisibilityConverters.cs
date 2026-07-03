@@ -277,3 +277,18 @@ public class UiModeEqualsToBoolConverter : IValueConverter
         return value is true ? Enum.Parse<UiDisplayMode>((string)parameter) : System.Windows.Data.Binding.DoNothing;
     }
 }
+
+/// <summary>Shows an element only when the bound string has visible content (used by the
+/// UiDocEntry tooltip template to collapse empty sections).</summary>
+[ValueConversion(typeof(string), typeof(Visibility))]
+public class StringToVisibilityConverter : IValueConverter
+{
+    /// <summary>Returns <c>Visible</c> iff the value is a non-whitespace string.</summary>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is string s && !string.IsNullOrWhiteSpace(s) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Not used; returns <c>null</c>.</summary>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => null!;
+}

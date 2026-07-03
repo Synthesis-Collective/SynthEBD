@@ -20,13 +20,13 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
-        <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Name of output file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Output Name</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" local:DocTooltip.Key="Environment.OutputName">Output Name</TextBlock>
         <TextBox Grid.Column="2" Grid.Row="0" Width="150" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.OutputModName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-        <TextBlock Grid.Column="0" Grid.Row="1"  ToolTip="Which Skyrim release is being patched">Skyrim Release</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="1"  local:DocTooltip.Key="Environment.SkyrimRelease">Skyrim Release</TextBlock>
         <ComboBox Grid.Column="2" Grid.Row="1" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding EnvironmentProvider.SkyrimVersion}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Column="0" Grid.Row="2"  ToolTip="Find your game data folder (e.g. Steam Library\steamapps\common\Skyrim\Data)">Game Data Directory</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="2"  local:DocTooltip.Key="Environment.GameDataDirectory">Game Data Directory</TextBlock>
         <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Command="{Binding SelectGameDataFolder}" Foreground="{DynamicResource ActionGoodForeground}">Select</Button>
             <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>

@@ -24,7 +24,7 @@
         </TextBlock>
 
         <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
-            <TextBlock VerticalAlignment="Center" ToolTip="Force patched NPCs to use vanilla body mesh paths so that they don't require their own bodyslides" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Force vanilla body mesh paths</TextBlock>
+            <TextBlock VerticalAlignment="Center" local:DocTooltip.Key="Destandalone.ForceVanillaBodyPaths">Force vanilla body mesh paths</TextBlock>
             <CheckBox Margin="10 0 0 0" VerticalAlignment="Center" IsChecked="{Binding Path=bForceVanillaBodyMeshPath, Mode=TwoWay}"/>
         </StackPanel>
 
@@ -32,7 +32,7 @@
                     Visibility="{Binding bForceVanillaBodyMeshPath, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal"
                         Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}">
-                <TextBlock VerticalAlignment="Center" Text="Allow UBE" ToolTip="Preserve UBE bodies (recognized by their '!UBE' mesh path) instead of forcing them to the CBBE/UNP vanilla path, which would break them. A UBE body is only remapped to the canonical UBE base body when its morph .tri file is missing." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock VerticalAlignment="Center" Text="Allow UBE" local:DocTooltip.Key="Destandalone.AllowUBE"/>
                 <CheckBox Margin="10 0 0 0" VerticalAlignment="Center" IsChecked="{Binding Path=bAllowUBEBodyPaths, Mode=TwoWay}"/>
             </StackPanel>
         </StackPanel>

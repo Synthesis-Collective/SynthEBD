@@ -1,6 +1,7 @@
 <Application x:Class="SynthEBD.CLI.UiHarnessApp"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:synthebd="clr-namespace:SynthEBD;assembly=SynthEBD"
              xmlns:theme="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2">
     <!-- WPF Application used ONLY by the ui-screenshot verb. Its resource block is an exact copy of
          SynthEBD's App.xaml resources: MahApps' compiled control templates hold deferred StaticResource
@@ -27,6 +28,19 @@
                 <ResourceDictionary Source="pack://application:,,,/Mutagen.Bethesda.WPF;component/Everything.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Rich 3-part tooltip rendering (lockstep with App.xaml). -->
+            <synthebd:StringToVisibilityConverter x:Key="DocSectionToVis"/>
+            <DataTemplate DataType="{x:Type synthebd:UiDocEntry}">
+                <StackPanel MaxWidth="420">
+                    <TextBlock Text="What it does" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Layperson, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Layperson}" TextWrapping="Wrap" Margin="0 1 0 7" Visibility="{Binding Layperson, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="Technical" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Technical, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Technical}" TextWrapping="Wrap" Margin="0 1 0 7" Visibility="{Binding Technical, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="Why it exists" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Visibility="{Binding Motivation, Converter={StaticResource DocSectionToVis}}"/>
+                    <TextBlock Text="{Binding Motivation}" TextWrapping="Wrap" Margin="0 1 0 0" Visibility="{Binding Motivation, Converter={StaticResource DocSectionToVis}}"/>
+                </StackPanel>
+            </DataTemplate>
 
             <SolidColorBrush x:Key="ComboBox.Static.Background" Color="Transparent"/>
             <SolidColorBrush x:Key="ComboBox.Static.Border" Color="Transparent"/>

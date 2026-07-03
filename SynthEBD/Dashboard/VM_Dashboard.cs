@@ -32,7 +32,7 @@ public class VM_Dashboard : VM
         VM_ConsistencyUI consistency,
         VM_BlockListUI blockList)
     {
-        var environmentTile = new VM_DashboardTile("Environment", hasPowerToggle: false,
+        var environmentTile = new VM_DashboardTile("Environment", "Dashboard.Environment", hasPowerToggle: false,
             statusProvider: () =>
             {
                 bool valid = environmentProvider.LinkCache != null && environmentProvider.LinkCache.ListedOrder.Count > 1;
@@ -47,13 +47,13 @@ public class VM_Dashboard : VM
                 ? TileHealth.Ok : TileHealth.Warning,
             navigate: () => displayedItemVm.DisplayedViewModel = general);
 
-        var assetsTile = new VM_DashboardTile("Asset Patching", hasPowerToggle: true,
+        var assetsTile = new VM_DashboardTile("Asset Patching", "Dashboard.AssetPatching", hasPowerToggle: true,
             statusProvider: () => texMesh.AssetPacks.Count(x => x.IsSelected) + " of " + texMesh.AssetPacks.Count
                 + " config files active" + System.Environment.NewLine + "Face patching: " + texMesh.FacePatchingMode,
             healthProvider: () => general.bChangeMeshesOrTextures ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = texMesh);
 
-        var bodyTile = new VM_DashboardTile("Body Shape Patching", hasPowerToggle: true,
+        var bodyTile = new VM_DashboardTile("Body Shape Patching", "Dashboard.BodyShape", hasPowerToggle: true,
             statusProvider: () =>
             {
                 switch (general.BodySelectionMode)
@@ -76,7 +76,7 @@ public class VM_Dashboard : VM
             navigate: () => displayedItemVm.DisplayedViewModel =
                 general.BodySelectionMode == BodyShapeSelectionMode.BodyGen ? bodyGen : oBody);
 
-        var headPartsTile = new VM_DashboardTile("Headpart Patching", hasPowerToggle: true,
+        var headPartsTile = new VM_DashboardTile("Headpart Patching", "Dashboard.Headparts", hasPowerToggle: true,
             statusProvider: () =>
             {
                 int headPartCount = patcherState.HeadPartSettings?.Types?.Sum(x => x.Value.HeadParts.Count) ?? 0;
@@ -85,14 +85,14 @@ public class VM_Dashboard : VM
             healthProvider: () => general.bChangeHeadParts ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = headParts);
 
-        var heightTile = new VM_DashboardTile("Height Patching", hasPowerToggle: true,
+        var heightTile = new VM_DashboardTile("Height Patching", "Dashboard.Height", hasPowerToggle: true,
             statusProvider: () => (height.SelectedHeightConfig?.Label).IsNullOrWhitespace()
                 ? height.AvailableHeightConfigs.Count + " height configs installed"
                 : "Using \"" + height.SelectedHeightConfig.Label + "\" (" + height.AvailableHeightConfigs.Count + " installed)",
             healthProvider: () => general.bChangeHeight ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = height);
 
-        var destandaloneTile = new VM_DashboardTile("Destandalone Patching", hasPowerToggle: true,
+        var destandaloneTile = new VM_DashboardTile("Destandalone Patching", "Dashboard.Destandalone", hasPowerToggle: true,
             statusProvider: () =>
             {
                 if (!texMesh.bForceVanillaBodyMeshPath) { return "Off - config files keep their own body mesh paths"; }
@@ -107,17 +107,17 @@ public class VM_Dashboard : VM
                 : general.bChangeMeshesOrTextures ? TileHealth.Ok : TileHealth.Warning,
             navigate: () => displayedItemVm.DisplayedViewModel = destandalone);
 
-        var specificAssignmentsTile = new VM_DashboardTile("Specific Assignments", hasPowerToggle: false,
+        var specificAssignmentsTile = new VM_DashboardTile("Specific Assignments", "Dashboard.SpecificAssignments", hasPowerToggle: false,
             statusProvider: () => specificAssignments.Assignments.Count + " NPCs with specific assignments",
             healthProvider: () => specificAssignments.Assignments.Count > 0 ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = specificAssignments);
 
-        var consistencyTile = new VM_DashboardTile("Consistency", hasPowerToggle: true,
+        var consistencyTile = new VM_DashboardTile("Consistency", "Dashboard.Consistency", hasPowerToggle: true,
             statusProvider: () => (patcherState.Consistency?.Count ?? 0) + " NPCs remembered from previous runs",
             healthProvider: () => general.bEnableConsistency ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = consistency);
 
-        var blockListTile = new VM_DashboardTile("Block List", hasPowerToggle: false,
+        var blockListTile = new VM_DashboardTile("Block List", "Dashboard.BlockList", hasPowerToggle: false,
             statusProvider: () => blockList.BlockedNPCs.Count + " NPCs / " + blockList.BlockedPlugins.Count + " plugins blocked",
             healthProvider: () => blockList.BlockedNPCs.Count > 0 || blockList.BlockedPlugins.Count > 0 ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = blockList);

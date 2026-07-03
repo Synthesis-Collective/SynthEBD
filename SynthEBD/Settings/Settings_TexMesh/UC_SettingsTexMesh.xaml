@@ -68,31 +68,31 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to modify file paths with .dds extensions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC textures</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.ChangeNPCTextures">Allow config files to change NPC textures</TextBlock>
             <CheckBox Grid.Row="0" Grid.Column="1"  IsChecked="{Binding Path=bChangeNPCTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to modify file paths with .nif extensions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC meshes</TextBlock>
+            <TextBlock Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.ChangeNPCMeshes">Allow config files to change NPC meshes</TextBlock>
             <CheckBox Grid.Row="1" Grid.Column="1"  IsChecked="{Binding Path=bChangeNPCMeshes, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="2" Grid.Column="0"  VerticalAlignment="Center" ToolTip="Permit config files to create or edit head parts" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow config files to change NPC head parts</TextBlock>
+            <TextBlock Grid.Row="2" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.ChangeNPCHeadParts">Allow config files to change NPC head parts</TextBlock>
             <CheckBox Grid.Row="2" Grid.Column="1"  IsChecked="{Binding Path=bChangeNPCHeadParts, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" ToolTip="Script: Face textures are applied at runtime via Papyrus scripts (original behavior)&#x0a;Mesh: Face textures are baked directly into the NPC's FaceGen .nif file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Face Patching Mode</TextBlock>
+            <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.FacePatchingMode">Face Patching Mode</TextBlock>
             <ComboBox Grid.Row="3" Grid.Column="1" SelectedItem="{Binding FacePatchingMode}" ItemsSource="{Binding FacePatchingModeOptions}" />
 
-            <TextBlock Grid.Row="4" Grid.Column="0"  VerticalAlignment="Center" ToolTip= "Use SkyPatcher to apply skin changes. Meant to help with Too Many Masters error" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">SkyPatcher Mode</TextBlock>
+            <TextBlock Grid.Row="4" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.SkyPatcherMode">SkyPatcher Mode</TextBlock>
             <CheckBox Grid.Row="4" Grid.Column="1"  IsChecked="{Binding Path=bSkyPatcherModeAssets, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" ToolTip="Permit config files to modify NPCs that already have custom body textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patch NPCs with custom bodies</TextBlock>
+            <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.PatchNPCsWithCustomBodies">Patch NPCs with custom bodies</TextBlock>
             <CheckBox Grid.Row="5" Grid.Column="1"  IsChecked="{Binding Path=bApplyToNPCsWithCustomSkins, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" ToolTip="Permit config files to modify NPCs that already have custom face textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Patch NPCs with custom faces</TextBlock>
+            <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.PatchNPCsWithCustomFaces">Patch NPCs with custom faces</TextBlock>
             <CheckBox Grid.Row="6" Grid.Column="1"  IsChecked="{Binding Path=bApplyToNPCsWithCustomFaces, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" ToolTip="Allow config files to distribute asset replacers" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Enable Asset Replacers</TextBlock>
+            <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.EnableAssetReplacers">Enable Asset Replacers</TextBlock>
             <CheckBox Grid.Row="7" Grid.Column="1"  IsChecked="{Binding Path=bEnableAssetReplacers, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" ToolTip="If an NPC has one of these armor EditorIDs assigned as its skin, completely replace it rather than trying to patch" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Grid.Row="8" Grid.Column="0"  VerticalAlignment="Center" Text="Replace Skins" local:DocTooltip.Key="AssetPatching.ReplaceSkins"/>
             <WrapPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1">
                 <Expander>
                     <WrapPanel Orientation="Horizontal">
@@ -112,28 +112,28 @@
                             <Button Content="Add New" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddStrippedWNAM}"/>
                         </StackPanel>
                         <StackPanel Margin="10 0 0 0">
-                            <Button VerticalAlignment="Top" Content="Add all armors from mod: " Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ImportStrippedWNAMsFromMod}" ToolTip="Do not import your EasyNPC plugin here. Instead, check the EasyNPC Compatibility Mode box." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                            <Button VerticalAlignment="Top" Content="Add all armors from mod: " Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ImportStrippedWNAMsFromMod}" local:DocTooltip.Key="AssetPatching.ImportSkinsFromMod"/>
                             <plugins:ModKeyPicker ModKey="{Binding SelectedStrippedWNAMmodKey}" SearchableMods="{Binding LoadOrder}" />
                             <Button VerticalAlignment="Top" Content="Undo" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding UndoImportStrippedWNAMsFromMod}"/>
                         </StackPanel>
                     </WrapPanel>
                 </Expander>
-                <TextBlock VerticalAlignment="Center" Margin="5 0 0 0" ToolTip="Remove SkinNaked WNAM records assigned to NPCs by EasyNPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">EasyNPC Compatibility Mode</TextBlock>
+                <TextBlock VerticalAlignment="Center" Margin="5 0 0 0" local:DocTooltip.Key="AssetPatching.EasyNPCCompatibilityMode">EasyNPC Compatibility Mode</TextBlock>
                 <CheckBox IsChecked="{Binding Path=bEasyNPCCompatibilityMode, Mode=TwoWay}"></CheckBox>
             </WrapPanel>
 
             <TextBlock Grid.Row="9" Grid.Column="0"  VerticalAlignment="Center" Text="EBD Options"/>
             <WrapPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
-                <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Overwrites some original EBD scripts with updated and fixed versions" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Fix EBD Global Script</TextBlock>
+                <TextBlock Margin="0 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.FixEBDGlobalScript">Fix EBD Global Script</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bApplyFixedScripts, Mode=TwoWay}"/>
 
-                <TextBlock Text="Use Fixed EBD Global Script For: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" ToolTip="Determines which version of the fixed EBD Global Script will be installed&#x0a;The one for 1.5.97 or higher is recommended because it doesn't bug out when the NPC head's Full Name doesn't match its EditorID" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock Text="Use Fixed EBD Global Script For: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="AssetPatching.FixedScriptSKSEVersion"/>
                 <ComboBox SelectedItem="{Binding SKSEversionSSE}" ItemsSource="{Binding SKSEversionOptions}" Visibility="{Binding Path = bShowSKSEversionOptions, Converter={StaticResource BoolToVis}}" />
 
-                <TextBlock Text="Use PO3 Extender and Tweaks for Fixed EBD Global Script: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowPO3Options, Converter={StaticResource BoolToVis}}" ToolTip="Determines which version of the fixed EBD Global Script will be installed&#x0a;The one using powerofthree's mods is recommended because it doesn't bug out when the NPC head's Full Name doesn't match its EditorID&#x0a;Powerofthree's Papyrus Extender and Tweaks, AND their respective VR adaptations, must all be installed for that version." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                <TextBlock Text="Use PO3 Extender and Tweaks for Fixed EBD Global Script: " Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{Binding Path = bShowPO3Options, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="AssetPatching.FixedScriptPO3Mode"/>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bPO3ModeForVR, Mode=TwoWay}" Visibility="{Binding Path = bShowPO3Options, Converter={StaticResource BoolToVis}}"/>
 
-                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Use original EBD Face Texture Scripts instead of new SynthEBD versions (EBD Global bug fix will still be applied if Fix EBD Global Script is checked)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Use Original EBD Face Texture Script</TextBlock>
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.UseOriginalEBDScript">Use Original EBD Face Texture Script</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bLegacyEBDMode, Mode=TwoWay}"/>
                 <Expander Margin="5 0 0 0" Header="Refresh Triggers" ExpandDirection="Down" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
                     <Grid>
@@ -155,25 +155,25 @@
                         <Button Grid.Row="1" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddTriggerEvent}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
                     </Grid>
                 </Expander>
-                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" ToolTip="Show notifications in top left corner and write detailed events to Papyrus log (recommmended for testing only)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">Verbose</TextBlock>
+                <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.FaceScriptVerbose" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">Verbose</TextBlock>
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bNewEBDModeVerbose, Mode=TwoWay}" Visibility="{Binding bLegacyEBDMode, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}"/>
             </WrapPanel>
 
-            <TextBlock Grid.Row="10" Grid.Column="0" VerticalAlignment="Center" ToolTip="Generate log to display generated and assigned assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Generate combination assignment log</TextBlock>
+            <TextBlock Grid.Row="10" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.AssignmentLog">Generate combination assignment log</TextBlock>
             <CheckBox Grid.Row="10"  Grid.Column="1" IsChecked="{Binding Path=bGenerateAssignmentLog, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="11"  Grid.Column="0" VerticalAlignment="Center" ToolTip="Speeds up asset patching, but in very rare cases could lead to incorrectly assigned records." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Cache generated records</TextBlock>
+            <TextBlock Grid.Row="11"  Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.CacheRecords">Cache generated records</TextBlock>
             <CheckBox Grid.Row="11"  Grid.Column="1" IsChecked="{Binding Path=bCacheRecords, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="12" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's skin texture has an Alt Textures list that references a texture set that SynthEBD replaced, patch that Alt Textures entry to use the new texture" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Skin Alternate Textures</TextBlock>
+            <TextBlock Grid.Row="12" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.MatchSkinAltTextures">Match NPC Skin Alternate Textures</TextBlock>
             <CheckBox Grid.Row="12" Grid.Column="1"  IsChecked="{Binding Path=bPatchSkinAltTextures, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="13" Grid.Column="0"  VerticalAlignment="Center" ToolTip="If an NPC's armor references its body texture, patch the armor as well" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Match NPC Armor Textures</TextBlock>
+            <TextBlock Grid.Row="13" Grid.Column="0"  VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.MatchArmorTextures">Match NPC Armor Textures</TextBlock>
             <CheckBox Grid.Row="13" Grid.Column="1"  IsChecked="{Binding Path=bPatchArmors, Mode=TwoWay}"></CheckBox>
 
-            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" ToolTip="Remove the following parent directories from asset file paths" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Asset Path Trimming</TextBlock>
+            <TextBlock Grid.Row="14" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.PathTrimming">Asset Path Trimming</TextBlock>
             <StackPanel Grid.Row="14" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5 0 5 0" ToolTip="Restore default asset path trimming entries" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Restore Defaults</Button>
+                <Button Command="{Binding RestoreDefaultTrimPaths}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5 0 5 0" local:DocTooltip.Key="AssetPatching.RestoreDefaultTrimPaths">Restore Defaults</Button>
             </StackPanel>
             <Expander Grid.Row="14" Grid.Column="1" >
                 <StackPanel>
@@ -198,8 +198,8 @@
             <TextBlock Grid.Row="15"  Grid.Column="0" VerticalAlignment="Center" Text="Active Config Files"/>
             <StackPanel Grid.Row="15"  Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" >
                 <TextBlock VerticalAlignment="Center" Text="Select"/>
-                <Button Command="{Binding SelectConfigsAll}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0" ToolTip="Enable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">All</Button>
-                <Button Command="{Binding SelectConfigsNone}" Foreground="{DynamicResource ActionDangerForeground}" Margin="5 0 5 0" ToolTip="Disable all config files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">None</Button>
+                <Button Command="{Binding SelectConfigsAll}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0" local:DocTooltip.Key="AssetPatching.SelectConfigsAll">All</Button>
+                <Button Command="{Binding SelectConfigsNone}" Foreground="{DynamicResource ActionDangerForeground}" Margin="5 0 5 0" local:DocTooltip.Key="AssetPatching.SelectConfigsNone">None</Button>
             </StackPanel>
             <Expander Grid.Row="15"  Grid.Column="1" Header="{Binding DisplayedAssetPackStr}">
                 <ItemsControl ItemsSource="{Binding AssetPacks, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
@@ -214,7 +214,7 @@
                 </ItemsControl>
             </Expander>
 
-            <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" ToolTip="The order in which asset config files and body shapes are to be assigned (Drag and drop to rearrange)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Order</TextBlock>
+            <TextBlock Grid.Row="16" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPatching.DistributionOrder">Distribution Order</TextBlock>
             <Expander Grid.Row="16" Grid.Column="1" >
                 <local:UC_AssetOrderingMenu DataContext="{Binding AssetOrderingMenu}"/>
             </Expander>
@@ -223,10 +223,10 @@
         <!-- The config-editor toolbar and editor pane moved to the Config Editor page
              (UC_ConfigEditor); Destandalone patching moved to its own page (UC_SettingsDestandalone). -->
         <WrapPanel Grid.Row="1" Orientation="Horizontal">
-            <Button Command="{Binding InstallFromArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Install a config plugin from a SynthEBD installer archive (recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config from Archive</Button>
-            <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" ToolTip="Install a config plugin file from a loose .json file (not recommended)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Install Config Json File</Button>
-            <Button Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" ToolTip="Check all enabled plugin files for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate Configs</Button>
-            <Button Command="{Binding SimulateDistribution}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Simulate and get statistics on how config files would be assigned to a specific NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Simulate Distribution</Button>
+            <Button Command="{Binding InstallFromArchive}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" local:DocTooltip.Key="AssetPatching.InstallConfigArchive">Install Config from Archive</Button>
+            <Button Command="{Binding InstallFromJson}" Foreground="YellowGreen" Margin="5" local:DocTooltip.Key="AssetPatching.InstallConfigJson">Install Config Json File</Button>
+            <Button Command="{Binding ValidateAll}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" local:DocTooltip.Key="AssetPatching.ValidateConfigs">Validate Configs</Button>
+            <Button Command="{Binding SimulateDistribution}" Foreground="{DynamicResource ActionAccentForeground}" Margin="5" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" local:DocTooltip.Key="AssetPatching.SimulateDistribution">Simulate Distribution</Button>
         </WrapPanel>
     </Grid>
 </UserControl>
