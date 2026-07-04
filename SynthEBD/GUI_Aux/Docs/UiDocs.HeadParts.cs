@@ -197,5 +197,77 @@ public static partial class UiDocs
             layperson: "Body-shape labels that block this whole head-part type when the NPC's assigned BodyGen morph carries them. The Male list applies to male NPCs and the Female list to female NPCs.",
             technical: "A match against the assigned morphs' descriptors (default mode Any) skips the type before individual parts are evaluated; labels come from the tracked male/female BodyGen config.",
             motivation: "Mirrors the disallowed BodySlide descriptors for BodyGen users, vetoing face/body mismatches type-wide.");
+
+        // --- Import tool (UC_HeadPartImport) ---
+
+        Add("HeadParts.ImportSource",
+            layperson: "The plugin to pull head parts from. Pick a hair, brow, or complexion mod and its head parts are listed below, ready to import into your rules.",
+            technical: "Sets ModtoImport (a ModKey). UpdateSelections scans that plugin's HeadPart records and buckets them by type, applying the sex / playable / extra-part / per-type filters below; changing the mod re-runs the scan.",
+            motivation: "Importing straight from a plugin's records is far quicker and less error-prone than hand-entering every head-part FormKey.");
+
+        Add("HeadParts.ImportMale",
+            layperson: "Include head parts that the source mod flags for male characters.",
+            technical: "When unchecked, records carrying the HeadPart Male flag are skipped during the scan. A part flagged for both sexes is only excluded if you also uncheck the other sex.",
+            motivation: "Skipping a gender you don't distribute to keeps the import list focused on the parts you actually intend to use.");
+
+        Add("HeadParts.ImportFemale",
+            layperson: "Include head parts that the source mod flags for female characters.",
+            technical: "When unchecked, records carrying the HeadPart Female flag are skipped during the scan. A part flagged for both sexes is only excluded if you also uncheck the other sex.",
+            motivation: "Skipping a gender you don't distribute to keeps the import list focused on the parts you actually intend to use.");
+
+        Add("HeadParts.ImportPlayableOnly",
+            layperson: "Only import head parts the game marks as player-selectable (the ones that show up in the character-creation menu), skipping internal or NPC-only parts.",
+            technical: "When checked (the default), records WITHOUT the Playable flag are skipped during the scan.",
+            motivation: "Playable parts are the self-contained, vetted options; non-playable parts are often tied to a specific actor and distribute poorly.");
+
+        Add("HeadParts.ImportExtraParts",
+            layperson: "Also import 'extra parts' - supplementary meshes attached to a main head part - as their own standalone entries you can distribute independently.",
+            technical: "When unchecked (the default), records carrying the IsExtraPart flag are skipped. Extra parts are normally referenced by a parent head part rather than assigned on their own.",
+            motivation: "Extra parts usually only make sense attached to their parent, so they are excluded unless you specifically want them as independent choices.");
+
+        Add("HeadParts.ImportEyebrows",
+            layperson: "Include Eyebrows-type head parts in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Eyebrows are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportEyes",
+            layperson: "Include Eyes-type head parts (eye meshes/colors) in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Eyes are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportFace",
+            layperson: "Include Face-type head parts (face/complexion detail meshes) in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Face are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportFacialHair",
+            layperson: "Include Facial Hair-type head parts (beards, stubble) in the import.",
+            technical: "When unchecked, records whose HeadPart Type is FacialHair are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportHair",
+            layperson: "Include Hair-type head parts (hairstyles) in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Hair are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportMisc",
+            layperson: "Include Misc-type head parts in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Misc are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportScars",
+            layperson: "Include Scars-type head parts (facial scars) in the import.",
+            technical: "When unchecked, records whose HeadPart Type is Scars are skipped during the scan.",
+            motivation: "Toggling per type lets you import just the categories you are expanding instead of everything the plugin defines.");
+
+        Add("HeadParts.ImportRespectRaceFormLists",
+            layperson: "When importing, read each head part's own list of valid races and pre-fill its rules so it stays limited to the races the source mod intended.",
+            technical: "In ImportHeadPart, when checked (the default), the record's ValidRaces FormList is resolved; if its race set exactly matches a race grouping's members that grouping is set as the part's Allowed Race Groupings, otherwise the explicit race set becomes its Allowed Races. When unchecked, parts import with no race restriction.",
+            motivation: "Preserves the mod author's intended race compatibility on import instead of making you re-enter it part by part.");
+
+        Add("HeadParts.ImportSelected",
+            layperson: "Adds every head part currently listed above into your head-part settings, sorted into the matching type list.",
+            technical: "ImportSelections adds each selected FormKey to its type's HeadPartList, skips any already present (matched by FormKey) and reports them in a duplicate dialog, then logs the number imported.",
+            motivation: "One button commits the filtered selection, and re-running is safe because previously-imported parts are skipped rather than duplicated.");
     }
 }
