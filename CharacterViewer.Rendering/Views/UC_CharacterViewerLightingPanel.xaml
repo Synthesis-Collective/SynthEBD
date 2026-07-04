@@ -13,6 +13,17 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <cvrv:IntEqualsToVisibilityConverter x:Key="IntEqVis"/>
+
+        <!-- Implicit dark style for the per-light intensity spinners, mirroring the
+             UC_CharacterViewerRenderPanel pattern. The app themes ship implicit Xceed
+             spinner styles that follow the active (possibly light) palette; this nearer
+             style shadows them so the viewport HUD stays dark on every theme. -->
+        <Style TargetType="{x:Type xctk:IntegerUpDown}">
+            <Setter Property="Background" Value="#FF1F1F1F"/>
+            <Setter Property="Foreground" Value="#FFE0E0E0"/>
+            <Setter Property="BorderBrush" Value="#FF555555"/>
+            <Setter Property="CaretBrush" Value="#FFE0E0E0"/>
+        </Style>
     </UserControl.Resources>
 
     <!--
