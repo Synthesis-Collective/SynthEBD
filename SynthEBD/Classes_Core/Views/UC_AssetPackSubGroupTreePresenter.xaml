@@ -26,8 +26,9 @@
             <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="{DynamicResource ActionGoodForeground}" Margin="0 0 15 0">+</Button>
         </DockPanel>
 
-        <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups" 
-                        SelectedItem_="{Binding SelectedPlaceHolder, Mode=TwoWay}" ItemsSource="{Binding Subgroups}" 
+        <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups"
+                        Background="{DynamicResource SecondaryBackground}" Foreground="{DynamicResource PrimaryForeground}" BorderBrush="{DynamicResource BorderBrush}"
+                        SelectedItem_="{Binding SelectedPlaceHolder, Mode=TwoWay}" ItemsSource="{Binding Subgroups}"
                         Margin="0 0 15 0" dd:DragDrop.IsDragSource="True" 
                         dd:DragDrop.IsDropTarget="True" dd:DragDrop.DropHandler="{Binding}" dd:DragDrop.DragHandler="{Binding}" 
                         dd:DragDrop.CanDragWithMouseRightButton="True" ScrollViewer.CanContentScroll="True" 
@@ -35,6 +36,7 @@
 
             <local:ExtendedTreeView.Resources>
                 <Style TargetType="TreeViewItem">
+                    <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
                     <Setter Property="FontFamily" Value="{Binding RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}, Path=(TextElement.FontFamily)}"/>
                     <Setter Property="FontSize" Value="{Binding RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}, Path=(TextElement.FontSize)}"/>
                     <Setter Property="Margin" Value="3"/>
@@ -43,7 +45,7 @@
                         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="Transparent"/>
                         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="Gold"/>
                         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="Transparent"/>
-                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White"/> <!-- I don't like overriding this because white is the default TreeView styrling, but with the other manually specified styling it changes to black -->
+                        <!-- Inactive-selection text: themed primary foreground so it stays legible on both dark and light themes (was hardcoded White, invisible on light). -->
                     </Style.Resources>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding VisibleChildOrSelfConfigVM}" Value="false">
