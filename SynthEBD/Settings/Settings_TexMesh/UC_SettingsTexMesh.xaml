@@ -40,8 +40,8 @@
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <!-- 3 -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
-                <!-- 4 -->
-                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <!-- 4 (SkyPatcher Mode: kept at Use level - commonly requested toggle) -->
+                <RowDefinition Height="auto"/>
                 <!-- 5 -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}" x:Name="row5"/>
                 <!-- 6 -->

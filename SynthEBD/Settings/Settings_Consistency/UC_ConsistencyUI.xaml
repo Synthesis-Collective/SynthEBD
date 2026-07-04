@@ -6,8 +6,11 @@
              xmlns:local="clr-namespace:SynthEBD"
              d:DataContext="{d:DesignInstance Type=local:VM_ConsistencyUI}"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <local:UiModeToVisibilityConverter x:Key="UiModeVis"/>
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -20,11 +23,13 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Progressive disclosure: the full reset and per-NPC clear stay at Use level;
+             the finer per-axis clears are Customize. -->
         <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllAssets}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Remove primary, mix-in, and replacer consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Asset Assignments</Button>
-            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllBodyShape}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Remove BodySlide and/or BodyGen consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Body Shape Assignments</Button>
-            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeight}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Remove height consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Height Assignments</Button>
-            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeadParts}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Remove head part consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear HeadPart Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllAssets}" Foreground="{DynamicResource ActionDangerForeground}" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Remove primary, mix-in, and replacer consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Asset Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllBodyShape}" Foreground="{DynamicResource ActionDangerForeground}" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Remove BodySlide and/or BodyGen consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Body Shape Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeight}" Foreground="{DynamicResource ActionDangerForeground}" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Remove height consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Height Assignments</Button>
+            <Button VerticalAlignment="Center" Margin="0 0 10 0" HorizontalAlignment="Right" Command="{Binding DeleteAllHeadParts}" Foreground="{DynamicResource ActionDangerForeground}" Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVis}, ConverterParameter=Customize}" ToolTip="Remove head part consistency assignments from selected NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear HeadPart Assignments</Button>
             <Button VerticalAlignment="Center" Margin="0 0 0 0" HorizontalAlignment="Right" Command="{Binding DeleteAllNPCs}" Foreground="{DynamicResource ActionDangerForeground}" ToolTip="Completely remove all consistency - all aspects of NPC randomization will be reassigned when the patcher is run" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Clear Consistency</Button>
             <CheckBox IsChecked="{Binding Show3DPreview, Mode=TwoWay}" VerticalAlignment="Center" Margin="20 0 5 0"/>
             <TextBlock Text="Show 3D Preview" VerticalAlignment="Center"/>

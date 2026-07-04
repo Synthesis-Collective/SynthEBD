@@ -9,12 +9,19 @@
              d:DataContext="{d:DesignInstance Type=local:VM_SettingsBodyGen}"
              d:DesignHeight="450" d:DesignWidth="800">
 
+    <UserControl.Resources>
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
+    </UserControl.Resources>
+
+    <!-- Progressive disclosure: Use = pick the active male/female configs;
+         config authoring (Add New/Displayed, preview NPC/slider group, and the
+         template editor below) is Customize. -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize:Star}"/>
         </Grid.RowDefinitions>
-        
+
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
@@ -25,9 +32,9 @@
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
-                <RowDefinition Height="auto"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+                <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 

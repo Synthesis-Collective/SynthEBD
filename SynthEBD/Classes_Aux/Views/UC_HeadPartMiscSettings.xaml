@@ -10,23 +10,29 @@
     
     <UserControl.Resources>
         <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
     </UserControl.Resources>
-    
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
             <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <!-- Progressive disclosure: SkyPatcher Mode stays at Use level (commonly
+             requested); patching mode, conflict winners, bulk descriptor actions,
+             and associated BodyGen configs are Customize; verbose scripts is
+             Troubleshoot. -->
         <Grid.RowDefinitions>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
         </Grid.RowDefinitions>
         
         <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" ToolTip="Script: Headparts are applied at runtime via Papyrus scripts&#x0a;Nif: Headparts are baked directly into the NPC's records/meshes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
@@ -60,10 +66,10 @@
         <TextBlock Grid.Row="4" Grid.Column="0">Use Verbose Scripts</TextBlock>
         <CheckBox Grid.Row="4" Grid.Column="2" IsChecked="{Binding bUseVerboseScripts}"/>
 
-        <Button Grid.Row="5" Grid.Column="0" Command="{Binding SetAllowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <Button Grid.Row="5" Grid.Column="0" Command="{Binding SetAllowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}">Set All Allowed BodyShape Descriptors To</Button>
         <ComboBox Grid.Row="5" Grid.Column="2" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AllowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <Button Grid.Row="6" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="MediumPurple">Set All Allowed BodyShape Descriptors To</Button>
+        <Button Grid.Row="6" Grid.Column="0" Command="{Binding SetDisallowedDescriptorMatchModes}" VerticalAlignment="Center" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}">Set All Disallowed BodyShape Descriptors To</Button>
         <ComboBox Grid.Row="6" Grid.Column="2" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding DisallowedDescriptorMatchMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorMatchMode}}}" IsSynchronizedWithCurrentItem="True"/>
 
         <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Visibility="{Binding ParentMenu.BodyShapeMode, Converter={StaticResource BGVisibilityConverter}}" ToolTip="BodyGen Config File whose Descriptors are to be matched" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated Male BodyGen Configuration</TextBlock>

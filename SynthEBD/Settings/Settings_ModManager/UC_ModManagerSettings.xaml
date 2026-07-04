@@ -10,8 +10,12 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
         <local:PathLimitVisibilityConverter x:Key="PathVisibilityConverter" />
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
     </UserControl.Resources>
-    
+
+    <!-- Progressive disclosure: mod manager type and integration paths are Use-level
+         setup; the temp folder override is Customize and the file-path length
+         workaround is Troubleshoot. -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -19,8 +23,8 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 

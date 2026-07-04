@@ -10,8 +10,12 @@
 
     <UserControl.Resources>
         <local:BodyGenVisibilityConverter x:Key="BGVisibilityConverter" />
+        <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
     </UserControl.Resources>
 
+    <!-- Progressive disclosure: forcing looks onto NPCs is a Use-level workflow;
+         the BodyGen morphs.ini import is Customize and the deprecated zEBD import
+         is Troubleshoot. -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -21,8 +25,8 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="auto"/>
-            <RowDefinition Height="auto"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
+            <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
