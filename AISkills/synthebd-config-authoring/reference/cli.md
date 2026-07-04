@@ -229,3 +229,22 @@ SynthEBD.CLI archive-extract --archive <file> --dest <dir> [--json]
 Use `archive-list` to catalogue a texture mod before extraction (check for `fomod\ModuleConfig.xml`,
 estimate option structure, detect path collisions between archives) and `archive-extract` to build
 the working folder (`--dest <workfolder>\textures\<Prefix>`).
+
+---
+
+## ui-screenshot
+
+Automated visual-QA harness for the SynthEBD GUI itself - not part of the config-authoring
+workflow, but useful when verifying how settings or configs render in the real UI.
+
+```
+SynthEBD.CLI ui-screenshot --synthebd-path <SynthEBD build folder> --out <dir>
+                           [--theme <name> ...] [--mode <Use|Customize|Troubleshoot> ...]
+                           [--menu <name>] [--expand-expanders] [--width N --height N]
+```
+
+Boots the real MainWindow against the real settings/environment, walks every nav menu (or just
+`--menu`), and writes one PNG per menu to `<out>\<theme>\<mode>\NN-<menu>.png`. Repeatable
+`--theme`/`--mode` flags sweep the theme and progressive-disclosure matrices in one session.
+It never writes settings back. Note that the harness renders the SynthEBD assemblies and theme
+files from the CLI's own folder, so rebuild the CLI to screenshot fresh UI changes.
