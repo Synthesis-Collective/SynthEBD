@@ -4,11 +4,16 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_MeasurementHistogram}"
         Title="{Binding WindowTitle}"
         Height="500" Width="780"
-        Background="#FF202020">
+        Style="{DynamicResource ThemedWindowStyle}">
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
 
     <!-- Two-column outer grid: column 0 reserves space for the Y-axis tick labels, column 1
          carries the chart's main width. The filter and stats rows span both columns; the
@@ -30,7 +35,7 @@
              across the full width. Gender dropdown options collapse to "All" + the single
              present gender for single-gender profiles. -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-            <TextBlock Text="Gender:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="Bold"/>
+            <TextBlock Text="Gender:" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="Bold"/>
             <ComboBox Width="120" VerticalAlignment="Center"
                       ItemsSource="{Binding GenderFilterOptions}"
                       SelectedValuePath="Value"
@@ -38,17 +43,16 @@
                       SelectedValue="{Binding GenderFilter}"
                       ToolTip="Restrict the histogram to a single gender's samples. Only genders actually present in the scan cache appear here."/>
 
-            <TextBlock Text="Bins:" Foreground="White" VerticalAlignment="Center" Margin="20,0,6,0" FontWeight="Bold"/>
+            <TextBlock Text="Bins:" VerticalAlignment="Center" Margin="20,0,6,0" FontWeight="Bold"/>
             <Slider Width="200" VerticalAlignment="Center"
                     Minimum="1" Maximum="200"
                     Value="{Binding BinCount}"
                     TickFrequency="10" IsSnapToTickEnabled="False"
                     ToolTip="Number of histogram bins. Drag to re-bin live; finer is better for dense distributions, coarser for small samples."/>
-            <TextBlock Text="{Binding BinCount}" Foreground="White" VerticalAlignment="Center" Margin="6,0,0,0" Width="30"/>
+            <TextBlock Text="{Binding BinCount}" VerticalAlignment="Center" Margin="6,0,0,0" Width="30"/>
             <CheckBox Content="Persist" IsChecked="{Binding PersistBinCount}"
                       VerticalAlignment="Center" Margin="10,0,0,0"
-                      Foreground="White"
-                      ToolTip="Remember this bin count for the next histogram window. If multiple histograms are open with Persist enabled, the last one closed wins. The checkbox state itself is also sticky — closing with this on keeps it pre-checked for the next window."/>
+                                           ToolTip="Remember this bin count for the next histogram window. If multiple histograms are open with Persist enabled, the last one closed wins. The checkbox state itself is also sticky — closing with this on keeps it pre-checked for the next window."/>
             <Button Content="Save CSV" Command="{Binding SaveCsvCommand}"
                     VerticalAlignment="Center" Margin="10,0,0,0" Padding="8,2"
                     ToolTip="Save the currently-displayed histogram bins (BinIndex, BinStart, BinEnd, Count) to a CSV file. Reflects the active gender filter + bin count; tweak either before saving to capture the view you want."/>
@@ -56,7 +60,7 @@
 
         <!-- Row 1: pre-formatted stats line. Spans both columns. -->
         <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding StatsLine}"
-                   Foreground="#FFDDDDDD" FontFamily="Consolas, Courier New, monospace"
+                   Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace"
                    FontSize="11" Margin="0,0,0,8"/>
 
         <!-- Row 2, Column 0: Y-axis tick labels. Five evenly-spaced ticks (max, 3/4, 1/2,
@@ -75,19 +79,19 @@
             </Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Text="{Binding MaxBinCount}"
                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+                       Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
             <TextBlock Grid.Row="1" Text="{Binding ThreeQuarterMaxBinCount}"
                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+                       Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
             <TextBlock Grid.Row="2" Text="{Binding HalfMaxBinCount}"
                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+                       Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
             <TextBlock Grid.Row="3" Text="{Binding QuarterMaxBinCount}"
                        HorizontalAlignment="Right" VerticalAlignment="Top"
-                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+                       Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
             <TextBlock Grid.Row="3" Text="0"
                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                       Foreground="#FFAAAAAA" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
+                       Foreground="{DynamicResource SecondaryForeground}" FontFamily="Consolas, Courier New, monospace" FontSize="10"/>
         </Grid>
 
         <!-- Row 2, Column 1: chart. The Border carries the visible background + a thin
@@ -96,7 +100,7 @@
              across the available width; each bar's Height comes from the VM. SizeChanged
              on the ItemsControl pushes its actual height into VM.RescaleBars so the bars
              grow / shrink when the user resizes the window. -->
-        <Border Grid.Row="2" Grid.Column="1" Background="#FF1A1A1A" BorderBrush="#FF444444" BorderThickness="1" Margin="0,0,0,4">
+        <Border Grid.Row="2" Grid.Column="1" Background="{DynamicResource TertiaryBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,4">
             <ItemsControl ItemsSource="{Binding Bins}" Margin="2"
                           SizeChanged="ChartArea_SizeChanged">
                 <ItemsControl.ItemsPanel>
@@ -110,7 +114,7 @@
                              visually consistent. Bottom-aligned so taller bars grow up from
                              the baseline. ToolTip surfaces the bin range + count. -->
                         <Grid VerticalAlignment="Stretch" Margin="1,0">
-                            <Rectangle Fill="#FF1E88E5"
+                            <Rectangle Fill="{DynamicResource AccentBrush}"
                                        VerticalAlignment="Bottom"
                                        Height="{Binding BarHeight}"
                                        ToolTip="{Binding Tooltip}"/>
@@ -135,7 +139,7 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:HistogramBin}">
                     <TextBlock Text="{Binding AxisLabel}"
-                               Foreground="#FFAAAAAA"
+                               Foreground="{DynamicResource SecondaryForeground}"
                                FontFamily="Consolas, Courier New, monospace"
                                FontSize="10"
                                HorizontalAlignment="Left"

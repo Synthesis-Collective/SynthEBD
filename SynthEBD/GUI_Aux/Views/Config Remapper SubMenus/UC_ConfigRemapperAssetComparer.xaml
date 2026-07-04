@@ -20,13 +20,13 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="0" Content="Select File 1" Command="{Binding SetPath1}" Foreground="Aqua"/>
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Path1}" Foreground="White"/>
+        <Button Grid.Row="0" Grid.Column="0" Content="Select File 1" Command="{Binding SetPath1}" Foreground="{DynamicResource ActionGoodForeground}"/>
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Path1}"/>
 
-        <Button Grid.Row="1" Grid.Column="0" Content="Select File 2" Command="{Binding SetPath2}" Foreground="Aqua"/>
-        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Path2}" Foreground="White"/>
+        <Button Grid.Row="1" Grid.Column="0" Content="Select File 2" Command="{Binding SetPath2}" Foreground="{DynamicResource ActionGoodForeground}"/>
+        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Path2}"/>
 
-        <Button Grid.Row="2" Grid.Column="0" Content="Compare Files" Command="{Binding ComparePaths}" Foreground="MediumPurple"/>
+        <Button Grid.Row="2" Grid.Column="0" Content="Compare Files" Command="{Binding ComparePaths}" Foreground="{DynamicResource ActionAccentForeground}"/>
         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding DisplayStr}" Foreground="{Binding DisplayColor}"/>
     </Grid>
 </UserControl>

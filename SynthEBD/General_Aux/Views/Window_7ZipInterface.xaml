@@ -4,9 +4,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="7Zip Mirror" Height="450" Width="800">
+        Title="7Zip Mirror" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
-        <TextBox Text="{Binding PutThisOnScreen, Mode=OneWay}" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" BorderBrush="White" BorderThickness="1" />
+        <TextBox Text="{Binding PutThisOnScreen, Mode=OneWay}" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" />
     </Grid>
 </Window>

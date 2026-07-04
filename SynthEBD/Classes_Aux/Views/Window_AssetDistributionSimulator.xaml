@@ -6,8 +6,14 @@
         xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_AssetDistributionSimulator}"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="Asset Distribution Simulator" Height="450" Width="800">
+        Title="Asset Distribution Simulator" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -26,32 +32,32 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" Foreground="GhostWhite" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="NPC" VerticalAlignment="Center"/>
         <local:UC_NamedFormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformKey}" ScopedTypes="{Binding NPCFormKeyTypes}" LinkCache="{Binding lk}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" Foreground="GhostWhite" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Simulation Rounds" VerticalAlignment="Center"/>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=Repetitions}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SimulatePrimary}" Foreground="MediumPurple">Simulate Primary Distribution</Button>
-            <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Foreground="White" Margin="10 0 0 0"  Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SimulatePrimary}" Foreground="{DynamicResource ActionAccentForeground}">Simulate Primary Distribution</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding ShowFullReport}" Margin="10 0 0 0"  Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}">Show Full Detail Report</Button>
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Foreground="GhostWhite" Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}"/>
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TextReport}" Foreground="GhostWhite"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Report: " Visibility="{Binding ShowFullReportVisible, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TextReport}"/>
         <ScrollViewer Grid.Row="4" Grid.Column="1">
             <ItemsControl ItemsSource="{Binding AssetReports}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <StackPanel>
-                            <TextBlock Text="{Binding TitleString}" Foreground="GhostWhite"/>
+                            <TextBlock Text="{Binding TitleString}"/>
                             <ItemsControl ItemsSource="{Binding SubgroupStrings}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding ReferencedStr.Str}" Foreground="{Binding TextColor}"/>
                                             <TextBlock Text="{Binding ReferencedStr.Count}" Foreground="{Binding TextColor}" Margin="5 0 0 0"/>
-                                            <Button Command="{Binding ExplainCommand}" Content="Why?" Foreground="MediumPurple" Margin="5 0 0 0"/>
+                                            <Button Command="{Binding ExplainCommand}" Content="Why?" Foreground="{DynamicResource ActionAccentForeground}" Margin="5 0 0 0"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

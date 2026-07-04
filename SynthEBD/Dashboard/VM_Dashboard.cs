@@ -96,15 +96,9 @@ public class VM_Dashboard : VM
             statusProvider: () =>
             {
                 if (!texMesh.bForceVanillaBodyMeshPath) { return "Off - config files keep their own body mesh paths"; }
-                var status = "Forcing vanilla body mesh paths" + (texMesh.bAllowUBEBodyPaths ? " (UBE preserved)" : "");
-                if (!general.bChangeMeshesOrTextures)
-                {
-                    status += System.Environment.NewLine + "No effect while Asset Patching is off";
-                }
-                return status;
+                return "Forcing vanilla body mesh paths" + (texMesh.bAllowUBEBodyPaths ? " (UBE preserved)" : "");
             },
-            healthProvider: () => !texMesh.bForceVanillaBodyMeshPath ? TileHealth.Off
-                : general.bChangeMeshesOrTextures ? TileHealth.Ok : TileHealth.Warning,
+            healthProvider: () => texMesh.bForceVanillaBodyMeshPath ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel = destandalone);
 
         var specificAssignmentsTile = new VM_DashboardTile("Specific Assignments", "Dashboard.SpecificAssignments", hasPowerToggle: false,

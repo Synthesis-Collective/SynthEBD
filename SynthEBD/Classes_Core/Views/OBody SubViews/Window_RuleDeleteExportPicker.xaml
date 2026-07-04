@@ -4,16 +4,21 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_RuleDeleteExportPicker}"
         Title="Export Rules Patch — Mark for Deletion"
         Height="700" Width="600"
-        Background="#FF1E1E1E" Foreground="White"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Style="{DynamicResource ThemedWindowStyle}">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -23,15 +28,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#DDDDDD">
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8" Foreground="{DynamicResource SecondaryForeground}">
             <Run Text="The add/edit set was pre-seeded from the Rules-tab tree node that was selected when you triggered Ctrl+Shift+Alt+P."/>
             <LineBreak/>
             <Run Text="Tick 'Mark for deletion' to add a rule's Id to the patch's RulesToDelete list. On rules already in the add/edit set, tick 'Exclude' to drop them from the patch."/>
         </TextBlock>
 
-        <TreeView Grid.Row="1" ItemsSource="{Binding Categories}"
-                  Background="#FF2A2A2A" Foreground="White"
-                  BorderBrush="#FF555555">
+        <TreeView Grid.Row="1" ItemsSource="{Binding Categories}">
             <TreeView.Resources>
                 <!-- Category-level node: shows category name. -->
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_RuleDeletePickerCategoryNode}"
@@ -50,20 +53,20 @@
                     <StackPanel Orientation="Horizontal">
                         <CheckBox Content="Delete"
                                   IsChecked="{Binding IsMarkedForDeletion}"
-                                  Foreground="#FFC62828"
+                                  Foreground="{DynamicResource ActionDangerForeground}"
                                   VerticalAlignment="Center"
                                   Margin="0,0,8,0"
                                   ToolTip="Add this rule's Id to RulesToDelete in the exported patch."/>
                         <CheckBox Content="Exclude from add/edit"
                                   IsChecked="{Binding IsExcludedFromAddEdit}"
                                   Visibility="{Binding IsInAddEditSet, Converter={StaticResource BoolToVis}}"
-                                  Foreground="#FFFFA000"
+                                  Foreground="{DynamicResource StatusPendingForeground}"
                                   VerticalAlignment="Center"
                                   Margin="0,0,8,0"
                                   ToolTip="Drop this rule from the patch's add/edit list. Only visible for rules pre-seeded from the main tab's tree node."/>
                         <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
                         <TextBlock Text=" (in add/edit set)"
-                                   Foreground="#FF80C080"
+                                   Foreground="{DynamicResource StatusValidForeground}"
                                    FontStyle="Italic"
                                    VerticalAlignment="Center"
                                    Visibility="{Binding IsInAddEditSet, Converter={StaticResource BoolToVis}}"/>
@@ -77,16 +80,16 @@
             </TreeView.ItemContainerStyle>
         </TreeView>
 
-        <TextBlock Grid.Row="2" Margin="0,8,0,0" FontWeight="SemiBold" Foreground="#EEEEEE"
+        <TextBlock Grid.Row="2" Margin="0,8,0,0" FontWeight="SemiBold"
                    Text="{Binding SummaryText}"/>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
             <Button Content="OK" Width="80" Margin="0,0,8,0"
                     Command="{Binding OkCommand}" IsDefault="True"
-                    Foreground="Green" FontWeight="Bold"/>
+                    Foreground="{DynamicResource ActionGoodForeground}" FontWeight="Bold"/>
             <Button Content="Cancel" Width="80"
                     Command="{Binding CancelCommand}" IsCancel="True"
-                    Foreground="Firebrick" FontWeight="Bold"/>
+                    Foreground="{DynamicResource ActionDangerForeground}" FontWeight="Bold"/>
         </StackPanel>
     </Grid>
 </Window>

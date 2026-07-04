@@ -6,8 +6,13 @@
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_AttributeValidator}"
         xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="Attribute Validator" Height="575" Width="800">
+        Title="Attribute Validator" Height="575" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -24,26 +29,26 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Select NPC: " Foreground="White"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Select NPC: "/>
         <local:UC_NamedFormKeyPicker Grid.Row="0" Grid.Column="1" FormKey="{Binding NPCformkey}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Has Attributes: " Foreground="White"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Has Attributes: "/>
         <TextBlock Grid.Row="1" Grid.Column="1" Foreground="{Binding RestrictionColor}" Text="{Binding HasRestrictions}"/>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Matches Attributes: " Foreground="White"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Matches Attributes: "/>
         <TextBlock Grid.Row="2" Grid.Column="1" Foreground="{Binding MatchColor}" Text="{Binding MatchesRestrictions}"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Matched ForceIfs: " Foreground="White"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Matched ForceIfs: "/>
         <TextBlock Grid.Row="3" Grid.Column="1" Foreground="{Binding ForceIfColor}" Text="{Binding MatchedForceIfs}"/>
 
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Text="Matched Attributes: " Foreground="White"/>
-        <TextBox Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding MatchedLog}" Height="150"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Matched Attributes: "/>
+        <TextBox Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Text="{Binding MatchedLog}" Height="150"/>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Text="Unmatched Attributes: " Foreground="White"/>
-        <TextBox Grid.Row="5" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding UnMatchedLog}" Height="150"/>
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Unmatched Attributes: "/>
+        <TextBox Grid.Row="5" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Text="{Binding UnMatchedLog}" Height="150"/>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Text="Matched ForceIf Attributes: " Foreground="White"/>
-        <TextBox Grid.Row="6" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding ForceIfLog}" Height="150"/>
+        <TextBlock Grid.Row="6" Grid.Column="0" Text="Matched ForceIf Attributes: "/>
+        <TextBox Grid.Row="6" Grid.Column="1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Text="{Binding ForceIfLog}" Height="150"/>
     </Grid>
 </Window>

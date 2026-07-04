@@ -23,11 +23,11 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Foreground="White" Text="{Binding Name}" TextWrapping="Wrap"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Foreground="White" Text="{Binding Description}" TextWrapping="Wrap"/>
-        <Border Grid.Row="2" Grid.Column="0" BorderThickness="1" BorderBrush="#5844b4">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Description}" TextWrapping="Wrap"/>
+        <Border Grid.Row="2" Grid.Column="0" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <StackPanel>
-                <TextBlock Grid.Row="2" Grid.Column="0" Foreground="White" Text="{Binding DisplayedOptionsDescription}" TextWrapping="Wrap"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding DisplayedOptionsDescription}" TextWrapping="Wrap"/>
                 <ListBox Grid.Row="3" Grid.Column="0" ItemsSource="{Binding DisplayedOptions}" SelectedItem = "{Binding SelectedOption, Mode=TwoWay}">
                     <ListBox.ItemContainerStyle>
                         <!-- Style to get rid of the selection visual -->
@@ -58,9 +58,9 @@
         </Border>
 
         <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal">
-            <Button Command="{Binding OK}" Foreground="LightGreen" Visibility="{Binding OKvisibility, Converter={StaticResource BoolToVis}}">Select Downloaded Assets</Button>
-            <Button Command="{Binding Back}" Foreground="LightBlue" Visibility="{Binding BackVisibility, Converter={StaticResource BoolToVis}}" Margin="10 0 10 0">Back</Button>
-            <Button Command="{Binding Cancel}" Foreground="Firebrick">Cancel</Button>
+            <Button Command="{Binding OK}" Foreground="{DynamicResource ActionGoodForeground}" Visibility="{Binding OKvisibility, Converter={StaticResource BoolToVis}}">Select Downloaded Assets</Button>
+            <Button Command="{Binding Back}" Foreground="{DynamicResource ActionAccentForeground}" Visibility="{Binding BackVisibility, Converter={StaticResource BoolToVis}}" Margin="10 0 10 0">Back</Button>
+            <Button Command="{Binding Cancel}" Foreground="{DynamicResource ActionDangerForeground}">Cancel</Button>
         </StackPanel>
     </Grid>
 </UserControl>

@@ -4,9 +4,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         d:DataContext="{d:DesignInstance Type=local:VM_LinkZEBDAssetPackToBodyGen}"
         mc:Ignorable="d"
-        Title="Window_LinkZEBDAssetPackToBodyGen" Height="450" Width="800">
+        Title="Window_LinkZEBDAssetPackToBodyGen" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -18,9 +23,9 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Foreground="White" Text="{Binding DispString}" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding DispString}" TextWrapping="Wrap"/>
         <ComboBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding SelectedConfig}"></ComboBox>
-        <Button Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding OKcommand}" Foreground="LightGreen">Use Selected BodyGen Config</Button>
-        <Button Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ClearCommand}" Foreground="Firebrick">Strip BodyGen Info</Button>
+        <Button Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding OKcommand}" Foreground="{DynamicResource ActionGoodForeground}">Use Selected BodyGen Config</Button>
+        <Button Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ClearCommand}" Foreground="{DynamicResource ActionDangerForeground}">Strip BodyGen Info</Button>
     </Grid>
 </Window>

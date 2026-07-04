@@ -8,7 +8,11 @@
         xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="SynthEBD Config Packager" Height="600" Width="800">
+        Title="SynthEBD Config Packager" Height="600" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -27,32 +31,32 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White" >Config Name: </TextBlock>
-        <Border Grid.Row="0" Grid.Column="1" BorderBrush="White" BorderThickness="1">
-            <TextBox Foreground="White" Text="{Binding ConfigName}"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" >Config Name: </TextBlock>
+        <Border Grid.Row="0" Grid.Column="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <TextBox Text="{Binding ConfigName}"/>
         </Border>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Config Prefix:</TextBlock>
-        <Border Grid.Row="2" Grid.Column="1" BorderBrush="White" BorderThickness="1">
-            <TextBox Foreground="White" Text="{Binding ConfigPrefix}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">Config Prefix:</TextBlock>
+        <Border Grid.Row="2" Grid.Column="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <TextBox Text="{Binding ConfigPrefix}"/>
         </Border>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Config Description:</TextBlock>
-        <Border Grid.Row="3" Grid.Column="1" BorderBrush="White" BorderThickness="1">
-            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding ConfigDescription}" MaxHeight="50"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">Config Description:</TextBlock>
+        <Border Grid.Row="3" Grid.Column="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Text="{Binding ConfigDescription}" MaxHeight="50"/>
         </Border>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Foreground="White">Installation Notes:</TextBlock>
-        <Border Grid.Row="4" Grid.Column="1" BorderBrush="White" BorderThickness="1">
-            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Foreground="White" Text="{Binding InstallationMessage}" Height="150"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">Installation Notes:</TextBlock>
+        <Border Grid.Row="4" Grid.Column="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <TextBox TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Text="{Binding InstallationMessage}" Height="150"/>
         </Border>
 
-        <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddRootNode}" Content="+ Root Node" Foreground="LightGreen" Margin="5 0 0 0"/>
-        <TreeView Grid.Row="6" Grid.Column="0" Name="TVoptions"  ItemsSource ="{Binding Options}"  Margin="0 0 15 0" HorizontalAlignment="Stretch" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.CanDragWithMouseRightButton="True" dd:DragDrop.DragDropCopyKeyState="ControlKey" ScrollViewer.VerticalScrollBarVisibility="Auto" BorderBrush="CadetBlue" BorderThickness="1">
+        <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddRootNode}" Content="+ Root Node" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0"/>
+        <TreeView Grid.Row="6" Grid.Column="0" Name="TVoptions"  ItemsSource ="{Binding Options}"  Margin="0 0 15 0" HorizontalAlignment="Stretch" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True" dd:DragDrop.CanDragWithMouseRightButton="True" dd:DragDrop.DragDropCopyKeyState="ControlKey" ScrollViewer.VerticalScrollBarVisibility="Auto" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_PackagerOption}" ItemsSource="{Binding Options}" >
                     <StackPanel Orientation="Horizontal">
-                        <Button VerticalAlignment="Center" Command="{Binding AddNew}" Foreground="Lightgreen">+</Button>
+                        <Button VerticalAlignment="Center" Command="{Binding AddNew}" Foreground="{DynamicResource ActionGoodForeground}">+</Button>
                         <TextBlock Margin="5 0 5 0" local:TreeNodeDeferredSelectBehavior.IsEnabled="True">
                             <TextBlock.Text>
                                 <MultiBinding StringFormat="{}{0}">
@@ -61,7 +65,7 @@
                                 </MultiBinding>
                             </TextBlock.Text>
                         </TextBlock>
-                        <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick">X</Button>
+                        <Button VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="{DynamicResource ActionDangerForeground}">X</Button>
                     </StackPanel>
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
@@ -77,19 +81,19 @@
         <ContentPresenter Grid.Row="6" Grid.Column="1"  Content="{Binding SelectedNode}" Name="SubgroupPresenter">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_PackagerOption}">
-                    <local:UC_PackagerOption Background="Black" BorderThickness="1" BorderBrush="Teal" Margin="0 0 0 10"/>
+                    <local:UC_PackagerOption Background="{DynamicResource SecondaryBackground}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
 
         <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <TextBlock Text="Root Directory: " Foreground="White" VerticalAlignment="Center" ToolTip="The top-level within which files will be packaged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <TextBlock Text="{Binding RootDirectory}" Foreground="LightBlue" VerticalAlignment="Center"/>
-            <Button VerticalAlignment="Center" Command="{Binding SetRootDirectory}" Content="Set" Foreground="LightGreen" Margin="5 0 0 0"/>
+            <TextBlock Text="Root Directory: " VerticalAlignment="Center" ToolTip="The top-level within which files will be packaged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="{Binding RootDirectory}" Background="{DynamicResource TextBoxBackground}" VerticalAlignment="Center"/>
+            <Button VerticalAlignment="Center" Command="{Binding SetRootDirectory}" Content="Set" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0"/>
         </StackPanel>
         <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <Button Command="{Binding ExportCommand}" Foreground="LightGreen" Margin="5" ToolTip="Export the current configuration to a Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Export</Button>
-            <Button Command="{Binding ImportCommand}" Foreground="LawnGreen" Margin="5" ToolTip="Import an existing Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import</Button>
+            <Button Command="{Binding ExportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Export the current configuration to a Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Export</Button>
+            <Button Command="{Binding ImportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Import an existing Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import</Button>
         </StackPanel>
     </Grid>
 </Window>

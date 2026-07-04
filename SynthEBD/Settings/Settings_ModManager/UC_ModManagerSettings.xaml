@@ -29,7 +29,7 @@
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Temp Folder" VerticalAlignment="Center" ToolTip="Temporary folder for SynthEBD to extract config files and assets from zipped archives" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1">
-            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SelectTempFolder}" Foreground="Lightgreen" Margin="5 0 5 0">Select</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SelectTempFolder}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0">Select</Button>
             <TextBox Text="{Binding TempFolder}"/>
         </StackPanel>
 

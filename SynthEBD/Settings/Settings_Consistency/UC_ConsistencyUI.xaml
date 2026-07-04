@@ -36,7 +36,7 @@
         <ContentPresenter Grid.Row="2" Grid.Column="2" Content="{Binding CurrentlyDisplayedAssignment}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_ConsistencyAssignment}">
-                    <local:UC_ConsistencyAssignment BorderBrush="White" BorderThickness="1"/>
+                    <local:UC_ConsistencyAssignment BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

@@ -32,7 +32,7 @@ public static partial class UiDocs
 
         Add("Dashboard.Destandalone",
             layperson: "Forces patched NPCs to use your own body meshes (the vanilla body path) instead of bodies shipped inside config files. Click the tile for details and options.",
-            technical: "Mirror of TexMeshSettings.bForceVanillaBodyMeshPath: rewrites patched NPCs' worn-armor armature to the vanilla body mesh paths (with optional UBE preservation), via WornArmor overrides or SkyPatcher skin directives. Only acts while Asset Patching is enabled.",
+            technical: "Mirror of TexMeshSettings.bForceVanillaBodyMeshPath: rewrites patched NPCs' worn-armor armature to the vanilla body mesh paths (with optional UBE preservation), via WornArmor overrides or SkyPatcher skin directives. Runs independently of Asset Patching; when both are active, config-assigned meshes are exempted from the rewrite.",
             motivation: "Config files ship pre-built standalone bodies so they work everywhere, but if you build your own BodySlide output you usually want YOUR body on every NPC - this 'de-standalones' the patch.");
 
         Add("Dashboard.SpecificAssignments",

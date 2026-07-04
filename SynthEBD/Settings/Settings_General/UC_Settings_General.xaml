@@ -76,7 +76,7 @@
             <TextBlock Grid.Column="0" Grid.Row="1" local:DocTooltip.Key="General.OutputDataFolder">Output Data Folder</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">
                 <Button VerticalAlignment="Center" Command="{Binding SelectOutputFolder}" Foreground="{DynamicResource ActionGoodForeground}">Select</Button>
-                <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" Text="{Binding Path=OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+                <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=OutputDataFolder, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
                 <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 

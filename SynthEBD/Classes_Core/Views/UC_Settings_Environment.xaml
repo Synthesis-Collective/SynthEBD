@@ -29,7 +29,7 @@
         <TextBlock Grid.Column="0" Grid.Row="2"  local:DocTooltip.Key="Environment.GameDataDirectory">Game Data Directory</TextBlock>
         <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Command="{Binding SelectGameDataFolder}" Foreground="{DynamicResource ActionGoodForeground}">Select</Button>
-            <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Background="{DynamicResource TextBoxBackground}" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=EnvironmentProvider.DataFolderPath, UpdateSourceTrigger=PropertyChanged}"/>
             <Button VerticalAlignment="Center" Command="{Binding ClearGameDataFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
         </StackPanel>
     </Grid>

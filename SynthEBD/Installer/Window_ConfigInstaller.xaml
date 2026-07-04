@@ -6,8 +6,14 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigInstaller}"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="Select Installation Options" Height="600" Width="800">
+        Title="Select Installation Options" Height="600" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
 
     <Window.Resources>
         <ResourceDictionary>
@@ -41,16 +47,16 @@
             </ContentPresenter>
         </ScrollViewer>
 
-        <Border Grid.Row="1" Grid.Column="0" BorderThickness="1" BorderBrush="White">
+        <Border Grid.Row="1" Grid.Column="0" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Foreground="White" Text="Installation Notes:" Margin="0 0 0 10"/>
+                <TextBlock Grid.Row="0" Text="Installation Notes:" Margin="0 0 0 10"/>
                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto"  MaxHeight="{Binding ElementName=grdRoot, Path=ActualHeight, Converter={StaticResource MaxHeightConverter}, ConverterParameter={StaticResource adjMaxHeightRatio}}">
-                    <TextBlock Foreground="White" Text="{Binding InstallationMessage}"/>
+                    <TextBlock Text="{Binding InstallationMessage}"/>
                 </ScrollViewer>
             </Grid>
         </Border>

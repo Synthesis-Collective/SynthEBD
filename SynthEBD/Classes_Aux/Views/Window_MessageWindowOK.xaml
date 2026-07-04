@@ -5,8 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         d:DataContext="{d:DesignInstance Type=local:VM_MessageWindowOK}"
         xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="{Binding Header}" Height="450" Width="800">
+        Title="{Binding Header}" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
@@ -15,11 +20,11 @@
             </Grid.RowDefinitions>
 
             <ScrollViewer Grid.Row="0">
-                <TextBox Text="{Binding Path=Text, Mode=OneWay}" Foreground="White" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" FontSize="12"/>
+                <TextBox Text="{Binding Path=Text, Mode=OneWay}" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" FontSize="12"/>
             </ScrollViewer>
             <StackPanel Grid.Row="1" Orientation="Horizontal">
-                <Button Foreground="Green" Content="OK" Command="{Binding OkCommand}" FontSize="18"/>
-                <Button Foreground="White" FontSize="18" Content="Copy Message" Command="{Binding CopyTextCommand}" Margin="15 0 0 0"/>
+                <Button Foreground="{DynamicResource ActionGoodForeground}" Content="OK" Command="{Binding OkCommand}" FontSize="18"/>
+                <Button FontSize="18" Content="Copy Message" Command="{Binding CopyTextCommand}" Margin="15 0 0 0"/>
             </StackPanel>
         </Grid>
     </Grid>

@@ -5,8 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigRemapperTextureComparer}"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="Texture Comparer" Height="450" Width="800">
+        Title="Texture Comparer" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
@@ -21,13 +26,13 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Text="{Binding DisplayText}" Foreground="{Binding DisplayTextColor}"/>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="From" Foreground="White" HorizontalAlignment="Center"/>
-        <Border Grid.Row="1" Grid.Column="0" BorderBrush="White" BorderThickness="1">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="From" HorizontalAlignment="Center"/>
+        <Border Grid.Row="1" Grid.Column="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <Image Source="{Binding Image1}"/>
         </Border>
 
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="To" Foreground="White" HorizontalAlignment="Center"/>
-        <Border Grid.Row="1" Grid.Column="2" BorderBrush="White" BorderThickness="1">
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="To" HorizontalAlignment="Center"/>
+        <Border Grid.Row="1" Grid.Column="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <Image Source="{Binding Image2}"/>
         </Border>
     </Grid>

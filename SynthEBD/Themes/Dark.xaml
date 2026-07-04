@@ -108,6 +108,16 @@
         <Setter Property="Foreground" Value="{StaticResource PrimaryForeground}"/>
         <Setter Property="CaretBrush" Value="{StaticResource PrimaryForeground}"/>
         <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Style.Triggers>
+            <!-- Multiline editors keep their text anchored to the top. -->
+            <Trigger Property="AcceptsReturn" Value="True">
+                <Setter Property="VerticalContentAlignment" Value="Top"/>
+            </Trigger>
+            <Trigger Property="TextWrapping" Value="Wrap">
+                <Setter Property="VerticalContentAlignment" Value="Top"/>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="Label">
@@ -315,7 +325,9 @@
 
                         <ContentPresenter x:Name="ContentSite" Margin="8,0,25,0" IsHitTestVisible="False"
                                           Content="{TemplateBinding SelectionBoxItem}"
-                                          ContentTemplate="{TemplateBinding ItemTemplate}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                           VerticalAlignment="Center"
                                           Visibility="Visible"/>
 

@@ -5,30 +5,26 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SynthEBD"
         d:DataContext="{d:DesignInstance Type=local:VM_ConfigDrafter}"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="SynthEBD Config Drafter" Height="450" Width="800">
+        Title="SynthEBD Config Drafter" Height="450" Width="800"
+        Style="{DynamicResource ThemedWindowStyle}">
 
     <Window.Resources>
         <local:ConfigDrafterVisibilityConverterArchive x:Key="ArchiveVisibilityConverter" />
         <local:ConfigDrafterVisibilityConverterDirectory x:Key="DirectoryVisibilityConverter" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Multiplets">
-            <local:BoolToSolidColorBrushConverter.TrueColor>
-                <SolidColorBrush Color="White"/>
-            </local:BoolToSolidColorBrushConverter.TrueColor>
-            <local:BoolToSolidColorBrushConverter.FalseColor>
-                <SolidColorBrush Color="DarkOrange"/>
-            </local:BoolToSolidColorBrushConverter.FalseColor>
-        </local:BoolToSolidColorBrushConverter>
-        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Unmatched">
-            <local:BoolToSolidColorBrushConverter.TrueColor>
-                <SolidColorBrush Color="DarkOrange"/>
-            </local:BoolToSolidColorBrushConverter.TrueColor>
-            <local:BoolToSolidColorBrushConverter.FalseColor>
-                <SolidColorBrush Color="White"/>
-            </local:BoolToSolidColorBrushConverter.FalseColor>
-        </local:BoolToSolidColorBrushConverter>
+        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Multiplets"
+                                              TrueColor="{StaticResource PrimaryForeground}"
+                                              FalseColor="{StaticResource StatusPendingForeground}"/>
+        <local:BoolToSolidColorBrushConverter x:Key="BoolToBrushConverter_Unmatched"
+                                              TrueColor="{StaticResource StatusPendingForeground}"
+                                              FalseColor="{StaticResource PrimaryForeground}"/>
     </Window.Resources>
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -71,19 +67,19 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Text="Load textures from " Foreground="White" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
+        <TextBlock Text="Load textures from " Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" />
         <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedSource}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterTextureSource}}}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"/>
 
-        <TextBlock Text="Destination Mod Name" Foreground="White" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" ToolTip="{Binding ModNameToolTip}" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Text="Destination Mod Name" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" ToolTip="{Binding ModNameToolTip}" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <TextBox Text="{Binding GeneratedModName}" Grid.Row="1" Grid.Column="2" IsReadOnly="{Binding LockGeneratedModName}" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
 
-        <TextBlock Text="Archives to install" Foreground="White" Grid.Row="2" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
+        <TextBlock Text="Archives to install" Grid.Row="2" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}"/>
         <ScrollViewer Grid.Row="2" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding SelectedFileArchives}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="AliceBlue" BorderThickness="1">
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="auto"/>
@@ -97,30 +93,30 @@
                                         <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Text="File Name: " Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
-                                    <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectArchive}" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding FilePath}" Grid.Row="0" Grid.Column="2" Foreground="White" MinWidth="50"/>
+                                    <TextBlock Text="File Name: " Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                                    <Button Content="Select" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding SelectArchive}" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding FilePath}" Grid.Row="0" Grid.Column="2" MinWidth="50"/>
 
-                                    <TextBlock Text="Prefix: " Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Foreground="White"/>
-                                    <TextBox Text="{Binding Prefix}" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Foreground="White" MinWidth="50"/>
+                                    <TextBlock Text="Prefix: " Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding Prefix}" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" MinWidth="50"/>
 
-                                    <Button Content="Remove" Foreground="Firebrick" Command="{Binding DeleteMe}" Grid.Row="2" Grid.Column="1"/>
+                                    <Button Content="Remove" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeleteMe}" Grid.Row="2" Grid.Column="1"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Content="Add Another Archive" Foreground="MediumPurple" Command="{Binding AddFileArchiveButton}" HorizontalAlignment="Left"/>
+                <Button Content="Add Another Archive" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding AddFileArchiveButton}" HorizontalAlignment="Left"/>
             </StackPanel>
         </ScrollViewer>
 
-        <TextBlock Text="Directories to scan" Foreground="White" Grid.Row="2" Grid.Column="0" Margin="0 5 0 0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
+        <TextBlock Text="Directories to scan" Grid.Row="2" Grid.Column="0" Margin="0 5 0 0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}"/>
         <ScrollViewer Grid.Row="2" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding SelectedTextureFolders}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="AliceBlue" BorderThickness="1">
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="auto"/>
@@ -132,30 +128,30 @@
                                         <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <Button Content="Select" Foreground="MediumPurple" Command="{Binding SelectPath}" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
-                                    <TextBox Text="{Binding DirPath}" Grid.Row="0" Grid.Column="1" Foreground="White" MinWidth="50"/>
-                                    <Button Content="Remove" Foreground="Firebrick" Command="{Binding DeleteMe}" Grid.Row="0" Grid.Column="2"/>
+                                    <Button Content="Select" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding SelectPath}" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding DirPath}" Grid.Row="0" Grid.Column="1" MinWidth="50"/>
+                                    <Button Content="Remove" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeleteMe}" Grid.Row="0" Grid.Column="2"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Content="Add Another Directory" Foreground="MediumPurple" Command="{Binding AddDirectoryButton}" HorizontalAlignment="Left"/>
+                <Button Content="Add Another Directory" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding AddDirectoryButton}" HorizontalAlignment="Left"/>
             </StackPanel>
         </ScrollViewer>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Foreground="White" Text="Auto-Assign: " Margin="0 10 0 0" ToolTip="Automatically applies the selected options to generated subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Auto-Assign: " Margin="0 10 0 0" ToolTip="Automatically applies the selected options to generated subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         <StackPanel Grid.Row="3"  Grid.Column="2" Orientation="Horizontal" Margin="0 10 0 0">
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyNames}" />
-            <TextBlock Text="Names" Foreground="White" Margin="0 0 15 0" ToolTip="Renames subgroups according to their contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Names" Margin="0 0 15 0" ToolTip="Renames subgroups according to their contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyRules}"/>
-            <TextBlock Text="Rules" Foreground="White" Margin="0 0 15 0" ToolTip="Applies basic distribution rules according to subgroups according to their names and contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Rules" Margin="0 0 15 0" ToolTip="Applies basic distribution rules according to subgroups according to their names and contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyLinkage}"/>
-            <TextBlock Text="Linkage" Foreground="White" ToolTip="Links subgroups related by name for co-distribution" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Linkage" ToolTip="Links subgroups related by name for co-distribution" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         </StackPanel>
 
-        <Button Content="Draft Config!" Foreground="Aquamarine" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="4" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" />
-        <Button Content="Extract Archives" Foreground="LimeGreen" Command="{Binding ExtractArchivesButton}" HorizontalAlignment="Left" Grid.Row="4" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" />
+        <Button Content="Draft Config!" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="4" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" />
+        <Button Content="Extract Archives" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding ExtractArchivesButton}" HorizontalAlignment="Left" Grid.Row="4" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource ArchiveVisibilityConverter}}" />
 
         <Grid Grid.Row="4" Grid.Column="2" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}">
             <Grid.ColumnDefinitions>
@@ -164,18 +160,18 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <Button Content="Check for Duplicate Textures" Foreground="MediumPurple" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Some mod authors package multiple replicates of the same texture to make FOMOD generation easier. Removing these replicates can simplify management of your config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
-            <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Foreground="White" Background="Transparent" BorderThickness="0" Grid.Column="1" />
-            <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" Foreground="White" HorizontalAlignment="Center"/>
-            <Button Content="Show Printable Duplicates List" Foreground="MediumPurple" Command="{Binding ShowDuplicatesPopupButton}" Grid.Column="2" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" ToolTip="Show popup window with a list of duplicate texture groups that you can copy and refer to later" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Content="Check for Duplicate Textures" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Some mod authors package multiple replicates of the same texture to make FOMOD generation easier. Removing these replicates can simplify management of your config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Background="Transparent" BorderThickness="0" Grid.Column="1" />
+            <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" HorizontalAlignment="Center"/>
+            <Button Content="Show Printable Duplicates List" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ShowDuplicatesPopupButton}" Grid.Column="2" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" ToolTip="Show popup window with a list of duplicate texture groups that you can copy and refer to later" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
         </Grid>
 
         <Separator Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3"/>
 
         <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Horizontal" Visibility="{Binding HasEtcTextures, Converter={StaticResource BoolToVis}}">
-            <TextBlock Text="Textures are for" Margin="0 0 5 0" Foreground="White" VerticalAlignment="Center" ToolTip="Etc textures were detected. Select the body mod these textures are for so that the correct Record Template is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Textures are for" Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Etc textures were detected. Select the body mod these textures are for so that the correct Record Template is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
             <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterBodyType}}}" IsSynchronizedWithCurrentItem="True"/>
-            <TextBlock Text="Body" Margin="5 0 0 0" Foreground="White" VerticalAlignment="Center"/>
+            <TextBlock Text="Body" Margin="5 0 0 0" VerticalAlignment="Center"/>
         </StackPanel>
 
         <Expander Header="Duplicate textures detected" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" Name="DuplicateTexturesExpander">
@@ -187,20 +183,20 @@
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
                 
-                <TextBlock Grid.Row="0" Text="SynthEBD has detected the following duplicate textures in this mod. Deleting them may simplify the layout of your config file." Foreground="White"/>
-                <TextBlock Grid.Row="1" Text="Try to preserve the files with the most generic paths to prevent creating erroneously restrictive distribution rules." Foreground="White" Visibility="{Binding AutoApplyRules, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Grid.Row="0" Text="SynthEBD has detected the following duplicate textures in this mod. Deleting them may simplify the layout of your config file."/>
+                <TextBlock Grid.Row="1" Text="Try to preserve the files with the most generic paths to prevent creating erroneously restrictive distribution rules." Visibility="{Binding AutoApplyRules, Converter={StaticResource BoolToVis}}"/>
                 <ScrollViewer Grid.Row="2">
                     <ItemsControl ItemsSource="{Binding MultipletTextureGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="MediumPurple" BorderThickness="1" Margin="0 10 0 0">
+                                <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 10 0 0">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
 
-                                        <TextBlock Grid.Row="0" Text="{Binding FileName}" Foreground="DarkOrange" />
+                                        <TextBlock Grid.Row="0" Text="{Binding FileName}" Foreground="{DynamicResource StatusPendingForeground}" />
                                         <ItemsControl Grid.Row="1" ItemsSource="{Binding FilePaths}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -223,8 +219,8 @@
                     </ItemsControl>
                 </ScrollViewer>
                 <StackPanel Orientation="Horizontal" Grid.Row="3">
-                    <Button Content="Remove Duplicate Textures" Foreground="Firebrick" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
-                    <TextBlock Margin="10 0 5 0" Text="Handle duplicate textures by: " Foreground="White" VerticalAlignment="Center"/>
+                    <Button Content="Remove Duplicate Textures" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <TextBlock Margin="10 0 5 0" Text="Handle duplicate textures by: " VerticalAlignment="Center"/>
                     <ComboBox ItemsSource="{Binding MultipletHandlingOptions}" SelectedItem="{Binding MutlipletHandlingSelection}"/>
                 </StackPanel>
             </Grid>
@@ -238,7 +234,7 @@
                     <RowDefinition Height="auto"/>
                 </Grid.RowDefinitions>
                 
-                <TextBlock Grid.Row="0" Text="Any textures selected here will be imported as Uncategorized. You will need to drag and drop them to the appropriate top level subgroup." Foreground="White" />
+                <TextBlock Grid.Row="0" Text="Any textures selected here will be imported as Uncategorized. You will need to drag and drop them to the appropriate top level subgroup." />
                 <ScrollViewer  Grid.Row="1">
                     <ItemsControl ItemsSource="{Binding UnmatchedTextures}">
                         <ItemsControl.ItemTemplate>
@@ -257,9 +253,9 @@
                     </ItemsControl>
                 </ScrollViewer>
                 <StackPanel Grid.Row="2" Orientation="Horizontal">
-                    <TextBlock Text="Select" Foreground="White" VerticalAlignment="Center" />
-                    <Button Margin="5 0 5 0" Content="All" Foreground="Aquamarine" Command="{Binding SelectAllUncategorizedButton}" ToolTip="Import all uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
-                    <Button Content="None" Foreground="Firebrick" Command="{Binding DeselectAllUncategorizedButton}" ToolTip="Do not import any uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <TextBlock Text="Select" VerticalAlignment="Center" />
+                    <Button Margin="5 0 5 0" Content="All" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding SelectAllUncategorizedButton}" ToolTip="Import all uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <Button Content="None" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeselectAllUncategorizedButton}" ToolTip="Do not import any uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
                 </StackPanel>
             </Grid>
         </Expander>

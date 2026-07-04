@@ -18,18 +18,18 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
-        <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="{Binding DisplayText}" HorizontalAlignment="Center" Foreground="White"/>
+        <TextBlock Grid.Row="0" Margin="0 5 0 0" Text="{Binding DisplayText}" HorizontalAlignment="Center"/>
 
         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-            <Button Foreground="LightGreen" Content="Accept All" Command="{Binding AcceptAll}" Margin="15 0 50 0"/>
-            <Button Foreground="Firebrick" Content="Reject All" Command="{Binding RejectAll}"/>
+            <Button Foreground="{DynamicResource ActionGoodForeground}" Content="Accept All" Command="{Binding AcceptAll}" Margin="15 0 50 0"/>
+            <Button Foreground="{DynamicResource ActionDangerForeground}" Content="Reject All" Command="{Binding RejectAll}"/>
         </StackPanel>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Visible">
             <ItemsControl ItemsSource="{Binding RemappedSubgroups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="White" BorderThickness="1" Margin="0 0 0 5" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0 0 0 5" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                             <Grid Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="auto"/>
@@ -39,7 +39,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="Aqua"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SourceSubgroup.ExtendedName}" Foreground="{DynamicResource ActionAccentForeground}"/>
                                 <ItemsControl Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Paths}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -55,17 +55,17 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="From: " Foreground="White" VerticalAlignment="Center"/>
-                                                <TextBox Grid.Row="0" Grid.Column="2" Foreground="Gold" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
-                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " Foreground="White" VerticalAlignment="Center"/>
-                                                <ComboBox Grid.Row="1" Grid.Column="2" Foreground="LightGreen" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="From: " VerticalAlignment="Center"/>
+                                                <TextBox Grid.Row="0" Grid.Column="2" Foreground="{DynamicResource StatusPendingForeground}" IsReadOnly="True" HorizontalScrollBarVisibility="Visible" Text="{Binding OldPath}"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="To: " VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Row="1" Grid.Column="2" Foreground="{DynamicResource ActionGoodForeground}" SelectedItem="{Binding NewPath}" ItemsSource="{Binding CandidateNewPaths}"/>
 
                                                 <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
                                                     <CheckBox IsChecked="{Binding AcceptRenaming}" Margin="0 0 5 0"/>
-                                                    <TextBlock Text="Accept Remapping" Foreground="White" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Accept Remapping" VerticalAlignment="Center"/>
                                                     <CheckBox IsChecked="{Binding CreateSubgroupFrom}" Margin="20 0 5 0" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
-                                                    <TextBlock Text="Create New Subgroup Instead" Foreground="White" VerticalAlignment="Center" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
-                                                    <Button Content="Compare Textures" Foreground="MediumPurple" Command="{Binding ShowComparison}" Visibility="{Binding CanShowComparison, Converter={StaticResource BoolToVis}}" Margin="20 0 0 0"/>
+                                                    <TextBlock Text="Create New Subgroup Instead" VerticalAlignment="Center" Visibility="{Binding ShowCreateSubgroupOption, Converter={StaticResource BoolToVis}}"/>
+                                                    <Button Content="Compare Textures" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ShowComparison}" Visibility="{Binding CanShowComparison, Converter={StaticResource BoolToVis}}" Margin="20 0 0 0"/>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>

@@ -19,12 +19,12 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Destination Mod Folder: " Foreground="White" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Destination Mod Folder: " VerticalAlignment="Center"/>
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding DestinationFolderName, UpdateSourceTrigger=PropertyChanged}"/>
 
         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding WarningMessage}" Foreground="{Binding WarningMessageColor}"/>
 
-        <Button Grid.Row="2" Grid.Column="0" Content="OK" Command="{Binding Finalize}" Foreground="LightGreen"/>
-        <Button Grid.Row="2" Grid.Column="2" Content="Cancel" Command="{Binding Cancel}" Foreground="Firebrick"/>
+        <Button Grid.Row="2" Grid.Column="0" Content="OK" Command="{Binding Finalize}" Foreground="{DynamicResource ActionGoodForeground}"/>
+        <Button Grid.Row="2" Grid.Column="2" Content="Cancel" Command="{Binding Cancel}" Foreground="{DynamicResource ActionDangerForeground}"/>
     </Grid>
 </UserControl>
