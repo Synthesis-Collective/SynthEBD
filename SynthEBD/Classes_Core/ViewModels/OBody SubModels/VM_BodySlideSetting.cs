@@ -490,8 +490,8 @@ public class VM_BodySlideSetting : VM
     public bool ShowStatus { get; set; }
 
     public static SolidColorBrush BorderColorMissing = CommonColors.Red;
-    public static SolidColorBrush BorderColorUnannotated = CommonColors.Yellow;
-    public static SolidColorBrush BorderColorValid = CommonColors.LightGreen;
+    public static SolidColorBrush BorderColorUnannotated = AnnotationColors.Unannotated;
+    public static SolidColorBrush BorderColorValid = AnnotationColors.Valid;
     public static SolidColorBrush BorderColorHidden = CommonColors.LightSlateGrey;
     public static SolidColorBrush BorderColorAnnotationRuleBased = CommonColors.MediumPurple;
     public static SolidColorBrush BorderColorAnnotationMixManual_RulesBased = new(Colors.Teal);
@@ -625,7 +625,7 @@ public class VM_BodySlideSetting : VM
             foreach (var value in category.DescriptorSelectors)
             {
                 value.AnnotationState = BodyShapeAnnotationState.Manual;
-                value.TextColor = CommonColors.White;
+                value.TextColor = AnnotationColors.DefaultText;
             }
             category.AnnotationState = category.DescriptorSelectors.Any(x => x.IsSelected)
                 ? BodyShapeAnnotationState.Manual

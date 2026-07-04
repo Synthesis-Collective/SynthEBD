@@ -70,6 +70,13 @@ public static class ThemeManager
         themeDictionaries.Add(newTheme);
 
         bool isDark = IsDarkTheme(newTheme);
+
+        // Repaint the theme-adaptive annotation brushes so descriptor/BodySlide status text stays
+        // legible on light themes (the fixed Yellow/LightGreen/White washed out on white backgrounds).
+        var foreground = (newTheme["PrimaryForeground"] as SolidColorBrush)?.Color
+            ?? (isDark ? Colors.White : Colors.Black);
+        AnnotationColors.ApplyTheme(isDark, foreground);
+
         ThemeChanged?.Invoke(isDark);
     }
 

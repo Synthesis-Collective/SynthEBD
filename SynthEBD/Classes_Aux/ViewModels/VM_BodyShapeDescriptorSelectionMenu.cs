@@ -421,7 +421,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
     public IObservable<Unit> NeedsRefresh { get; set; }
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
-    public SolidColorBrush TextColor { get; set; } = CommonColors.White;
+    public SolidColorBrush TextColor { get; set; } = AnnotationColors.DefaultText;
 
     /// <summary>Syncs the descriptor selectors to the tracked shell's descriptors (adding new, removing deleted).</summary>
     void UpdateDescriptorList()
@@ -471,7 +471,7 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
         // some states have explicit differences vs. BodySlideSettings and BodySlidePlaceHolders
         if (annotationState == BodyShapeAnnotationState.Manual)
         {
-            TextColor = CommonColors.White;
+            TextColor = AnnotationColors.DefaultText;
         }
     }
 }
@@ -499,7 +499,7 @@ public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
     public string Value { get; set; }
     public bool IsSelected { get; set; } = false;
     public int Priority { get; set; } = 0;
-    public SolidColorBrush TextColor { get; set; } = CommonColors.White;
+    public SolidColorBrush TextColor { get; set; } = AnnotationColors.DefaultText;
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
 
     /// <summary>Updates the text color from the annotation state (with explicit overrides for some states).</summary>
@@ -509,7 +509,7 @@ public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
         // some states have explicit differences vs. BodySlideSettings and BodySlidePlaceHolders
         if (annotationState == BodyShapeAnnotationState.None || annotationState == BodyShapeAnnotationState.Manual)
         {
-            TextColor = CommonColors.White;
+            TextColor = AnnotationColors.DefaultText;
         }
     }
 }
