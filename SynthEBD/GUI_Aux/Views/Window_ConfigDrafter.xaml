@@ -140,14 +140,14 @@
             </StackPanel>
         </ScrollViewer>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Auto-Assign: " Margin="0 10 0 0" ToolTip="Automatically applies the selected options to generated subgroups" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Auto-Assign: " Margin="0 10 0 0" local:DocTooltip.Key="Drafter.AutoAssign"/>
         <StackPanel Grid.Row="3"  Grid.Column="2" Orientation="Horizontal" Margin="0 10 0 0">
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyNames}" />
-            <TextBlock Text="Names" Margin="0 0 15 0" ToolTip="Renames subgroups according to their contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Names" Margin="0 0 15 0" local:DocTooltip.Key="Drafter.AutoAssignNames"/>
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyRules}"/>
-            <TextBlock Text="Rules" Margin="0 0 15 0" ToolTip="Applies basic distribution rules according to subgroups according to their names and contained textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Rules" Margin="0 0 15 0" local:DocTooltip.Key="Drafter.AutoAssignRules"/>
             <CheckBox Margin="0 0 5 0" IsChecked="{Binding AutoApplyLinkage}"/>
-            <TextBlock Text="Linkage" ToolTip="Links subgroups related by name for co-distribution" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Linkage" local:DocTooltip.Key="Drafter.AutoAssignLinkage"/>
         </StackPanel>
 
         <Button Content="Draft Config!" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding DraftConfigButton}" HorizontalAlignment="Left" Grid.Row="4" Grid.Column="0" Visibility="{ Binding SelectedSource, Converter={StaticResource DirectoryVisibilityConverter}}" />
@@ -160,16 +160,16 @@
                 <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
 
-            <Button Content="Check for Duplicate Textures" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Some mod authors package multiple replicates of the same texture to make FOMOD generation easier. Removing these replicates can simplify management of your config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Content="Check for Duplicate Textures" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding CheckDuplicatesButton}" Grid.Column="0" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="Drafter.CheckDuplicates"/>
             <ProgressBar Value="{Binding HashingProgressCurrent}" Maximum="{Binding HashingProgressMax}" Background="Transparent" BorderThickness="0" Grid.Column="1" />
             <TextBlock Text="{Binding CurrentlyHashingFile}" Grid.Column="1" HorizontalAlignment="Center"/>
-            <Button Content="Show Printable Duplicates List" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ShowDuplicatesPopupButton}" Grid.Column="2" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" ToolTip="Show popup window with a list of duplicate texture groups that you can copy and refer to later" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <Button Content="Show Printable Duplicates List" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ShowDuplicatesPopupButton}" Grid.Column="2" Visibility="{Binding HasMultiplets, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="Drafter.ShowDuplicatesList"/>
         </Grid>
 
         <Separator Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3"/>
 
         <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Horizontal" Visibility="{Binding HasEtcTextures, Converter={StaticResource BoolToVis}}">
-            <TextBlock Text="Textures are for" Margin="0 0 5 0" VerticalAlignment="Center" ToolTip="Etc textures were detected. Select the body mod these textures are for so that the correct Record Template is selected" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Textures are for" Margin="0 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="Drafter.TexturesBodyType"/>
             <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DrafterBodyType}}}" IsSynchronizedWithCurrentItem="True"/>
             <TextBlock Text="Body" Margin="5 0 0 0" VerticalAlignment="Center"/>
         </StackPanel>
@@ -219,7 +219,7 @@
                     </ItemsControl>
                 </ScrollViewer>
                 <StackPanel Orientation="Horizontal" Grid.Row="3">
-                    <Button Content="Remove Duplicate Textures" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" ToolTip="Blocks the selected textures from being imported" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <Button Content="Remove Duplicate Textures" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding RemoveDuplicatesButton}" HorizontalAlignment="Left" Visibility="{Binding NotYetDrafted, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="Drafter.RemoveDuplicates" />
                     <TextBlock Margin="10 0 5 0" Text="Handle duplicate textures by: " VerticalAlignment="Center"/>
                     <ComboBox ItemsSource="{Binding MultipletHandlingOptions}" SelectedItem="{Binding MutlipletHandlingSelection}"/>
                 </StackPanel>
@@ -254,8 +254,8 @@
                 </ScrollViewer>
                 <StackPanel Grid.Row="2" Orientation="Horizontal">
                     <TextBlock Text="Select" VerticalAlignment="Center" />
-                    <Button Margin="5 0 5 0" Content="All" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding SelectAllUncategorizedButton}" ToolTip="Import all uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
-                    <Button Content="None" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeselectAllUncategorizedButton}" ToolTip="Do not import any uncategorized textures" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+                    <Button Margin="5 0 5 0" Content="All" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding SelectAllUncategorizedButton}" local:DocTooltip.Key="Drafter.UncategorizedSelectAll" />
+                    <Button Content="None" Foreground="{DynamicResource ActionDangerForeground}" Command="{Binding DeselectAllUncategorizedButton}" local:DocTooltip.Key="Drafter.UncategorizedSelectNone" />
                 </StackPanel>
             </Grid>
         </Expander>

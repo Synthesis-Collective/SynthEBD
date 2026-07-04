@@ -21,6 +21,20 @@ public static partial class UiDocs
         RegisterGeneral();
         RegisterAssetPatching();
         RegisterBodyShape();
+        RegisterHeight();
+        RegisterModManager();
+        RegisterShell();
+        RegisterBlockList();
+        RegisterConsistency();
+        RegisterSpecificAssignments();
+        RegisterHeadParts();
+        RegisterSubgroup();
+        RegisterAssetPackEditor();
+        RegisterBodyTypeProfiles();
+        RegisterBodySlides();
+        RegisterBodyGenEditor();
+        RegisterCharacterViewer();
+        RegisterDistributionTools();
     }
 
     private static void Add(string key, string layperson, string technical, string motivation)

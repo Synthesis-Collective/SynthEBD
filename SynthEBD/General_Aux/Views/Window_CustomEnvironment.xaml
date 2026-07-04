@@ -39,10 +39,10 @@
         <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3" Text="{Binding InstructionMessage}"/>
         <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3">Please select your game type and game.exe folder below</TextBlock>
 
-        <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Which Skyrim release is being patched" VerticalAlignment="Center">Skyrim Release</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="2" local:DocTooltip.Key="CustomEnv.SkyrimRelease" VerticalAlignment="Center">Skyrim Release</TextBlock>
         <ComboBox Grid.Column="2" Grid.Row="2" Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding SkyrimRelease}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type Skyrim:SkyrimRelease}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Column="0" Grid.Row="3" ToolTip="Find your game executable if not in the default location (Steam Library)">Custom Game Path</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="3" local:DocTooltip.Key="CustomEnv.GamePath">Custom Game Path</TextBlock>
         <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal">
             <Button VerticalAlignment="Center" Command="{Binding SelectCustomGameFolder}"  Foreground="{DynamicResource ActionGoodForeground}">Search</Button>
             <TextBlock Text="{Binding CustomGamePath}" Margin="5 0 5 0" Background="{DynamicResource TextBoxBackground}" VerticalAlignment="Center"/>
@@ -60,7 +60,7 @@
         </StackPanel>
 
         <!-- Load order display-->
-        <TextBlock Grid.Column="4" Grid.Row="1" ToolTip="The load order that SynthEBD is seeing" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">Load Order</TextBlock>
+        <TextBlock Grid.Column="4" Grid.Row="1" local:DocTooltip.Key="CustomEnv.LoadOrder" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">Load Order</TextBlock>
         <Border Grid.Column="4" Grid.Row="2" Grid.RowSpan="5" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">
             <ScrollViewer>
                 <ItemsControl ItemsSource="{Binding LoadOrderMods}">

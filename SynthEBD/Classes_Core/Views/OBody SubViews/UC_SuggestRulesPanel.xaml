@@ -24,12 +24,12 @@
                 <ComboBox Grid.Column="1" MinWidth="220"
                           ItemsSource="{Binding AvailableAlgorithms}"
                           SelectedItem="{Binding SynthesisAlgorithm, Mode=TwoWay}"
-                          ToolTip="OptimalThresholdPerValue: per-measurement threshold by max Youden's J. MedianSplit: legacy halfway-between-medians. DecisionStump: single best (measurement, threshold) by Gini gain."/>
+                          local:DocTooltip.Key="BodySlides.SuggestRulesAlgorithm"/>
                 <Button Grid.Column="2" Content="Suggest Rules" Command="{Binding SuggestCommand}"
                         Padding="10,2" Margin="6,0,0,0"/>
                 <Button Grid.Column="3" Content="Accept All as Drafts" Command="{Binding AcceptAllCommand}"
                         Padding="10,2" Margin="4,0,0,0"
-                        ToolTip="Add every pending suggestion to the profile's Rules collection as IsDraft=true."/>
+                        local:DocTooltip.Key="BodySlides.SuggestRulesAcceptAll"/>
                 <Button Grid.Column="4" Content="Clear" Command="{Binding ClearCommand}"
                         Padding="10,2" Margin="4,0,0,0"/>
                 <TextBlock Grid.Column="5" Text="{Binding Status}" Foreground="#FFCCCCCC"
@@ -79,7 +79,7 @@
                                 <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="8,0,0,0">
                                     <Button Content="Accept" Command="{Binding AcceptCommand}"
                                             Padding="10,3" MinWidth="80"
-                                            ToolTip="Add this suggestion to the profile's Rules collection as a draft.">
+                                            local:DocTooltip.Key="BodySlides.SuggestRulesAccept">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Style.Triggers>

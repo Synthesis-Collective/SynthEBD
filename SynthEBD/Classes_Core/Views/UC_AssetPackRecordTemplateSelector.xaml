@@ -22,11 +22,11 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Default template NPC" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Default Template</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPack.DefaultRecordTemplate">Default Template</TextBlock>
             <local:UC_NamedFormKeyPicker Grid.Row="0"  Grid.Column="1" FormKey="{Binding DefaultTemplateFK}" LinkCache="{Binding RecordTemplateLinkCache}" ScopedTypes="{Binding NPCFormKeyTypes}" MaxHeight="250"  />
 
             <StackPanel Grid.Row="1" Grid.Column="0">
-                <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Paths within the default record template to which the races of patched NPCs must be added" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Races Paths</TextBlock>
+                <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="AssetPack.AdditionalRacesPaths">Additional Races Paths</TextBlock>
                 <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
             </StackPanel>
 
@@ -43,7 +43,7 @@
 
 
             <StackPanel Grid.Row="3" Grid.Column="0">
-                <TextBlock Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Additional template NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Additional Templates</TextBlock>
+                <TextBlock Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="AssetPack.AdditionalRecordTemplates">Additional Templates</TextBlock>
                 <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
             </StackPanel>
             <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">

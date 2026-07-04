@@ -28,16 +28,16 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Manager Type" VerticalAlignment="Center" ToolTip="Which mod manager you are using" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Manager Type" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.Type"/>
         <ComboBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" SelectedValue="{Binding ModManagerType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:ModManager}}}" IsSynchronizedWithCurrentItem="True"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Temp Folder" VerticalAlignment="Center" ToolTip="Temporary folder for SynthEBD to extract config files and assets from zipped archives" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Temp Folder" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.TempFolder"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1">
             <Button VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SelectTempFolder}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 5 0">Select</Button>
             <TextBox Text="{Binding TempFolder}"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="FilePath Length Limit" Visibility="{Binding ModManagerType, Converter={StaticResource PathVisibilityConverter}}" VerticalAlignment="Center" ToolTip="Maximum file path of an installed asset before path shortening functionality is triggered" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="FilePath Length Limit" Visibility="{Binding ModManagerType, Converter={StaticResource PathVisibilityConverter}}" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.FilePathLimit"/>
         <xctk:IntegerUpDown Grid.Row="2" Grid.Column="1" Visibility="{Binding ModManagerType, Converter={StaticResource PathVisibilityConverter}}" Value="{Binding FilePathLimit_NoModManager}" Foreground="{DynamicResource PrimaryForeground}" MinWidth="25" Margin="10 0 0 0"/>
 
         <ContentPresenter Content="{Binding DisplayedSubVM}" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3">

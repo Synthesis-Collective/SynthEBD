@@ -107,19 +107,19 @@
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding ShowWireframe}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Overlays the triangle edges of every loaded mesh. Used for key-vertex assignment in the BodySlide classifier workflow."/>
+                          local:DocTooltip.Key="CharacterViewer.Wireframe"/>
 
                 <CheckBox Content="Pick Vertex" FontSize="11" Foreground="#FFFF6126"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding IsKeyVertexPickMode}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Left-click the model to drop a marker on the nearest triangle vertex. Intended for BodySlide classifier key-vertex assignment; camera orbit is disabled while this is on."/>
+                          local:DocTooltip.Key="CharacterViewer.PickVertex"/>
 
                 <CheckBox Content="Pick Box" FontSize="11" Foreground="#FFFFCC40"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding IsBoundingBoxPickMode}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Left-drag a rectangle across the model to define a mesh-local bounding box. The classifier picks the vertex matching the selected Criterion inside that box at runtime, so the anatomical landmark tracks the mesh across presets."/>
+                          local:DocTooltip.Key="CharacterViewer.PickBox"/>
 
                 <!-- Region vertex-edit mode: two mutually-exclusive toggle buttons. At most one is on;
                      both can be off (default) so a left-drag orbits the camera. The VM properties enforce
@@ -129,7 +129,7 @@
                               Margin="10,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding IsRegionVertexAddMode}"
                               Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                              ToolTip="Toggle 'add vertices' mode for the SELECTED RegionVolume region (select a region row first). While on, left-click a vertex to force it INTO the region, or left-drag a lasso to bulk-add; camera orbit is disabled. Click again to turn off. Mutually exclusive with Remove Verts; both off = orbit. Auto-turns off when the box is confirmed/cancelled.">
+                              local:DocTooltip.Key="CharacterViewer.AddVerts">
                     <ToggleButton.Style>
                         <Style TargetType="ToggleButton">
                             <Setter Property="Background" Value="#FF333333"/>
@@ -161,7 +161,7 @@
                               Margin="6,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding IsRegionVertexRemoveMode}"
                               Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                              ToolTip="Toggle 'remove vertices' mode for the SELECTED region. While on, left-click a vertex to force it OUT of the region (an interior removal opens a hole), or left-drag a lasso to bulk-remove; camera orbit is disabled. Click again to turn off. Mutually exclusive with Add Verts; both off = orbit. Auto-turns off when the box is confirmed/cancelled.">
+                              local:DocTooltip.Key="CharacterViewer.RemoveVerts">
                     <ToggleButton.Style>
                         <Style TargetType="ToggleButton">
                             <Setter Property="Background" Value="#FF333333"/>
@@ -239,7 +239,7 @@
                         Padding="6 1" VerticalAlignment="Center"
                         Click="SelectMirrorPicksButton_Click"
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                        ToolTip="For each current pick marker, adds the vertex closest to its X-mirror on the same mesh. Use to fill in bilaterally symmetric counterparts after picking one side."/>
+                        local:DocTooltip.Key="CharacterViewer.SelectMirror"/>
 
                 <TextBlock Text="Axis:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="10,0,3,0"
@@ -247,7 +247,7 @@
                 <ComboBox Width="42" FontSize="10" VerticalAlignment="Center"
                           SelectedIndex="{Binding ProjectAcrossAxisIndex}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Axis used by 'Pair Across Axis': X = left-right, Y = up-down, Z = front-back.">
+                          local:DocTooltip.Key="CharacterViewer.PairAxis">
                     <ComboBoxItem Content="X"/>
                     <ComboBoxItem Content="Y"/>
                     <ComboBoxItem Content="Z"/>
@@ -257,24 +257,24 @@
                         Padding="6 1" VerticalAlignment="Center"
                         Click="PairAcrossAxisButton_Click"
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                        ToolTip="From the most recent pick, casts a ray through the body along the selected axis and adds a marker at the vertex nearest the opposite-surface exit. Use to pair midline anchors (e.g., NippleFront → UpperSpineBack) at a matching cross-axis coordinate."/>
+                        local:DocTooltip.Key="CharacterViewer.PairAcrossAxis"/>
 
                 <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="ClearKeyVertexMarkersButton_Click"
                         Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                        ToolTip="Removes every picked-vertex marker from the viewport."/>
+                        local:DocTooltip.Key="CharacterViewer.ClearPicks"/>
 
                 <CheckBox Content="Show Bulge Bins" FontSize="11" Foreground="#FF66E6FF"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding ShowBulgeBinOverlay}"
                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
-                          ToolTip="Draws the per-Y-bin paired-X optima used by the BulgePair*X / PinchPair*X criteria. Each occupied slice gets one horizontal line from its min-X vertex to its max-X vertex. The winner bin (largest width for Bulge, smallest for Pinch) draws in cyan; the rest in white. Targets the pending box if one is open, else the selected KeyVertex row's box. Only renders for paired criteria."/>
+                          local:DocTooltip.Key="CharacterViewer.ShowBulgeBins"/>
 
                 <CheckBox Content="Verbose Log" FontSize="11" Foreground="#FFAAAAAA"
                           Margin="15,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding VerboseLog}"
-                          ToolTip="Routes the viewer's informational diagnostics (GL init, NPC load, lighting, weight morphs, texture overrides, etc.) to the Status Log. Errors are always logged. Off by default so the classifier's own trace isn't buried in viewer chatter."/>
+                          local:DocTooltip.Key="CharacterViewer.VerboseLog"/>
 
                 <Button Content="Log Settings" FontSize="10" Margin="10,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
@@ -348,7 +348,7 @@
                              Foreground="#FFCCCCCC"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             ToolTip="Click a row to select a pick. Ctrl/Shift-click for multi-select. 'Select Mirror' acts on the selected rows (or the most recent pick if nothing is selected).">
+                             local:DocTooltip.Key="CharacterViewer.PicksList">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Display}"
@@ -364,7 +364,7 @@
                         FontSize="10" Padding="8 2"
                         VerticalAlignment="Top" Margin="8,0,0,0"
                         Command="{Binding CopyPicksToClipboardCommand}"
-                        ToolTip="Copy all picks to the clipboard as tab-separated values (shape, index, x, y, z). Paste the result back to share pick data."/>
+                        local:DocTooltip.Key="CharacterViewer.CopyPicksTsv"/>
             </Grid>
         </Border>
 
@@ -458,11 +458,11 @@
                     <ComboBox ItemsSource="{Binding Source={x:Static cvr:VM_CharacterViewer.SymmetryAxesChoices}}"
                               SelectedItem="{Binding PendingBoxSymmetry}"
                               FontSize="11" MinWidth="90" VerticalAlignment="Center"
-                              ToolTip="Lock one or more axes so editing min/max on that axis auto-mirrors the opposite side about 0."/>
+                              local:DocTooltip.Key="CharacterViewer.ForceSymmetry"/>
                     <CheckBox Content="Show zeroed body"
                               IsChecked="{Binding PendingBoxShowZeroed}"
                               Foreground="#FFDDDDDD" FontSize="11" VerticalAlignment="Center" Margin="15,0,0,0"
-                              ToolTip="Temporarily render the body with no BodySlide sliders applied (sliders-0). A region box is stored in this undeformed space, so flip here to see the exact patch it will bake against before confirming. Unchecking restores the current preset. The box stays put — only the body changes."/>
+                              local:DocTooltip.Key="CharacterViewer.ShowZeroedBody"/>
                 </WrapPanel>
 
                 <WrapPanel Orientation="Horizontal">
@@ -504,7 +504,7 @@
                     <Button Content="Shrink to Camera Half"
                             Command="{Binding ShrinkAlongViewAxisCommand}"
                             FontSize="11" Padding="8 2" Margin="0,0,0,2"
-                            ToolTip="Halve the pending box along whichever mesh-local axis most aligns with the camera view, keeping the half nearest the camera. Repeat-click to shrink further. Use to exclude an overhanging belly from a hip box, etc."/>
+                            local:DocTooltip.Key="CharacterViewer.ShrinkToCameraHalf"/>
                     <Button Content="Confirm"
                             Command="{Binding ConfirmPendingBoxCommand}"
                             FontSize="11" FontWeight="Bold" Padding="14 2" Margin="12,0,0,2"
@@ -513,17 +513,17 @@
                             Command="{Binding ConfirmPendingBoxAsDuplicateCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF1565C0" Foreground="White"
-                            ToolTip="Fire the pick now but keep this box on screen so you can change the Criterion and confirm again. Use to capture multiple measurements (e.g. MaxX and BulgePairMinX) from one drawn box."/>
+                            local:DocTooltip.Key="CharacterViewer.ConfirmAsDuplicate"/>
                     <Button Content="Duplicate as Region"
                             Command="{Binding ConfirmPendingBoxAsRegionDuplicateCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF00695C" Foreground="White"
-                            ToolTip="Commit this box as a NEW RegionVolume region even while a region row is selected/being edited — forks a separate region from the same box instead of updating the selected one. The original stays selected and the box stays put, so repeated clicks spawn identical copies."/>
+                            local:DocTooltip.Key="CharacterViewer.DuplicateAsRegion"/>
                     <Button Content="Confirm as Region"
                             Command="{Binding ConfirmPendingBoxAsRegionCommand}"
                             FontSize="11" FontWeight="Bold" Padding="10 2" Margin="6,0,0,2"
                             Background="#FF00838F" Foreground="White"
-                            ToolTip="Commit this box as a RegionVolume region instead of a key vertex. The box selects a body patch whose enclosed volume a RegionVolume measurement integrates (chest fullness, thigh volume). Appears as a new row on the profile's Regions tab; the criterion is ignored for regions."/>
+                            local:DocTooltip.Key="CharacterViewer.ConfirmAsRegion"/>
                     <Button Content="Cancel"
                             Command="{Binding CancelPendingBoxCommand}"
                             FontSize="11" Padding="10 2" Margin="6,0,0,2"
@@ -544,7 +544,7 @@
                     BorderBrush="#80A0A0A0" BorderThickness="1"
                     CornerRadius="4"
                     Cursor="SizeAll"
-                    ToolTip="World-axis orientation gizmo. Drag to reposition."
+                    local:DocTooltip.Key="CharacterViewer.AxisGizmo"
                     MouseLeftButtonDown="AxisGizmo_MouseLeftButtonDown"
                     MouseLeftButtonUp="AxisGizmo_MouseLeftButtonUp"
                     MouseMove="AxisGizmo_MouseMove">

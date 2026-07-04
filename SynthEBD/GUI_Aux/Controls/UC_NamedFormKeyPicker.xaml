@@ -18,14 +18,12 @@
                  PreviewKeyDown="SearchBox_PreviewKeyDown"
                  GotKeyboardFocus="SearchBox_GotKeyboardFocus"
                  LostKeyboardFocus="SearchBox_LostKeyboardFocus"
-                 ToolTip="Type to search by name, EditorID, or FormKey (a pasted FormKey like 013BA3:Skyrim.esm is accepted directly)"
-                 ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                 local:DocTooltip.Key="Pickers.SearchBox"/>
 
         <Button x:Name="ClearButton" Grid.Column="1" Margin="3,0,0,0" Padding="5,0"
                 Foreground="{DynamicResource ActionDangerForeground}" Content="X"
                 Click="ClearButton_Click"
-                ToolTip="Clear the selected record"
-                ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                local:DocTooltip.Key="Pickers.Clear"/>
 
         <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding ElementName=SearchBox}" Placement="Bottom"
                StaysOpen="False" AllowsTransparency="True"

@@ -35,7 +35,7 @@
         </Grid.RowDefinitions>
 
 
-        <TextBlock Grid.Row="0" Grid.Column="0" ToolTip="Include the assigned distribution rules for each BodySlide" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+        <TextBlock Grid.Row="0" Grid.Column="0" local:DocTooltip.Key="BodySlideExchange.Rules">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} Distribution Rules">
                     <Binding Path="Mode"/>
@@ -44,7 +44,7 @@
         </TextBlock>
         <CheckBox Grid.Row="0" Grid.Column="2" IsChecked="{Binding ExchangeRules}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" ToolTip="Include the notes which annotate the BodySlides (for user information only; they don't influence the patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+        <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="BodySlideExchange.Notes">
             <TextBlock.Text>
                 <MultiBinding StringFormat="{}{0} BodySlide Notes">
                     <Binding Path="Mode"/>
@@ -53,16 +53,16 @@
         </TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding ExchangeNotes}"/>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Include Needed Attribute Groups" ToolTip="Include the Attribute Groups required by the BodySlides' distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Include Needed Attribute Groups" local:DocTooltip.Key="BodySlideExchange.AttributeGroups" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
         <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding IncludeAttributeGroups}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Include Needed Race Groupings" ToolTip="Include the Race Groupings required by the BodySlides' distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Include Needed Race Groupings" local:DocTooltip.Key="BodySlideExchange.RaceGroupings" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
         <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding IncludeRaceGroupings}" Visibility="{Binding ExchangeRules, Converter={StaticResource BoolToVis}}"/>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Text="Descriptor Distribution Rules Handling" ToolTip="If some of the descriptors being imported already exist in your settings, choose what happens to its distribution rules" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Visibility="{ Binding Mode, Converter={StaticResource ImportModeOnly}}"/>
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Descriptor Distribution Rules Handling" local:DocTooltip.Key="BodySlideExchange.DescriptorMergeMode" Visibility="{ Binding Mode, Converter={StaticResource ImportModeOnly}}"/>
         <ComboBox Grid.Row="4" Grid.Column="2" SelectedValue="{Binding DescriptorMergeMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DescriptorRulesMergeMode}}}" IsSynchronizedWithCurrentItem="True"  Visibility="{ Binding Mode, Converter={StaticResource ImportModeOnly}}"/>
         
-        <Button Grid.Row="5" Grid.Column="0" Command="{Binding ActionCommand}" Foreground="{DynamicResource ActionGoodForeground}" ToolTip="Run the BodySlide Exchanger" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" Content="{Binding Mode}"/>
+        <Button Grid.Row="5" Grid.Column="0" Command="{Binding ActionCommand}" Foreground="{DynamicResource ActionGoodForeground}" local:DocTooltip.Key="BodySlideExchange.Run" Content="{Binding Mode}"/>
 
     </Grid>
 </Window>

@@ -204,5 +204,15 @@ public static partial class UiDocs
             layperson: "The game's Data folder that SynthEBD reads your mods from. Leave it empty to let SynthEBD find it automatically; set it if your game is installed somewhere unusual.",
             technical: "Sets DataFolderPath on the environment provider. When set, the Mutagen environment builder targets it (WithTargetDataFolder); when cleared, the default detected install is used and the resolved path is written back here. If the resulting environment is invalid (its listed order contains only the output plugin), SynthEBD prompts for a custom environment.",
             motivation: "Auto-detection covers standard installs, but custom Steam library locations or unusual setups need an explicit path - and everything SynthEBD does depends on reading the correct load order.");
+
+        Add("General.RaceAliasRace",
+            layperson: "The race to redirect: NPCs of this race are treated as if they were the Alias Race below, for the sexes and features ticked in this rule.",
+            technical: "Sets RaceAlias.Race, the source RACE FormKey of the alias rule. During patching the alias handler swaps the NPC's effective race to RaceAlias.AliasRace per axis according to the rule's male/female and apply-to flags - NPCInfo derives its AssetsRace, HeightRace, and the other per-axis races through it - and racial height patching redirects its RACE record lookup the same way.",
+            motivation: "Mods often add custom races that are functional copies of vanilla ones; aliasing lets their NPCs receive the distributions written for the vanilla race without every config file having to list the custom race.");
+
+        Add("General.ShowTooltips",
+            layperson: "Shows or hides explanation popups like this one throughout SynthEBD.",
+            technical: "Mirror of GeneralSettings.bShowToolTips, forwarded to TooltipController.Instance.DisplayToolTips; every tooltip's ToolTipService.IsEnabled - the rich three-part tooltips and the remaining legacy inline ones alike - is bound to that flag.",
+            motivation: "Tooltips are training wheels: essential while learning the patcher, distracting once you know it. One global switch clears them everywhere.");
     }
 }

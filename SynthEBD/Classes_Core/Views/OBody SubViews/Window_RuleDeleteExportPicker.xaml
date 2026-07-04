@@ -56,14 +56,14 @@
                                   Foreground="{DynamicResource ActionDangerForeground}"
                                   VerticalAlignment="Center"
                                   Margin="0,0,8,0"
-                                  ToolTip="Add this rule's Id to RulesToDelete in the exported patch."/>
+                                  local:DocTooltip.Key="BodyTypeProfiles.RuleExport.MarkForDeletion"/>
                         <CheckBox Content="Exclude from add/edit"
                                   IsChecked="{Binding IsExcludedFromAddEdit}"
                                   Visibility="{Binding IsInAddEditSet, Converter={StaticResource BoolToVis}}"
                                   Foreground="{DynamicResource StatusPendingForeground}"
                                   VerticalAlignment="Center"
                                   Margin="0,0,8,0"
-                                  ToolTip="Drop this rule from the patch's add/edit list. Only visible for rules pre-seeded from the main tab's tree node."/>
+                                  local:DocTooltip.Key="BodyTypeProfiles.RuleExport.ExcludeFromAddEdit"/>
                         <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center"/>
                         <TextBlock Text=" (in add/edit set)"
                                    Foreground="{DynamicResource StatusValidForeground}"

@@ -27,16 +27,16 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow detailed logging for unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.AllowUnique">Allow Unique NPCs</TextBlock>
         <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding Path=AllowUnique, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow detailed logging for generic non-named NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.AllowNonUnique">Allow Non-Unique NPCs</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=AllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to log" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.AllowedRaces">Allowed Races</TextBlock>
         <local:UC_NamedFormKeyMultiPicker Grid.Row="2" Grid.Column="2" MaxHeight="500" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to log" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.AllowedRaceGroupings">Allowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="3" Grid.Column="3"  Content="{Binding AllowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
@@ -45,10 +45,10 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races which should not be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.DisallowedRaces">Disallowed Races</TextBlock>
         <local:UC_NamedFormKeyMultiPicker Grid.Row="4" Grid.Column="4" MaxHeight="500" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding LinkCache}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races groupings which should not be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="Logging.DisallowedRaceGroupings">Disallowed Race Groupings</TextBlock>
         <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
@@ -57,7 +57,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must have to be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="Logging.AllowedAttributes">Allowed NPC Attributes</TextBlock>
         <Button Grid.Row="6" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
 
         <ItemsControl Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
@@ -69,7 +69,7 @@
         </ItemsControl>
 
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC may not have if this NPC is to be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="Logging.DisallowedAttributes">Disallowed NPC Attributes</TextBlock>
         <Button Grid.Row="7" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
         <ItemsControl Grid.Row="7" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
             <ItemsControl.ItemTemplate>
@@ -79,7 +79,7 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) of an NPC if it is to be logged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="Logging.WeightRange">Allowed NPC Weight Range</TextBlock>
         <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
             <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
             <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>

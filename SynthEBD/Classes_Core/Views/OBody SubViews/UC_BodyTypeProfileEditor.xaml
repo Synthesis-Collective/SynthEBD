@@ -265,7 +265,7 @@
             <DockPanel LastChildFill="False">
                 <Button DockPanel.Dock="Right" Content="Keyboard Shortcuts"
                         Click="KeyboardShortcuts_Click" Padding="8,1"
-                        ToolTip="Lists every keyboard shortcut available in this menu, broken down per tab plus the global preset-iteration shortcuts."/>
+                        local:DocTooltip.Key="BodyTypeProfiles.KeyboardShortcuts"/>
                 <TextBlock Text="Body Type Profiles:" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <ComboBox ItemsSource="{Binding Profiles}"
@@ -276,11 +276,11 @@
                 <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
                 <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1" Margin="0,0,4,0"/>
                 <Button Content="Duplicate" Command="{Binding DuplicateSelectedProfile}" Padding="6,1" Margin="0,0,12,0"
-                        ToolTip="Clones the selected profile in place — equivalent to Export then Import without the disk round-trip. The copy gets a fresh Id and a default '&lt;name&gt; - copy' name (with a numeric suffix if that's already taken)."/>
+                        local:DocTooltip.Key="BodyTypeProfiles.DuplicateProfile"/>
                 <Button Content="Export" Command="{Binding ExportSelectedProfile}" Padding="6,1" Margin="0,0,4,0"
-                        ToolTip="Save the selected profile to a JSON file for sharing or backup."/>
+                        local:DocTooltip.Key="BodyTypeProfiles.ExportProfile"/>
                 <Button Content="Import" Command="{Binding ImportProfile}" Padding="6,1"
-                        ToolTip="Load a profile from a JSON file and append it to this list."/>
+                        local:DocTooltip.Key="BodyTypeProfiles.ImportProfile"/>
             </DockPanel>
         </Border>
 
@@ -289,7 +289,7 @@
                       VerticalAlignment="Stretch" Background="#333333"
                       ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
                       ShowsPreview="True"
-                      ToolTip="Drag to resize the preview viewer"/>
+                      local:DocTooltip.Key="BodyTypeProfiles.ViewerSplitter"/>
 
         <!-- Right rail: embedded CharacterViewer + searchable preset picker. Lets the user
              load any BodySlide preset and pick key vertices without leaving this menu. -->
@@ -313,12 +313,12 @@
                               ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
                               SelectedValue="{Binding PreviewGender}"/>
                     <Button Grid.Row="0" Grid.Column="2" Content="Refresh" Command="{Binding RefreshPresetList}" Padding="6,1" Margin="5,0,0,2"
-                            ToolTip="Rebuild the preset dropdown from the BodySlides menu."/>
+                            local:DocTooltip.Key="BodyTypeProfiles.RefreshPresets"/>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,2"
                              Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="Type to filter the preset list by substring match on Label."/>
+                             local:DocTooltip.Key="BodyTypeProfiles.PresetFilter"/>
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
@@ -340,7 +340,7 @@
                                                LinkCache="{Binding lk}"
                                                ScopedTypes="{Binding NPCPickerFormKeys}"
                                                MaxHeight="180" MinWidth="180"
-                                               ToolTip="Override the preview NPC. Leave blank to use the weight-based default from OBody preview settings."/>
+                                               local:DocTooltip.Key="BodyTypeProfiles.PreviewNpcOverride"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -429,24 +429,24 @@
                                         <CheckBox Content="Capture picks from viewer"
                                                   IsChecked="{Binding CapturePicks}"
                                                   VerticalAlignment="Center"
-                                                  ToolTip="When enabled, every pick made in the viewer is appended to this profile's Key Vertices automatically. Toggle Pick Vertex on the viewer toolbar to start picking."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.CapturePicks"/>
                                         <CheckBox Content="Pick as coordinate"
                                                   IsChecked="{Binding PickAsCoordinate}"
                                                   VerticalAlignment="Center" Margin="10,0,0,0"
-                                                  ToolTip="When enabled (together with 'Capture picks from viewer'), a picked vertex is stored as a Coordinate row — its zeroed-space position, re-matched to the nearest vertex at evaluation — instead of a raw Explicit index. This makes it agnostic to vertex renumbering when body type variants are rebuilt. You can also convert an existing row by changing its Strategy dropdown to Coordinate."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.PickAsCoordinate"/>
                                         <Button Content="Capture Selected Picks"
                                                 Command="{Binding CaptureSelectedPicks}"
                                                 Margin="10,0,0,0" Padding="6,1"
-                                                ToolTip="Imports the picks currently highlighted in the viewer's pick list as Key Vertex rows. Picks already in this profile (same shape and vertex index) are skipped. Works even when 'Capture picks from viewer' is off."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.CaptureSelectedPicks"/>
                                         <Button Content="Show picks in viewer"
                                                 Command="{Binding ShowPicksInViewer}"
                                                 Margin="10,0,0,0" Padding="6,1"
-                                                ToolTip="Sends this profile's Key Vertices to the viewer as pick markers so they can be re-visualized in a new session. References that don't resolve on the current mesh are silently skipped."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.ShowPicksInViewer"/>
                                         <Button Content="Remove Selected" Command="{Binding RemoveSelectedKeyVertex}" Margin="15,0,0,0" Padding="6,1"/>
                                         <Button Content="Add from Region"
                                                 Command="{Binding AddKeyVertexFromRegion}"
                                                 Margin="10,0,0,0" Padding="6,1"
-                                                ToolTip="Adds a new Region-strategy key vertex that scans a region's member vertices instead of an authored box, pre-pointed at the first available region. Requires at least one Region (create them on the Regions tab)."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.AddKeyVertexFromRegion"/>
                                     </StackPanel>
                                     <DataGrid x:Name="KeyVerticesGrid"
                                               ItemsSource="{Binding KeyVertices}"
@@ -555,11 +555,11 @@
                                                                       VerticalAlignment="Center"
                                                                       Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=Region}"
                                                                       Text="{Binding RegionRefName, UpdateSourceTrigger=PropertyChanged}"
-                                                                      ToolTip="Region strategy: the region whose member vertices form the candidate set. The Criterion then picks one vertex from that set. Author regions on the Regions tab."/>
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.KeyVertexRegionRef"/>
                                                             <TextBlock FontFamily="Consolas" FontSize="10" VerticalAlignment="Center"
                                                                        Text="{Binding CoordDisplay}"
                                                                        Visibility="{Binding Strategy, Converter={StaticResource EnumEqualsToVis}, ConverterParameter=Coordinate}"
-                                                                       ToolTip="Coordinate strategy: the picked vertex's zeroed-space (sliders-0) position. At evaluation it is matched to the nearest vertex on the current zeroed mesh, so it tracks the same anatomy even when vertex indices are renumbered by a body-mod rebuild. Re-pick (with 'Pick as coordinate' on) to move it."/>
+                                                                       local:DocTooltip.Key="BodyTypeProfiles.KeyVertexCoordinate"/>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
@@ -601,14 +601,14 @@
                                         <ComboBox SelectedItem="{Binding RegionViewMode, UpdateSourceTrigger=PropertyChanged}"
                                                   ItemsSource="{Binding RegionViewModeOptions}"
                                                   Width="120"
-                                                  ToolTip="How the selected region is drawn in the viewer. End-Cap: just the cyan cut contour. Solid: the whole region as a magenta filled object, visible through the body from any angle, with cyan vertices + edges on top."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.RegionViewMode"/>
                                         <Separator Margin="10,0" Background="#FF555555"/>
                                         <Button Content="↶ Undo" FontSize="11" Padding="8,2" Margin="0,0,4,0"
                                                 Command="{Binding UndoRegionEditCommand}"
-                                                ToolTip="Undo the last vertex add/remove on the selected region (a click or a lasso = one action; up to 50 steps). Ctrl+Z."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.RegionUndo"/>
                                         <Button Content="↷ Redo" FontSize="11" Padding="8,2"
                                                 Command="{Binding RedoRegionEditCommand}"
-                                                ToolTip="Redo the last undone vertex edit on the selected region. Ctrl+Y."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.RegionRedo"/>
                                     </StackPanel>
                                     <DataGrid x:Name="RegionsGrid"
                                               ItemsSource="{Binding Regions}"
@@ -644,7 +644,7 @@
                                                     <DataTemplate>
                                                         <ComboBox SelectedItem="{Binding CapMode, UpdateSourceTrigger=PropertyChanged}"
                                                                   ItemsSource="{Binding CapModeOptions}"
-                                                                  ToolTip="How the loop is closed (and what the volume means): FlatPlane = tissue protruding past a flat plane (a 'salami cut', no scoop). AnatomicalFan = enclosed by the deformed ring (lid follows the ring, can look scooped on a curvy bust)."/>
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.RegionCapMode"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -679,7 +679,7 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal"
-                                                                    ToolTip="Box rotation about its center, degrees. 0/0/0 = axis-aligned. Use to tilt the cut plane onto a feature that isn't square to the body axes.">
+                                                                    local:DocTooltip.Key="BodyTypeProfiles.RegionRotation">
                                                             <xctk:SingleUpDown Value="{Binding RotX, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
                                                                                Foreground="Black" Background="White"/>
                                                             <xctk:SingleUpDown Value="{Binding RotY, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
@@ -694,7 +694,7 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                                                    ToolTip="Hand-curated add/remove vertex edits layered on the box. Non-zero means this region resolves by the vertex-granular induced patch (box ∪ adds \ removes) instead of the smooth box clip. Select the row, enable 'Edit Region Verts' in the viewer toolbar, then click/drag vertices. 'Clear' reverts to the plain box.">
+                                                                    local:DocTooltip.Key="BodyTypeProfiles.RegionVertexEdits">
                                                             <TextBlock Foreground="#FFFF66CC" FontWeight="SemiBold"
                                                                        VerticalAlignment="Center"
                                                                        Text="{Binding EditedVertexCount, StringFormat='✎ {0}'}"
@@ -806,7 +806,7 @@
                                                         <ComboBox ItemsSource="{Binding AvailableRegionNames}" IsEditable="True"
                                                                   IsEnabled="{Binding ShowRegionField}"
                                                                   Text="{Binding RegionRefName, UpdateSourceTrigger=PropertyChanged}"
-                                                                  ToolTip="RegionVolume only: the region whose enclosed volume this measurement integrates. Author regions on the Regions tab."/>
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.MeasurementRegionRef"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -850,7 +850,7 @@
                                                                   DisplayMemberPath="Label"
                                                                   SelectedValue="{Binding NumeratorAxis, UpdateSourceTrigger=PropertyChanged}"
                                                                   IsEnabled="{Binding ShowSecondPair}"
-                                                                  ToolTip="RatioDistance only: how to reduce the numerator pair (A, B). 3D = legacy Euclidean length; X/Y/Z = projection onto that axis."/>
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.MeasurementNumeratorAxis"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -862,7 +862,7 @@
                                                                   DisplayMemberPath="Label"
                                                                   SelectedValue="{Binding DenominatorAxis, UpdateSourceTrigger=PropertyChanged}"
                                                                   IsEnabled="{Binding ShowSecondPair}"
-                                                                  ToolTip="RatioDistance only: how to reduce the denominator pair (C, D). 3D = legacy Euclidean length; X/Y/Z = projection onto that axis."/>
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.MeasurementDenominatorAxis"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -871,7 +871,7 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Button Content="H" Command="{Binding OpenHistogramCommand}"
-                                                                ToolTip="Open a histogram of this measurement's values across every (preset, weight) entry in the profile's cache. Triggers a scan first if the measurement cache is stale."/>
+                                                                local:DocTooltip.Key="BodyTypeProfiles.OpenHistogram"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -941,7 +941,7 @@
                                                        FontStyle="Italic" Margin="0,0,0,2"/>
                                             <TextBox Grid.Row="1" Grid.Column="0"
                                                      Text="{Binding NewCategoryInput, UpdateSourceTrigger=PropertyChanged}"
-                                                     ToolTip="Category name. New categories get created on Add; pick an existing name to add a new Value under it."
+                                                     local:DocTooltip.Key="BodyTypeProfiles.NewDescriptorCategory"
                                                      Margin="0,0,4,2">
                                                 <TextBox.Style>
                                                     <Style TargetType="TextBox">
@@ -953,7 +953,7 @@
                                                        VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
                                             <TextBox Grid.Row="2" Grid.Column="0"
                                                      Text="{Binding NewValueInput, UpdateSourceTrigger=PropertyChanged}"
-                                                     ToolTip="Value name within the Category above."
+                                                     local:DocTooltip.Key="BodyTypeProfiles.NewDescriptorValue"
                                                      Margin="0,0,4,0"/>
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="Val" Margin="2,0,0,0"
                                                        VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
@@ -961,10 +961,10 @@
                                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
                                             <Button Content="+ Add" Command="{Binding AddDescriptorCommand}"
                                                     Padding="6,2" Margin="0,0,5,0"
-                                                    ToolTip="Add the (Category, Value) pair to TemplateDescriptors and select it in the tree."/>
+                                                    local:DocTooltip.Key="BodyTypeProfiles.AddDescriptor"/>
                                             <Button Content="Delete selected" Command="{Binding DeleteSelectedTreeNodeCommand}"
                                                     Padding="6,2"
-                                                    ToolTip="Remove the selected Category or Value from TemplateDescriptors. Blocked when any rule still produces a descriptor under the node — move those rules first."/>
+                                                    local:DocTooltip.Key="BodyTypeProfiles.DeleteDescriptorNode"/>
                                         </StackPanel>
                                         <TreeView ItemsSource="{Binding RuleTreeCategories}"
                                                   SelectedItemChanged="RuleTree_SelectedItemChanged"
@@ -991,7 +991,7 @@
                                                                   FontSize="10" Foreground="Gray"
                                                                   IsChecked="{Binding IsDefault, Mode=TwoWay}"
                                                                   Visibility="{Binding ShowMakeDefault, Converter={StaticResource BoolToVis}}"
-                                                                  ToolTip="Make this the default value for its category. Any preset that matches no other rule in this category falls back to this value. Only one value per category can be the default."/>
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.MakeDefaultValue"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </TreeView.Resources>
@@ -1018,7 +1018,7 @@
                                     <DockPanel Grid.Row="0">
                                         <Button DockPanel.Dock="Top" Content="+ Add Rule" Command="{Binding AddRule}"
                                                 HorizontalAlignment="Left" Padding="6,2" Margin="0,5"
-                                                ToolTip="Adds a new rule pre-filled with the selected tree node's (Category, Value). Without a selection the rule starts blank."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.AddRule"/>
                                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                                             <ItemsControl ItemsSource="{Binding FilteredRules}">
                                             <ItemsControl.ItemTemplate>
@@ -1042,21 +1042,21 @@
                                                                           ItemsSource="{Binding AvailableDescriptorCategories}"
                                                                           SelectedItem="{Binding DescriptorCategory, UpdateSourceTrigger=PropertyChanged}"
                                                                           Margin="0,0,10,0"
-                                                                          ToolTip="Categories listed here come from Settings_OBody.TemplateDescriptors. Add a new template descriptor in OBody Misc Settings to expand this dropdown."/>
+                                                                          local:DocTooltip.Key="BodyTypeProfiles.RuleDescriptorCategory"/>
                                                                 <TextBlock Grid.Column="2" Text="Value:" Margin="0,0,5,0" VerticalAlignment="Center"/>
                                                                 <ComboBox Grid.Column="3"
                                                                           ItemsSource="{Binding AvailableDescriptorValues}"
                                                                           SelectedItem="{Binding DescriptorValue, UpdateSourceTrigger=PropertyChanged}"
                                                                           Margin="0,0,10,0"
-                                                                          ToolTip="Values listed here are filtered by the selected Category. Changing Category clears Value if the prior choice isn't defined under the new Category."/>
+                                                                          local:DocTooltip.Key="BodyTypeProfiles.RuleDescriptorValue"/>
                                                                 <TextBlock Grid.Column="4" Text="Gender:" Margin="0,0,5,0" VerticalAlignment="Center"/>
                                                                 <ComboBox Grid.Column="5"
                                                                           ItemsSource="{Binding AvailableGenders}"
                                                                           SelectedItem="{Binding Gender, UpdateSourceTrigger=PropertyChanged}"
                                                                           Margin="0,0,10,0"
-                                                                          ToolTip="Either (default) fires the rule for both genders. Male / Female scope the rule so it only contributes a descriptor when the preset's gender matches — useful when the same descriptor has different physical signal per gender (e.g. Powerful needs to accept Chubby for males but not females, since the measurements can't distinguish fat from muscle without texture cues)."/>
+                                                                          local:DocTooltip.Key="BodyTypeProfiles.RuleGender"/>
                                                                 <CheckBox Grid.Column="6" Content="Draft" IsChecked="{Binding IsDraft}" Margin="0,0,10,0" VerticalAlignment="Center"
-                                                                          ToolTip="When checked, the evaluator skips this rule. Use the Promote button after reviewing."/>
+                                                                          local:DocTooltip.Key="BodyTypeProfiles.RuleDraft"/>
                                                                 <Button Grid.Column="7" Content="Promote" Command="{Binding PromoteFromDraft}" HorizontalAlignment="Left" Padding="6,1"/>
                                                                 <Button Grid.Column="8" Content="Delete Rule" Command="{Binding DeleteCommand}" Padding="6,1"/>
                                                             </Grid>
@@ -1090,7 +1090,7 @@
                                                                                     <TextBlock Text="AND group" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                                                                                     <CheckBox DockPanel.Dock="Left" Content="Disable" IsChecked="{Binding IsDisabled}"
                                                                                               Margin="10,0,0,0" VerticalAlignment="Center"
-                                                                                              ToolTip="Skip this OR-branch during evaluation. The branch and its conditions stay in the rule so toggling back restores the original behavior; useful for short iteration cycles without re-typing conditions."/>
+                                                                                              local:DocTooltip.Key="BodyTypeProfiles.BranchDisable"/>
                                                                                     <!-- Temp Edits: enters a preview session for this branch. The matching-presets
                                                                                          list below shows the parent rule's conform-diff (green "+ " = newly matching,
                                                                                          red "- " = no longer matching) recomputed live on every edit. Save keeps the
@@ -1098,7 +1098,7 @@
                                                                                          swapped for Save/Discard via DataTriggers on IsTempEditing. -->
                                                                                     <Button DockPanel.Dock="Left" Content="Temp Edits" Command="{Binding StartTempEdit}"
                                                                                             Padding="4,0" Margin="10,0,0,0" VerticalAlignment="Center"
-                                                                                            ToolTip="Preview how editing this branch changes which presets conform to the rule. New matches show green with '+ ', dropped matches show red with '- '.">
+                                                                                            local:DocTooltip.Key="BodyTypeProfiles.BranchTempEdits">
                                                                                         <Button.Style>
                                                                                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                                                                 <Setter Property="Visibility" Value="Visible"/>
@@ -1112,7 +1112,7 @@
                                                                                     </Button>
                                                                                     <Button DockPanel.Dock="Left" Content="Save" Command="{Binding SaveTempEdit}"
                                                                                             Padding="4,0" Margin="10,0,0,0" VerticalAlignment="Center"
-                                                                                            ToolTip="Keep the temp edits and end the preview session.">
+                                                                                            local:DocTooltip.Key="BodyTypeProfiles.BranchTempSave">
                                                                                         <Button.Style>
                                                                                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -1126,7 +1126,7 @@
                                                                                     </Button>
                                                                                     <Button DockPanel.Dock="Left" Content="Discard" Command="{Binding DiscardTempEdit}"
                                                                                             Padding="4,0" Margin="5,0,0,0" VerticalAlignment="Center"
-                                                                                            ToolTip="Revert this branch to its state when the preview session began.">
+                                                                                            local:DocTooltip.Key="BodyTypeProfiles.BranchTempDiscard">
                                                                                         <Button.Style>
                                                                                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                                                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -1154,7 +1154,7 @@
                                                                                                 <ComboBox ItemsSource="{Binding KindOptions}"
                                                                                                           SelectedItem="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           MinWidth="105" Margin="0,0,5,0"
-                                                                                                          ToolTip="Measurement: classic threshold test on a measurement value. DescriptorRef: aggregator — match when another rule's (Category, Value) descriptor has already fired (or hasn't, when Negate is checked)."/>
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionKind"/>
 
                                                                                                 <!-- Measurement-kind row -->
                                                                                                 <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
@@ -1173,24 +1173,24 @@
                                                                                                 <CheckBox Content="NOT" IsChecked="{Binding Negate, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           VerticalAlignment="Center" Margin="0,0,5,0"
                                                                                                           Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
-                                                                                                          ToolTip="When checked, the condition matches only if the referenced descriptor did NOT fire (exclude flavor)."/>
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionNegate"/>
                                                                                                 <ComboBox ItemsSource="{Binding AvailableRefCategories}"
                                                                                                           SelectedItem="{Binding RefCategory, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           MinWidth="120" Margin="0,0,5,0"
                                                                                                           Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
-                                                                                                          ToolTip="Category of the descriptor this condition checks. Cycle-inducing choices are pre-filtered out."/>
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionRefCategory"/>
                                                                                                 <ComboBox ItemsSource="{Binding AvailableRefValues}"
                                                                                                           SelectedItem="{Binding RefValue, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           MinWidth="140" Margin="0,0,5,0"
                                                                                                           Visibility="{Binding IsDescriptorRefKind, Converter={StaticResource BoolToVis}}"
-                                                                                                          ToolTip="Value of the descriptor this condition checks. Filtered by Category and by cycle-safety."/>
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionRefValue"/>
 
                                                                                                 <!-- Live readout for the currently-previewed preset: measurement value (Measurement
                                                                                                      kind) or Match/Not Match (DescriptorRef, honoring NOT). Green = the preset satisfies
                                                                                                      this condition, red = it doesn't, gray = no preset loaded / value unresolved. -->
                                                                                                 <TextBlock Text="{Binding ConditionReadout}" VerticalAlignment="Center"
                                                                                                            FontWeight="Bold" MinWidth="55" Margin="4,0,8,0"
-                                                                                                           ToolTip="Value of this condition for the preset currently loaded in the viewer. Green = the preset satisfies the condition; red = it doesn't.">
+                                                                                                           local:DocTooltip.Key="BodyTypeProfiles.ConditionReadout">
                                                                                                     <TextBlock.Style>
                                                                                                         <Style TargetType="TextBlock">
                                                                                                             <Setter Property="Foreground" Value="Gray"/>
@@ -1250,18 +1250,18 @@
                                             <ComboBox Width="220" VerticalAlignment="Center"
                                                       ItemsSource="{Binding RuleNodeSortOptions}"
                                                       SelectedItem="{Binding SelectedRuleNodeSortOption}"
-                                                      ToolTip="Sort the list below. 'Name' uses the default Gender/Preset/Weight order; pick a measurement to rank slices by that metric's cached value (highest first). Metrics referenced by this node's rules are listed first."/>
+                                                      local:DocTooltip.Key="BodyTypeProfiles.RuleNodeSort"/>
                                             <!-- Mirrors the Match Presets "Show Measurements" toggle: draws every
                                                  measurement referenced by the in-view rule(s) in the viewer overlay. -->
                                             <CheckBox Content="Show Measurements" IsChecked="{Binding ShowRuleNodeMeasurements}"
                                                       VerticalAlignment="Center" Margin="20,0,0,0"
-                                                      ToolTip="When on, every measurement referenced by the rules for the selected node (or the rule being temp-edited) is drawn in the viewer, same overlay as the Measurements tab. Updates as you change node or edit conditions. While on, this overrides any selection in the Measurements tab; unchecking restores it."/>
+                                                      local:DocTooltip.Key="BodyTypeProfiles.RuleNodeShowMeasurements"/>
                                         </StackPanel>
                                         <ListBox ItemsSource="{Binding SelectedNodeMatchingPresets}"
                                                  SelectedItem="{Binding SelectedNodeMatchRow}"
                                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                                  HorizontalContentAlignment="Stretch"
-                                                 ToolTip="Click a row to load that (preset, weight) slice in the viewer. Arrow keys auto-preview each row, same as the Match Presets tab.">
+                                                 local:DocTooltip.Key="BodyTypeProfiles.RuleNodeMatchList">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_RuleNodeMatchRow}">
                                                     <StackPanel Margin="2">
@@ -1430,7 +1430,7 @@
                                         <CheckBox Content="Verbose Scan"
                                                   IsChecked="{Binding DataContext.VerboseScan, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   VerticalAlignment="Center" Margin="0,0,10,5"
-                                                  ToolTip="Emit diagnostic lines (target count, viewer/key-vertex/fingerprint shape comparison, first-iteration measurement snapshot, first-vs-last identity check, and summary) to the Status Log when scanning. Off by default; enable when investigating why a scan returns zero matches."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.VerboseScan"/>
                                         <Button Content="Cancel"
                                                 Command="{Binding DataContext.CancelScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 Padding="6,2" Margin="0,0,10,5"/>
@@ -1454,11 +1454,11 @@
                                              preserved unless purged separately. -->
                                         <TextBlock Text="{Binding DataContext.CacheStatusSummary, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                    Foreground="#80C080" FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,8,5"
-                                                   ToolTip="Number of (preset, gender, weight) entries persisted to disk for the active body-type snapshot. The on-disk cache lets a session start without rescanning every preset; entries are invalidated automatically when a preset's sliders change or when a measurement definition / key vertex is edited."/>
+                                                   local:DocTooltip.Key="BodyTypeProfiles.CacheStatus"/>
                                         <Button Content="Purge"
                                                 Command="{Binding DataContext.PurgeCacheForActiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 Padding="6,1" VerticalAlignment="Center" Margin="0,0,0,5"
-                                                ToolTip="Delete the cached measurements for this profile's active body type (current BodyTypeName). Other body-type snapshots in this profile's cache file are preserved. A subsequent scan rescans from scratch."/>
+                                                local:DocTooltip.Key="BodyTypeProfiles.PurgeCache"/>
                                     </WrapPanel>
 
                                     <!-- Bottom toolbar row: view toggles + sort selector. Also WrapPanel so the
@@ -1474,7 +1474,7 @@
                                         <CheckBox Content="Show Measurements"
                                                   IsChecked="{Binding DataContext.ShowMatchPresetMeasurements, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   VerticalAlignment="Center" Margin="0,0,20,5"
-                                                  ToolTip="When on, every measurement referenced by any rule whose descriptor is currently checked above is drawn in the viewer (yellow/cyan, same overlay the Measurements tab uses). Updates as the filter selection changes. While on, this overrides any selection in the Measurements tab; unchecking restores the Measurements-tab selection."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchShowMeasurements"/>
                                         <!-- Match-strength sort selector. Only meaningful when exactly one
                                              descriptor value is selected in the filter above; otherwise the
                                              list falls back to the default (Gender, Preset, Weight) order
@@ -1487,7 +1487,7 @@
                                                   SelectedValuePath="Value"
                                                   DisplayMemberPath="Label"
                                                   SelectedValue="{Binding DataContext.ScoreSortMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  ToolTip="Active only when exactly one descriptor value is selected in the filter. Match-strength sorts score each row against the filter's own rule; Similarity-to sorts score against a sibling value picked from the second dropdown (e.g., filter Shape:Hourglass + similarity to Rectangle to see Hourglass-tagged presets ranked by how close they are to also matching Rectangle). σ-normalized reads as 'N standard deviations past the line'; % of threshold reads as 'N% past the threshold.' Both pick the OR-group with the most slack per row and use its tightest condition (min margin) as the row's score."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchSortMode"/>
                                         <!-- Target picker for the Similarity sort modes. Visibility binds to the
                                              editor's IsSimilarityScoreMode flag (recomputed on ScoreSortMode change).
                                              When hidden, the bound SimilarityTarget stays put so re-entering a
@@ -1498,7 +1498,7 @@
                                                   ItemsSource="{Binding DataContext.SimilarityTargetOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedItem="{Binding DataContext.SimilarityTarget, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsSimilarityScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                                                  ToolTip="Sibling descriptor value to measure similarity against. Populated with every value in the filter's category that has at least one rule, minus the filter's own selected value (comparing to self would just reproduce the Match-strength sort)."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchSimilarityTarget"/>
                                         <!-- Measurement picker for the MeasurementValue sort mode. Shares the row
                                              with the Similarity "vs:" picker but bound to its own visibility flag,
                                              so the two never appear at once (their sort modes are mutually
@@ -1511,7 +1511,7 @@
                                                   ItemsSource="{Binding DataContext.MeasurementValueOptions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   SelectedItem="{Binding DataContext.SelectedMeasurementForSort, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   Visibility="{Binding DataContext.IsMeasurementValueScoreMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"
-                                                  ToolTip="Measurement (or RatioDistance) whose cached value each row is sorted by, descending. Independent of the descriptor filter — every (preset, weight) that survives the filter is ranked as long as its cache entry contains a value for this measurement. The row's badge shows the per-row value."/>
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchSortMeasurement"/>
 
                                         <!-- Name-substring filter. Layered ON TOP of the descriptor + weight
                                              filters + sort: shows only rows whose PresetLabel contains the
@@ -1522,7 +1522,7 @@
                                         <TextBlock Text="Filter:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"/>
                                         <TextBox Width="200" VerticalAlignment="Center" Margin="0,0,10,5"
                                                  Text="{Binding DataContext.MatchPresetNameFilter, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Case-insensitive substring filter applied to preset names in the list below, on top of the descriptor + weight + sort filters. Empty = show all surviving rows. Updates the list as you type."/>
+                                                 local:DocTooltip.Key="BodyTypeProfiles.MatchNameFilter"/>
                                     </WrapPanel>
 
                                     <ListBox Grid.Row="5"
@@ -1530,7 +1530,7 @@
                                              SelectedItem="{Binding DataContext.SelectedMatchRow, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                                              HorizontalContentAlignment="Stretch"
-                                             ToolTip="Arrow keys navigate (and auto-preview) each matching (preset, weight) row.">
+                                             local:DocTooltip.Key="BodyTypeProfiles.MatchResultsList">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:VM_PresetScanRow}">
                                                 <StackPanel Margin="2">

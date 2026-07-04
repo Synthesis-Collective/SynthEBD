@@ -27,7 +27,7 @@
                           VerticalAlignment="Stretch" Background="#333333"
                           ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
                           ShowsPreview="True"
-                          ToolTip="Drag to resize the preview viewer"/>
+                          local:DocTooltip.Key="BodyGenEditor.PreviewPaneSplitter"/>
 
             <!-- Live 3D preview of the current BodyGen template. The CharacterViewer is
                  owned by the parent VM_BodyGenTemplateMenu (shared across template
@@ -35,8 +35,7 @@
             <DockPanel Grid.Column="2" Margin="5 0 0 0">
                 <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0 0 0 5">
                     <TextBlock Foreground="LightGray" Margin="0 0 0 2"
-                               ToolTip="Preview weight — scrubs between the Low and High ends of spec ranges. Single-value specs are unaffected."
-                               ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+                               local:DocTooltip.Key="BodyGenEditor.PreviewWeight">
                         <Run Text="Preview Weight:"/>
                         <Run Text="{Binding PreviewWeight, UpdateSourceTrigger=PropertyChanged}"/>
                     </TextBlock>
@@ -80,16 +79,16 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding Path=StatusHeader, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
                 <TextBlock Background="Black" Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=StatusText, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
                 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Name of this BodyGen Morph" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.MorphName">Name</TextBlock>
                 <TextBox Grid.Row="1" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Additional information about this morph (not used by patcher)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Notes</TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.Notes">Notes</TextBlock>
                 <TextBox Grid.Row="2" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Notes, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Body scaling defined by the current morph" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Morph</TextBlock>
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="BodyGenEditor.Specs">Morph</TextBlock>
                 <TextBox Grid.Row="3" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Specs, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"></TextBox>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Morph Groups to which this morph belongs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Belongs to Groups</TextBlock>
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="BodyGenEditor.MemberOfGroups">Belongs to Groups</TextBlock>
                 <ContentPresenter Grid.Row="4" Grid.Column="2"  Content="{Binding GroupSelectionCheckList}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_CollectionMemberStringCheckboxList}">
@@ -98,7 +97,7 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" ToolTip="Descriptors that describe this morph" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Descriptors</TextBlock>
+                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="BodyGenEditor.Descriptors">Descriptors</TextBlock>
                 <ContentPresenter Grid.Row="5" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
@@ -107,10 +106,10 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this morph can be assigned (blank = any)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Races</TextBlock>
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.AllowedRaces">Allowed Races</TextBlock>
                 <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="6" Grid.Column="2" MinWidth="150" FormKeys="{Binding AllowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Race groupings to which this morph can be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed Race Groupings</TextBlock>
+                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.AllowedRaceGroupings">Allowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="7" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
@@ -119,10 +118,10 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races to which this morph may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Races</TextBlock>
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.DisallowedRaces">Disallowed Races</TextBlock>
                 <local:UC_NamedFormKeyMultiPicker MaxHeight="500" Grid.Row="8" Grid.Column="2" MinWidth="150" FormKeys="{Binding DisallowedRaces}" LinkCache="{Binding lk}" ScopedTypes="{Binding RacePickerFormKeys}" />
 
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Races groupings to which this morph may not be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed Race Groupings</TextBlock>
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.DisallowedRaceGroupings">Disallowed Race Groupings</TextBlock>
                 <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
@@ -131,7 +130,7 @@
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
-                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must possess for this morph to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Attributes</TextBlock>
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.AllowedAttributes">Allowed NPC Attributes</TextBlock>
                 <Button Grid.Row="10" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
 
                 <ItemsControl Grid.Row="9" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
@@ -143,7 +142,7 @@
                 </ItemsControl>
 
 
-                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" ToolTip="Attributes that an NPC must not possess for this morph to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Disallowed NPC Attributes</TextBlock>
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.DisallowedAttributes">Disallowed NPC Attributes</TextBlock>
                 <Button Grid.Row="11" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
                 <ItemsControl Grid.Row="11" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
@@ -153,26 +152,26 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" ToolTip="Minimum and maximum weight (inclusive) that an NPC may have for this morph to be assigned" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allowed NPC Weight Range</TextBlock>
+                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.WeightRange">Allowed NPC Weight Range</TextBlock>
                 <StackPanel Grid.Row="12" Grid.Column="2" Orientation="Horizontal">
                     <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Lower}"/>
                     <TextBlock Text="to" Margin="15 0 15 0" VerticalAlignment="Center"/>
                     <TextBox MinWidth="50" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=WeightRange.Upper}"/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to distribute this morph to NPCs other than those specified by Specific NPC Assignments or ForceIf attributes" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribute to non-forced NPCs</TextBlock>
+                <TextBlock Grid.Row="13" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.AllowRandom">Distribute to non-forced NPCs</TextBlock>
                 <CheckBox Grid.Row="13" Grid.Column="2" IsChecked="{Binding Path=bAllowRandom, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this morph to unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Unique NPCs</TextBlock>
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.AllowUnique">Allow Unique NPCs</TextBlock>
                 <CheckBox Grid.Row="14" Grid.Column="2" IsChecked="{Binding Path=bAllowUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Allow patcher to assign this morph to non-unique NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Allow Non-Unique NPCs</TextBlock>
+                <TextBlock Grid.Row="15" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.AllowNonUnique">Allow Non-Unique NPCs</TextBlock>
                 <CheckBox Grid.Row="15" Grid.Column="2" IsChecked="{Binding Path=bAllowNonUnique, Mode=TwoWay}"></CheckBox>
 
-                <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Probabiility of the patcher assigning this morph relative to other eligible morphs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Distribution Probability Weighting</TextBlock>
+                <TextBlock Grid.Row="16" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.ProbabilityWeighting">Distribution Probability Weighting</TextBlock>
                 <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
 
-                <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" ToolTip="Per-attribute multipliers on this morph's selection probability. When an NPC matches a modifier's attribute, this morph's probability is scaled by that modifier's factor (multiple matches multiply)." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Probability Modifiers</TextBlock>
+                <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.ProbabilityModifiers">Probability Modifiers</TextBlock>
                 <Button Grid.Row="17" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="Lightgreen">Add New</Button>
                 <ItemsControl Grid.Row="17" Grid.Column="2" ItemsSource="{Binding ProbabilityWeightModifiers}" BorderThickness="1" BorderBrush="#5844b4">
                     <ItemsControl.ItemTemplate>
@@ -182,7 +181,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" ToolTip="Other morphs that must be assigned along with this morph" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Required Templates</TextBlock>
+                <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.RequiredTemplates">Required Templates</TextBlock>
                 <Button Grid.Row="18" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddRequiredTemplate}" Foreground="Lightgreen">Add New</Button>
                 <ListBox Grid.Row="18" Grid.Column="2" ItemsSource="{Binding RequiredTemplates}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
                     <ListBox.ItemTemplate>

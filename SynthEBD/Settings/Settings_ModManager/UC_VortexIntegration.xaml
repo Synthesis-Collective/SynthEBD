@@ -22,11 +22,11 @@
             <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Staging Folder" VerticalAlignment="Center" ToolTip="Full directory path of your Vortex Staging Folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="Mod Staging Folder" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.VortexStagingFolder"/>
         <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindStagingFolder}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding StagingFolderPath}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="FilePath Length Limit" VerticalAlignment="Center" ToolTip="Maximum file path of an installed asset before path shortening functionality is triggered" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="FilePath Length Limit" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.FilePathLimit"/>
         <xctk:IntegerUpDown Grid.Row="2" Grid.Column="2" Value="{Binding FilePathLimit}" Foreground="{DynamicResource PrimaryForeground}" MinWidth="25"/>
     </Grid>
 </UserControl>

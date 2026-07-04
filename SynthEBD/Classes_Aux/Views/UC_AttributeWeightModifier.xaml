@@ -29,7 +29,7 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10 0 0 0">
             <TextBlock Text="&#215; " VerticalAlignment="Center" Foreground="White"/>
             <xctk:DoubleUpDown Width="70" Minimum="0" Increment="0.1" Value="{Binding Factor}" Foreground="White"
-                               ToolTip="Probability multiplier applied when an NPC matches this condition"/>
+                               local:DocTooltip.Key="Subgroup.ProbabilityModifierFactor"/>
         </StackPanel>
 
         <Button Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10 0 0 0"

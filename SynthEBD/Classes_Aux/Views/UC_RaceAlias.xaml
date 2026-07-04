@@ -26,7 +26,7 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Column="0" Grid.Row="0" ToolTip="Treat this race as if it were the Alias Race" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Race</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="0" local:DocTooltip.Key="General.RaceAliasRace">Race</TextBlock>
             <local:UC_NamedFormKeyPicker x:Name="RaceFormKeyPicker" Grid.Column="1" Grid.Row="0" FormKey="{Binding Race}" LinkCache="{Binding lk}" ScopedTypes="{Binding FormKeyPickerTypes}"/> <!-- Needs something like "{Binding Path=Race}"  -->
 
             <TextBlock Grid.Column="0" Grid.Row="1">Alias Race</TextBlock>

@@ -23,7 +23,7 @@
                 <ComboBox Grid.Column="1" MinWidth="160"
                           ItemsSource="{Binding AvailableAlgorithms}"
                           SelectedItem="{Binding SelectionAlgorithm, Mode=TwoWay}"
-                          ToolTip="ANOVA: F-statistic across descriptor-value groups (default). Cohen's d: max pairwise effect size. Information Gain: best single-threshold split entropy reduction."/>
+                          local:DocTooltip.Key="BodyTypeProfiles.SuggestAlgorithm"/>
                 <Button Grid.Column="2" Content="Suggest Measurements" Command="{Binding SuggestCommand}"
                         Padding="10,2" Margin="6,0,0,0"/>
                 <Button Grid.Column="3" Content="Clear" Command="{Binding ClearCommand}"
@@ -77,7 +77,7 @@
                                                                FontFamily="Consolas" FontSize="11"/>
                                                     <Button Grid.Column="2" Content="X" Padding="4,0"
                                                             Command="{Binding RemoveCommand}"
-                                                            ToolTip="Remove this measurement from the curated list."/>
+                                                            local:DocTooltip.Key="BodyTypeProfiles.SuggestRemoveMeasurement"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

@@ -23,27 +23,27 @@
                 <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mod Page Name: " VerticalAlignment="Center" ToolTip="The name of the mod or web page where the user will download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mod Page Name: " VerticalAlignment="Center" local:DocTooltip.Key="Packager.DownloadModPageName"/>
             <Border Grid.Row="0" Grid.Column="1" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" >
                 <TextBox Text="{Binding ModPageName}"/>
             </Border>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Page URL: " VerticalAlignment="Center" ToolTip="URL where user will go to download the mod" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Page URL: " VerticalAlignment="Center" local:DocTooltip.Key="Packager.DownloadUrl"/>
             <Border Grid.Row="1" Grid.Column="1" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" >
                 <TextBox Text="{Binding URL}"/>
             </Border>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Mod Download Link Text: " VerticalAlignment="Center" ToolTip="Hyperlink text within the mod page that the user will click on to start the download" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Mod Download Link Text: " VerticalAlignment="Center" local:DocTooltip.Key="Packager.DownloadLinkText"/>
             <Border Grid.Row="2" Grid.Column="1" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" >
                 <TextBox Text="{Binding ModDownloadName}"/>
             </Border>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Expected File Name: " VerticalAlignment="Center" ToolTip="The name of the downloaded file (including extension)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Expected File Name: " VerticalAlignment="Center" local:DocTooltip.Key="Packager.DownloadExpectedFileName"/>
             <Border Grid.Row="3" Grid.Column="1" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" >
                 <TextBox Text="{Binding ExpectedFileName}"/>
             </Border>
 
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="Override Prefix" VerticalAlignment="Center" ToolTip="Prefix assigned to files from this archive (overrides main config prefix). MUST match the prefix in the Source Path(s) within the corresponding config file(s). Leave blank to use config prefix." ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" />
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Override Prefix" VerticalAlignment="Center" local:DocTooltip.Key="Packager.DownloadOverridePrefix" />
             <Border Grid.Row="4" Grid.Column="1" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" >
                 <TextBox Text="{Binding ExtractionSubPath}"/>
             </Border>

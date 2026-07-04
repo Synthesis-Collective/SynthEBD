@@ -28,7 +28,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" ToolTip="Patcher will ignore all selected NPCs" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">NPCs</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" local:DocTooltip.Key="BlockList.NPCs">NPCs</TextBlock>
         <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddBlockedNPC}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
@@ -58,7 +58,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <TextBlock Grid.Column="0" Grid.Row="3" HorizontalAlignment="Center" ToolTip="Patcher will ignore all NPCs modified by selected plugin(s)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Plugins</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="3" HorizontalAlignment="Center" local:DocTooltip.Key="BlockList.Plugins">Plugins</TextBlock>
         <Button Grid.Column="0" Grid.Row="4" Command="{Binding AddBlockedPlugin}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="5">
             <StackPanel >
@@ -88,7 +88,7 @@
             </ContentPresenter.Resources>
         </ContentPresenter>
 
-        <Button Grid.Column="0" Grid.Row="6" Command="{Binding ImportFromZEBDcommand}" Foreground="{DynamicResource ActionAccentForeground}" ToolTip="Import a Blocklist.json from zEBD" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import from zEBD</Button>
+        <Button Grid.Column="0" Grid.Row="6" Command="{Binding ImportFromZEBDcommand}" Foreground="{DynamicResource ActionAccentForeground}" local:DocTooltip.Key="BlockList.ImportFromZEBD">Import from zEBD</Button>
         <Button Grid.Column="0" Grid.Row="7" Command="{Binding Save}" Foreground="{DynamicResource ActionAccentForeground}">Save</Button>
     </Grid>
 </UserControl>

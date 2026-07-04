@@ -80,7 +80,7 @@
                 <Button VerticalAlignment="Center" Command="{Binding ClearOutputFolder}" Foreground="{DynamicResource ActionDangerForeground}">Clear</Button>
             </StackPanel>
 
-            <TextBlock Grid.Column="0" Grid.Row="2" ToolTip="Toggle visibility of helper tooltips like this one">Show Tooltips</TextBlock>
+            <TextBlock Grid.Column="0" Grid.Row="2" local:DocTooltip.Key="General.ShowTooltips">Show Tooltips</TextBlock>
             <StackPanel Grid.Column="2" Grid.Row="2" Orientation="Horizontal">
                 <CheckBox VerticalAlignment="Center" IsChecked="{Binding Path=bShowToolTips, Mode=TwoWay}"></CheckBox>
                 <TextBlock Margin="25 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="General.Theme">Theme</TextBlock>

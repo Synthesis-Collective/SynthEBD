@@ -41,21 +41,21 @@
                       SelectedValuePath="Value"
                       DisplayMemberPath="Label"
                       SelectedValue="{Binding GenderFilter}"
-                      ToolTip="Restrict the histogram to a single gender's samples. Only genders actually present in the scan cache appear here."/>
+                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementHistogram.GenderFilter"/>
 
             <TextBlock Text="Bins:" VerticalAlignment="Center" Margin="20,0,6,0" FontWeight="Bold"/>
             <Slider Width="200" VerticalAlignment="Center"
                     Minimum="1" Maximum="200"
                     Value="{Binding BinCount}"
                     TickFrequency="10" IsSnapToTickEnabled="False"
-                    ToolTip="Number of histogram bins. Drag to re-bin live; finer is better for dense distributions, coarser for small samples."/>
+                    local:DocTooltip.Key="BodyTypeProfiles.MeasurementHistogram.BinCount"/>
             <TextBlock Text="{Binding BinCount}" VerticalAlignment="Center" Margin="6,0,0,0" Width="30"/>
             <CheckBox Content="Persist" IsChecked="{Binding PersistBinCount}"
                       VerticalAlignment="Center" Margin="10,0,0,0"
-                                           ToolTip="Remember this bin count for the next histogram window. If multiple histograms are open with Persist enabled, the last one closed wins. The checkbox state itself is also sticky — closing with this on keeps it pre-checked for the next window."/>
+                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementHistogram.PersistBinCount"/>
             <Button Content="Save CSV" Command="{Binding SaveCsvCommand}"
                     VerticalAlignment="Center" Margin="10,0,0,0" Padding="8,2"
-                    ToolTip="Save the currently-displayed histogram bins (BinIndex, BinStart, BinEnd, Count) to a CSV file. Reflects the active gender filter + bin count; tweak either before saving to capture the view you want."/>
+                    local:DocTooltip.Key="BodyTypeProfiles.MeasurementHistogram.SaveCsv"/>
         </StackPanel>
 
         <!-- Row 1: pre-formatted stats line. Spans both columns. -->

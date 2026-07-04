@@ -23,7 +23,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Content="Scan All Presets" Command="{Binding ScanCommand}" Padding="10,2"
-                        ToolTip="Iterate every preset matching the profile's body type at every configured weight slot, computing measurements for the table below."/>
+                        local:DocTooltip.Key="BodySlides.AnnotationScan"/>
                 <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelScanCommand}" Padding="10,2" Margin="4,0,0,0"
                         Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                 <!-- Always-visible progress bar so the user can see scan-completion state at a
@@ -38,9 +38,8 @@
                 <TextBlock Grid.Column="3" Text="{Binding ScanStatus}" VerticalAlignment="Center" Foreground="#FFCCCCCC"/>
 
                 <!-- Weight slot flyout -->
-                <ToggleButton Grid.Column="4" x:Name="WeightSlotsBtn" Content="Weight Slots" Padding="6,2" Margin="2,0">
-                    <ToggleButton.ToolTip>Edit which weight slots the next scan will enumerate (0-100). Persisted on the profile.</ToggleButton.ToolTip>
-                </ToggleButton>
+                <ToggleButton Grid.Column="4" x:Name="WeightSlotsBtn" Content="Weight Slots" Padding="6,2" Margin="2,0"
+                              local:DocTooltip.Key="BodySlides.AnnotationWeightSlots"/>
                 <Popup Grid.Column="4" IsOpen="{Binding IsChecked, ElementName=WeightSlotsBtn, Mode=TwoWay}"
                        PlacementTarget="{Binding ElementName=WeightSlotsBtn}" StaysOpen="False"
                        AllowsTransparency="True" PopupAnimation="Fade">
@@ -51,15 +50,14 @@
                                     Content="Apply" Click="OnApplyWeightSlots" Margin="0,4,0,0" Padding="6,2"/>
                             <TextBox x:Name="WeightSlotsBox" MinWidth="160"
                                      Text="0,25,50,75,100"
-                                     ToolTip="Comma-separated list of integer weights between 0 and 100."/>
+                                     local:DocTooltip.Key="BodySlides.AnnotationWeightSlots"/>
                         </DockPanel>
                     </Border>
                 </Popup>
 
                 <!-- Column visibility flyout -->
-                <ToggleButton Grid.Column="5" x:Name="ColumnsBtn" Content="Columns" Padding="6,2" Margin="2,0">
-                    <ToggleButton.ToolTip>Toggle which measurement columns appear in the table. Persisted on the profile.</ToggleButton.ToolTip>
-                </ToggleButton>
+                <ToggleButton Grid.Column="5" x:Name="ColumnsBtn" Content="Columns" Padding="6,2" Margin="2,0"
+                              local:DocTooltip.Key="BodySlides.AnnotationColumns"/>
                 <Popup Grid.Column="5" IsOpen="{Binding IsChecked, ElementName=ColumnsBtn, Mode=TwoWay}"
                        PlacementTarget="{Binding ElementName=ColumnsBtn}" StaysOpen="False"
                        AllowsTransparency="True" PopupAnimation="Fade">
@@ -67,9 +65,9 @@
                         <DockPanel MinWidth="200">
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
                                 <Button Content="All" Padding="6,2" Margin="0,0,4,0" Click="OnShowAllColumns"
-                                        ToolTip="Show every measurement column."/>
+                                        local:DocTooltip.Key="BodySlides.AnnotationColumnsAll"/>
                                 <Button Content="None" Padding="6,2" Click="OnHideAllColumns"
-                                        ToolTip="Hide every measurement column."/>
+                                        local:DocTooltip.Key="BodySlides.AnnotationColumnsNone"/>
                             </StackPanel>
                             <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
                                 <ItemsControl ItemsSource="{Binding AllColumns}">

@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Grid.Column="0">
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickExporterMenu}" ToolTip="___" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" IsChecked="True">Export Training Set</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickExporterMenu}" local:DocTooltip.Key="BodySlides.TrainerExportMenu" IsChecked="True">Export Training Set</RadioButton>
         </StackPanel>
 
         <ContentPresenter Content="{Binding DisplayedUI}" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="10, 0, 0, 0" >

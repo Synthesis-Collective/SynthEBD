@@ -23,15 +23,15 @@
             <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Troubleshoot}"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="MO2 Executable Path" ToolTip="Full path of your MO2.exe" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" MinWidth="125" Text="MO2 Executable Path" local:DocTooltip.Key="ModManager.MO2ExecutablePath" VerticalAlignment="Center"/>
         <Button Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindExecutable}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding ExecutablePath}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Folder Path" ToolTip="Full path of your MO2 mods folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Mod Folder Path" local:DocTooltip.Key="ModManager.MO2ModFolder" VerticalAlignment="Center"/>
         <Button Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindModFolder}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0">Search</Button>
         <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding ModFolderPath}"/>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="FilePath Length Limit" VerticalAlignment="Center" ToolTip="Maximum file path of an installed asset before path shortening functionality is triggered" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="FilePath Length Limit" VerticalAlignment="Center" local:DocTooltip.Key="ModManager.FilePathLimit"/>
         <xctk:IntegerUpDown Grid.Row="2" Grid.Column="2" Value="{Binding FilePathLimit}" Foreground="{DynamicResource PrimaryForeground}" MinWidth="25"/>
     </Grid>
 </UserControl>

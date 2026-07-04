@@ -26,8 +26,7 @@
                             <Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="5,0" Content="X"
                                     Foreground="{DynamicResource ActionDangerForeground}"
                                     Click="RemoveButton_Click"
-                                    ToolTip="Remove this record"
-                                    ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                                    local:DocTooltip.Key="Pickers.Remove"/>
                             <TextBlock Text="{Binding ListString}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </DockPanel>
                     </DataTemplate>

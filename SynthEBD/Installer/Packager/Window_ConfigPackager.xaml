@@ -87,13 +87,13 @@
         </ContentPresenter>
 
         <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <TextBlock Text="Root Directory: " VerticalAlignment="Center" ToolTip="The top-level within which files will be packaged" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+            <TextBlock Text="Root Directory: " VerticalAlignment="Center" local:DocTooltip.Key="Packager.RootDirectory"/>
             <TextBlock Text="{Binding RootDirectory}" Background="{DynamicResource TextBoxBackground}" VerticalAlignment="Center"/>
             <Button VerticalAlignment="Center" Command="{Binding SetRootDirectory}" Content="Set" Foreground="{DynamicResource ActionGoodForeground}" Margin="5 0 0 0"/>
         </StackPanel>
         <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <Button Command="{Binding ExportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Export the current configuration to a Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Export</Button>
-            <Button Command="{Binding ImportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" ToolTip="Import an existing Manifest.json file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Import</Button>
+            <Button Command="{Binding ExportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" local:DocTooltip.Key="Packager.Export">Export</Button>
+            <Button Command="{Binding ImportCommand}" Foreground="{DynamicResource ActionGoodForeground}" Margin="5" local:DocTooltip.Key="Packager.Import">Import</Button>
         </StackPanel>
     </Grid>
 </Window>

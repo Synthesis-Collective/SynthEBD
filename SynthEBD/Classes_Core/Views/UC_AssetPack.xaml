@@ -36,16 +36,16 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Name of this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Name</TextBlock>
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPack.Name">Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" Name="TextBoxName" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=GroupName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="Abbreviated name (used by installer and asset replacers)" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Prefix</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPack.Prefix">Prefix</TextBlock>
         <TextBox Grid.Row="1" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=ShortName, UpdateSourceTrigger=PropertyChanged}"></TextBox>
 
         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Gender</TextBlock>
-        <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" ToolTip="Gender of NPCs to which this config file is to be applied" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+        <ComboBox Grid.Row="2" Grid.Column="1" Name="GenderComboBox" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" SelectedValue="{Binding Path=Gender, Mode=TwoWay}" local:DocTooltip.Key="AssetPack.Gender"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" ToolTip="Select if this is a Primary or Mix-In config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Type</TextBlock>
+        <TextBlock Grid.Row="3" Grid.Column="0" local:DocTooltip.Key="AssetPack.Type">Type</TextBlock>
         <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AssetPackType}}}" SelectedValue="{Binding Path=ConfigType, Mode=TwoWay}" />
 
 
@@ -131,24 +131,24 @@
             </Control.Style>
         </Control>
 
-        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" ToolTip="BodyGen Config File to be distributed along with these assets" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Associated BodyGen Configuration</TextBlock>
+        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="AssetPack.AssociatedBodyGenConfig">Associated BodyGen Configuration</TextBlock>
         <StackPanel Grid.Row="10" Grid.Column="1" Orientation="Horizontal">
             <ComboBox  ItemsSource="{Binding AvailableBodyGenConfigs}" DisplayMemberPath="Label" SelectedValue="{Binding TrackedBodyGenConfig}" MinWidth="250"/>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ClearBodyGenButton}" Foreground="FireBrick">Clear</Button>
         </StackPanel>
         
         <WrapPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" ToolTip="Check this config file for errors" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Validate</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" ToolTip="Save changes to this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Save</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" ToolTip="Discard changes to this config file and reload last saved version" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Discard Changes</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding CopyButton}" Foreground="MediumPurple" ToolTip="Copy this as a new config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Duplicate</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding MergeWithAssetPack}" Foreground="MediumPurple" ToolTip="Merge this config file with another config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Merge With</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SetDefaultTargetDestPaths}" Foreground="MediumPurple" ToolTip="Set asset destination paths for all recognized source files" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Auto-Set Destination Paths</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListDisabledSubgroupsButton}" Foreground="MediumPurple" ToolTip="List all subgroups whose distribution is currently disabled" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Disabled Subgroups</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListCustomRulesButton}" Foreground="MediumPurple" ToolTip="List all custom distribution rules for this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">List Distribution Rules</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ImportTexturesButton}" Foreground="MediumPurple" ToolTip="Attempt to import existing textures from a folder into this config file" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Draft From Mod</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemapTexturesButton}" Foreground="MediumPurple" ToolTip="Attempt to update this config file to use matching textures in a different folder" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Update From Mod</Button>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveDuplicatesButton}" Foreground="MediumPurple" ToolTip="Removes duplicate textures from config file to conserve VRAM" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">Remove Replicate Assets</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding ValidateButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.Validate">Validate</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SaveButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.Save">Save</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding DiscardButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.DiscardChanges">Discard Changes</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding CopyButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.Duplicate">Duplicate</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding MergeWithAssetPack}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.MergeWith">Merge With</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding SetDefaultTargetDestPaths}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.AutoSetDestinationPaths">Auto-Set Destination Paths</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListDisabledSubgroupsButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.ListDisabledSubgroups">List Disabled Subgroups</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ListCustomRulesButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.ListDistributionRules">List Distribution Rules</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding ImportTexturesButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.DraftFromMod">Draft From Mod</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemapTexturesButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.UpdateFromMod">Update From Mod</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveDuplicatesButton}" Foreground="MediumPurple" local:DocTooltip.Key="AssetPack.RemoveReplicateAssets">Remove Replicate Assets</Button>
             <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding RemoveAssetPackConfigFile}" Foreground="FireBrick">Delete</Button>
         </WrapPanel>
     </Grid>

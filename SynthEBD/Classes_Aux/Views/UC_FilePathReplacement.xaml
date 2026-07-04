@@ -47,7 +47,7 @@
             </Grid>
         </DockPanel>
 
-        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="3 0 3 0" Command="{Binding ToggleDestinationView}" Foreground="White" ToolTip="Edit custom destination path" ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">E</Button>
+        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="3 0 3 0" Command="{Binding ToggleDestinationView}" local:DocTooltip.Key="Subgroup.PathEditDestination">E</Button>
         
         <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding DestinationAbstractView}" IsReadOnly="True" BorderBrush="{Binding DestBorderColor}" BorderThickness="1" Visibility="{Binding ShowDestinationAbstractView, Converter={StaticResource BoolToVis}}" />
         
