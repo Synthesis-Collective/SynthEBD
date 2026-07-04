@@ -23,9 +23,9 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0">Configuration Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="MediumPurple">Save</Button>
+        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="{DynamicResource ActionAccentForeground}">Save</Button>
 
-        <Button Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="LightGreen" Margin="0 15 0 0">Add Height Group</Button>
+        <Button Grid.Row="1" Grid.Column="0"  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddHeightAssignment}" Foreground="{DynamicResource ActionGoodForeground}" Margin="0 15 0 0">Add Height Group</Button>
 
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="50 15 5 0">
             <Button  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SetAllDistModes}" Margin="0 0 10 0">Set All Distribution Modes To </Button>
@@ -41,7 +41,7 @@
 
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="#5844b4" Background="Black" Margin="2">
+                    <Border BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Background="{DynamicResource SecondaryBackground}" Margin="2">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="auto"/>

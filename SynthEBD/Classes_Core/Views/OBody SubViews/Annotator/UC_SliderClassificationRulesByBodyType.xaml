@@ -21,7 +21,7 @@
         <ListBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding SelectedDescriptor}" ItemsSource="{Binding DescriptorClassifiers}" IsSynchronizedWithCurrentItem="False" >
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="White">
+                    <Border BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
                         <TextBlock Text="{Binding DescriptorCategory}" Margin="2" HorizontalAlignment="Center"/>
                     </Border>
                 </DataTemplate>

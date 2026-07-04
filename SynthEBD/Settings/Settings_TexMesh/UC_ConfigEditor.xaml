@@ -57,7 +57,7 @@
                 </ColumnDefinition>
             </Grid.ColumnDefinitions>
 
-            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="#5844b4" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" />
+            <local:UC_AssetPresenter Grid.Row="0" Grid.Column="0" Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" DataContext="{Binding AssetPresenterPrimary}" />
             <local:UC_AssetPresenter Grid.Row="0" Grid.Column="1" Background="{DynamicResource SecondaryBackground}" BorderBrush="MediumAquamarine" BorderThickness="1" DataContext="{Binding AssetPresenterSecondary}" Margin="5 0 0 0" Visibility="{Binding Path = ParentUI.bShowSecondaryAssetPack, Converter={StaticResource BoolToVis}}" />
         </Grid>
     </Grid>

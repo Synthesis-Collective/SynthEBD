@@ -20,11 +20,11 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
-        <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorValue}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding Descriptors}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptor}">
-                    <local:UC_BodyShapeDescriptor Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_BodyShapeDescriptor Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

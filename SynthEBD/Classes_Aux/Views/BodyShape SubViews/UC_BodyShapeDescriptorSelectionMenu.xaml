@@ -26,7 +26,7 @@
 
             <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0 4 0 0">Category</TextBlock>
             <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto" x:Name="CategoryViewer">
-                <ListBox SelectedValue="{Binding CurrentlyDisplayedShell}" ItemsSource="{Binding DescriptorShells}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+                <ListBox SelectedValue="{Binding CurrentlyDisplayedShell}" ItemsSource="{Binding DescriptorShells}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel>

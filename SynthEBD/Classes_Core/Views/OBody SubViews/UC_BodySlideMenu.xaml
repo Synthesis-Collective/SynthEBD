@@ -43,7 +43,7 @@
             <CheckBox IsChecked="{Binding ShowHidden}" VerticalAlignment="Center"/>
             <TextBlock Text=" Show Hidden)" VerticalAlignment="Center"/>
         </StackPanel>
-        <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
 
         <ListBox Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
@@ -83,9 +83,9 @@
         </StackPanel>
 
         <StackPanel Grid.Row="6" Grid.Column="0" Orientation="Horizontal">
-            <Button Margin="5 0 5 0" Command="{Binding ImportAnnotations}" Foreground="MediumPurple">Import</Button>
+            <Button Margin="5 0 5 0" Command="{Binding ImportAnnotations}" Foreground="{DynamicResource ActionAccentForeground}">Import</Button>
             <TextBlock Text=" | "/>
-            <Button Margin="5 0 5 0" Command="{Binding ExportAnnotations}" Foreground="MediumPurple">Export</Button>
+            <Button Margin="5 0 5 0" Command="{Binding ExportAnnotations}" Foreground="{DynamicResource ActionAccentForeground}">Export</Button>
         </StackPanel>
 
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedBodySlide}">

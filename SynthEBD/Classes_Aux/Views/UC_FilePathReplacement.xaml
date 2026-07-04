@@ -25,7 +25,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindPath}" Foreground="Lightgreen" Margin="0 0 5 0">Search</Button>
+        <Button Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Command="{Binding FindPath}" Foreground="{DynamicResource ActionGoodForeground}" Margin="0 0 5 0">Search</Button>
         <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Source, UpdateSourceTrigger=PropertyChanged}" BorderBrush="{Binding SourceBorderColor}" BorderThickness="1" />
 
 

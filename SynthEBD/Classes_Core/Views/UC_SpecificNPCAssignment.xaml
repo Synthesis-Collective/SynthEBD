@@ -67,7 +67,7 @@
 
             <TextBlock Grid.Row="2" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
             <Grid Grid.Row="3" Grid.Column="1">
-                <TreeView Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}" MaxHeight="{Binding ActualHeight, 
+                <TreeView Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}" MaxHeight="{Binding ActualHeight, 
                             RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
                             Converter={StaticResource MaxHeightConverter},
                             ConverterParameter=.67}">
@@ -117,7 +117,7 @@
                 </TreeView>
             </Grid>
             <TextBlock Grid.Row="2" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
-            <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+            <ListBox Grid.Row="3" Grid.Column="3" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
@@ -141,7 +141,7 @@
 
             <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                 <TextBlock local:DocTooltip.Key="SpecificAssignments.ForcedAssetReplacers">Forced Asset Replacers</TextBlock>
-                <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen">Add</Button>
+                <Button VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="{DynamicResource ActionGoodForeground}">Add</Button>
             </StackPanel>
             <ListBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                 <ListBox.ItemTemplate>
@@ -153,7 +153,7 @@
 
             <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
                 <TextBlock local:DocTooltip.Key="SpecificAssignments.ForcedMixIns">Forced MixIns</TextBlock>
-                <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="LightGreen">Add</Button>
+                <Button HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalAlignment="Top" Margin="47 0 0 0" Command="{Binding AddForcedMixIn}" Foreground="{DynamicResource ActionGoodForeground}">Add</Button>
             </StackPanel>
             <ItemsControl Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="4" Margin="0 10 0 0" ItemsSource="{Binding ForcedMixIns}">
                 <ItemsControl.ItemsPanel>
@@ -164,7 +164,7 @@
 
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="MediumPurple" BorderThickness="1">
+                        <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -189,7 +189,7 @@
 
                                 <!--Subgroup List -->
                                 <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" local:DocTooltip.Key="SpecificAssignments.ForcedMixInSubgroups" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Available</TextBlock>
-                                <TreeView Grid.Row="3" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                                <TreeView Grid.Row="3" Grid.Column="0" Name="TVsubgroups"  ItemsSource ="{Binding AvailableSubgroups}" dd:DragDrop.IsDragSource="True" dd:DragDrop.DragDropCopyKeyState="LeftMouseButton" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                                     <TreeView.Resources>
                                         <Style TargetType="TreeViewItem">
                                             <Setter Property="FontFamily" Value="{Binding RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}, Path=(TextElement.FontFamily)}"/>
@@ -243,7 +243,7 @@
                                 </WrapPanel>
 
                                 <TextBlock Grid.Row="2" Grid.Column="2" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Selected</TextBlock>
-                                <ListBox Grid.Row="3" Grid.Column="2" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
+                                <ListBox Grid.Row="3" Grid.Column="2" ItemsSource="{Binding ForcedSubgroups}" IsSynchronizedWithCurrentItem="True" dd:DragDrop.IsDropTarget="True" MinHeight="30" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
@@ -267,7 +267,7 @@
                                 <!-- End Subgroup List-->
 
                                 <TextBlock Grid.Row="5" Grid.Column="0" local:DocTooltip.Key="SpecificAssignments.MixInAssetReplacers" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">MixIn Asset Replacers</TextBlock>
-                                <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="LightGreen" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Add</Button>
+                                <Button Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Command="{Binding AddForcedReplacer}" Foreground="{DynamicResource ActionGoodForeground}" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">Add</Button>
 
                                 <ListBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding ForcedAssetReplacements}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding Path = ShowSubgroupAssignments, Converter={StaticResource BoolToVis}}">
                                     <ListBox.ItemTemplate>
@@ -288,9 +288,9 @@
             </Expander>
             <StackPanel Grid.Row="6" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal">
                 <TextBlock Text="Sync " VerticalAlignment="Top"/>
-                <Button Command="{Binding SyncThisAssetOrder}" VerticalAlignment="Top" Content="this"  Foreground="MediumPurple" Margin="0 1 0 0" local:DocTooltip.Key="SpecificAssignments.SyncThisAssetOrder"/>
+                <Button Command="{Binding SyncThisAssetOrder}" VerticalAlignment="Top" Content="this"  Foreground="{DynamicResource ActionAccentForeground}" Margin="0 1 0 0" local:DocTooltip.Key="SpecificAssignments.SyncThisAssetOrder"/>
                 <TextBlock Text=" | " VerticalAlignment="Top"/>
-                <Button Command="{Binding SyncAllAssetOrders}" Content="all" Foreground="MediumPurple" VerticalAlignment="Top" Margin="0 1 0 0" local:DocTooltip.Key="SpecificAssignments.SyncAllAssetOrders"/>
+                <Button Command="{Binding SyncAllAssetOrders}" Content="all" Foreground="{DynamicResource ActionAccentForeground}" VerticalAlignment="Top" Margin="0 1 0 0" local:DocTooltip.Key="SpecificAssignments.SyncAllAssetOrders"/>
                 <TextBlock Text=" ordering to main" VerticalAlignment="Top"/>
             </StackPanel>
 
@@ -304,13 +304,13 @@
 
             <TextBlock Grid.Row="8" Grid.Column="1" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Available</TextBlock>
 
-        <ListBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
+        <ListBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding AvailableMorphs}" DisplayMemberPath="Label" IsSynchronizedWithCurrentItem="True"  dd:DragDrop.IsDragSource="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
                         RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
                         Converter={StaticResource MaxHeightConverter},
                         ConverterParameter=.3}"/>
 
             <TextBlock Grid.Row="8" Grid.Column="3" Margin="0 0 15 0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}">Selected</TextBlock>
-        <ListBox Grid.Row="9" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="#5844b4" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
+        <ListBox Grid.Row="9" Grid.Column="3" ItemsSource="{Binding ForcedBodyGenMorphs}"  dd:DragDrop.IsDropTarget="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Visibility="{Binding SubscribedGeneralSettings.BodySelectionMode, Converter={StaticResource BGVisibilityConverter}}" MaxHeight="{Binding ActualHeight, 
                         RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, 
                         Converter={StaticResource MaxHeightConverter},
                         ConverterParameter=.3}">
@@ -355,11 +355,11 @@
 
         <!-- GridSplitter between assignment controls and 3D viewer -->
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                      Background="#FF444444" Cursor="SizeWE"
+                      Background="{DynamicResource BorderBrush}" Cursor="SizeWE"
                       Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_SpecificNPCAssignmentsUI}}, Converter={StaticResource BoolToVis}}"/>
 
         <!-- Column 2: 3D Character Viewer -->
-        <Border Grid.Column="2" BorderBrush="#5844b4" BorderThickness="1 0 0 0"
+        <Border Grid.Column="2" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1 0 0 0"
                 Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_SpecificNPCAssignmentsUI}}, Converter={StaticResource BoolToVis}}">
             <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
         </Border>

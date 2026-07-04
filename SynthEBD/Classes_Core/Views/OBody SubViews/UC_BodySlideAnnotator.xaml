@@ -22,7 +22,7 @@
         <ListBox Grid.Row="0" Grid.Column="0" SelectedValue="{Binding DisplayedRuleSet}" ItemsSource="{Binding AnnotationRules}" IsSynchronizedWithCurrentItem="False" >
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="White">
+                    <Border BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
                         <TextBlock Text="{Binding BodyTypeGroup}" Margin="2" HorizontalAlignment="Center"/>
                     </Border>
                 </DataTemplate>
@@ -30,7 +30,7 @@
         </ListBox>
 
         <Button Grid.Row="1" Grid.Column="0" Content="Re-Annotate Selected" Foreground="Purple" Command="{Binding DisplayedRuleSet.ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
-        <Button Grid.Row="2" Grid.Column="0" Content="Re-Annotate All" Foreground="MediumPurple" Command="{Binding ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
+        <Button Grid.Row="2" Grid.Column="0" Content="Re-Annotate All" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
 
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Content="{Binding DisplayedRuleSet}" Margin="5 0 0 0">
             <ContentPresenter.Resources>

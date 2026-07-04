@@ -40,7 +40,7 @@
         <ContentPresenter Grid.Row="3" Grid.Column="3"  Content="{Binding AllowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
-                    <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_RaceGroupingCheckboxList Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
@@ -52,29 +52,29 @@
         <ContentPresenter Grid.Row="5" Grid.Column="1"  Content="{Binding DisallowedRaceGroupings}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
-                    <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_RaceGroupingCheckboxList Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
 
         <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="Logging.AllowedAttributes">Allowed NPC Attributes</TextBlock>
-        <Button Grid.Row="6" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="6" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
 
-        <ItemsControl Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <ItemsControl Grid.Row="6" Grid.Column="1" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
 
         <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="Logging.DisallowedAttributes">Disallowed NPC Attributes</TextBlock>
-        <Button Grid.Row="7" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
-        <ItemsControl Grid.Row="7" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <Button Grid.Row="7" Grid.Column="0" Width="75" Height="20" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+        <ItemsControl Grid.Row="7" Grid.Column="1" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

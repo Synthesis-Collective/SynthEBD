@@ -84,7 +84,7 @@
 
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="MediumPurple" BorderThickness="1">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding AssetPackName}" local:DocTooltip.Key="Consistency.MixInName"/>
@@ -137,7 +137,7 @@
 
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="MediumPurple" BorderThickness="1">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Replacer: "/>
@@ -182,7 +182,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 10 0 0">Head Parts</TextBlock>
-        <ItemsControl Grid.Row="8" Grid.Column="2" ItemsSource="{Binding HeadParts}" Margin="0 10 0 0" BorderThickness="1" BorderBrush="MediumPurple">
+        <ItemsControl Grid.Row="8" Grid.Column="2" ItemsSource="{Binding HeadParts}" Margin="0 10 0 0" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                     <StackPanel/>
@@ -206,11 +206,11 @@
 
         <!-- GridSplitter between assignment controls and 3D viewer -->
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                      Background="#FF444444" Cursor="SizeWE"
+                      Background="{DynamicResource BorderBrush}" Cursor="SizeWE"
                       Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_ConsistencyUI}}, Converter={StaticResource BoolToVis}}"/>
 
         <!-- Column 2: 3D Character Viewer -->
-        <Border Grid.Column="2" BorderBrush="#5844b4" BorderThickness="1 0 0 0"
+        <Border Grid.Column="2" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1 0 0 0"
                 Visibility="{Binding DataContext.Show3DPreview, RelativeSource={RelativeSource AncestorType={x:Type local:UC_ConsistencyUI}}, Converter={StaticResource BoolToVis}}">
             <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
         </Border>

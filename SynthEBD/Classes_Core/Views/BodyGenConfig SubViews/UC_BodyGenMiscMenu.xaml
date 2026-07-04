@@ -16,6 +16,6 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         
-        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 10 0 0" Foreground="LightGreen">Set RaceMenu INI to enable BodyGen</Button>
+        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 10 0 0" Foreground="{DynamicResource ActionGoodForeground}">Set RaceMenu INI to enable BodyGen</Button>
     </Grid>
 </UserControl>

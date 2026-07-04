@@ -20,15 +20,15 @@
         <ItemsControl Grid.Column="0" ItemsSource="{Binding AttributeContainer}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 5"/>
+                    <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 5"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
         <!-- The multiplicative factor. -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10 0 0 0">
-            <TextBlock Text="&#215; " VerticalAlignment="Center" Foreground="White"/>
-            <xctk:DoubleUpDown Width="70" Minimum="0" Increment="0.1" Value="{Binding Factor}" Foreground="White"
+            <TextBlock Text="&#215; " VerticalAlignment="Center"/>
+            <xctk:DoubleUpDown Width="70" Minimum="0" Increment="0.1" Value="{Binding Factor}"
                                local:DocTooltip.Key="Subgroup.ProbabilityModifierFactor"/>
         </StackPanel>
 

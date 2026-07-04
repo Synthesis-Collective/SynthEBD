@@ -26,7 +26,7 @@
         </Grid.RowDefinitions>
 
         <ScrollViewer Grid.Row="0" Grid.Column="0" MaxHeight="175">
-            <ListBox SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:NPCAttributeType}}}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox SelectedValue="{Binding Type}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:NPCAttributeType}}}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                 <i:Interaction.Triggers>
                     <i:EventTrigger EventName="SelectionChanged">
                         <i:InvokeCommandAction Command="{Binding ChangeType}" />
@@ -84,13 +84,13 @@
             </StackPanel>
             <StackPanel  Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Stretch" Visibility="{Binding Path=DisplayForceIfWeight, Converter={StaticResource BoolToVis}}">
                 <TextBlock VerticalAlignment="Center" Text="Weight"/>
-                <xctk:IntegerUpDown Value="{Binding ForceIfWeight}" Foreground="White" MinWidth="25" Margin="10 0 0 0"/>
+                <xctk:IntegerUpDown Value="{Binding ForceIfWeight}" MinWidth="25" Margin="10 0 0 0"/>
             </StackPanel>
             <StackPanel VerticalAlignment="Top" Orientation="Horizontal">
                 <TextBlock Text="Not"/>
                 <CheckBox IsChecked="{Binding Not}" Margin="5 0 0 0"/>
             </StackPanel>
         </StackPanel>
-        <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}" Foreground="Lightgreen">AND</Button>
+        <Button Grid.Row="1" Grid.Column="1" Width="75" Height="20" VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddAdditionalSubAttributeToParent}" Foreground="{DynamicResource ActionGoodForeground}">AND</Button>
     </Grid>
 </UserControl>

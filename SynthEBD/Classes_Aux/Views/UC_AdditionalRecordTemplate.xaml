@@ -30,7 +30,7 @@
 
         <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="0">
             <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top">Additional Races Paths</TextBlock>
-            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
+            <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRacesPath}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         </StackPanel>
         <ItemsControl Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding AdditionalRacesPaths}" BorderThickness="1" BorderBrush="DarkViolet">
             <ItemsControl.ItemTemplate>

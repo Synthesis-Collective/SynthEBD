@@ -31,7 +31,7 @@
                         <Border BorderThickness="1" BorderBrush="Yellow" Margin="0 0 10 0">
                             <local:UC_AndGatedSliderRuleGroup />
                         </Border>
-                        <Button Grid.Row="2" Grid.Column="0" Content="OR" Foreground="MediumPurple" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.AddNewRuleSet}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                        <Button Grid.Row="2" Grid.Column="0" Content="OR" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Path=DataContext.AddNewRuleSet}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                     </StackPanel>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

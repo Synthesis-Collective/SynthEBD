@@ -24,7 +24,7 @@
             <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="3 0 0 0"/>
         </StackPanel>
         
-        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddTemplate}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddTemplate}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
                 <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
@@ -63,7 +63,7 @@
                 </ListBox>
             </StackPanel>
         </ScrollViewer>
-        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportBodyGen}" Foreground="MediumPurple">Import Templates.ini</Button>
+        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportBodyGen}" Foreground="{DynamicResource ActionAccentForeground}">Import Templates.ini</Button>
         
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Content="{Binding CurrentlyDisplayedTemplate}">
             <ContentPresenter.Resources>

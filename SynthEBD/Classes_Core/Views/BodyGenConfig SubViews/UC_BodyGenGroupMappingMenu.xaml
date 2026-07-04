@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Grouping</TextBlock>
-        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddMapping}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddMapping}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
                 <ListBox SelectedValue="{Binding DisplayedMapping}" ItemsSource="{Binding RacialTemplateGroupMap}" IsSynchronizedWithCurrentItem="True" >
@@ -60,7 +60,7 @@
         <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Margin="5" Content="{Binding DisplayedMapping}">
             <ContentPresenter.Resources>
                 <DataTemplate DataType="{x:Type local:VM_BodyGenRacialMapping}">
-                    <local:UC_BodyGenRacialMapping BorderThickness="1" BorderBrush="MediumPurple"/>
+                    <local:UC_BodyGenRacialMapping BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"/>
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>

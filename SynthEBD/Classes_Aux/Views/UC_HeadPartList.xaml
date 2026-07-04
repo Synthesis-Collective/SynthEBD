@@ -97,11 +97,11 @@
             <local:UC_CharacterViewer Grid.Row="0"
                                       DataContext="{Binding CharacterViewer}"
                                       MinHeight="400"/>
-            <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 4">
+            <Border Grid.Row="1" Background="{DynamicResource SecondaryBackground}" Padding="6 4">
                 <StackPanel Orientation="Vertical">
                     <DockPanel LastChildFill="True" Margin="0 0 0 3">
-                        <TextBlock Text="Preview NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0 0 5 0"/>
-                        <CheckBox DockPanel.Dock="Right" Content="Lock NPC" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="5 0 0 0"
+                        <TextBlock Text="Preview NPC:" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                        <CheckBox DockPanel.Dock="Right" Content="Lock NPC" VerticalAlignment="Center" Margin="5 0 0 0"
                                   IsChecked="{Binding LockPreviewNpc, Mode=TwoWay}"
                                   local:DocTooltip.Key="HeadParts.LockPreviewNpc"/>
                         <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>

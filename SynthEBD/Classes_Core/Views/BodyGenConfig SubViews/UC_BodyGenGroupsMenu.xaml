@@ -9,7 +9,7 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <StackPanel>
-            <Button Command="{Binding AddTemplateGroup}" HorizontalAlignment="Left" Foreground="Lightgreen">Add New</Button>
+            <Button Command="{Binding AddTemplateGroup}" HorizontalAlignment="Left" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
             <ListBox ItemsSource="{Binding TemplateGroups}" IsSynchronizedWithCurrentItem="True">
                 <ListBox.ItemTemplate>
                     <DataTemplate>

@@ -30,7 +30,7 @@
             <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="3 0 0 0"/>
         </StackPanel>
         
-        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2">
             <StackPanel >
                 <ListBox SelectedValue="{Binding DisplayedGroup}" ItemsSource="{Binding Groups}" IsSynchronizedWithCurrentItem="True" >
@@ -67,7 +67,7 @@
                 </ListBox>
             </StackPanel>
         </ScrollViewer>
-        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportAttributeGroups}" Foreground="Lightgreen" Visibility="{Binding ShowImportFromGeneralOption, Converter={StaticResource BoolToVis}}">Import from General Settings</Button>
+        <Button Grid.Column="0" Grid.Row="3" Command="{Binding ImportAttributeGroups}" Foreground="{DynamicResource ActionGoodForeground}" Visibility="{Binding ShowImportFromGeneralOption, Converter={StaticResource BoolToVis}}">Import from General Settings</Button>
 
         <ScrollViewer Grid.Row="0" Grid.Column="1" Grid.RowSpan="4">
             <ContentPresenter Content="{Binding DisplayedGroup}">

@@ -13,12 +13,12 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Button Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Center" Command="{Binding AddAttribute}" Foreground="Lightgreen">Add Attribute To Group</Button>
+        <Button Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Center" Command="{Binding AddAttribute}" Foreground="{DynamicResource ActionGoodForeground}">Add Attribute To Group</Button>
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Attributes}" BorderThickness="1" BorderBrush="#5844b4">
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Attributes}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                    <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl> 

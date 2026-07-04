@@ -37,13 +37,13 @@
 
         <DockPanel HorizontalAlignment="Stretch" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" >
             <TextBlock Text="Select Asset Pack To Edit" VerticalAlignment="Center" Margin="5 0 0 0"/>
-            <ComboBox Margin="70 0 0 0" ItemsSource="{Binding ParentUI.AssetPacks}" SelectedItem="{Binding AssetPack}" DisplayMemberPath="GroupName" IsSynchronizedWithCurrentItem="False" BorderBrush="White" BorderThickness="1" />
+            <ComboBox Margin="70 0 0 0" ItemsSource="{Binding ParentUI.AssetPacks}" SelectedItem="{Binding AssetPack}" DisplayMemberPath="GroupName" IsSynchronizedWithCurrentItem="False" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" />
         </DockPanel>
 
         <ContentPresenter Grid.Row="1" Grid.Column="0" Content="{Binding AssetPack}" Margin="5 0 0 0" Name="AssetPresenter">
             <ContentPresenter.ContentTemplate>
                 <DataTemplate DataType="{x:Type local:VM_AssetPack}">
-                    <local:UC_AssetPack Background="Black" />
+                    <local:UC_AssetPack Background="{DynamicResource SecondaryBackground}" />
                 </DataTemplate>
             </ContentPresenter.ContentTemplate>
         </ContentPresenter>
@@ -92,18 +92,18 @@
 
             <local:UC_CharacterViewer Grid.Row="0" DataContext="{Binding CharacterViewer}" />
 
-            <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 4">
+            <Border Grid.Row="1" Background="{DynamicResource SecondaryBackground}" Padding="6 4">
                 <StackPanel Orientation="Vertical">
                     <DockPanel LastChildFill="True" Margin="0 0 0 3">
-                        <TextBlock Text="Preview NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0 0 5 0"/>
-                        <CheckBox DockPanel.Dock="Right" Content="Lock NPC" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="5 0 0 0"
+                        <TextBlock Text="Preview NPC:" VerticalAlignment="Center" Margin="0 0 5 0"/>
+                        <CheckBox DockPanel.Dock="Right" Content="Lock NPC" VerticalAlignment="Center" Margin="5 0 0 0"
                                   IsChecked="{Binding LockPreviewNpc, Mode=TwoWay}"
                                   local:DocTooltip.Key="AssetPack.LockPreviewNpc"
                                   ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                         <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>
                     </DockPanel>
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="MediumPurple"/>
+                        <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}"/>
                         <Button Content="Reset" Command="{Binding ResetAccumulatedOverridesCommand}" Foreground="Firebrick"/>
                     </StackPanel>
                     <!-- Warning for auxiliary mesh overrides that couldn't render or

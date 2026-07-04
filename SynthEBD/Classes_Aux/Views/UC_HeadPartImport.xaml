@@ -92,6 +92,6 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <Button Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Center" Command="{Binding Import}" Foreground="LightGreen">Import Selected Head Parts</Button>
+        <Button Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Center" Command="{Binding Import}" Foreground="{DynamicResource ActionGoodForeground}">Import Selected Head Parts</Button>
     </Grid>
 </UserControl>

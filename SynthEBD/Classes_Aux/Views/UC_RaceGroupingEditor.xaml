@@ -20,13 +20,13 @@
             <ItemsControl Grid.Row="0" ItemsSource="{Binding RaceGroupings, UpdateSourceTrigger=PropertyChanged}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_RaceGrouping}">
-                        <local:UC_RaceGrouping Background="Black" Margin="0 0 0 10"/>
+                        <local:UC_RaceGrouping Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
             <StackPanel Grid.Row="1" Orientation="Horizontal">
-                <Button VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceGrouping}" Foreground="LightGreen">Add New</Button>
-                <Button Visibility="{Binding ShowImportFromGeneral, Converter={StaticResource BoolToVis}}" Margin="5 0 0 0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ImportFromGeneral}" Foreground="MediumPurple">Import from General Settings</Button>
+                <Button VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding AddRaceGrouping}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+                <Button Visibility="{Binding ShowImportFromGeneral, Converter={StaticResource BoolToVis}}" Margin="5 0 0 0" VerticalAlignment="Top" HorizontalAlignment="Left" Command="{Binding ImportFromGeneral}" Foreground="{DynamicResource ActionAccentForeground}">Import from General Settings</Button>
             </StackPanel>
         </Grid>
     </ScrollViewer>

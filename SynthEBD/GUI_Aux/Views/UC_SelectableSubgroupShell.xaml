@@ -13,7 +13,7 @@
             <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Text="{Binding Label}" Grid.Column="0" Foreground="White"/>
-        <CheckBox IsChecked="{Binding IsSelected}" Grid.Column="1" Foreground="White" Margin="5 0 0 0"/>
+        <TextBlock Text="{Binding Label}" Grid.Column="0"/>
+        <CheckBox IsChecked="{Binding IsSelected}" Grid.Column="1" Margin="5 0 0 0"/>
     </Grid>
 </UserControl>

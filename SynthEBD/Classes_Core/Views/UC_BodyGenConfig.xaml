@@ -22,19 +22,19 @@
 
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center">Config Name</TextBlock>
         <TextBox Grid.Row="0" Grid.Column="1" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
-        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="MediumPurple">Save</Button>
+        <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="10 0 0 0" Command="{Binding Save}" Foreground="{DynamicResource ActionAccentForeground}">Save</Button>
 
         <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="BodyGenEditor.ConfigGender">Config Gender</TextBlock>
         <ComboBox Grid.Row="1" Grid.Column="1" SelectedValue="{Binding Gender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Margin="1 0 0 0">
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickTemplateMenu}" IsChecked="True">Morph List</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupMappingMenu}">Morph Group Map</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDescriptorMenu}">Morph Descriptors</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupsMenu}">Morph Groups</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAttributeGroupsMenu}">Attribute Groups</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickMiscMenu}">Misc</RadioButton>
-            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="Gray" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDelete}" Foreground="Firebrick">Delete</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickTemplateMenu}" IsChecked="True">Morph List</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupMappingMenu}">Morph Group Map</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDescriptorMenu}">Morph Descriptors</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickGroupsMenu}">Morph Groups</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickAttributeGroupsMenu}">Attribute Groups</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickMiscMenu}">Misc</RadioButton>
+            <RadioButton GroupName="Nav" Margin="0, 5, 0, 0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Style="{StaticResource {x:Type ToggleButton}}" HorizontalContentAlignment="Center" Command="{Binding ClickDelete}" Foreground="Firebrick">Delete</RadioButton>
         </StackPanel>
 
         <ContentPresenter Content="{Binding DisplayedUI}" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="10, 0, 0, 0" >

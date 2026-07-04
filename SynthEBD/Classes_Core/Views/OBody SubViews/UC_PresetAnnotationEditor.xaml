@@ -10,14 +10,14 @@
     <DockPanel>
         <!-- Title bar: shows which (preset, weight) slice is being annotated. Driven by
              VM.Title which switches between the placeholder and the active-row label. -->
-        <Border DockPanel.Dock="Top" Background="#FF2A2A2A" Padding="6,4" Margin="0,0,0,4">
-            <TextBlock Text="{Binding Title}" Foreground="#FFCCCCCC" FontWeight="SemiBold"/>
+        <Border DockPanel.Dock="Top" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,4">
+            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
         </Border>
 
         <!-- Reused VM_BodyShapeDescriptorSelectionMenu. The DataContext for the inner UC is
              the menu VM itself (initialized lazily via VM.InitializeMenu); we expose it as
              VM.DescriptorMenu and bind the inner UC's DataContext to that property. -->
-        <Border BorderBrush="#FF555555" BorderThickness="1" Padding="2"
+        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="2"
                 IsEnabled="{Binding IsEditingEnabled}">
             <ContentControl Content="{Binding DescriptorMenu}">
                 <ContentControl.Resources>

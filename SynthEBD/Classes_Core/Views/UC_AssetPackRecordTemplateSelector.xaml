@@ -27,10 +27,10 @@
 
             <StackPanel Grid.Row="1" Grid.Column="0">
                 <TextBlock  Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="AssetPack.AdditionalRacesPaths">Additional Races Paths</TextBlock>
-                <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="LightGreen">Add New</Button>
+                <Button  Command="{Binding AddRecordTemplateAdditionalRacesPath}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
             </StackPanel>
 
-            <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DefaultRecordTemplateAdditionalRacesPaths}" BorderThickness="1" BorderBrush="#5844b4">
+            <ItemsControl Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DefaultRecordTemplateAdditionalRacesPaths}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_CollectionMemberString}">
                         <StackPanel Orientation="Horizontal">
@@ -44,12 +44,12 @@
 
             <StackPanel Grid.Row="3" Grid.Column="0">
                 <TextBlock Margin="0 0 15 0" VerticalAlignment="Top" local:DocTooltip.Key="AssetPack.AdditionalRecordTemplates">Additional Templates</TextBlock>
-                <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="LightGreen">Add New</Button>
+                <Button VerticalAlignment="Center" VerticalContentAlignment="Center" Command="{Binding AddAdditionalRecordTemplateAssignment}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
             </StackPanel>
-            <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="#5844b4">
+            <ItemsControl Grid.Row="3" Grid.Column="1" ItemsSource="{Binding AdditionalRecordTemplateAssignments}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_AdditionalRecordTemplate}">
-                        <local:UC_AdditionalRecordTemplate Background="Black" Margin="0 0 0 10"/>
+                        <local:UC_AdditionalRecordTemplate Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

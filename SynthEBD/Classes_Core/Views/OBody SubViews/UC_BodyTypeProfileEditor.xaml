@@ -254,7 +254,7 @@
              because a visible list in a horizontal bar would waste either width (always
              showing every row) or height (wrapping). -->
         <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
-                BorderBrush="Gray" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                 Padding="0,0,0,5" Margin="0,0,0,5">
             <!-- DockPanel (not StackPanel) so the Keyboard Shortcuts button can sit
                  right-justified at the far end of the row while the existing
@@ -286,7 +286,7 @@
 
         <!-- Resizable splitter between the profile panel and the embedded viewer. -->
         <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch" Background="#333333"
+                      VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
                       ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
                       ShowsPreview="True"
                       local:DocTooltip.Key="BodyTypeProfiles.ViewerSplitter"/>
@@ -294,7 +294,7 @@
         <!-- Right rail: embedded CharacterViewer + searchable preset picker. Lets the user
              load any BodySlide preset and pick key vertices without leaving this menu. -->
         <DockPanel Grid.Row="1" Grid.Column="2" Margin="5,0,0,0">
-            <Border DockPanel.Dock="Top" Background="#FF2A2A2A" Padding="6,4" Margin="0,0,0,5">
+            <Border DockPanel.Dock="Top" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,5">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -308,19 +308,19 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Gender:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Gender:" Margin="0,0,5,2" VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,2"
                               ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
                               SelectedValue="{Binding PreviewGender}"/>
                     <Button Grid.Row="0" Grid.Column="2" Content="Refresh" Command="{Binding RefreshPresetList}" Padding="6,1" Margin="5,0,0,2"
                             local:DocTooltip.Key="BodyTypeProfiles.RefreshPresets"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Margin="0,0,5,2" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,2"
                              Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
                              local:DocTooltip.Key="BodyTypeProfiles.PresetFilter"/>
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Foreground="#FFCCCCCC" Margin="0,0,5,2" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Margin="0,0,5,2" VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
                               ItemsSource="{Binding FilteredPresets}"
                               SelectedItem="{Binding SelectedPreset}"
@@ -330,12 +330,12 @@
                               MaxDropDownHeight="400"
                               Margin="0,0,0,2"/>
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Weight:" Foreground="#FFCCCCCC" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Weight:" Margin="0,0,5,0" VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="3" Grid.Column="1"
                               ItemsSource="{Binding AvailableWeights}"
                               SelectedItem="{Binding PreviewWeight}"/>
                     <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="5,0,0,0">
-                        <TextBlock Text="NPC:" Foreground="#FFCCCCCC" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="NPC:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}"
                                                LinkCache="{Binding lk}"
                                                ScopedTypes="{Binding NPCPickerFormKeys}"
@@ -358,7 +358,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Profile metadata -->
-                        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,5">
+                        <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,5" Margin="0,0,0,5">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -507,7 +507,7 @@
                                                                    Placement="Bottom"
                                                                    StaysOpen="False"
                                                                    AllowsTransparency="True">
-                                                                <Border Background="#FF2A2A2A" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                                                                <Border Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="4">
                                                                     <TreeView ItemsSource="{x:Static local:BoundingBoxCriterionTree.Categories}"
                                                                               Tag="{Binding}"
                                                                               SelectedItemChanged="CriterionTree_SelectedItemChanged"
@@ -594,15 +594,15 @@
                                         <TextBlock Foreground="#E65100" FontWeight="SemiBold" TextWrapping="Wrap"
                                                    Text="{Binding UnresolvedRegionCount, StringFormat='{}{0} region(s) don''t resolve to a valid volume on the active mesh — any RegionVolume measurement that references them is skipped. See the Status column (hover for the reason).'}"/>
                                     </Border>
-                                    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,4" Foreground="#FFBBBBBB" FontSize="11"
+                                    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,4" Foreground="{DynamicResource SecondaryForeground}" FontSize="11"
                                                Text="Author a region by drawing a box in the viewer (Pick Box), then clicking 'Confirm as Region' on the pending-box panel. A region selects a body patch whose enclosed volume a RegionVolume measurement integrates. Expected Caps: 1 for a chest bump, 2 for a limb segment, blank to accept any valid count."/>
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,2,0,4">
-                                        <TextBlock Text="Viewer display:" VerticalAlignment="Center" Foreground="#FFBBBBBB" FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Viewer display:" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" FontSize="11" Margin="0,0,6,0"/>
                                         <ComboBox SelectedItem="{Binding RegionViewMode, UpdateSourceTrigger=PropertyChanged}"
                                                   ItemsSource="{Binding RegionViewModeOptions}"
                                                   Width="120"
                                                   local:DocTooltip.Key="BodyTypeProfiles.RegionViewMode"/>
-                                        <Separator Margin="10,0" Background="#FF555555"/>
+                                        <Separator Margin="10,0" Background="{DynamicResource BorderBrush}"/>
                                         <Button Content="↶ Undo" FontSize="11" Padding="8,2" Margin="0,0,4,0"
                                                 Command="{Binding UndoRegionEditCommand}"
                                                 local:DocTooltip.Key="BodyTypeProfiles.RegionUndo"/>
@@ -681,11 +681,11 @@
                                                         <StackPanel Orientation="Horizontal"
                                                                     local:DocTooltip.Key="BodyTypeProfiles.RegionRotation">
                                                             <xctk:SingleUpDown Value="{Binding RotX, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
-                                                                               Foreground="Black" Background="White"/>
+                                                                               Background="{DynamicResource TextBoxBackground}"/>
                                                             <xctk:SingleUpDown Value="{Binding RotY, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
-                                                                               Foreground="Black" Background="White"/>
+                                                                               Background="{DynamicResource TextBoxBackground}"/>
                                                             <xctk:SingleUpDown Value="{Binding RotZ, UpdateSourceTrigger=PropertyChanged}" Increment="5" FormatString="F0" Width="48"
-                                                                               Foreground="Black" Background="White"/>
+                                                                               Background="{DynamicResource TextBoxBackground}"/>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
@@ -950,13 +950,13 @@
                                                 </TextBox.Style>
                                             </TextBox>
                                             <TextBlock Grid.Row="1" Grid.Column="1" Text="Cat" Margin="2,0,0,2"
-                                                       VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" FontSize="10"/>
                                             <TextBox Grid.Row="2" Grid.Column="0"
                                                      Text="{Binding NewValueInput, UpdateSourceTrigger=PropertyChanged}"
                                                      local:DocTooltip.Key="BodyTypeProfiles.NewDescriptorValue"
                                                      Margin="0,0,4,0"/>
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="Val" Margin="2,0,0,0"
-                                                       VerticalAlignment="Center" Foreground="Gray" FontSize="10"/>
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" FontSize="10"/>
                                         </Grid>
                                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
                                             <Button Content="+ Add" Command="{Binding AddDescriptorCommand}"
@@ -988,7 +988,7 @@
                                                              default, so a Category can have at most one default. -->
                                                         <CheckBox Content="Make Default"
                                                                   Margin="10,0,0,0" VerticalAlignment="Center"
-                                                                  FontSize="10" Foreground="Gray"
+                                                                  FontSize="10" Foreground="{DynamicResource SecondaryForeground}"
                                                                   IsChecked="{Binding IsDefault, Mode=TwoWay}"
                                                                   Visibility="{Binding ShowMakeDefault, Converter={StaticResource BoolToVis}}"
                                                                   local:DocTooltip.Key="BodyTypeProfiles.MakeDefaultValue"/>
@@ -999,7 +999,7 @@
                                     </DockPanel>
 
                                     <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center"
-                                                  VerticalAlignment="Stretch" Background="#FF333333"/>
+                                                  VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"/>
 
                                     <!-- Right pane: rules filtered to the current selection (top) plus a
                                          matching-presets list for the selected node (bottom). The bottom
@@ -1228,7 +1228,7 @@
                                     <!-- Horizontal splitter so the user can rebalance "edit rules" vs
                                          "see what they match" without giving up either view. -->
                                     <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
-                                                  VerticalAlignment="Center" Background="#FF333333"
+                                                  VerticalAlignment="Center" Background="{DynamicResource BorderBrush}"
                                                   ResizeBehavior="PreviousAndNext" ResizeDirection="Rows"/>
 
                                     <!-- Bottom: matching-preset list for the selected tree node. Driven
@@ -1240,7 +1240,7 @@
                                         <TextBlock DockPanel.Dock="Top" Text="Presets matching this rule node"
                                                    FontWeight="Bold" Margin="0,2,0,2"/>
                                         <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedNodeMatchingStatus}"
-                                                   FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                                   FontStyle="Italic" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,0,0,4"/>
                                         <!-- Sort selector, mirroring the Match Presets tab. "Name" (default) keeps the
                                              Gender/Preset/Weight order; any measurement sorts rows by that metric's cached
                                              value descending. Options list the metrics referenced by the displayed node's
@@ -1283,7 +1283,7 @@
                                                             </TextBlock.Style>
                                                         </TextBlock>
                                                         <TextBlock Text="{Binding MeasurementsDisplay}" FontFamily="Consolas"
-                                                                   FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
+                                                                   FontSize="10" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>
@@ -1340,11 +1340,11 @@
                                         <ItemsControl ItemsSource="{Binding PreviewMatches}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_PreviewMatch}">
-                                                    <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4,3" Margin="0,0,0,2">
+                                                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="4,3" Margin="0,0,0,2">
                                                         <StackPanel>
                                                             <TextBlock Text="{Binding DescriptorDisplay}" FontWeight="Bold"
                                                                        Foreground="{Binding DisplayBrush}"/>
-                                                            <TextBlock Text="{Binding ConditionTrace}" FontFamily="Consolas" FontSize="10" Foreground="Gray"/>
+                                                            <TextBlock Text="{Binding ConditionTrace}" FontFamily="Consolas" FontSize="10" Foreground="{DynamicResource SecondaryForeground}"/>
                                                         </StackPanel>
                                                     </Border>
                                                 </DataTemplate>
@@ -1453,7 +1453,7 @@
                                              (e.g., a dormant BHUNP snapshot from a previous experiment) are
                                              preserved unless purged separately. -->
                                         <TextBlock Text="{Binding DataContext.CacheStatusSummary, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                   Foreground="#80C080" FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,8,5"
+                                                   Foreground="{DynamicResource ActionGoodForeground}" FontStyle="Italic" VerticalAlignment="Center" Margin="0,0,8,5"
                                                    local:DocTooltip.Key="BodyTypeProfiles.CacheStatus"/>
                                         <Button Content="Purge"
                                                 Command="{Binding DataContext.PurgeCacheForActiveProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -1553,7 +1553,7 @@
                                                                    VerticalAlignment="Center"
                                                                    ToolTip="{Binding SiblingScoresTooltip}"/>
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding MatchSummary}" FontFamily="Consolas" FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding MatchSummary}" FontFamily="Consolas" FontSize="10" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>

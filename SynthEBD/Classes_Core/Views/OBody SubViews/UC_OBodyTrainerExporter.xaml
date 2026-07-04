@@ -25,7 +25,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" Text="BodySlides:"/>
-        <Border Grid.Row="0" Grid.Column="2" BorderBrush="White" BorderThickness="1">
+        <Border Grid.Row="0" Grid.Column="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <ScrollViewer Margin="0 2 0 2">
                 <ItemsControl ItemsSource="{Binding AvailableBodySlides}">
                     <ItemsControl.ItemTemplate>
@@ -49,7 +49,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
                             <CheckBox IsChecked="{Binding IsSelected}" Margin="5 3 0 3"/>
@@ -60,7 +60,7 @@
         </ItemsControl>
 
         <WrapPanel Grid.Row="2" Grid.Column="2" Margin="0 0 0 5">
-            <Button Foreground="MediumPurple" Content="Add Available Slider Groups" Command="{Binding AddSelectedGroups}"/>
+            <Button Foreground="{DynamicResource ActionAccentForeground}" Content="Add Available Slider Groups" Command="{Binding AddSelectedGroups}"/>
             <Button Foreground="Firebrick" Content="Remove Available Slider Groups" Command="{Binding RemoveSelectedGroups}" Margin="15 0 0 0"/>
         </WrapPanel>
 
@@ -70,7 +70,7 @@
             <Button Content="None" Foreground="Firebrick" Command="{Binding DeselectAllSliders}"/>
         </StackPanel>
         
-        <Border Grid.Row="3" Grid.Column="2" BorderBrush="White" BorderThickness="1">
+        <Border Grid.Row="3" Grid.Column="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
             <ScrollViewer Margin="0 2 0 2">
                 <ItemsControl ItemsSource="{Binding AvailableSliders}">
                     <ItemsControl.ItemTemplate>
@@ -87,13 +87,13 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" Text="Slider Set:" Margin="0 5 0 0" VerticalAlignment="Center"/>
         <WrapPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal">
-            <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+            <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Big" Margin="3 3 3 3" HorizontalAlignment="Center"/>
                     <RadioButton IsChecked="{Binding IsBigSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
                 </StackPanel>
             </Border>
-            <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+            <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Small" Margin="3 3 3 3" HorizontalAlignment="Center"/>
                     <RadioButton IsChecked="{Binding IsSmallSelected}" GroupName="BigSmall" Margin="5 3 0 3"/>
@@ -111,7 +111,7 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="Teal" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 5 0" CornerRadius="4">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Text}" Margin="3 3 3 3" HorizontalAlignment="Center"/>
                             <RadioButton IsChecked="{Binding IsSelected}" GroupName="Descriptors" Margin="5 3 0 3"/>
@@ -123,7 +123,7 @@
 
         <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
             <Button Content="Train Model" Foreground="Green" Command="{Binding TrainModel}"/>
-            <Button Content="Export Selected Data" Foreground="MediumPurple" Command="{Binding ExportTrainingSet}" Margin="10 0 0 0"/>
+            <Button Content="Export Selected Data" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ExportTrainingSet}" Margin="10 0 0 0"/>
         </StackPanel>
     </Grid>
 </UserControl>

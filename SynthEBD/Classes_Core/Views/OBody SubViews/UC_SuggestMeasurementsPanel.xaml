@@ -9,7 +9,7 @@
              d:DesignHeight="240" d:DesignWidth="900">
     <DockPanel>
         <!-- Action bar: algorithm picker + Suggest / Clear buttons + status. -->
-        <Border DockPanel.Dock="Top" Background="#FF2A2A2A" Padding="6,4" Margin="0,0,0,4">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -18,8 +18,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Algorithm:" Foreground="#FFCCCCCC"
-                           VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBlock Grid.Column="0" Text="Algorithm:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                 <ComboBox Grid.Column="1" MinWidth="160"
                           ItemsSource="{Binding AvailableAlgorithms}"
                           SelectedItem="{Binding SelectionAlgorithm, Mode=TwoWay}"
@@ -28,8 +27,7 @@
                         Padding="10,2" Margin="6,0,0,0"/>
                 <Button Grid.Column="3" Content="Clear" Command="{Binding ClearCommand}"
                         Padding="10,2" Margin="4,0,0,0"/>
-                <TextBlock Grid.Column="4" Text="{Binding Status}" Foreground="#FFCCCCCC"
-                           VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="4" Text="{Binding Status}" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
             </Grid>
         </Border>
 
@@ -42,9 +40,9 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:VM_CategorySuggestionGroup}">
                         <Expander Header="{Binding HeaderDisplay}" IsExpanded="True" Margin="0,0,0,4">
-                            <Border BorderBrush="#FF555555" BorderThickness="1" Padding="6">
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="6">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding EmptyReason}" Foreground="#FFCC8888" FontStyle="Italic"
+                                    <TextBlock Text="{Binding EmptyReason}" Foreground="{DynamicResource SecondaryForeground}" FontStyle="Italic"
                                                TextWrapping="Wrap" Margin="0,0,0,4">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -73,7 +71,7 @@
                                                     <TextBlock Grid.Column="0" Text="{Binding MeasurementName}"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding ScoreDisplay}"
-                                                               VerticalAlignment="Center" Foreground="#FFAAAAAA"
+                                                               VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}"
                                                                FontFamily="Consolas" FontSize="11"/>
                                                     <Button Grid.Column="2" Content="X" Padding="4,0"
                                                             Command="{Binding RemoveCommand}"
@@ -100,7 +98,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Add: " VerticalAlignment="Center" Foreground="#FFAAAAAA"/>
+                                        <TextBlock Grid.Column="0" Text="Add: " VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}"/>
                                         <ComboBox Grid.Column="1"
                                                   ItemsSource="{Binding AvailableToAdd}"
                                                   SelectedItem="{Binding SelectedMeasurementToAdd, Mode=TwoWay}"/>

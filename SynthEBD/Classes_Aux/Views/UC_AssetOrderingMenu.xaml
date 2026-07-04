@@ -13,7 +13,7 @@
         <ItemsControl ItemsSource="{Binding AssignmentOrder}" dd:DragDrop.IsDragSource="True" dd:DragDrop.IsDropTarget="True">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="Aqua">
+                    <Border BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                         <TextBlock Text="{Binding}"/>
                     </Border>
                 </DataTemplate>

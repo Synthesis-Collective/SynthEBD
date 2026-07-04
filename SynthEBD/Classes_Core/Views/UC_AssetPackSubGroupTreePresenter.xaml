@@ -23,7 +23,7 @@
 
         <DockPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch">
             <TextBlock Text="Subgroups"/>
-            <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="0 0 15 0">+</Button>
+            <Button VerticalAlignment="Center" HorizontalAlignment="Right" Command="{Binding AddSubgroup}" Foreground="{DynamicResource ActionGoodForeground}" Margin="0 0 15 0">+</Button>
         </DockPanel>
 
         <local:ExtendedTreeView Grid.Row="1" Grid.Column="0" x:Name="TVsubgroups" 
@@ -66,7 +66,7 @@
                 <HierarchicalDataTemplate DataType="{x:Type local:VM_SubgroupPlaceHolder}" ItemsSource="{Binding Subgroups}">
                     <Border BorderBrush="DarkSlateGray" BorderThickness="1" CornerRadius="8">
                         <StackPanel Orientation="Horizontal">
-                            <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="Lightgreen" Margin="3 0 0 3">+</Button>
+                            <Button VerticalAlignment="Center" Command="{Binding AddSubgroup}" Foreground="{DynamicResource ActionGoodForeground}" Margin="3 0 0 3">+</Button>
                             <TextBlock Margin="5 0 5 0" local:TreeNodeDeferredSelectBehavior.IsEnabled="True" VerticalAlignment="Center">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="{}{0}">
@@ -86,7 +86,7 @@
             <ContentPresenter Content="{Binding DisplayedSubgroup}" Name="SubgroupPresenter">
                 <ContentPresenter.Resources>
                     <DataTemplate DataType="{x:Type local:VM_Subgroup}">
-                        <local:UC_Subgroup Background="Black" Margin="0 0 0 10"/>
+                        <local:UC_Subgroup Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                     </DataTemplate>
                 </ContentPresenter.Resources>
             </ContentPresenter>

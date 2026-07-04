@@ -19,9 +19,9 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Category</TextBlock>
-        <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorShell}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Row="1" Grid.Column="0" Command="{Binding AddTemplateDescriptorShell}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Row="2" Grid.Column="0" >
-            <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplateDescriptorShell}" ItemsSource="{Binding TemplateDescriptors}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+            <ListBox SelectedValue="{Binding CurrentlyDisplayedTemplateDescriptorShell}" ItemsSource="{Binding TemplateDescriptors}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>

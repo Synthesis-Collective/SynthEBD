@@ -31,7 +31,7 @@
         <ItemsControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" ItemsSource="{Binding Paths}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_FilePathReplacement}">
-                    <local:UC_FilePathReplacement Background="Black" Margin="0 0 0 10"/>
+                    <local:UC_FilePathReplacement Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

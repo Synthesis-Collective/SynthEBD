@@ -24,7 +24,7 @@
             <!-- GridSplitter lets the user resize the preview pane. Starting Width for
                  column 2 is 300 so the viewer has enough room without crowding the form. -->
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch" Background="#333333"
+                          VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
                           ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
                           ShowsPreview="True"
                           local:DocTooltip.Key="BodyGenEditor.PreviewPaneSplitter"/>
@@ -34,14 +34,14 @@
                  selections) to avoid leaking GL resources per click. -->
             <DockPanel Grid.Column="2" Margin="5 0 0 0">
                 <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0 0 0 5">
-                    <TextBlock Foreground="LightGray" Margin="0 0 0 2"
+                    <TextBlock Margin="0 0 0 2"
                                local:DocTooltip.Key="BodyGenEditor.PreviewWeight">
                         <Run Text="Preview Weight:"/>
                         <Run Text="{Binding PreviewWeight, UpdateSourceTrigger=PropertyChanged}"/>
                     </TextBlock>
                     <Slider Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="False"
                             Value="{Binding PreviewWeight, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="{Binding ParseErrorText}" Foreground="Red" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding ParseErrorText}" Foreground="{DynamicResource StatusErrorForeground}" TextWrapping="Wrap"/>
                 </StackPanel>
                 <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="400"/>
             </DockPanel>
@@ -77,7 +77,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" Text="{Binding Path=StatusHeader, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
-                <TextBlock Background="Black" Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=StatusText, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
+                <TextBlock Background="{DynamicResource TextBoxBackground}" Grid.Row="0" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=StatusText, UpdateSourceTrigger=PropertyChanged}" Foreground="{Binding BorderColor}" Visibility="{Binding Path=ShowStatus, Converter={StaticResource BoolToVis}}"></TextBlock>
                 
                 <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 15 0" VerticalAlignment="Center" local:DocTooltip.Key="BodyGenEditor.MorphName">Name</TextBlock>
                 <TextBox Grid.Row="1" Grid.Column="2" MinWidth="150" HorizontalAlignment="Left" Text="{Binding Path=Label, UpdateSourceTrigger=PropertyChanged}"></TextBox>
@@ -92,7 +92,7 @@
                 <ContentPresenter Grid.Row="4" Grid.Column="2"  Content="{Binding GroupSelectionCheckList}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_CollectionMemberStringCheckboxList}">
-                            <local:UC_CollectionMemberStringCheckboxList Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_CollectionMemberStringCheckboxList Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
@@ -101,7 +101,7 @@
                 <ContentPresenter Grid.Row="5" Grid.Column="2"  Content="{Binding DescriptorsSelectionMenu}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_BodyShapeDescriptorSelectionMenu}">
-                            <local:UC_BodyShapeDescriptorSelectionMenu Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_BodyShapeDescriptorSelectionMenu Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
@@ -113,7 +113,7 @@
                 <ContentPresenter Grid.Row="7" Grid.Column="2"  Content="{Binding AllowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
-                            <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_RaceGroupingCheckboxList Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
@@ -125,29 +125,29 @@
                 <ContentPresenter Grid.Row="9" Grid.Column="2"  Content="{Binding DisallowedRaceGroupings}">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type local:VM_RaceGroupingCheckboxList}">
-                            <local:UC_RaceGroupingCheckboxList Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_RaceGroupingCheckboxList Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                 </ContentPresenter>
 
                 <TextBlock Grid.Row="10" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.AllowedAttributes">Allowed NPC Attributes</TextBlock>
-                <Button Grid.Row="10" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="Lightgreen">Add New</Button>
+                <Button Grid.Row="10" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddAllowedAttribute}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
 
-                <ItemsControl Grid.Row="9" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <ItemsControl Grid.Row="9" Grid.Column="2" ItemsSource="{Binding AllowedAttributes}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                            <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
 
                 <TextBlock Grid.Row="11" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.DisallowedAttributes">Disallowed NPC Attributes</TextBlock>
-                <Button Grid.Row="11" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="Lightgreen">Add New</Button>
-                <ItemsControl Grid.Row="11" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="#5844b4">
+                <Button Grid.Row="11" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddDisallowedAttribute}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+                <ItemsControl Grid.Row="11" Grid.Column="2" ItemsSource="{Binding DisallowedAttributes}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_NPCAttribute}">
-                            <local:UC_NPCAttribute Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_NPCAttribute Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -172,18 +172,18 @@
                 <TextBox Grid.Row="16" Grid.Column="2" TextAlignment="Left" local:NumericInputBehavior.IsEnabled="True" Text="{Binding Path=ProbabilityWeighting}"/>
 
                 <TextBlock Grid.Row="17" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.ProbabilityModifiers">Probability Modifiers</TextBlock>
-                <Button Grid.Row="17" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="Lightgreen">Add New</Button>
-                <ItemsControl Grid.Row="17" Grid.Column="2" ItemsSource="{Binding ProbabilityWeightModifiers}" BorderThickness="1" BorderBrush="#5844b4">
+                <Button Grid.Row="17" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddProbabilityWeightModifier}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+                <ItemsControl Grid.Row="17" Grid.Column="2" ItemsSource="{Binding ProbabilityWeightModifiers}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:VM_AttributeWeightModifier}">
-                            <local:UC_AttributeWeightModifier Background="Black" Margin="0 0 0 10"/>
+                            <local:UC_AttributeWeightModifier Background="{DynamicResource SecondaryBackground}" Margin="0 0 0 10"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
                 <TextBlock Grid.Row="18" Grid.Column="0" Margin="0 0 15 0" local:DocTooltip.Key="BodyGenEditor.RequiredTemplates">Required Templates</TextBlock>
-                <Button Grid.Row="18" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddRequiredTemplate}" Foreground="Lightgreen">Add New</Button>
-                <ListBox Grid.Row="18" Grid.Column="2" ItemsSource="{Binding RequiredTemplates}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="#5844b4">
+                <Button Grid.Row="18" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Command="{Binding AddRequiredTemplate}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+                <ListBox Grid.Row="18" Grid.Column="2" ItemsSource="{Binding RequiredTemplates}" IsSynchronizedWithCurrentItem="True" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">

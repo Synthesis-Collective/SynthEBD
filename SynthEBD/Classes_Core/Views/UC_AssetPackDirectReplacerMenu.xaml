@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center" local:DocTooltip.Key="AssetPack.ReplacerGroups">Replacer Group</TextBlock>
-        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="Lightgreen">Add New</Button>
+        <Button Grid.Column="0" Grid.Row="1" Command="{Binding AddGroup}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
         <ScrollViewer Grid.Column="0" Grid.Row="2" MaxHeight="750">
             <ListBox SelectedValue="{Binding DisplayedGroup}" ItemsSource="{Binding ReplacerGroups}" IsSynchronizedWithCurrentItem="True" >
                 <ListBox.ItemTemplate>

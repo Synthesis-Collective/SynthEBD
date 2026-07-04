@@ -32,7 +32,7 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="LightGreen" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" local:DocTooltip.Key="OBody.SetRaceMenuIni">Set RaceMenu INI to enable OBody/AutoBody</Button>
+        <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="{DynamicResource ActionGoodForeground}" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" local:DocTooltip.Key="OBody.SetRaceMenuIni">Set RaceMenu INI to enable OBody/AutoBody</Button>
 
         <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="OBody.AutoApplyMissingAnnotations" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
@@ -61,7 +61,7 @@
         <ItemsControl Grid.Row="3" Grid.Column="2" ItemsSource="{Binding StashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="Teal" BorderThickness="1">
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <CheckBox IsChecked="{Binding IsSelected}" Margin="0 0 3 0"/>
                             <TextBlock Text="{Binding Text}"/>
@@ -73,7 +73,7 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.SliderCatalogOverrides">Slider Catalog Overrides</TextBlock>
-        <Button Grid.Row="4" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
+        <Button Grid.Row="4" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
         <ItemsControl Grid.Row="4" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_SliderCatalogOverride}">
@@ -89,7 +89,7 @@
 
         <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.BodyTypeFamilies">Body Type Family Compatibility</TextBlock>
-        <Button Grid.Row="5" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="LightGreen" Command="{Binding AddBodyTypeFamily}">Add New</Button>
+        <Button Grid.Row="5" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddBodyTypeFamily}">Add New</Button>
         <ItemsControl Grid.Row="5" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyTypeFamily}">
@@ -104,14 +104,14 @@
 
         <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 15 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.PreviewNpcsByWeight">Preview NPC by Weight</TextBlock>
-        <Button Grid.Row="6" Grid.Column="1" Margin="5 15 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="MediumPurple"
+        <Button Grid.Row="6" Grid.Column="1" Margin="5 15 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionAccentForeground}"
                 Command="{Binding PreviewNpcs.ResetAllCommand}"
                 local:DocTooltip.Key="OBody.PreviewNpcsResetAll">Reset All</Button>
         <DataGrid Grid.Row="6" Grid.Column="2" Margin="0 15 0 0"
                   ItemsSource="{Binding PreviewNpcs.Rows}" AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
-                  HeadersVisibility="Column" RowHeaderWidth="0" Background="Black" RowBackground="Black"
-                  AlternatingRowBackground="#FF101010" Foreground="LightGray" GridLinesVisibility="Horizontal">
+                  HeadersVisibility="Column" RowHeaderWidth="0" Background="{DynamicResource SecondaryBackground}" RowBackground="{DynamicResource SecondaryBackground}"
+                  AlternatingRowBackground="{DynamicResource TertiaryBackground}" GridLinesVisibility="Horizontal">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" IsReadOnly="True" Width="60"/>
                 <DataGridTemplateColumn Header="Male NPC" Width="*">
@@ -122,7 +122,7 @@
                                                        LinkCache="{Binding lk}"
                                                        ScopedTypes="{Binding NPCPickerFormKeys}"
                                                        MinWidth="240"/>
-                                <Button Content="Auto" Margin="3 0 0 0" Foreground="LightGreen" Command="{Binding AutoMaleCommand}"
+                                <Button Content="Auto" Margin="3 0 0 0" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AutoMaleCommand}"
                                         local:DocTooltip.Key="OBody.PreviewNpcAutoPick"/>
                             </StackPanel>
                         </DataTemplate>
@@ -136,7 +136,7 @@
                                                        LinkCache="{Binding lk}"
                                                        ScopedTypes="{Binding NPCPickerFormKeys}"
                                                        MinWidth="240"/>
-                                <Button Content="Auto" Margin="3 0 0 0" Foreground="LightGreen" Command="{Binding AutoFemaleCommand}"
+                                <Button Content="Auto" Margin="3 0 0 0" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AutoFemaleCommand}"
                                         local:DocTooltip.Key="OBody.PreviewNpcAutoPick"/>
                             </StackPanel>
                         </DataTemplate>
