@@ -14,4 +14,6 @@ public class Settings_Height
     public bool bApplyWithoutOverride { get; set; } = false;
     /// <summary>Name of the active height config.</summary>
     public string SelectedHeightConfig { get; set; } = "";
+    /// <summary>UI-only: number of height-group tiles laid out per row in the Height Assignment editor.</summary>
+    public int HeightGroupsPerRow { get; set; } = 4;
 }

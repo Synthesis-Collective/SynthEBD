@@ -63,6 +63,9 @@ public class VM_SettingsHeight : VM
     public bool bOverwriteNonDefaultNPCHeights { get; set; } = true;
     public bool bApplyWithoutOverride { get; set; } = false;
 
+    /// <summary>Number of height-group tiles per row in the config editor's <c>UniformGrid</c> layout (UI-only preference).</summary>
+    public int HeightGroupsPerRow { get; set; } = 4;
+
     public VM_HeightConfig SelectedHeightConfig { get; set; }
 
     public ObservableCollection<VM_HeightConfig> AvailableHeightConfigs { get; set; } = new();
@@ -87,6 +90,7 @@ public class VM_SettingsHeight : VM
         bChangeRaceHeight = model.bChangeRaceHeight;
         bOverwriteNonDefaultNPCHeights = model.bOverwriteNonDefaultNPCHeights;
         bApplyWithoutOverride = model.bApplyWithoutOverride;
+        HeightGroupsPerRow = Math.Max(1, model.HeightGroupsPerRow);
 
         foreach (var hconfig in AvailableHeightConfigs)
         {
@@ -113,6 +117,7 @@ public class VM_SettingsHeight : VM
         model.bOverwriteNonDefaultNPCHeights = bOverwriteNonDefaultNPCHeights;
         model.SelectedHeightConfig = SelectedHeightConfig.Label;
         model.bApplyWithoutOverride = bApplyWithoutOverride;
+        model.HeightGroupsPerRow = HeightGroupsPerRow;
         return model;
     }
 }

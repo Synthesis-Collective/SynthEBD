@@ -40,6 +40,11 @@ public static partial class UiDocs
             technical: "DeleteCurrentHeightConfig runs FileDialogs.ConfirmFileDeletion on the config's source path, then removes it from AvailableHeightConfigs and selects the first remaining configuration.",
             motivation: "Without cleanup, abandoned or experimental configurations pile up in the active-configuration list; deletion keeps the choice meaningful and the settings folder tidy.");
 
+        Add("Height.GroupsPerRow",
+            layperson: "Sets how many height-group tiles are shown side by side in each row of the editor below. This is purely a display preference and has no effect on the patch.",
+            technical: "Bound to HeightSettings.HeightGroupsPerRow, which drives the Columns of the UniformGrid that lays out the height-group tiles, giving every tile a uniform width. Persisted with the height settings and shown only in Customize/Troubleshoot display modes; it never influences a patcher run.",
+            motivation: "A height configuration can hold many race groups, and content-sized tiles wrap into a ragged grid of differing widths; a per-row count lets the user choose a tidy, uniform-width layout to taste.");
+
         Add("Height.GroupName",
             layperson: "A name for this height group, such as 'Humans' or 'Elves'. Purely a label to keep groups recognizable.",
             technical: "Sets HeightAssignment.Label. Display-only: it is persisted with the configuration and used in error messages (for example when a height value fails to parse), but plays no role in matching NPCs.",

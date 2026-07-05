@@ -4,10 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
              d:DataContext="{d:DesignInstance Type=local:VM_HeightConfig}"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <local:UiModeToVisibilityConverter x:Key="UiModeVisibility"/>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -30,18 +35,29 @@
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="50 15 5 0">
             <Button  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding SetAllDistModes}" Margin="0 0 10 0">Set All Distribution Modes To </Button>
             <ComboBox ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:DistMode}}}" SelectedValue="{Binding Path=GlobalDistMode, Mode=TwoWay}" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+
+            <!-- Layout preference: how many height-group tiles per row (Customize/Troubleshoot only).
+                 Backed by VM_SettingsHeight.HeightGroupsPerRow on the parent UC_HeightSettings. -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="30 0 0 0"
+                        Visibility="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeVisibility}, ConverterParameter=Customize}">
+                <TextBlock Text="Tiles Per Row" VerticalAlignment="Center" Margin="0 0 8 0" local:DocTooltip.Key="Height.GroupsPerRow"/>
+                <xctk:IntegerUpDown Width="60" Minimum="1" Maximum="12" Increment="1"
+                                    Value="{Binding DataContext.HeightGroupsPerRow, RelativeSource={RelativeSource AncestorType={x:Type local:UC_HeightSettings}}, Mode=TwoWay}"
+                                    local:DocTooltip.Key="Height.GroupsPerRow"/>
+            </StackPanel>
         </StackPanel>
 
         <ItemsControl Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" ItemsSource="{Binding HeightAssignments}" Margin="20">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <WrapPanel />
+                    <!-- Uniform-width tiles, N columns from the Tiles Per Row control on UC_HeightSettings. -->
+                    <UniformGrid Columns="{Binding DataContext.HeightGroupsPerRow, RelativeSource={RelativeSource AncestorType={x:Type local:UC_HeightSettings}}}"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
 
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Background="{DynamicResource SecondaryBackground}" Margin="2">
+                    <Border BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" Background="{DynamicResource SecondaryBackground}" Margin="4">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="auto"/>
