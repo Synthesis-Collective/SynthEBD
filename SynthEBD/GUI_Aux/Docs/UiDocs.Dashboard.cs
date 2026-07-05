@@ -10,6 +10,11 @@ public static partial class UiDocs
             technical: "Reflects the Mutagen game environment: the detected Skyrim release, the resolved Data folder, and the enabled load order behind the link cache. An environment is invalid when its listed order contains only SynthEBD's own output plugin.",
             motivation: "Everything SynthEBD does starts from reading your load order; if this tile is not green, no other module can work, so it is surfaced first.");
 
+        Add("Dashboard.EnvironmentModManager",
+            layperson: "SynthEBD writes its output files (meshes, textures, FaceGen, scripts). If you use MO2 or Vortex, tell SynthEBD here so those files land in a mod folder your manager controls instead of loose in the game's Data folder. Green means the configured folder exists, red means it is set but missing, yellow means no manager is selected. Configure it in the Mod Manager Integration menu.",
+            technical: "Reflects Settings_ModManager.ModManagerType and the configured target path (the MO2 mod folder or the Vortex staging folder). Generated output is installed under that path; the color shows whether the path currently exists on disk (green = Ok), is set but absent/blank (red = Error), or no manager is configured so output goes straight to the Data folder (yellow = Warning). The value is edited on the Mod Manager Integration tab and re-read whenever the Dashboard is shown.",
+            motivation: "MO2 and Vortex do not track files written directly into the Data folder, so SynthEBD's output would be invisible to them and awkward to remove; pointing SynthEBD at the manager's mod/staging folder makes the generated files show up as a normal managed mod.");
+
         Add("Dashboard.AssetPatching",
             layperson: "Gives NPCs new looks (skin textures and meshes) from the config files you have installed. The switch turns the whole feature on or off; click the tile to choose config files and options.",
             technical: "Master switch for the Assets distribution axis (GeneralSettings.bChangeMeshesOrTextures). When enabled, the patcher flattens the selected asset packs and assigns texture/mesh combinations per NPC, written as WornArmor/HeadTexture overrides, FaceGen edits, EBD script data, or SkyPatcher directives depending on mode.",

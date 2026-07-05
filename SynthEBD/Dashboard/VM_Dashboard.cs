@@ -21,6 +21,7 @@ public class VM_Dashboard : VM
         DisplayedItemVm displayedItemVm,
         IEnvironmentStateProvider environmentProvider,
         PatcherState patcherState,
+        VM_SettingsModManager modManager,
         VM_Settings_General general,
         VM_SettingsTexMesh texMesh,
         VM_SettingsBodyGen bodyGen,
@@ -45,7 +46,10 @@ public class VM_Dashboard : VM
             },
             healthProvider: () => environmentProvider.LinkCache != null && environmentProvider.LinkCache.ListedOrder.Count > 1
                 ? TileHealth.Ok : TileHealth.Warning,
-            navigate: () => displayedItemVm.DisplayedViewModel = general);
+            navigate: () => displayedItemVm.DisplayedViewModel = general,
+            footerLabel: "Mod Manager: ",
+            footerDocKey: "Dashboard.EnvironmentModManager",
+            footerProvider: () => ModManagerFooter(modManager));
 
         var assetsTile = new VM_DashboardTile("Asset Patching", "Dashboard.AssetPatching", hasPowerToggle: true,
             statusProvider: () => texMesh.AssetPacks.Count(x => x.IsSelected) + " of " + texMesh.AssetPacks.Count
@@ -171,6 +175,21 @@ public class VM_Dashboard : VM
     {
         source.Subscribe(v => tile.IsPowered = v).DisposeWith(this);
         tile.WhenAnyValue(x => x.IsPowered).Subscribe(v => setter(v)).DisposeWith(this);
+    }
+
+    /// <summary>Computes the Environment tile's mod-manager footer: the selected manager's name and a
+    /// color state - green (Ok) when its configured output path exists on disk, red (Error) when a
+    /// manager is set but its path is missing/blank, and yellow (Warning) when no manager is selected
+    /// (output is written straight to the game Data folder). Recomputed on each dashboard refresh.</summary>
+    private static (string Text, TileHealth Health) ModManagerFooter(VM_SettingsModManager modManager)
+    {
+        static bool PathExists(string? path) => !string.IsNullOrWhiteSpace(path) && System.IO.Directory.Exists(path);
+        return modManager.ModManagerType switch
+        {
+            ModManager.ModOrganizer2 => ("MO2", PathExists(modManager.MO2IntegrationVM.ModFolderPath) ? TileHealth.Ok : TileHealth.Error),
+            ModManager.Vortex => ("Vortex", PathExists(modManager.VortexIntegrationVM.StagingFolderPath) ? TileHealth.Ok : TileHealth.Error),
+            _ => ("None", TileHealth.Warning),
+        };
     }
 
     private void RefreshAllTiles()

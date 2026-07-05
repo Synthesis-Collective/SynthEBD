@@ -84,8 +84,32 @@
                                       IsChecked="{Binding IsPowered, Mode=TwoWay}"
                                       Visibility="{Binding HasPowerToggle, Converter={StaticResource BoolToVis}}"/>
                     </DockPanel>
-                    <TextBlock Grid.Row="1" Text="{Binding StatusText}" TextWrapping="Wrap" Margin="17,8,0,0"
-                               Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Top"/>
+                    <StackPanel Grid.Row="1" Margin="17,8,0,0" VerticalAlignment="Top">
+                        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                        <!-- Optional colored footer line (e.g. mod-manager status on the Environment tile). -->
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    Visibility="{Binding HasFooter, Converter={StaticResource BoolToVis}}"
+                                    local:DocTooltip.Key="{Binding FooterDocKey}">
+                            <TextBlock Text="{Binding FooterLabel}" Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBlock Text="{Binding FooterText}" FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <!-- Default = yellow (Warning: no mod manager set). -->
+                                        <Setter Property="Foreground" Value="{DynamicResource StatusPendingForeground}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding FooterHealth}" Value="Ok">
+                                                <Setter Property="Foreground" Value="{DynamicResource StatusValidForeground}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding FooterHealth}" Value="Error">
+                                                <Setter Property="Foreground" Value="{DynamicResource StatusErrorForeground}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
                 </Grid>
             </Button>
         </DataTemplate>
