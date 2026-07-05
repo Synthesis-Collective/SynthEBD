@@ -1,0 +1,48 @@
+<UserControl x:Class="SynthEBD.UC_ModKeyPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             mc:Ignorable="d" x:Name="Root">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBox x:Name="SearchBox" Grid.Column="0" MinWidth="150"
+                 VerticalContentAlignment="Center"
+                 TextChanged="SearchBox_TextChanged"
+                 PreviewKeyDown="SearchBox_PreviewKeyDown"
+                 GotKeyboardFocus="SearchBox_GotKeyboardFocus"
+                 LostKeyboardFocus="SearchBox_LostKeyboardFocus"
+                 local:DocTooltip.Key="Pickers.SearchBox"/>
+
+        <Button x:Name="ClearButton" Grid.Column="1" Margin="3,0,0,0" Padding="5,0"
+                Foreground="{DynamicResource ActionDangerForeground}" Content="X"
+                Click="ClearButton_Click"
+                local:DocTooltip.Key="Pickers.Clear"/>
+
+        <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding ElementName=SearchBox}" Placement="Bottom"
+               StaysOpen="False" AllowsTransparency="True"
+               MinWidth="{Binding ActualWidth, ElementName=SearchBox}">
+            <Border Background="{DynamicResource PrimaryBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <ListBox x:Name="SuggestionList" MaxHeight="320" MaxWidth="650"
+                         Background="Transparent" BorderThickness="0"
+                         VirtualizingStackPanel.IsVirtualizing="True"
+                         VirtualizingStackPanel.VirtualizationMode="Recycling"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         PreviewMouseLeftButtonUp="SuggestionList_PreviewMouseLeftButtonUp"
+                         PreviewKeyDown="SuggestionList_PreviewKeyDown">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

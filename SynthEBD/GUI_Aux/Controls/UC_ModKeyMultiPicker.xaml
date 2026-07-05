@@ -1,0 +1,36 @@
+<UserControl x:Class="SynthEBD.UC_ModKeyMultiPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             mc:Ignorable="d" x:Name="Root">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <local:UC_ModKeyPicker x:Name="EntryPicker" Grid.Row="0"
+                               SearchableMods="{Binding SearchableMods, ElementName=Root}"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding ModKeys, ElementName=Root}"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel Margin="0,2,0,0" LastChildFill="True">
+                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="5,0" Content="X"
+                                    Foreground="{DynamicResource ActionDangerForeground}"
+                                    Click="RemoveButton_Click"
+                                    local:DocTooltip.Key="Pickers.Remove"/>
+                            <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

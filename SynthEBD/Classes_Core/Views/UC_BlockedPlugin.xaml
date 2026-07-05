@@ -4,8 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SynthEBD"
-             xmlns:plugins="clr-namespace:Mutagen.Bethesda.WPF.Plugins;assembly=Mutagen.Bethesda.WPF"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=local:VM_BlockedPlugin}"
              d:DesignHeight="450" d:DesignWidth="800">
 
@@ -34,7 +33,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0"  HorizontalAlignment="Center" local:DocTooltip.Key="BlockList.PluginPicker">Plugin</TextBlock>
-        <plugins:ModKeyPicker ModKey="{Binding ModKey}" Grid.Row="0" Grid.Column="1"  SearchableMods="{Binding LoadOrder}" />
+        <local:UC_ModKeyPicker ModKey="{Binding ModKey}" Grid.Row="0" Grid.Column="1"  SearchableMods="{Binding LoadOrder}" />
         <TextBlock Grid.Row="1" Grid.Column="0"  HorizontalAlignment="Center" local:DocTooltip.Key="BlockList.BlockAssets">Block Assets (Textures and Meshes)</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding Path=Assets, Mode=TwoWay}"></CheckBox>
         <TextBlock Grid.Row="2" Grid.Column="0"  HorizontalAlignment="Center" local:DocTooltip.Key="BlockList.BlockVanillaBodyPath">Block Vanilla Body Mesh Path Forcing</TextBlock>
