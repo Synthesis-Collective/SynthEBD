@@ -30,7 +30,7 @@
                 <ListBox SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding Templates}" IsSynchronizedWithCurrentItem="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
+                            <Border BorderThickness="1" BorderBrush="{Binding BorderColor}" CornerRadius="8" Padding="4 1">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
