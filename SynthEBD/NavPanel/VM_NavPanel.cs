@@ -1,4 +1,6 @@
 using System.Windows.Input;
+using Noggog;
+using ReactiveUI;
 
 namespace SynthEBD;
 
@@ -27,6 +29,15 @@ public class VM_NavPanel : VM
 
     /// <summary>SynthEBD version string shown in the nav panel (from <see cref="PatcherState.Version"/>).</summary>
     public string Version { get; }
+
+    /// <summary>Whether the BodyGen Integration nav item is shown: true when BodyGen is the system
+    /// selected on the Dashboard Body Shape tile, or when the UI is in Troubleshoot mode (which
+    /// reveals both body-settings menus regardless of the selection).</summary>
+    public bool ShowBodyGenNav { get; private set; } = true;
+
+    /// <summary>Whether the (O/Auto)Body Integration nav item is shown: true when BodySlide is the
+    /// system selected on the Dashboard Body Shape tile, or in Troubleshoot mode.</summary>
+    public bool ShowOBodyNav { get; private set; } = true;
 
     private readonly VM_Dashboard _dashboard;
     private readonly DisplayedItemVm _displayedItemVM;
@@ -115,6 +126,22 @@ public class VM_NavPanel : VM
             canExecute: _ => true,
             execute: _ => displayedItemVm.DisplayedViewModel = modManager
         );
+
+        // Show only the body-settings menu (BodyGen vs OBody) matching the system selected on the
+        // Dashboard Body Shape tile - EXCEPT in Troubleshoot mode, which reveals both. Driven by
+        // LastBodySelectionMode (the Dashboard combo's value, always BodyGen or BodySlide) so the nav
+        // tracks the combo even while the Body Shape switch is off.
+        void RecomputeBodyNav()
+        {
+            bool troubleshoot = UiModeController.Instance.DisplayMode == UiDisplayMode.Troubleshoot;
+            var selected = settingsGeneral.LastBodySelectionMode;
+            ShowBodyGenNav = troubleshoot || selected == BodyShapeSelectionMode.BodyGen;
+            ShowOBodyNav = troubleshoot || selected == BodyShapeSelectionMode.BodySlide;
+        }
+        settingsGeneral.WhenAnyValue(x => x.LastBodySelectionMode)
+            .Subscribe(_ => RecomputeBodyNav()).DisposeWith(this);
+        UiModeController.Instance.WhenAnyValue(x => x.DisplayMode)
+            .Subscribe(_ => RecomputeBodyNav()).DisposeWith(this);
     }
 
     /// <summary>Navigates to the Dashboard (the home page).</summary>
