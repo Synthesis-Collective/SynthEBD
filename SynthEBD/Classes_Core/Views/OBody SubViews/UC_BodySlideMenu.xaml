@@ -27,25 +27,44 @@
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0">
-            <TextBlock Text="Gender:" VerticalAlignment="Center" Margin="0,0,3,0"/>
-            <ComboBox SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
-            <TextBlock Text="Body Type:" VerticalAlignment="Center" Margin="8,0,3,0"/>
-            <ComboBox SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding AvailableBodyTypesForGender}" IsSynchronizedWithCurrentItem="True" MinWidth="100"/>
+        <!-- The Gender/Body Type/AZ controls row. Its ActualWidth is the reference width for the
+             Add New button and the preset list below, so the whole left column reads as one width.
+             Must stay HorizontalAlignment="Left": if it stretched, ActualWidth would be the column
+             width instead of the content width, over-widening the list on wide windows. WrapPanel
+             (not StackPanel) so controls wrap to a new line instead of clipping on narrow windows. -->
+        <WrapPanel x:Name="TopControlsRow" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Gender:" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                <ComboBox SelectedValue="{Binding SelectedGender}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}" IsSynchronizedWithCurrentItem="True"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Body Type:" VerticalAlignment="Center" Margin="8,0,3,0"/>
+                <ComboBox SelectedValue="{Binding SelectedBodyType}" ItemsSource="{Binding AvailableBodyTypesForGender}" IsSynchronizedWithCurrentItem="True" MinWidth="100"/>
+            </StackPanel>
             <local:UC_Alphabetizer DataContext="{Binding Alphabetizer}" Margin="8,0,0,0"/>
-        </StackPanel>
+        </WrapPanel>
 
-        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
-            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,3,0"/>
-            <TextBox Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}" MinWidth="140" VerticalAlignment="Center"
-                     local:DocTooltip.Key="BodySlides.PresetNameFilter"/>
-            <TextBlock Text=" Preset (" VerticalAlignment="Center" Margin="8,0,0,0"/>
-            <CheckBox IsChecked="{Binding ShowHidden}" VerticalAlignment="Center"/>
-            <TextBlock Text=" Show Hidden)" VerticalAlignment="Center"/>
-        </StackPanel>
-        <Button Grid.Row="2" Grid.Column="0" Command="{Binding AddPreset}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
+        <WrapPanel Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,3,0"/>
+                <TextBox Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}" MinWidth="140" VerticalAlignment="Center"
+                         local:DocTooltip.Key="BodySlides.PresetNameFilter"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text=" Preset (" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <CheckBox IsChecked="{Binding ShowHidden}" VerticalAlignment="Center"/>
+                <TextBlock Text=" Show Hidden)" VerticalAlignment="Center"/>
+            </StackPanel>
+        </WrapPanel>
+        <Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" Width="{Binding ActualWidth, ElementName=TopControlsRow}" Command="{Binding AddPreset}" Foreground="{DynamicResource ActionGoodForeground}">Add New</Button>
 
-        <ListBox Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <!-- Preset list width tracks the top Gender/Body Type/AZ controls row
+             (TopControlsRow.ActualWidth), so the whole left column reads as one width. Preset names
+             wider than that scroll horizontally within their own row via the per-item ScrollViewer in
+             the ItemTemplate below. Width is bound to an external element (not MaxWidth+Left) so the
+             item Border's MaxWidth="{Binding ActualWidth, ListBox}" can't become a measure feedback
+             loop. -->
+        <ListBox Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" Width="{Binding ActualWidth, ElementName=TopControlsRow}" HorizontalAlignment="Left" SelectedValue="{Binding SelectedPlaceHolder}" ItemsSource="{Binding CurrentlyDisplayedBodySlides}" IsSynchronizedWithCurrentItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border BorderThickness="1" BorderBrush="{Binding BorderColor}" CornerRadius="8" Padding="4 1" MaxWidth="{Binding Path=ActualWidth, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}" Margin="1 0 0 1">

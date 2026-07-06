@@ -18,15 +18,15 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="5"/>
-                <ColumnDefinition Width="100" MinWidth="60"/>
+                <ColumnDefinition Width="420" MinWidth="220"/>
             </Grid.ColumnDefinitions>
 
             <!-- Section B preview viewer: embedded per-preset 3D viewer, pinned to the right
                  so the main settings grid keeps its existing layout. Bound to the per-preset
                  CharacterViewer VM (Func<VM_CharacterViewer> factory in the ctor). The
                  GridSplitter in column 1 lets the user resize the viewer; the column's
-                 starting Width (100) is intentionally narrow so the viewer doesn't obscure
-                 the main settings grid. -->
+                 starting Width (420, MinWidth 220) matches the Body Type Profiles editor's
+                 preview pane so the viewer has usable horizontal space by default. -->
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
                           VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
                           ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
