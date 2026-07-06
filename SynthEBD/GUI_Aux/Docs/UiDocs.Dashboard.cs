@@ -21,9 +21,9 @@ public static partial class UiDocs
             motivation: "Asset distribution is SynthEBD's core feature - the successor of zEBD's controlled randomization of NPC appearance. The switch exists so you can temporarily exclude assets from a patch run without uninstalling anything.");
 
         Add("Dashboard.BodyShape",
-            layperson: "Gives NPCs varied body shapes. The switch turns body-shape assignment on or off; click the tile to configure which shapes go to which NPCs.",
-            technical: "Wraps GeneralSettings.BodySelectionMode: Off = None; On restores the last used system - BodyGen (RaceMenu morphs) or BodySlide presets applied through OBody/AutoBody. The tile opens the menu matching the active system.",
-            motivation: "Uniform bodies make NPCs feel cloned; distributing shapes adds variety. Both BodyGen and OBody ecosystems are widely used, so SynthEBD supports either as the body-shape backend.");
+            layperson: "Gives NPCs varied body shapes. The switch turns body-shape assignment on or off, and the dropdown picks the system - BodyGen morphs or BodySlide presets (plus how BodySlide is applied). Click the tile to configure which shapes go to which NPCs.",
+            technical: "The switch wraps GeneralSettings.BodySelectionMode (Off = None; On restores the chosen system). The inline dropdowns bind to LastBodySelectionMode (BodyGen or BodySlide) and, for BodySlide, BSSelectionMode (OBody / AutoBody); changing the system while the switch is on applies immediately, while off it just sets what the switch will restore. None is intentionally absent from the dropdown - the switch owns on/off - but remains in the enum for backwards compatibility. The tile opens the menu matching the selected system.",
+            motivation: "Uniform bodies make NPCs feel cloned; distributing shapes adds variety. Both BodyGen and OBody/AutoBody ecosystems are widely used, so SynthEBD supports either as the body-shape backend - now selectable right on the tile instead of in General Settings.");
 
         Add("Dashboard.Headparts",
             layperson: "Randomizes NPC hair, eyes, brows, scars and similar head features. The switch turns the feature on or off.",

@@ -60,25 +60,26 @@ public class VM_Dashboard : VM
         var bodyTile = new VM_DashboardTile("Body Shape Patching", "Dashboard.BodyShape", hasPowerToggle: true,
             statusProvider: () =>
             {
+                // The system (BodyGen/BodySlide) is now shown by the inline mode selector, so the
+                // status readout carries only the installed counts.
                 switch (general.BodySelectionMode)
                 {
                     case BodyShapeSelectionMode.BodyGen:
                         int maleConfigs = patcherState.BodyGenConfigs?.Male.Count ?? 0;
                         int femaleConfigs = patcherState.BodyGenConfigs?.Female.Count ?? 0;
-                        return "BodyGen (RaceMenu morphs)" + System.Environment.NewLine
-                            + maleConfigs + " male / " + femaleConfigs + " female morph configs";
+                        return maleConfigs + " male / " + femaleConfigs + " female morph configs";
                     case BodyShapeSelectionMode.BodySlide:
                         int malePresets = patcherState.OBodySettings?.BodySlidesMale.Count ?? 0;
                         int femalePresets = patcherState.OBodySettings?.BodySlidesFemale.Count ?? 0;
-                        return "BodySlide via " + general.BSSelectionMode + System.Environment.NewLine
-                            + malePresets + " male / " + femalePresets + " female presets";
+                        return malePresets + " male / " + femalePresets + " female presets";
                     default:
                         return "Off";
                 }
             },
             healthProvider: () => general.BodySelectionMode != BodyShapeSelectionMode.None ? TileHealth.Ok : TileHealth.Off,
             navigate: () => displayedItemVm.DisplayedViewModel =
-                general.BodySelectionMode == BodyShapeSelectionMode.BodyGen ? bodyGen : oBody);
+                general.LastBodySelectionMode == BodyShapeSelectionMode.BodyGen ? bodyGen : oBody,
+            inlineContent: new VM_BodyShapeTileSelector(general));
 
         var headPartsTile = new VM_DashboardTile("Headpart Patching", "Dashboard.Headparts", hasPowerToggle: true,
             statusProvider: () =>
@@ -156,6 +157,19 @@ public class VM_Dashboard : VM
             .Where(mode => mode != BodyShapeSelectionMode.None)
             .Subscribe(mode => general.LastBodySelectionMode = mode).DisposeWith(this);
 
+        // The Body Shape tile's inline mode selector binds to LastBodySelectionMode (always
+        // BodyGen/BodySlide, so the combo never needs a "None" item - the switch owns on/off).
+        // When the module is on, changing the system there applies immediately to the live
+        // BodySelectionMode; when off it only updates the system the switch will restore.
+        general.WhenAnyValue(x => x.LastBodySelectionMode)
+            .Subscribe(mode =>
+            {
+                if (general.BodySelectionMode != BodyShapeSelectionMode.None)
+                {
+                    general.BodySelectionMode = mode;
+                }
+            }).DisposeWith(this);
+
         // Refresh all status readouts whenever the dashboard becomes the displayed view (cheap,
         // and avoids wiring observers into every underlying collection). Toggling power also
         // refreshes so the readouts react while the dashboard is visible.
@@ -166,6 +180,11 @@ public class VM_Dashboard : VM
         {
             tile.WhenAnyValue(x => x.IsPowered).Subscribe(_ => RefreshAllTiles()).DisposeWith(this);
         }
+
+        // The Body Shape tile's status (preset vs morph-config counts) depends on the selected
+        // system, which the tile's own mode combo can change with no navigation or power-toggle
+        // change - refresh so the readout tracks the combo live instead of only after a restart.
+        general.WhenAnyValue(x => x.BodySelectionMode).Subscribe(_ => RefreshAllTiles()).DisposeWith(this);
     }
 
     public ObservableCollection<VM_DashboardTile> Tiles { get; }
@@ -199,4 +218,27 @@ public class VM_Dashboard : VM
             tile.Refresh();
         }
     }
+}
+
+/// <summary>
+/// Backs the Body Shape Dashboard tile's inline mode selector. Wraps <see cref="VM_Settings_General"/>
+/// so the tile's combos bind to <see cref="VM_Settings_General.LastBodySelectionMode"/> (the chosen
+/// system, always BodyGen or BodySlide - never None, which the tile's power switch owns) and
+/// <see cref="VM_Settings_General.BSSelectionMode"/> (the BodySlide sub-mode). <see cref="SelectableModes"/>
+/// deliberately omits None so the combo offers only the two real systems, while the enum itself keeps
+/// None for backwards compatibility.
+/// </summary>
+public class VM_BodyShapeTileSelector : VM
+{
+    public VM_BodyShapeTileSelector(VM_Settings_General general)
+    {
+        General = general;
+    }
+
+    /// <summary>The General-settings VM the tile's combos bind through (LastBodySelectionMode / BSSelectionMode).</summary>
+    public VM_Settings_General General { get; }
+
+    /// <summary>The selectable body systems - None is intentionally excluded (the power switch owns on/off).</summary>
+    public BodyShapeSelectionMode[] SelectableModes { get; } =
+        { BodyShapeSelectionMode.BodyGen, BodyShapeSelectionMode.BodySlide };
 }

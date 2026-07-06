@@ -8,6 +8,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter"/>
 
         <!-- Pill-style power toggle. -->
         <Style x:Key="PowerSliderStyle" TargetType="ToggleButton">
@@ -85,6 +86,8 @@
                                       Visibility="{Binding HasPowerToggle, Converter={StaticResource BoolToVis}}"/>
                     </DockPanel>
                     <StackPanel Grid.Row="1" Margin="17,8,0,0" VerticalAlignment="Top">
+                        <!-- Optional tile-specific controls (e.g. the Body Shape mode selector). -->
+                        <ContentControl Content="{Binding InlineContent}" Focusable="False"/>
                         <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"
                                    Foreground="{DynamicResource SecondaryForeground}"/>
                         <!-- Optional colored footer line (e.g. mod-manager status on the Environment tile). -->
@@ -112,6 +115,24 @@
                     </StackPanel>
                 </Grid>
             </Button>
+        </DataTemplate>
+
+        <!-- Inline mode selector for the Body Shape tile: pick the system (BodyGen/BodySlide) and,
+             for BodySlide, the sub-mode. The tile's power switch owns on/off, so "None" is not
+             offered here; the combo binds to LastBodySelectionMode (always a real system). -->
+        <DataTemplate DataType="{x:Type local:VM_BodyShapeTileSelector}">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                <ComboBox VerticalAlignment="Center" MinWidth="95"
+                          ItemsSource="{Binding SelectableModes}"
+                          SelectedValue="{Binding General.LastBodySelectionMode, Mode=TwoWay}"/>
+                <TextBlock Text="via" Margin="6,0,6,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SecondaryForeground}"
+                           Visibility="{Binding General.LastBodySelectionMode, Converter={StaticResource BSVisibilityConverter}}"/>
+                <ComboBox VerticalAlignment="Center" MinWidth="85"
+                          ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySlideSelectionMode}}}"
+                          SelectedValue="{Binding General.BSSelectionMode, Mode=TwoWay}"
+                          Visibility="{Binding General.LastBodySelectionMode, Converter={StaticResource BSVisibilityConverter}}"/>
+            </StackPanel>
         </DataTemplate>
     </UserControl.Resources>
 

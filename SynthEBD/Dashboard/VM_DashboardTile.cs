@@ -28,7 +28,8 @@ public class VM_DashboardTile : VM
     public VM_DashboardTile(string title, string docKey, bool hasPowerToggle, Func<string> statusProvider,
         Func<TileHealth> healthProvider, Action navigate,
         string? footerLabel = null, string? footerDocKey = null,
-        Func<(string Text, TileHealth Health)>? footerProvider = null)
+        Func<(string Text, TileHealth Health)>? footerProvider = null,
+        object? inlineContent = null)
     {
         Title = title;
         DocKey = docKey;
@@ -38,6 +39,7 @@ public class VM_DashboardTile : VM
         FooterLabel = footerLabel;
         FooterDocKey = footerDocKey;
         _footerProvider = footerProvider;
+        InlineContent = inlineContent;
         Open = new RelayCommand(canExecute: _ => true, execute: _ => navigate());
         Refresh();
     }
@@ -51,6 +53,10 @@ public class VM_DashboardTile : VM
     public string StatusText { get; set; } = "";
     public TileHealth Health { get; set; } = TileHealth.Off;
     public RelayCommand Open { get; }
+
+    /// <summary>Optional tile-specific view model rendered inline in the tile body via a type-routed
+    /// DataTemplate (e.g. the Body Shape tile's mode selector). Null on tiles that only show status.</summary>
+    public object? InlineContent { get; }
 
     // --- Optional colored footer line (used by the Environment tile for mod-manager status) ---
     /// <summary>Neutral prefix rendered before <see cref="FooterText"/>, e.g. "Mod Manager: ". Null on tiles without a footer.</summary>

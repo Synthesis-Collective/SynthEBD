@@ -30,8 +30,12 @@
                 <RowDefinition Height="{Binding IsStandalone, Converter={StaticResource GridHeightToggler}}" x:Name="row0"/>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
-                <!-- The five per-axis enable toggles (rows 3-7) are Customize-level: the Dashboard
-                     is their Use-mode surface. -->
+                <!-- Rows 3-7 held the per-axis enable toggles. The pure on/off toggles (Assets=3,
+                     Height=5, Consistency=7) now live only on the Dashboard tiles, so those rows are
+                     intentionally empty and collapse to 0 height (an empty Auto row has no height;
+                     the RowDefinitions are kept to avoid renumbering the rest of the grid). Row 4
+                     keeps the Body Shape MODE selector (not a simple toggle) and row 6 keeps the
+                     Head Part exclude-custom-FaceGen sub-option; both stay Customize-level. -->
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"/>
                 <RowDefinition Height="{Binding Source={x:Static local:UiModeController.Instance}, Path=DisplayMode, Converter={StaticResource UiModeRowHeight}, ConverterParameter=Customize}"  x:Name="row5"/>
@@ -86,28 +90,20 @@
                 <ComboBox MinWidth="120" VerticalAlignment="Center" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedThemeName, Mode=TwoWay}"/>
             </StackPanel>
 
-            <TextBlock Grid.Column="0" Grid.Row="3" local:DocTooltip.Key="General.ApplyTexturesAndMeshes">Apply Textures and Meshes</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="3" IsChecked="{Binding Path=bChangeMeshesOrTextures, Mode=TwoWay}"></CheckBox>
+            <!-- Row 3 (Apply Textures and Meshes) removed: toggled from the Dashboard Asset Patching tile. -->
 
-            <TextBlock Grid.Column="0" Grid.Row="4" local:DocTooltip.Key="General.ApplyBodyShapes" >Apply Body Shapes Using</TextBlock>
-            <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.Row="4">
-                <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding BodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodyShapeSelectionMode}}}" IsSynchronizedWithCurrentItem="True"/>
-                <TextBlock Text="via" Margin="5 0 5 0" VerticalAlignment="Center" Visibility="{ Binding BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}"/>
-                <ComboBox  Width="auto" HorizontalAlignment="Left" SelectedValue="{Binding BSSelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySlideSelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{ Binding BodySelectionMode, Converter={StaticResource BSVisibilityConverter}}"/>
-            </StackPanel>
+            <!-- Row 4 (Apply Body Shapes Using) removed: the mode selector (BodyGen/BodySlide + sub-mode)
+                 now lives on the Dashboard Body Shape tile, next to its on/off switch. -->
 
-            <TextBlock Grid.Column="0" Grid.Row="5" local:DocTooltip.Key="General.ApplyHeightChanges">Apply Height Changes</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="5" IsChecked="{Binding Path=bChangeHeight, Mode=TwoWay}"></CheckBox>
+            <!-- Row 5 (Apply Height Changes) removed: toggled from the Dashboard Height tile. -->
 
-            <TextBlock Grid.Column="0" Grid.Row="6" local:DocTooltip.Key="General.ApplyHeadParts">Apply Head Part Randomization</TextBlock>
-            <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.Row="6">
-                <CheckBox IsChecked="{Binding Path=bChangeHeadParts, Mode=TwoWay}"/>
-                <TextBlock Margin="10 0 5 0" Text="Try To Exclude Custom FaceGen NPCs (Not Perfect)" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}" local:DocTooltip.Key="General.HeadPartsExcludeCustomHeads"/>
-                <CheckBox IsChecked="{Binding Path=bHeadPartsExcludeCustomHeads, Mode=TwoWay}" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
+            <!-- Head Part on/off moved to the Dashboard Headpart tile. Only the "exclude custom
+                 FaceGen" sub-option (no other home) stays here, shown while Head Part patching is
+                 enabled. -->
+            <TextBlock Grid.Column="0" Grid.Row="6" local:DocTooltip.Key="General.HeadPartsExcludeCustomHeads" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}">Head Parts: Exclude Custom FaceGen NPCs (Not Perfect)</TextBlock>
+            <CheckBox Grid.Column="2" Grid.Row="6" IsChecked="{Binding Path=bHeadPartsExcludeCustomHeads, Mode=TwoWay}" Visibility="{Binding bChangeHeadParts, Converter={StaticResource BoolToVis}}"/>
 
-            <TextBlock Grid.Column="0" Grid.Row="7" local:DocTooltip.Key="General.EnableConsistency">Enable Consistency</TextBlock>
-            <CheckBox Grid.Column="2" Grid.Row="7" IsChecked="{Binding Path=bEnableConsistency, Mode=TwoWay}"></CheckBox>
+            <!-- Row 7 (Enable Consistency) removed: toggled from the Dashboard Consistency tile. -->
 
             <TextBlock Grid.Column="0" Grid.Row="8" local:DocTooltip.Key="General.AutoSplitOutput">Split Output if Over Master Limit</TextBlock>
             <CheckBox Grid.Column="2" Grid.Row="8" IsChecked="{Binding Path=AutoSplitOutput, Mode=TwoWay}"></CheckBox>
