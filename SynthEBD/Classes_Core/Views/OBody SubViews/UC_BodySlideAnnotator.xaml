@@ -23,7 +23,22 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                        <TextBlock Text="{Binding BodyTypeGroup}" Margin="2" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding BodyTypeGroup}" Margin="2" HorizontalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
+                                    <Style.Triggers>
+                                        <!-- Registry body type with no installed BodySlide presets: rules stay
+                                             editable (slider names come from the registry catalog) but there is
+                                             nothing to apply/test them against, so flag it in red. -->
+                                        <DataTrigger Binding="{Binding HasLoadedPresets}" Value="False">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusErrorForeground}"/>
+                                            <Setter Property="ToolTip" Value="No BodySlide presets are installed for this body type, so there are no presets to apply annotations to yet. You can still author rules here; the available slider names come from the Body Type Registry."/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>

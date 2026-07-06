@@ -48,10 +48,23 @@ public class VM_BodySlideAnnotator : VM
     private List<SliderClassificationRulesByBodyType> _stashedUnloadedBodyTypeRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
     public RelayCommand ApplyAnnotationsCommand { get; }
 
-    /// <summary>Scans all loaded male/female BodySlides to build the slider-name-by-group map, creates a rule-set VM per body-type group, and repopulates the menu's available slider groups.</summary>
+    /// <summary>
+    /// Builds the annotator's body-type list from the canonical Body Type Registry (so every known
+    /// body type is listed and editable regardless of which BodySlide presets are installed), then
+    /// appends any extra groups found only among the loaded presets (e.g. the "Unknown" catch-all)
+    /// so unclassified presets stay annotatable. Each body type's available slider names are the
+    /// union of the registry's resolved catalog (ShapeData OSD/BSD + shipped fallback) and the names
+    /// found in that body type's loaded presets. Body types with no loaded presets are flagged via
+    /// <see cref="VM_SliderClassificationRulesByBodyType.HasLoadedPresets"/> so the UI can mark them.
+    /// </summary>
     public void InitializeBodySlideInfo()
     {
         SliderNamesByGroup.Clear();
+        AnnotationRules.Clear();
+
+        // Pass 1: collect the slider names present in the loaded BodySlide preset XMLs, keyed by the
+        // body type (SliderGroup) the classifier assigned each preset. A key existing here is what
+        // "has loaded presets" means below, and this map still drives the BodySlides menu filter.
         foreach (var templateVM in _bodySlideMenu.BodySlidesMale.And(_bodySlideMenu.BodySlidesFemale))
         {
             var template = templateVM.AssociatedModel;
@@ -79,10 +92,50 @@ public class VM_BodySlideAnnotator : VM
             }
         }
 
-        foreach (var bodyTypeGroup in SliderNamesByGroup.Keys)
+        var loadedGroups = new HashSet<string>(SliderNamesByGroup.Keys, StringComparer.OrdinalIgnoreCase);
+
+        // Pass 2: registry body types first (in registry order), then any loaded-only groups. Each
+        // body type's slider names = the registry entry's ResolvedSliders unioned with the names
+        // found in that body type's loaded presets.
+        var registry = _patcherState.OBodySettings.BodyTypeRegistry ?? new List<BodyTypeRegistryEntry>();
+        var slidersByBodyType = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var orderedBodyTypes = new List<string>();
+        var seenBodyTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in registry)
         {
-            SliderNamesByGroup[bodyTypeGroup].Sort(x => x, false);
-            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyTypeGroup, SliderNamesByGroup[bodyTypeGroup], this));
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Name) || !seenBodyTypes.Add(entry.Name))
+            {
+                continue;
+            }
+            orderedBodyTypes.Add(entry.Name);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (entry.ResolvedSliders != null)
+            {
+                foreach (var s in entry.ResolvedSliders) names.Add(s);
+            }
+            slidersByBodyType[entry.Name] = names;
+        }
+
+        foreach (var loadedGroup in SliderNamesByGroup.Keys)
+        {
+            if (seenBodyTypes.Add(loadedGroup))
+            {
+                orderedBodyTypes.Add(loadedGroup);
+                slidersByBodyType[loadedGroup] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+            foreach (var s in SliderNamesByGroup[loadedGroup])
+            {
+                slidersByBodyType[loadedGroup].Add(s);
+            }
+        }
+
+        foreach (var bodyType in orderedBodyTypes)
+        {
+            var availableSliderNames = new ObservableCollection<string>(slidersByBodyType[bodyType]);
+            availableSliderNames.Sort(x => x, false);
+            bool hasLoadedPresets = loadedGroups.Contains(bodyType);
+            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyType, availableSliderNames, this, hasLoadedPresets));
         }
 
         _bodySlideMenu.AvailableSliderGroups.Clear();
@@ -128,6 +181,14 @@ public class VM_BodySlideAnnotator : VM
         Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules = new();
         foreach (var rule in AnnotationRules)
         {
+            // Skip pristine body types that only appear because they're in the registry (no loaded
+            // presets and nothing authored), so the settings file isn't padded with empty rule
+            // skeletons for every registered body type. Preset-backed and authored rules always save.
+            if (!rule.HasLoadedPresets && !rule.HasAuthoredContent())
+            {
+                continue;
+            }
+
             if (!bodySlideClassificationRules.ContainsKey(rule.BodyTypeGroup))
             {
                 bodySlideClassificationRules.Add(rule.BodyTypeGroup, rule.DumpToModel());
@@ -182,12 +243,13 @@ public class VM_BodySlideAnnotator : VM
 [DebuggerDisplay("{SliderGroup}: Rule List for {DescriptorClassifiers.Count} Descriptors")]
 public class VM_SliderClassificationRulesByBodyType : VM // contains a list of rules for each descriptor
 {
-    /// <summary>Creates a per-descriptor rule-set VM for each descriptor shell in the subscribed menu and wires the ApplyAnnotations command scoped to this body type.</summary>
-    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM)
+    /// <summary>Creates a per-descriptor rule-set VM for each descriptor shell in the subscribed menu and wires the ApplyAnnotations command scoped to this body type. <paramref name="hasLoadedPresets"/> is false for registry body types with no installed BodySlide presets — the rules stay editable (slider names come from the registry catalog) but there are no presets to apply/test against, which the UI surfaces in red.</summary>
+    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM, bool hasLoadedPresets = true)
     {
         _subscribedDescriptorMenu = subscribedMenu;
 
         BodyTypeGroup = bodyTypeGroup;
+        HasLoadedPresets = hasLoadedPresets;
 
         foreach (var descriptorShell in _subscribedDescriptorMenu.TemplateDescriptors)
         {
@@ -200,6 +262,14 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         );
     }
     public string BodyTypeGroup { get; } // E.g. HIMBO, CBBE, etc
+
+    /// <summary>
+    /// False when no loaded BodySlide preset XMLs classified to this body type. The rules remain
+    /// editable — available slider names come from the Body Type Registry's resolved catalog — but
+    /// there are no presets to apply or test the rules against yet. Drives the red "no presets
+    /// loaded" cue in the annotator list and the warning banner in the rule editor.
+    /// </summary>
+    public bool HasLoadedPresets { get; }
     public ObservableCollection<VM_DescriptorClassificationRuleSet> DescriptorClassifiers { get; set; } = new();
     public VM_DescriptorClassificationRuleSet SelectedDescriptor { get; set; }
     private VM_BodyShapeDescriptorCreationMenu _subscribedDescriptorMenu { get; }
@@ -233,6 +303,23 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         model.DescriptorClassifiers = DescriptorClassifiers.Select(x => x.DumpToModel()).ToList();
         model.DescriptorClassifiers.AddRange(_stashedUnloadedDescriptorRules);
         return model;
+    }
+
+    /// <summary>
+    /// True when the user (or a loaded config) has authored anything for this body type — a default
+    /// descriptor value or at least one classification rule — or when stashed unloaded descriptor
+    /// rules are being carried. Lets the annotator skip persisting pristine registry-only body types.
+    /// </summary>
+    public bool HasAuthoredContent()
+    {
+        if (_stashedUnloadedDescriptorRules.Count > 0)
+        {
+            return true;
+        }
+
+        return DescriptorClassifiers.Any(d =>
+            (d.DefaultDescriptorValue != null && !string.IsNullOrEmpty(d.DefaultDescriptorValue.Value))
+            || d.RuleList.Any());
     }
 }
 
