@@ -91,6 +91,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             execute: _ => DisplayedUI = AnnotatorUI
         );
 
+        // DEPRECATED / LEGACY: activates the hidden "Annotator Training" tab (never-completed
+        // ML-on-slider-values trainer, superseded by the geometry/measurement-based Body Type Registry +
+        // Profiles). The button in UC_SettingsOBody.xaml is Collapsed, so this command is unreachable
+        // from the UI; retained for reference only. See VM_OBodyTrainer.
         ClickAnnotationTrainerMenu = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisplayedUI = obodyTrainer
@@ -136,6 +140,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
     public RelayCommand ClickAnnotationMenu { get; }
+    /// <summary>DEPRECATED / LEGACY - selects the hidden "Annotator Training" tab; unreachable from the UI. See VM_OBodyTrainer.</summary>
     public RelayCommand ClickAnnotationTrainerMenu { get; }
     public RelayCommand ClickBodyTypeRegistryMenu { get; }
     public RelayCommand ClickBodyTypeProfilesMenu { get; }

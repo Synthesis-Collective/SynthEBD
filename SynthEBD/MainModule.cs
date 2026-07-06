@@ -89,6 +89,10 @@ public class MainModule : Autofac.Module
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_AssetReplicateTextureRemover>().AsSelf().SingleInstance();
+        // DEPRECATED / LEGACY: the "Annotator Training" feature (ML-on-slider-values, never fully
+        // implemented; superseded by the geometry/measurement-based Body Type Registry + Profiles).
+        // Its UI entry point is hidden; these registrations are kept only so the retained code still
+        // resolves if the avenue is revisited. See VM_OBodyTrainer.
         builder.RegisterType<VM_OBodyTrainer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyTrainerExporter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_TexMeshBatchActions>().AsSelf().SingleInstance();

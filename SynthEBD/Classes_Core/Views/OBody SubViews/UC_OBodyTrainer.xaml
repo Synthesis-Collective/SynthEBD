@@ -7,6 +7,9 @@
              xmlns:local="clr-namespace:SynthEBD"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    <!-- DEPRECATED / LEGACY: view for the hidden "Annotator Training" host tab (never-completed
+         ML-on-slider-values trainer, superseded by the geometry/measurement-based Body Type Registry +
+         Profiles). Retained for reference only; not maintained. See VM_OBodyTrainer. -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>

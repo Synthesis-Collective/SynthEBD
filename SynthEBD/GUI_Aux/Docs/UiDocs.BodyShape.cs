@@ -34,8 +34,11 @@ public static partial class UiDocs
             technical: "Edits Settings_OBody.BodySlideClassificationRules (SliderClassificationRulesByBodyType keyed by slider group). BodySlideAnnotator evaluates these rules against each preset's slider values to assign body shape descriptors; rule-derived annotations are marked as non-manual and are recomputed rather than saved.",
             motivation: "Manually annotating hundreds of installed presets is tedious. Authoring rules once per body type lets every current and future preset be labeled automatically and consistently.");
 
+        // DEPRECATED / LEGACY: kept for DocTooltip key parity only - the "Annotator Training" tab is
+        // hidden (never-completed ML-on-slider-values trainer, superseded by the geometry/measurement-
+        // based Body Type Registry + Profiles). See VM_OBodyTrainer.
         Add("OBody.AnnotatorTrainingMenu",
-            layperson: "Opens a tool for training the machine-learning model that helps classify body presets. Most users never need this; it is for contributors improving the automatic labeling.",
+            layperson: "(Deprecated, hidden.) Opened a tool for training a machine-learning model to classify body presets. That approach was never finished and has been superseded by the geometry/measurement-based Body Type Registry and Body Type Profiles.",
             technical: "Hosts VM_OBodyTrainer / VM_OBodyTrainerExporter: pick BodySlide presets, slider groups, and sliders, then either train an ML.NET classification model per descriptor category or export the labeled training set as CSV.",
             motivation: "The ML-based classifier behind automatic annotation needs labeled training data; this menu lets power users generate that data and retrain models without leaving SynthEBD.");
 

@@ -5,6 +5,10 @@ using Xunit;
 namespace SynthEBD.Tests;
 
 /// <summary>
+/// DEPRECATED / LEGACY: covers the never-completed "Annotator Training" ML trainer (superseded by the
+/// geometry/measurement-based Body Type Registry + Profiles; UI hidden). Retained with the code for
+/// reference and to keep the path-safety regression below covered. See VM_OBodyTrainer.
+///
 /// B36: the OBody trainer saved its ML model to a path built with a bare DateTime.Now.ToString() (no
 /// format/culture), which on most locales yields '/' and ':' -- invalid Windows path characters -- so
 /// context.Model.Save threw. BuildModelFileName now uses the sortable invariant timestamp the sibling

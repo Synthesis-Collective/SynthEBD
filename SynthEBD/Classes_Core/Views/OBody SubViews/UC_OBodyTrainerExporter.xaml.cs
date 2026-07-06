@@ -16,7 +16,9 @@ using System.Windows.Shapes;
 namespace SynthEBD
 {
     /// <summary>
-    /// Code-behind for the OBody trainer exporter user control.
+    /// DEPRECATED / LEGACY - code-behind for the hidden "Annotator Training" exporter (never-completed
+    /// ML-on-slider-values trainer, superseded by the geometry/measurement-based Body Type Registry +
+    /// Profiles). Retained for reference only; not maintained. See VM_OBodyTrainer.
     /// </summary>
     public partial class UC_OBodyTrainerExporter : UserControl
     {

@@ -13,10 +13,22 @@ using System.Threading.Tasks;
 
 namespace SynthEBD;
 
+// ============================================================================================
+// DEPRECATED / LEGACY - not under active maintenance or development.
+//
+// The "Annotator Training" feature: trains an ML.NET classifier on BodySlide slider-value vectors to
+// auto-assign body-shape descriptors. Never fully implemented; superseded by the 3D geometry /
+// measurement-based classifier (Body Type Registry + Body Type Profiles), which was chosen as a more
+// straightforward and reliable approach than ML training on slider values. The UI entry point is
+// hidden (see UC_SettingsOBody.xaml); this code is retained for reference only. See VM_OBodyTrainer.
+//
+// NOTE: every type in this file belongs to the deprecated trainer EXCEPT VM_SelectableMenuString,
+// which is a shared helper still used by the active VM_OBodyMiscSettings - leave it in service.
+// ============================================================================================
 /// <summary>
-/// View model for the OBody ML trainer/exporter. Lets the user pick BodySlide presets, slider groups, and
-/// sliders, then either trains an ML.NET classification model per descriptor category or exports the labeled
-/// training set as CSV.
+/// DEPRECATED / LEGACY (see banner above). View model for the never-completed OBody ML trainer/exporter.
+/// Lets the user pick BodySlide presets, slider groups, and sliders, then either trains an ML.NET
+/// classification model per descriptor category or exports the labeled training set as CSV.
 /// </summary>
 public class VM_OBodyTrainerExporter : VM
 {
@@ -300,8 +312,9 @@ public class VM_OBodyTrainerExporter : VM
 }
 
 /// <summary>
-/// Selectable wrapper around a <see cref="VM_BodySlidePlaceHolder"/> for the trainer's checkbox list;
-/// toggling its selection triggers the parent exporter to refresh available slider names.
+/// DEPRECATED / LEGACY (Annotator Training - see VM_OBodyTrainer). Selectable wrapper around a
+/// <see cref="VM_BodySlidePlaceHolder"/> for the trainer's checkbox list; toggling its selection
+/// triggers the parent exporter to refresh available slider names.
 /// </summary>
 public class VM_SelectableBodySlidePlaceHolder : VM
 {
@@ -326,7 +339,7 @@ public class VM_SelectableBodySlidePlaceHolder : VM
     public bool IsSelected { get; set; }
 }
 
-/// <summary>Selectable wrapper around a <see cref="BodySlideSlider"/> for the trainer's slider checkbox list.</summary>
+/// <summary>DEPRECATED / LEGACY (Annotator Training - see VM_OBodyTrainer). Selectable wrapper around a <see cref="BodySlideSlider"/> for the trainer's slider checkbox list.</summary>
 public class VM_SelectableSlider : VM
 {
     /// <summary>Captures the subscribed slider and seeds its display text from the slider name.</summary>
@@ -341,7 +354,9 @@ public class VM_SelectableSlider : VM
     public bool IsSelected { get; set; }
 }
 
-/// <summary>Simple selectable text item used for the trainer's slider-group and descriptor-category lists.</summary>
+/// <summary>Shared simple selectable text item. Used by the deprecated trainer's slider-group /
+/// descriptor-category lists AND by the active <see cref="VM_OBodyMiscSettings"/> (StashedDescriptors),
+/// so this class is NOT deprecated - leave it in service.</summary>
 public class VM_SelectableMenuString : VM
 {
     public string Text { get; set; }
@@ -349,8 +364,9 @@ public class VM_SelectableMenuString : VM
 }
 
 /// <summary>
-/// Dense slider matrix export: a 2D grid of slider values (rows = BodySlides, columns = sliders) for the
-/// chosen big/small slider type, with missing sliders filled as zero.
+/// DEPRECATED / LEGACY (Annotator Training - see VM_OBodyTrainer). Dense slider matrix export: a 2D grid
+/// of slider values (rows = BodySlides, columns = sliders) for the chosen big/small slider type, with
+/// missing sliders filled as zero.
 /// </summary>
 public class TrainerExportDTO
 {
@@ -395,8 +411,9 @@ public class TrainerExportDTO
 }
 
 /// <summary>
-/// Labeled training-data export for ML: one <see cref="BodyslideData"/> row per BodySlide, each carrying its
-/// slider-value vector and a classification label drawn from the given descriptor category.
+/// DEPRECATED / LEGACY (Annotator Training - see VM_OBodyTrainer). Labeled training-data export for ML:
+/// one <see cref="BodyslideData"/> row per BodySlide, each carrying its slider-value vector and a
+/// classification label drawn from the given descriptor category.
 /// </summary>
 public class TrainerExportLearningDTO
 {
@@ -443,7 +460,7 @@ public class TrainerExportLearningDTO
     }
 }
 
-/// <summary>ML.NET feature row for a single BodySlide: name, classification label, and slider-value feature vector.</summary>
+/// <summary>DEPRECATED / LEGACY (Annotator Training - see VM_OBodyTrainer). ML.NET feature row for a single BodySlide: name, classification label, and slider-value feature vector.</summary>
 public class BodyslideData
 {
     public string BodyslideName { get; set; }
