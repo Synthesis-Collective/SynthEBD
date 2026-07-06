@@ -7,8 +7,9 @@
              mc:Ignorable="d">
 
     <!-- The global [Use][Customize][Troubleshoot] progressive-disclosure selector. Placed once in
-         the MainWindow header so it appears in a consistent corner of every menu; it binds the
-         singleton UiModeController, so flipping it anywhere changes the mode app-wide. -->
+         the MainWindow footer (right of the status bar) so it appears in a consistent corner of
+         every menu; it binds the singleton UiModeController, so flipping it anywhere changes the
+         mode app-wide. -->
 
     <UserControl.Resources>
         <local:UiModeEqualsToBoolConverter x:Key="ModeEquals"/>
