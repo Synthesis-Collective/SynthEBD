@@ -74,20 +74,24 @@ public class MO2SourceResolver : ISourceResolver
         var mo2Settings = _patcherState.ModManagerSettings?.MO2Settings;
         if (mo2Settings == null || string.IsNullOrEmpty(mo2Settings.ExecutablePath))
         {
-            _logger.LogMessage("MO2SourceResolver: MO2 executable path not configured. Resolver unavailable.");
+            _logger.LogMessage("MO2SourceResolver: MO2 path not configured. Resolver unavailable.");
             return;
         }
 
-        ResolverLog("MO2 executable path: " + mo2Settings.ExecutablePath);
+        ResolverLog("MO2 path (LinuxMode=" + mo2Settings.LinuxMode + "): " + mo2Settings.ExecutablePath);
 
         if (!File.Exists(mo2Settings.ExecutablePath))
         {
-            _logger.LogMessage("MO2SourceResolver: MO2 executable not found at: " + mo2Settings.ExecutablePath);
+            _logger.LogMessage("MO2SourceResolver: MO2 path not found at: " + mo2Settings.ExecutablePath);
             return;
         }
 
-        string mo2Dir = Path.GetDirectoryName(mo2Settings.ExecutablePath);
-        string iniPath = Path.Combine(mo2Dir, "ModOrganizer.ini");
+        // In Linux mode the configured path points directly at ModOrganizer.ini (the Linux MO2
+        // port has no executable); otherwise the ini sits next to ModOrganizer.exe.
+        string iniPath = mo2Settings.LinuxMode
+            ? mo2Settings.ExecutablePath
+            : Path.Combine(Path.GetDirectoryName(mo2Settings.ExecutablePath), "ModOrganizer.ini");
+        string mo2Dir = Path.GetDirectoryName(iniPath);
         ResolverLog("INI path: " + iniPath + " exists=" + File.Exists(iniPath));
         if (!File.Exists(iniPath))
         {

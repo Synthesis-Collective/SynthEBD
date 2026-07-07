@@ -163,14 +163,28 @@ public class VM_MO2Integration : VM
             canExecute: _ => true,
             execute: _ =>
             {
-                if (IO_Aux.SelectFile("", "Executable files (*.exe)|*.exe", "Select the MO2 executable", out var execPath))
+                var filter = LinuxMode
+                    ? "ModOrganizer.ini|ModOrganizer.ini|All files (*.*)|*.*"
+                    : "Executable files (*.exe)|*.exe";
+                var title = LinuxMode ? "Select ModOrganizer.ini" : "Select the MO2 executable";
+                if (IO_Aux.SelectFile("", filter, title, out var execPath))
                 {
                     ExecutablePath = execPath;
                 }
             }
         );
 
+        ToggleLinuxMode = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LinuxMode = !LinuxMode
+        );
+
         this.WhenAnyValue(x => x.ExecutablePath).Subscribe(x =>
+        {
+            UpdateModFolderPath();
+        }).DisposeWith(this);
+
+        this.WhenAnyValue(x => x.LinuxMode).Subscribe(x =>
         {
             UpdateModFolderPath();
         }).DisposeWith(this);
@@ -178,8 +192,16 @@ public class VM_MO2Integration : VM
     public string ModFolderPath { get; set; } = "";
     public string ExecutablePath { get; set; } = "";
     public int FilePathLimit { get; set; } = 220;
+    /// <summary>When true, <see cref="ExecutablePath"/> points directly at ModOrganizer.ini
+    /// (Linux MO2 port, which has no executable) instead of ModOrganizer.exe.</summary>
+    public bool LinuxMode { get; set; }
+    /// <summary>Label for the path field, switching to "ModOrganizer.ini Path" in <see cref="LinuxMode"/>.</summary>
+    public string ExecutablePathLabel => LinuxMode ? "ModOrganizer.ini Path" : "MO2 Executable Path";
+    /// <summary>Caption for the mode-toggle button, reflecting the current <see cref="LinuxMode"/> state.</summary>
+    public string LinuxModeButtonText => LinuxMode ? "Using Linux" : "I'm On Linux";
     public RelayCommand FindModFolder { get; set; }
     public RelayCommand FindExecutable { get; set; }
+    public RelayCommand ToggleLinuxMode { get; set; }
 
     /// <summary>
     /// Derives <see cref="ModFolderPath"/> by parsing the <c>mod_directory</c> entry of the
@@ -196,8 +218,11 @@ public class VM_MO2Integration : VM
         {
             return;
         }
-        string mo2Dir = Path.GetDirectoryName(ExecutablePath);
-        string mo2iniPath = Path.Combine(mo2Dir, "ModOrganizer.ini");
+        // In Linux mode the path field points directly at ModOrganizer.ini; otherwise the
+        // ini sits next to the MO2 executable.
+        string mo2iniPath = LinuxMode
+            ? ExecutablePath
+            : Path.Combine(Path.GetDirectoryName(ExecutablePath), "ModOrganizer.ini");
         if (!File.Exists(mo2iniPath))
         {
             SetDefaultModDirPath();
@@ -245,15 +270,17 @@ public class VM_MO2Integration : VM
     public void GetViewModelFromModel(Settings_ModManager.MO2 model)
     {
         ModFolderPath = model.ModFolderPath;
+        LinuxMode = model.LinuxMode;
         ExecutablePath = model.ExecutablePath;
         FilePathLimit = model.FilePathLimit;
     }
-    /// <summary>VM → Model: writes the MO2 mod folder, executable path, and path limit to a new model.</summary>
+    /// <summary>VM → Model: writes the MO2 mod folder, executable path, Linux-mode flag, and path limit to a new model.</summary>
     public Settings_ModManager.MO2 DumpViewModelToModel()
     {
         Settings_ModManager.MO2 model = new();
         model.ModFolderPath = ModFolderPath;
         model.ExecutablePath = ExecutablePath;
+        model.LinuxMode = LinuxMode;
         model.FilePathLimit = FilePathLimit;
         return model;
     }

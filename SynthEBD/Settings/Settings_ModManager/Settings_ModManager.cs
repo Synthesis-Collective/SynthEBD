@@ -38,9 +38,16 @@ public class Settings_ModManager
     /// <summary>Mod Organizer 2-specific paths and path-length limit.</summary>
     public class MO2
     {
+        /// <summary>Path to the MO2 launcher. In <see cref="LinuxMode"/> this instead holds the
+        /// full path to ModOrganizer.ini directly, since the Linux MO2 port (Fluorine) ships no
+        /// executable. Either way it is only used to locate ModOrganizer.ini.</summary>
         public string ExecutablePath { get; set; } = "";
         public string ModFolderPath { get; set; } = "";
         public int FilePathLimit { get; set; } = 220;
+        /// <summary>When true, <see cref="ExecutablePath"/> is treated as a direct path to
+        /// ModOrganizer.ini rather than to ModOrganizer.exe, enabling MO2 integration on the
+        /// Linux MO2 port (Fluorine), which has no executable.</summary>
+        public bool LinuxMode { get; set; } = false;
     }
 
     /// <summary>Vortex-specific staging path and path-length limit.</summary>

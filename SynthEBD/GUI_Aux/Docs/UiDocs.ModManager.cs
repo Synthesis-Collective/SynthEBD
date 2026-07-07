@@ -21,9 +21,14 @@ public static partial class UiDocs
             motivation: "Windows traditionally fails past 260 characters and mod managers consume extra headroom of their own (hence their stricter 220 default); without automatic shortening, texture-heavy configs with deep folder trees would fail to install.");
 
         Add("ModManager.MO2ExecutablePath",
-            layperson: "The full path to your ModOrganizer.exe. Setting it lets SynthEBD find your MO2 mods folder automatically.",
-            technical: "Sets VM_MO2Integration.ExecutablePath (persisted as Settings_ModManager.MO2.ExecutablePath). On change, UpdateModFolderPath reads the mod_directory entry from the ModOrganizer.ini beside the executable to auto-fill the Mod Folder Path, falling back to the default 'mods' subfolder.",
-            motivation: "Users reliably know where MO2 itself lives, while the mods folder may have been relocated in MO2's settings; deriving it from MO2's own ini avoids pointing the installer at the wrong directory.");
+            layperson: "The full path to your ModOrganizer.exe. Setting it lets SynthEBD find your MO2 mods folder automatically. On Linux this field instead takes the full path to your ModOrganizer.ini directly - switch it with the 'I'm On Linux' button, which is only shown in Troubleshoot view (raise the display mode at the top of the window if you don't see it).",
+            technical: "Sets VM_MO2Integration.ExecutablePath (persisted as Settings_ModManager.MO2.ExecutablePath). On change, UpdateModFolderPath reads the mod_directory entry from the ModOrganizer.ini beside the executable to auto-fill the Mod Folder Path, falling back to the default 'mods' subfolder. When LinuxMode is on, the field holds the ModOrganizer.ini path itself rather than the executable, and the same ini is used by MO2SourceResolver for FaceGen conflict resolution.",
+            motivation: "Users reliably know where MO2 itself lives, while the mods folder may have been relocated in MO2's settings; deriving it from MO2's own ini avoids pointing the installer at the wrong directory. The Linux MO2 port (Fluorine) ships no executable, so pointing at the ini directly keeps the same auto-derivation and conflict-resolution working there.");
+
+        Add("ModManager.MO2LinuxMode",
+            layperson: "Turn this on if you run Mod Organizer 2 through the Linux port (Fluorine), which has no ModOrganizer.exe. The path field above then asks for your ModOrganizer.ini directly instead of the executable, and everything else works the same.",
+            technical: "Toggles VM_MO2Integration.LinuxMode (Settings_ModManager.MO2.LinuxMode). When on, the ExecutablePath field is relabelled 'ModOrganizer.ini Path', its file picker filters for ModOrganizer.ini, and both UpdateModFolderPath and MO2SourceResolver treat the stored path as the ini itself rather than deriving it from an executable's directory. Only shown in Troubleshoot display mode.",
+            motivation: "The Linux MO2 port exposes no executable to point at, which otherwise gated MO2 mods-folder auto-derivation and FaceGen source resolution; letting users supply the ini directly restores full MO2 integration on Linux without a Windows executable.");
 
         Add("ModManager.MO2ModFolder",
             layperson: "MO2's mods folder, where every installed mod has its own subfolder. Config file assets are installed here as a new mod that appears in MO2's left pane.",
