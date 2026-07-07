@@ -83,7 +83,8 @@ internal sealed class SynthEbdViewerHostState
         // fall through and apply directly: SetMorphContext + ApplyMorphSet below retain the
         // morph on the VM (see VM_CharacterViewer._lastRequestedMorphSet) so the offscreen
         // fallback preview reproduces the deformation via the body's sibling .tri.
-        if (!_vm.IsSceneReady && !_vm.RenderingUnavailable)
+        if (!_vm.IsSceneReady && !_vm.RenderingUnavailable
+            && !VM_CharacterViewer.ForceRenderingUnavailableForTesting)
         {
             _pendingBodySlide = (preset, weight);
             return;

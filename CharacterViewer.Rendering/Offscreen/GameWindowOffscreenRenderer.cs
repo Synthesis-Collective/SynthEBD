@@ -402,6 +402,9 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             /* renderThread defaults to InlineRenderThreadMarshaller */);
         try
         {
+            // This VM owns a real offscreen GL context and must BUILD the scene — opt it out of
+            // the test-only ForceRenderingUnavailableForTesting capture-and-skip path in LoadAsync.
+            vm.IsOffscreenRenderInstance = true;
             vm.AdditionalScopes = request.AdditionalScopes;
             vm.AdditionalDataFolders = request.AdditionalDataFolders;
             vm.VanillaLooseOverridesBsa = request.VanillaLooseOverridesBsa;

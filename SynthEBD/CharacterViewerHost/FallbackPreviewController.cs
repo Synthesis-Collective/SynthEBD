@@ -52,6 +52,7 @@ public sealed class FallbackPreviewController
 
     // ── UI-thread-only state ────────────────────────────────────────────────
     private WriteableBitmap? _bitmap;
+    private object? _owner;   // the control currently attached; guards against a stale Detach
     private Action<WriteableBitmap>? _onFrame;
     private Action<Exception>? _onFailed;
     private Action<bool>? _onBusy;
@@ -66,6 +67,10 @@ public sealed class FallbackPreviewController
     private CancellationTokenSource? _pendingCts;
     private CancellationTokenSource? _inFlightCts;
     private bool _running;
+
+    // Diagnostic latches so the always-on log gets one line per state, not per frame.
+    private bool _loggedNoSnapshot;
+    private bool _loggedFirstFrame;
 
     internal FallbackPreviewController(VM_CharacterViewer vm,
         Func<IOffscreenRenderer> sharedRenderer, ICharacterViewerLogger logger, int instanceId)
@@ -82,15 +87,21 @@ public sealed class FallbackPreviewController
         // and collectible once the host releases the VM (the registry keys it weakly).
         _vm.SceneInputsChanged += OnSceneInputsChanged;
         _vm.PropertyChanged += OnVmPropertyChanged;
+        _vm.LogViewerDiagnostic("FallbackPreview: controller #" + instanceId + " bound to VM #"
+            + _vm.GetHashCode().ToString("X"));
     }
 
     /// <summary>Wires this controller to a live <see cref="UC_CharacterViewer"/>: the
     /// callbacks receive each produced frame, a permanent failure, and busy-state
     /// transitions. Re-shows the last frame immediately and kicks a fresh render at the
     /// last known size. If offscreen rendering already failed permanently, reports that
-    /// straight away so the control can fall back to the static placeholder.</summary>
-    public void Attach(Action<WriteableBitmap> onFrame, Action<Exception> onFailed, Action<bool> onBusy)
+    /// straight away so the control can fall back to the static placeholder.
+    /// <paramref name="owner"/> identifies the attaching control so a stale
+    /// <see cref="Detach"/> from a control that has since been superseded is ignored
+    /// (WPF does not guarantee the old control's Unloaded fires before the new one attaches).</summary>
+    public void Attach(object owner, Action<WriteableBitmap> onFrame, Action<Exception> onFailed, Action<bool> onBusy)
     {
+        _owner = owner;
         _onFrame = onFrame;
         _onFailed = onFailed;
         _onBusy = onBusy;
@@ -107,17 +118,23 @@ public sealed class FallbackPreviewController
             ScheduleRender(_lastWidth, _lastHeight, lowRes: false);
     }
 
-    /// <summary>Detaches the current control (on <c>Unloaded</c>): clears the callbacks and
-    /// cancels any in-flight render so it doesn't write to a gone control. The controller
-    /// (and its last frame) survive for the next control instance that attaches.</summary>
-    public void Detach()
+    /// <summary>Detaches <paramref name="owner"/> (on <c>Unloaded</c>, or when it re-binds to a
+    /// different VM's controller): clears the callbacks so frames stop flowing to a gone control.
+    /// No-op when <paramref name="owner"/> is not the currently attached control — a later
+    /// attacher has already taken over and its callbacks must survive the old control's
+    /// (possibly late-firing) Unloaded. The controller (and its last frame) survive for the
+    /// next control instance that attaches.</summary>
+    public void Detach(object owner)
     {
+        if (!ReferenceEquals(_owner, owner)) return;
+        _owner = null;
         _attached = false;
         _onFrame = null;
         _onFailed = null;
         _onBusy = null;
-        _pending = null;
-        _inFlightCts?.Cancel();
+        // Deliberately do NOT clear _pending or cancel the in-flight render: the editor re-creates
+        // the viewer control on fallback-state changes, so let the render finish and update the
+        // bitmap — the next control instance shows the latest frame on Attach.
     }
 
     /// <summary>Requests a render at <paramref name="width"/>×<paramref name="height"/>
@@ -128,19 +145,41 @@ public sealed class FallbackPreviewController
 
     private void ScheduleRender(int width, int height, bool lowRes)
     {
-        if (_failed || !_attached) return;
-        if (width <= 0 || height <= 0) return;
+        // NOTE: no !_attached gate. The editor re-creates the viewer control on fallback-state
+        // changes, so we keep rendering into the bitmap even while momentarily detached; the
+        // next control instance shows the latest frame on Attach.
+        if (_failed) return;
+        if (width <= 0 || height <= 0)
+        {
+            _vm.LogViewerDiagnostic($"FallbackPreview: ScheduleRender skipped — size {width}x{height}");
+            return;
+        }
         _lastWidth = width;
         _lastHeight = height;
 
         var snap = _vm.TryGetSceneInputsSnapshot();
-        if (snap == null) return;   // no NPC loaded yet — nothing to draw
+        if (snap == null)
+        {
+            // No NPC/mesh has been loaded into this viewer, so there is nothing to render.
+            _vm.LogViewerDiagnostic("FallbackPreview: ScheduleRender skipped — no scene inputs "
+                + "snapshot (no NPC/mesh loaded into this viewer yet).");
+            if (!_loggedNoSnapshot)
+            {
+                _loggedNoSnapshot = true;
+                _logger?.LogMessage("CharacterViewer: software preview has nothing to draw yet — "
+                    + "no NPC/preview is loaded in this viewer. It will render once a preview loads.");
+            }
+            return;
+        }
+        _loggedNoSnapshot = false;
 
         var cts = new CancellationTokenSource();
         _pending = BuildRequest(snap, width, height, lowRes, cts.Token);
         _pendingCts = cts;
         _inFlightCts?.Cancel();     // supersede the in-flight render — latest wins
 
+        _vm.LogViewerDiagnostic($"FallbackPreview: scheduled morph=[{snap.Morphs?.Label ?? "none"}]"
+            + $" running={_running} attached={_attached} {width}x{height}");
         if (!_running) _ = PumpAsync();
     }
 
@@ -169,6 +208,13 @@ public sealed class FallbackPreviewController
                     if (_pending != null) continue;   // a newer request arrived during prewarm — render that instead
                 }
 
+                var camDesc = req.Camera is CameraFraming.OrbitState os
+                    ? $"az={os.Azimuth:F0} el={os.Elevation:F0} dist={os.Distance:F0} tgt=({os.TargetX:F0},{os.TargetY:F0},{os.TargetZ:F0})"
+                    : req.Camera.GetType().Name;
+                _vm.LogViewerDiagnostic($"FallbackPreview: rendering {req.Width}x{req.Height} cam[{camDesc}]"
+                    + $" morph=[{req.Morphs?.Label ?? "none"}]@w{req.MorphWeight} sliders={req.Morphs?.Sliders?.Count ?? 0}"
+                    + $" texOv={(req.TextureOverrides != null)}");
+
                 byte[] bgra;
                 try
                 {
@@ -177,7 +223,25 @@ public sealed class FallbackPreviewController
                 catch (OperationCanceledException) { continue; }          // superseded — loop for the newer request
                 catch (Exception ex) { Fail(ex, "offscreen render failed"); return; }
 
-                if (!_attached) continue;                                  // control detached mid-render
+                // Update the bitmap even if the control detached mid-render — WriteFrame's onFrame
+                // callback is null-safe, and the next control instance shows the frame on Attach.
+
+                int missMesh = req.MissingMeshPathsOut?.Count ?? 0;
+                int missTex = req.MissingTexturePathsOut?.Count ?? 0;
+                _vm.LogViewerDiagnostic($"FallbackPreview: frame {req.Width}x{req.Height}, {bgra.Length} bytes"
+                    + $", missingMeshes={missMesh}, missingTex={missTex}");
+                if (missMesh > 0)
+                {
+                    _logger?.LogMessage("CharacterViewer: software preview — offscreen render could not resolve "
+                        + missMesh + " mesh path(s): " + string.Join("; ", req.MissingMeshPathsOut!));
+                }
+                if (!_loggedFirstFrame)
+                {
+                    _loggedFirstFrame = true;
+                    _logger?.LogMessage($"CharacterViewer: software preview produced its first frame "
+                        + $"({req.Width}x{req.Height}, {missMesh} missing mesh(es)).");
+                }
+
                 WriteFrame(bgra, req.Width, req.Height);
             }
         }
@@ -244,6 +308,10 @@ public sealed class FallbackPreviewController
             DaylightBoostIntensity = _vm.DaylightBoostIntensity,
             EnableBloom = _vm.EnableBloom,
             BloomIntensity = _vm.BloomIntensity,
+            // Opt into miss tracking so a blank frame can be diagnosed (unresolved meshes vs
+            // an empty/off-frame scene) from the viewer log.
+            MissingMeshPathsOut = new System.Collections.Generic.List<string>(),
+            MissingTexturePathsOut = new System.Collections.Generic.List<string>(),
         };
     }
 
@@ -270,7 +338,11 @@ public sealed class FallbackPreviewController
         _onFailed?.Invoke(ex);
     }
 
-    private void OnSceneInputsChanged() => Dispatch(() => ScheduleRender(_lastWidth, _lastHeight, lowRes: false));
+    private void OnSceneInputsChanged() => Dispatch(() =>
+    {
+        _vm.LogViewerDiagnostic("FallbackPreview: SceneInputsChanged -> schedule");
+        ScheduleRender(_lastWidth, _lastHeight, lowRes: false);
+    });
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

@@ -69,9 +69,21 @@ public partial class UC_CharacterViewer : UserControl
             }
             // Re-attach the software fallback if a prior Unloaded detached it (a tab switch
             // that kept this control instance). First activation attaches inside TryStartGl's
-            // failure path; this covers a subsequent re-show of the same control.
-            if (_fallbackActive && _fallback != null)
-                _fallback.Attach(OnFallbackFrame, OnFallbackFailed, OnFallbackBusy);
+            // failure path; this covers a subsequent re-show of the same control. Goes
+            // through the rebind (not a plain Attach) because the DataContext may have
+            // swapped to a different VM while unloaded — the DataContextChanged rebind
+            // deliberately skips unloaded controls.
+            if (_fallbackActive && _vm != null)
+                RebindFallbackToVm(_vm);
+
+            // Install the hidden GL-failure test shortcut at the window level so it works no
+            // matter where focus is. Guarded so a re-fired Loaded doesn't double-subscribe.
+            if (_testShortcutWindow == null)
+            {
+                _testShortcutWindow = Window.GetWindow(this);
+                if (_testShortcutWindow != null)
+                    _testShortcutWindow.PreviewKeyDown += OnTestShortcutKeyDown;
+            }
         };
 
         // Place the axis gizmo in the bottom-left once the overlay Canvas has a real size.
@@ -91,9 +103,14 @@ public partial class UC_CharacterViewer : UserControl
             _unloaded = true;
             // Detach from the (surviving, per-VM) fallback controller and stop its timers so a
             // running DispatcherTimer can't root this control after it leaves the tree.
-            _fallback?.Detach();
+            _fallback?.Detach(this);
             _fallbackSettleTimer?.Stop();
             _fallbackResizeTimer?.Stop();
+            if (_testShortcutWindow != null)
+            {
+                _testShortcutWindow.PreviewKeyDown -= OnTestShortcutKeyDown;
+                _testShortcutWindow = null;
+            }
             _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId + " Unloaded");
         };
     }
@@ -133,6 +150,9 @@ public partial class UC_CharacterViewer : UserControl
     private bool _fallbackDragging;
     private DispatcherTimer? _fallbackSettleTimer;
     private DispatcherTimer? _fallbackResizeTimer;
+    // Parent window we install the hidden Ctrl+Alt+Shift+G test-shortcut hook on while loaded
+    // (window-level so it fires regardless of which element has focus); removed on Unload.
+    private Window? _testShortcutWindow;
 
     // Hover tooltip state. _currentHoverMesh tracks the mesh-tooltip identity so we only
     // rebuild the content TextBlock when the hover target changes (the textures + asset-
@@ -195,6 +215,19 @@ public partial class UC_CharacterViewer : UserControl
         {
             _vm.Picks.CollectionChanged += Picks_CollectionChanged;
             _vm.RequestPickSelection += OnVmRequestPickSelection;
+            _vm.LogViewerDiagnostic("UC #" + _instanceId + " DataContext -> VM #"
+                + _vm.GetHashCode().ToString("X"));
+
+            // Fallback mode: WPF reuses this control while swapping its DataContext to a
+            // DIFFERENT viewer VM (e.g. the BodySlides menu creates one VM_CharacterViewer
+            // per preset, so selecting another preset re-binds this same control). The
+            // fallback controller is per-VM, so it must follow the new VM here — TryStartGl
+            // below no-ops once _glFailed latches, so nothing else re-binds it and the
+            // image would stay frozen on the first VM's scene. Skip when unloaded: a
+            // detached (zombie) control still receives DataContext changes and must not
+            // steal the live control's controller callbacks.
+            if (_glFailed && _fallbackActive && IsLoaded)
+                RebindFallbackToVm(_vm);
         }
 
         TryStartGl();
@@ -254,6 +287,22 @@ public partial class UC_CharacterViewer : UserControl
                 "UC_CharacterViewer #" + _instanceId + " TryStartGl skipped: !IsLoaded");
             return;
         }
+
+        // If GL was already found unavailable — a prior control instance failed (real
+        // Wine/VM/RDP; RenderingUnavailable is set on the shared VM), or the hidden test
+        // shortcut forced it — skip the GL attempt and go straight to the software fallback.
+        // Avoids re-throwing GLFW failures on every navigation-driven re-creation of this control.
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm != null && (_vm.RenderingUnavailable || VM_CharacterViewer.ForceRenderingUnavailableForTesting))
+        {
+            _glFailed = true;
+            // Latch it on this VM too (idempotent) so its snapshot / classifier gating behave,
+            // covering VMs the host re-creates after the test shortcut fired.
+            _vm.NotifyRenderingUnavailable("GL unavailable (prior instance failed, or forced via test shortcut)");
+            ActivateFallbackOrPlaceholder();
+            return;
+        }
+
         if (GlControl.ActualWidth <= 0 || GlControl.ActualHeight <= 0)
         {
             (_vm ??= DataContext as VM_CharacterViewer)?.LogViewerDiagnostic(
@@ -288,7 +337,7 @@ public partial class UC_CharacterViewer : UserControl
             // Per-instance verbose diagnostic (mirrors the file's other lifecycle logs) ...
             _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
                 + " TryStartGl: Start() FAILED: " + ex.Message);
-            // ... plus a single always-on warning through the VM's non-verbose error channel.
+            // ... plus a single always-on notice through the VM's non-verbose message channel.
             _vm?.NotifyRenderingUnavailable(
                 "GLWpfControl.Start() threw " + ex.GetType().Name + ": " + ex.Message);
             // Try the view-only software fallback (offscreen renderer → WriteableBitmap);
@@ -350,17 +399,7 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) { ShowGlUnavailablePlaceholder(); return; }
 
-        try
-        {
-            _fallback = FallbackPreviewControllerRegistry.GetOrCreate(_vm);
-        }
-        catch (Exception ex)
-        {
-            _vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
-                + " fallback preview unavailable (" + ex.Message + "); showing static placeholder");
-            ShowGlUnavailablePlaceholder();
-            return;
-        }
+        if (!TryBindFallbackController(_vm)) return;   // shows the static placeholder itself
 
         _fallbackActive = true;
 
@@ -372,21 +411,111 @@ public partial class UC_CharacterViewer : UserControl
         _fallbackResizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _fallbackResizeTimer.Tick += FallbackResize_Tick;
 
-        // Wire camera input + resize on the fallback image (no pick/edit handlers — those
-        // need the live VM and are out of scope for the view-only fallback).
-        FallbackImage.MouseDown += FallbackImage_MouseDown;
-        FallbackImage.MouseMove += FallbackImage_MouseMove;
-        FallbackImage.MouseUp += FallbackImage_MouseUp;
-        FallbackImage.MouseWheel += FallbackImage_MouseWheel;
-        FallbackImage.SizeChanged += FallbackImage_SizeChanged;
+        // Wire camera input + resize on the FallbackPanel Grid (which always fills the row and
+        // is hit-testable via its Background) rather than the Image (0x0 until it has a Source).
+        // No pick/edit handlers — those need the live VM and are out of scope for the view-only
+        // fallback.
+        FallbackPanel.MouseDown += FallbackImage_MouseDown;
+        FallbackPanel.MouseMove += FallbackImage_MouseMove;
+        FallbackPanel.MouseUp += FallbackImage_MouseUp;
+        FallbackPanel.MouseWheel += FallbackImage_MouseWheel;
+        FallbackPanel.SizeChanged += FallbackImage_SizeChanged;
 
         FallbackPanel.Visibility = Visibility.Visible;
 
-        // Receive frames / permanent failure / busy transitions. Attach re-shows any prior
-        // frame and kicks a render if a size is already known; otherwise the first
-        // SizeChanged (once layout gives the image a size) does the initial render.
-        _fallback.Attach(OnFallbackFrame, OnFallbackFailed, OnFallbackBusy);
+        // TryBindFallbackController already Attach'ed (frames / permanent failure / busy
+        // callbacks); kick the initial render here — or, if layout hasn't given the panel
+        // a size yet, the first SizeChanged does it.
         RequestFallbackRender(lowRes: false);
+    }
+
+    /// <summary>
+    /// Resolves the per-VM <see cref="FallbackPreviewController"/> for <paramref name="vm"/>,
+    /// detaches from any previously bound controller, and attaches this control's frame /
+    /// failure / busy callbacks. Returns false (after showing the static placeholder) when the
+    /// fallback registry is unavailable. Idempotent for an already-bound VM — re-attaching
+    /// just re-shows the last frame.
+    /// </summary>
+    private bool TryBindFallbackController(VM_CharacterViewer vm)
+    {
+        FallbackPreviewController controller;
+        try
+        {
+            controller = FallbackPreviewControllerRegistry.GetOrCreate(vm);
+        }
+        catch (Exception ex)
+        {
+            vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " fallback preview unavailable (" + ex.Message + "); showing static placeholder");
+            ShowGlUnavailablePlaceholder();
+            return false;
+        }
+
+        if (!ReferenceEquals(controller, _fallback))
+        {
+            _fallback?.Detach(this);
+            _fallback = controller;
+        }
+        _fallback.Attach(this, OnFallbackFrame, OnFallbackFailed, OnFallbackBusy);
+        return true;
+    }
+
+    /// <summary>
+    /// Follows the fallback preview to <paramref name="vm"/> after this (reused) control's
+    /// DataContext swapped to a different viewer VM, or after a re-<c>Loaded</c>. Latches
+    /// <see cref="VM_CharacterViewer.RenderingUnavailable"/> on the VM first (idempotent) so
+    /// its loads take the capture-inputs branch and the host's ApplyBodySlide queue-gate holds
+    /// even in real no-GL environments where <see cref="VM_CharacterViewer.ForceRenderingUnavailableForTesting"/>
+    /// is not set (this control never re-attempts GL once <c>_glFailed</c> latches, so nothing
+    /// else would flag a freshly created per-preset VM). Then re-binds the per-VM controller
+    /// and requests a render of the new VM's retained scene — if the VM hasn't loaded yet, the
+    /// render no-ops and its upcoming <c>SceneInputsChanged</c> (now with a subscriber) triggers it.
+    /// </summary>
+    private void RebindFallbackToVm(VM_CharacterViewer vm)
+    {
+        vm.NotifyRenderingUnavailable("GL unavailable (fallback re-bound on DataContext change)");
+        if (TryBindFallbackController(vm))
+            RequestFallbackRender(lowRes: false);
+    }
+
+    /// <summary>Window-level key hook (installed while this viewer is loaded) for the hidden
+    /// <b>Ctrl+Alt+Shift+G</b> test shortcut. Handles the Alt→<see cref="Key.System"/> remap so
+    /// the combo matches even with Alt held.</summary>
+    private void OnTestShortcutKeyDown(object sender, KeyEventArgs e)
+    {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.G
+            && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.Shift))
+        {
+            e.Handled = true;
+            ForceGlFailure();
+        }
+    }
+
+    /// <summary>
+    /// Hidden developer/QA hook (Ctrl+Alt+Shift+G): forces the "GL unavailable" state on a
+    /// machine where hardware GL actually works, so the software fallback preview can be
+    /// exercised without Wine / a VM. Collapses the live viewport, flags the shared VM
+    /// <see cref="VM_CharacterViewer.RenderingUnavailable"/> (so subsequent loads capture their
+    /// inputs for the fallback and any re-created control instance also opens straight into the
+    /// fallback), and activates the software preview against the already-loaded scene inputs
+    /// (retained on normal loads too, so there's a scene to draw immediately). One-way — restart
+    /// the app to restore the live viewport.
+    /// </summary>
+    private void ForceGlFailure()
+    {
+        if (_glFailed) return;   // already failed / forced — one-way
+        _vm ??= DataContext as VM_CharacterViewer;
+        _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+            + " GL failure FORCED via test shortcut (Ctrl+Alt+Shift+G)");
+        _glFailed = true;
+        _glStarted = false;   // treat as never-started so nothing re-shows the collapsed viewport
+        // Global, static latch: the editor re-creates the viewer VM when we force this, so flag
+        // it process-wide — every current and future viewer VM then routes fresh loads to the
+        // software fallback (see VM_CharacterViewer.ForceRenderingUnavailableForTesting).
+        VM_CharacterViewer.ForceRenderingUnavailableForTesting = true;
+        _vm?.NotifyRenderingUnavailable("forced via test shortcut (Ctrl+Alt+Shift+G)");
+        ActivateFallbackOrPlaceholder();
     }
 
     /// <summary>Controller callback (UI thread): a new frame is ready — show it, and once
@@ -394,6 +523,8 @@ public partial class UC_CharacterViewer : UserControl
     private void OnFallbackFrame(WriteableBitmap bmp)
     {
         if (!ReferenceEquals(FallbackImage.Source, bmp)) FallbackImage.Source = bmp;
+        // A frame arrived — drop the "preparing" hint and any static placeholder.
+        FallbackStatusText.Visibility = Visibility.Collapsed;
         if (GlUnavailablePanel.Visibility == Visibility.Visible)
             GlUnavailablePanel.Visibility = Visibility.Collapsed;
     }
@@ -421,8 +552,9 @@ public partial class UC_CharacterViewer : UserControl
     private void RequestFallbackRender(bool lowRes)
     {
         if (!_fallbackActive || _fallback == null) return;
-        int w = (int)Math.Round(FallbackImage.ActualWidth);
-        int h = (int)Math.Round(FallbackImage.ActualHeight);
+        // Size from the container Grid — the Image is 0x0 until it has a Source (see the XAML).
+        int w = (int)Math.Round(FallbackPanel.ActualWidth);
+        int h = (int)Math.Round(FallbackPanel.ActualHeight);
         if (w <= 0 || h <= 0) return;
         _fallback.RequestRender(w, h, lowRes);
     }
@@ -441,13 +573,13 @@ public partial class UC_CharacterViewer : UserControl
         if (_vm == null) return;
         if (e.ChangedButton != MouseButton.Left && e.ChangedButton != MouseButton.Middle) return;
 
-        var pos = e.GetPosition(FallbackImage);
+        var pos = e.GetPosition(FallbackPanel);
         _vm.Camera.OnMouseDown((float)pos.X, (float)pos.Y,
             leftButton: e.ChangedButton == MouseButton.Left,
             middleButton: e.ChangedButton == MouseButton.Middle);
         _fallbackDragging = true;
         RenderOptions.SetBitmapScalingMode(FallbackImage, BitmapScalingMode.LowQuality);
-        FallbackImage.CaptureMouse();
+        FallbackPanel.CaptureMouse();
     }
 
     private void FallbackImage_MouseMove(object sender, MouseEventArgs e)
@@ -456,7 +588,7 @@ public partial class UC_CharacterViewer : UserControl
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
-        var pos = e.GetPosition(FallbackImage);
+        var pos = e.GetPosition(FallbackPanel);
         _vm.Camera.OnMouseMove((float)pos.X, (float)pos.Y);
         RequestFallbackRender(lowRes: true);
         RestartFallbackSettleTimer();
@@ -467,7 +599,7 @@ public partial class UC_CharacterViewer : UserControl
         if (!_fallbackDragging) return;
         _fallbackDragging = false;
         _vm?.Camera.OnMouseUp();
-        FallbackImage.ReleaseMouseCapture();
+        FallbackPanel.ReleaseMouseCapture();
         RestartFallbackSettleTimer();   // settle → one full-res render
     }
 

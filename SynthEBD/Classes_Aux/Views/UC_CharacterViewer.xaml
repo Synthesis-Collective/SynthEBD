@@ -588,24 +588,28 @@
              but the offscreen GL renderer (a hidden GLFW GameWindow + FBO, no interop needed)
              can. FallbackImage displays WriteableBitmap frames produced by
              FallbackPreviewController; codebehind wires mouse orbit/pan/zoom + resize to it.
-             The corner badge marks it view-only; the busy chip shows while a frame renders so
-             the post-drag pause reads as intentional. Collapsed until fallback mode activates. -->
+             View-only mode is announced via the VM's StatusText (bottom status bar) rather
+             than an in-viewport badge, which covered the render; the busy chip shows while a
+             frame renders so the post-drag pause reads as intentional. Collapsed until
+             fallback mode activates. -->
         <Grid Grid.Row="6" x:Name="FallbackPanel" Visibility="Collapsed"
               Background="#FF1F1F1F" ClipToBounds="True">
+            <!-- Display layer only. IsHitTestVisible=False so mouse goes to the always-full-size
+                 FallbackPanel Grid: an Image with a null Source arranges to 0x0 (its content
+                 size), so it can neither be sized nor clicked until a frame exists. -->
             <Image x:Name="FallbackImage"
                    Stretch="Uniform"
+                   IsHitTestVisible="False"
                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
-            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
-                    Background="#C0202020" BorderBrush="#40FFFFFF" BorderThickness="1"
-                    CornerRadius="3" Padding="8 4" IsHitTestVisible="False">
-                <TextBlock FontSize="11" TextWrapping="Wrap" MaxWidth="280" Foreground="#FFD0D0D0">
-                    <Run Text="Software preview — view only" FontWeight="Bold"/>
-                    <LineBreak/>
-                    <Run Text="Rotate / zoom / pan. Editing requires hardware OpenGL interop."
-                         Foreground="#FF9AA0A6"/>
-                </TextBlock>
-            </Border>
+            <!-- Shown until the first frame arrives. If it persists, no preview is loaded
+                 (or the offscreen render produced nothing — see the verbose viewer log). -->
+            <TextBlock x:Name="FallbackStatusText"
+                       Text="Preparing software preview... (loads when a preview NPC / preset is selected)"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                       Foreground="#FF9AA0A6" FontSize="13"
+                       IsHitTestVisible="False"/>
 
             <Border x:Name="FallbackBusyIndicator" Visibility="Collapsed"
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"

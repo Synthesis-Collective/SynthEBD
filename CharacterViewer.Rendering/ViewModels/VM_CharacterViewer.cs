@@ -907,19 +907,44 @@ public class VM_CharacterViewer : ViewerVm
     public bool RenderingUnavailable { get; private set; }
 
     /// <summary>
+    /// Test-only global override (hidden Ctrl+Alt+Shift+G shortcut). When true, EVERY viewer VM
+    /// behaves as if <see cref="RenderingUnavailable"/> — its loads capture inputs for the
+    /// software fallback instead of building a GL scene it can never commit. It is <b>static</b>
+    /// on purpose: the editor re-creates the viewer VM when the shortcut fires (a running
+    /// GLWpfControl keeps its committed scene, so the toggle spins up a fresh VM), and without a
+    /// process-wide flag that new VM would take the normal GL path and hang at "setting up scene".
+    /// Real Wine/VM/RDP never needs this — GL startup fails on each control instance
+    /// independently, so <see cref="RenderingUnavailable"/> is set per-VM there. Never set in
+    /// production; NPC Plugin Chooser 2 leaves it false.
+    /// </summary>
+    public static bool ForceRenderingUnavailableForTesting { get; set; }
+
+    /// <summary>
+    /// Set by <see cref="Offscreen.GameWindowOffscreenRenderer"/> on the throwaway VM it builds
+    /// per render. Such a VM owns a real (offscreen) GL context and MUST build the scene, so it
+    /// opts out of the <see cref="ForceRenderingUnavailableForTesting"/> capture-and-skip path in
+    /// <see cref="LoadAsync"/> — otherwise the fallback preview would render nothing. Default
+    /// false: only the offscreen renderer sets it; live viewer VMs leave it alone.
+    /// </summary>
+    public bool IsOffscreenRenderInstance { get; set; }
+
+    /// <summary>
     /// Records a one-time, non-fatal GL-startup failure reported by <c>UC_CharacterViewer</c>
     /// when <c>GLWpfControl.Start()</c> throws: latches <see cref="RenderingUnavailable"/>,
-    /// updates <see cref="StatusText"/>, and logs the cause through the always-on error channel
+    /// updates <see cref="StatusText"/>, and logs the cause through the always-on message channel
     /// (NOT gated by <see cref="VerboseLog"/>, unlike <see cref="LogViewerDiagnostic"/>) so the
-    /// reason is visible in a normal log. Idempotent — only the first call logs, so the shared
-    /// VM isn't spammed when WPF re-creates the (also-failing) control on each navigation.
+    /// reason is visible in a normal log. Deliberately NOT the error channel: in SynthEBD an
+    /// error log yanks the UI to the status-log page, but this state is non-fatal, already
+    /// surfaced in-place by the viewer's own overlay/status text, and re-latched on every fresh
+    /// viewer VM (e.g. per-preset VMs as the fallback preview follows preset switches).
+    /// Idempotent — only the first call per VM logs.
     /// </summary>
     public void NotifyRenderingUnavailable(string reason)
     {
         if (RenderingUnavailable) return;
         RenderingUnavailable = true;
         StatusText = "3D preview unavailable on this system";
-        _logger?.LogError("CharacterViewer: 3D preview unavailable — " + reason);
+        _logger?.LogMessage("CharacterViewer: 3D preview unavailable — " + reason);
     }
 
     /// <summary>
@@ -932,7 +957,12 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public event Action? SceneInputsChanged;
 
-    private void RaiseSceneInputsChanged() => SceneInputsChanged?.Invoke();
+    private void RaiseSceneInputsChanged()
+    {
+        LogViewerDiagnostic("VM #" + GetHashCode().ToString("X")
+            + " RaiseSceneInputsChanged (subscribers=" + (SceneInputsChanged?.GetInvocationList().Length ?? 0) + ")");
+        SceneInputsChanged?.Invoke();
+    }
 
     /// <summary>
     /// Returns an immutable snapshot of the neutral scene inputs currently retained
@@ -3981,7 +4011,7 @@ public class VM_CharacterViewer : ViewerVm
     public async Task LoadAsync(NpcIdentity identity, ResolvedNpcMeshPaths paths,
         string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default)
     {
-        if (RenderingUnavailable)
+        if ((RenderingUnavailable || ForceRenderingUnavailableForTesting) && !IsOffscreenRenderInstance)
         {
             // No GL surface on this system (WGL_NV_DX_interop missing) — the render loop
             // that drains ProcessPendingScene never runs, so a full load would only queue a
@@ -3997,6 +4027,11 @@ public class VM_CharacterViewer : ViewerVm
             _lastRequestedTextureOverrides = null;
             _lastRequestedMeshOverrides = null;
             _lastRequestedMorphSet = null;
+            // Clear any stale "Loading meshes... / setting up scene..." status left from a prior
+            // live-mode load — in fallback the GL scene never commits, so nothing else updates it.
+            // This status line is the ONLY view-only announcement (the in-viewport badge was
+            // removed because it covered the render), so carry the full explanation here.
+            StatusText = "Software preview (view only) — rotate / zoom / pan. Editing requires hardware OpenGL interop.";
             RaiseSceneInputsChanged();
             return;
         }
