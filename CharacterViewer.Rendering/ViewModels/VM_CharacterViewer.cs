@@ -178,6 +178,15 @@ public class VM_CharacterViewer : ViewerVm
     /// <see cref="ApplyMorphSet"/> knows not to record it as the "last applied" preset.</summary>
     private const string ZeroedFlipLabel = "(region zeroed-flip)";
 
+    // Durable "last requested" neutral inputs for the software fallback preview
+    // (see TryGetSceneInputsSnapshot). Unlike the _pending* fields (drained/cleared
+    // once the GL scene commits) and _lastAppliedMorphSet (only set on the GL deform
+    // path), these are set UNCONDITIONALLY at the apply-method entry so they survive
+    // even when GL never starts and no scene ever commits. Reset per-NPC on load.
+    private List<TextureOverride>? _lastRequestedTextureOverrides;
+    private List<MeshOverride>? _lastRequestedMeshOverrides;
+    private (MorphSet Morphs, int Weight)? _lastRequestedMorphSet;
+
     /// <summary>NpcIdentity.CacheKey of the NPC whose scene is currently installed
     /// in the renderer. Captured at the end of ProcessPendingScene; cleared by
     /// ClearScene. Used by LoadAsync to short-circuit reloads of the same NPC
@@ -828,6 +837,16 @@ public class VM_CharacterViewer : ViewerVm
     /// Type Profiles editor, where key-vertex assignment is the whole point.</summary>
     public bool ShowClassifierControls { get; set; } = false;
 
+    /// <summary>
+    /// True when the BodySlide-classifier toolbar + pick-info controls should actually show:
+    /// the host enabled them (<see cref="ShowClassifierControls"/>) AND a live GL viewport
+    /// exists. In the software fallback preview (<see cref="RenderingUnavailable"/>) there is no
+    /// live viewport to pick in, so the vertex-pick / bounding-box / region-edit controls are
+    /// hidden — the fallback is view-only. PropertyChanged.Fody re-raises this whenever either
+    /// input changes, so the controls hide the moment GL start fails.
+    /// </summary>
+    public bool ClassifierControlsAvailable => ShowClassifierControls && !RenderingUnavailable;
+
     /// <summary>One-line summary of the most recent vertex pick for the classifier
     /// pick-info panel. Empty when no picks in the current session.</summary>
     public string LastPickSummary { get; set; } = "";
@@ -901,6 +920,47 @@ public class VM_CharacterViewer : ViewerVm
         RenderingUnavailable = true;
         StatusText = "3D preview unavailable on this system";
         _logger?.LogError("CharacterViewer: 3D preview unavailable — " + reason);
+    }
+
+    /// <summary>
+    /// Raised whenever the retained scene inputs change (NPC load, texture / mesh
+    /// overrides, morph). SynthEBD's software fallback preview subscribes to this to
+    /// re-render through the offscreen renderer. Lighting / background changes flow
+    /// through the normal <see cref="INotifyPropertyChanged"/> surface instead, so
+    /// this covers only the non-property inputs. No subscribers in the normal (live GL)
+    /// path, so raising it there is a cheap no-op.
+    /// </summary>
+    public event Action? SceneInputsChanged;
+
+    private void RaiseSceneInputsChanged() => SceneInputsChanged?.Invoke();
+
+    /// <summary>
+    /// Returns an immutable snapshot of the neutral scene inputs currently retained
+    /// (mesh paths + head override + texture / mesh overrides + morph + lighting +
+    /// background + scoping), or <c>null</c> when no NPC has been loaded yet. Used by the
+    /// software fallback preview to build <see cref="Offscreen.OffscreenRenderRequest"/>s;
+    /// carries everything a request needs except the per-render size, camera, and
+    /// cancellation token. GL-free — safe to read whether or not the GL context started.
+    /// </summary>
+    public SceneInputsSnapshot? TryGetSceneInputsSnapshot()
+    {
+        var paths = _cachedMeshPaths;
+        if (paths == null) return null;
+
+        return new SceneInputsSnapshot(
+            MeshPaths: paths,
+            OverrideHeadMeshAbsolutePath: _currentHeadMeshOverride,
+            TextureOverrides: _lastRequestedTextureOverrides,
+            MeshOverrides: _lastRequestedMeshOverrides,
+            Morphs: _lastRequestedMorphSet?.Morphs,
+            MorphWeight: _lastRequestedMorphSet?.Weight ?? 50,
+            Lighting: SelectedLightingLayout,
+            Colors: SelectedLightingColorScheme,
+            BackgroundRgb: (BackgroundColor.R, BackgroundColor.G, BackgroundColor.B),
+            AdditionalScopes: AdditionalScopes,
+            AdditionalDataFolders: AdditionalDataFolders,
+            VanillaLooseOverridesBsa: VanillaLooseOverridesBsa,
+            VanillaLooseOverridesModLoose: VanillaLooseOverridesModLoose);
     }
 
     /// <summary>Verbose checkpoint formatter for the NPC-load pipeline. Prefixes the
@@ -3875,10 +3935,10 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null)
     {
-        // No GL surface on this system (see RenderingUnavailable) — skip the mesh-path resolve
-        // and the load; nothing will ever render it. Mirrors the guard in LoadAsync.
-        if (RenderingUnavailable) return;
-
+        // NOTE: no RenderingUnavailable short-circuit here. Even when the GL viewport
+        // can't start, the software fallback preview needs the resolved mesh paths, so
+        // we still resolve and forward to LoadAsync — which retains the neutral inputs
+        // and skips only the GL scene build (see the RenderingUnavailable branch there).
         ResolvedNpcMeshPaths? meshPaths = null;
         try
         {
@@ -3921,11 +3981,25 @@ public class VM_CharacterViewer : ViewerVm
     public async Task LoadAsync(NpcIdentity identity, ResolvedNpcMeshPaths paths,
         string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default)
     {
-        // No GL surface on this system (WGL_NV_DX_interop missing — see RenderingUnavailable):
-        // the render loop that drains ProcessPendingScene never runs, so proceeding would only
-        // queue a scene that can't be committed and leave IsLoading stuck true. Bail before
-        // touching any load state so preview-driving UI degrades cleanly to the placeholder.
-        if (RenderingUnavailable) return;
+        if (RenderingUnavailable)
+        {
+            // No GL surface on this system (WGL_NV_DX_interop missing) — the render loop
+            // that drains ProcessPendingScene never runs, so a full load would only queue a
+            // scene that can't be committed and leave IsLoading stuck true. Instead RETAIN the
+            // neutral inputs (identity + resolved paths + head override) so the software
+            // fallback preview can re-express them as offscreen render requests, reset the
+            // per-NPC override/morph retention for the new NPC, notify subscribers, and skip
+            // the NIF parse / CPU skin / GL upload (the offscreen renderer redoes that in its
+            // own throwaway VM). Only the GL work is gated — the input capture is not.
+            _currentLoadedIdentityKey = identity.CacheKey;
+            _cachedMeshPaths = paths;
+            _currentHeadMeshOverride = overrideHeadMeshAbsolutePath;
+            _lastRequestedTextureOverrides = null;
+            _lastRequestedMeshOverrides = null;
+            _lastRequestedMorphSet = null;
+            RaiseSceneInputsChanged();
+            return;
+        }
 
         if (!_sceneRebuildPending
             && _meshesByBodyPart.Count > 0
@@ -4486,6 +4560,11 @@ public class VM_CharacterViewer : ViewerVm
     {
         var overrideList = overrides as List<TextureOverride> ?? overrides?.ToList() ?? new List<TextureOverride>();
 
+        // Retain unconditionally for the software fallback snapshot (even on the queue
+        // path below, and even when GL never started), then notify the fallback preview.
+        _lastRequestedTextureOverrides = overrideList;
+        RaiseSceneInputsChanged();
+
         // Queue when the scene is empty, the texture manager isn't ready, OR a
         // rebuild is in-flight. The rebuild check is what catches the subgroup
         // re-selection case: between LoadAsync queueing _pendingScene and the
@@ -4629,6 +4708,11 @@ public class VM_CharacterViewer : ViewerVm
     public void ApplyMeshOverrides(IEnumerable<MeshOverride> overrides, CancellationToken ct = default)
     {
         var overrideList = overrides as List<MeshOverride> ?? overrides?.ToList() ?? new List<MeshOverride>();
+
+        // Retain unconditionally for the software fallback snapshot, then notify the
+        // fallback preview (mirrors ApplyTextureOverrides).
+        _lastRequestedMeshOverrides = overrideList;
+        RaiseSceneInputsChanged();
 
         // Queue when the scene isn't ready, the texture manager isn't up, a
         // rebuild is in flight, or no base mesh paths are cached yet (we need
@@ -5046,6 +5130,15 @@ public class VM_CharacterViewer : ViewerVm
             LogVerbose("CharacterViewer: [BodySlideDisabled] ApplyMorphSet bypassed" +
                 " (label='" + (morphs?.Label ?? "?") + "', weight=" + NpcWeight + ")");
             return;
+        }
+
+        // Retain the real (non zeroed-flip) morph unconditionally for the software fallback
+        // snapshot — including on the queue path below and when GL never started, neither of
+        // which reaches the _lastAppliedMorphSet write further down. Then notify the fallback.
+        if (morphs != null && morphs.Label != ZeroedFlipLabel)
+        {
+            _lastRequestedMorphSet = (morphs, weight);
+            RaiseSceneInputsChanged();
         }
 
         if (_cachedBodyMeshes.Count == 0 || _sceneRebuildPending)

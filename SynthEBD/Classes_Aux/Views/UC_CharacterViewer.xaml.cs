@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using OpenTK.Wpf;
@@ -66,6 +67,11 @@ public partial class UC_CharacterViewer : UserControl
                 GlControl.Visibility = Visibility.Collapsed;
                 GlControl.Visibility = Visibility.Visible;
             }
+            // Re-attach the software fallback if a prior Unloaded detached it (a tab switch
+            // that kept this control instance). First activation attaches inside TryStartGl's
+            // failure path; this covers a subsequent re-show of the same control.
+            if (_fallbackActive && _fallback != null)
+                _fallback.Attach(OnFallbackFrame, OnFallbackFailed, OnFallbackBusy);
         };
 
         // Place the axis gizmo in the bottom-left once the overlay Canvas has a real size.
@@ -83,6 +89,11 @@ public partial class UC_CharacterViewer : UserControl
         {
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             _unloaded = true;
+            // Detach from the (surviving, per-VM) fallback controller and stop its timers so a
+            // running DispatcherTimer can't root this control after it leaves the tree.
+            _fallback?.Detach();
+            _fallbackSettleTimer?.Stop();
+            _fallbackResizeTimer?.Stop();
             _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId + " Unloaded");
         };
     }
@@ -110,6 +121,18 @@ public partial class UC_CharacterViewer : UserControl
     // into the placeholder state and make every SizeChanged/Loaded re-entry into TryStartGl a
     // no-op instead of re-throwing an unhandled dispatcher exception on each layout pass.
     private bool _glFailed;
+
+    // Software fallback preview state (only ever touched when _glFailed is true). The
+    // per-VM FallbackPreviewController renders the retained scene inputs through the
+    // offscreen renderer and hands back WriteableBitmap frames; this control feeds it
+    // orbit/pan/zoom from FallbackImage's mouse events and debounces resizes. _fallbackDragging
+    // gates the low-res-during-drag path; the settle timer restores full-res after interaction
+    // stops; the resize timer coalesces splitter drags.
+    private FallbackPreviewController? _fallback;
+    private bool _fallbackActive;
+    private bool _fallbackDragging;
+    private DispatcherTimer? _fallbackSettleTimer;
+    private DispatcherTimer? _fallbackResizeTimer;
 
     // Hover tooltip state. _currentHoverMesh tracks the mesh-tooltip identity so we only
     // rebuild the content TextBlock when the hover target changes (the textures + asset-
@@ -268,7 +291,9 @@ public partial class UC_CharacterViewer : UserControl
             // ... plus a single always-on warning through the VM's non-verbose error channel.
             _vm?.NotifyRenderingUnavailable(
                 "GLWpfControl.Start() threw " + ex.GetType().Name + ": " + ex.Message);
-            ShowGlUnavailablePlaceholder();
+            // Try the view-only software fallback (offscreen renderer → WriteableBitmap);
+            // it falls back to the static placeholder if even that can't be set up.
+            ActivateFallbackOrPlaceholder();
             return;
         }
 
@@ -301,6 +326,181 @@ public partial class UC_CharacterViewer : UserControl
         GizmoCanvas.Visibility = Visibility.Collapsed;
         BoxWireframeCanvas.Visibility = Visibility.Collapsed;
         GlUnavailablePanel.Visibility = Visibility.Visible;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  SOFTWARE FALLBACK PREVIEW (view-only; no NV_DX_interop required)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// GL startup failed: collapse the live viewport and try to bring up the view-only
+    /// software fallback preview (the offscreen GL renderer, which needs no NV_DX_interop,
+    /// producing <see cref="WriteableBitmap"/> frames). If the fallback controller can't be
+    /// obtained (registry unconfigured, truly headless), degrade to the static placeholder.
+    /// Runs once per control instance, from the <see cref="TryStartGl"/> catch (guarded by
+    /// <c>_glFailed</c>).
+    /// </summary>
+    private void ActivateFallbackOrPlaceholder()
+    {
+        // Collapse the live viewport + its overlays either way (same as the static path).
+        GlControl.Visibility = Visibility.Collapsed;
+        GizmoCanvas.Visibility = Visibility.Collapsed;
+        BoxWireframeCanvas.Visibility = Visibility.Collapsed;
+
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) { ShowGlUnavailablePlaceholder(); return; }
+
+        try
+        {
+            _fallback = FallbackPreviewControllerRegistry.GetOrCreate(_vm);
+        }
+        catch (Exception ex)
+        {
+            _vm.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " fallback preview unavailable (" + ex.Message + "); showing static placeholder");
+            ShowGlUnavailablePlaceholder();
+            return;
+        }
+
+        _fallbackActive = true;
+
+        // After interaction stops, re-render once at full resolution + high-quality scaling
+        // (during a drag we render half-res + fast scaling for responsiveness).
+        _fallbackSettleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _fallbackSettleTimer.Tick += FallbackSettle_Tick;
+        // Coalesce splitter-drag resizes into a single re-render at the settled size.
+        _fallbackResizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _fallbackResizeTimer.Tick += FallbackResize_Tick;
+
+        // Wire camera input + resize on the fallback image (no pick/edit handlers — those
+        // need the live VM and are out of scope for the view-only fallback).
+        FallbackImage.MouseDown += FallbackImage_MouseDown;
+        FallbackImage.MouseMove += FallbackImage_MouseMove;
+        FallbackImage.MouseUp += FallbackImage_MouseUp;
+        FallbackImage.MouseWheel += FallbackImage_MouseWheel;
+        FallbackImage.SizeChanged += FallbackImage_SizeChanged;
+
+        FallbackPanel.Visibility = Visibility.Visible;
+
+        // Receive frames / permanent failure / busy transitions. Attach re-shows any prior
+        // frame and kicks a render if a size is already known; otherwise the first
+        // SizeChanged (once layout gives the image a size) does the initial render.
+        _fallback.Attach(OnFallbackFrame, OnFallbackFailed, OnFallbackBusy);
+        RequestFallbackRender(lowRes: false);
+    }
+
+    /// <summary>Controller callback (UI thread): a new frame is ready — show it, and once
+    /// the software preview is producing frames, drop any static placeholder that was up.</summary>
+    private void OnFallbackFrame(WriteableBitmap bmp)
+    {
+        if (!ReferenceEquals(FallbackImage.Source, bmp)) FallbackImage.Source = bmp;
+        if (GlUnavailablePanel.Visibility == Visibility.Visible)
+            GlUnavailablePanel.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Controller callback (UI thread): even the offscreen renderer can't run
+    /// (truly headless). Collapse the software preview and show the static placeholder.</summary>
+    private void OnFallbackFailed(Exception ex)
+    {
+        _fallbackActive = false;
+        _fallbackSettleTimer?.Stop();
+        _fallbackResizeTimer?.Stop();
+        FallbackPanel.Visibility = Visibility.Collapsed;
+        ShowGlUnavailablePlaceholder();
+    }
+
+    /// <summary>Controller callback (UI thread): toggles the "Rendering..." busy chip so the
+    /// pause after a drag reads as intentional work rather than a freeze.</summary>
+    private void OnFallbackBusy(bool busy)
+    {
+        FallbackBusyIndicator.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Requests a fallback render at the image's current pixel size. No-op until the
+    /// image has a real size or if the fallback isn't active.</summary>
+    private void RequestFallbackRender(bool lowRes)
+    {
+        if (!_fallbackActive || _fallback == null) return;
+        int w = (int)Math.Round(FallbackImage.ActualWidth);
+        int h = (int)Math.Round(FallbackImage.ActualHeight);
+        if (w <= 0 || h <= 0) return;
+        _fallback.RequestRender(w, h, lowRes);
+    }
+
+    private void RestartFallbackSettleTimer()
+    {
+        _fallbackSettleTimer?.Stop();
+        _fallbackSettleTimer?.Start();
+    }
+
+    /// <summary>Left-drag orbits, middle-drag pans — same OrbitCamera and button conventions
+    /// as the live viewport's <see cref="GlControl_MouseDown"/>, minus the pick modes.</summary>
+    private void FallbackImage_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+        if (e.ChangedButton != MouseButton.Left && e.ChangedButton != MouseButton.Middle) return;
+
+        var pos = e.GetPosition(FallbackImage);
+        _vm.Camera.OnMouseDown((float)pos.X, (float)pos.Y,
+            leftButton: e.ChangedButton == MouseButton.Left,
+            middleButton: e.ChangedButton == MouseButton.Middle);
+        _fallbackDragging = true;
+        RenderOptions.SetBitmapScalingMode(FallbackImage, BitmapScalingMode.LowQuality);
+        FallbackImage.CaptureMouse();
+    }
+
+    private void FallbackImage_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_fallbackDragging) return;
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        var pos = e.GetPosition(FallbackImage);
+        _vm.Camera.OnMouseMove((float)pos.X, (float)pos.Y);
+        RequestFallbackRender(lowRes: true);
+        RestartFallbackSettleTimer();
+    }
+
+    private void FallbackImage_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_fallbackDragging) return;
+        _fallbackDragging = false;
+        _vm?.Camera.OnMouseUp();
+        FallbackImage.ReleaseMouseCapture();
+        RestartFallbackSettleTimer();   // settle → one full-res render
+    }
+
+    private void FallbackImage_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        _vm.Camera.OnMouseWheel(e.Delta);
+        RenderOptions.SetBitmapScalingMode(FallbackImage, BitmapScalingMode.LowQuality);
+        RequestFallbackRender(lowRes: true);
+        RestartFallbackSettleTimer();
+    }
+
+    private void FallbackImage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Debounce: dragging a GridSplitter fires a flood of SizeChanged; re-render once
+        // it settles (also handles the initial render once layout gives the image a size).
+        _fallbackResizeTimer?.Stop();
+        _fallbackResizeTimer?.Start();
+    }
+
+    private void FallbackSettle_Tick(object? sender, EventArgs e)
+    {
+        _fallbackSettleTimer?.Stop();
+        RenderOptions.SetBitmapScalingMode(FallbackImage, BitmapScalingMode.HighQuality);
+        RequestFallbackRender(lowRes: false);
+    }
+
+    private void FallbackResize_Tick(object? sender, EventArgs e)
+    {
+        _fallbackResizeTimer?.Stop();
+        RequestFallbackRender(lowRes: false);
     }
 
     /// <summary>Collapses the GL control before sleep and restores it (deferred) on resume, so OnRender never runs against an invalidated GL context across a sleep/wake cycle.</summary>
@@ -950,6 +1150,9 @@ public partial class UC_CharacterViewer : UserControl
 
         var (r, g, b) = BgColors[BgColorCombo.SelectedIndex];
         _vm.Renderer.ClearColor = new OpenTK.Mathematics.Vector3(r, g, b);
+        // Also drive BackgroundColor so the software fallback preview (which reads it via the
+        // scene snapshot) re-renders with the new background. Harmless in live mode.
+        _vm.BackgroundColor = Color.FromRgb((byte)(r * 255f), (byte)(g * 255f), (byte)(b * 255f));
     }
 
     /// <summary>Resets the camera to its default position.</summary>

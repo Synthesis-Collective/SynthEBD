@@ -158,6 +158,21 @@ public class MainModule : Autofac.Module
             () => c.Resolve<SynthEbdOsdLoader>(),
             () => c.Resolve<FaceGenPreviewService>(),
             () => c.Resolve<Logger>()));
+
+        // Fallback software preview (shown when GLWpfControl can't start — Wine/VM/RDP).
+        // Same deferred-resolver pattern: the shared offscreen renderer is built lazily on
+        // the first fallback render, from the very dependency set the live viewer uses.
+        builder.RegisterBuildCallback(c => FallbackPreviewControllerRegistry.Configure(
+            () => CharacterViewer.Rendering.Offscreen.OffscreenRendererFactory.Create(
+                c.Resolve<CharacterPreviewCache>(),
+                c.Resolve<BodySlideDeformer>(),
+                c.Resolve<BsdFileParser>(),
+                c.Resolve<BodyTriFileParser>(),
+                c.Resolve<GameAssetResolver>(),
+                c.Resolve<ICharacterViewerSettings>(),
+                c.Resolve<CharacterViewerLogGate>(),
+                c.Resolve<ICharacterViewerLogger>()),
+            () => c.Resolve<ICharacterViewerLogger>()));
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();

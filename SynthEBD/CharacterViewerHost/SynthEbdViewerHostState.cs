@@ -77,8 +77,13 @@ internal sealed class SynthEbdViewerHostState
     /// <see cref="VM_CharacterViewer.SceneCommitted"/> fires.</summary>
     internal void ApplyBodySlide(BodySlideSetting preset, int weight)
     {
-        // Mirrors the original VM check: queue when meshes haven't yet committed.
-        if (!_vm.IsSceneReady)
+        // Mirrors the original VM check: queue when meshes haven't yet committed — EXCEPT in
+        // the software fallback (RenderingUnavailable), where the GL scene never commits and
+        // SceneCommitted never fires, so queuing here would strand the morph forever. There we
+        // fall through and apply directly: SetMorphContext + ApplyMorphSet below retain the
+        // morph on the VM (see VM_CharacterViewer._lastRequestedMorphSet) so the offscreen
+        // fallback preview reproduces the deformation via the body's sibling .tri.
+        if (!_vm.IsSceneReady && !_vm.RenderingUnavailable)
         {
             _pendingBodySlide = (preset, weight);
             return;

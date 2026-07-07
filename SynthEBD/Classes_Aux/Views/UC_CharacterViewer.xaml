@@ -117,19 +117,19 @@
                 <CheckBox Content="Wireframe" FontSize="11" Foreground="#FF33E6D0"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding ShowWireframe}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                           local:DocTooltip.Key="CharacterViewer.Wireframe"/>
 
                 <CheckBox Content="Pick Vertex" FontSize="11" Foreground="#FFFF6126"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding IsKeyVertexPickMode}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                           local:DocTooltip.Key="CharacterViewer.PickVertex"/>
 
                 <CheckBox Content="Pick Box" FontSize="11" Foreground="#FFFFCC40"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding IsBoundingBoxPickMode}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                           local:DocTooltip.Key="CharacterViewer.PickBox"/>
 
                 <!-- Region vertex-edit mode: two mutually-exclusive toggle buttons. At most one is on;
@@ -139,7 +139,7 @@
                 <ToggleButton x:Name="AddVertsToggle" Content="Add Verts" FontSize="11" Padding="8,1"
                               Margin="10,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding IsRegionVertexAddMode}"
-                              Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                              Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                               local:DocTooltip.Key="CharacterViewer.AddVerts">
                     <ToggleButton.Style>
                         <Style TargetType="ToggleButton">
@@ -171,7 +171,7 @@
                 <ToggleButton x:Name="RemoveVertsToggle" Content="Remove Verts" FontSize="11" Padding="8,1"
                               Margin="6,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding IsRegionVertexRemoveMode}"
-                              Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                              Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                               local:DocTooltip.Key="CharacterViewer.RemoveVerts">
                     <ToggleButton.Style>
                         <Style TargetType="ToggleButton">
@@ -202,7 +202,7 @@
 
                 <TextBlock Text="Criterion:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="8,0,3,0"
-                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>
+                           Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"/>
                 <!-- Criterion picker: closed button shows the short [ShortLabel] of the
                      current selection with its long [Description] as tooltip; clicking opens a
                      Popup containing a TreeView grouped by algorithm category (Axis Extremes /
@@ -213,7 +213,7 @@
                      uses to dispatch the write — symmetric with the pending-box-confirm picker
                      below ("PendingFinal"). -->
                 <Grid Width="180" VerticalAlignment="Center"
-                      Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}">
+                      Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}">
                     <ToggleButton x:Name="CritToggleBBPick" FontSize="10"
                                   Content="{Binding PendingBoxCriterion, Converter={StaticResource EnumShortLabel}}"
                                   ToolTip="{Binding PendingBoxCriterion, Converter={StaticResource EnumDesc}}"
@@ -249,15 +249,15 @@
                 <Button Content="Select Mirror" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="SelectMirrorPicksButton_Click"
-                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                        Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                         local:DocTooltip.Key="CharacterViewer.SelectMirror"/>
 
                 <TextBlock Text="Axis:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="10,0,3,0"
-                           Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"/>
+                           Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"/>
                 <ComboBox Width="42" FontSize="10" VerticalAlignment="Center"
                           SelectedIndex="{Binding ProjectAcrossAxisIndex}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                           local:DocTooltip.Key="CharacterViewer.PairAxis">
                     <ComboBoxItem Content="X"/>
                     <ComboBoxItem Content="Y"/>
@@ -267,19 +267,19 @@
                 <Button Content="Pair Across Axis" FontSize="10" Margin="4,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="PairAcrossAxisButton_Click"
-                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                        Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                         local:DocTooltip.Key="CharacterViewer.PairAcrossAxis"/>
 
                 <Button Content="Clear Picks" FontSize="10" Margin="6,0,0,0"
                         Padding="6 1" VerticalAlignment="Center"
                         Click="ClearKeyVertexMarkersButton_Click"
-                        Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                        Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                         local:DocTooltip.Key="CharacterViewer.ClearPicks"/>
 
                 <CheckBox Content="Show Bulge Bins" FontSize="11" Foreground="#FF66E6FF"
                           Margin="10,0,0,0" VerticalAlignment="Center"
                           IsChecked="{Binding ShowBulgeBinOverlay}"
-                          Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}"
+                          Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}"
                           local:DocTooltip.Key="CharacterViewer.ShowBulgeBins"/>
 
                 <CheckBox Content="Verbose Log" FontSize="11" Foreground="#FFAAAAAA"
@@ -330,7 +330,7 @@
                 BorderBrush="#FF3A3A3A"
                 BorderThickness="0,1,0,1"
                 Padding="6 4"
-                Visibility="{Binding ShowClassifierControls, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding ClassifierControlsAvailable, Converter={StaticResource BoolToVis}}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -583,6 +583,41 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"/>
         </Border>
+
+        <!-- Software fallback preview. Shown when GLWpfControl can't start (no NV_DX_interop)
+             but the offscreen GL renderer (a hidden GLFW GameWindow + FBO, no interop needed)
+             can. FallbackImage displays WriteableBitmap frames produced by
+             FallbackPreviewController; codebehind wires mouse orbit/pan/zoom + resize to it.
+             The corner badge marks it view-only; the busy chip shows while a frame renders so
+             the post-drag pause reads as intentional. Collapsed until fallback mode activates. -->
+        <Grid Grid.Row="6" x:Name="FallbackPanel" Visibility="Collapsed"
+              Background="#FF1F1F1F" ClipToBounds="True">
+            <Image x:Name="FallbackImage"
+                   Stretch="Uniform"
+                   HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
+                    Background="#C0202020" BorderBrush="#40FFFFFF" BorderThickness="1"
+                    CornerRadius="3" Padding="8 4" IsHitTestVisible="False">
+                <TextBlock FontSize="11" TextWrapping="Wrap" MaxWidth="280" Foreground="#FFD0D0D0">
+                    <Run Text="Software preview — view only" FontWeight="Bold"/>
+                    <LineBreak/>
+                    <Run Text="Rotate / zoom / pan. Editing requires hardware OpenGL interop."
+                         Foreground="#FF9AA0A6"/>
+                </TextBlock>
+            </Border>
+
+            <Border x:Name="FallbackBusyIndicator" Visibility="Collapsed"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                    Background="#C0202020" BorderBrush="#40FFFFFF" BorderThickness="1"
+                    CornerRadius="3" Padding="8 4" IsHitTestVisible="False">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Fill="#FFFFCC40" VerticalAlignment="Center"/>
+                    <TextBlock Text="Rendering..." Foreground="#FFD0D0D0" FontSize="11"
+                               Margin="6,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- GL-unavailable placeholder. Revealed by codebehind (ShowGlUnavailablePlaceholder)
              when GLWpfControl.Start() throws because the system's OpenGL driver lacks the

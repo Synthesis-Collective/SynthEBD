@@ -76,6 +76,19 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Disposes the shared offscreen renderer that backs the software fallback preview (if one
+    /// was ever built — only on machines where the live GL viewport couldn't start). Tears down
+    /// its hidden GameWindow + GL context on the render thread. A no-op when the fallback never
+    /// ran, so this is free on normal machines. Best-effort and bounded so it can't wedge exit.
+    /// </summary>
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try { FallbackPreviewControllerRegistry.ShutdownAsync().GetAwaiter().GetResult(); }
+        catch { /* best-effort on shutdown */ }
+        base.OnExit(e);
+    }
+
+    /// <summary>
     /// Last-ditch crash logger: appends an unhandled exception to CrashLog.txt next to the exe so
     /// failures that occur before (or instead of) any UI — notably when launched under a mod
     /// manager's virtual file system — leave a diagnosable trace instead of silently vanishing.

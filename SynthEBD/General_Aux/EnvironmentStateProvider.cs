@@ -218,6 +218,12 @@ public class StandaloneRunEnvironmentStateProvider : VM, IOutputEnvironmentState
         {
             SelectUserSpecifiedGameEnvironment("SynthEBD was unable to create an environment from any default installation directory. This can occur if your game is installed in a non-default location.");
         }
+
+        // The game path / load order just changed, so any paths the software fallback preview's
+        // offscreen renderer resolved (and any textures it decoded / uploaded) under the old
+        // environment may now be stale. Drop its caches. No-op on machines where the fallback
+        // renderer was never built (i.e. wherever the live GL viewport started normally).
+        FallbackPreviewControllerRegistry.InvalidateCaches();
     }
 
     /// <summary>Shows the custom-environment dialog so the user can point SynthEBD at a valid game install, then rebuilds the environment; exits the application if the user cancels.</summary>
