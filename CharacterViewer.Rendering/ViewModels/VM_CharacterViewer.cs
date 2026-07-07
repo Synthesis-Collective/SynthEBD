@@ -875,6 +875,34 @@ public class VM_CharacterViewer : ViewerVm
         if (VerboseLog) _logger?.LogMessage(message);
     }
 
+    /// <summary>
+    /// True once the embedded GL viewport has permanently failed to start because the host's
+    /// OpenGL driver lacks the <c>WGL_NV_DX_interop</c> extension GLWpfControl needs to share
+    /// its surface with WPF's D3D compositor (expected under Wine/Proton, virtual machines, and
+    /// remote desktop). When true no render loop will ever run, so <see cref="LoadAsync"/> and
+    /// <see cref="LoadByIdentityAsync"/> short-circuit — a preview request can't leave the scene
+    /// queue stuck mid-install or <see cref="IsLoading"/> stuck true — and dependent UI can
+    /// disable viewer-only affordances instead of driving a dead panel. Set by the view
+    /// (<c>UC_CharacterViewer.TryStartGl</c>) via <see cref="NotifyRenderingUnavailable"/>.
+    /// </summary>
+    public bool RenderingUnavailable { get; private set; }
+
+    /// <summary>
+    /// Records a one-time, non-fatal GL-startup failure reported by <c>UC_CharacterViewer</c>
+    /// when <c>GLWpfControl.Start()</c> throws: latches <see cref="RenderingUnavailable"/>,
+    /// updates <see cref="StatusText"/>, and logs the cause through the always-on error channel
+    /// (NOT gated by <see cref="VerboseLog"/>, unlike <see cref="LogViewerDiagnostic"/>) so the
+    /// reason is visible in a normal log. Idempotent — only the first call logs, so the shared
+    /// VM isn't spammed when WPF re-creates the (also-failing) control on each navigation.
+    /// </summary>
+    public void NotifyRenderingUnavailable(string reason)
+    {
+        if (RenderingUnavailable) return;
+        RenderingUnavailable = true;
+        StatusText = "3D preview unavailable on this system";
+        _logger?.LogError("CharacterViewer: 3D preview unavailable — " + reason);
+    }
+
     /// <summary>Verbose checkpoint formatter for the NPC-load pipeline. Prefixes the
     /// message with elapsed-from-LoadNpcAsync-entry so timings can be eyeballed across
     /// the parse/skin/dispatch/GL-upload handoff. No-op when the stopwatch is null
@@ -3847,6 +3875,10 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null)
     {
+        // No GL surface on this system (see RenderingUnavailable) — skip the mesh-path resolve
+        // and the load; nothing will ever render it. Mirrors the guard in LoadAsync.
+        if (RenderingUnavailable) return;
+
         ResolvedNpcMeshPaths? meshPaths = null;
         try
         {
@@ -3889,6 +3921,12 @@ public class VM_CharacterViewer : ViewerVm
     public async Task LoadAsync(NpcIdentity identity, ResolvedNpcMeshPaths paths,
         string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default)
     {
+        // No GL surface on this system (WGL_NV_DX_interop missing — see RenderingUnavailable):
+        // the render loop that drains ProcessPendingScene never runs, so proceeding would only
+        // queue a scene that can't be committed and leave IsLoading stuck true. Bail before
+        // touching any load state so preview-driving UI degrades cleanly to the placeholder.
+        if (RenderingUnavailable) return;
+
         if (!_sceneRebuildPending
             && _meshesByBodyPart.Count > 0
             && identity.CacheKey == _currentLoadedIdentityKey

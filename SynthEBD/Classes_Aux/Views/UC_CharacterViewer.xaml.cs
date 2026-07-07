@@ -104,6 +104,12 @@ public partial class UC_CharacterViewer : UserControl
 
     private VM_CharacterViewer? _vm;
     private bool _glStarted;
+    // Latched true if GlControl.Start() throws — the OpenGL driver lacks WGL_NV_DX_interop
+    // (Wine/Proton, a VM's virtual GPU, an RDP session, some legacy drivers). This is an
+    // unrecoverable environment limitation, not a transient error, so once it trips we drop
+    // into the placeholder state and make every SizeChanged/Loaded re-entry into TryStartGl a
+    // no-op instead of re-throwing an unhandled dispatcher exception on each layout pass.
+    private bool _glFailed;
 
     // Hover tooltip state. _currentHoverMesh tracks the mesh-tooltip identity so we only
     // rebuild the content TextBlock when the hover target changes (the textures + asset-
@@ -218,7 +224,7 @@ public partial class UC_CharacterViewer : UserControl
     /// <summary>Starts the GL render loop once the control is loaded and has a non-zero size; idempotent. Toggles visibility afterward to work around a GLWpfControl bug where continuous rendering isn't registered when the control is already visible at Start().</summary>
     private void TryStartGl()
     {
-        if (_glStarted) return;
+        if (_glStarted || _glFailed) return;
         if (!IsLoaded)
         {
             (_vm ??= DataContext as VM_CharacterViewer)?.LogViewerDiagnostic(
@@ -239,7 +245,33 @@ public partial class UC_CharacterViewer : UserControl
             MinorVersion = 3,
             RenderContinuously = true
         };
-        GlControl.Start(settings);
+        try
+        {
+            GlControl.Start(settings);
+        }
+        catch (Exception ex)
+        {
+            // GLWpfControl.Start() throws when the OpenGL driver lacks WGL_NV_DX_interop,
+            // the extension it uses to share its render surface with WPF's D3D compositor.
+            // Current GLWpfControl versions surface this as a managed exception whose message
+            // names NV_DX_interop; older versions took native code paths. We catch broadly
+            // (not by exception type or message) so the degradation survives across versions,
+            // and latch _glFailed so the SizeChanged/Loaded handlers that re-invoke TryStartGl
+            // stop retrying instead of rethrowing on every layout pass. This is a permanent
+            // environment limitation (see _glFailed), so we degrade to a placeholder rather
+            // than attempt any recovery.
+            _glFailed = true;
+            _vm ??= DataContext as VM_CharacterViewer;
+            // Per-instance verbose diagnostic (mirrors the file's other lifecycle logs) ...
+            _vm?.LogViewerDiagnostic("UC_CharacterViewer #" + _instanceId
+                + " TryStartGl: Start() FAILED: " + ex.Message);
+            // ... plus a single always-on warning through the VM's non-verbose error channel.
+            _vm?.NotifyRenderingUnavailable(
+                "GLWpfControl.Start() threw " + ex.GetType().Name + ": " + ex.Message);
+            ShowGlUnavailablePlaceholder();
+            return;
+        }
+
         _glStarted = true;
 
         // GLWpfControl bug: Start() registers CompositionTarget.Rendering only
@@ -255,9 +287,30 @@ public partial class UC_CharacterViewer : UserControl
             + GlControl.ActualHeight.ToString("F0") + ")");
     }
 
+    /// <summary>
+    /// Swaps the live viewport for the static "3D preview unavailable" placeholder after a
+    /// GL-start failure (see the catch in <see cref="TryStartGl"/>): collapses the GL control
+    /// and the overlays that only make sense over a live viewport (axis gizmo, pending-box
+    /// wireframe) and reveals <c>GlUnavailablePanel</c>. The placeholder is the last child in
+    /// its grid row, so it also masks the loading / pending-box panels should their VM flags
+    /// ever be set. View-only — the VM flag and logging are handled at the TryStartGl catch site.
+    /// </summary>
+    private void ShowGlUnavailablePlaceholder()
+    {
+        GlControl.Visibility = Visibility.Collapsed;
+        GizmoCanvas.Visibility = Visibility.Collapsed;
+        BoxWireframeCanvas.Visibility = Visibility.Collapsed;
+        GlUnavailablePanel.Visibility = Visibility.Visible;
+    }
+
     /// <summary>Collapses the GL control before sleep and restores it (deferred) on resume, so OnRender never runs against an invalidated GL context across a sleep/wake cycle.</summary>
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
+        // GL never started on this system — there is no render loop to suspend, and the
+        // Resume branch below would otherwise un-collapse the failed GlControl back over
+        // the placeholder. Leave the placeholder state untouched across sleep/wake.
+        if (_glFailed) return;
+
         if (e.Mode == PowerModes.Suspend)
         {
             // Collapse before sleep — stops the render loop so OnRender won't

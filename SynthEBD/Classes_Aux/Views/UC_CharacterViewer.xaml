@@ -584,6 +584,37 @@
                        VerticalAlignment="Center"/>
         </Border>
 
+        <!-- GL-unavailable placeholder. Revealed by codebehind (ShowGlUnavailablePlaceholder)
+             when GLWpfControl.Start() throws because the system's OpenGL driver lacks the
+             WGL_NV_DX_interop extension GLWpfControl needs to share its render surface with
+             WPF's D3D compositor (expected under Wine/Proton, virtual machines, and remote
+             desktop). The GL control + its live-viewport overlays are collapsed in the same
+             failure path so only this message remains. It is the last child of Row 6, so it
+             paints on top and also masks the loading / pending-box overlays if their VM flags
+             were ever set. Dark HUD palette (hardcoded, like the other viewport overlays in
+             this control) so it reads the same on every app theme. -->
+        <Border Grid.Row="6"
+                x:Name="GlUnavailablePanel"
+                Visibility="Collapsed"
+                Background="#FF1F1F1F"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <TextBlock MaxWidth="480"
+                       Margin="24"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#FFCCCCCC"
+                       FontSize="13">
+                <Run Text="3D preview unavailable" FontSize="15" FontWeight="Bold" Foreground="#FFE0E0E0"/>
+                <LineBreak/><LineBreak/>
+                <Run Text="This system's OpenGL driver does not support the NV_DX_interop extension required to embed OpenGL in WPF. This is expected under Wine/Proton, virtual machines, and remote desktop."/>
+                <LineBreak/><LineBreak/>
+                <Run Text="All other SynthEBD functionality is unaffected." Foreground="#FF9AA0A6" FontStyle="Italic"/>
+            </TextBlock>
+        </Border>
+
         <!-- Status bar -->
         <Border Grid.Row="7"
                 Background="#FF333333"
