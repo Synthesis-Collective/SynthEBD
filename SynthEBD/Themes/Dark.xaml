@@ -628,6 +628,24 @@
         <Setter Property="Foreground" Value="{StaticResource PrimaryForeground}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="6,4"/>
+        <!-- Explicit template so the tooltip surface is painted by a Border we control
+             rather than WPF's default (Aero2) ToolTip template. On non-Windows hosts
+             (Wine/Proton) that default template can fail to resolve/composite the Popup,
+             leaving an opaque black tooltip; this keeps tooltips readable everywhere. -->
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ============================== ScrollBar ============================== -->
