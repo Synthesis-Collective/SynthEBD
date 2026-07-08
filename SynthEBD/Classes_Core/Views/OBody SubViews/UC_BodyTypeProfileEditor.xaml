@@ -866,7 +866,7 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="Live" Binding="{Binding LiveValue, Mode=OneWay, StringFormat=F3}" Width="80" IsReadOnly="True"/>
+                                            <DataGridTextColumn Header="Live" Binding="{Binding LiveValue, Mode=OneWay, StringFormat=F4}" Width="80" IsReadOnly="True"/>
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

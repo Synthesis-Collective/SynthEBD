@@ -10527,7 +10527,7 @@ public class VM_MeasurementCondition : VM
     public bool Negate { get; set; }
 
     /// <summary>Live readout shown to the right of the condition: for a Measurement condition the
-    /// previewed preset's value of the measurement (e.g. "32.45"); for a DescriptorRef condition
+    /// previewed preset's value of the measurement (e.g. "32.4500"); for a DescriptorRef condition
     /// "Match" / "Not Match" (honoring <see cref="Negate"/>). "—" when no preset is loaded or the
     /// value can't be resolved. Recomputed by <see cref="RefreshLiveReadout"/>.</summary>
     public string ConditionReadout { get; private set; } = "";
@@ -10559,7 +10559,9 @@ public class VM_MeasurementCondition : VM
             }
             if (def?.LiveValue is not float live) { ConditionReadout = "—"; ConditionConforms = null; return; }
 
-            ConditionReadout = live.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+            // F4 so the display exposes the digits the full-precision comparison actually
+            // tests; at F2 a live value of e.g. 1.1362 rendered as "1.14" yet failed ">= 1.14".
+            ConditionReadout = live.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
             ConditionConforms = MeasurementMath.Compare(live, Comparator, Value);
         }
         else // DescriptorRef
