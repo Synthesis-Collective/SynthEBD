@@ -3402,6 +3402,51 @@ public class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>
+    /// Lights up the vertices a single BodySlide slider moves as an unlit magnitude heatmap over the
+    /// current (deformed) body, feeding <see cref="GlRenderer.SliderHeatmapTriangles"/>. Iterates the
+    /// cached deformable body shapes, pulls each shape's sparse per-vertex deltas for
+    /// <paramref name="sliderName"/> from the already-loaded .tri/OSD morph context via
+    /// <see cref="BodySlideDeformer.TryGetSliderDeltas"/> (no file re-parse), and builds the patch with
+    /// <see cref="SliderHeatmapBuilder"/>. Replaces any prior highlight. Clears only (no patch) when the
+    /// slider name is blank, no morph context is loaded, or the slider moves nothing above
+    /// <paramref name="minDelta"/> — so the "requires a selected preset" contract (a preset apply is what
+    /// loads the context) is enforced by the caller. Used by the Label-by-Sliders preview rail.
+    /// </summary>
+    public void HighlightSliderMorph(string? sliderName, float minDelta = SliderHeatmapBuilder.DefaultMinDelta)
+    {
+        var output = Renderer.SliderHeatmapTriangles;
+        output.Clear();
+
+        if (string.IsNullOrWhiteSpace(sliderName)) return;
+        if (_cachedBodyTri == null && (_cachedOsdFiles == null || _cachedOsdFiles.Count == 0)) return;
+
+        int totalTris = 0;
+        foreach (var kvp in _cachedBodyMeshes)
+        {
+            string shapeName = kvp.Key;
+            var glMesh = Renderer.Meshes.FirstOrDefault(m =>
+                string.Equals(m.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+            if (glMesh?.CpuPositions == null || glMesh.CpuPositions.Length == 0) continue;
+            if (glMesh.CpuIndices == null || glMesh.CpuIndices.Length < 3) continue;
+
+            var deltas = _bodySlideDeformer.TryGetSliderDeltas(sliderName, shapeName, _cachedBodyTri, _cachedOsdFiles);
+            if (deltas == null || deltas.Count == 0) continue;
+
+            totalTris += SliderHeatmapBuilder.Build(glMesh.CpuPositions, glMesh.CpuIndices, deltas, output, minDelta);
+        }
+
+        LogVerbose("CharacterViewer: HighlightSliderMorph('" + sliderName + "') -> "
+            + totalTris + " triangles across " + _cachedBodyMeshes.Count + " body shape(s)");
+    }
+
+    /// <summary>Clears the slider-morph heatmap channel (highlight toggled off, slider/preset deselected,
+    /// or NPC reloaded). Cheap; safe to call when nothing is highlighted.</summary>
+    public void ClearSliderHighlight()
+    {
+        Renderer.SliderHeatmapTriangles.Clear();
+    }
+
+    /// <summary>
     /// Returns the label of the closest labeled measurement-line segment within
     /// <paramref name="thresholdPixels"/> screen-space distance of the cursor, or null when
     /// no labeled segment is close enough. Unlabeled segments are skipped — they still

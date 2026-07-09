@@ -336,6 +336,39 @@ public class BodySlideDeformer
     /// tag -- and strip it before keying the dictionary, so preset lookups match.
     /// </summary>
     /// <summary>
+    /// Returns the per-vertex morph deltas (vertexIndex → offset, NIF Z-up space) that a single
+    /// slider applies to a single shape, reusing the same source preference (.tri over OSD) and
+    /// OSD name-stripping as <see cref="ApplyDeformation"/>/the .tri path. Returns null when neither
+    /// source carries the slider for the shape. Direction-agnostic: this is the one geometric morph
+    /// shape the Big/Small scalars scale, so the affected-vertex set (the dictionary keys) is the
+    /// same regardless of weight. Consumed by the Label-by-Sliders vertex highlight
+    /// (VM_CharacterViewer.HighlightSliderMorph) — which only needs the keys and |delta| magnitudes,
+    /// so the NIF-vs-Y-up delta orientation is irrelevant to that caller.
+    /// </summary>
+    public IReadOnlyDictionary<ushort, Vector3>? TryGetSliderDeltas(
+        string sliderName, string? shapeName, BodyTriFile? bodyTri, List<OsdFile>? osdFiles)
+    {
+        if (string.IsNullOrWhiteSpace(sliderName)) return null;
+
+        // Prefer the .tri source, mirroring ApplyMorphSet's .tri-over-OSD preference.
+        if (bodyTri != null && bodyTri.Shapes.Count > 0)
+        {
+            var triMap = BuildSliderDeltaMapFromTri(bodyTri, shapeName);
+            if (triMap.TryGetValue(sliderName, out var triDeltas) && triDeltas is { Count: > 0 })
+                return triDeltas;
+        }
+
+        if (osdFiles != null && osdFiles.Count > 0)
+        {
+            var osdMap = BuildSliderDeltaMap(osdFiles, shapeName);
+            if (osdMap.TryGetValue(sliderName, out var osdDeltas) && osdDeltas is { Count: > 0 })
+                return osdDeltas;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Selects one shape from the .tri and returns its morph-name → vertex-delta
     /// lookup. Matching is by case-insensitive substring (same rule as OSD). If
     /// <paramref name="shapeName"/> is null or nothing matches, falls back to the

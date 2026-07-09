@@ -81,6 +81,16 @@ public class GlRenderer : IDisposable
     private const float BloomThreshold = 0.55f;
     private const float BloomSoftKnee = 0.35f;
     private int _debugVbo;
+
+    // Slider-morph heatmap pass (Label by Sliders annotator). A batched,
+    // single-upload/single-draw channel parallel to RegionSolidTriangles, but
+    // with a per-vertex color attribute (location 2) so each moved vertex is
+    // painted by its |morph delta| magnitude. Uses its own VAO (9-float stride:
+    // pos.xyz + normal.xyz + color.rgb) and an unlit shader. See DrawSliderHeatmap.
+    private GlShaderProgram? _heatmapShader;
+    private int _heatmapVao;
+    private int _heatmapVbo;
+
     private readonly List<GlMesh> _meshes = new();
 
     // Scratch list for the alpha-blend pass: the blended subset of _meshes,
@@ -396,6 +406,15 @@ public class GlRenderer : IDisposable
     /// markers/edges drawn on top of it.</summary>
     public Vector3 RegionSolidColor { get; set; } = new Vector3(1.0f, 0.10f, 0.85f);
 
+    /// <summary>Slider-morph heatmap geometry (Label by Sliders annotator): the surface patch of the
+    /// vertices a designated BodySlide slider moves, as interleaved triangle vertices with 9 floats each
+    /// (position.xyz + normal.xyz + color.rgb), in the same pre-ModelScale local space as
+    /// <see cref="RegionSolidTriangles"/>. Unlike the region-solid channel the color is per-vertex (a
+    /// |morph delta| cold/hot ramp), so it has no single-color property. Drawn UNLIT and depth-test-off
+    /// in the marker pass (<see cref="DrawSliderHeatmap"/>) so it reads as an always-on-top magnitude
+    /// map. Populated by <see cref="VM_CharacterViewer.HighlightSliderMorph"/>; cleared on deselect.</summary>
+    public List<float> SliderHeatmapTriangles { get; } = new();
+
     /// <summary>World-space radius of each marker sphere before ModelScale is
     /// applied. Small enough not to obscure neighbouring vertices on a dense
     /// classifier mesh, while still readable at typical viewer zooms.</summary>
@@ -594,6 +613,11 @@ public class GlRenderer : IDisposable
         // Debug (line-based) shader for the key-light arrow gizmo
         _debugShader = GlShaderProgram.Load(shaderDirectory, "debug.vert", "debug.frag");
 
+        // Slider-morph heatmap shader — reads position + normal + per-vertex color
+        // (locations 0/1/2) from the dedicated heatmap VAO and paints each vertex by
+        // its color unlit (see DrawSliderHeatmap / heatmap.frag).
+        _heatmapShader = GlShaderProgram.Load(shaderDirectory, "heatmap.vert", "heatmap.frag");
+
         // Wireframe shader — reads position (location 0) from the standard mesh
         // VAO and draws a flat-colored edge overlay on top of the solid mesh.
         _wireframeShader = GlShaderProgram.Load(shaderDirectory, "wireframe.vert", "wireframe.frag");
@@ -662,6 +686,22 @@ public class GlRenderer : IDisposable
         GL.EnableVertexAttribArray(0);
         GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
         GL.EnableVertexAttribArray(1);
+        GL.BindVertexArray(0);
+
+        // Heatmap VAO: position(3) + normal(3) + color(3) = 9 floats per vertex.
+        // The normal is carried for layout parity with the debug VAO/emit path even
+        // though heatmap.frag is unlit, so a later lit variant needs no re-plumbing.
+        _heatmapVao = GL.GenVertexArray();
+        _heatmapVbo = GL.GenBuffer();
+        GL.BindVertexArray(_heatmapVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        int heatmapStride = 9 * sizeof(float);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, heatmapStride, 0);
+        GL.EnableVertexAttribArray(0);
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, heatmapStride, 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
+        GL.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, heatmapStride, 6 * sizeof(float));
+        GL.EnableVertexAttribArray(2);
         GL.BindVertexArray(0);
 
         // Fullscreen-quad VAO for post-process passes (SSAO etc.). The
@@ -996,7 +1036,8 @@ public class GlRenderer : IDisposable
             && PreviewKeyVertexMarkers.Count == 0
             && PreviewPickMarkers.Count == 0
             && RegionCapMarkers.Count == 0
-            && RegionSolidTriangles.Count == 0) return;
+            && RegionSolidTriangles.Count == 0
+            && SliderHeatmapTriangles.Count == 0) return;
 
         _debugShader.Use();
         _debugShader.SetMatrix4("u_view", ref view);
@@ -1025,6 +1066,12 @@ public class GlRenderer : IDisposable
         DrawMarkerList(RegionCapMarkers, RegionCapMarkerColor);
 
         _debugShader.SetFloat("u_shaded", 0f);
+
+        // Slider-morph heatmap last: it switches to its own unlit shader + 9-float VAO
+        // (so it must follow the debug-VAO marker lists). Depth is still off and
+        // back-face cull still on, so the patch reads as an always-on-top magnitude map.
+        DrawSliderHeatmap(ref view, ref projection);
+
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
         if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
         GL.BindVertexArray(0);
@@ -1053,6 +1100,39 @@ public class GlRenderer : IDisposable
         _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
         GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
         GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+    }
+
+    /// <summary>Uploads + draws <see cref="SliderHeatmapTriangles"/> as an unlit, per-vertex-colored
+    /// surface patch through the dedicated heatmap shader/VAO. Batched like <see cref="DrawRegionSolid"/>
+    /// (single BufferData + single DrawArrays), so it scales to the thousands of vertices a slider can
+    /// move. Positions (9-float stride: pos + normal + color) are scaled by ModelScale via a scratch
+    /// copy; the color triplet is passed straight through. The caller has already configured depth-off +
+    /// back-face cull; this method binds its own shader + VAO/VBO.</summary>
+    private float[]? _heatmapScratch;
+    private void DrawSliderHeatmap(ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_heatmapShader == null) return;
+        int floats = SliderHeatmapTriangles.Count;
+        if (floats < 27) return; // need at least one triangle (3 verts * 9 floats)
+
+        var src = SliderHeatmapTriangles;
+        var buf = _heatmapScratch;
+        if (buf == null || buf.Length < floats) buf = _heatmapScratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 9)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+            buf[i + 6] = src[i + 6];     buf[i + 7] = src[i + 7];     buf[i + 8] = src[i + 8];     // color (per-vertex)
+        }
+
+        _heatmapShader.Use();
+        _heatmapShader.SetMatrix4("u_view", ref view);
+        _heatmapShader.SetMatrix4("u_projection", ref projection);
+        GL.BindVertexArray(_heatmapVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 9);
     }
 
     private void DrawMarkerList(
@@ -2550,6 +2630,7 @@ public class GlRenderer : IDisposable
             ClearMeshes();
             _shader?.Dispose();
             _debugShader?.Dispose();
+            _heatmapShader?.Dispose();
             _wireframeShader?.Dispose();
 
             // The shadow + SSAO shader programs, the default cubemap, the SSAO
@@ -2569,6 +2650,8 @@ public class GlRenderer : IDisposable
 
             if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
             if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
+            if (_heatmapVbo != 0) GL.DeleteBuffer(_heatmapVbo);
+            if (_heatmapVao != 0) GL.DeleteVertexArray(_heatmapVao);
             if (_ssaoFullscreenVao != -1) GL.DeleteVertexArray(_ssaoFullscreenVao);
             if (_defaultBlackCubemap != -1) GL.DeleteTexture(_defaultBlackCubemap);
 
@@ -2601,6 +2684,7 @@ public class GlRenderer : IDisposable
         _meshes.Clear();
         _shader = null;
         _debugShader = null;
+        _heatmapShader = null;
         _wireframeShader = null;
         _shadowShader = null;
         _shadowFbo = -1;
@@ -2628,6 +2712,8 @@ public class GlRenderer : IDisposable
         _bloomFboSize = (0, 0);
         _debugVao = 0;
         _debugVbo = 0;
+        _heatmapVao = 0;
+        _heatmapVbo = 0;
         _initialized = false;
         _hasCachedLightDirs = false;
     }
