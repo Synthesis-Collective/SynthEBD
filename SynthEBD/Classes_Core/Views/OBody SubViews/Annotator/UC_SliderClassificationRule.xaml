@@ -23,7 +23,7 @@
         </Grid.ColumnDefinitions>
 
         <ComboBox Grid.Row="0" Grid.Column="0" MinWidth="150" ItemsSource="{Binding AvaliableSliderNames}" SelectedItem="{Binding SliderName}"/>
-        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="75" SelectedValue="{Binding SliderType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySliderType}}}" IsSynchronizedWithCurrentItem="True"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="75" SelectedValue="{Binding SliderType}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySliderType}}}" IsSynchronizedWithCurrentItem="True" local:DocTooltip.Key="OBody.AnnotatorSliderType"/>
         <ComboBox Grid.Row="0" Grid.Column="2" MinWidth="50" ItemsSource="{Binding ComparatorOptions}" SelectedItem="{Binding Comparator}"/>
         <xctk:IntegerUpDown Grid.Row="0" Grid.Column="3" Value="{Binding Value}" MinWidth="25" Margin="10 0 0 0"/>
         <Button Grid.Row="0" Grid.Column="4" Content="x" VerticalAlignment="Center" Command="{Binding DeleteMe}" Foreground="Firebrick"/>

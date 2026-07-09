@@ -483,11 +483,27 @@ public class SliderClassificationRule
     public BodySliderType SliderType { get; set; }
 }
 
+/// <summary>
+/// Which slider value a <see cref="SliderClassificationRule"/> tests. BodySlide presets store two
+/// authored values per slider — <see cref="BodySlideSlider.Small"/> (weight 0) and
+/// <see cref="BodySlideSlider.Big"/> (weight 100) — and the game blends between them linearly by
+/// NPC weight. Serialized by name (StringEnumConverter), so new members are additive-safe.
+/// </summary>
 public enum BodySliderType
 {
+    /// <summary>Passes if the comparison holds for the Small OR the Big value. Whole-preset semantics: the result is weight-independent.</summary>
     Either,
+    /// <summary>Tests the low-weight (weight 0) authored value. Whole-preset semantics.</summary>
     Small,
-    Big
+    /// <summary>Tests the high-weight (weight 100) authored value. Whole-preset semantics.</summary>
+    Big,
+    /// <summary>
+    /// Tests the value the slider actually has at each of the preset's descriptor weight slots
+    /// (<c>Small + (Big - Small) * weight/100</c> — the same linear blend the game applies).
+    /// A rule containing an Interpolated condition is evaluated once per weight slot, and the
+    /// descriptor lands only in the slots where the rule passes, instead of in every slot.
+    /// </summary>
+    Interpolated
 }
 
 /// <summary>

@@ -10,7 +10,14 @@ namespace SynthEBD;
 
 /// <summary>
 /// Rules-based engine that auto-annotates BodySlide presets with body-shape descriptors by evaluating each
-/// preset's slider values against per-slider-group classification rules. Honors manual annotations (never
+/// preset's slider values against per-slider-group classification rules. Rules are evaluated once per
+/// descriptor weight slot (<see cref="BodySlideSetting.BodyShapeDescriptorsByWeight"/>): conditions on the
+/// authored endpoint values (<see cref="BodySliderType.Small"/>/<see cref="BodySliderType.Big"/>/
+/// <see cref="BodySliderType.Either"/>) are constant across slots, while
+/// <see cref="BodySliderType.Interpolated"/> conditions test the linearly weight-blended value at each slot —
+/// so a rule with only endpoint conditions annotates all slots or none (legacy whole-preset behavior), and a
+/// rule with an Interpolated condition annotates just the slots where it passes. A category's default
+/// descriptor fills only the slots no rule in that category matched. Honors manual annotations (never
 /// overwriting them) and tracks each preset's annotation state (none / rules-based / manual / mixed).
 /// </summary>
 public class BodySlideAnnotator
@@ -23,7 +30,7 @@ public class BodySlideAnnotator
         _logger = logger;
         _patcherState = patcherState;
     }
-    /// <summary>Annotates every preset in <paramref name="bodySlides"/> via <see cref="AnnotateBodySlide"/>.</summary>
+    /// <summary>Annotates every preset in <paramref name="bodySlides"/> via <see cref="AnnotateBodySlide(BodySlideSetting, Dictionary{string, SliderClassificationRulesByBodyType}, HashSet{BodyShapeDescriptor.LabelSignature}, bool, string?)"/>.</summary>
     /// <param name="bodySlides">Presets to annotate (mutated in place).</param>
     /// <param name="bodySlideClassificationRules">Classification rules keyed by slider group.</param>
     /// <param name="currentDescriptors">The descriptor universe in use; only categories/values present here are applied.</param>
@@ -37,13 +44,22 @@ public class BodySlideAnnotator
         }
     }
 
-    /// <summary>
-    /// Annotates a single preset: for each descriptor category whose rules match the preset's sliders, adds
-    /// the matching descriptor (or the category default) to every slot — skipping categories already manually
-    /// annotated, and optionally clearing prior auto-annotations first. Updates the preset's annotation state.
-    /// </summary>
+    /// <summary>Instance wrapper around the static core that routes log output to the injected <see cref="Logger"/>.</summary>
     /// <returns>The descriptors that were applied (empty if none/unclassifiable).</returns>
     public List<BodyShapeDescriptor.LabelSignature> AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, HashSet<BodyShapeDescriptor.LabelSignature> currentDescriptors, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory)
+    {
+        return AnnotateBodySlide(bodySlide, bodySlideClassificationRules, currentDescriptors, overwriteExistingAutoAnnotations, specifiedDescriptorCategory, _logger.LogMessage);
+    }
+
+    /// <summary>
+    /// Annotates a single preset: for each descriptor category, evaluates its rules once per weight slot and
+    /// adds the matching descriptor to the slots where the rule passed (the category default fills any slots
+    /// no rule matched) — skipping categories already manually annotated, and optionally clearing prior
+    /// auto-annotations first. Updates the preset's annotation state. Static so tests can drive it without a
+    /// <see cref="Logger"/>; <paramref name="logMessage"/> may be null to suppress logging.
+    /// </summary>
+    /// <returns>The descriptors that were applied (empty if none/unclassifiable).</returns>
+    public static List<BodyShapeDescriptor.LabelSignature> AnnotateBodySlide(BodySlideSetting bodySlide, Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules, HashSet<BodyShapeDescriptor.LabelSignature> currentDescriptors, bool overwriteExistingAutoAnnotations, string? specifiedDescriptorCategory, Action<string>? logMessage)
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
         if (bodySlide == null)
@@ -85,7 +101,7 @@ public class BodySlideAnnotator
                 continue;
             }
 
-            annotatedDescriptors.AddRange(ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet, currentDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory).Select(x => x.Value).ToHashSet()));
+            annotatedDescriptors.AddRange(ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet, currentDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory).Select(x => x.Value).ToHashSet(), logMessage));
         }
 
         if (annotatedDescriptors.Any())
@@ -103,11 +119,24 @@ public class BodySlideAnnotator
         return annotatedDescriptors;
     }
 
-    /// <summary>Applies one category's rule set to a preset: adds the descriptor for each matching rule, or the category's default descriptor if no rule matched. Returns the applied descriptors.</summary>
-    private List<BodyShapeDescriptor.LabelSignature> ApplyDescriptorCategoryRuleSet(BodySlideSetting bodySlide, DescriptorClassificationRuleSet ruleSet, HashSet<string> currentValues)
+    /// <summary>
+    /// Applies one category's rule set to a preset, evaluating each rule once per weight slot: the rule's
+    /// descriptor is added to every slot where its predicate passes (endpoint-only rules pass all slots or
+    /// none, so legacy rules keep whole-preset behavior). The category's default descriptor then fills only
+    /// the slots no rule matched. Returns the applied descriptors (one entry per rule/default that landed
+    /// in at least one slot).
+    /// </summary>
+    private static List<BodyShapeDescriptor.LabelSignature> ApplyDescriptorCategoryRuleSet(BodySlideSetting bodySlide, DescriptorClassificationRuleSet ruleSet, HashSet<string> currentValues, Action<string>? logMessage)
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
-        bool ruleApplied = false;
+
+        var weightSlots = bodySlide.BodyShapeDescriptorsByWeight?.Keys.OrderBy(x => x).ToList();
+        if (weightSlots == null || !weightSlots.Any())
+        {
+            return annotatedDescriptors;
+        }
+
+        var matchedSlots = new HashSet<int>(); // slots where at least one rule in this category matched
 
         foreach (var rule in ruleSet.RuleList)
         {
@@ -116,32 +145,55 @@ public class BodySlideAnnotator
                 continue;
             }
 
-            if (EvaluateDescriptorValueRule(bodySlide, rule))
+            var passingSlots = weightSlots.Where(weight => EvaluateDescriptorValueRule(bodySlide, rule, weight)).ToList();
+            if (!passingSlots.Any())
             {
-                var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue };
-                bodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
-                _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString());
-                ruleApplied = true;
-                annotatedDescriptors.Add(descriptorSignature);
+                continue;
             }
+
+            var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue };
+            foreach (var weight in passingSlots)
+            {
+                bodySlide.BodyShapeDescriptorsByWeight[weight].Add(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
+                matchedSlots.Add(weight);
+            }
+            logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString() + FormatWeightSlotSuffix(passingSlots, weightSlots.Count));
+            annotatedDescriptors.Add(descriptorSignature);
         }
 
-        if (!ruleApplied && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace() && currentValues.Contains(ruleSet.DefaultDescriptorValue))
+        if (!ruleSet.DefaultDescriptorValue.IsNullOrWhitespace() && currentValues.Contains(ruleSet.DefaultDescriptorValue))
         {
-            var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
-            bodySlide.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
-            _logger.LogMessage("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString());
-            annotatedDescriptors.Add(descriptorSignature);
+            var defaultSlots = weightSlots.Where(weight => !matchedSlots.Contains(weight)).ToList();
+            if (defaultSlots.Any())
+            {
+                var descriptorSignature = new BodyShapeDescriptor.LabelSignature() { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue };
+                foreach (var weight in defaultSlots)
+                {
+                    bodySlide.BodyShapeDescriptorsByWeight[weight].Add(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
+                }
+                logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString() + FormatWeightSlotSuffix(defaultSlots, weightSlots.Count));
+                annotatedDescriptors.Add(descriptorSignature);
+            }
         }
         return annotatedDescriptors;
     }
 
-    /// <summary>OR-combines a descriptor value's rule groups — true if any AND-gated group passes.</summary>
-    private bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList)
+    /// <summary>Empty when the descriptor landed in every slot (whole-preset annotation — keeps the legacy log text); otherwise lists the specific weight slots.</summary>
+    private static string FormatWeightSlotSuffix(List<int> slots, int totalSlotCount)
+    {
+        if (slots.Count == totalSlotCount)
+        {
+            return string.Empty;
+        }
+        return " at weight(s) " + string.Join(", ", slots);
+    }
+
+    /// <summary>OR-combines a descriptor value's rule groups at one weight slot — true if any AND-gated group passes there.</summary>
+    private static bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList, int weightSlot)
     {
         foreach (var ruleGroup in ruleList.RuleListORlogic)
         {
-            if (EvaluateAndGatedRuleList(bodySlide, ruleGroup))
+            if (EvaluateAndGatedRuleList(bodySlide, ruleGroup, weightSlot))
             {
                 return true;
             }
@@ -149,8 +201,8 @@ public class BodySlideAnnotator
         return false;
     }
 
-    /// <summary>AND-combines a rule group — true only if every sub-rule passes (an empty group is false).</summary>
-    private bool EvaluateAndGatedRuleList(BodySlideSetting bodySlide, AndGatedSliderRuleGroup ruleGroup)
+    /// <summary>AND-combines a rule group at one weight slot — true only if every sub-rule passes there (an empty group is false).</summary>
+    private static bool EvaluateAndGatedRuleList(BodySlideSetting bodySlide, AndGatedSliderRuleGroup ruleGroup, int weightSlot)
     {
         if (!ruleGroup.RuleListANDlogic.Any())
         {
@@ -159,7 +211,7 @@ public class BodySlideAnnotator
 
         foreach (var subRule in ruleGroup.RuleListANDlogic)
         {
-            if (!EvaluateRule(bodySlide, subRule))
+            if (!EvaluateRule(bodySlide, subRule, weightSlot))
             {
                 return false;
             }
@@ -168,16 +220,22 @@ public class BodySlideAnnotator
         return true;
     }
 
-    /// <summary>Evaluates a single slider rule against the preset's slider values, honoring the rule's slider type (Small / Big / Either).</summary>
-    private bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule)
+    /// <summary>
+    /// Evaluates a single slider rule against the preset's slider values, honoring the rule's slider type:
+    /// Small / Big / Either read the authored endpoint values (weight-independent), while Interpolated reads
+    /// the value the slider actually has at <paramref name="weightSlot"/>.
+    /// </summary>
+    private static bool EvaluateRule(BodySlideSetting bodySlide, SliderClassificationRule rule, int weightSlot)
     {
         if (rule != null && rule.SliderName != null && bodySlide.SliderValues.ContainsKey(rule.SliderName))
         {
-            switch(rule.SliderType)
+            var slider = bodySlide.SliderValues[rule.SliderName];
+            switch (rule.SliderType)
             {
-                case BodySliderType.Small: return EvaluateExpression(bodySlide.SliderValues[rule.SliderName].Small, rule.Value, rule.Comparator);
-                case BodySliderType.Big: return EvaluateExpression(bodySlide.SliderValues[rule.SliderName].Big, rule.Value, rule.Comparator);
-                case BodySliderType.Either: return EvaluateExpression(bodySlide.SliderValues[rule.SliderName].Small, rule.Value, rule.Comparator) || EvaluateExpression(bodySlide.SliderValues[rule.SliderName].Big, rule.Value, rule.Comparator);
+                case BodySliderType.Small: return EvaluateExpression(slider.Small, rule.Value, rule.Comparator);
+                case BodySliderType.Big: return EvaluateExpression(slider.Big, rule.Value, rule.Comparator);
+                case BodySliderType.Either: return EvaluateExpression(slider.Small, rule.Value, rule.Comparator) || EvaluateExpression(slider.Big, rule.Value, rule.Comparator);
+                case BodySliderType.Interpolated: return EvaluateExpression(InterpolateSliderValue(slider, weightSlot), rule.Value, rule.Comparator);
                 default: return false;
             }
         }
@@ -185,13 +243,26 @@ public class BodySlideAnnotator
         return false;
     }
 
-    /// <summary>Compares a slider value against a threshold using the rule's comparator (=, !=, &lt;=, &gt;=, &lt;, &gt;).</summary>
-    private bool EvaluateExpression(int sliderValue, int thresholdValue, string comparator)
+    /// <summary>
+    /// The value a slider has at <paramref name="weight"/> (0-100): the linear blend between its authored
+    /// Small (weight 0) and Big (weight 100) values — the same interpolation the game applies to morphs.
+    /// </summary>
+    public static float InterpolateSliderValue(BodySlideSlider slider, int weight)
+    {
+        return slider.Small + (slider.Big - slider.Small) * (weight / 100f);
+    }
+
+    /// <summary>
+    /// Compares a slider value against a threshold using the rule's comparator (=, !=, &lt;=, &gt;=, &lt;, &gt;).
+    /// Endpoint values are whole numbers, so they compare exactly; an interpolated value can be fractional,
+    /// so = and != compare against the nearest whole slider value (halves round away from zero: 2.5 "equals" 3).
+    /// </summary>
+    private static bool EvaluateExpression(float sliderValue, int thresholdValue, string comparator)
     {
         switch (comparator)
         {
-            case "=": return sliderValue == thresholdValue;
-            case "!=": return sliderValue != thresholdValue;
+            case "=": return (int)Math.Round(sliderValue, MidpointRounding.AwayFromZero) == thresholdValue;
+            case "!=": return (int)Math.Round(sliderValue, MidpointRounding.AwayFromZero) != thresholdValue;
             case "<=": return sliderValue <= thresholdValue;
             case ">=": return sliderValue >= thresholdValue;
             case "<": return sliderValue < thresholdValue;
