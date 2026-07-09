@@ -240,7 +240,8 @@ workflow, but useful when verifying how settings or configs render in the real U
 ```
 SynthEBD.CLI ui-screenshot --synthebd-path <SynthEBD build folder> --out <dir>
                            [--theme <name> ...] [--mode <Use|Customize|Troubleshoot> ...]
-                           [--menu <name>] [--expand-expanders] [--width N --height N]
+                           [--menu <name>] [--expand-expanders] [--scroll-to <dockey>]
+                           [--width N --height N]
 ```
 
 Boots the real MainWindow against the real settings/environment, walks every nav menu (or just
@@ -248,3 +249,9 @@ Boots the real MainWindow against the real settings/environment, walks every nav
 `--theme`/`--mode` flags sweep the theme and progressive-disclosure matrices in one session.
 It never writes settings back. Note that the harness renders the SynthEBD assemblies and theme
 files from the CLI's own folder, so rebuild the CLI to screenshot fresh UI changes.
+
+`--scroll-to <dockey>` scrolls the element carrying that `DocTooltip.Key` (e.g.
+`General.AttributeGroups`) to the top of its ScrollViewer before capturing, so below-the-fold
+controls on long settings pages land in the shot. It is applied after `--expand-expanders`, so
+content that only exists inside an expander is addressable. Mind the disclosure mode: a key on a
+row gated above the current `--mode` has no visual to scroll to.

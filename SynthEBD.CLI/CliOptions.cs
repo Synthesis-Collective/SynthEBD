@@ -165,6 +165,12 @@ public class CliOptions
     /// captures reach inner tabs the top-level nav can't (e.g. "SettingsOBody.ClickAnnotationMenu").</summary>
     public List<string> Invokes { get; } = new();
 
+    /// <summary>ui-screenshot scroll target: the DocTooltip.Key of an element (e.g.
+    /// "General.AttributeGroups") to scroll to the top of its owning ScrollViewer before capturing,
+    /// so below-the-fold controls on long settings pages can be captured. Applied after
+    /// --expand-expanders so content inside expanders is addressable.</summary>
+    public string? ScrollTo { get; private set; }
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -276,6 +282,10 @@ UI-SCREENSHOT OPTIONS:
                            execute the named ICommand property on its view model before capturing —
                            reaches inner tabs the nav panel can't (e.g.
                            SettingsOBody.ClickAnnotationMenu). Repeatable.
+  --scroll-to <dockey>     Scroll the element carrying this DocTooltip.Key (e.g.
+                           General.AttributeGroups) to the top of its ScrollViewer before capturing,
+                           so below-the-fold controls on long settings pages land in the shot.
+                           Applied after --expand-expanders.
 
 EXIT CODES:
   0  success / all configs valid / every simulated NPC received assignments
@@ -465,6 +475,9 @@ EXIT CODES:
                         throw new CliArgumentException("--invoke requires \"MenuName.CommandProperty\", got \"" + invokeValue + "\"");
                     }
                     options.Invokes.Add(invokeValue);
+                    break;
+                case "--scroll-to":
+                    options.ScrollTo = TakeValue(args, ref i, flag);
                     break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);

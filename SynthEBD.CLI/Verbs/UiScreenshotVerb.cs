@@ -142,8 +142,27 @@ public static class UiScreenshotVerb
 
                         if (options.ExpandExpanders)
                         {
-                            ExpandAllExpanders(window);
-                            await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                            // Iterate to a fixpoint: expanding an element materializes children (item
+                            // containers, nested expanders, attribute cards) that only become visible
+                            // to the next pass after a layout pump. Cap guards against a pathological
+                            // expander that re-collapses itself.
+                            for (int pass = 0; pass < 8 && ExpandAllExpanders(window) > 0; pass++)
+                            {
+                                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                            }
+                        }
+
+                        if (options.ScrollTo != null)
+                        {
+                            if (ScrollToDocKey(window, options.ScrollTo))
+                            {
+                                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine("ui-screenshot: --scroll-to " + options.ScrollTo
+                                    + " matched no element with that DocTooltip.Key in menu " + menuName + "; capture is unscrolled.");
+                            }
                         }
 
                         var fileName = index.ToString("D2") + "-" + menuName + ".png";
@@ -186,19 +205,82 @@ public static class UiScreenshotVerb
         }
     }
 
-    /// <summary>Expands every Expander currently in the window's visual tree (one pass; expanders
-    /// nested inside collapsed parents materialize on the next pass of a subsequent menu visit).</summary>
-    private static void ExpandAllExpanders(DependencyObject root)
+    /// <summary>Scrolls the element carrying the given DocTooltip.Key to the top of its nearest
+    /// ancestor ScrollViewer, so a below-the-fold control on a long settings page lands at the top
+    /// of the capture. Returns false when no visible element carries the key (wrong menu, or the
+    /// element sits inside a still-collapsed expander).</summary>
+    private static bool ScrollToDocKey(DependencyObject root, string docKey)
+    {
+        var target = FindByDocKey(root, docKey);
+        if (target == null)
+        {
+            return false;
+        }
+
+        var scrollViewer = FindAncestorScrollViewer(target);
+        if (scrollViewer == null)
+        {
+            return false;
+        }
+
+        var offsetWithinViewport = target.TransformToAncestor(scrollViewer).Transform(new System.Windows.Point(0, 0));
+        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset + offsetWithinViewport.Y);
+        return true;
+    }
+
+    private static FrameworkElement? FindByDocKey(DependencyObject root, string docKey)
     {
         for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         {
             var child = VisualTreeHelper.GetChild(root, i);
-            if (child is Expander expander)
+            if (child is FrameworkElement fe && string.Equals(DocTooltip.GetKey(fe), docKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return fe;
+            }
+            if (FindByDocKey(child, docKey) is { } match)
+            {
+                return match;
+            }
+        }
+        return null;
+    }
+
+    private static ScrollViewer? FindAncestorScrollViewer(DependencyObject element)
+    {
+        for (var current = VisualTreeHelper.GetParent(element); current != null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is ScrollViewer scrollViewer)
+            {
+                return scrollViewer;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Expands every collapsed Expander currently in the window's visual tree, plus the
+    /// card expand toggles of the attribute rule editor (ToggleButtons named CardExpandToggle - a
+    /// naming contract with UC_NPCAttribute, whose collapsible cards are not real Expanders).
+    /// Returns how many elements this pass expanded; the caller pumps layout and repeats until no
+    /// newly-materialized collapsed elements remain.</summary>
+    private static int ExpandAllExpanders(DependencyObject root)
+    {
+        int expanded = 0;
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is Expander { IsExpanded: false } expander)
             {
                 expander.IsExpanded = true;
+                expanded++;
             }
-            ExpandAllExpanders(child);
+            else if (child is System.Windows.Controls.Primitives.ToggleButton { Name: "CardExpandToggle", IsChecked: not true } cardToggle)
+            {
+                cardToggle.IsChecked = true;
+                expanded++;
+            }
+            expanded += ExpandAllExpanders(child);
         }
+        return expanded;
     }
 
     private static string RemovePrefix(this string value, string prefix)
