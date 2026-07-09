@@ -35,6 +35,7 @@ public static partial class UiDocs
         RegisterBodyGenEditor();
         RegisterCharacterViewer();
         RegisterDistributionTools();
+        RegisterAttributes();
     }
 
     private static void Add(string key, string layperson, string technical, string motivation)

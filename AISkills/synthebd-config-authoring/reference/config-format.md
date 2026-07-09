@@ -169,10 +169,10 @@ when **all** of its `SubAttributes` match; a rule matches when **any** attribute
   "SubAttributes": [
     {
       "Type": "Class",                          // Class | Custom | FaceTexture | Faction | Group |
-      "FormKeys": ["01317F:Skyrim.esm"],        // Keyword | Misc | Mod | NPC | Race | VoiceType
-      "ForceMode": "Restrict",                  // Restrict | ForceIf | ForceIfAndRestrict
-      "Weighting": 1,                           // ForceIf tally weight (tie-breaking strength)
-      "Not": false                              // invert the match
+      "FormKeys": ["01317F:Skyrim.esm"],        // Keyword | Misc | Mod | NPC | Race | SubExpression |
+      "ForceMode": "Restrict",                  // VoiceType
+      "Weighting": 1,                           // ForceMode: Restrict | ForceIf | ForceIfAndRestrict
+      "Not": false                              // Weighting: ForceIf tally weight; Not: invert
     }
   ]
 }
@@ -201,6 +201,21 @@ guidance: `Restrict` gates eligibility; `ForceIf` makes matching NPCs strongly p
 `RaceGroupings` are simpler: `{ "Label": "Humanoid", "Races": ["013746:Skyrim.esm", ...] }`.
 Rules reference both by label; local definitions ship with the config, and the user's General
 settings can supersede same-label definitions (default-on toggles).
+
+**SubExpression-type sub-attributes** embed an anonymous nested rule inline, enabling parenthetical
+logic like "x AND (y OR z)" without factoring the alternatives into a named group:
+
+```json
+{ "Type": "SubExpression", "ForceMode": "Restrict", "Weighting": 1, "Not": false,
+  "Attributes": [ { "SubAttributes": [ ...y... ] }, { "SubAttributes": [ ...z... ] } ] }
+```
+
+`Attributes` has the same OR-of-ANDs shape as a rule's attribute list (nesting to any depth); the
+sub-attribute matches when any nested entry matches, and its `ForceMode` is forwarded into the
+nested conditions the way a Group reference forwards its forcing. **Compatibility:** configs using
+SubExpression require a SynthEBD version that knows the type (newer than 1.0.6.9); older versions
+cannot consume them safely (the unknown type deserializes to a null sub-attribute), so prefer named
+Groups or distributed terms when a config must remain consumable by older installs.
 
 ## Body-shape descriptors
 

@@ -33,6 +33,10 @@ public class VM_NPCAttribute : VM
     public delegate VM_NPCAttribute Factory(ObservableCollection<VM_NPCAttribute> parentCollection, ObservableCollection<VM_AttributeGroup> attributeGroups);
     private VM_NPCAttributeCreator _creator;
     private ObservableCollection<VM_AttributeGroup> _subscribedAttributeGroups;
+    private readonly IEnvironmentStateProvider _environmentProvider;
+    // Holds the subscription that refreshes the summary from NeedsRefresh; swapped whenever
+    // NeedsRefresh is rebuilt (each shell-collection change) so stale subscriptions don't pile up.
+    private readonly System.Reactive.Disposables.SerialDisposable _summaryRefreshDriver = new();
     /// <summary>
     /// Wires the delete / add-OR-sibling / validate commands and subscribes to the shell collection so
     /// <see cref="NeedsRefresh"/> is rebuilt and empty conditions are trimmed whenever the shells change.
@@ -47,11 +51,15 @@ public class VM_NPCAttribute : VM
     {
         _creator = creator;
         _subscribedAttributeGroups = attributeGroups;
+        _environmentProvider = environmentProvider;
+        _summaryRefreshDriver.DisposeWith(this);
 
         ParentCollection = parentCollection;
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Remove(this));
         AddToParent = new RelayCommand(canExecute: _ => true, execute: _ => parentCollection.Add(_creator.CreateNewFromUI(ParentCollection, DisplayForceIfOption, DisplayForceIfWeight, _subscribedAttributeGroups)));
+        AddSubAttribute = new RelayCommand(canExecute: _ => true, execute: _ =>
+            GroupedSubAttributes.Add(_creator.CreateNewShell(this, DisplayForceIfOption, _subscribedAttributeGroups)));
         Validate = new RelayCommand(canExecute: _ => true, execute: _ => {
             var validator = new VM_AttributeValidator(this, _subscribedAttributeGroups, patcherState, environmentProvider, attributeMatcher);
             Window_AttributeValidator window = new Window_AttributeValidator();
@@ -60,8 +68,21 @@ public class VM_NPCAttribute : VM
         });
 
         GroupedSubAttributes.ToObservableChangeSet().Subscribe(x => {
-            NeedsRefresh = GroupedSubAttributes.Select(x => x.WhenAnyObservable(y => y.Attribute.NeedsRefresh)).Merge().Unit();
+            NeedsRefresh = GroupedSubAttributes.Select(x => x.WhenAnyObservable(y => y.Attribute.NeedsRefresh)).Merge().Unit()
+                .Merge(GroupedSubAttributes.Select(x => x.WhenAnyValue(y => y.Not, y => y.Type, y => y.ForceModeStr, y => y.ForceIfWeight).Unit()).Merge());
+            _summaryRefreshDriver.Disposable = NeedsRefresh.Subscribe(_ => RefreshSummary());
+            for (int i = 0; i < GroupedSubAttributes.Count; i++) { GroupedSubAttributes[i].IsFirstInAndList = i == 0; }
             TrimEmptyAttributes();
+            RefreshSummary();
+        }).DisposeWith(this);
+
+        // The card header always shows the summary; recompute when the card is collapsed so edits
+        // made while it was open (e.g. FormKey picks that emit no NeedsRefresh) land in the sentence.
+        this.WhenAnyValue(x => x.IsExpanded).Subscribe(_ => RefreshSummary()).DisposeWith(this);
+
+        ParentCollection.ToObservableChangeSet().Subscribe(_ => {
+            IsFirstInParent = !ParentCollection.Any() || ReferenceEquals(ParentCollection[0], this);
+            IsLastInParent = !ParentCollection.Any() || ReferenceEquals(ParentCollection[ParentCollection.Count - 1], this);
         }).DisposeWith(this);
     }
 
@@ -69,7 +90,21 @@ public class VM_NPCAttribute : VM
     public ObservableCollection<VM_NPCAttributeShell> GroupedSubAttributes { get; set; } = new(); // everything within this collection is evaluated as AND (all must be true)
     public RelayCommand DeleteCommand { get; }
     public RelayCommand AddToParent { get; }
+    /// <summary>Adds a new AND-condition shell to this card (the card footer's "+ AND condition" button).</summary>
+    public RelayCommand AddSubAttribute { get; }
     public RelayCommand Validate { get; }
+    /// <summary>Whether the card body (the condition rows) is shown; the header summary is always visible.
+    /// Cards rebuilt from a saved model start collapsed; cards newly added in the UI start expanded.</summary>
+    public bool IsExpanded { get; set; } = true;
+    /// <summary>True when this condition is the first in its OR-collection (hides the "OR" separator above the card).</summary>
+    public bool IsFirstInParent { get; private set; } = true;
+    /// <summary>True when this condition is the last in its OR-collection (shows the "+ OR alternative" button below the card).</summary>
+    public bool IsLastInParent { get; private set; } = true;
+    /// <summary>Human-readable one-line rendering of this condition (record names resolved via the link
+    /// cache), shown in the card header. Refreshed on structural changes, sub-attribute refresh signals,
+    /// and card collapse.</summary>
+    public string Summary { get; private set; } = EmptySummary;
+    private const string EmptySummary = "(empty condition)";
     /// <summary>Whether the per-shell forcing ("Force If") options are offered in the UI (false where only restriction makes sense).</summary>
     public bool DisplayForceIfOption { get; set; } = true;
     /// <summary>Whether the Force-If weighting field is shown (driven by the forcing mode chosen on the owning shell).</summary>
@@ -123,6 +158,7 @@ public class VM_NPCAttribute : VM
         private readonly VM_NPCAttributeMod.Factory _modFactory;
         private readonly VM_NPCAttributeNPC.Factory _npcFactory;
         private readonly VM_NPCAttributeRace.Factory _raceFactory;
+        private readonly VM_NPCAttributeSubExpression.Factory _subExpressionFactory;
         private readonly VM_NPCAttributeVoiceType.Factory _voiceTypeFactory;
 
         private readonly Logger _logger;
@@ -139,6 +175,7 @@ public class VM_NPCAttribute : VM
             VM_NPCAttributeMod.Factory modFactory,
             VM_NPCAttributeNPC.Factory npcFactory,
             VM_NPCAttributeRace.Factory raceFactory,
+            VM_NPCAttributeSubExpression.Factory subExpressionFactory,
             VM_NPCAttributeVoiceType.Factory voiceTypeFactory,
             Logger logger
             )
@@ -155,6 +192,7 @@ public class VM_NPCAttribute : VM
             _modFactory = modFactory;
             _npcFactory = npcFactory;
             _raceFactory = raceFactory;
+            _subExpressionFactory = subExpressionFactory;
             _voiceTypeFactory = voiceTypeFactory;
 
             _logger = logger;
@@ -224,6 +262,12 @@ public class VM_NPCAttribute : VM
             viewModel.DisplayForceIfWeight = displayForceIfWeight;
             foreach (var attributeShellModel in model.SubAttributes)
             {
+                if (attributeShellModel == null)
+                {
+                    // An attribute type this version doesn't know deserializes to null (see JSONhandler.AttributeConverter).
+                    _logger.LogError("Encountered an NPC Attribute of an unrecognized type (from a newer SynthEBD version?). Ignoring this attribute.");
+                    continue;
+                }
                 var shellVM = CreateNewShell(viewModel, displayForceIfOption, attributeGroups);
                 shellVM.Type = attributeShellModel.Type;
                 switch (attributeShellModel.Type)
@@ -237,6 +281,7 @@ public class VM_NPCAttribute : VM
                     case NPCAttributeType.Mod: shellVM.Attribute = VM_NPCAttributeMod.GetViewModelFromModel((NPCAttributeMod)attributeShellModel, viewModel, shellVM, _modFactory); break;
                     case NPCAttributeType.NPC: shellVM.Attribute = VM_NPCAttributeNPC.GetViewModelFromModel((NPCAttributeNPC)attributeShellModel, viewModel, shellVM, _npcFactory); break;
                     case NPCAttributeType.Race: shellVM.Attribute = VM_NPCAttributeRace.GetViewModelFromModel((NPCAttributeRace)attributeShellModel, viewModel, shellVM, _raceFactory); break;
+                    case NPCAttributeType.SubExpression: shellVM.Attribute = VM_NPCAttributeSubExpression.GetViewModelFromModel((NPCAttributeSubExpression)attributeShellModel, viewModel, shellVM, attributeGroups, this, _subExpressionFactory); break;
                     case NPCAttributeType.VoiceType: shellVM.Attribute = VM_NPCAttributeVoiceType.GetViewModelFromModel((NPCAttributeVoiceType)attributeShellModel, viewModel, shellVM, _voiceTypeFactory); break;
                     case NPCAttributeType.Group: shellVM.Attribute = VM_NPCAttributeGroup.GetViewModelFromModel((NPCAttributeGroup)attributeShellModel, viewModel, shellVM, attributeGroups); break; // Setting the checkbox selections MUST be done in the calling function after all `attributeGroups` view models have been created from their corresponding model (otherwise the required checkbox entry may not yet exist). This is done in VM_AttributeGroupMenu.GetViewModelFromModels().
                     default:
@@ -248,8 +293,49 @@ public class VM_NPCAttribute : VM
                 viewModel.GroupedSubAttributes.Add(shellVM);
             }
 
+            // Cards rebuilt from a saved model open collapsed to their summary sentence; empty ones
+            // stay expanded since a bare summary would give the user nothing to act on.
+            viewModel.IsExpanded = !viewModel.GroupedSubAttributes.Any();
+            viewModel.RefreshSummary();
+
             return viewModel;
         }
+    }
+
+    /// <summary>Recomputes <see cref="Summary"/> from the current shells by round-tripping through the
+    /// model and reusing each sub-attribute's <c>ToLogString</c> (name resolution included). Force-mode
+    /// markers are appended so "magnet" rows are visible without expanding the card.</summary>
+    public void RefreshSummary()
+    {
+        try
+        {
+            var model = DumpViewModelToModel();
+            if (!model.SubAttributes.Any())
+            {
+                Summary = EmptySummary;
+                return;
+            }
+            var linkCache = _environmentProvider?.LinkCache;
+            Summary = string.Join("  AND  ", model.SubAttributes.Select(x => FormatSummarySegment(x, linkCache)));
+        }
+        catch
+        {
+            // Defensive: a shell mid-construction can't always dump; the next refresh trigger will succeed.
+        }
+    }
+
+    private static string FormatSummarySegment(ITypedNPCAttribute subAttribute, ILinkCache linkCache)
+    {
+        var segment = subAttribute.ToLogString(linkCache != null, linkCache).Replace("\t", " ").Trim();
+        if (subAttribute.ForceMode == AttributeForcing.ForceIf)
+        {
+            segment += " [Force x" + subAttribute.Weighting + "]";
+        }
+        else if (subAttribute.ForceMode == AttributeForcing.ForceIfAndRestrict)
+        {
+            segment += " [Force x" + subAttribute.Weighting + " + Restrict]";
+        }
+        return segment;
     }
 
     /// <summary>Removes this condition from its parent OR-collection once it has no remaining sub-attribute shells.</summary>
@@ -290,6 +376,7 @@ public class VM_NPCAttribute : VM
                 case NPCAttributeType.Mod: model.SubAttributes.Add(VM_NPCAttributeMod.DumpViewModelToModel((VM_NPCAttributeMod)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.NPC: model.SubAttributes.Add(VM_NPCAttributeNPC.DumpViewModelToModel((VM_NPCAttributeNPC)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.Race: model.SubAttributes.Add(VM_NPCAttributeRace.DumpViewModelToModel((VM_NPCAttributeRace)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
+                case NPCAttributeType.SubExpression: model.SubAttributes.Add(VM_NPCAttributeSubExpression.DumpViewModelToModel((VM_NPCAttributeSubExpression)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
                 case NPCAttributeType.VoiceType: model.SubAttributes.Add(VM_NPCAttributeVoiceType.DumpViewModelToModel((VM_NPCAttributeVoiceType)subAttVM.Attribute, subAttVM.ForceModeStr)); break;
             }
         }
@@ -318,6 +405,7 @@ public class VM_NPCAttributeShell : VM
     private readonly VM_NPCAttributeMod.Factory _modFactory;
     private readonly VM_NPCAttributeNPC.Factory _npcFactory;
     private readonly VM_NPCAttributeRace.Factory _raceFactory;
+    private readonly VM_NPCAttributeSubExpression.Factory _subExpressionFactory;
     private readonly VM_NPCAttributeVoiceType.Factory _voiceTypeFactory;
     /// <summary>
     /// Seeds a default <see cref="NPCAttributeType.Class"/> attribute, subscribes the forcing-mode string so
@@ -329,8 +417,8 @@ public class VM_NPCAttributeShell : VM
     /// <param name="attributeGroups">Attribute groups available when the shell is switched to the Group type.</param>
     /// <param name="selfFactory">Factory used to add a sibling shell to the parent condition.</param>
     public VM_NPCAttributeShell(VM_NPCAttribute parentVM,
-        bool displayForceIfOption, 
-        ObservableCollection<VM_AttributeGroup> attributeGroups, 
+        bool displayForceIfOption,
+        ObservableCollection<VM_AttributeGroup> attributeGroups,
         Factory selfFactory,
         VM_NPCAttributeClass.Factory classFactory,
         VM_NPCAttributeCustom.Factory customFactory,
@@ -341,6 +429,7 @@ public class VM_NPCAttributeShell : VM
         VM_NPCAttributeMod.Factory modFactory,
         VM_NPCAttributeNPC.Factory npcFactory,
         VM_NPCAttributeRace.Factory raceFactory,
+        VM_NPCAttributeSubExpression.Factory subExpressionFactory,
         VM_NPCAttributeVoiceType.Factory voiceTypeFactory
         )
     {
@@ -355,6 +444,7 @@ public class VM_NPCAttributeShell : VM
         _modFactory = modFactory;
         _npcFactory = npcFactory;
         _raceFactory = raceFactory;
+        _subExpressionFactory = subExpressionFactory;
         _voiceTypeFactory = voiceTypeFactory;
 
         Attribute = classFactory(parentVM, this);
@@ -396,6 +486,8 @@ public class VM_NPCAttributeShell : VM
     public bool DisplayForceIfWeight { get; set; }
     /// <summary>When true, the match condition for this shell is negated.</summary>
     public bool Not { get; set; } = false;
+    /// <summary>True when this shell is the first AND-row of its card (hides the "AND" separator above the row). Maintained by the owning <see cref="VM_NPCAttribute"/>'s collection subscription.</summary>
+    public bool IsFirstInAndList { get; set; } = true;
 
     public RelayCommand AddAdditionalSubAttributeToParent { get; }
     public RelayCommand DeleteCommand { get; }
@@ -441,6 +533,7 @@ public class VM_NPCAttributeShell : VM
         { NPCAttributeType.Mod, null },
         { NPCAttributeType.NPC, null },
         { NPCAttributeType.Race, null },
+        { NPCAttributeType.SubExpression, null },
         { NPCAttributeType.VoiceType, null }
     };
 
@@ -472,6 +565,7 @@ public class VM_NPCAttributeShell : VM
                 case NPCAttributeType.Mod: Attribute = _modFactory(parentVM, this); break;
                 case NPCAttributeType.NPC: Attribute = _npcFactory(parentVM, this); break;
                 case NPCAttributeType.Race: Attribute = _raceFactory(parentVM, this); break;
+                case NPCAttributeType.SubExpression: Attribute = _subExpressionFactory(parentVM, this, attributeGroups); break;
                 case NPCAttributeType.VoiceType: Attribute = _voiceTypeFactory(parentVM, this); break;
                 default: throw new NotImplementedException();
             }
@@ -525,6 +619,13 @@ public abstract class VM_NPCAttributeFormKeyBase<TSelf> : VM, ISubAttributeViewM
         // GroupedSubAttributes changes and calls TrimEmptyAttributes(), which removes the condition once it has
         // no remaining shells -- so no per-type empty-parent cleanup is needed here.
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+        // Emit on every FormKey edit (Switch: the collection itself is replaced when loading from a
+        // model) so the owning card's summary sentence stays live while the user picks records.
+        NeedsRefresh = this.WhenAnyValue(x => x.FormKeys)
+            .Select(collection => collection.ToObservableChangeSet())
+            .Switch()
+            .Unit();
     }
 
     public ObservableCollection<FormKey> FormKeys { get; set; } = new();
@@ -533,7 +634,7 @@ public abstract class VM_NPCAttributeFormKeyBase<TSelf> : VM, ISubAttributeViewM
     public RelayCommand DeleteCommand { get; }
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; }
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public IObservable<Unit> NeedsRefresh { get; }
 
     /// <summary>The plural display label for this attribute kind (e.g. "Classes", "Races").</summary>
     protected abstract string PluralLabel { get; }
@@ -684,7 +785,10 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     public VM_NPCAttribute ParentVM { get; set; }
     public VM_NPCAttributeShell ParentShell { get; set; }
     public RelayCommand DeleteCommand { get; }
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    // Pushed at the top of Evaluate(), which already runs on every meaningful edit (type, path,
+    // comparator, value, reference NPC) — so the owning card's summary sentence stays live.
+    private readonly System.Reactive.Subjects.Subject<Unit> _needsRefresh = new();
+    public IObservable<Unit> NeedsRefresh => _needsRefresh;
     public SolidColorBrush StatusFontColor { get; set; } = new(Colors.White);
 
     public string DebuggerString
@@ -738,6 +842,7 @@ public class VM_NPCAttributeCustom : VM, ISubAttributeViewModel, IImplementsReco
     /// <remarks>If the reference NPC fails to resolve, the error is reported but evaluation still proceeds with a null reference (see review notes).</remarks>
     public void Evaluate()
     {
+        _needsRefresh.OnNext(Unit.Default);
         if (ReferenceNPCFormKey.IsNull)
         {
             EvalResult = "Can't evaluate: Reference NPC not set";
@@ -858,6 +963,13 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+        // Emit on faction or rank-range edits so the owning card's summary sentence stays live.
+        NeedsRefresh = this.WhenAnyValue(x => x.FactionFormKeys)
+            .Select(collection => collection.ToObservableChangeSet())
+            .Switch()
+            .Unit()
+            .Merge(this.WhenAnyValue(x => x.RankMin, x => x.RankMax).Unit());
     }
     public ObservableCollection<FormKey> FactionFormKeys { get; set; } = new();
     /// <summary>Minimum faction rank to match (inclusive); the default -1 matches any rank at or below <see cref="RankMax"/>.</summary>
@@ -870,7 +982,7 @@ public class VM_NPCAttributeFactions : VM, ISubAttributeViewModel
 
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(IFactionGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public IObservable<Unit> NeedsRefresh { get; }
     public string DebuggerString
     {
         get
@@ -1024,6 +1136,10 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
             .Subscribe(x => lk = x)
             .DisposeWith(this);
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+        // Emit on any flag/trait edit so the owning card's summary sentence stays live.
+        NeedsRefresh = this.WhenAnyValue(x => x.Unique, x => x.Essential, x => x.Protected, x => x.Summonable, x => x.Ghost, x => x.Invulnerable).Unit()
+            .Merge(this.WhenAnyValue(x => x.EvalMood, x => x.Mood, x => x.EvalAggression, x => x.Aggression, x => x.EvalGender, x => x.NPCGender).Unit());
     }
     public ThreeWayState Unique { get; set; } = ThreeWayState.Ignore;
     public ThreeWayState Essential { get; set; } = ThreeWayState.Ignore;
@@ -1042,7 +1158,7 @@ public class VM_NPCAttributeMisc : VM, ISubAttributeViewModel
     public RelayCommand DeleteCommand { get; }
     public ILinkCache lk { get; private set; }
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public IObservable<Unit> NeedsRefresh { get; }
     public string DebuggerString
     {
         get
@@ -1119,6 +1235,13 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
             .DisposeWith(this);
 
         DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+
+        // Emit on mod-key or action-type edits so the owning card's summary sentence stays live.
+        NeedsRefresh = this.WhenAnyValue(x => x.ModKeys)
+            .Select(collection => collection.ToObservableChangeSet())
+            .Switch()
+            .Unit()
+            .Merge(this.WhenAnyValue(x => x.ModActionType).Unit());
     }
 
     /// <summary>The mod keys to match against.</summary>
@@ -1132,7 +1255,7 @@ public class VM_NPCAttributeMod : VM, ISubAttributeViewModel
     public ILoadOrderGetter LoadOrder { get; private set; }
 
     public IEnumerable<Type> AllowedFormKeyTypes { get; set; } = typeof(INpcGetter).AsEnumerable();
-    public IObservable<Unit> NeedsRefresh { get; } = System.Reactive.Linq.Observable.Empty<Unit>();
+    public IObservable<Unit> NeedsRefresh { get; }
     public string DebuggerString
     {
         get
@@ -1323,6 +1446,87 @@ public class VM_NPCAttributeGroup : VM, ISubAttributeViewModel
     public static NPCAttributeGroup DumpViewModelToModel(VM_NPCAttributeGroup viewModel, string forceModeStr)
     {
         return new NPCAttributeGroup() { Type = NPCAttributeType.Group, SelectedLabels = viewModel.SelectableAttributeGroups.Where(x => x.IsSelected).Select(x => x.SubscribedAttributeGroup.Label).ToHashSet(), ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr], Weighting = viewModel.ParentShell.ForceIfWeight, Not = viewModel.ParentShell.Not };
+    }
+}
+
+/// <summary>
+/// Sub-attribute VM for an inline anonymous sub-expression: hosts a nested OR-collection of
+/// <see cref="VM_NPCAttribute"/> condition cards, rendered recursively by the shared card view.
+/// Enables parenthetical logic ("x AND (y OR z)"). Child cards hide per-row force options — like
+/// named attribute groups, forcing is governed by the sub-expression row itself and forwarded
+/// recursively by the matcher. See <see cref="ISubAttributeViewModel"/> for the shared contract.
+/// </summary>
+[DebuggerDisplay("{DebuggerString}")]
+public class VM_NPCAttributeSubExpression : VM, ISubAttributeViewModel
+{
+    /// <summary>Autofac factory delegate for constructing this sub-attribute VM under a shell, bound to the owning menu's attribute groups.</summary>
+    public delegate VM_NPCAttributeSubExpression Factory(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups);
+    private readonly VM_NPCAttributeCreator _creator;
+    private readonly ObservableCollection<VM_AttributeGroup> _attributeGroups;
+
+    /// <summary>Stores the parent condition/shell, wires the delete and add-condition commands, and
+    /// bubbles child-condition refresh signals so the outer card's summary stays live.</summary>
+    public VM_NPCAttributeSubExpression(VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator)
+    {
+        ParentVM = parentVM;
+        ParentShell = parentShell;
+        _creator = creator;
+        _attributeGroups = attributeGroups;
+
+        DeleteCommand = new RelayCommand(canExecute: _ => true, execute: _ => parentVM.GroupedSubAttributes.Remove(parentShell));
+        AddCondition = new RelayCommand(canExecute: _ => true, execute: _ =>
+            Attributes.Add(_creator.CreateNewFromUI(Attributes, false, false, _attributeGroups)));
+
+        Attributes.ToObservableChangeSet().Subscribe(_ =>
+        {
+            // StartWith makes structural changes themselves tick the outer summary; child summaries'
+            // own NeedsRefresh reassignments are tracked because consumers use WhenAnyObservable.
+            NeedsRefresh = Attributes.Select(x => x.WhenAnyObservable(y => y.NeedsRefresh)).Merge().Unit()
+                .StartWith(Unit.Default);
+        }).DisposeWith(this);
+    }
+
+    /// <summary>The nested OR-collection: the sub-expression matches when ANY of these AND-combined conditions matches.</summary>
+    public ObservableCollection<VM_NPCAttribute> Attributes { get; set; } = new();
+    public VM_NPCAttribute ParentVM { get; set; }
+    public VM_NPCAttributeShell ParentShell { get; set; }
+    public RelayCommand DeleteCommand { get; }
+    /// <summary>Adds the first condition card to an empty sub-expression (non-empty ones grow via their cards' own OR buttons).</summary>
+    public RelayCommand AddCondition { get; }
+    public IObservable<Unit> NeedsRefresh { get; set; } = System.Reactive.Linq.Observable.Empty<Unit>();
+
+    public string DebuggerString
+    {
+        get
+        {
+            return (ParentShell.Not ? "NOT " : "") + "Sub-Expression with " + Attributes.Count + " OR-condition(s)";
+        }
+    }
+
+    /// <summary>Builds a sub-expression VM from its model, recursively rebuilding each nested condition card, and restoring the shell's weight/negation.</summary>
+    public static VM_NPCAttributeSubExpression GetViewModelFromModel(NPCAttributeSubExpression model, VM_NPCAttribute parentVM, VM_NPCAttributeShell parentShell, ObservableCollection<VM_AttributeGroup> attributeGroups, VM_NPCAttributeCreator creator, VM_NPCAttributeSubExpression.Factory factory)
+    {
+        var newAtt = factory(parentVM, parentShell, attributeGroups);
+        foreach (var conditionModel in model.Attributes)
+        {
+            newAtt.Attributes.Add(creator.GetViewModelFromModel(conditionModel, newAtt.Attributes, attributeGroups, false, false));
+        }
+        parentShell.ForceIfWeight = model.Weighting;
+        parentShell.Not = model.Not;
+        return newAtt;
+    }
+
+    /// <summary>Serializes this sub-expression (all nested condition cards plus the shell's forcing mode/weight/negation) back to an <see cref="NPCAttributeSubExpression"/> model.</summary>
+    public static NPCAttributeSubExpression DumpViewModelToModel(VM_NPCAttributeSubExpression viewModel, string forceModeStr)
+    {
+        return new NPCAttributeSubExpression()
+        {
+            Type = NPCAttributeType.SubExpression,
+            Attributes = VM_NPCAttribute.DumpViewModelsToModels(viewModel.Attributes),
+            ForceMode = VM_NPCAttributeShell.ForceModeStrToEnumDict[forceModeStr],
+            Weighting = viewModel.ParentShell.ForceIfWeight,
+            Not = viewModel.ParentShell.Not
+        };
     }
 }
 

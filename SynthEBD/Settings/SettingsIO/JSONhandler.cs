@@ -192,6 +192,7 @@ public class JSONhandler<T>
                 case "Mod": return jo.ToObject<NPCAttributeMod>(serializer);
                 case "NPC": return jo.ToObject<NPCAttributeNPC>(serializer);
                 case "Race": return jo.ToObject<NPCAttributeRace>(serializer);
+                case "SubExpression": return jo.ToObject<NPCAttributeSubExpression>(serializer);
                 case "VoiceType": return jo.ToObject<NPCAttributeVoiceType>(serializer);
                 default: return null;
             }

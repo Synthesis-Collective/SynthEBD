@@ -127,6 +127,7 @@ public class NPCAttribute
             case NPCAttributeType.Mod: return NPCAttributeMod.CloneAsNew((NPCAttributeMod)inputInterface);
             case NPCAttributeType.NPC: return NPCAttributeNPC.CloneAsNew((NPCAttributeNPC)inputInterface);
             case NPCAttributeType.Race: return NPCAttributeRace.CloneAsNew((NPCAttributeRace)inputInterface);
+            case NPCAttributeType.SubExpression: return NPCAttributeSubExpression.CloneAsNew((NPCAttributeSubExpression)inputInterface);
             case NPCAttributeType.VoiceType: return NPCAttributeVoiceType.CloneAsNew((NPCAttributeVoiceType)inputInterface);
             default: return null;
         }
@@ -240,7 +241,10 @@ public enum NPCAttributeType
     /// <summary>Race.</summary>
     Race,
     /// <summary>Voice type.</summary>
-    VoiceType
+    VoiceType,
+    /// <summary>An inline anonymous sub-expression (nested OR-of-ANDs), enabling parenthetical logic.
+    /// Deliberately last so older enum-position assumptions and UI orderings are unaffected.</summary>
+    SubExpression
 }
 /// <summary>Value kind for a <see cref="NPCAttributeCustom"/> condition.</summary>
 public enum CustomAttributeType // moved outside of NPCAttributeCustom so that it can be visible to UC_NPCAttributeCustom's View binding
@@ -880,6 +884,82 @@ public class NPCAttributeVoiceType : NPCAttributeFormKeyBase<NPCAttributeVoiceTy
 
     public override string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
         => FormatLog("VoiceType", bDetailedAttributes, linkCache, NPCAttribute.FormKeyToLogStringUnnamed<IVoiceTypeGetter>);
+}
+
+/// <summary>
+/// An inline anonymous sub-expression: matches when ANY of its <see cref="Attributes"/> (each an
+/// AND-combined <see cref="NPCAttribute"/>) matches — the same OR-of-ANDs shape as a named
+/// <see cref="AttributeGroup"/>, but embedded directly in the owning condition instead of referenced
+/// by label. Enables parenthetical logic like "x AND (y OR z)" at arbitrary depth. Evaluated
+/// recursively by AttributeMatcher exactly like a Group-type attribute (force-mode forwarding and
+/// weight multiplication included), minus the label resolution.
+/// </summary>
+[DebuggerDisplay("{DebuggerString}")]
+public class NPCAttributeSubExpression : ITypedNPCAttribute
+{
+    public HashSet<NPCAttribute> Attributes { get; set; } = new(); // OR logic between entries, AND logic within each
+    public NPCAttributeType Type { get; set; } = NPCAttributeType.SubExpression;
+    public AttributeForcing ForceMode { get; set; } = AttributeForcing.Restrict;
+    public int Weighting { get; set; } = 1;
+    public bool Not { get; set; } = false;
+
+    [JsonIgnore]
+    public string DebuggerString
+    {
+        get
+        {
+            return (Not ? "NOT " : "") + "Sub-Expression with " + Attributes.Count + " OR-condition(s)";
+        }
+    }
+
+    public bool Equals(ITypedNPCAttribute other)
+    {
+        return other is NPCAttributeSubExpression otherTyped
+            && this.Type == otherTyped.Type
+            && this.Not == otherTyped.Not
+            && this.ForceMode == otherTyped.ForceMode
+            && this.Weighting == otherTyped.Weighting
+            && this.Attributes.SetEquals(otherTyped.Attributes);
+    }
+
+    public override bool Equals(object? obj) => obj is NPCAttributeSubExpression other && Equals(other);
+
+    public override int GetHashCode()
+    {
+        return NPCAttribute.OrderIndependentHash(Attributes) ^
+            Type.GetHashCode() ^
+            ForceMode.GetHashCode() ^
+            Weighting.GetHashCode() ^
+            Not.GetHashCode();
+    }
+
+    public bool IsBlank()
+    {
+        return !Attributes.Any() || Attributes.All(x => !x.SubAttributes.Any());
+    }
+
+    /// <summary>Returns an independent copy of the given attribute, deep-cloning every nested condition.</summary>
+    public static NPCAttributeSubExpression CloneAsNew(NPCAttributeSubExpression input)
+    {
+        var output = new NPCAttributeSubExpression();
+        output.ForceMode = input.ForceMode;
+        output.Type = input.Type;
+        output.Attributes = input.Attributes.Select(NPCAttribute.CloneAsNew).ToHashSet();
+        output.Not = input.Not;
+        output.Weighting = input.Weighting;
+        return output;
+    }
+
+    public string ToLogString(bool bDetailedAttributes, ILinkCache linkCache)
+    {
+        string logStr = "";
+        if (Not)
+        {
+            logStr += "NOT ";
+        }
+
+        return logStr + "(" + string.Join(" OR ", Attributes.Select(x => x.ToLogString(bDetailedAttributes, linkCache))) + ")";
+    }
 }
 
 /// <summary>Matches NPCs that satisfy any of the attribute groups named in <see cref="SelectedLabels"/> (resolved by label at match time).</summary>

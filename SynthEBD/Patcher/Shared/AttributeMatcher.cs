@@ -64,6 +64,7 @@ public class AttributeMatcher
             int currentAttributeForceIfWeight = 0;
             foreach (var subAttribute in attribute.SubAttributes)
             {
+                if (subAttribute == null) { continue; } // an attribute type unknown to this version deserializes to null; skip rather than NRE (load-time code reports it)
                 if (subAttribute.ForceMode != AttributeForcing.ForceIf) { hasAttributeRestrictions = true; }
                 groupWeightingMultiplier = 1;
 
@@ -356,6 +357,21 @@ public class AttributeMatcher
                         var npcAttributeRace = (NPCAttributeRace)subAttribute;
                         var raceToMatch = npcRaceOverride ?? npc.Race.FormKey; // npcRaceOverride can be set by a Race Alias. Calling function must provide.
                         if (!npcAttributeRace.FormKeys.Contains(raceToMatch))
+                        {
+                            subAttributeMatched = false;
+                        }
+                        break;
+                    case NPCAttributeType.SubExpression:
+                        // An inline anonymous group: recurse exactly like the Group case (force-mode
+                        // forwarding and weight multiplication included), minus the label resolution.
+                        var subExpressionAttribute = (NPCAttributeSubExpression)subAttribute;
+                        var subExpressionForceMode = overrideForceIf ?? subAttribute.ForceMode;
+                        MatchNPCtoAttributeList(subExpressionAttribute.Attributes, npc, npcRaceOverride, attributeGroups, bDetailedAttributeLogging, out _, out bool subExpressionMatched, out int subExpressionForceIfCount, out _, out _, out _, subExpressionForceMode);
+                        if (subExpressionMatched)
+                        {
+                            groupWeightingMultiplier = subExpressionForceIfCount;
+                        }
+                        else
                         {
                             subAttributeMatched = false;
                         }

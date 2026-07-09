@@ -283,6 +283,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_NPCAttributeMod>().AsSelf();
         builder.RegisterType<VM_NPCAttributeNPC>().AsSelf();
         builder.RegisterType<VM_NPCAttributeRace>().AsSelf();
+        builder.RegisterType<VM_NPCAttributeSubExpression>().AsSelf();
         builder.RegisterType<VM_NPCAttributeVoiceType>().AsSelf();
         builder.RegisterType<VM_AttributeWeightModifier>().AsSelf();
         builder.RegisterType<VM_AttributeValidator>().AsSelf();
