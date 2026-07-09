@@ -59,6 +59,19 @@ public class VM_BodySlideAnnotator : VM
         PreviewPanel.DisposeWith(this);
         _displayedRuleSetSliderNamesSub.DisposeWith(this);
 
+        // Rule-filter source for the preview rail's preset list: the checked "Filter Presets"
+        // rules of the DISPLAYED body type only, dumped to models on demand so the filter always
+        // evaluates the rules as currently edited. Rules of other body types keep their checkbox
+        // state but don't constrain this body type's presets (their sliders don't apply here).
+        PreviewPanel.SetRuleFilterSource(() =>
+            DisplayedRuleSet?.DescriptorClassifiers?
+                .Where(d => d?.RuleList != null)
+                .SelectMany(d => d.RuleList)
+                .Where(r => r != null && r.FilterPresets)
+                .Select(r => r.DumpToModel())
+                .ToList()
+            ?? new List<DescriptorAssignmentRuleSet>());
+
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ApplyAnnotations(null, null));
@@ -618,6 +631,11 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
         DescriptorCategory = _subscribedDescriptorShell.Category;
         AvailableSliderNames = availableSliderNames;
 
+        // Adding or deleting a whole Assign-Descriptor rule changes the checked-filter set the
+        // preview rail intersects (deleting a checked rule must release its filter) — ping the
+        // (throttled, gated) re-filter signal.
+        RuleList.CollectionChanged += (_, _) => VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
+
         RefreshAvailableDefaults();
 
         AddNewRuleGroup = new RelayCommand(
@@ -766,6 +784,8 @@ public class VM_DescriptorAssignmentRuleSet : VM
             {
                 parentCollection.Remove(this);
             }
+            // OR-group membership changes what this rule matches — re-filter if it's checked.
+            NotifyFilterRelevantChange();
         }).DisposeWith(this);
 
         AddNewRuleSet = new RelayCommand(
@@ -784,6 +804,28 @@ public class VM_DescriptorAssignmentRuleSet : VM
     public VM_BodyShapeDescriptor SelectedDescriptorValue { get; set; }
     public ObservableCollection<VM_AndGatedSliderRuleGroup> RuleListORlogic { get; set; } = new();
     public RelayCommand AddNewRuleSet { get; }
+
+    /// <summary>Session-only view aid (deliberately NOT serialized by <see cref="DumpToModel"/>):
+    /// while checked, the preview rail's preset list is narrowed to presets that satisfy this
+    /// rule's OR-of-AND conditions at the panel's preview weight
+    /// (<see cref="BodySlideAnnotator.PresetMatchesAllRules"/>). Checking multiple rules
+    /// intersects them — possibly down to zero presets.</summary>
+    public bool FilterPresets { get; set; }
+
+    /// <summary>Raised (throttled by the subscriber) on any change that can alter which presets
+    /// satisfy a checked "Filter Presets" rule: a <see cref="FilterPresets"/> toggle, any condition
+    /// edit (slider / type / comparator / threshold), or condition-group / rule membership changes.
+    /// Static — same pattern as <c>VM_CharacterViewer.AnyKeyVertexPicked</c> — because the atomic
+    /// rule VMs carry no upward parent references to bubble through; the preview panel
+    /// (<see cref="VM_SliderAnnotatorPreviewPanel"/>) subscribes and re-filters.</summary>
+    public static event Action? AnyFilterRelevantChange;
+
+    /// <summary>Raises <see cref="AnyFilterRelevantChange"/>. Called by the rule/group/condition
+    /// VMs' edit hooks; safe to over-call (the subscriber gates on whether any filter is active).</summary>
+    internal static void NotifyFilterRelevantChange() => AnyFilterRelevantChange?.Invoke();
+
+    /// <summary>Fody hook: re-filter the preset list the moment the checkbox flips.</summary>
+    private void OnFilterPresetsChanged() => NotifyFilterRelevantChange();
 
     /// <summary>Loads the selected descriptor value and the OR-list of AND-gated rule groups from the model.</summary>
     public void CopyInFromModel(DescriptorAssignmentRuleSet model)
@@ -825,6 +867,8 @@ public class VM_AndGatedSliderRuleGroup : VM
                 {
                     parentCollection.Remove(this);
                 }
+                // Condition membership changes what the parent rule matches — re-filter if checked.
+                VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
         }).DisposeWith(this);
 
         AddNewRule = new RelayCommand(
@@ -891,6 +935,15 @@ public class VM_SliderClassificationRule : VM
     public bool IsEmpty => SliderName.IsNullOrWhitespace();
     public RelayCommand DeleteMe { get; }
     public RelayCommand AddANDRule { get; }
+
+    // Fody hooks: every edit to this atomic predicate can change which presets satisfy a checked
+    // "Filter Presets" rule upstream, so each pings the (throttled, gated) re-filter signal. Also
+    // fires during CopyInFromModel hydration — harmless, since no checkbox is checked yet then
+    // (FilterPresets is session-only) and the subscriber no-ops when no filter is active.
+    private void OnSliderNameChanged() => VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
+    private void OnSliderTypeChanged() => VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
+    private void OnComparatorChanged() => VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
+    private void OnValueChanged() => VM_DescriptorAssignmentRuleSet.NotifyFilterRelevantChange();
 
     /// <summary>Builds a <see cref="VM_SliderClassificationRule"/> from its model, adding the model's slider name to the available list if missing.</summary>
     public static VM_SliderClassificationRule CreateFromModel(SliderClassificationRule model, ObservableCollection<string> sliderNames, ObservableCollection<VM_SliderClassificationRule> parentCollection)

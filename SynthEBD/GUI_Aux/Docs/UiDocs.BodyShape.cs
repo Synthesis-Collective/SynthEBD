@@ -64,6 +64,11 @@ public static partial class UiDocs
             technical: "Toggles VM_SliderClassificationRulesByBodyType.ShowPresetOnlySliders (session-only). Off: pickers offer the Body Type Registry catalog plus any names referenced by saved rules (kept visible so existing rules never blank out). On: the union with all names parsed from loaded preset XMLs. Body types without a catalog (e.g. Unknown) always show the full union and hide this toggle. Logs\\SliderNameProvenance.txt lists every name with its source and contributing presets.",
             motivation: "One squeeze-slider collection preset can inject hundreds of outfit names into a 157-slider body catalog, drowning the sliders rules are actually written against — but the exotic names must stay reachable for the rare rule that needs one.");
 
+        Add("OBody.AnnotatorFilterPresets",
+            layperson: "While checked, the preset list on the right only shows presets that this rule's conditions match at the current preview weight. Check it on several rules to see only presets matching all of them - which can be none.",
+            technical: "Session-only VM_DescriptorAssignmentRuleSet.FilterPresets (never saved). The preview rail intersects every checked rule of the displayed body type via BodySlideAnnotator.PresetMatchesAllRules - the same OR-of-AND evaluation the annotate pass uses - with Interpolated conditions blended at the panel's preview weight. Live: condition edits, weight changes, and checkbox flips re-filter (throttled); switching body types applies that body type's own checkboxes.",
+            motivation: "Calibrating a threshold is a loop of 'which presets does this catch?' - filtering the list to the rule's live matches answers it at a glance, and stacking filters exposes overlaps or dead combinations between rules.");
+
         Add("OBody.AnnotatorPresetFilter",
             layperson: "Type here to narrow the preset list to names containing the text.",
             technical: "Case-insensitive substring filter over the preset labels in the list below. Filtering does not change the selected preset or the 3D preview.",

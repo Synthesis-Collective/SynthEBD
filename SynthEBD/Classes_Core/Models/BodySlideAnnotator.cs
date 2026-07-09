@@ -262,6 +262,28 @@ public class BodySlideAnnotator
         return " at weight(s) " + string.Join(", ", slots);
     }
 
+    /// <summary>
+    /// True when <paramref name="bodySlide"/> satisfies EVERY rule in <paramref name="rules"/> at
+    /// <paramref name="weight"/> — each rule's OR-of-AND-groups must pass, evaluated by the same
+    /// <see cref="EvaluateDescriptorValueRule"/> the annotate pass and
+    /// <see cref="DeriveDescriptorsForSlot"/> use, so a filter built on this can never disagree
+    /// with what applying the rules would do. An empty/null rule list matches everything; a null
+    /// preset or one with no parsed slider values matches nothing. Used by the Label by Sliders
+    /// preset browser's per-rule "Filter Presets" checkboxes — multiple checked rules intersect,
+    /// which can legitimately yield zero matching presets.
+    /// </summary>
+    public static bool PresetMatchesAllRules(BodySlideSetting? bodySlide, IReadOnlyCollection<DescriptorAssignmentRuleSet>? rules, int weight)
+    {
+        if (rules == null || rules.Count == 0) return true;
+        if (bodySlide?.SliderValues == null) return false;
+        foreach (var rule in rules)
+        {
+            if (rule == null) continue;
+            if (!EvaluateDescriptorValueRule(bodySlide, rule, weight)) return false;
+        }
+        return true;
+    }
+
     /// <summary>OR-combines a descriptor value's rule groups at one weight slot — true if any AND-gated group passes there.</summary>
     private static bool EvaluateDescriptorValueRule(BodySlideSetting bodySlide, DescriptorAssignmentRuleSet ruleList, int weightSlot)
     {

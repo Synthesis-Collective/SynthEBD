@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -12,7 +13,9 @@ namespace SynthEBD;
 /// slider's Low/High/Interpolated values), a per-preset slider-value readout, an embedded
 /// CharacterViewer, and an "NPCs at weight" search for picking the previewed NPC. Owned by
 /// <see cref="VM_BodySlideAnnotator"/>, which routes the annotator's selected body type into
-/// <see cref="SetBodyType"/> so the preset list and slider picker track the rule editor.
+/// <see cref="SetBodyType"/> so the preset list and slider picker track the rule editor. The
+/// preset list additionally honors the rule editor's per-rule "Filter Presets" checkboxes,
+/// narrowing to presets that satisfy every checked rule at the current preview weight.
 /// <para>
 /// Preview-NPC policy mirrors <see cref="VM_BodySlideSetting.RefreshPreview"/> /
 /// <see cref="VM_BodyTypeProfileEditor"/>: an explicit override wins, otherwise the OBody Misc
@@ -35,8 +38,18 @@ public class VM_SliderAnnotatorPreviewPanel : VM
     /// <summary>Body type (SliderGroup) whose presets are listed. Set via <see cref="SetBodyType"/>; empty = no body type selected in the annotator yet.</summary>
     private string _currentBodyType = "";
 
-    /// <summary>Unfiltered preset rows for the current (body type, gender); <see cref="FilteredPresetRows"/> applies <see cref="PresetFilterText"/>.</summary>
+    /// <summary>Unfiltered preset rows for the current (body type, gender); <see cref="FilteredPresetRows"/> applies <see cref="PresetFilterText"/> and the checked-rule filter.</summary>
     private readonly List<VM_AnnotatorPresetRow> _presetRows = new();
+
+    /// <summary>Supplies the displayed body type's checked "Filter Presets" rules (as models,
+    /// dumped on demand so live edits count). Wired by <see cref="VM_BodySlideAnnotator"/>;
+    /// null / empty result = no rule filtering (the pre-feature behavior).</summary>
+    private Func<IReadOnlyList<DescriptorAssignmentRuleSet>>? _ruleFilterSource;
+
+    /// <summary>True when the last <see cref="RebuildFilteredPresetRows"/> ran with at least one
+    /// checked rule. Lets the change-signal handler skip rebuilds for rule edits while no filter
+    /// is active, yet still rebuild once when the last checkbox is unticked.</summary>
+    private bool _ruleFilterWasActive;
 
     /// <summary>Unfiltered readout rows for the selected preset; <see cref="SliderReadoutRows"/> applies <see cref="SliderReadoutFilterText"/>.</summary>
     private readonly List<VM_AnnotatorSliderValueRow> _readoutRows = new();
@@ -81,6 +94,17 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        // Re-filter the preset list when any "Filter Presets" checkbox flips or a filtered rule's
+        // conditions are edited. The signal is static and fires for EVERY rule edit anywhere, so
+        // it's throttled (per-keystroke threshold typing collapses to one rebuild) and the handler
+        // gates on whether a filter is actually active (or just stopped being).
+        Observable.FromEvent(
+                h => VM_DescriptorAssignmentRuleSet.AnyFilterRelevantChange += h,
+                h => VM_DescriptorAssignmentRuleSet.AnyFilterRelevantChange -= h)
+            .Throttle(TimeSpan.FromMilliseconds(150), RxApp.MainThreadScheduler)
+            .Subscribe(_ => OnRuleFilterMaybeChanged())
+            .DisposeWith(this);
+
         FindNpcsCommand = new RelayCommand(
             canExecute: _ => !IsFindingNpcs,
             execute: _ => _ = FindNpcCandidatesAsync());
@@ -117,6 +141,9 @@ public class VM_SliderAnnotatorPreviewPanel : VM
                 case nameof(PreviewWeight):
                     RefreshPresetRowSliderValues();
                     RefreshReadoutInterpolation();
+                    // Interpolated conditions in checked filter rules evaluate at the panel
+                    // weight, so the filtered membership tracks the weight slider live.
+                    if (_ruleFilterWasActive) RebuildFilteredPresetRows();
                     _ = RefreshPreviewAsync();
                     break;
                 case nameof(SelectedPresetRow):
@@ -268,17 +295,48 @@ public class VM_SliderAnnotatorPreviewPanel : VM
         RebuildFilteredPresetRows();
     }
 
-    /// <summary>Re-applies the text filter to the unfiltered preset rows.</summary>
+    /// <summary>Wires the source of checked "Filter Presets" rules for the displayed body type.
+    /// Called once by the owning <see cref="VM_BodySlideAnnotator"/>.</summary>
+    public void SetRuleFilterSource(Func<IReadOnlyList<DescriptorAssignmentRuleSet>> ruleFilterSource)
+    {
+        _ruleFilterSource = ruleFilterSource;
+    }
+
+    /// <summary>Throttled handler for <see cref="VM_DescriptorAssignmentRuleSet.AnyFilterRelevantChange"/>:
+    /// rebuilds the filtered preset list when at least one rule filter is checked now, or was
+    /// checked on the previous rebuild (the transition back to unfiltered needs one rebuild too).
+    /// Rule edits with no filter active skip the rebuild entirely.</summary>
+    private void OnRuleFilterMaybeChanged()
+    {
+        bool active = (_ruleFilterSource?.Invoke()?.Count ?? 0) > 0;
+        if (!active && !_ruleFilterWasActive) return;
+        RebuildFilteredPresetRows();
+    }
+
+    /// <summary>Re-applies the text filter AND the checked-rule filter to the unfiltered preset
+    /// rows: a row survives when its label passes <see cref="PresetFilterText"/> and its preset
+    /// satisfies EVERY checked "Filter Presets" rule at the current preview weight
+    /// (<see cref="BodySlideAnnotator.PresetMatchesAllRules"/> — the same predicate the annotate
+    /// pass uses, so the list previews exactly which presets the checked rules would label).
+    /// Multiple checked rules intersect and can legitimately empty the list.</summary>
     private void RebuildFilteredPresetRows()
     {
         FilteredPresetRows.Clear();
         string filter = PresetFilterText?.Trim() ?? "";
+        var checkedRules = _ruleFilterSource?.Invoke() ?? Array.Empty<DescriptorAssignmentRuleSet>();
+        _ruleFilterWasActive = checkedRules.Count > 0;
         foreach (var row in _presetRows)
         {
-            if (filter.Length == 0 || row.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (filter.Length > 0 && row.Label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
             {
-                FilteredPresetRows.Add(row);
+                continue;
             }
+            if (checkedRules.Count > 0
+                && !BodySlideAnnotator.PresetMatchesAllRules(row.PlaceHolder.AssociatedModel, checkedRules, PreviewWeight))
+            {
+                continue;
+            }
+            FilteredPresetRows.Add(row);
         }
     }
 

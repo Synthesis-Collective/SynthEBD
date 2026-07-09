@@ -280,4 +280,59 @@ public class BodySlideAnnotatorTests
         BodySlideAnnotator.InterpolateSliderValue(slider, 100).Should().Be(80f);
         BodySlideAnnotator.InterpolateSliderValue(slider, 25).Should().Be(35f);
     }
+
+    // ---------- PresetMatchesAllRules (the preset browser's "Filter Presets" predicate) ----------
+
+    [Fact]
+    public void PresetMatchesAllRules_EmptyOrNullRuleList_MatchesEverything()
+    {
+        var preset = MakePreset(("ShoulderWidth", 0, 100));
+
+        BodySlideAnnotator.PresetMatchesAllRules(preset, null, 50).Should().BeTrue();
+        BodySlideAnnotator.PresetMatchesAllRules(preset, new List<DescriptorAssignmentRuleSet>(), 50).Should().BeTrue();
+    }
+
+    [Fact]
+    public void PresetMatchesAllRules_SingleInterpolatedRule_TracksWeight()
+    {
+        // MuscleAbs blends 0 -> 80: ">= 60" holds at weight 100 (80) and 75 (60), not at 50 (40).
+        var preset = MakePreset(("MuscleAbs", 0, 80));
+        var rules = new List<DescriptorAssignmentRuleSet>
+        {
+            ValueRule("Muscular", new[] { Condition("MuscleAbs", BodySliderType.Interpolated, ">=", 60) }),
+        };
+
+        BodySlideAnnotator.PresetMatchesAllRules(preset, rules, 100).Should().BeTrue();
+        BodySlideAnnotator.PresetMatchesAllRules(preset, rules, 75).Should().BeTrue();
+        BodySlideAnnotator.PresetMatchesAllRules(preset, rules, 50).Should().BeFalse();
+    }
+
+    [Fact]
+    public void PresetMatchesAllRules_MultipleCheckedRules_Intersect()
+    {
+        var preset = MakePreset(("MuscleAbs", 0, 80), ("ShoulderWidth", 30, 30));
+        var muscular = ValueRule("Muscular", new[] { Condition("MuscleAbs", BodySliderType.Interpolated, ">=", 60) });
+        var narrow = ValueRule("Narrow", new[] { Condition("ShoulderWidth", BodySliderType.Big, "<=", 40) });
+        var broad = ValueRule("Broad", new[] { Condition("ShoulderWidth", BodySliderType.Big, ">=", 50) });
+
+        // Both satisfiable rules pass at weight 100 -> intersection matches.
+        BodySlideAnnotator.PresetMatchesAllRules(preset, new List<DescriptorAssignmentRuleSet> { muscular, narrow }, 100)
+            .Should().BeTrue();
+        // Adding a rule this preset can never satisfy empties the intersection.
+        BodySlideAnnotator.PresetMatchesAllRules(preset, new List<DescriptorAssignmentRuleSet> { muscular, narrow, broad }, 100)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void PresetMatchesAllRules_PresetLackingTheSlider_DoesNotMatch()
+    {
+        var preset = MakePreset(("ShoulderWidth", 0, 100));
+        var rules = new List<DescriptorAssignmentRuleSet>
+        {
+            ValueRule("Muscular", new[] { Condition("MuscleAbs", BodySliderType.Interpolated, ">=", 60) }),
+        };
+
+        BodySlideAnnotator.PresetMatchesAllRules(preset, rules, 100).Should().BeFalse();
+        BodySlideAnnotator.PresetMatchesAllRules(null, rules, 100).Should().BeFalse();
+    }
 }
