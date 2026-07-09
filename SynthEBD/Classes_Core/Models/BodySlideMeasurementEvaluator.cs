@@ -14,6 +14,12 @@ namespace SynthEBD;
 /// locked merge policy: never overwrite Manual/Library/RulesBased; replace prior Classifier
 /// entries so re-runs reflect rule edits.
 ///
+/// The rule pass can additionally be seeded with external descriptors
+/// (<see cref="CollectExternalDescriptors"/> → the <c>externalDescriptors</c> parameter) so
+/// DescriptorRef conditions also see labels the Label-by-Sliders rules produce (derived live from
+/// the current rule set — no need to apply annotations first) and the preset's stored manual /
+/// library annotations, not just descriptors this profile's own rules produce.
+///
 /// Stateless and side-effect-free so call sites can compose it freely (live RefreshPreview
 /// pass, manual Classify command, future batch mode).
 /// </summary>
@@ -100,6 +106,15 @@ public static class BodySlideMeasurementEvaluator
     /// <c>RegionVolumeEvaluator.ResolveRegions</c>) and passes them in; this method just evaluates
     /// them against the current deformed positions. Null (the default for non-scan call sites)
     /// means region-volume measurements fail with <see cref="MeasurementFailureReason.MissingRegion"/>.
+    ///
+    /// <paramref name="externalDescriptors"/> seeds the rule pass with descriptors from sources
+    /// senior to the classifier — labels the Label-by-Sliders rules produce for this preset at this
+    /// weight (derived live from the current rule set) plus the preset's stored Manual / Library
+    /// annotations (see <see cref="CollectExternalDescriptors"/>). DescriptorRef conditions test
+    /// against them exactly like rule-produced descriptors, so a measurement rule can be gated on a
+    /// slider-assigned label (e.g. Belly:Chubby excluding [Belly:Muscular] assigned by a MuscleAbs
+    /// slider rule). See <see cref="RunClassifierRules"/> for the default-suppression interaction.
+    /// Null/empty = the pre-seeding behavior (only this profile's own rules populate the matched set).
     /// </summary>
     public static EvaluationResult Evaluate(
         VM_CharacterViewer viewer,
@@ -108,7 +123,8 @@ public static class BodySlideMeasurementEvaluator
         Gender? evaluationGender = null,
         IReadOnlySet<string>? measurementNamesAllowlist = null,
         bool skipRules = false,
-        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null)
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null,
+        IReadOnlyCollection<(string Category, string Value)>? externalDescriptors = null)
     {
         var result = new EvaluationResult();
         if (viewer == null || profile == null) return result;
@@ -200,7 +216,8 @@ public static class BodySlideMeasurementEvaluator
                 string key = rule.Descriptor.Category + "::" + rule.Descriptor.Value;
                 if (seen.Add(key))
                     result.Descriptors.Add(new AnnotatedDescriptorSignature(rule.Descriptor, BodyShapeAnnotationSource.Classifier));
-            });
+            },
+            externalDescriptors);
 
         // Per-Category default fallback, tagged Classifier exactly like a rule output, for any
         // Category with a configured default that produced no rule descriptor on this evaluation.
@@ -291,12 +308,24 @@ public static class BodySlideMeasurementEvaluator
     /// descriptor), in <paramref name="defaultsByCategory"/> order — identical content to the old
     /// <see cref="ComputeDefaultDescriptors"/> tail. Output ordering is therefore unchanged; only
     /// the aggregator-visibility of defaults moved earlier in the pass.</para>
+    ///
+    /// <para><paramref name="externalDescriptors"/> (optional) seeds the matched set with descriptors
+    /// from sources senior to the classifier — labels derived live from the Label-by-Sliders rules
+    /// for the evaluated (preset, weight), plus the preset's stored Manual / Library annotations
+    /// (see <see cref="CollectExternalDescriptors"/>). Seeds exist before any rule runs, so every
+    /// DescriptorRef condition sees them regardless of dependency order, positive or negated. A
+    /// seeded Category also counts as <b>covered</b> for default handling: its configured default is
+    /// neither materialized for aggregators nor emitted as output, because the category already has
+    /// a value from a senior source (a slider-labeled Belly:Muscular preset must not ALSO fall to
+    /// the measurement side's Belly:Normal). Seeds themselves are never emitted as output — they
+    /// only gate; the classifier's output remains rule matches + (unsuppressed) defaults.</para>
     /// </summary>
     public static List<BodyShapeDescriptor.LabelSignature> RunClassifierRules(
         IReadOnlyList<MeasurementRule> eligibleRules,
         IReadOnlyDictionary<string, float> measurements,
         IReadOnlyDictionary<string, string> defaultsByCategory,
-        Action<MeasurementRule, IReadOnlySet<(string Category, string Value)>> onRuleMatched)
+        Action<MeasurementRule, IReadOnlySet<(string Category, string Value)>> onRuleMatched,
+        IReadOnlyCollection<(string Category, string Value)>? externalDescriptors = null)
     {
         var ordered = RuleDependencyOrder.SortByDescriptorDependencies(
             eligibleRules ?? Array.Empty<MeasurementRule>(), out _);
@@ -307,6 +336,21 @@ public static class BodySlideMeasurementEvaluator
         // Rule-only matches (no materialized defaults) drive which Categories still fall to default.
         var ruleMatchedCategories = new HashSet<string>(StringComparer.Ordinal);
         var ruleMatchedPairs = new HashSet<(string Category, string Value)>();
+
+        // Seed the matched set with the preset's senior-source annotations. Seeded Categories are
+        // recorded so both default-materialization sites below and the output tail treat them as
+        // already covered.
+        var seedPairs = new List<(string Category, string Value)>();
+        var seededCategories = new HashSet<string>(StringComparer.Ordinal);
+        if (externalDescriptors != null)
+        {
+            foreach (var ext in externalDescriptors)
+            {
+                if (string.IsNullOrEmpty(ext.Category) || string.IsNullOrEmpty(ext.Value)) continue;
+                if (matched.Add(ext)) seedPairs.Add(ext);
+                seededCategories.Add(ext.Category);
+            }
+        }
 
         var defaults = defaultsByCategory ?? new Dictionary<string, string>();
 
@@ -321,10 +365,12 @@ public static class BodySlideMeasurementEvaluator
         }
 
         // A Category with a default but NO producer rule can never be rule-matched, so its default
-        // is materialized up front — visible to any aggregator regardless of order.
+        // is materialized up front — visible to any aggregator regardless of order. A seeded
+        // Category is skipped: it already has a senior-source value, so the default doesn't apply.
         foreach (var kvp in defaults)
         {
             if (string.IsNullOrEmpty(kvp.Key) || string.IsNullOrEmpty(kvp.Value)) continue;
+            if (seededCategories.Contains(kvp.Key)) continue;
             if (!lastProducerIndex.ContainsKey(kvp.Key)) matched.Add((kvp.Key, kvp.Value));
         }
 
@@ -342,11 +388,13 @@ public static class BodySlideMeasurementEvaluator
 
             // Reached the last producer of this rule's Category and nothing produced it: materialize
             // its default now so aggregators depending on this Category (ordered strictly later by
-            // RuleDependencyOrder's cross-category edges) see the default value.
+            // RuleDependencyOrder's cross-category edges) see the default value. Seeded Categories
+            // are covered by a senior source, so their default never materializes.
             var resolvedCat = rule.Descriptor?.Category;
             if (!string.IsNullOrEmpty(resolvedCat)
                 && lastProducerIndex.TryGetValue(resolvedCat, out int last) && last == i
                 && !ruleMatchedCategories.Contains(resolvedCat)
+                && !seededCategories.Contains(resolvedCat)
                 && defaults.TryGetValue(resolvedCat, out var defVal)
                 && !string.IsNullOrEmpty(defVal))
             {
@@ -354,9 +402,12 @@ public static class BodySlideMeasurementEvaluator
             }
         }
 
-        // Output defaults: exactly the Categories no rule produced, in defaults-dictionary order —
-        // unchanged from the legacy tail (the materialized set above is the same set of Categories).
-        return ComputeDefaultDescriptors(defaults, ruleMatchedPairs).ToList();
+        // Output defaults: exactly the Categories neither a rule nor an external seed produced, in
+        // defaults-dictionary order — the same set of Categories whose defaults materialized above.
+        var covered = seedPairs.Count == 0
+            ? (IReadOnlyCollection<(string Category, string Value)>)ruleMatchedPairs
+            : ruleMatchedPairs.Concat(seedPairs).ToList();
+        return ComputeDefaultDescriptors(defaults, covered).ToList();
     }
 
     /// <summary>
@@ -456,18 +507,101 @@ public static class BodySlideMeasurementEvaluator
     }
 
     /// <summary>
+    /// Builds the external-descriptor seed for <see cref="Evaluate"/> / <see cref="RunClassifierRules"/>:
+    /// everything the preset carries at <paramref name="weight"/> from sources senior to the classifier,
+    /// as (Category, Value) pairs. Two components:
+    ///
+    /// <para><b>Live slider-rule labels.</b> When <paramref name="sliderClassificationRules"/> is
+    /// supplied, the Label-by-Sliders output is derived fresh from those rules at exactly
+    /// <paramref name="weight"/> via <see cref="BodySlideAnnotator.DeriveDescriptorsForSlot"/> —
+    /// NOT read from stored RulesBased entries. Drafting or revising a slider rule is therefore
+    /// visible to DescriptorRef conditions immediately, with no "apply annotations" step, and stale
+    /// stored RulesBased entries (written by since-edited rules) never leak into the seed. Only when
+    /// no rule set is supplied (null) do stored RulesBased entries seed instead, as a legacy fallback.
+    /// <paramref name="descriptorUniverse"/> is the descriptor catalog the slider engine gates on
+    /// (only known (Category, Value)s are ever assigned); null skips that filtering.</para>
+    ///
+    /// <para><b>Stored annotations.</b> Manual and Library entries, read from the slot keyed exactly
+    /// at <paramref name="weight"/> when the preset has one (an existing-but-empty slot means
+    /// "nothing assigned here", not "look elsewhere"), otherwise from the nearest slot by key with
+    /// ties rounding down — the <see cref="PerWeightDescriptorLookup.GetDescriptorsForWeight"/>
+    /// convention WITHOUT its walk-outward-to-non-empty behavior, which would borrow annotations
+    /// that don't apply at this weight. Storage is the source of truth for hand/library labels, so
+    /// these are always read.</para>
+    ///
+    /// Prior Classifier-sourced entries are always excluded so a re-run can never feed its own
+    /// previous output back into its DescriptorRef conditions.
+    /// </summary>
+    public static HashSet<(string Category, string Value)> CollectExternalDescriptors(
+        BodySlideSetting? preset,
+        int weight,
+        Dictionary<string, SliderClassificationRulesByBodyType>? sliderClassificationRules = null,
+        HashSet<BodyShapeDescriptor.LabelSignature>? descriptorUniverse = null)
+    {
+        var result = new HashSet<(string Category, string Value)>();
+        if (preset == null) return result;
+
+        bool haveLiveRules = sliderClassificationRules != null;
+
+        var slots = preset.BodyShapeDescriptorsByWeight;
+        if (slots != null && slots.Count > 0)
+        {
+            if (!slots.TryGetValue(weight, out var slot) || slot == null)
+            {
+                int bestKey = 0;
+                int bestDist = int.MaxValue;
+                foreach (var key in slots.Keys)
+                {
+                    int dist = Math.Abs(key - weight);
+                    if (dist < bestDist || (dist == bestDist && key < bestKey))
+                    {
+                        bestDist = dist;
+                        bestKey = key;
+                    }
+                }
+                slot = slots[bestKey];
+            }
+
+            if (slot != null)
+            {
+                foreach (var d in slot)
+                {
+                    if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
+                    bool seedFromStorage = d.Source == BodyShapeAnnotationSource.Manual
+                        || d.Source == BodyShapeAnnotationSource.Library
+                        || (!haveLiveRules && d.Source == BodyShapeAnnotationSource.RulesBased);
+                    if (seedFromStorage) result.Add((d.Category, d.Value));
+                }
+            }
+        }
+
+        if (haveLiveRules)
+        {
+            foreach (var sig in BodySlideAnnotator.DeriveDescriptorsForSlot(preset, sliderClassificationRules!, descriptorUniverse, weight))
+            {
+                if (sig == null || string.IsNullOrEmpty(sig.Category) || string.IsNullOrEmpty(sig.Value)) continue;
+                result.Add((sig.Category, sig.Value));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Convenience wrapper: evaluate <paramref name="profile"/> against <paramref name="viewer"/>
     /// and merge the results into the per-weight slot of <paramref name="setting"/>. Returns the
     /// evaluation result for diagnostic display (live readout, classifier counts, mismatch flag).
     /// Does nothing and returns null when there is no slot at <paramref name="weight"/>.
     /// </summary>
-    public static EvaluationResult EvaluateAndMerge(VM_CharacterViewer viewer, BodyTypeProfile profile, BodySlideSetting setting, int weight)
+    public static EvaluationResult EvaluateAndMerge(VM_CharacterViewer viewer, BodyTypeProfile profile, BodySlideSetting setting, int weight,
+        Dictionary<string, SliderClassificationRulesByBodyType>? sliderClassificationRules = null,
+        HashSet<BodyShapeDescriptor.LabelSignature>? descriptorUniverse = null)
     {
         if (viewer == null || profile == null || setting == null) return null;
         if (setting.BodyShapeDescriptorsByWeight == null) return null;
         if (!setting.BodyShapeDescriptorsByWeight.TryGetValue(weight, out var slot) || slot == null) return null;
 
-        var result = Evaluate(viewer, profile);
+        var result = Evaluate(viewer, profile,
+            externalDescriptors: CollectExternalDescriptors(setting, weight, sliderClassificationRules, descriptorUniverse));
         MergeIntoSlot(slot, result.Descriptors);
         return result;
     }

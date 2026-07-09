@@ -226,9 +226,9 @@ public static partial class UiDocs
             motivation: "Guaranteed rollback is what makes aggressive experimentation on live rules safe.");
 
         Add("BodyTypeProfiles.ConditionKind",
-            layperson: "What this condition tests: a body measurement against a number, or whether another rule's label already applied to the preset.",
-            technical: "Bound to MeasurementConditionKind. Measurement is the classic 'measurement comparator threshold' test; DescriptorRef tests whether another rule already produced a given (Category, Value) descriptor earlier in the topological evaluation order, honoring NOT. The inactive kind's fields stay in memory, so flipping back loses nothing.",
-            motivation: "DescriptorRef enables aggregator rules - for example Realism:Unrealistic defined as 'any Unrealistic* descriptor fired' - without duplicating every underlying threshold.");
+            layperson: "What this condition tests: a body measurement against a number, or whether a label applies to the preset - from another rule here, from the Label by Sliders rules, or applied by hand.",
+            technical: "Bound to MeasurementConditionKind. Measurement is the classic 'measurement comparator threshold' test; DescriptorRef tests membership in the matched-descriptor set, honoring NOT. That set holds descriptors produced by rules earlier in the topological evaluation order PLUS an external seed (CollectExternalDescriptors): labels the Label by Sliders rules produce for this preset at the evaluated weight - derived live from the current rule set, so slider-rule drafts count without an apply pass - and the preset's stored Manual/Library annotations. Prior Classifier output is excluded so re-runs never read their own results, and a category covered by a seed skips its measurement-side default. The inactive kind's fields stay in memory, so flipping back loses nothing.",
+            motivation: "DescriptorRef enables aggregator rules - for example Realism:Unrealistic defined as 'any Unrealistic* descriptor fired' - without duplicating every underlying threshold. Live slider-label seeding lets the two labeling systems compose while you iterate: a slider rule can assign Belly:Muscular from MuscleAbs, and measurement rules for Belly:Chubby/Fat can exclude it, with edits on either side visible to the other immediately.");
 
         Add("BodyTypeProfiles.ConditionNegate",
             layperson: "Flips the check: the condition passes only if the referenced label did NOT apply.",
@@ -236,18 +236,18 @@ public static partial class UiDocs
             motivation: "Exclusion predicates like 'curvy but not unrealistic' would otherwise require authoring mirror-image rules.");
 
         Add("BodyTypeProfiles.ConditionRefCategory",
-            layperson: "The category of the other rule's label that this condition checks for.",
-            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which pre-filters any choice that would create a circular dependency between rules referencing each other's output.",
+            layperson: "The category of the label that this condition checks for. The label can come from another rule here, from the Label by Sliders rules, or from a manual annotation.",
+            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which offers the full descriptor catalog minus any choice that would create a circular dependency between rules referencing each other's output. A descriptor no measurement rule produces is always cycle-safe and resolves at evaluation against the live Label by Sliders rule output and the preset's manual/library annotations.",
             motivation: "Cycle-safe options at the source prevent authoring reference chains the topological evaluator could never order.");
 
         Add("BodyTypeProfiles.ConditionRefValue",
-            layperson: "The value of the other rule's label that this condition checks for.",
+            layperson: "The value of the label that this condition checks for.",
             technical: "Bound to RefValue; options are the cycle-safe references filtered to the selected RefCategory, refiltered automatically when the category changes.",
             motivation: "Same cycle-safety guarantee as the category picker, narrowed to a concrete label.");
 
         Add("BodyTypeProfiles.ConditionReadout",
             layperson: "Live result of this condition for the preset shown in the viewer - green means it passes, red means it fails.",
-            technical: "ConditionReadout: for Measurement conditions, the named measurement's LiveValue tested with the comparator; for DescriptorRef conditions, 'Match' or 'Not Match' against the previewed preset's matched descriptors, honoring NOT. A gray dash means no preset is loaded or the value cannot resolve; the color is driven by ConditionConforms.",
+            technical: "ConditionReadout: for Measurement conditions, the named measurement's LiveValue tested with the comparator; for DescriptorRef conditions, 'Match' or 'Not Match' against the previewed preset's matched descriptors - rule matches, materialized category defaults, the preset's live-derived Label by Sliders labels at the previewed weight, and its stored manual/library annotations - honoring NOT. A gray dash means no preset is loaded or the value cannot resolve; the color is driven by ConditionConforms.",
             motivation: "Seeing each condition pass or fail against a live preset pinpoints exactly which clause blocks an expected match.");
 
         // ---------- Rules tab: matching-presets pane ----------

@@ -260,7 +260,28 @@ public class VM_BodySlideSetting : VM
             // live preview (e.g. a male-only Powerful rule on a male preset). ResolveGender
             // is a reference-comparison against the parent BodySlidesMale/Female list, so
             // it's authoritative even when descriptors are sparse.
-            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender());
+            //
+            // Seed the rule pass with the descriptors senior to the classifier, so DescriptorRef
+            // conditions can test slider-assigned labels — e.g. a Belly:Chubby measurement rule
+            // excluding [Belly:Muscular] assigned by a MuscleAbs slider rule. Slider labels are
+            // derived live from the CURRENT Label-by-Sliders rules (the annotator VM when alive —
+            // it holds unsaved edits — else the persisted model), not from stored RulesBased
+            // annotations, so rule drafts count immediately without an apply pass. Manual/Library
+            // entries seed from storage; prior Classifier output is excluded by
+            // CollectExternalDescriptors, so the MergeIntoSlot below never feeds its own previous
+            // results back into this evaluation.
+            var sliderRules = ParentMenuVM?.AnnotatorUI?.DumpToModel()
+                ?? _patcherState?.OBodySettings?.BodySlideClassificationRules;
+            var universeShells = ParentMenuVM?.DescriptorUI?.DumpToViewModels()
+                ?? _patcherState?.OBodySettings?.TemplateDescriptors;
+            var descriptorUniverse = universeShells?.Flatten()
+                .Where(d => d?.ID != null)
+                .Select(d => d.ID)
+                .ToHashSet();
+            var externalDescriptors = BodySlideMeasurementEvaluator.CollectExternalDescriptors(
+                model, slot.Weight, sliderRules, descriptorUniverse);
+            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender(),
+                externalDescriptors: externalDescriptors);
             BodySlideMeasurementEvaluator.MergeIntoSlot(modelSlot, result.Descriptors);
             slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(result.Descriptors);
             UpdateAggregateAnnotationState();

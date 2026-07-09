@@ -120,6 +120,80 @@ public class BodySlideAnnotator
     }
 
     /// <summary>
+    /// Pure per-slot counterpart of <see cref="AnnotateBodySlide(BodySlideSetting, Dictionary{string, SliderClassificationRulesByBodyType}, HashSet{BodyShapeDescriptor.LabelSignature}, bool, string?, Action{string}?)"/>:
+    /// computes the descriptors the classification rules WOULD assign to <paramref name="bodySlide"/> at
+    /// <paramref name="weightSlot"/>, without touching the preset. Applies the same gates as the annotate
+    /// pass — keep them in lockstep: rules must exist for the preset's SliderGroup; the category and its
+    /// values must exist in <paramref name="currentDescriptors"/> (null skips that filtering); a category
+    /// with any Manual annotation anywhere on the preset is skipped (rules never overwrite hand labels);
+    /// and the category default fills the slot when no rule matches there.
+    ///
+    /// Unlike the annotate pass this evaluates at ANY weight 0-100 (Interpolated conditions blend to the
+    /// exact weight given), not just the preset's existing descriptor slots. Used by the BodySlide
+    /// Classifier's external-descriptor seeding (<c>BodySlideMeasurementEvaluator.CollectExternalDescriptors</c>)
+    /// so Label-by-Measurements DescriptorRef conditions read slider labels live from the CURRENT rule
+    /// set — drafting or revising a slider rule is visible to measurement rules immediately, with no
+    /// "apply annotations" step in between.
+    /// </summary>
+    public static List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsForSlot(
+        BodySlideSetting bodySlide,
+        Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules,
+        HashSet<BodyShapeDescriptor.LabelSignature>? currentDescriptors,
+        int weightSlot)
+    {
+        var result = new List<BodyShapeDescriptor.LabelSignature>();
+        if (bodySlide?.SliderGroup == null || bodySlide.SliderValues == null) return result;
+        if (bodySlideClassificationRules == null
+            || !bodySlideClassificationRules.TryGetValue(bodySlide.SliderGroup, out var rulesForBodyType)
+            || rulesForBodyType?.DescriptorClassifiers == null)
+        {
+            return result;
+        }
+
+        var currentCategories = currentDescriptors?.Select(x => x.Category).ToHashSet();
+
+        foreach (var ruleSet in rulesForBodyType.DescriptorClassifiers)
+        {
+            if (ruleSet == null || ruleSet.RuleList == null) continue;
+            if (currentCategories != null && !currentCategories.Contains(ruleSet.DescriptorCategory)) continue;
+
+            // Manual precedence, same as the annotate pass: a category the user hand-labeled
+            // anywhere on this preset is never rules-annotated, so it must not derive here either.
+            if (bodySlide.EnumerateAllDescriptors().Any(x => x.Category == ruleSet.DescriptorCategory && x.Source == BodyShapeAnnotationSource.Manual))
+            {
+                continue;
+            }
+
+            var currentValues = currentDescriptors?
+                .Where(x => x.Category == ruleSet.DescriptorCategory)
+                .Select(x => x.Value)
+                .ToHashSet();
+
+            bool anyMatched = false;
+            var seenValues = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var rule in ruleSet.RuleList)
+            {
+                if (rule == null) continue;
+                if (currentValues != null && !currentValues.Contains(rule.SelectedDescriptorValue)) continue;
+                if (!EvaluateDescriptorValueRule(bodySlide, rule, weightSlot)) continue;
+                anyMatched = true;
+                if (seenValues.Add(rule.SelectedDescriptorValue))
+                {
+                    result.Add(new BodyShapeDescriptor.LabelSignature { Category = ruleSet.DescriptorCategory, Value = rule.SelectedDescriptorValue });
+                }
+            }
+
+            if (!anyMatched
+                && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace()
+                && (currentValues == null || currentValues.Contains(ruleSet.DefaultDescriptorValue)))
+            {
+                result.Add(new BodyShapeDescriptor.LabelSignature { Category = ruleSet.DescriptorCategory, Value = ruleSet.DefaultDescriptorValue });
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Applies one category's rule set to a preset, evaluating each rule once per weight slot: the rule's
     /// descriptor is added to every slot where its predicate passes (endpoint-only rules pass all slots or
     /// none, so legacy rules keep whole-preset behavior). The category's default descriptor then fills only

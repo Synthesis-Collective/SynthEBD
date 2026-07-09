@@ -264,7 +264,19 @@ public partial class UC_BodyTypeProfileEditor : UserControl
         }
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => TryPrime();
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        TryPrime();
+        // Loaded fires on every navigation into this menu (the DataTemplate swaps the control
+        // back into the visual tree), unlike TryPrime's once-only priming. Re-derive the state
+        // that depends on sibling menus' live edits — Label-by-Sliders rules and manual
+        // annotations feed the classifier's DescriptorRef seeds, and those menus have no
+        // notification channel into this one.
+        if (DataContext is VM_BodyTypeProfileEditor editor)
+        {
+            editor.RefreshCrossMenuStateOnShow();
+        }
+    }
 
     /// <summary>Opens a SynthEBD-style OK dialog listing every keyboard shortcut
     /// available in this editor, broken down per tab plus the global

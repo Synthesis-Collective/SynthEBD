@@ -633,6 +633,42 @@ public class VM_BodyTypeProfileEditor : VM
         }
     }
 
+    /// <summary>Re-derives every piece of editor state that depends on OTHER menus' live edits,
+    /// called by the view each time the editor enters the visual tree (menu navigation into Body
+    /// Type Profiles). The classifier's external-descriptor seeds read the Label-by-Sliders rules
+    /// and the presets' manual annotations — both edited in sibling menus with no notification
+    /// channel into this one — so returning to this menu re-syncs the descriptor catalog, re-derives
+    /// the cached scan results against a fresh seed context, and refreshes the live preview pane's
+    /// matches + per-condition badges. Guards mirror <see cref="OnAutoRebuildScanResultsTick"/>:
+    /// no rebuild mid-scan, on an invalidated measurement cache (the numbers themselves are stale —
+    /// only a real scan fixes that), or when there is nothing cached to re-derive.</summary>
+    public void RefreshCrossMenuStateOnShow()
+    {
+        RefreshAvailableDescriptorsFromLiveSettings();
+
+        var profile = SelectedProfile;
+        if (profile == null) return;
+
+        try
+        {
+            if (!IsScanning && !profile.MeasurementCacheStale && profile.MeasurementCache.Count > 0)
+            {
+                profile.RebuildScanResultsFromCache(profile.DumpToModel(), includeDrafts: true);
+                RefreshMatchingPresets();
+                profile.RefreshSelectedNodeMatchingPresets();
+            }
+
+            // Preview matches + condition readouts re-seed from the live slider rules even when
+            // the scan cache couldn't be rebuilt — LiveValues persist on the measurement VMs, so
+            // this is a pure rule pass, no mesh work.
+            profile.RefreshPreviewDescriptors();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("BodyTypeProfile cross-menu refresh failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
         Profiles.Clear();
@@ -1611,6 +1647,10 @@ public class VM_BodyTypeProfileEditor : VM
             int done = 0;
             ScanProgressPercent = 0;
 
+            // Seed context for the per-iteration Evaluate calls below: assembled once (VM dumps),
+            // no preset lookup needed since each iteration holds its preset model directly.
+            var scanSeedContext = BuildExternalDescriptorSeedContext(includePresetLookup: false);
+
             // Diagnostics for "scan returns zero matches" investigations. Captured even when
             // VerboseScan is off (cheap dictionary copies); only emitted on completion when
             // the toggle is on. Identical first/last snapshots across many presets imply the
@@ -1695,7 +1735,12 @@ public class VM_BodyTypeProfileEditor : VM
                 // path, restrict measurement evaluation to the names this entry is missing
                 // and skip rules entirely (the post-scan RebuildScanResultsFromCache pass
                 // re-derives descriptors from the full cache, so evaluating rules with a
-                // partial measurement set would just throw away the work).
+                // partial measurement set would just throw away the work). The external seed
+                // (this preset's live-derived slider labels + stored manual/library
+                // annotations at this weight) only affects the discarded result.Descriptors
+                // here — descriptors are re-derived post-scan with the same seed — but keeps
+                // the VerboseScan ruleMatches diagnostic below in agreement with that
+                // re-derivation.
                 var result = BodySlideMeasurementEvaluator.Evaluate(
                     viewer, profileModel,
                     includeDrafts: true,
@@ -1703,7 +1748,9 @@ public class VM_BodyTypeProfileEditor : VM
                     measurementNamesAllowlist: namesAllowlist,
                     skipRules: isPartialFill,
                     resolvedRegions: resolvedRegionsByWeight != null
-                        && resolvedRegionsByWeight.TryGetValue(weight, out var rrForWeight) ? rrForWeight : null);
+                        && resolvedRegionsByWeight.TryGetValue(weight, out var rrForWeight) ? rrForWeight : null,
+                    externalDescriptors: BodySlideMeasurementEvaluator.CollectExternalDescriptors(
+                        model, weight, scanSeedContext.SliderClassificationRules, scanSeedContext.DescriptorUniverse));
 
                 if (VerboseScan)
                 {
@@ -3185,6 +3232,59 @@ public class VM_BodyTypeProfileEditor : VM
     /// as Match Presets without re-implementing the lazy <c>_oBodyVM</c> resolution.</summary>
     internal VM_BodySlidesMenu GetBodySlidesMenu() => _oBodyVM?.Invoke()?.BodySlidesUI;
 
+    /// <summary>Assembles everything the classifier's external-descriptor seeding needs for one
+    /// derive operation (see <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>).
+    /// The slider classification rules and the descriptor universe come from the LIVE OBody VMs
+    /// when available (<c>AnnotatorUI.DumpToModel()</c> / <c>DescriptorUI.DumpToViewModels()</c> —
+    /// they hold unsaved edits, so a slider rule the user is still drafting counts immediately),
+    /// falling back to the persisted <see cref="PatcherState"/> models otherwise. The VM dump wins
+    /// even when empty (deleting every slider rule must not resurrect the stale persisted copy);
+    /// the one transiently-wrong window — OBody hydration rebuilds this editor's scan results
+    /// before <c>AnnotatorUI.CopyInFromModel()</c> has filled the annotator VM — is invisible,
+    /// because <see cref="RefreshCrossMenuStateOnShow"/> re-derives on menu entry before anything
+    /// is displayed. Build once per bulk operation — the rules dump and the preset lookup each
+    /// sweep their source collections. <paramref name="includePresetLookup"/> = false skips the
+    /// (label, gender) → preset map for callers that already hold their preset model directly.</summary>
+    internal ExternalDescriptorSeedContext BuildExternalDescriptorSeedContext(bool includePresetLookup = true)
+    {
+        var context = new ExternalDescriptorSeedContext();
+        var oBody = _oBodyVM?.Invoke();
+
+        if (includePresetLookup)
+        {
+            var menu = oBody?.BodySlidesUI;
+            if (menu != null)
+            {
+                // First entry wins on duplicate labels — the same policy as the label-based preset
+                // lookups elsewhere (e.g. VM_PresetAnnotationTable.LoadRowInViewer).
+                foreach (var ph in menu.BodySlidesMale)
+                {
+                    var m = ph?.AssociatedModel;
+                    if (m == null) continue;
+                    context.PresetModelLookup.TryAdd((m.Label ?? "", Gender.Male), m);
+                }
+                foreach (var ph in menu.BodySlidesFemale)
+                {
+                    var m = ph?.AssociatedModel;
+                    if (m == null) continue;
+                    context.PresetModelLookup.TryAdd((m.Label ?? "", Gender.Female), m);
+                }
+            }
+        }
+
+        context.SliderClassificationRules = oBody?.AnnotatorUI?.DumpToModel()
+            ?? _patcherState?.OBodySettings?.BodySlideClassificationRules;
+
+        var universeShells = oBody?.DescriptorUI?.DumpToViewModels()
+            ?? _patcherState?.OBodySettings?.TemplateDescriptors;
+        context.DescriptorUniverse = universeShells?.Flatten()
+            .Where(d => d?.ID != null)
+            .Select(d => d.ID)
+            .ToHashSet();
+
+        return context;
+    }
+
     /// <summary>Wrapper around <see cref="Logger.LogError"/> so the new annotation table doesn't
     /// need a private logger reference. Mirrors the pattern <see cref="RunScanAsync"/> uses
     /// inline.</summary>
@@ -3246,6 +3346,27 @@ public class VM_BodyTypeProfileEditor : VM
 /// labeled examples. Knows how to compute live measurement values against an attached viewer's
 /// current mesh state via <see cref="VM_CharacterViewer.TryGetCurrentVertex"/>.
 /// </summary>
+/// <summary>Inputs for one external-descriptor seeding operation, assembled by
+/// <see cref="VM_BodyTypeProfileEditor.BuildExternalDescriptorSeedContext"/> and threaded through
+/// the classifier derive paths so bulk callers (scan rebuilds, match-set sweeps) pay the VM dumps
+/// and the preset sweep once instead of per cache key. An empty/default context degrades to
+/// "no seeds" — the pre-seeding classifier behavior.</summary>
+public sealed class ExternalDescriptorSeedContext
+{
+    /// <summary>Resolves a measurement-cache key's (PresetLabel, Gender) back to its preset model.
+    /// Empty when the BodySlides menu isn't available (startup hydration, tests) or when the
+    /// builder was asked to skip it.</summary>
+    public Dictionary<(string PresetLabel, Gender Gender), BodySlideSetting> PresetModelLookup { get; } = new();
+
+    /// <summary>The Label-by-Sliders classification rules to derive slider labels from, live
+    /// from the annotator VM when possible. Null = slider labels fall back to the preset's stored
+    /// RulesBased annotations (see <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>).</summary>
+    public Dictionary<string, SliderClassificationRulesByBodyType>? SliderClassificationRules { get; set; }
+
+    /// <summary>The descriptor catalog the slider engine gates its output on. Null = no filtering.</summary>
+    public HashSet<BodyShapeDescriptor.LabelSignature>? DescriptorUniverse { get; set; }
+}
+
 public class VM_BodyTypeProfile : VM
 {
     private readonly BodyTypeProfile _source;
@@ -6395,8 +6516,11 @@ public class VM_BodyTypeProfile : VM
     /// on every <see cref="Rules"/> row. Unlike <c>BodySlideMeasurementEvaluator.Evaluate</c> this
     /// ignores the <see cref="VM_MeasurementRule.IsDraft"/> flag so the user can see what draft
     /// rules would produce without flipping the flag (which would leak descriptors into the real
-    /// patcher pipeline). Each match row carries a trace of the specific conditions that fired, so
-    /// calibration is a glance, not a hunt.</summary>
+    /// patcher pipeline). The pass is seeded with the previewed preset's live-derived slider labels
+    /// (from the current Label-by-Sliders rules — drafts count without an apply pass) plus its
+    /// stored Manual / Library annotations, so DescriptorRef conditions read them like the
+    /// production evaluator does. Each match row carries a trace of the specific conditions that
+    /// fired, so calibration is a glance, not a hunt.</summary>
     public void RefreshPreviewDescriptors()
     {
         var meas = new Dictionary<string, float>(StringComparer.Ordinal);
@@ -6427,6 +6551,25 @@ public class VM_BodyTypeProfile : VM
             ruleVMByModel[m] = r;
         }
 
+        // External seed, mirroring the production evaluator: the previewed preset's slider labels
+        // derived live from the current Label-by-Sliders rules at the previewed weight (rule
+        // drafts count immediately — no apply pass needed), plus its stored Manual / Library
+        // annotations, so DescriptorRef conditions gate here exactly like at scan time. The
+        // preset lookup is skipped (the preset model is already in hand). Empty when no preset
+        // is loaded (bare-NPC preview).
+        var previewPresetModel = _parent?.SelectedPreset?.AssociatedModel;
+        HashSet<(string Category, string Value)> externals;
+        if (previewPresetModel != null)
+        {
+            var seedContext = _parent!.BuildExternalDescriptorSeedContext(includePresetLookup: false);
+            externals = BodySlideMeasurementEvaluator.CollectExternalDescriptors(
+                previewPresetModel, _parent.PreviewWeight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse);
+        }
+        else
+        {
+            externals = new HashSet<(string Category, string Value)>();
+        }
+
         var previewDefaults = BodySlideMeasurementEvaluator.RunClassifierRules(
             eligibleModels, meas, _defaultValueByCategory,
             (model, matched) =>
@@ -6440,7 +6583,8 @@ public class VM_BodyTypeProfile : VM
                     ConditionTrace = BuildMatchTrace(model, meas, matched),
                 });
                 if (sourceVm.IsDraft) drafts++; else promoted++;
-            });
+            },
+            externals);
 
         if (meas.Count == 0)
         {
@@ -6462,11 +6606,13 @@ public class VM_BodyTypeProfile : VM
 
         // Publish the firing-descriptor set + live state for the per-condition readouts, then
         // refresh them so each condition's green/red badge reflects this preset. The set mirrors
-        // the evaluator's matched set: rule matches PLUS the Category defaults that materialized,
-        // so a DescriptorRef condition pointing at a default value reads as satisfied here too.
+        // the evaluator's matched set: rule matches PLUS the Category defaults that materialized
+        // PLUS the external seeds, so a DescriptorRef condition pointing at a default value — or
+        // at a slider-assigned/manual label — reads as satisfied here too.
         var matched = new HashSet<(string Category, string Value)>();
         foreach (var pm in PreviewMatches) matched.Add((pm.Category, pm.Value));
         foreach (var d in previewDefaults) matched.Add((d.Category, d.Value));
+        foreach (var e in externals) matched.Add(e);
         PreviewMatchedDescriptors = matched;
         HasLivePreview = meas.Count > 0;
         RefreshAllConditionReadouts();
@@ -9245,14 +9391,16 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>Set of (preset, gender, weight) slices in the measurement cache for which
     /// <paramref name="ruleModel"/> matches. Honors the rule's gender filter and supplies each
-    /// slice's full derived-descriptor set as the matched-descriptor context, so DescriptorRef
-    /// (aggregator) conditions resolve. <paramref name="profileModel"/> reflects the live edits,
-    /// so the result tracks whatever the user has typed.</summary>
+    /// slice's full derived-descriptor set — plus the slice's external seed (live slider labels +
+    /// stored manual/library annotations), mirroring the evaluator — as the matched-descriptor
+    /// context, so DescriptorRef (aggregator) conditions resolve. <paramref name="profileModel"/>
+    /// reflects the live edits, so the result tracks whatever the user has typed.</summary>
     private HashSet<(string PresetLabel, Gender Gender, int Weight)> ComputeRuleMatchSet(
         MeasurementRule? ruleModel, BodyTypeProfile profileModel)
     {
         var set = new HashSet<(string, Gender, int)>();
         if (ruleModel == null) return set;
+        var seedContext = _parent?.BuildExternalDescriptorSeedContext();
         foreach (var kv in MeasurementCache)
         {
             var entry = kv.Value;
@@ -9263,10 +9411,14 @@ public class VM_BodyTypeProfile : VM
             foreach (var m in entry.Measurements)
                 if (m.Value.HasValue) floats[m.Key] = m.Value.Value;
 
-            var derived = DeriveDescriptorsFor(kv.Key, profileModel, includeDrafts: true);
+            var derived = DeriveDescriptorsFor(kv.Key, profileModel, includeDrafts: true, seedContext);
             var matched = new HashSet<(string Category, string Value)>();
             foreach (var d in derived)
                 if (d != null) matched.Add((d.Category, d.Value));
+            // The seeds gate the derivation above AND must be visible to the tested rule's own
+            // DescriptorRef conditions here (the evaluator's matched set = seeds + rule matches
+            // + materialized defaults; `derived` covers only the latter two).
+            foreach (var ext in GetExternalDescriptorsFor(kv.Key, seedContext)) matched.Add(ext);
 
             if (MeasurementMath.RuleMatches(ruleModel, floats, matched)) set.Add(kv.Key);
         }
@@ -9643,11 +9795,18 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Re-derives one cache entry's descriptor list by running the profile's
     /// current rules against its cached measurements. Cheap: rule evaluation only, no
     /// mesh work. Mirrors the rule-loop in <see cref="BodySlideMeasurementEvaluator.Evaluate"/>
-    /// so re-deriving from cache produces the same descriptors as a fresh evaluation.</summary>
+    /// so re-deriving from cache produces the same descriptors as a fresh evaluation —
+    /// including the external-descriptor seed: the key's preset is resolved from the BodySlides
+    /// menu, its slider labels are derived live from the current Label-by-Sliders rules at the
+    /// key's weight, and its stored Manual / Library annotations are added, so DescriptorRef
+    /// conditions gate here exactly like at scan time. <paramref name="seedContext"/> lets bulk
+    /// callers (RebuildScanResultsFromCache, ComputeRuleMatchSet) pay the context assembly once;
+    /// null = assemble it per call.</summary>
     public List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsFor(
         (string PresetLabel, Gender Gender, int Weight) key,
         BodyTypeProfile profileModel,
-        bool includeDrafts)
+        bool includeDrafts,
+        ExternalDescriptorSeedContext? seedContext = null)
     {
         var result = new List<BodyShapeDescriptor.LabelSignature>();
         if (!MeasurementCache.TryGetValue(key, out var entry)) return result;
@@ -9666,6 +9825,7 @@ public class VM_BodyTypeProfile : VM
         // a default value fire). Gender is taken from the cache key — every cached entry was scanned
         // with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = BodySlideMeasurementEvaluator.FilterEligibleRules(profileModel.Rules, key.Gender, includeDrafts);
+        var externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext());
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var defaults = BodySlideMeasurementEvaluator.RunClassifierRules(
@@ -9679,7 +9839,8 @@ public class VM_BodyTypeProfile : VM
                         Category = rule.Descriptor.Category,
                         Value = rule.Descriptor.Value,
                     });
-            });
+            },
+            externals);
 
         // Default pass: emit each Category's default for any Category that produced no rule
         // descriptor on this slice, so the editor's cached Match-Presets display agrees with a
@@ -9709,12 +9870,32 @@ public class VM_BodyTypeProfile : VM
     public void RebuildScanResultsFromCache(BodyTypeProfile profileModel, bool includeDrafts = true)
     {
         ScanResults.Clear();
+        // Seed context assembled once for the whole rebuild (VM dumps + preset sweep), not per
+        // cache key — it feeds each key's external-descriptor seed (live slider labels +
+        // stored manual/library annotations).
+        var seedContext = _parent?.BuildExternalDescriptorSeedContext();
         foreach (var key in MeasurementCache.Keys)
-            ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts);
+            ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts, seedContext);
         ScanResultsStale = false;
         // The descriptors now reflect the current rules; snapshot that rule state so a later
         // rule edit can tell a real change from an edit-then-revert (RevalidateRulesStale).
         CaptureRuleBaseline();
+    }
+
+    /// <summary>External-descriptor seed for one cache key: the key's preset is resolved via the
+    /// context's lookup, its slider labels derived live from the context's classification rules at
+    /// the key's weight, plus its stored Manual / Library annotations. Empty when the preset can't
+    /// be resolved (deleted preset, menu unavailable) or the context is null (no editor parent —
+    /// derive then behaves exactly as before seeding existed).</summary>
+    private static HashSet<(string Category, string Value)> GetExternalDescriptorsFor(
+        (string PresetLabel, Gender Gender, int Weight) key,
+        ExternalDescriptorSeedContext? seedContext)
+    {
+        if (seedContext == null) return new HashSet<(string Category, string Value)>();
+        return seedContext.PresetModelLookup.TryGetValue((key.PresetLabel, key.Gender), out var presetModel)
+            ? BodySlideMeasurementEvaluator.CollectExternalDescriptors(
+                presetModel, key.Weight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse)
+            : new HashSet<(string Category, string Value)>();
     }
 }
 
