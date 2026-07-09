@@ -25,6 +25,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
+            <RowDefinition Height="{Binding bShowTroubleshootingSettings, Converter={StaticResource GridHeightToggler}}"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
@@ -36,29 +37,32 @@
 
         <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="OBody.AutoApplyMissingAnnotations" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
-       
-        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="OBody.OBodyAssignmentMode" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="2" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
 
-        <Border Grid.Row="2" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+        <TextBlock Grid.Row="2" Grid.Column="0" local:DocTooltip.Key="OBody.PreferSliderDefaultsOnConflict" Margin="0 0 5 0">Default Descriptor Conflicts: Label by Sliders Wins</TextBlock>
+        <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding PreferSliderDefaultsOnConflict}"></CheckBox>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="OBody.OBodyAssignmentMode" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">OBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="3" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding OBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:OBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+
+        <Border Grid.Row="3" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Let OBody choose from all valid Bodyslides for each NPC" VerticalAlignment="Center" Margin="5 0 5 0" local:DocTooltip.Key="OBody.OBodyEnableMultipleAssignments"/>
                 <CheckBox IsChecked="{Binding OBodyEnableMultipleAssignments}"/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="2" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
+        <Border Grid.Row="3" Grid.Column="2" Visibility="{Binding ShowOBodySelectionMode, Converter={StaticResource BoolToVis}}">
             <StackPanel Orientation="Horizontal" Visibility="{Binding ShowOBodyNativeOptions, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}">
                 <TextBlock Margin="5 0 5 0" VerticalAlignment="Center" local:DocTooltip.Key="OBody.UseVerboseScripts">Use Verbose Scripts</TextBlock>
                 <CheckBox IsChecked="{Binding UseVerboseScripts}"></CheckBox>
             </StackPanel>
         </Border>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="OBody.AutoBodyAssignmentMode" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
-        <ComboBox Grid.Row="2" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" local:DocTooltip.Key="OBody.AutoBodyAssignmentMode" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}">AutoBody Assignment Mode</TextBlock>
+        <ComboBox Grid.Row="3" Grid.Column="1" Width="auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectedValue="{Binding AutoBodySelectionMode}" ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:AutoBodySelectionMode}}}" IsSynchronizedWithCurrentItem="True" Visibility="{Binding ShowAutoBodySelectionMode, Converter={StaticResource BoolToVis}}"/>
 
-        <Button Grid.Row="3" Grid.Column="0" Content="Remove Unused Descriptors" Foreground="FireBrick" Command="{Binding RemoveStashedDescriptors}" local:DocTooltip.Key="OBody.RemoveUnusedDescriptors" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}"/>
-        <ItemsControl Grid.Row="3" Grid.Column="2" ItemsSource="{Binding StashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}">
+        <Button Grid.Row="4" Grid.Column="0" Content="Remove Unused Descriptors" Foreground="FireBrick" Command="{Binding RemoveStashedDescriptors}" local:DocTooltip.Key="OBody.RemoveUnusedDescriptors" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}"/>
+        <ItemsControl Grid.Row="4" Grid.Column="2" ItemsSource="{Binding StashedDescriptors}" Visibility="{Binding ShowRemoveStashedDescriptorsButton, Converter={StaticResource BoolToVis}}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
@@ -71,10 +75,10 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.SliderCatalogOverrides">Slider Catalog Overrides</TextBlock>
-        <Button Grid.Row="4" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
-        <ItemsControl Grid.Row="4" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
+        <Button Grid.Row="5" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddSliderCatalogOverride}">Add New</Button>
+        <ItemsControl Grid.Row="5" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding SliderCatalogOverrides, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_SliderCatalogOverride}">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
@@ -87,10 +91,10 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
+        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 10 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.BodyTypeFamilies">Body Type Family Compatibility</TextBlock>
-        <Button Grid.Row="5" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddBodyTypeFamily}">Add New</Button>
-        <ItemsControl Grid.Row="5" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
+        <Button Grid.Row="6" Grid.Column="1" Margin="5 10 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionGoodForeground}" Command="{Binding AddBodyTypeFamily}">Add New</Button>
+        <ItemsControl Grid.Row="6" Grid.Column="2" Margin="0 10 0 0" ItemsSource="{Binding BodyTypeFamilies, UpdateSourceTrigger=PropertyChanged}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:VM_BodyTypeFamily}">
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 2">
@@ -102,12 +106,12 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0 15 0 0" VerticalAlignment="Top"
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0 15 0 0" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.PreviewNpcsByWeight">Preview NPC by Weight</TextBlock>
-        <Button Grid.Row="6" Grid.Column="1" Margin="5 15 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionAccentForeground}"
+        <Button Grid.Row="7" Grid.Column="1" Margin="5 15 0 0" VerticalAlignment="Top" HorizontalAlignment="Right" Foreground="{DynamicResource ActionAccentForeground}"
                 Command="{Binding PreviewNpcs.ResetAllCommand}"
                 local:DocTooltip.Key="OBody.PreviewNpcsResetAll">Reset All</Button>
-        <DataGrid Grid.Row="6" Grid.Column="2" Margin="0 15 0 0"
+        <DataGrid Grid.Row="7" Grid.Column="2" Margin="0 15 0 0"
                   ItemsSource="{Binding PreviewNpcs.Rows}" AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                   HeadersVisibility="Column" RowHeaderWidth="0" Background="{DynamicResource SecondaryBackground}" RowBackground="{DynamicResource SecondaryBackground}"

@@ -99,6 +99,17 @@ public class Settings_OBody
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
     public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
     public bool AutoApplyMissingAnnotations { get; set; } = true;
+
+    /// <summary>
+    /// Conflict policy for <see cref="DescriptorDefaultSynchronizer"/>'s load-time reconciliation of
+    /// the per-category default descriptor shared between Label by Sliders
+    /// (<see cref="SliderClassificationRulesByBodyType"/>) and Label by Measurements
+    /// (<see cref="BodyTypeProfile.DefaultDescriptorValuesByCategory"/>): when saved settings carry
+    /// two different non-empty defaults for the same (body type, category), true means the slider
+    /// side's value wins; false (default) means the measurement side's value wins. Live edits always
+    /// propagate both ways regardless of this flag — it only breaks pre-existing disagreements.
+    /// </summary>
+    public bool PreferSliderDefaultsOnConflict { get; set; } = false;
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
 
     /// <summary>

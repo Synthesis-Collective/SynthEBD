@@ -41,6 +41,12 @@ public class VM_BodyTypeProfileEditor : VM
     /// through the editor's shared log sink. Internal because VM_BodyTypeProfile is the
     /// only legitimate consumer; making it public would invite misuse from unrelated VMs.</summary>
     internal Logger? Logger => _logger;
+
+    /// <summary>Keeps each profile's per-category default descriptors in lockstep with the
+    /// Label by Sliders menu (and with sibling profiles of the same body type). Profiles push
+    /// their default edits through it (<see cref="VM_BodyTypeProfile.SetDefaultValueForCategory"/>)
+    /// and reconcile on import/duplicate/BodyTypeName retarget.</summary>
+    internal DescriptorDefaultSynchronizer Synchronizer { get; }
     private readonly Func<VM_SettingsOBody> _oBodyVM;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -69,7 +75,8 @@ public class VM_BodyTypeProfileEditor : VM
         PatcherState patcherState,
         VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory,
         SynthEBDPaths paths,
-        InstalledBodyTypeDetector bodyTypeDetector)
+        InstalledBodyTypeDetector bodyTypeDetector,
+        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer)
     {
         _logger = logger;
         _oBodyVM = oBodyVM;
@@ -78,6 +85,8 @@ public class VM_BodyTypeProfileEditor : VM
         _filterFactory = filterFactory;
         _paths = paths;
         _bodyTypeDetector = bodyTypeDetector;
+        Synchronizer = descriptorDefaultSynchronizer;
+        descriptorDefaultSynchronizer.RegisterProfileEditor(this);
 
         // Flush any cache that was renamed in-memory but never re-scanned, so a
         // rename-then-close-without-scan survives. Fires on app exit alongside the settings
@@ -838,6 +847,10 @@ public class VM_BodyTypeProfileEditor : VM
         var vm = new VM_BodyTypeProfile(loaded, this);
         Profiles.Add(vm);
         SelectedProfile = vm;
+        // The import may carry per-category defaults for a body type whose slider menu / sibling
+        // profiles disagree — reconcile now (per the Misc conflict policy) instead of waiting for
+        // the next settings load.
+        Synchronizer?.ReconcileProfile(vm);
         _logger?.LogMessage("BodyTypeProfileEditor: imported profile '" + loaded.Name + "' from " + path);
     }
 
@@ -3381,6 +3394,15 @@ public class VM_BodyTypeProfile : VM
         Name = _source.Name ?? "";
         BodyTypeName = _source.BodyTypeName ?? "";
 
+        // Retargeting this profile to a different body type changes which Label-by-Sliders rule
+        // set (and which sibling profiles) share its default descriptors — reconcile the new body
+        // type's defaults per the Misc conflict policy. Skip(1) ignores the ctor assignment above;
+        // bulk-hydration reconciliation is handled by the synchronizer's end-of-hydration pass.
+        this.WhenAnyValue(x => x.BodyTypeName)
+            .Skip(1)
+            .Subscribe(_ => _parent?.Synchronizer?.ReconcileProfile(this))
+            .DisposeWith(this);
+
         FingerprintVertexCount = _source.Fingerprint?.VertexCount ?? 0;
         FingerprintShapeCounts = _source.Fingerprint?.ShapeVertexCounts != null
             ? string.Join(", ", _source.Fingerprint.ShapeVertexCounts.Select(kv => kv.Key + ":" + kv.Value))
@@ -5026,7 +5048,19 @@ public class VM_BodyTypeProfile : VM
 
         RefreshDefaultStateForCategory(category);
         MarkScanResultsStale();
+
+        // Mirror the edit (including clears) into the Label by Sliders menu and any sibling
+        // profiles of the same body type. The no-op early-return above plus the synchronizer's
+        // re-entrancy guard make the fan-out loop-safe; hydration-time population writes
+        // _defaultValueByCategory directly, so only real user edits reach this push.
+        _parent?.Synchronizer?.PushFromMeasurementProfile(this, category, newVal);
     }
+
+    /// <summary>Snapshot of every (Category → default Value) this profile carries, for
+    /// <see cref="DescriptorDefaultSynchronizer"/>'s reconciliation sweep (which mutates the
+    /// underlying map via <see cref="SetDefaultValueForCategory"/> while iterating).</summary>
+    internal IReadOnlyDictionary<string, string> GetDefaultValuesByCategory() =>
+        new Dictionary<string, string>(_defaultValueByCategory, StringComparer.Ordinal);
 
     /// <summary>Re-raises <c>IsDefault</c> / <c>ShowMakeDefault</c> change notifications on every
     /// value node under <paramref name="category"/>'s tree node. Those properties are computed from

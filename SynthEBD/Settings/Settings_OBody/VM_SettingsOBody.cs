@@ -24,6 +24,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
     private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
     private readonly VM_BodySlideAnnotator.Factory _bodySlideAnnotatorFactory;
+    private readonly DescriptorDefaultSynchronizer _descriptorDefaultSynchronizer;
     private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
 
     /// <summary>
@@ -43,7 +44,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory,
         VM_OBodyTrainer obodyTrainer,
         VM_BodyTypeRegistry bodyTypeRegistry,
-        VM_BodyTypeProfileEditor bodyTypeProfileEditor
+        VM_BodyTypeProfileEditor bodyTypeProfileEditor,
+        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer
         )
     {
         _logger = logger;
@@ -51,6 +53,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _bodySlideAnnotatorFactory = bodySlideAnnotatorFactory;
+        _descriptorDefaultSynchronizer = descriptorDefaultSynchronizer;
         _texMeshSettings = texMeshSettings;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState, OnDescriptorValueDeletion, OnDescriptorCategoryDeletion);
@@ -159,6 +162,12 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             return;
         }
         _logger.LogStartupEventStart("Loading OBody Menu UI");
+        // Suspend descriptor-default sync for the whole hydration: the sub-menus load their
+        // defaults wholesale below, and mid-load pushes would smear half-loaded values between
+        // the Label by Sliders and Label by Measurements menus. The matching
+        // EndHydrationAndReconcile at the end of this method deconflicts both sides once
+        // everything is loaded, then enables live sync.
+        _descriptorDefaultSynchronizer.BeginHydration();
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
@@ -244,6 +253,12 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         AnnotatorUI.CopyInFromModel();
 
         CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
+
+        // Both labeling menus are fully loaded: deconflict their shared per-category default
+        // descriptors (empty side adopts; true conflicts follow the Misc toggle) and enable
+        // live two-way sync of future edits.
+        _descriptorDefaultSynchronizer.EndHydrationAndReconcile();
+
         _logger.LogStartupEventEnd("Loading OBody Menu UI");
     }
 

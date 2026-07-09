@@ -44,7 +44,7 @@ public class VM_BodySlideAnnotator : VM
     /// <summary>Autofac factory delegate for <see cref="VM_BodySlideAnnotator"/>.</summary>
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
     /// <summary>Wires up the ApplyAnnotations command and the preview rail, routing the selected body type into the rail's preset list.</summary>
-    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver, SynthEBDPaths paths)
+    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver, SynthEBDPaths paths, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer)
     {
         _patcherState = patcherState;
         _oBodyDescriptorMenu = oBodyDescriptorMenu;
@@ -52,6 +52,8 @@ public class VM_BodySlideAnnotator : VM
         _bodySlideAnnotator = bodySlideAnnotator;
         _logger = logger;
         _paths = paths;
+        DefaultSynchronizer = descriptorDefaultSynchronizer;
+        descriptorDefaultSynchronizer.RegisterAnnotator(this);
 
         PreviewPanel = new VM_SliderAnnotatorPreviewPanel(logger, patcherState, environmentProvider, characterViewerFactory, previewNpcResolver, bodySlideMenu);
         PreviewPanel.DisposeWith(this);
@@ -79,6 +81,13 @@ public class VM_BodySlideAnnotator : VM
     }
 
     public string SelectedSliderGroup { get; set; }
+
+    /// <summary>Keeps this menu's per-category default descriptors in lockstep with the
+    /// Label by Measurements profiles of the same body type. The per-category rule-set VMs
+    /// push their default edits through it (see
+    /// <see cref="VM_DescriptorClassificationRuleSet.OnDefaultDescriptorValueChanged"/>).</summary>
+    internal DescriptorDefaultSynchronizer DefaultSynchronizer { get; }
+
     public ObservableCollection<VM_SliderClassificationRulesByBodyType> AnnotationRules { get; set; } = new();
 
     public VM_SliderClassificationRulesByBodyType DisplayedRuleSet { get; set; }
@@ -603,6 +612,8 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     public VM_DescriptorClassificationRuleSet(VM_BodyShapeDescriptorShell subscribedDescriptorShell, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM, VM_SliderClassificationRulesByBodyType parentVM)
     {
         _subscribedDescriptorShell = subscribedDescriptorShell;
+        _annotatorVM = annotatorVM;
+        _parentVM = parentVM;
         SubscribedDescriptors = subscribedDescriptorShell.Descriptors;
         DescriptorCategory = _subscribedDescriptorShell.Category;
         AvailableSliderNames = availableSliderNames;
@@ -627,6 +638,8 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     }
 
     private VM_BodyShapeDescriptorShell _subscribedDescriptorShell { get; }
+    private readonly VM_BodySlideAnnotator _annotatorVM;
+    private readonly VM_SliderClassificationRulesByBodyType _parentVM;
     public ObservableCollection<VM_BodyShapeDescriptor> SubscribedDescriptors { get; }
     public ObservableCollection<IHasValueString> AvailableDefaultDescriptors { get; set; } = new();
     public ObservableCollection<string> AvailableSliderNames { get; }
@@ -635,6 +648,41 @@ public class VM_DescriptorClassificationRuleSet : VM // rule set for a given des
     public ObservableCollection<VM_DescriptorAssignmentRuleSet> RuleList { get; set; } = new();
     public RelayCommand ApplyAnnotationsCommand { get; }
     public RelayCommand AddNewRuleGroup { get; }
+
+    /// <summary>Fody hook: fires on every <see cref="DefaultDescriptorValue"/> change — user edits
+    /// via the ComboBox, hydration (<see cref="CopyInFromModel"/>), and the synchronizer's own
+    /// writes alike — and forwards the new value to <see cref="DescriptorDefaultSynchronizer"/>,
+    /// which keeps the Label by Measurements profiles of this body type in lockstep. The
+    /// synchronizer drops the echo/hydration calls itself (suspension + re-entrancy guards), so
+    /// this hook stays unconditional.</summary>
+    private void OnDefaultDescriptorValueChanged()
+    {
+        _annotatorVM?.DefaultSynchronizer?.PushFromSliderRuleSet(
+            _parentVM?.BodyTypeGroup ?? "", DescriptorCategory, DefaultDescriptorValue?.Value ?? "");
+    }
+
+    /// <summary>Synchronizer-side setter: selects the entry of <see cref="AvailableDefaultDescriptors"/>
+    /// whose Value matches <paramref name="value"/> (the leading empty/dummy entry for null/blank,
+    /// clearing the default). Returns false when a non-blank <paramref name="value"/> has no
+    /// matching descriptor in this category's catalog — the caller logs; nothing is changed. Setting
+    /// an equal value is a silent no-op so sync fan-out can't loop.</summary>
+    public bool TrySetDefaultValueByName(string value)
+    {
+        string current = DefaultDescriptorValue?.Value ?? "";
+        string target = value ?? "";
+        if (string.Equals(current, target, StringComparison.Ordinal)) return true;
+
+        if (string.IsNullOrEmpty(target))
+        {
+            DefaultDescriptorValue = AvailableDefaultDescriptors.FirstOrDefault(x => x.Value.IsNullOrEmpty());
+            return true;
+        }
+
+        var match = AvailableDefaultDescriptors.FirstOrDefault(x => string.Equals(x?.Value, target, StringComparison.Ordinal));
+        if (match == null) return false;
+        DefaultDescriptorValue = match;
+        return true;
+    }
 
     /// <summary>Loads the default descriptor value and rebuilds the rule list from the model.</summary>
     public void CopyInFromModel(DescriptorClassificationRuleSet model)

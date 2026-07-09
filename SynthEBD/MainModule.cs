@@ -85,6 +85,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_OBodyPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
+        builder.RegisterType<DescriptorDefaultSynchronizer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
