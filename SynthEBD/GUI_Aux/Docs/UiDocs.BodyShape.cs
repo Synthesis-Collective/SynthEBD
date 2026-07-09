@@ -34,6 +34,56 @@ public static partial class UiDocs
             technical: "Edits Settings_OBody.BodySlideClassificationRules (SliderClassificationRulesByBodyType keyed by slider group). BodySlideAnnotator evaluates these rules once per descriptor weight slot to assign body shape descriptors: Small/Big/Either conditions read the preset's authored endpoint slider values (labeling all slots or none), while Interpolated conditions read the weight-blended value at each slot, so their labels can apply to just part of the weight range. Rule-derived annotations are marked as non-manual and are recomputed rather than saved.",
             motivation: "Manually annotating hundreds of installed presets is tedious. Authoring rules once per body type lets every current and future preset be labeled automatically and consistently.");
 
+        Add("OBody.AnnotatorViewerSplitter",
+            layperson: "Drag to resize the rule editor and the 3D preview panel.",
+            technical: "GridSplitter between the classification-rule editor column and the preview rail (preset list, slider readout, CharacterViewer, NPC search). Same layout pattern as the Label by Measurements editor.",
+            motivation: "Rule authoring wants width for AND/OR groups while shape inspection wants width for the 3D view; a splitter lets each task claim the space it needs.");
+
+        Add("OBody.AnnotatorPreviewGender",
+            layperson: "Chooses whether the preset list and 3D preview show presets from your male or female BodySlide list.",
+            technical: "Selects between Settings_OBody.BodySlidesMale and BodySlidesFemale as the preset-list source, and picks the male/female half of the Misc-settings per-weight preview NPC pair (and of the NPC search results).",
+            motivation: "BodySlide presets are distributed per gender, and a preset only previews meaningfully on a body of the matching gender.");
+
+        Add("OBody.AnnotatorPreviewSliderPicker",
+            layperson: "Picks which slider's numbers appear in the preset list's Low / High / Interp columns, so you can sort every preset by that slider.",
+            technical: "Sets the slider whose authored Small/Big values and interpolated value (at the preview weight) populate VM_AnnotatorPresetRow.Low/High/Interpolated. Options are the body type's registry slider catalog unioned with sliders found in its loaded presets — the same list the rule rows offer. Presets lacking the slider show blank cells.",
+            motivation: "When tuning a rule threshold like 'BellyMuscle >= 60', sorting all presets by that slider shows exactly where a proposed cutoff lands across your installed presets.");
+
+        Add("OBody.AnnotatorPresetFilter",
+            layperson: "Type here to narrow the preset list to names containing the text.",
+            technical: "Case-insensitive substring filter over the preset labels in the list below. Filtering does not change the selected preset or the 3D preview.",
+            motivation: "Installed preset collections routinely run to hundreds of entries; scrolling for one by eye is slower than typing three letters.");
+
+        Add("OBody.AnnotatorPresetList",
+            layperson: "The presets of this body type. Click a column header to sort by name or by the picked slider's values; click a row to show that preset in the 3D view.",
+            technical: "Presets from the gendered BodySlide list whose SliderGroup matches the annotator's selected body type. Selection triggers LoadNpcAsync + ApplyBodySlide(preset, preview weight) on the rail's CharacterViewer. The Interp column is the linear Small-to-Big blend at the current preview weight — the value the Interpolated slider-rule type tests.",
+            motivation: "Rules are authored against slider numbers, but whether a threshold is right is a visual question; pairing the sorted numbers with a live 3D preview closes that loop without leaving the annotator.");
+
+        Add("OBody.AnnotatorSliderReadout",
+            layperson: "Every slider of the selected preset with its low-weight, high-weight, and current-weight values.",
+            technical: "One row per entry in the selected preset's SliderValues dictionary: authored Small (weight 0), Big (weight 100), and the interpolated value at the preview weight. The filter box does a case-insensitive substring match on slider names. Interp recomputes when the preview weight changes.",
+            motivation: "When deciding which slider drives a visual feature you see in the preview, you need the full value table of the preset in front of you, not just the one slider you already guessed.");
+
+        Add("OBody.AnnotatorPreviewWeight",
+            layperson: "The NPC weight (0-100) the preview shows. It also drives the 'Interp' columns and which NPC the weight search looks for.",
+            technical: "Continuous 0-100 value applied as the morph weight in ApplyBodySlide, as the interpolation point for both Interp columns, as the target for Find NPCs at Weight, and as the lookup weight for the default preview NPC (nearest configured slot in the Misc-settings per-weight table; ties round down).",
+            motivation: "Interpolated rules label presets differently across the weight range, so verifying them requires scrubbing the preview through weights — one shared weight keeps the numbers, the 3D shape, and the NPC consistent.");
+
+        Add("OBody.AnnotatorFindNpcs",
+            layperson: "Lists NPCs of the shown gender whose weight matches the value on the left, so you can preview the preset on a character who actually has that weight in-game.",
+            technical: "Background scan of the winning NPC overrides using the same eligibility rules as the Misc-settings Auto-pick: matching gender, exact weight, Unique flag, vanilla Skyrim.esm race with ActorTypeNPC, and vanilla body/skeleton mesh paths (so the BodySlide morph topology is valid for the preview). Results log per-criterion rejection counts when empty.",
+            motivation: "Preset annotations gate what NPCs receive at their own weight; picking a real NPC at the weight being inspected makes the preview representative rather than hypothetical.");
+
+        Add("OBody.AnnotatorNpcResults",
+            layperson: "NPCs found at the requested weight. Click one to preview the selected preset on that character.",
+            technical: "Results of Find NPCs at Weight (name > EditorID > FormKey display). Clicking a row writes the NPC into the override picker below, which reloads the viewer with that NPC.",
+            motivation: "Routing the click through the override picker keeps a single source of truth for who is being previewed, visible and editable in one place.");
+
+        Add("OBody.AnnotatorPreviewNpcOverride",
+            layperson: "Shows a specific NPC in the 3D preview instead of the default preview NPC. Clear it to go back to the default.",
+            technical: "Session-only FormKey override (not saved). When empty, the preview NPC comes from the OBody Misc 'Preview NPC by Weight' table at the configured slot nearest the preview weight, for the shown gender — the same policy as the BodySlides and Label by Measurements previews, adapted for this panel's continuous weight.",
+            motivation: "The per-weight defaults keep the panel working out of the box, while an override lets you check how a preset reads on the specific character you actually care about.");
+
         Add("OBody.AnnotatorSliderType",
             layperson: "Chooses which value of the slider this rule tests. Every preset stores two values per slider - one used at NPC weight 0 (Small) and one at weight 100 (Big) - and the game blends between them based on each NPC's weight. 'Small', 'Big', and 'Either' test those stored endpoint values and label the whole preset. 'Interpolated' tests the blended value at each weight step instead, so the label can apply only to the weights where it is true - for example, 'narrow shoulders' only below the weight where the shoulder slider crosses your threshold.",
             technical: "Sets SliderClassificationRule.SliderType. Small/Big/Either compare the preset XML's authored endpoint values and are weight-independent, so the rule annotates every weight slot or none (legacy whole-preset behavior). Interpolated compares Small + (Big - Small) * weight/100 - the same linear blend the game applies to morphs - evaluated at each slot of BodyShapeDescriptorsByWeight, and the descriptor is added only to the slots where the rule passes. Interpolated values can be fractional, so = and != compare against the nearest whole number; ordered comparators use the raw value. Conditions of different types can be mixed in one AND group; each slot evaluates all of them together.",

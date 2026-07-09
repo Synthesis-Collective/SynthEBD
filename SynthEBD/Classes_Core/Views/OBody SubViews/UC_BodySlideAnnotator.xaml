@@ -10,7 +10,9 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*" MinWidth="380"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="400" MinWidth="240"/>
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
@@ -54,5 +56,18 @@
                 </DataTemplate>
             </ContentPresenter.Resources>
         </ContentPresenter>
+
+        <!-- Resizable splitter between the rule editor and the preview rail. -->
+        <GridSplitter Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Width="5" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
+                      ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                      ShowsPreview="True"
+                      local:DocTooltip.Key="OBody.AnnotatorViewerSplitter"/>
+
+        <!-- Right rail: sortable preset list + slider readout + CharacterViewer + NPC-at-weight
+             search, so rule thresholds can be sanity-checked against real presets in 3D without
+             leaving the annotator. -->
+        <local:UC_SliderAnnotatorPreviewPanel Grid.Row="0" Grid.Column="3" Grid.RowSpan="3"
+                                              DataContext="{Binding PreviewPanel}" Margin="5 0 0 0"/>
     </Grid>
 </UserControl>

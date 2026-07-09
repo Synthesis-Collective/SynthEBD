@@ -20,10 +20,23 @@ namespace SynthEBD
     /// </summary>
     public partial class UC_BodySlideAnnotator : UserControl
     {
-        /// <summary>Initializes the view's XAML components.</summary>
+        /// <summary>Initializes the view's XAML components and wires the preview rail's first-load priming.</summary>
         public UC_BodySlideAnnotator()
         {
             InitializeComponent();
+            // Prime the preview rail (preset list + default NPC) once the view is live —
+            // deferred to Loaded/DataContextChanged like UC_BodyTypeProfileEditor so VM
+            // construction order doesn't matter. Prime() itself is idempotent.
+            Loaded += (_, _) => TryPrime();
+            DataContextChanged += (_, _) => { if (IsLoaded) TryPrime(); };
+        }
+
+        private void TryPrime()
+        {
+            if (DataContext is VM_BodySlideAnnotator vm)
+            {
+                vm.PreviewPanel?.Prime();
+            }
         }
     }
 }

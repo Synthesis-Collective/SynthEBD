@@ -25,8 +25,8 @@ public class VM_BodySlideAnnotator : VM
 
     /// <summary>Autofac factory delegate for <see cref="VM_BodySlideAnnotator"/>.</summary>
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
-    /// <summary>Wires up the ApplyAnnotations command.</summary>
-    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger)
+    /// <summary>Wires up the ApplyAnnotations command and the preview rail, routing the selected body type into the rail's preset list.</summary>
+    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver)
     {
         _patcherState = patcherState;
         _oBodyDescriptorMenu = oBodyDescriptorMenu;
@@ -34,15 +34,29 @@ public class VM_BodySlideAnnotator : VM
         _bodySlideAnnotator = bodySlideAnnotator;
         _logger = logger;
 
+        PreviewPanel = new VM_SliderAnnotatorPreviewPanel(logger, patcherState, environmentProvider, characterViewerFactory, previewNpcResolver, bodySlideMenu);
+        PreviewPanel.DisposeWith(this);
+
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => ApplyAnnotations(null, null));
+
+        PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(DisplayedRuleSet))
+            {
+                PreviewPanel.SetBodyType(DisplayedRuleSet?.BodyTypeGroup, DisplayedRuleSet?.AvailableSliderNames);
+            }
+        };
     }
 
     public string SelectedSliderGroup { get; set; }
     public ObservableCollection<VM_SliderClassificationRulesByBodyType> AnnotationRules { get; set; } = new();
 
     public VM_SliderClassificationRulesByBodyType DisplayedRuleSet { get; set; }
+
+    /// <summary>The right-rail preview panel: preset list, slider readout, CharacterViewer, and NPC-at-weight search.</summary>
+    public VM_SliderAnnotatorPreviewPanel PreviewPanel { get; }
 
     public Dictionary<string, ObservableCollection<string>> SliderNamesByGroup { get; set; } = new();
     private List<SliderClassificationRulesByBodyType> _stashedUnloadedBodyTypeRules { get; set; } = new(); // for storing rules for descriptors that a user may have inadvertently removed
@@ -249,6 +263,7 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         _subscribedDescriptorMenu = subscribedMenu;
 
         BodyTypeGroup = bodyTypeGroup;
+        AvailableSliderNames = availableSliderNames;
         HasLoadedPresets = hasLoadedPresets;
 
         foreach (var descriptorShell in _subscribedDescriptorMenu.TemplateDescriptors)
@@ -262,6 +277,9 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         );
     }
     public string BodyTypeGroup { get; } // E.g. HIMBO, CBBE, etc
+
+    /// <summary>This body type's slider names (registry catalog ∪ loaded presets) — the same list the rule rows' slider pickers use. Read by the preview rail's sort-slider picker.</summary>
+    public ObservableCollection<string> AvailableSliderNames { get; }
 
     /// <summary>
     /// False when no loaded BodySlide preset XMLs classified to this body type. The rules remain

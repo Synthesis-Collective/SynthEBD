@@ -53,7 +53,51 @@ public class PreviewNpcResolver
 
     /// <summary>
     /// Returns the first NPC in load-order priority that satisfies the BodySlide preview
-    /// picker's selection criteria:
+    /// picker's selection criteria (see <see cref="EnumerateEligibleNpcsAtWeight"/> for the
+    /// criteria list). Returns <see cref="FormKey.Null"/> with a diagnostic log line
+    /// (including per-criterion rejection counts) when nothing matches.
+    /// </summary>
+    public FormKey FindFirstNpcAtWeight(Gender gender, int targetWeight, int tolerance = 0)
+    {
+        var tally = new RejectionTally();
+        foreach (var npc in EnumerateEligibleNpcsAtWeight(gender, targetWeight, tolerance, tally))
+        {
+            return npc.FormKey;
+        }
+
+        _logger.LogMessage(
+            $"PreviewNpcResolver: No NPC found at weight {targetWeight} (±{tolerance}) for gender {gender}. " + tally.Describe());
+        return FormKey.Null;
+    }
+
+    /// <summary>
+    /// Returns every NPC in the load order that satisfies the same eligibility criteria as
+    /// <see cref="FindFirstNpcAtWeight"/> (the Auto-pick rules), packaged with display info
+    /// and sorted by display name. Logs the per-criterion rejection counts when the result
+    /// is empty so a blank list is diagnosable. Used by the Label by Sliders preview panel's
+    /// "NPCs at weight" search.
+    /// </summary>
+    public List<PreviewNpcCandidateInfo> FindNpcsAtWeight(Gender gender, int targetWeight, int tolerance = 0)
+    {
+        var results = new List<PreviewNpcCandidateInfo>();
+        var tally = new RejectionTally();
+        foreach (var npc in EnumerateEligibleNpcsAtWeight(gender, targetWeight, tolerance, tally))
+        {
+            results.Add(new PreviewNpcCandidateInfo(npc.FormKey, npc.Name?.String, npc.EditorID, npc.Weight));
+        }
+
+        if (!results.Any())
+        {
+            _logger.LogMessage(
+                $"PreviewNpcResolver: No NPCs found at weight {targetWeight} (±{tolerance}) for gender {gender}. " + tally.Describe());
+        }
+
+        return results.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>
+    /// Core eligibility scan shared by <see cref="FindFirstNpcAtWeight"/> and
+    /// <see cref="FindNpcsAtWeight"/>. Yields, in load-order priority, every NPC that:
     /// <list type="number">
     ///   <item>matches <paramref name="gender"/>;</item>
     ///   <item>has <c>NPC.Weight</c> within <paramref name="tolerance"/> of <paramref name="targetWeight"/>;</item>
@@ -65,14 +109,18 @@ public class PreviewNpcResolver
     ///         shared with the player's BodySlide build;</item>
     ///   <item>that race carries the <c>ActorTypeNPC</c> keyword — filters out creature-
     ///         like races whose body topology won't match standard CBBE / UNP /
-    ///         3BA / etc.</item>
+    ///         3BA / etc.;</item>
+    ///   <item>its worn-armor body ARMA and race skeleton resolve to the vanilla mesh
+    ///         paths — non-vanilla overrides won't share topology with the BodySlide
+    ///         build the viewer renders.</item>
     /// </list>
-    /// Returns <see cref="FormKey.Null"/> with a diagnostic log line (including
-    /// per-criterion rejection counts) when nothing matches.
+    /// Rejection counts accumulate into <paramref name="tally"/> so callers can log a
+    /// per-criterion diagnostic when nothing matched. Enumeration is lazy: a first-match
+    /// caller stops the scan (and the tally) at its match.
     /// </summary>
-    public FormKey FindFirstNpcAtWeight(Gender gender, int targetWeight, int tolerance = 0)
+    private IEnumerable<INpcGetter> EnumerateEligibleNpcsAtWeight(Gender gender, int targetWeight, int tolerance, RejectionTally tally)
     {
-        if (_env.LoadOrder == null || _env.LinkCache == null) return FormKey.Null;
+        if (_env.LoadOrder == null || _env.LinkCache == null) yield break;
 
         // String-compare ModKey.ToString() against "Skyrim.esm" — robust against any
         // surprise in the FormKeys.SkyrimSE namespace's static surface (an earlier attempt
@@ -98,41 +146,30 @@ public class PreviewNpcResolver
             ? @"actors\character\character assets female\skeleton_female.nif"
             : @"actors\character\character assets\skeleton.nif";
 
-        int scanned = 0;
-        int rejGender = 0;
-        int rejWeight = 0;
-        int rejUnique = 0;
-        int rejRaceNull = 0;
-        int rejRaceMod = 0;
-        int rejRaceUnresolved = 0;
-        int rejRaceKeyword = 0;
-        int rejBodyPath = 0;
-        int rejSkeletonPath = 0;
-
         foreach (var ctx in _env.LoadOrder.PriorityOrder.Npc().WinningContextOverrides())
         {
-            scanned++;
+            tally.Scanned++;
             var npc = ctx.Record;
 
-            if (GetGender(npc) != gender) { rejGender++; continue; }
-            if (Math.Abs(npc.Weight - targetWeight) > tolerance) { rejWeight++; continue; }
-            if (!npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique)) { rejUnique++; continue; }
+            if (GetGender(npc) != gender) { tally.Gender++; continue; }
+            if (Math.Abs(npc.Weight - targetWeight) > tolerance) { tally.Weight++; continue; }
+            if (!npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique)) { tally.Unique++; continue; }
 
-            if (npc.Race == null || npc.Race.IsNull) { rejRaceNull++; continue; }
+            if (npc.Race == null || npc.Race.IsNull) { tally.RaceNull++; continue; }
             if (!string.Equals(npc.Race.FormKey.ModKey.ToString(), "Skyrim.esm", System.StringComparison.OrdinalIgnoreCase))
             {
-                rejRaceMod++;
+                tally.RaceMod++;
                 continue;
             }
 
             if (!_env.LinkCache.TryResolve<IRaceGetter>(npc.Race.FormKey, out var raceGetter))
             {
-                rejRaceUnresolved++;
+                tally.RaceUnresolved++;
                 continue;
             }
             if (raceGetter.Keywords == null || !raceGetter.Keywords.Contains(actorTypeNpcLink))
             {
-                rejRaceKeyword++;
+                tally.RaceKeyword++;
                 continue;
             }
 
@@ -141,7 +178,7 @@ public class PreviewNpcResolver
             string? bodyPath = ResolveBodyMeshGivenPath(npc, raceGetter, gender);
             if (bodyPath == null || !NormalizedPathEquals(bodyPath, expectedBody))
             {
-                rejBodyPath++;
+                tally.BodyPath++;
                 continue;
             }
 
@@ -149,20 +186,33 @@ public class PreviewNpcResolver
             string? skelPath = ResolveSkeletonGivenPath(raceGetter, gender);
             if (skelPath == null || !NormalizedPathEquals(skelPath, expectedSkel))
             {
-                rejSkeletonPath++;
+                tally.SkeletonPath++;
                 continue;
             }
 
-            return npc.FormKey;
+            yield return npc;
         }
+    }
 
-        _logger.LogMessage(
-            $"PreviewNpcResolver: No NPC found at weight {targetWeight} (±{tolerance}) for gender {gender}. " +
-            $"Scanned {scanned} NPC(s); rejected — gender:{rejGender}, weight:{rejWeight}, " +
-            $"unique:{rejUnique}, race-null:{rejRaceNull}, race-not-Skyrim.esm:{rejRaceMod}, " +
-            $"race-unresolved:{rejRaceUnresolved}, race-missing-ActorTypeNPC:{rejRaceKeyword}, " +
-            $"body-path-not-vanilla:{rejBodyPath}, skeleton-path-not-vanilla:{rejSkeletonPath}.");
-        return FormKey.Null;
+    /// <summary>Per-criterion rejection counters for the eligibility scan's failure diagnostics.</summary>
+    private sealed class RejectionTally
+    {
+        public int Scanned;
+        public int Gender;
+        public int Weight;
+        public int Unique;
+        public int RaceNull;
+        public int RaceMod;
+        public int RaceUnresolved;
+        public int RaceKeyword;
+        public int BodyPath;
+        public int SkeletonPath;
+
+        public string Describe() =>
+            $"Scanned {Scanned} NPC(s); rejected — gender:{Gender}, weight:{Weight}, " +
+            $"unique:{Unique}, race-null:{RaceNull}, race-not-Skyrim.esm:{RaceMod}, " +
+            $"race-unresolved:{RaceUnresolved}, race-missing-ActorTypeNPC:{RaceKeyword}, " +
+            $"body-path-not-vanilla:{BodyPath}, skeleton-path-not-vanilla:{SkeletonPath}.";
     }
 
     /// <summary>
@@ -259,4 +309,18 @@ public class PreviewNpcResolver
             ? Gender.Female
             : Gender.Male;
     }
+}
+
+/// <summary>
+/// One eligible preview NPC returned by <see cref="PreviewNpcResolver.FindNpcsAtWeight"/>:
+/// the record's FormKey plus the display fields the candidate list shows without needing
+/// to re-resolve the record.
+/// </summary>
+public sealed record PreviewNpcCandidateInfo(FormKey NpcFormKey, string? Name, string? EditorId, float Weight)
+{
+    /// <summary>Name → EditorID → FormKey, first non-empty wins — same precedence the named FormKey pickers display.</summary>
+    public string DisplayName =>
+        !string.IsNullOrWhiteSpace(Name) ? Name!
+        : !string.IsNullOrWhiteSpace(EditorId) ? EditorId!
+        : NpcFormKey.ToString();
 }
