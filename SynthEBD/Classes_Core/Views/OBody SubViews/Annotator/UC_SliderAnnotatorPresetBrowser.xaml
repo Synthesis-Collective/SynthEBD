@@ -1,0 +1,122 @@
+<UserControl x:Class="SynthEBD.UC_SliderAnnotatorPresetBrowser"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_SliderAnnotatorPreviewPanel}"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="900">
+    <!-- Lower half of the Label by Sliders middle pane: the sortable preset list (left) and the
+         selected preset's full slider readout (right), side by side. Binds the same
+         VM_SliderAnnotatorPreviewPanel as the viewer rail; selecting a preset here drives the
+         CharacterViewer on the right rail. -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="240"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="*" MinWidth="200"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Preset browser: gender + sort-slider pickers, text filter, and the sortable preset
+             grid. Click a column header to sort; the Low/High/Interp columns show the picked
+             slider's values (blank when a preset doesn't carry that slider). -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,2">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Gender:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" Margin="0,0,8,0" MinWidth="80"
+                              ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
+                              SelectedValue="{Binding PreviewGender}"
+                              local:DocTooltip.Key="OBody.AnnotatorPreviewGender"/>
+                    <TextBlock Grid.Column="2" Text="Slider:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="3" Margin="0,0,8,0"
+                              ItemsSource="{Binding AvailableSliderNames}"
+                              SelectedItem="{Binding SelectedSliderName}"
+                              IsTextSearchEnabled="True"
+                              MaxDropDownHeight="400"
+                              local:DocTooltip.Key="OBody.AnnotatorPreviewSliderPicker"/>
+                    <TextBlock Grid.Column="4" Text="Filter:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="5"
+                             Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Center"
+                             local:DocTooltip.Key="OBody.AnnotatorPresetFilter"/>
+                </Grid>
+            </Border>
+
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding FilteredPresetRows}"
+                      SelectedItem="{Binding SelectedPresetRow}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                      HeadersVisibility="Column" SelectionMode="Single"
+                      local:DocTooltip.Key="OBody.AnnotatorPresetList">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Preset" Binding="{Binding Label}" Width="*"/>
+                    <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>
+                    <DataGridTextColumn Header="High" Binding="{Binding High}" Width="Auto"/>
+                    <DataGridTextColumn Header="Interp" Binding="{Binding Interpolated, StringFormat={}{0:0.##}}" Width="Auto"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <!-- Resizable splitter between the preset list and the slider readout. -->
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
+                      ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                      ShowsPreview="True"
+                      local:DocTooltip.Key="OBody.AnnotatorBrowserReadoutSplitter"/>
+
+        <!-- All slider values of the selected preset. -->
+        <Grid Grid.Column="2" Margin="5,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,2">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Selected Preset Slider Values" FontWeight="SemiBold"
+                               Margin="0,0,10,0" VerticalAlignment="Center"
+                               local:DocTooltip.Key="OBody.AnnotatorSliderReadout"/>
+                    <TextBlock Grid.Column="1" Text="Filter:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="2"
+                             Text="{Binding SliderReadoutFilterText, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding SliderReadoutRows}"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                      HeadersVisibility="Column" SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Slider" Binding="{Binding SliderName}" Width="*"/>
+                    <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>
+                    <DataGridTextColumn Header="High" Binding="{Binding High}" Width="Auto"/>
+                    <DataGridTextColumn Header="Interp" Binding="{Binding Interpolated, StringFormat={}{0:0.##}}" Width="Auto"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -49,13 +49,34 @@
         <Button Grid.Row="1" Grid.Column="0" Content="Re-Annotate Selected" Foreground="Purple" Command="{Binding DisplayedRuleSet.ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
         <Button Grid.Row="2" Grid.Column="0" Content="Re-Annotate All" Foreground="{DynamicResource ActionAccentForeground}" Command="{Binding ApplyAnnotationsCommand}" VerticalAlignment="Top"/>
 
-        <ContentPresenter Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Content="{Binding DisplayedRuleSet}" Margin="5 0 0 0">
-            <ContentPresenter.Resources>
-                <DataTemplate DataType="{x:Type local:VM_SliderClassificationRulesByBodyType}">
-                    <local:UC_SliderClassificationRulesByBodyType/>
-                </DataTemplate>
-            </ContentPresenter.Resources>
-        </ContentPresenter>
+        <!-- Middle pane: annotation rules on top, preset browser + slider readout below, with a
+             draggable divider between the halves. -->
+        <Grid Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Margin="5 0 0 0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="150"/>
+                <RowDefinition Height="5"/>
+                <RowDefinition Height="*" MinHeight="120"/>
+            </Grid.RowDefinitions>
+
+            <ContentPresenter Grid.Row="0" Content="{Binding DisplayedRuleSet}">
+                <ContentPresenter.Resources>
+                    <DataTemplate DataType="{x:Type local:VM_SliderClassificationRulesByBodyType}">
+                        <local:UC_SliderClassificationRulesByBodyType/>
+                    </DataTemplate>
+                </ContentPresenter.Resources>
+            </ContentPresenter>
+
+            <!-- Resizable splitter between the rule editor and the preset browser below it. -->
+            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Rows"
+                          ShowsPreview="True"
+                          local:DocTooltip.Key="OBody.AnnotatorRulesBrowserSplitter"/>
+
+            <!-- Sortable preset list + selected preset's slider readout, side by side. Selecting
+                 a preset here drives the CharacterViewer in the right rail. -->
+            <local:UC_SliderAnnotatorPresetBrowser Grid.Row="2" DataContext="{Binding PreviewPanel}"/>
+        </Grid>
 
         <!-- Resizable splitter between the rule editor and the preview rail. -->
         <GridSplitter Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Width="5" HorizontalAlignment="Stretch"
@@ -64,9 +85,9 @@
                       ShowsPreview="True"
                       local:DocTooltip.Key="OBody.AnnotatorViewerSplitter"/>
 
-        <!-- Right rail: sortable preset list + slider readout + CharacterViewer + NPC-at-weight
-             search, so rule thresholds can be sanity-checked against real presets in 3D without
-             leaving the annotator. -->
+        <!-- Right rail: CharacterViewer at full height + NPC-at-weight search beneath it, so rule
+             thresholds can be sanity-checked against real presets in 3D without leaving the
+             annotator. -->
         <local:UC_SliderAnnotatorPreviewPanel Grid.Row="0" Grid.Column="3" Grid.RowSpan="3"
                                               DataContext="{Binding PreviewPanel}" Margin="5 0 0 0"/>
     </Grid>

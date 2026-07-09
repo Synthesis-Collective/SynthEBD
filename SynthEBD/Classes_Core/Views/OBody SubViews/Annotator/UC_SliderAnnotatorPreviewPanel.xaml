@@ -8,87 +8,11 @@
              d:DataContext="{d:DesignInstance Type=local:VM_SliderAnnotatorPreviewPanel}"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="400">
-    <!-- Right rail of the Label by Sliders menu: preset browser (top), collapsible per-preset
-         slider readout, NPC-at-weight search (bottom), and the embedded CharacterViewer filling
-         the remaining height. Same rail pattern as UC_BodyTypeProfileEditor. -->
+    <!-- Right rail of the Label by Sliders menu: the embedded CharacterViewer at full height with
+         the NPC-at-weight search docked beneath it. The preset list and slider readout that drive
+         this viewer live in UC_SliderAnnotatorPresetBrowser (lower middle pane); both bind the
+         same VM_SliderAnnotatorPreviewPanel. -->
     <DockPanel>
-        <!-- Preset browser: gender + sort-slider pickers, text filter, and the sortable preset
-             grid. Click a column header to sort; the Low/High/Interp columns show the picked
-             slider's values (blank when a preset doesn't carry that slider). -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,5">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Gender:" Margin="0,0,5,2" VerticalAlignment="Center"/>
-                <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,8,2"
-                          ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
-                          SelectedValue="{Binding PreviewGender}"
-                          local:DocTooltip.Key="OBody.AnnotatorPreviewGender"/>
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Slider:" Margin="0,0,5,2" VerticalAlignment="Center"/>
-                <ComboBox Grid.Row="0" Grid.Column="3" Margin="0,0,0,2"
-                          ItemsSource="{Binding AvailableSliderNames}"
-                          SelectedItem="{Binding SelectedSliderName}"
-                          IsTextSearchEnabled="True"
-                          MaxDropDownHeight="400"
-                          local:DocTooltip.Key="OBody.AnnotatorPreviewSliderPicker"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Margin="0,0,5,2" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,2"
-                         Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
-                         local:DocTooltip.Key="OBody.AnnotatorPresetFilter"/>
-
-                <DataGrid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4"
-                          ItemsSource="{Binding FilteredPresetRows}"
-                          SelectedItem="{Binding SelectedPresetRow}"
-                          AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                          HeadersVisibility="Column" SelectionMode="Single"
-                          MinHeight="80" MaxHeight="220"
-                          local:DocTooltip.Key="OBody.AnnotatorPresetList">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Preset" Binding="{Binding Label}" Width="*"/>
-                        <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>
-                        <DataGridTextColumn Header="High" Binding="{Binding High}" Width="Auto"/>
-                        <DataGridTextColumn Header="Interp" Binding="{Binding Interpolated, StringFormat={}{0:0.##}}" Width="Auto"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </Border>
-
-        <!-- All slider values of the selected preset. Collapsed by default so the viewer keeps
-             its height; the preset grid above already shows the picked slider's values. -->
-        <Expander DockPanel.Dock="Top" Header="Selected Preset Slider Values" IsExpanded="False" Margin="0,0,0,5"
-                  local:DocTooltip.Key="OBody.AnnotatorSliderReadout">
-            <DockPanel Margin="0,4,0,0">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,2">
-                    <TextBlock Text="Filter:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding SliderReadoutFilterText, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
-                <DataGrid ItemsSource="{Binding SliderReadoutRows}"
-                          AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                          HeadersVisibility="Column" SelectionMode="Single"
-                          MaxHeight="200">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Slider" Binding="{Binding SliderName}" Width="*"/>
-                        <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>
-                        <DataGridTextColumn Header="High" Binding="{Binding High}" Width="Auto"/>
-                        <DataGridTextColumn Header="Interp" Binding="{Binding Interpolated, StringFormat={}{0:0.##}}" Width="Auto"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
-        </Expander>
-
         <!-- NPC selection: weight-driven search over the load order (Auto-pick eligibility
              rules) plus a free-form override picker. Docked below the viewer per spec. -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,5,0,0">

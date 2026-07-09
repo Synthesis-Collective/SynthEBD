@@ -35,9 +35,19 @@ public static partial class UiDocs
             motivation: "Manually annotating hundreds of installed presets is tedious. Authoring rules once per body type lets every current and future preset be labeled automatically and consistently.");
 
         Add("OBody.AnnotatorViewerSplitter",
-            layperson: "Drag to resize the rule editor and the 3D preview panel.",
-            technical: "GridSplitter between the classification-rule editor column and the preview rail (preset list, slider readout, CharacterViewer, NPC search). Same layout pattern as the Label by Measurements editor.",
+            layperson: "Drag to resize the middle editor area and the 3D preview panel.",
+            technical: "GridSplitter between the middle column (rule editor above, preset browser + slider readout below) and the viewer rail (CharacterViewer + NPC search). Same layout pattern as the Label by Measurements editor.",
             motivation: "Rule authoring wants width for AND/OR groups while shape inspection wants width for the 3D view; a splitter lets each task claim the space it needs.");
+
+        Add("OBody.AnnotatorRulesBrowserSplitter",
+            layperson: "Drag to trade height between the annotation rules above and the preset list below.",
+            technical: "Horizontal GridSplitter between the classification-rule editor (upper middle) and the preset browser / slider readout pair (lower middle).",
+            motivation: "Deep rule trees and long preset lists compete for the same vertical space; the divider lets whichever is being worked on take more of it.");
+
+        Add("OBody.AnnotatorBrowserReadoutSplitter",
+            layperson: "Drag to trade width between the preset list and the slider-value table.",
+            technical: "Vertical GridSplitter between the sortable preset list and the selected preset's slider readout in the lower middle pane.",
+            motivation: "Long preset labels and long slider names both want width; the divider lets the user favor whichever they are reading.");
 
         Add("OBody.AnnotatorPreviewGender",
             layperson: "Chooses whether the preset list and 3D preview show presets from your male or female BodySlide list.",
