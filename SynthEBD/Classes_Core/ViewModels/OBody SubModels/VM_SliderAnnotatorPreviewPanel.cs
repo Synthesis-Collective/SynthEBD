@@ -185,7 +185,17 @@ public class VM_SliderAnnotatorPreviewPanel : VM
     public void SetBodyType(string? bodyTypeGroup, IEnumerable<string>? availableSliderNames)
     {
         _currentBodyType = bodyTypeGroup ?? "";
+        RefreshSliderNames(availableSliderNames);
+        RebuildPresetRows();
+    }
 
+    /// <summary>
+    /// Repopulates just the sort-slider picker (preserving the current selection when still
+    /// offered), leaving the preset list and its selection alone. Called on its own when the
+    /// annotator's ShowPresetOnlySliders toggle changes the visible slider set.
+    /// </summary>
+    public void RefreshSliderNames(IEnumerable<string>? availableSliderNames)
+    {
         var previousSlider = SelectedSliderName;
         AvailableSliderNames.Clear();
         if (availableSliderNames != null)
@@ -196,8 +206,7 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             }
         }
         SelectedSliderName = previousSlider != null && AvailableSliderNames.Contains(previousSlider) ? previousSlider : null;
-
-        RebuildPresetRows();
+        RefreshPresetRowSliderValues();
     }
 
     /// <summary>Rebuilds the unfiltered preset rows from the gendered BodySlides list, gated to the current body type.</summary>

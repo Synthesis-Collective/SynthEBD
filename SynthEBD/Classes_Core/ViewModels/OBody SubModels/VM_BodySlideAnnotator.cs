@@ -3,9 +3,14 @@ using DynamicData.Binding;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using Noggog;
+using ReactiveUI;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Text;
 
 namespace SynthEBD;
 
@@ -22,20 +27,35 @@ public class VM_BodySlideAnnotator : VM
     private readonly VM_BodySlidesMenu _bodySlideMenu;
     private readonly BodySlideAnnotator _bodySlideAnnotator;
     private readonly Logger _logger;
+    private readonly SynthEBDPaths _paths;
+
+    // Slider-name provenance: per body type, which source contributed each slider name the
+    // annotator UI offers — the registry catalog (ResolvedSliders) vs loaded BodySlide preset
+    // XMLs (with the contributing preset labels). Populated by InitializeBodySlideInfo. This
+    // split drives the catalog-first slider pickers (preset XMLs routinely embed outfit
+    // zap/squeeze sliders, so preset-contributed names are hidden behind a per-body-type
+    // toggle), and is dumped to Logs\SliderNameProvenance.txt as a startup diagnostic.
+    private readonly Dictionary<string, HashSet<string>> _catalogSlidersByGroup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<string, List<string>>> _presetSlidersByGroup = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Tracks the displayed rule set's ShowPresetOnlySliders toggle so the preview rail's slider picker follows it; swapped on each body-type selection.</summary>
+    private readonly SerialDisposable _displayedRuleSetSliderNamesSub = new();
 
     /// <summary>Autofac factory delegate for <see cref="VM_BodySlideAnnotator"/>.</summary>
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
     /// <summary>Wires up the ApplyAnnotations command and the preview rail, routing the selected body type into the rail's preset list.</summary>
-    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver)
+    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver, SynthEBDPaths paths)
     {
         _patcherState = patcherState;
         _oBodyDescriptorMenu = oBodyDescriptorMenu;
         _bodySlideMenu = bodySlideMenu;
         _bodySlideAnnotator = bodySlideAnnotator;
         _logger = logger;
+        _paths = paths;
 
         PreviewPanel = new VM_SliderAnnotatorPreviewPanel(logger, patcherState, environmentProvider, characterViewerFactory, previewNpcResolver, bodySlideMenu);
         PreviewPanel.DisposeWith(this);
+        _displayedRuleSetSliderNamesSub.DisposeWith(this);
 
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
@@ -46,6 +66,14 @@ public class VM_BodySlideAnnotator : VM
             if (args.PropertyName == nameof(DisplayedRuleSet))
             {
                 PreviewPanel.SetBodyType(DisplayedRuleSet?.BodyTypeGroup, DisplayedRuleSet?.AvailableSliderNames);
+
+                // Follow the selected body type's ShowPresetOnlySliders toggle so the preview
+                // rail's slider picker stays in sync without resetting its preset list/selection.
+                var watchedRuleSet = DisplayedRuleSet;
+                _displayedRuleSetSliderNamesSub.Disposable = watchedRuleSet?
+                    .WhenAnyValue(x => x.ShowPresetOnlySliders)
+                    .Skip(1)
+                    .Subscribe(_ => PreviewPanel.RefreshSliderNames(watchedRuleSet.AvailableSliderNames));
             }
         };
     }
@@ -75,6 +103,8 @@ public class VM_BodySlideAnnotator : VM
     {
         SliderNamesByGroup.Clear();
         AnnotationRules.Clear();
+        _catalogSlidersByGroup.Clear();
+        _presetSlidersByGroup.Clear();
 
         // Pass 1: collect the slider names present in the loaded BodySlide preset XMLs, keyed by the
         // body type (SliderGroup) the classifier assigned each preset. A key existing here is what
@@ -97,22 +127,37 @@ public class VM_BodySlideAnnotator : VM
 
             var currentSliderNameList = SliderNamesByGroup[currentSliderGroup];
 
+            // Slider-name provenance: record which presets carry each slider name (drives the
+            // catalog-vs-preset-only picker split and the provenance dump).
+            if (!_presetSlidersByGroup.TryGetValue(currentSliderGroup, out var contributorsBySlider))
+            {
+                contributorsBySlider = new(StringComparer.OrdinalIgnoreCase);
+                _presetSlidersByGroup.Add(currentSliderGroup, contributorsBySlider);
+            }
+
             foreach (var slider in template.SliderValues.Keys)
             {
                 if (!currentSliderNameList.Contains(slider))
                 {
                     currentSliderNameList.Add(slider);
                 }
+
+                if (!contributorsBySlider.TryGetValue(slider, out var contributors))
+                {
+                    contributors = new();
+                    contributorsBySlider.Add(slider, contributors);
+                }
+                contributors.Add(template.Label);
             }
         }
 
         var loadedGroups = new HashSet<string>(SliderNamesByGroup.Keys, StringComparer.OrdinalIgnoreCase);
 
         // Pass 2: registry body types first (in registry order), then any loaded-only groups. Each
-        // body type's slider names = the registry entry's ResolvedSliders unioned with the names
-        // found in that body type's loaded presets.
+        // body type's rule-set VM receives its registry catalog and its preset-contributed slider
+        // names separately — the VM shows the catalog by default and gates the preset-only names
+        // (mostly outfit zap/squeeze sliders embedded in preset XMLs) behind ShowPresetOnlySliders.
         var registry = _patcherState.OBodySettings.BodyTypeRegistry ?? new List<BodyTypeRegistryEntry>();
-        var slidersByBodyType = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         var orderedBodyTypes = new List<string>();
         var seenBodyTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -123,12 +168,12 @@ public class VM_BodySlideAnnotator : VM
                 continue;
             }
             orderedBodyTypes.Add(entry.Name);
-            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var catalogNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (entry.ResolvedSliders != null)
             {
-                foreach (var s in entry.ResolvedSliders) names.Add(s);
+                foreach (var s in entry.ResolvedSliders) catalogNames.Add(s);
             }
-            slidersByBodyType[entry.Name] = names;
+            _catalogSlidersByGroup[entry.Name] = catalogNames;
         }
 
         foreach (var loadedGroup in SliderNamesByGroup.Keys)
@@ -136,25 +181,87 @@ public class VM_BodySlideAnnotator : VM
             if (seenBodyTypes.Add(loadedGroup))
             {
                 orderedBodyTypes.Add(loadedGroup);
-                slidersByBodyType[loadedGroup] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            }
-            foreach (var s in SliderNamesByGroup[loadedGroup])
-            {
-                slidersByBodyType[loadedGroup].Add(s);
             }
         }
 
         foreach (var bodyType in orderedBodyTypes)
         {
-            var availableSliderNames = new ObservableCollection<string>(slidersByBodyType[bodyType]);
-            availableSliderNames.Sort(x => x, false);
+            _catalogSlidersByGroup.TryGetValue(bodyType, out var catalogSliders);
+            IReadOnlyCollection<string> presetContributedSliders = _presetSlidersByGroup.TryGetValue(bodyType, out var contributorsBySlider)
+                ? contributorsBySlider.Keys.ToList()
+                : Array.Empty<string>();
             bool hasLoadedPresets = loadedGroups.Contains(bodyType);
-            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyType, availableSliderNames, this, hasLoadedPresets));
+            AnnotationRules.Add(new VM_SliderClassificationRulesByBodyType(_oBodyDescriptorMenu, bodyType, catalogSliders ?? new HashSet<string>(), presetContributedSliders, this, hasLoadedPresets));
         }
 
         _bodySlideMenu.AvailableSliderGroups.Clear();
         _bodySlideMenu.AvailableSliderGroups.Add(VM_BodySlidesMenu.BodyTypeSelectionAll);
         Noggog.ListExt.AddRange(_bodySlideMenu.AvailableSliderGroups, SliderNamesByGroup.Keys);
+
+        DumpSliderNameProvenance(orderedBodyTypes);
+    }
+
+    /// <summary>
+    /// Startup diagnostic: writes Logs\SliderNameProvenance.txt listing, per body type, every
+    /// slider name known to the annotator and where it came from — the registry catalog
+    /// (BodyTypeRegistryEntry.ResolvedSliders) and/or loaded BodySlide preset XMLs (with the
+    /// contributing preset labels). Preset-only names are the ones the catalog-first pickers
+    /// hide behind ShowPresetOnlySliders, so this file answers "why is/isn't slider X offered".
+    /// </summary>
+    private void DumpSliderNameProvenance(List<string> orderedBodyTypes)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Slider-name provenance dump - " + DateTime.Now);
+            sb.AppendLine("Sources per body type:");
+            sb.AppendLine("  catalog = BodyTypeRegistryEntry.ResolvedSliders (ShapeData OSD/BSD scan, or shipped fallback catalog when the body isn't detected as installed)");
+            sb.AppendLine("  presets = slider entries parsed from loaded BodySlide preset XMLs into BodySlideSetting.SliderValues (contributing presets listed, capped at 5)");
+            sb.AppendLine("A [PRESET-ONLY] mark means the name is NOT in the registry catalog - the annotator's slider pickers offer it only when 'Show preset-only sliders' is enabled (or a saved rule references it).");
+            sb.AppendLine();
+
+            var summary = new List<string>();
+            foreach (var bodyType in orderedBodyTypes)
+            {
+                if (!_catalogSlidersByGroup.TryGetValue(bodyType, out var catalog))
+                {
+                    catalog = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                }
+                if (!_presetSlidersByGroup.TryGetValue(bodyType, out var fromPresets))
+                {
+                    fromPresets = new(StringComparer.OrdinalIgnoreCase);
+                }
+
+                int presetOnlyCount = fromPresets.Keys.Count(x => !catalog.Contains(x));
+                summary.Add(bodyType + ": " + presetOnlyCount + " preset-only / " + fromPresets.Count + " preset-contributed / " + catalog.Count + " catalog");
+
+                sb.AppendLine("=== " + bodyType + " - catalog: " + catalog.Count + ", preset-contributed: " + fromPresets.Count + ", preset-only: " + presetOnlyCount + " ===");
+                foreach (var sliderEntry in fromPresets.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    string mark = catalog.Contains(sliderEntry.Key) ? "also-in-catalog" : "PRESET-ONLY";
+                    string contributors = string.Join("; ", sliderEntry.Value.Take(5));
+                    if (sliderEntry.Value.Count > 5)
+                    {
+                        contributors += " (+" + (sliderEntry.Value.Count - 5) + " more)";
+                    }
+                    sb.AppendLine("  [" + mark + "] " + sliderEntry.Key + "  <=  " + contributors);
+                }
+                if (catalog.Any())
+                {
+                    sb.AppendLine("  catalog sliders: " + string.Join(", ", catalog.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)));
+                }
+                sb.AppendLine();
+            }
+
+            string filePath = Path.Combine(_paths.LogFolderPath, "SliderNameProvenance.txt");
+            PatcherIO.CreateDirectoryIfNeeded(filePath, PatcherIO.PathType.File);
+            File.WriteAllText(filePath, sb.ToString());
+            _logger.LogMessage("Slider-name provenance: wrote " + filePath + " | " + string.Join(" | ", summary));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Slider-name provenance: failed to write dump: " + ExceptionLogger.GetExceptionStack(ex));
+        }
     }
 
     /// <summary>Loads persisted classification rules into the rule-set VMs by body type; rules for body types not present in the current BodySlide set are stashed so they aren't lost on save.</summary>
@@ -185,6 +292,28 @@ public class VM_BodySlideAnnotator : VM
             else
             {
                 _stashedUnloadedBodyTypeRules.Add(rulesByBodyType);
+            }
+        }
+
+        // Slider-name provenance: a name in a body type's picker that neither the registry catalog
+        // nor any loaded preset contributed can only have been injected by a saved rule's
+        // SliderName (rule-referenced names are always kept visible so existing rules never show
+        // blank slider dropdowns). Surface these — they usually mean the referenced preset was
+        // uninstalled or the rule carries a typo.
+        foreach (var ruleSetVM in AnnotationRules)
+        {
+            var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (_catalogSlidersByGroup.TryGetValue(ruleSetVM.BodyTypeGroup, out var catalogNames))
+            {
+                knownNames.UnionWith(catalogNames);
+            }
+            if (_presetSlidersByGroup.TryGetValue(ruleSetVM.BodyTypeGroup, out var fromPresets))
+            {
+                knownNames.UnionWith(fromPresets.Keys);
+            }
+            foreach (var name in ruleSetVM.AvailableSliderNames.Where(x => !knownNames.Contains(x)))
+            {
+                _logger.LogMessage("Slider-name provenance: " + ruleSetVM.BodyTypeGroup + ": slider '" + name + "' is offered only because a saved annotation rule references it.");
             }
         }
     }
@@ -257,29 +386,146 @@ public class VM_BodySlideAnnotator : VM
 [DebuggerDisplay("{SliderGroup}: Rule List for {DescriptorClassifiers.Count} Descriptors")]
 public class VM_SliderClassificationRulesByBodyType : VM // contains a list of rules for each descriptor
 {
-    /// <summary>Creates a per-descriptor rule-set VM for each descriptor shell in the subscribed menu and wires the ApplyAnnotations command scoped to this body type. <paramref name="hasLoadedPresets"/> is false for registry body types with no installed BodySlide presets — the rules stay editable (slider names come from the registry catalog) but there are no presets to apply/test against, which the UI surfaces in red.</summary>
-    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, ObservableCollection<string> availableSliderNames, VM_BodySlideAnnotator annotatorVM, bool hasLoadedPresets = true)
+    /// <summary>Creates a per-descriptor rule-set VM for each descriptor shell in the subscribed menu and wires the ApplyAnnotations command scoped to this body type. <paramref name="catalogSliderNames"/> is the registry catalog; <paramref name="presetContributedSliderNames"/> are names found in loaded preset XMLs (shown only via <see cref="ShowPresetOnlySliders"/> when a catalog exists, since preset XMLs routinely embed outfit zap/squeeze sliders). <paramref name="hasLoadedPresets"/> is false for registry body types with no installed BodySlide presets — the rules stay editable (slider names come from the registry catalog) but there are no presets to apply/test against, which the UI surfaces in red.</summary>
+    public VM_SliderClassificationRulesByBodyType(VM_BodyShapeDescriptorCreationMenu subscribedMenu, string bodyTypeGroup, IReadOnlyCollection<string> catalogSliderNames, IReadOnlyCollection<string> presetContributedSliderNames, VM_BodySlideAnnotator annotatorVM, bool hasLoadedPresets = true)
     {
         _subscribedDescriptorMenu = subscribedMenu;
 
         BodyTypeGroup = bodyTypeGroup;
-        AvailableSliderNames = availableSliderNames;
+        _catalogSliderNames = new HashSet<string>(catalogSliderNames, StringComparer.OrdinalIgnoreCase);
+        _presetContributedSliderNames = new HashSet<string>(presetContributedSliderNames, StringComparer.OrdinalIgnoreCase);
+        HasSliderCatalog = _catalogSliderNames.Any();
+        PresetOnlySliderCount = _presetContributedSliderNames.Count(x => !_catalogSliderNames.Contains(x));
         HasLoadedPresets = hasLoadedPresets;
+
+        AvailableSliderNames = new ObservableCollection<string>();
+        RebuildAvailableSliderNames();
 
         foreach (var descriptorShell in _subscribedDescriptorMenu.TemplateDescriptors)
         {
-            DescriptorClassifiers.Add(new(descriptorShell, availableSliderNames, annotatorVM, this));
+            DescriptorClassifiers.Add(new(descriptorShell, AvailableSliderNames, annotatorVM, this));
         }
 
         ApplyAnnotationsCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => annotatorVM.ApplyAnnotations(BodyTypeGroup, null)
         );
+
+        PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ShowPresetOnlySliders))
+            {
+                RebuildAvailableSliderNames();
+            }
+        };
     }
     public string BodyTypeGroup { get; } // E.g. HIMBO, CBBE, etc
 
-    /// <summary>This body type's slider names (registry catalog ∪ loaded presets) — the same list the rule rows' slider pickers use. Read by the preview rail's sort-slider picker.</summary>
+    private readonly HashSet<string> _catalogSliderNames;
+    private readonly HashSet<string> _presetContributedSliderNames;
+
+    /// <summary>True when the Body Type Registry supplied a slider catalog for this body type. Without one (e.g. the "Unknown" group), the pickers always show the full preset-contributed union and the toggle is hidden.</summary>
+    public bool HasSliderCatalog { get; }
+
+    /// <summary>How many preset-contributed names are absent from the catalog — the names <see cref="ShowPresetOnlySliders"/> reveals. Shown on the toggle's label.</summary>
+    public int PresetOnlySliderCount { get; }
+
+    /// <summary>
+    /// When false (default) and a catalog exists, the slider pickers offer catalog sliders plus any
+    /// names referenced by this body type's saved rules; when true, every name found in loaded
+    /// preset XMLs is offered too (mostly outfit zap/squeeze sliders embedded in presets).
+    /// Session-only. The preview rail's sort-slider picker follows this via VM_BodySlideAnnotator.
+    /// </summary>
+    public bool ShowPresetOnlySliders { get; set; } = false;
+
+    /// <summary>The live slider-name list every picker binds (rule rows share this exact instance; the preview rail copies it). Rebuilt in place — never cleared wholesale, so open dropdowns keep their selections.</summary>
     public ObservableCollection<string> AvailableSliderNames { get; }
+
+    /// <summary>Recomputes the visible slider names for the current toggle state and reconciles the shared collection to them.</summary>
+    private void RebuildAvailableSliderNames()
+    {
+        bool showAll = ShowPresetOnlySliders || !HasSliderCatalog;
+        var desired = BuildVisibleSliderNames(_catalogSliderNames, _presetContributedSliderNames, EnumerateReferencedSliderNames(), showAll);
+        ReconcileSliderNameCollection(AvailableSliderNames, desired);
+    }
+
+    /// <summary>Every slider name currently referenced by this body type's rules, across all descriptor categories. These stay visible regardless of the toggle so no rule row's picker ever shows a blank selection.</summary>
+    private IEnumerable<string> EnumerateReferencedSliderNames()
+    {
+        return DescriptorClassifiers
+            .SelectMany(d => d.RuleList)
+            .SelectMany(r => r.RuleListORlogic)
+            .SelectMany(g => g.RuleListANDlogic)
+            .Select(r => r.SliderName);
+    }
+
+    /// <summary>
+    /// Computes the slider names a picker should offer: the catalog, plus every preset-contributed
+    /// name when <paramref name="showAll"/> is true, plus all rule-referenced names unconditionally
+    /// (so saved rules keep displaying their slider even when it isn't otherwise visible).
+    /// Deduplicated case-insensitively and sorted. Public static for tests.
+    /// </summary>
+    public static List<string> BuildVisibleSliderNames(IReadOnlyCollection<string> catalogSliders, IReadOnlyCollection<string> presetContributedSliders, IEnumerable<string> ruleReferencedSliders, bool showAll)
+    {
+        var names = new HashSet<string>(catalogSliders, StringComparer.OrdinalIgnoreCase);
+        if (showAll)
+        {
+            names.UnionWith(presetContributedSliders);
+        }
+        foreach (var referenced in ruleReferencedSliders)
+        {
+            if (!referenced.IsNullOrWhitespace())
+            {
+                names.Add(referenced);
+            }
+        }
+        return names.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>
+    /// Diff-reconciles <paramref name="target"/> to <paramref name="desiredSorted"/> using only
+    /// RemoveAt/Move/Insert — never Clear. A wholesale Clear would raise a Reset that nulls the
+    /// SelectedItem of every bound ComboBox (destroying rule rows' SliderName values); since
+    /// rule-referenced names are always in the desired list, no selected item is ever removed.
+    /// Comparison is case-insensitive. Public static for tests.
+    /// </summary>
+    public static void ReconcileSliderNameCollection(ObservableCollection<string> target, IReadOnlyList<string> desiredSorted)
+    {
+        var desiredSet = new HashSet<string>(desiredSorted, StringComparer.OrdinalIgnoreCase);
+        for (int i = target.Count - 1; i >= 0; i--)
+        {
+            if (!desiredSet.Contains(target[i]))
+            {
+                target.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < desiredSorted.Count; i++)
+        {
+            int existingIndex = -1;
+            for (int j = i; j < target.Count; j++)
+            {
+                if (string.Equals(target[j], desiredSorted[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    existingIndex = j;
+                    break;
+                }
+            }
+
+            if (existingIndex == i)
+            {
+                continue;
+            }
+            if (existingIndex > i)
+            {
+                target.Move(existingIndex, i);
+            }
+            else
+            {
+                target.Insert(i, desiredSorted[i]);
+            }
+        }
+    }
 
     /// <summary>
     /// False when no loaded BodySlide preset XMLs classified to this body type. The rules remain
@@ -311,6 +557,11 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
                 _stashedUnloadedDescriptorRules.Add(perDescriptorRuleSet);
             }
         }
+
+        // Loaded rules may reference sliders outside the currently visible set (CreateFromModel
+        // appends them unsorted); rebuild so they land in sorted position and survive future
+        // toggle rebuilds via EnumerateReferencedSliderNames.
+        RebuildAvailableSliderNames();
     }
 
     /// <summary>Serializes the child descriptor rule-set VMs (plus stashed unloaded rules) into a <see cref="SliderClassificationRulesByBodyType"/> model.</summary>

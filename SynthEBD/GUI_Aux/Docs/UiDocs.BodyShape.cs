@@ -56,8 +56,13 @@ public static partial class UiDocs
 
         Add("OBody.AnnotatorPreviewSliderPicker",
             layperson: "Picks which slider's numbers appear in the preset list's Low / High / Interp columns, so you can sort every preset by that slider.",
-            technical: "Sets the slider whose authored Small/Big values and interpolated value (at the preview weight) populate VM_AnnotatorPresetRow.Low/High/Interpolated. Options are the body type's registry slider catalog unioned with sliders found in its loaded presets — the same list the rule rows offer. Presets lacking the slider show blank cells.",
+            technical: "Sets the slider whose authored Small/Big values and interpolated value (at the preview weight) populate VM_AnnotatorPresetRow.Low/High/Interpolated. Options mirror the rule editor's slider list: the body type's registry catalog (plus rule-referenced names) by default, expanding to preset-contributed names when the rule editor's 'Show preset-only sliders' toggle is on. Presets lacking the slider show blank cells.",
             motivation: "When tuning a rule threshold like 'BellyMuscle >= 60', sorting all presets by that slider shows exactly where a proposed cutoff lands across your installed presets.");
+
+        Add("OBody.AnnotatorShowPresetOnlySliders",
+            layperson: "BodySlide preset files often carry slider entries for outfits (bikini/corset 'squeeze' sliders and similar) alongside real body sliders. By default the slider menus only list this body type's official sliders; tick this to also list every extra name found in your installed presets.",
+            technical: "Toggles VM_SliderClassificationRulesByBodyType.ShowPresetOnlySliders (session-only). Off: pickers offer the Body Type Registry catalog plus any names referenced by saved rules (kept visible so existing rules never blank out). On: the union with all names parsed from loaded preset XMLs. Body types without a catalog (e.g. Unknown) always show the full union and hide this toggle. Logs\\SliderNameProvenance.txt lists every name with its source and contributing presets.",
+            motivation: "One squeeze-slider collection preset can inject hundreds of outfit names into a 157-slider body catalog, drowning the sliders rules are actually written against — but the exotic names must stay reachable for the rare rule that needs one.");
 
         Add("OBody.AnnotatorPresetFilter",
             layperson: "Type here to narrow the preset list to names containing the text.",
