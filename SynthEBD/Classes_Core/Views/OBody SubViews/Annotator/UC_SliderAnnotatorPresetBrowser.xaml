@@ -29,6 +29,10 @@
 
             <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" Padding="6,4" Margin="0,0,0,2">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -38,23 +42,33 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="Gender:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Column="1" Margin="0,0,8,0" MinWidth="80"
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Gender:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,8,0" MinWidth="80"
                               ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:Gender}}}"
                               SelectedValue="{Binding PreviewGender}"
                               local:DocTooltip.Key="OBody.AnnotatorPreviewGender"/>
-                    <TextBlock Grid.Column="2" Text="Slider:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                    <ComboBox Grid.Column="3" Margin="0,0,8,0"
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Slider:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="0" Grid.Column="3" Margin="0,0,8,0"
                               ItemsSource="{Binding AvailableSliderNames}"
                               SelectedItem="{Binding SelectedSliderName}"
                               IsTextSearchEnabled="True"
                               MaxDropDownHeight="400"
                               local:DocTooltip.Key="OBody.AnnotatorPreviewSliderPicker"/>
-                    <TextBlock Grid.Column="4" Text="Filter:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="5"
+                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Filter:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="0" Grid.Column="5"
                              Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
                              VerticalAlignment="Center"
                              local:DocTooltip.Key="OBody.AnnotatorPresetFilter"/>
+
+                    <!-- Highlights, on the 3D preview, the vertices the picked slider moves as a
+                         |morph delta| heatmap. Requires a selected preset (that apply loads the morph
+                         context), so it greys out until one is chosen; click a slider readout row to
+                         re-point the highlight to that slider. -->
+                    <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="6" Margin="0,4,0,0"
+                              Content="Show moved vertices in 3D preview (heatmap of the picked slider)"
+                              IsChecked="{Binding ShowMovedVertices}"
+                              IsEnabled="{Binding CanHighlight}"
+                              local:DocTooltip.Key="OBody.AnnotatorShowMovedVertices"/>
                 </Grid>
             </Border>
 
@@ -107,9 +121,11 @@
 
             <DataGrid Grid.Row="1"
                       ItemsSource="{Binding SliderReadoutRows}"
+                      SelectedItem="{Binding SelectedReadoutRow}"
                       AutoGenerateColumns="False" IsReadOnly="True"
                       CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                      HeadersVisibility="Column" SelectionMode="Single">
+                      HeadersVisibility="Column" SelectionMode="Single"
+                      local:DocTooltip.Key="OBody.AnnotatorSliderReadoutSelect">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Slider" Binding="{Binding SliderName}" Width="*"/>
                     <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>

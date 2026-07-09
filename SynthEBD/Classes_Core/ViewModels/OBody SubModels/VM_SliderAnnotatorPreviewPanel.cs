@@ -72,6 +72,11 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             if (SelectedPresetRow != null || !PreviewNpcOverride.IsNull) _ = RefreshPreviewAsync();
         };
 
+        // Re-apply the vertex highlight whenever a body slide actually lands — a preset/weight change,
+        // or a morph that was queued (scene not yet ready) replaying once committed — so the heatmap is
+        // built against the current deformed geometry rather than a stale or undeformed pose.
+        CharacterViewer.BodySlideApplied += () => ApplyOrClearHighlight();
+
         environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
             .DisposeWith(this);
@@ -96,6 +101,18 @@ public class VM_SliderAnnotatorPreviewPanel : VM
                     break;
                 case nameof(SelectedSliderName):
                     RefreshPresetRowSliderValues();
+                    // The sort-slider picker also drives the highlight: point it at the picked slider.
+                    if (SelectedSliderName != null) ActiveHighlightSlider = SelectedSliderName;
+                    ApplyOrClearHighlight();
+                    break;
+                case nameof(SelectedReadoutRow):
+                    // Clicking a readout row re-points the highlight to that slider (readout sliders
+                    // may not be in the sort-slider picker, so this is a separate entry point).
+                    if (SelectedReadoutRow != null) ActiveHighlightSlider = SelectedReadoutRow.SliderName;
+                    ApplyOrClearHighlight();
+                    break;
+                case nameof(ShowMovedVertices):
+                    ApplyOrClearHighlight();
                     break;
                 case nameof(PreviewWeight):
                     RefreshPresetRowSliderValues();
@@ -147,6 +164,24 @@ public class VM_SliderAnnotatorPreviewPanel : VM
     public string SliderReadoutFilterText { get; set; } = "";
 
     public ObservableCollection<VM_AnnotatorSliderValueRow> SliderReadoutRows { get; } = new();
+
+    /// <summary>When on, the vertices moved by <see cref="ActiveHighlightSlider"/> are painted on the
+    /// 3D preview as a |morph delta| heatmap. Requires a selected preset (that apply is what loads the
+    /// viewer's morph context); <see cref="CanHighlight"/> gates the toggle's enabled state.</summary>
+    public bool ShowMovedVertices { get; set; }
+
+    /// <summary>Selected row of the slider readout grid. Clicking a row re-points the highlight to that
+    /// slider (see <see cref="ActiveHighlightSlider"/>), so the readout doubles as a slider picker for
+    /// the highlight without disturbing the sort-slider ComboBox.</summary>
+    public VM_AnnotatorSliderValueRow? SelectedReadoutRow { get; set; }
+
+    /// <summary>The slider whose vertices are highlighted: the most recent of a readout-row click or a
+    /// sort-slider picker change. Null when neither has been chosen.</summary>
+    public string? ActiveHighlightSlider { get; private set; }
+
+    /// <summary>Highlighting is only meaningful once a preset is applied (its apply loads the morph
+    /// context). Bound to the toggle's IsEnabled so it greys out with no preset selected.</summary>
+    public bool CanHighlight => SelectedPresetRow != null;
 
     /// <summary>Optional NPC override. When null, the OBody Misc per-weight preview NPC table supplies the NPC (nearest weight slot).</summary>
     public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
@@ -342,6 +377,11 @@ public class VM_SliderAnnotatorPreviewPanel : VM
         Gender snapshotGender = PreviewGender;
         FormKey snapshotNpcOverride = PreviewNpcOverride;
 
+        // Drop any existing heatmap before the (possibly async) reload so a stale patch built against
+        // the outgoing NPC's geometry can't linger; BodySlideApplied re-applies it once the new preset
+        // lands. Harmless when nothing is highlighted.
+        CharacterViewer.ClearSliderHighlight();
+
         try
         {
             if (lk == null) return;
@@ -370,6 +410,26 @@ public class VM_SliderAnnotatorPreviewPanel : VM
         catch (Exception ex)
         {
             _logger.LogError("SliderAnnotatorPreviewPanel.RefreshPreviewAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>
+    /// Applies or clears the slider-morph vertex heatmap on the preview viewer per the current toggle
+    /// and selection state. A highlight is drawn only when the toggle is on, a preset is selected (so the
+    /// viewer's morph context is loaded), and a slider has been chosen (via the sort-slider picker or a
+    /// readout-row click); any other state clears it. Called from the relevant input-change handlers and
+    /// from the viewer's <see cref="VM_CharacterViewer.BodySlideApplied"/> event so the patch tracks
+    /// weight / preset / NPC changes and queued-morph replays.
+    /// </summary>
+    private void ApplyOrClearHighlight()
+    {
+        if (ShowMovedVertices && SelectedPresetRow != null && !string.IsNullOrWhiteSpace(ActiveHighlightSlider))
+        {
+            CharacterViewer.HighlightSliderMorph(ActiveHighlightSlider);
+        }
+        else
+        {
+            CharacterViewer.ClearSliderHighlight();
         }
     }
 
