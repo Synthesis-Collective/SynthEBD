@@ -78,6 +78,7 @@
                       AutoGenerateColumns="False" IsReadOnly="True"
                       CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                       HeadersVisibility="Column" SelectionMode="Single"
+                      Sorting="OnPresetDataGridSorting"
                       local:DocTooltip.Key="OBody.AnnotatorPresetList">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Preset" Binding="{Binding Label}" Width="*"/>
