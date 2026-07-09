@@ -10,11 +10,45 @@ namespace SynthEBD;
 /// <summary>Static helpers for showing modal OK and Yes/No message dialogs on the UI thread.</summary>
 public class MessageWindow
 {
+    /// <summary>
+    /// When true, no dialog is ever shown: OK notifications are swallowed and Yes/No prompts
+    /// answer No (the conservative choice), with every suppressed dialog recorded for later
+    /// retrieval via <see cref="DrainSuppressedDialogs"/>. Set by automated hosts (the CLI
+    /// ui-screenshot harness) where a modal dialog would hang the run forever. Defaults to
+    /// false so the GUI is unaffected.
+    /// </summary>
+    public static bool SuppressAllDialogs { get; set; } = false;
+
+    /// <summary>Dialogs swallowed while <see cref="SuppressAllDialogs"/> was on; guarded by its own lock (dialogs can be requested from any thread).</summary>
+    private static readonly List<string> _suppressedDialogs = new();
+
+    /// <summary>Returns and clears the record of suppressed dialogs, so automated hosts can surface them in their own logs.</summary>
+    public static List<string> DrainSuppressedDialogs()
+    {
+        lock (_suppressedDialogs)
+        {
+            var drained = new List<string>(_suppressedDialogs);
+            _suppressedDialogs.Clear();
+            return drained;
+        }
+    }
+
+    /// <summary>Records a suppressed dialog and returns the Yes/No answer the caller should report (always false = No).</summary>
+    private static bool RecordSuppressed(string kind, string header, string text)
+    {
+        lock (_suppressedDialogs)
+        {
+            _suppressedDialogs.Add("[" + kind + "] " + header + ": " + text);
+        }
+        return false;
+    }
+
     /// <summary>Shows a modal OK dialog with the given header and text.</summary>
     /// <param name="header">Dialog title.</param>
     /// <param name="text">Body text.</param>
     public static void DisplayNotificationOK(string header, string text)
     {
+        if (SuppressAllDialogs) { RecordSuppressed("OK", header, text); return; }
         Application.Current.Dispatcher.Invoke(() =>
         {
             var box = new VM_MessageWindowOK(header, text);
@@ -28,6 +62,7 @@ public class MessageWindow
     /// <param name="separator">Separator joining the lines.</param>
     public static void DisplayNotificationOK(string header, ICollection<string> text, string separator)
     {
+        if (SuppressAllDialogs) { RecordSuppressed("OK", header, string.Join(separator, text)); return; }
         Application.Current.Dispatcher.Invoke(() =>
         {
             var box = new VM_MessageWindowOK(header, string.Join(separator, text));
@@ -41,6 +76,7 @@ public class MessageWindow
     /// <returns><c>true</c> if the user chose Yes.</returns>
     public static bool DisplayNotificationYesNo(string header, string text)
     {
+        if (SuppressAllDialogs) { return RecordSuppressed("YesNo->No", header, text); }
         bool result = false;
         Application.Current.Dispatcher.Invoke(() =>
         {
@@ -58,6 +94,7 @@ public class MessageWindow
     /// <returns><c>true</c> if the user chose Yes.</returns>
     public static bool DisplayNotificationYesNo(string header, ICollection<string> text, string separator)
     {
+        if (SuppressAllDialogs) { return RecordSuppressed("YesNo->No", header, string.Join(separator, text)); }
         bool result = false;
         Application.Current.Dispatcher.Invoke(() =>
         {

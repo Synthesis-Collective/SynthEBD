@@ -33,13 +33,28 @@ public static class UiScreenshotVerb
         }
 
         // Set BEFORE the bootstrap: settings load can migrate the disclosure mode, and no dialog
-        // may ever block an automated run.
+        // may ever block an automated run. MessageWindow modals (e.g. the FirstLaunch welcome,
+        // update-handler migration notices) are swallowed and reported to stderr at the end of
+        // the run instead of hanging the harness on an un-clickable dialog.
         UiModeController.Instance.SuppressModeChangeWarnings = true;
+        MessageWindow.SuppressAllDialogs = true;
 
         if (!CliBootstrapper.TryCreate(options, out var bootstrapper, out string failureReason) || bootstrapper == null)
         {
             Console.Error.WriteLine("ui-screenshot: environment/settings failed to load: " + failureReason);
             return 2;
+        }
+
+        // A first-run flag on the loaded settings means the tree at the resolved root was empty —
+        // the classic cause is pointing --synthebd-path at a portable settings folder (which has
+        // no Settings\SettingsSource.json), making SynthEBDPaths look for Settings\Settings\*.
+        // The captures would show a factory-fresh UI, so warn loudly.
+        if (bootstrapper.PatcherState.GeneralSettings?.bFirstRun == true)
+        {
+            Console.Error.WriteLine("ui-screenshot: WARNING - the loaded settings look freshly defaulted (bFirstRun=true), so no existing "
+                + "settings were found at the resolved root '" + bootstrapper.SettingsRootPath + "'. If this SynthEBD instance stores its "
+                + "settings in a portable folder, pass that folder (the one containing 'Settings', 'Asset Packs', ...) via --settings-root "
+                + "instead of --synthebd-path.");
         }
 
         using (bootstrapper)
@@ -95,6 +110,36 @@ public static class UiScreenshotVerb
                             continue;
                         }
 
+                        // Sub-navigation: execute any --invoke command whose menu matches the one on
+                        // screen (e.g. an inner tab's Click* command on the menu's own VM), so the
+                        // capture shows a tab the top-level nav flip can't reach.
+                        foreach (var invoke in options.Invokes)
+                        {
+                            int dot = invoke.LastIndexOf('.');
+                            string targetMenu = invoke.Substring(0, dot);
+                            string commandProperty = invoke.Substring(dot + 1);
+                            if (!targetMenu.Equals(menuName, StringComparison.OrdinalIgnoreCase)
+                                && !targetMenu.Equals(commandName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            var displayedVm = displayedItem.DisplayedViewModel;
+                            var commandProp = displayedVm?.GetType().GetProperty(commandProperty, BindingFlags.Public | BindingFlags.Instance);
+                            if (displayedVm != null && commandProp != null
+                                && typeof(ICommand).IsAssignableFrom(commandProp.PropertyType)
+                                && commandProp.GetValue(displayedVm) is ICommand subCommand)
+                            {
+                                subCommand.Execute(null);
+                                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine("ui-screenshot: --invoke " + invoke + " did not resolve to an ICommand property on "
+                                                        + (displayedVm?.GetType().Name ?? "<no displayed VM>") + "; skipped.");
+                            }
+                        }
+
                         if (options.ExpandExpanders)
                         {
                             ExpandAllExpanders(window);
@@ -112,6 +157,12 @@ public static class UiScreenshotVerb
             }
 
             window.Close();
+
+            foreach (var suppressedDialog in MessageWindow.DrainSuppressedDialogs())
+            {
+                Console.Error.WriteLine("ui-screenshot: suppressed dialog - " + suppressedDialog);
+            }
+
             Console.Error.WriteLine("ui-screenshot: " + captured + " screenshot(s) written to " + options.OutPath);
             return captured > 0 ? 0 : 1;
         }

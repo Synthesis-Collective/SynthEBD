@@ -160,6 +160,11 @@ public class CliOptions
     /// <summary>When set, ui-screenshot expands every Expander in the visual tree before capturing.</summary>
     public bool ExpandExpanders { get; private set; }
 
+    /// <summary>ui-screenshot sub-navigation: "MenuName.CommandProperty" pairs executed after a nav
+    /// flip whose displayed menu matches MenuName (same matching rule as <see cref="Menus"/>). Lets
+    /// captures reach inner tabs the top-level nav can't (e.g. "SettingsOBody.ClickAnnotationMenu").</summary>
+    public List<string> Invokes { get; } = new();
+
     public const string UsageText = @"SynthEBD.CLI - headless tooling for SynthEBD config authoring
 
 USAGE:
@@ -267,6 +272,10 @@ UI-SCREENSHOT OPTIONS:
   --height <px>            Window height for the capture (default 1000).
   --settle-ms <n>          Wait after layout settles before each capture (default 250).
   --expand-expanders       Expand every Expander in the menu before capturing.
+  --invoke <menu.command>  After flipping to a menu that matches <menu> (same matching as --menu),
+                           execute the named ICommand property on its view model before capturing —
+                           reaches inner tabs the nav panel can't (e.g.
+                           SettingsOBody.ClickAnnotationMenu). Repeatable.
 
 EXIT CODES:
   0  success / all configs valid / every simulated NPC received assignments
@@ -448,6 +457,14 @@ EXIT CODES:
                     break;
                 case "--expand-expanders":
                     options.ExpandExpanders = true;
+                    break;
+                case "--invoke":
+                    var invokeValue = TakeValue(args, ref i, flag);
+                    if (!invokeValue.Contains('.'))
+                    {
+                        throw new CliArgumentException("--invoke requires \"MenuName.CommandProperty\", got \"" + invokeValue + "\"");
+                    }
+                    options.Invokes.Add(invokeValue);
                     break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);
