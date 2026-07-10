@@ -33,4 +33,16 @@ public interface ICharacterViewerSettings : INotifyPropertyChanged
     /// <summary>Bidirectionally synced with <see cref="CharacterViewerLogGate.Verbose"/>.
     /// Toggling in the viewer toolbar writes back here so the choice persists across runs.</summary>
     bool CharacterViewerVerboseLog { get; set; }
+
+    /// <summary>How the in-RAM decode caches size their budget. Default (and the historical behaviour) is
+    /// <see cref="RenderCacheMode.PercentFreeRam"/>. Implemented as a default member so existing host
+    /// adapters keep the current behaviour without changes; hosts that expose a cache-mode setting override
+    /// it. The caches read this live at each periodic budget re-poll, so a change takes effect within a few
+    /// renders without a restart.</summary>
+    RenderCacheMode CacheMode => RenderCacheMode.PercentFreeRam;
+
+    /// <summary>The fixed cache pool in bytes, used only when <see cref="CacheMode"/> is
+    /// <see cref="RenderCacheMode.FixedRam"/>. It is the notional total shared across the decode caches
+    /// (each takes its usual fraction of it). Ignored in the other modes.</summary>
+    long FixedCacheBudgetBytes => 0;
 }

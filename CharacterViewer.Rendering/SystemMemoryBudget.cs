@@ -48,6 +48,37 @@ internal static class SystemMemoryBudget
     /// <param name="minBytes">Floor so a busy machine still caches something.</param>
     /// <param name="maxFractionOfTotal">Ceiling as a share of total physical RAM, so
     /// the cap scales with the host instead of being a fixed throttle.</param>
+    /// <summary>
+    /// Mode-aware budget. <see cref="RenderCacheMode.PercentFreeRam"/> is the historical behaviour (a
+    /// fraction of live free RAM). <see cref="RenderCacheMode.FixedRam"/> applies the same per-cache
+    /// <paramref name="fraction"/> to <paramref name="fixedPoolBytes"/> instead of live free RAM, so the
+    /// budget is a stable, machine-independent ceiling (the fixed pool is the notional total shared across
+    /// caches; each takes its fraction of it). <see cref="RenderCacheMode.Disabled"/> returns 0 — the cache
+    /// retains nothing (a render still holds the pixels it fetched, so this is safe, just non-reusing).
+    /// </summary>
+    public static long Compute(RenderCacheMode mode, long fixedPoolBytes, long currentCacheBytes,
+        double fraction, long minBytes, double maxFractionOfTotal)
+    {
+        switch (mode)
+        {
+            case RenderCacheMode.Disabled:
+                return 0;
+
+            case RenderCacheMode.FixedRam:
+            {
+                long fixedTarget = (long)(Math.Max(0, fixedPoolBytes) * fraction);
+                // Keep the fraction-of-total ceiling as a sanity backstop; no free-RAM floor, since the whole
+                // point of a fixed budget is to honour the user's number even on a busy machine.
+                long totalRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                long ceiling = totalRam > 0 ? Math.Max(minBytes, (long)(totalRam * maxFractionOfTotal)) : long.MaxValue;
+                return Math.Clamp(fixedTarget, 0, ceiling);
+            }
+
+            default: // PercentFreeRam
+                return Compute(currentCacheBytes, fraction, minBytes, maxFractionOfTotal);
+        }
+    }
+
     public static long Compute(long currentCacheBytes, double fraction, long minBytes, double maxFractionOfTotal)
     {
         GCMemoryInfo info = GC.GetGCMemoryInfo();

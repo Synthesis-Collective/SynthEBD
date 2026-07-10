@@ -142,19 +142,29 @@ public class CharacterPreviewCache
         INpcMeshDataSource dataSource,
         GameAssetResolver assetResolver,
         ICharacterViewerLogger logger,
-        CharacterViewerLogGate logGate)
+        CharacterViewerLogGate logGate,
+        ICharacterViewerSettings? settings = null)
     {
         _dataSource = dataSource;
         _assetResolver = assetResolver;
         _logger = logger;
         _logGate = logGate;
-        MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver);
+        _settings = settings;
+        MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver, settings);
 
         _pixelBudgetBytes = SystemMemoryBudget.Compute(
+            CacheMode, FixedPoolBytes,
             0, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
         _cubemapBudgetBytes = SystemMemoryBudget.Compute(
+            CacheMode, FixedPoolBytes,
             0, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
     }
+
+    // Read live each repoll so a host-side cache-mode change takes effect within a few renders. Null
+    // settings (host didn't supply them) => the historical % Free RAM behaviour.
+    private readonly ICharacterViewerSettings? _settings;
+    private RenderCacheMode CacheMode => _settings?.CacheMode ?? RenderCacheMode.PercentFreeRam;
+    private long FixedPoolBytes => _settings?.FixedCacheBudgetBytes ?? 0;
 
     /// <summary>
     /// Returns cached <see cref="ResolvedNpcMeshPaths"/> for this NPC under the
@@ -280,6 +290,7 @@ public class CharacterPreviewCache
             {
                 _pixelAddsSinceRepoll = 0;
                 _pixelBudgetBytes = SystemMemoryBudget.Compute(
+                    CacheMode, FixedPoolBytes,
                     _pixelBytes, PixelCacheFreeRamFraction,
                     PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
             }
@@ -426,6 +437,7 @@ public class CharacterPreviewCache
             {
                 _cubemapAddsSinceRepoll = 0;
                 _cubemapBudgetBytes = SystemMemoryBudget.Compute(
+                    CacheMode, FixedPoolBytes,
                     _cubemapBytes, CubemapCacheFreeRamFraction,
                     CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
             }
