@@ -258,8 +258,9 @@ public static class UiScreenshotVerb
     }
 
     /// <summary>Expands every collapsed Expander currently in the window's visual tree, plus the
-    /// card expand toggles of the attribute rule editor (ToggleButtons named CardExpandToggle - a
-    /// naming contract with UC_NPCAttribute, whose collapsible cards are not real Expanders).
+    /// disclosure toggles that stand in for Expanders in a few migrated controls (ToggleButtons named
+    /// CardExpandToggle - the attribute rule editor's cards - and DescriptorEditToggle - the descriptor
+    /// selector's Category/Value editor, which is gated by a named toggle rather than a real Expander).
     /// Returns how many elements this pass expanded; the caller pumps layout and repeats until no
     /// newly-materialized collapsed elements remain.</summary>
     private static int ExpandAllExpanders(DependencyObject root)
@@ -273,9 +274,10 @@ public static class UiScreenshotVerb
                 expander.IsExpanded = true;
                 expanded++;
             }
-            else if (child is System.Windows.Controls.Primitives.ToggleButton { Name: "CardExpandToggle", IsChecked: not true } cardToggle)
+            else if (child is System.Windows.Controls.Primitives.ToggleButton { IsChecked: not true } toggle
+                     && toggle.Name is "CardExpandToggle" or "DescriptorEditToggle")
             {
-                cardToggle.IsChecked = true;
+                toggle.IsChecked = true;
                 expanded++;
             }
             expanded += ExpandAllExpanders(child);

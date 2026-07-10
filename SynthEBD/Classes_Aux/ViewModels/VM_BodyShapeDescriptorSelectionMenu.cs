@@ -67,6 +67,12 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         
     }
     public string Header { get; set; }
+    /// <summary>Read-only per-category summary chips shown above the editor, visible even when the editor is collapsed.</summary>
+    public IReadOnlyList<DescriptorSummaryChip> SummaryChips { get; set; } = new List<DescriptorSummaryChip>();
+    /// <summary>True when at least one descriptor is selected; toggles the chip list vs. the "no descriptors selected" placeholder.</summary>
+    public bool HasSelectedDescriptors { get; set; }
+    /// <summary>Whether the category/value editor is expanded. The summary chips stay visible regardless.</summary>
+    public bool IsEditorExpanded { get; set; }
     public VM_BodyShapeDescriptorCreationMenu TrackedMenu { get; set; }
     public IHasAttributeGroupMenu Parent { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorShellSelector> DescriptorShells { get; set; } = new();
@@ -280,21 +286,29 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
-    /// <summary>Rebuilds the pipe-joined <see cref="Header"/> summarizing the selected descriptors grouped by category.</summary>
+    /// <summary>Rebuilds the pipe-joined <see cref="Header"/> and the per-category <see cref="SummaryChips"/>
+    /// summarizing the selected descriptors grouped by category, plus the <see cref="HasSelectedDescriptors"/> flag.
+    /// The chip list is reference-swapped (not mutated in place) so it carries the same cross-thread safety as
+    /// the <see cref="Header"/> assignment when called from the load path.</summary>
     public void BuildHeader()
     {
         List<string> categories = new();
+        var chips = new List<DescriptorSummaryChip>();
         foreach (var Descriptor in DescriptorShells)
         {
-            string catHeader = Descriptor.TrackedShell.Category + ": ";
             var selectedValues = Descriptor.DescriptorSelectors.Select(x => FormatSelection(x)).Where(x => x != string.Empty).ToArray();
             if (selectedValues.Any())
             {
-                categories.Add(catHeader + string.Join(", ", selectedValues));
-            }  
+                string category = Descriptor.TrackedShell.Category;
+                string joinedValues = string.Join(", ", selectedValues);
+                categories.Add(category + ": " + joinedValues);
+                chips.Add(new DescriptorSummaryChip { Category = category, Values = joinedValues });
+            }
         }
 
         Header = string.Join(" | ", categories);
+        SummaryChips = chips;
+        HasSelectedDescriptors = chips.Count > 0;
     }
 
     /// <summary>Formats one selector for the header — the value, or "value (priority)" in priority mode — or empty when not selected.</summary>
@@ -380,6 +394,16 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
 
         BuildHeader();
     }
+}
+
+/// <summary>One read-only summary chip shown above the collapsed descriptor editor: a category and its comma-joined selected values.</summary>
+[DebuggerDisplay("{Category}: {Values}")]
+public class DescriptorSummaryChip
+{
+    /// <summary>The descriptor category (rendered emphasized in the chip).</summary>
+    public string Category { get; set; }
+    /// <summary>The comma-joined selected values in this category.</summary>
+    public string Values { get; set; }
 }
 
 /// <summary>Selectable view of one descriptor category shell: its selectable descriptor rows plus an aggregate annotation state and text color.</summary>

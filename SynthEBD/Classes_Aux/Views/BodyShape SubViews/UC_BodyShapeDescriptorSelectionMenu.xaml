@@ -1,19 +1,88 @@
 <UserControl x:Class="SynthEBD.UC_BodyShapeDescriptorSelectionMenu"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SynthEBD"
              d:DataContext="{d:DesignInstance Type=local:VM_BodyShapeDescriptorSelectionMenu}"
-             mc:Ignorable="d" 
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InvertableBooleanToVisibilityConverter x:Key="IBoolToVis"/>
     </UserControl.Resources>
-    
-    <Expander Header="{Binding Header}">
-        <Grid>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Summary bar: always-visible read-only chips of the selected descriptors, plus an "Edit"
+             disclosure toggle. The chips deliberately live OUTSIDE the toggle so selected descriptors
+             read as data at a glance (they were hidden inside a ToggleButton header after the theme
+             swap, which is the regression this restores). -->
+        <DockPanel Grid.Row="0" LastChildFill="True">
+            <ToggleButton x:Name="DescriptorEditToggle" DockPanel.Dock="Right" VerticalAlignment="Top" Margin="8 0 0 0"
+                          IsChecked="{Binding IsEditorExpanded, Mode=TwoWay}"
+                          ToolTip="Show or hide the descriptor category / value picker"
+                          ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="M 0 0 L 4 4 L 0 8" Width="4" Height="8" StrokeThickness="1.5"
+                          Stroke="{DynamicResource PrimaryForeground}"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" Margin="0 0 6 0">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value><RotateTransform Angle="0"/></Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditorExpanded}" Value="True">
+                                        <Setter Property="RenderTransform">
+                                            <Setter.Value><RotateTransform Angle="90"/></Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                    <TextBlock Text="Edit"/>
+                </StackPanel>
+            </ToggleButton>
+
+            <!-- Selected-descriptor chips, or the empty-state placeholder when nothing is selected. -->
+            <Grid VerticalAlignment="Center">
+                <ItemsControl ItemsSource="{Binding SummaryChips}"
+                              Visibility="{Binding HasSelectedDescriptors, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource TertiaryBackground}" BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="9" Padding="7 1" Margin="0 2 5 2">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Category}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0 0 5 0"/>
+                                    <TextBlock Text="{Binding Values}" Foreground="{DynamicResource PrimaryForeground}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="No descriptors selected" FontStyle="Italic" VerticalAlignment="Center"
+                           Foreground="{DynamicResource HintForeground}"
+                           Visibility="{Binding HasSelectedDescriptors, Converter={StaticResource IBoolToVis}, ConverterParameter=Inverted}"/>
+            </Grid>
+        </DockPanel>
+
+        <!-- Editor: category list + value picker + match mode. Collapsed until the user clicks Edit. -->
+        <Grid Grid.Row="1" Margin="0 8 0 0"
+              Visibility="{Binding IsEditorExpanded, Converter={StaticResource BoolToVis}}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto"/>
                 <ColumnDefinition Width="auto"/>
@@ -52,7 +121,5 @@
                 <TextBlock VerticalAlignment="Center" Text=" Descriptor Categories"/>
             </StackPanel>
         </Grid>
-    </Expander>
+    </Grid>
 </UserControl>
-
-
