@@ -23,77 +23,80 @@ internal static class SystemMemoryBudget
     private const long MinHeadroomBytes = 2L * 1024 * 1024 * 1024; // 2 GB
     private const double HeadroomFraction = 0.20;                  // ...or 20% of RAM
 
+    /// <summary>Sum of the default per-cache free-RAM fractions (0.5 pixel + 0.25 mesh + 0.1 cubemap),
+    /// i.e. the collective share of free RAM the caches use at the historical baseline. A caller's
+    /// <c>fraction</c> divided by this yields that cache's share of the collective budget, which is held
+    /// fixed while the total is scaled by the user's <c>freeRamPercent</c>.</summary>
+    public const double BaselineFreeRamFraction = 0.85;
+
+    /// <summary>The baseline collective share expressed as a percent (85). The default of
+    /// <see cref="ICharacterViewerSettings.FreeRamCachePercent"/>, and the value at which this returns the
+    /// historical budgets unchanged.</summary>
+    public const double BaselineFreeRamPercent = BaselineFreeRamFraction * 100.0;
+
     /// <summary>
-    /// Returns a byte budget sized to a <paramref name="fraction"/> of the
-    /// reclaimable-free RAM (OS-free RAM plus what the caller's cache already
-    /// holds, since that is evictable), after reserving headroom, then clamped to
-    /// [<paramref name="minBytes"/>, <paramref name="maxFractionOfTotal"/> of total
-    /// physical RAM].
+    /// Mode-aware in-RAM cache byte budget. The three decode caches keep a fixed ratio among themselves
+    /// (each caller's <paramref name="fraction"/> over <see cref="BaselineFreeRamFraction"/> is its share);
+    /// a single knob scales the collective total.
     ///
-    /// <para>The ceiling is expressed as a fraction of total RAM, not a fixed byte
-    /// constant, so it scales with the machine: a fixed cap would needlessly
-    /// throttle a high-RAM host running batched 4K/8K renders. In normal use the
-    /// free-RAM term is what binds; the fraction-of-total ceiling is only a backstop
-    /// against an anomalous memory reading or a working set larger than will ever be
-    /// re-referenced. The caches don't coordinate, but they share the free-RAM
-    /// signal -- as one fills, free RAM drops, so the next one's budget shrinks --
-    /// which collectively bounds them to the reserved headroom.</para>
+    /// <para><see cref="RenderCacheMode.PercentFreeRam"/> (default): the caches may collectively use
+    /// <paramref name="freeRamPercent"/>% of reclaimable-free RAM (OS-free RAM plus what this cache already
+    /// holds, since that is evictable), after reserving headroom. This cache gets its ratio share of that.
+    /// The same percent applied to total physical RAM is the upper cap -- so the percent is the single
+    /// source of truth for both target and ceiling; there is no independent per-cache ceiling. The ceiling
+    /// normally sits above the free-RAM target and only binds on an anomalous (too-high) free reading.
+    /// <paramref name="freeRamPercent"/> at <see cref="BaselineFreeRamPercent"/> reproduces the historical
+    /// per-cache fractions exactly.</para>
+    ///
+    /// <para><see cref="RenderCacheMode.FixedRam"/> applies the raw <paramref name="fraction"/> to
+    /// <paramref name="fixedPoolBytes"/> (a stable, machine-independent budget the user sets), capped at
+    /// this cache's ratio share of total physical RAM so an oversized pool can't exceed the machine.
+    /// <see cref="RenderCacheMode.Disabled"/> returns 0 -- the cache retains nothing (a render still holds
+    /// the pixels it fetched, so this is safe, just non-reusing).</para>
     /// </summary>
-    /// <param name="currentCacheBytes">Bytes the caller's cache currently holds.
-    /// Added back to free space because it is reclaimable; this keeps the budget
-    /// stable as the cache fills (otherwise the target would chase a shrinking
-    /// free figure and oscillate).</param>
-    /// <param name="fraction">Share of reclaimable-free RAM this cache may use
-    /// (e.g. 0.5 for the dominant pixel cache, less for secondary caches).</param>
-    /// <param name="minBytes">Floor so a busy machine still caches something.</param>
-    /// <param name="maxFractionOfTotal">Ceiling as a share of total physical RAM, so
-    /// the cap scales with the host instead of being a fixed throttle.</param>
-    /// <summary>
-    /// Mode-aware budget. <see cref="RenderCacheMode.PercentFreeRam"/> is the historical behaviour (a
-    /// fraction of live free RAM). <see cref="RenderCacheMode.FixedRam"/> applies the same per-cache
-    /// <paramref name="fraction"/> to <paramref name="fixedPoolBytes"/> instead of live free RAM, so the
-    /// budget is a stable, machine-independent ceiling (the fixed pool is the notional total shared across
-    /// caches; each takes its fraction of it). <see cref="RenderCacheMode.Disabled"/> returns 0 — the cache
-    /// retains nothing (a render still holds the pixels it fetched, so this is safe, just non-reusing).
-    /// </summary>
-    public static long Compute(RenderCacheMode mode, long fixedPoolBytes, long currentCacheBytes,
-        double fraction, long minBytes, double maxFractionOfTotal)
+    /// <param name="freeRamPercent">Collective share of free RAM (0-100) the caches may use in
+    /// PercentFreeRam mode; also drives the ceiling. See <see cref="BaselineFreeRamPercent"/>.</param>
+    /// <param name="currentCacheBytes">Bytes the caller's cache currently holds. Added back to free space
+    /// because it is reclaimable; this keeps the budget stable as the cache fills (otherwise the target
+    /// would chase a shrinking free figure and oscillate).</param>
+    /// <param name="fraction">This cache's baseline share of free RAM (0.5 pixel / 0.25 mesh / 0.1 cubemap);
+    /// its ratio among the caches is <c>fraction / BaselineFreeRamFraction</c>.</param>
+    /// <param name="minBytes">Floor so a busy machine still caches something (capped to the ceiling).</param>
+    public static long Compute(RenderCacheMode mode, long fixedPoolBytes, double freeRamPercent,
+        long currentCacheBytes, double fraction, long minBytes)
     {
-        switch (mode)
-        {
-            case RenderCacheMode.Disabled:
-                return 0;
+        if (mode == RenderCacheMode.Disabled)
+            return 0;
 
-            case RenderCacheMode.FixedRam:
-            {
-                long fixedTarget = (long)(Math.Max(0, fixedPoolBytes) * fraction);
-                // Keep the fraction-of-total ceiling as a sanity backstop; no free-RAM floor, since the whole
-                // point of a fixed budget is to honour the user's number even on a busy machine.
-                long totalRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-                long ceiling = totalRam > 0 ? Math.Max(minBytes, (long)(totalRam * maxFractionOfTotal)) : long.MaxValue;
-                return Math.Clamp(fixedTarget, 0, ceiling);
-            }
-
-            default: // PercentFreeRam
-                return Compute(currentCacheBytes, fraction, minBytes, maxFractionOfTotal);
-        }
-    }
-
-    public static long Compute(long currentCacheBytes, double fraction, long minBytes, double maxFractionOfTotal)
-    {
         GCMemoryInfo info = GC.GetGCMemoryInfo();
         long total = info.TotalAvailableMemoryBytes; // physical RAM, or container limit
-        long load = info.MemoryLoadBytes;            // memory in use system-wide
 
-        // Info unavailable (e.g. before the first GC): fall back to the floor.
+        // This cache's share of the collective budget, from its ratio among the default fractions. Holding
+        // the ratio fixed lets one knob (the total percent) scale all three caches together.
+        double cacheShare = fraction / BaselineFreeRamFraction;
+
+        if (mode == RenderCacheMode.FixedRam)
+        {
+            long fixedTarget = (long)(Math.Max(0, fixedPoolBytes) * fraction);
+            // No free-RAM floor (honour the user's number even on a busy machine), but never let a single
+            // cache exceed its ratio share of total physical RAM.
+            long fixedCeiling = total > 0 ? Math.Max(0L, (long)(total * cacheShare)) : long.MaxValue;
+            return Math.Clamp(fixedTarget, 0, fixedCeiling);
+        }
+
+        // PercentFreeRam. Info unavailable (e.g. before the first GC): fall back to the floor.
         if (total <= 0)
             return minBytes;
 
+        double coeff = cacheShare * (Math.Clamp(freeRamPercent, 0, 100) / 100.0); // this cache's effective fraction
+        long load = info.MemoryLoadBytes;                                          // memory in use system-wide
         long free = Math.Max(0, total - load);
         long headroom = Math.Max(MinHeadroomBytes, (long)(total * HeadroomFraction));
         long reclaimable = Math.Max(0, free + currentCacheBytes - headroom);
-        long target = (long)(reclaimable * fraction);
-        long maxBytes = Math.Max(minBytes, (long)(total * maxFractionOfTotal));
-        return Math.Clamp(target, minBytes, maxBytes);
+
+        long target = (long)(reclaimable * coeff);
+        long ceiling = (long)(total * coeff);       // percent drives the cap too -- single source of truth
+        long floor = Math.Min(minBytes, ceiling);   // keep floor viable if a low percent puts the cap under it
+        return Math.Clamp(target, floor, ceiling);
     }
 }

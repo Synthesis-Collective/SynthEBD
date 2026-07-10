@@ -73,11 +73,10 @@ public class CharacterPreviewCache
     // could mean anywhere from a few hundred MB to several GB of resident pixels.
     // The budget tracks free system RAM (see SystemMemoryBudget) so the cache grows
     // to use spare memory on a big machine and shrinks on a constrained one. This is
-    // the dominant in-RAM cache, so it gets the largest share of free RAM, and its
-    // ceiling is a share of total RAM (not a fixed cap) so a high-RAM host running
-    // batched 4K/8K renders isn't throttled.
+    // the dominant in-RAM cache, so it gets the largest share (0.5 of the 0.85 total)
+    // of the collective free-RAM budget; the user's FreeRamCachePercent scales that
+    // total (and the matching ceiling) while this cache keeps its 50:25:10 ratio.
     private const long PixelCacheMinBudgetBytes = 64L * 1024 * 1024;        // 64 MB floor
-    private const double PixelCacheMaxFractionOfTotal = 0.6;                // ceiling: 60% of RAM
     private const double PixelCacheFreeRamFraction = 0.5;
     private const int PixelCacheRepollEveryAdds = 32;
     private readonly Dictionary<string, DdsPixels?> _pixelCache = new(StringComparer.OrdinalIgnoreCase);
@@ -101,7 +100,6 @@ public class CharacterPreviewCache
     // pixel cache but with a much smaller share of free RAM: a typical NPC pulls
     // one envmap and many share the default cubemap, so the working set is tiny.
     private const long CubemapCacheMinBudgetBytes = 16L * 1024 * 1024;       // 16 MB floor
-    private const double CubemapCacheMaxFractionOfTotal = 0.1;               // ceiling: 10% of RAM
     private const double CubemapCacheFreeRamFraction = 0.1;
     private const int CubemapCacheRepollEveryAdds = 8;
     private readonly Dictionary<string, DdsCubemapPixels?> _cubemapCache = new(StringComparer.OrdinalIgnoreCase);
@@ -153,11 +151,11 @@ public class CharacterPreviewCache
         MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver, settings);
 
         _pixelBudgetBytes = SystemMemoryBudget.Compute(
-            CacheMode, FixedPoolBytes,
-            0, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
+            CacheMode, FixedPoolBytes, FreeRamPercent,
+            0, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes);
         _cubemapBudgetBytes = SystemMemoryBudget.Compute(
-            CacheMode, FixedPoolBytes,
-            0, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
+            CacheMode, FixedPoolBytes, FreeRamPercent,
+            0, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes);
     }
 
     // Read live each repoll so a host-side cache-mode change takes effect within a few renders. Null
@@ -165,6 +163,7 @@ public class CharacterPreviewCache
     private readonly ICharacterViewerSettings? _settings;
     private RenderCacheMode CacheMode => _settings?.CacheMode ?? RenderCacheMode.PercentFreeRam;
     private long FixedPoolBytes => _settings?.FixedCacheBudgetBytes ?? 0;
+    private double FreeRamPercent => _settings?.FreeRamCachePercent ?? SystemMemoryBudget.BaselineFreeRamPercent;
 
     /// <summary>
     /// Returns cached <see cref="ResolvedNpcMeshPaths"/> for this NPC under the
@@ -290,9 +289,8 @@ public class CharacterPreviewCache
             {
                 _pixelAddsSinceRepoll = 0;
                 _pixelBudgetBytes = SystemMemoryBudget.Compute(
-                    CacheMode, FixedPoolBytes,
-                    _pixelBytes, PixelCacheFreeRamFraction,
-                    PixelCacheMinBudgetBytes, PixelCacheMaxFractionOfTotal);
+                    CacheMode, FixedPoolBytes, FreeRamPercent,
+                    _pixelBytes, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes);
             }
 
             // Evict LRU until within budget, but always keep the entry just added
@@ -437,9 +435,8 @@ public class CharacterPreviewCache
             {
                 _cubemapAddsSinceRepoll = 0;
                 _cubemapBudgetBytes = SystemMemoryBudget.Compute(
-                    CacheMode, FixedPoolBytes,
-                    _cubemapBytes, CubemapCacheFreeRamFraction,
-                    CubemapCacheMinBudgetBytes, CubemapCacheMaxFractionOfTotal);
+                    CacheMode, FixedPoolBytes, FreeRamPercent,
+                    _cubemapBytes, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes);
             }
 
             while (_cubemapBytes > _cubemapBudgetBytes && _cubemapLru.Count > 1)

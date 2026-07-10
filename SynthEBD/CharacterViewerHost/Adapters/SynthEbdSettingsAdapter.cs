@@ -51,4 +51,17 @@ public sealed class SynthEbdSettingsAdapter : ICharacterViewerSettings
         get => _inner.CharacterViewerVerboseLog;
         set => _inner.CharacterViewerVerboseLog = value;
     }
+
+    public RenderCacheMode CacheMode
+    {
+        get => _inner.CacheMode;
+        set => _inner.CacheMode = value;
+    }
+
+    // The renderer wants bytes; the VM stores GB. Clamp negatives to 0 so a
+    // stray value can't be read as a huge unsigned budget.
+    public long FixedCacheBudgetBytes =>
+        (long)(Math.Max(0, _inner.CacheFixedBudgetGB) * 1024L * 1024L * 1024L);
+
+    public double FreeRamCachePercent => Math.Clamp(_inner.CacheFreeRamPercent, 0, 100);
 }

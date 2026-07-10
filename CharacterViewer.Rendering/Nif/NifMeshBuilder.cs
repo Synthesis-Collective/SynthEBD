@@ -37,6 +37,7 @@ public class NifMeshBuilder
     private readonly ICharacterViewerSettings? _settings;
     private RenderCacheMode CacheMode => _settings?.CacheMode ?? RenderCacheMode.PercentFreeRam;
     private long FixedPoolBytes => _settings?.FixedCacheBudgetBytes ?? 0;
+    private double FreeRamPercent => _settings?.FreeRamCachePercent ?? SystemMemoryBudget.BaselineFreeRamPercent;
 
     private void LogVerbose(string message)
     {
@@ -413,11 +414,11 @@ public class NifMeshBuilder
     // pathologically large meshes can't balloon RAM. Its floor (256 MB) sits above
     // the ~190 MB worst-case footprint of 96 normal entries, so on any machine the
     // byte ceiling only trips for unusually large meshes and never evicts below the
-    // working set the count cap maintains. Its ceiling is a share of total RAM (not
-    // a fixed cap) so it scales with the host and tracks free RAM like the other
-    // in-RAM caches (see SystemMemoryBudget).
+    // working set the count cap maintains. It tracks free RAM like the other in-RAM
+    // caches (see SystemMemoryBudget), taking 0.25 of the 0.85 collective budget; the
+    // user's FreeRamCachePercent scales that budget (and the matching ceiling) while
+    // this cache keeps its 50:25:10 ratio against the pixel and cubemap caches.
     private const long CacheMinBudgetBytes = 256L * 1024 * 1024;        // 256 MB floor
-    private const double CacheMaxFractionOfTotal = 0.4;                 // ceiling: 40% of RAM
     private const double CacheFreeRamFraction = 0.25;
     private const int CacheRepollEveryAdds = 16;
     private readonly LinkedList<NifCacheEntry> _cache = new();
@@ -668,8 +669,8 @@ public class NifMeshBuilder
                 {
                     _cacheAddsSinceRepoll = 0;
                     _cacheBudgetBytes = SystemMemoryBudget.Compute(
-                        CacheMode, FixedPoolBytes,
-                        _cacheBytes, CacheFreeRamFraction, CacheMinBudgetBytes, CacheMaxFractionOfTotal);
+                        CacheMode, FixedPoolBytes, FreeRamPercent,
+                        _cacheBytes, CacheFreeRamFraction, CacheMinBudgetBytes);
                 }
 
                 // Evict by the count cap, plus the byte ceiling as a safety bound,

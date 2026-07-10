@@ -395,6 +395,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
     public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public bool CharacterViewerVerboseLog { get; set; } = false;
+    public RenderCacheMode CacheMode { get; set; } = RenderCacheMode.PercentFreeRam;
+    public double CacheFixedBudgetGB { get; set; } = 4.0;
+    public double CacheFreeRamPercent { get; set; } = 85.0;
+    public IEnumerable<RenderCacheMode> CacheModeChoices { get; } =
+        Enum.GetValues(typeof(RenderCacheMode)).Cast<RenderCacheMode>();
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     public VM_NifPreviewNpcSettings PreviewNpcs { get; set; }
     public ILoadOrderGetter LoadOrder { get; private set; }
@@ -471,6 +476,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         UserLightingColorSchemes = new ObservableCollection<CharacterViewerLightingColorScheme>(
             model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
         CharacterViewerVerboseLog = model.CharacterViewerVerboseLog;
+        CacheMode = model.CacheMode;
+        CacheFixedBudgetGB = model.CacheFixedBudgetGB;
+        CacheFreeRamPercent = model.CacheFreeRamPercent;
         TextureLoadStrategy = model.TextureLoadStrategy;
         IsCurrentlyLoading = false;
         _logger.LogStartupEventEnd("Loading General Settings UI");
@@ -540,6 +548,9 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.UserLightingLayouts = UserLightingLayouts.ToList();
         model.UserLightingColorSchemes = UserLightingColorSchemes.ToList();
         model.CharacterViewerVerboseLog = CharacterViewerVerboseLog;
+        model.CacheMode = CacheMode;
+        model.CacheFixedBudgetGB = CacheFixedBudgetGB;
+        model.CacheFreeRamPercent = CacheFreeRamPercent;
         model.TextureLoadStrategy = TextureLoadStrategy;
         model.PreviewNpcs = PreviewNpcs.DumpToModel();
 

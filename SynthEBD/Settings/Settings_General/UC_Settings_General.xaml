@@ -12,6 +12,7 @@
         <local:BodySlideVisibilityConverter x:Key="BSVisibilityConverter" />
         <local:BoolToGridRowHeightConverter x:Key="GridHeightToggler"/>
         <local:UiModeToGridRowHeightConverter x:Key="UiModeRowHeight"/>
+        <local:EnumDescriptionConverter x:Key="EnumDesc" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
     
@@ -282,6 +283,59 @@
             <TextBlock Grid.Column="0" Grid.Row="34" local:DocTooltip.Key="General.NifPreviewOptions">Nif Preview Options</TextBlock>
             <Expander Grid.Column="2" Grid.Row="34" Header="" ExpandDirection="Down" DataContext="{Binding PreviewNpcs}">
                 <StackPanel>
+                    <!-- Asset Cache. The expander's DataContext is PreviewNpcs, so redirect this section back
+                         to the parent VM_Settings_General where the cache properties live. -->
+                    <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 0 5" Padding="3"
+                            DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type local:UC_Settings_General}}}">
+                        <StackPanel>
+                            <TextBlock Text="Asset Cache" Foreground="{DynamicResource ActionAccentForeground}" FontWeight="Bold" local:DocTooltip.Key="General.RenderCacheMode"/>
+                            <StackPanel Orientation="Horizontal" Margin="0 3 0 0">
+                                <ComboBox MinWidth="120" VerticalAlignment="Center"
+                                          ItemsSource="{Binding CacheModeChoices}"
+                                          SelectedItem="{Binding CacheMode, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource EnumDesc}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <!-- Free-RAM percentage field: shown only when % Free RAM is selected. -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                            ToolTip="Total share of free RAM the decode caches may use together (they keep their fixed 50:25:10 ratio). 85 is the default; higher caches more aggressively, lower frees RAM for other work.">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CacheMode}" Value="PercentFreeRam">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Margin="15 0 5 0" VerticalAlignment="Center">Free RAM %</TextBlock>
+                                    <TextBox MinWidth="50" VerticalAlignment="Center"
+                                             Text="{Binding CacheFreeRamPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <!-- GB budget field: shown only when Fixed RAM is selected. -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                            ToolTip="&quot;Fixed RAM&quot; is the approximate total the decode caches may use (they split it by their existing ratios).">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CacheMode}" Value="FixedRam">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Margin="15 0 5 0" VerticalAlignment="Center">Budget (GB)</TextBlock>
+                                    <TextBox MinWidth="50" VerticalAlignment="Center"
+                                             Text="{Binding CacheFixedBudgetGB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                     <Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0 0 0 5" Padding="3">
                         <StackPanel>
                             <TextBlock Text="Default (used when a race is unmapped)" Foreground="{DynamicResource ActionAccentForeground}" FontWeight="Bold"/>

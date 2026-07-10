@@ -192,6 +192,14 @@ The only lever that removes this is a native bulk-copy helper (`memcpy` from the
 
 **Instrumentation** (gated, production-safe — zero cost unless the trigger file is present): drop `LogNifCacheDiag.txt` next to the exe → `RenderLogs/NifCacheDiag.log` prints a `parse split` line every 25 parses (load/build %, then geom/skin shares of build). Drop `LogRenderTimings.txt` → `RenderLogs/RenderTimings.csv` gets per-NPC `loadMs`/`buildShapesMs` columns (captured on the prewarm worker). Counters: `_threadLoad/Build/Geom/SkinTicks` in [NifMeshBuilder.cs](Nif/NifMeshBuilder.cs).
 
+**In-RAM cache byte budgets** ([SystemMemoryBudget.cs](SystemMemoryBudget.cs)). Three decode caches are byte-budgeted rather than entry-capped (a 4K texture is ~16× a 1K one, so a count cap is meaningless): the **pixel** cache (decoded BGRA32, dominant), the **mesh** parse cache (built geometry), and the **cubemap** cache (envmaps). They hold a fixed **50 : 25 : 10** ratio — baseline fractions `0.5 / 0.25 / 0.1` of free RAM summing to `0.85` (`BaselineFreeRamFraction`). Sizing is governed by `ICharacterViewerSettings` and re-polled every N inserts (so a host change lands within a few renders), across three modes ([RenderCacheMode](RenderCacheMode.cs)):
+
+- **`PercentFreeRam`** (default) — the caches may collectively use `FreeRamCachePercent`% (default **85**, reproducing the historical fractions) of *reclaimable-free* RAM (OS-free + what the cache already holds, minus a `max(2 GB, 20%)` headroom reserve), split by the ratio. **The same percent applied to total physical RAM is the upper ceiling** — one knob is the single source of truth for both target and cap; there is no separate per-cache ceiling. Raising it caches more aggressively; lowering it frees RAM for the rest of the app.
+- **`FixedRam`** — the ratio is applied to a user-set fixed pool (`FixedCacheBudgetBytes`) instead of live free RAM, capped at each cache's ratio share of total physical RAM so an oversized pool can't exceed the machine.
+- **`Disabled`** — budget 0; caches retain nothing (a render still holds the pixels it fetched, so this is safe, just non-reusing).
+
+SynthEBD surfaces all three via General Settings (`CacheMode` / `CacheFreeRamPercent` / `CacheFixedBudgetGB`, bridged by `SynthEbdSettingsAdapter`). The 50 : 25 : 10 ratio is a design estimate pending empirical validation of real per-cache utilization across a batch run.
+
 ### Dismember partitions and shape filtering
 
 NIF shapes that ship with a `BSDismemberSkinInstance` carry a list of dismember-partition IDs — Bethesda's `BIPED_OBJECT` enum (32 = body / torso, 33 = hands, 37 = feet, 30 / 130 / 230 = head, 31 = hair, 40 = tail). NifSkope labels them via the shared body-part enum on each partition entry. The renderer makes two decisions during NIF parse based on these IDs.

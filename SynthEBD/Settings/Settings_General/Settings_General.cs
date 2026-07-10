@@ -1,5 +1,6 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
+using CharacterViewer.Rendering;
 
 namespace SynthEBD;
 
@@ -329,6 +330,13 @@ public class Settings_General
     /// <summary>User-defined CharacterViewer lighting color schemes (in addition to the built-in ones).</summary>
     public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public bool CharacterViewerVerboseLog { get; set; } = false;
+    /// <summary>Which budgeting strategy the renderer's decode caches use (% free RAM, fixed RAM, or disabled).</summary>
+    public RenderCacheMode CacheMode { get; set; } = RenderCacheMode.PercentFreeRam;
+    /// <summary>Total RAM (GB) the decode caches may use when <see cref="CacheMode"/> is <see cref="RenderCacheMode.FixedRam"/>.</summary>
+    public double CacheFixedBudgetGB { get; set; } = 4.0;
+    /// <summary>Collective share of free RAM (0-100) the decode caches may use when <see cref="CacheMode"/>
+    /// is <see cref="RenderCacheMode.PercentFreeRam"/>. Default 85 keeps the historical behaviour.</summary>
+    public double CacheFreeRamPercent { get; set; } = 85.0;
     /// <summary>Strategy key for how DDS textures are loaded into the previewer (e.g. "BmpStream").</summary>
     public string TextureLoadStrategy { get; set; } = "BmpStream";
     /// <summary>Settings for which NPCs are offered as stand-ins in the NIF previewer.</summary>
