@@ -301,7 +301,7 @@
                                 </ComboBox>
                                 <!-- Free-RAM percentage field: shown only when % Free RAM is selected. -->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                            ToolTip="Total share of free RAM the decode caches may use together (they keep their fixed 50:25:10 ratio). 85 is the default; higher caches more aggressively, lower frees RAM for other work.">
+                                            ToolTip="Total share of free RAM the decode caches may use together (they keep their fixed 75:9:1 ratio). 85 is the default; higher caches more aggressively, lower frees RAM for other work.">
                                     <StackPanel.Style>
                                         <Style TargetType="StackPanel">
                                             <Setter Property="Visibility" Value="Collapsed"/>

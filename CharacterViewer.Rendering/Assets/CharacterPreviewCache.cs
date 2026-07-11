@@ -73,11 +73,12 @@ public class CharacterPreviewCache
     // could mean anywhere from a few hundred MB to several GB of resident pixels.
     // The budget tracks free system RAM (see SystemMemoryBudget) so the cache grows
     // to use spare memory on a big machine and shrinks on a constrained one. This is
-    // the dominant in-RAM cache, so it gets the largest share (0.5 of the 0.85 total)
-    // of the collective free-RAM budget; the user's FreeRamCachePercent scales that
-    // total (and the matching ceiling) while this cache keeps its 50:25:10 ratio.
+    // by far the dominant in-RAM cache (a 50-NPC prewarm measured ~2 GB of resident
+    // pixels vs tens of MB for meshes), so it gets the largest share (0.75 of the 0.85
+    // total) of the collective free-RAM budget; the user's FreeRamCachePercent scales
+    // that total (and the matching ceiling) while this cache keeps its 75:9:1 ratio.
     private const long PixelCacheMinBudgetBytes = 64L * 1024 * 1024;        // 64 MB floor
-    private const double PixelCacheFreeRamFraction = 0.5;
+    private const double PixelCacheFreeRamFraction = 0.75;
     private const int PixelCacheRepollEveryAdds = 32;
     private readonly Dictionary<string, DdsPixels?> _pixelCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _pixelLru = new();
@@ -97,10 +98,11 @@ public class CharacterPreviewCache
     // Parallel cache for cubemap DDS payloads (six face buffers each). Kept
     // separate from _pixelCache because the value type differs and a single
     // texture path can't legitimately be both at once. Byte-budgeted like the
-    // pixel cache but with a much smaller share of free RAM: a typical NPC pulls
-    // one envmap and many share the default cubemap, so the working set is tiny.
+    // pixel cache but with a tiny share of free RAM: a typical NPC pulls one envmap
+    // and many share the default cubemap, so the working set is negligible (a 50-NPC
+    // prewarm measured ~0.1 MB).
     private const long CubemapCacheMinBudgetBytes = 16L * 1024 * 1024;       // 16 MB floor
-    private const double CubemapCacheFreeRamFraction = 0.1;
+    private const double CubemapCacheFreeRamFraction = 0.01;
     private const int CubemapCacheRepollEveryAdds = 8;
     private readonly Dictionary<string, DdsCubemapPixels?> _cubemapCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _cubemapLru = new();
@@ -293,6 +295,10 @@ public class CharacterPreviewCache
                     _pixelBytes, PixelCacheFreeRamFraction, PixelCacheMinBudgetBytes);
             }
 
+            if (CacheBudgetDiag.Enabled)
+                CacheBudgetDiag.ReportInsert(CacheBudgetDiag.Pixel,
+                    decoded.Value.Data.Length, _pixelBytes, _pixelBudgetBytes);
+
             // Evict LRU until within budget, but always keep the entry just added
             // (a single texture larger than the whole budget must not loop forever).
             while (_pixelBytes > _pixelBudgetBytes && _pixelLru.Count > 1)
@@ -300,7 +306,12 @@ public class CharacterPreviewCache
                 var oldestKey = _pixelLru.Last!.Value;
                 _pixelLru.RemoveLast();
                 if (_pixelCache.TryGetValue(oldestKey, out var evicted) && evicted.HasValue)
+                {
                     _pixelBytes -= evicted.Value.Data.Length;
+                    if (CacheBudgetDiag.Enabled)
+                        CacheBudgetDiag.ReportEviction(CacheBudgetDiag.Pixel,
+                            evicted.Value.Data.Length, _pixelBytes);
+                }
                 _pixelCache.Remove(oldestKey);
             }
         }
@@ -439,12 +450,21 @@ public class CharacterPreviewCache
                     _cubemapBytes, CubemapCacheFreeRamFraction, CubemapCacheMinBudgetBytes);
             }
 
+            if (CacheBudgetDiag.Enabled)
+                CacheBudgetDiag.ReportInsert(CacheBudgetDiag.Cubemap,
+                    CubemapByteSize(decoded.Value), _cubemapBytes, _cubemapBudgetBytes);
+
             while (_cubemapBytes > _cubemapBudgetBytes && _cubemapLru.Count > 1)
             {
                 var oldestKey = _cubemapLru.Last!.Value;
                 _cubemapLru.RemoveLast();
                 if (_cubemapCache.TryGetValue(oldestKey, out var evicted) && evicted.HasValue)
+                {
                     _cubemapBytes -= CubemapByteSize(evicted.Value);
+                    if (CacheBudgetDiag.Enabled)
+                        CacheBudgetDiag.ReportEviction(CacheBudgetDiag.Cubemap,
+                            CubemapByteSize(evicted.Value), _cubemapBytes);
+                }
                 _cubemapCache.Remove(oldestKey);
             }
         }
@@ -865,6 +885,11 @@ public class CharacterPreviewCache
             _cubemapCache.Clear();
             _cubemapLru.Clear();
             _cubemapBytes = 0;
+        }
+        if (CacheBudgetDiag.Enabled)
+        {
+            CacheBudgetDiag.ReportClear(CacheBudgetDiag.Pixel);
+            CacheBudgetDiag.ReportClear(CacheBudgetDiag.Cubemap);
         }
         MeshBuilder.ClearCache();
     }

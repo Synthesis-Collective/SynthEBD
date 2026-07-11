@@ -47,11 +47,11 @@ public interface ICharacterViewerSettings : INotifyPropertyChanged
     long FixedCacheBudgetBytes => 0;
 
     /// <summary>Total share of free RAM (0-100) the decode caches may collectively use when
-    /// <see cref="CacheMode"/> is <see cref="RenderCacheMode.PercentFreeRam"/>. The default 85 reproduces
-    /// the historical fixed per-cache fractions (0.5 pixel + 0.25 mesh + 0.1 cubemap = 0.85); the caches
-    /// keep that 50:25:10 ratio and this one value scales all of them together. It also sets their upper
-    /// cap (the same share applied to total RAM), so it is the single knob governing % Free RAM sizing --
-    /// there is no separate per-cache ceiling. Implemented as a default member so existing host adapters
-    /// keep today's behaviour without changes. Read live at each periodic budget re-poll.</summary>
+    /// <see cref="CacheMode"/> is <see cref="RenderCacheMode.PercentFreeRam"/>. At the default 85 each cache
+    /// gets its calibrated fixed fraction (0.75 pixel + 0.09 mesh + 0.01 cubemap = 0.85); the caches keep
+    /// that 75:9:1 ratio and this one value scales all of them together. It also sets their upper cap (the
+    /// same share applied to total RAM), so it is the single knob governing % Free RAM sizing -- there is no
+    /// separate per-cache ceiling. Implemented as a default member so existing host adapters keep the default
+    /// behaviour without changes. Read live at each periodic budget re-poll.</summary>
     double FreeRamCachePercent => 85.0;
 }

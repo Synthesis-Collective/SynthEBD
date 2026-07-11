@@ -23,15 +23,16 @@ internal static class SystemMemoryBudget
     private const long MinHeadroomBytes = 2L * 1024 * 1024 * 1024; // 2 GB
     private const double HeadroomFraction = 0.20;                  // ...or 20% of RAM
 
-    /// <summary>Sum of the default per-cache free-RAM fractions (0.5 pixel + 0.25 mesh + 0.1 cubemap),
-    /// i.e. the collective share of free RAM the caches use at the historical baseline. A caller's
-    /// <c>fraction</c> divided by this yields that cache's share of the collective budget, which is held
-    /// fixed while the total is scaled by the user's <c>freeRamPercent</c>.</summary>
+    /// <summary>Sum of the per-cache free-RAM fractions (0.75 pixel + 0.09 mesh + 0.01 cubemap), i.e. the
+    /// collective share of free RAM the caches use at the baseline percent. A caller's <c>fraction</c>
+    /// divided by this yields that cache's share of the collective budget, which is held fixed while the
+    /// total is scaled by the user's <c>freeRamPercent</c>. The ratio was calibrated from a 50-NPC prewarm
+    /// measurement (pixel demand dominates; see the per-cache constants).</summary>
     public const double BaselineFreeRamFraction = 0.85;
 
     /// <summary>The baseline collective share expressed as a percent (85). The default of
-    /// <see cref="ICharacterViewerSettings.FreeRamCachePercent"/>, and the value at which this returns the
-    /// historical budgets unchanged.</summary>
+    /// <see cref="ICharacterViewerSettings.FreeRamCachePercent"/>, and the value at which each cache gets
+    /// exactly its defined fraction.</summary>
     public const double BaselineFreeRamPercent = BaselineFreeRamFraction * 100.0;
 
     /// <summary>
@@ -45,8 +46,8 @@ internal static class SystemMemoryBudget
     /// The same percent applied to total physical RAM is the upper cap -- so the percent is the single
     /// source of truth for both target and ceiling; there is no independent per-cache ceiling. The ceiling
     /// normally sits above the free-RAM target and only binds on an anomalous (too-high) free reading.
-    /// <paramref name="freeRamPercent"/> at <see cref="BaselineFreeRamPercent"/> reproduces the historical
-    /// per-cache fractions exactly.</para>
+    /// <paramref name="freeRamPercent"/> at <see cref="BaselineFreeRamPercent"/> gives each cache exactly
+    /// its defined fraction.</para>
     ///
     /// <para><see cref="RenderCacheMode.FixedRam"/> applies the raw <paramref name="fraction"/> to
     /// <paramref name="fixedPoolBytes"/> (a stable, machine-independent budget the user sets), capped at
@@ -59,7 +60,7 @@ internal static class SystemMemoryBudget
     /// <param name="currentCacheBytes">Bytes the caller's cache currently holds. Added back to free space
     /// because it is reclaimable; this keeps the budget stable as the cache fills (otherwise the target
     /// would chase a shrinking free figure and oscillate).</param>
-    /// <param name="fraction">This cache's baseline share of free RAM (0.5 pixel / 0.25 mesh / 0.1 cubemap);
+    /// <param name="fraction">This cache's baseline share of free RAM (0.75 pixel / 0.09 mesh / 0.01 cubemap);
     /// its ratio among the caches is <c>fraction / BaselineFreeRamFraction</c>.</param>
     /// <param name="minBytes">Floor so a busy machine still caches something (capped to the ceiling).</param>
     public static long Compute(RenderCacheMode mode, long fixedPoolBytes, double freeRamPercent,

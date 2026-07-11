@@ -412,14 +412,16 @@ public class NifMeshBuilder
     // cap stays the primary mechanism because it is tuned to the parallel-prewarm
     // working set (see note above); the byte budget is a safety bound so a set of
     // pathologically large meshes can't balloon RAM. Its floor (256 MB) sits above
-    // the ~190 MB worst-case footprint of 96 normal entries, so on any machine the
-    // byte ceiling only trips for unusually large meshes and never evicts below the
-    // working set the count cap maintains. It tracks free RAM like the other in-RAM
-    // caches (see SystemMemoryBudget), taking 0.25 of the 0.85 collective budget; the
-    // user's FreeRamCachePercent scales that budget (and the matching ceiling) while
-    // this cache keeps its 50:25:10 ratio against the pixel and cubemap caches.
+    // the ~190 MB worst-case footprint of 96 normal entries, so for vanilla-scale
+    // meshes the count cap is what binds (a 50-NPC prewarm measured only ~57 MB of
+    // demand). It tracks free RAM like the other in-RAM caches (see SystemMemoryBudget),
+    // taking 0.09 of the 0.85 collective budget; the user's FreeRamCachePercent scales
+    // that budget (and the matching ceiling) while this cache keeps its 75:9:1 ratio
+    // against the pixel and cubemap caches. The 0.09 share (up from a naive 0.04) is
+    // deliberately generous headroom so users with high-poly mesh replacers -- where
+    // 96 entries CAN exceed the byte budget -- aren't evicted below the count cap.
     private const long CacheMinBudgetBytes = 256L * 1024 * 1024;        // 256 MB floor
-    private const double CacheFreeRamFraction = 0.25;
+    private const double CacheFreeRamFraction = 0.09;
     private const int CacheRepollEveryAdds = 16;
     private readonly LinkedList<NifCacheEntry> _cache = new();
     private readonly object _cacheLock = new();
@@ -528,6 +530,8 @@ public class NifMeshBuilder
             _cache.Clear();
             _cacheBytes = 0;
         }
+        if (CacheBudgetDiag.Enabled)
+            CacheBudgetDiag.ReportClear(CacheBudgetDiag.Mesh);
     }
 
     /// <summary>Estimates the resident bytes of a built-mesh snapshot for the
@@ -673,6 +677,10 @@ public class NifMeshBuilder
                         _cacheBytes, CacheFreeRamFraction, CacheMinBudgetBytes);
                 }
 
+                if (CacheBudgetDiag.Enabled)
+                    CacheBudgetDiag.ReportInsert(CacheBudgetDiag.Mesh,
+                        snapshotBytes, _cacheBytes, _cacheBudgetBytes);
+
                 // Evict by the count cap, plus the byte ceiling as a safety bound,
                 // but protect the shared body-part parses (femalebody / hands / feet
                 // / hair, reused across all/most NPCs) from being displaced by
@@ -686,9 +694,13 @@ public class NifMeshBuilder
                 while (_cache.Count > CacheMaxEntries ||
                        (_cacheBytes > _cacheBudgetBytes && _cache.Count > 1))
                 {
+                    bool byCountCap = _cache.Count > CacheMaxEntries;
                     var victim = OldestEvictable();
                     _cacheBytes -= victim.Value.Bytes;
                     _cache.Remove(victim);
+                    if (CacheBudgetDiag.Enabled)
+                        CacheBudgetDiag.ReportEviction(CacheBudgetDiag.Mesh,
+                            victim.Value.Bytes, _cacheBytes, byCountCap);
                 }
             }
         }
