@@ -983,7 +983,13 @@ public class GlRenderer : IDisposable
             }
 
             // Write depth only for solid, opaque-material blended shapes.
-            bool writeDepth = mesh.DepthWrite && mesh.MaterialAlpha >= 1f;
+            // Decal geometry (SLSF1_Decal/Dynamic_Decal — hairline shells, face
+            // overlays) never writes depth even when ZBuffer_Write is set: it
+            // hugs an opaque surface that already wrote depth, and its fully
+            // transparent fragments writing depth would z-reject whichever
+            // overlapping blended shape the centroid sort puts after it,
+            // cutting rotation-dependent holes at triangle boundaries.
+            bool writeDepth = mesh.DepthWrite && mesh.MaterialAlpha >= 1f && !mesh.IsDecal;
             if (writeDepth != curDepthWrite)
             {
                 GL.DepthMask(writeDepth);
@@ -2462,10 +2468,10 @@ public class GlRenderer : IDisposable
                 else if (!m.UseAlphaTest && !m.HasAlphaBlend) pass = "0-opaque";
                 else if (m.UseAlphaTest && !m.HasAlphaBlend) pass = "1-alphaTest";
                 else pass = "2-alphaBlend";
-                bool effDepthWrite = m.HasAlphaBlend ? (m.DepthWrite && m.MaterialAlpha >= 1f) : true;
+                bool effDepthWrite = m.HasAlphaBlend ? (m.DepthWrite && m.MaterialAlpha >= 1f && !m.IsDecal) : true;
                 sink($"CharacterViewer: DRAWLIST '{m.ShapeName}' pass={pass} " +
                     $"aTest={m.UseAlphaTest} thr={m.AlphaThreshold:F2} aBlend={m.HasAlphaBlend} " +
-                    $"zWrite={m.DepthWrite} matA={m.MaterialAlpha:F2} effDepthWrite={effDepthWrite} " +
+                    $"zWrite={m.DepthWrite} decal={m.IsDecal} matA={m.MaterialAlpha:F2} effDepthWrite={effDepthWrite} " +
                     $"hairTint={m.IsHairTintShader} doubleSided={m.IsDoubleSided}");
             }
         }

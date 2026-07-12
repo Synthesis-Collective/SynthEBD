@@ -206,6 +206,18 @@ public class NifMeshBuilder
         public bool ZBufferWrite { get; init; } = true;
 
         /// <summary>
+        /// True if this shape's BSLightingShaderProperty has SLSF1_Decal or
+        /// SLSF1_Dynamic_Decal (shaderFlags1 bits 26/27) — geometry authored as
+        /// an overlay on the surface beneath it (hairline shells, face marks).
+        /// The engine composites decals without writing depth, so the alpha-blend
+        /// pass must ignore ZBuffer_Write for them: hairline NIFs ship with BOTH
+        /// flags set, and letting their fully transparent fragments write depth
+        /// punches rotation-dependent holes in whichever overlapping blended
+        /// shape sorts behind them.
+        /// </summary>
+        public bool IsDecal { get; init; }
+
+        /// <summary>
         /// Material alpha (BSLightingShaderProperty.alpha, 0–1). &lt; 1 marks a
         /// genuinely translucent shape, which — like NifSkope's
         /// <c>translucent = (alpha &lt; 1.0)</c> — keeps depth-write off even when
@@ -298,6 +310,8 @@ public class NifMeshBuilder
     private const uint SLSF1_EyeEnvironmentMapping = 1u << 17;
     private const uint SLSF1_HairSoftLighting      = 1u << 18;
     private const uint SLSF1_OwnEmit               = 1u << 22;
+    private const uint SLSF1_Decal                 = 1u << 26;
+    private const uint SLSF1_DynamicDecal          = 1u << 27;
 
     // --- SLSF2 (shaderFlags2) ---
     private const uint SLSF2_ZBufferWrite           = 1u << 0;
@@ -1045,6 +1059,7 @@ public class NifMeshBuilder
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
         ZBufferWrite = b.ZBufferWrite,
+        IsDecal = b.IsDecal,
         MaterialAlpha = b.MaterialAlpha,
         AlphaThreshold = b.AlphaThreshold,
         SrcBlendIndex = b.SrcBlendIndex,
@@ -1957,6 +1972,7 @@ public class NifMeshBuilder
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
         bool zBufferWrite = (shaderFlags2 & SLSF2_ZBufferWrite) != 0;
+        bool isDecal = (shaderFlags1 & (SLSF1_Decal | SLSF1_DynamicDecal)) != 0;
         LogVerbose("CharacterViewer: Built shape '" + shapeName +
             "': " + positions.Length + " verts, " + (indices.Length / 3) + " tris" +
             ", textures: [" + string.Join(", ", texturePaths.Keys) + "]" +
@@ -1964,6 +1980,7 @@ public class NifMeshBuilder
             (hasAlphaTest ? ", alphaTest threshold=" + alphaThreshold.ToString("F2") : "") +
             (hasAlphaBlend ? ", alphaBlend" : "") +
             (hasAlphaBlend && !zBufferWrite ? ", noZWrite" : "") +
+            (isDecal ? ", decal" : "") +
             (materialAlpha < 1f ? ", matAlpha=" + materialAlpha.ToString("F2") : "") +
             (isDoubleSided ? ", doubleSided" : "") +
             (isPrimaryHead ? ", PRIMARY_HEAD" : ""));
@@ -2012,6 +2029,7 @@ public class NifMeshBuilder
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
             ZBufferWrite = zBufferWrite,
+            IsDecal = isDecal,
             MaterialAlpha = materialAlpha,
             AlphaThreshold = alphaThreshold,
             SrcBlendIndex = srcBlendIndex,

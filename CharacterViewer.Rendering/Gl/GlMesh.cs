@@ -55,6 +55,14 @@ public class GlMesh : IDisposable
     /// depth. Opaque and alpha-test passes always write depth. Defaults true.</summary>
     public bool DepthWrite { get; set; } = true;
 
+    /// <summary>Whether this shape is decal geometry (SLSF1_Decal /
+    /// SLSF1_Dynamic_Decal). Decals composite over the surface beneath and must
+    /// never write depth in the blend pass, even when <see cref="DepthWrite"/>
+    /// is set — hairline shells ship with both flags, and their transparent
+    /// fragments writing depth cuts rotation-dependent holes in overlapping
+    /// blended shapes.</summary>
+    public bool IsDecal { get; set; }
+
     /// <summary>Material alpha (BSLightingShaderProperty.alpha). &lt; 1 marks a
     /// genuinely translucent material, which keeps depth-write off in the blend
     /// pass even when <see cref="DepthWrite"/> is set — mirroring NifSkope's

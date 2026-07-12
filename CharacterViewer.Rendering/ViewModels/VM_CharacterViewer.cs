@@ -4530,6 +4530,7 @@ public class VM_CharacterViewer : ViewerVm
         // set, opaque material) occludes what's behind it; overlay decals and
         // translucent materials do not. See GlRenderer Pass 2.
         glMesh.DepthWrite = built.ZBufferWrite;
+        glMesh.IsDecal = built.IsDecal;
         glMesh.MaterialAlpha = built.MaterialAlpha;
 
         // Alpha test / blend
