@@ -62,7 +62,9 @@ internal static partial class NifDiagnosticDumper
         }
     }
 
-    private static void Dump(NifFile nif, string nifPath, ICharacterViewerLogger logger, GameAssetResolver? assetResolver)
+    // Internal (not private) so NifDumpApi can drive the dump gate-free for
+    // standalone tooling.
+    internal static void Dump(NifFile nif, string nifPath, ICharacterViewerLogger logger, GameAssetResolver? assetResolver)
     {
         var sb = new StringBuilder(8192);
         sb.AppendLine("════════════════════════════════════════════════════════════════════════");
