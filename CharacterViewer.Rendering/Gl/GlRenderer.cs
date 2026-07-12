@@ -93,8 +93,9 @@ public class GlRenderer : IDisposable
 
     private readonly List<GlMesh> _meshes = new();
 
-    // Scratch list for the alpha-blend pass: the blended subset of _meshes,
-    // sorted back-to-front each frame. Reused to avoid per-frame allocation.
+    // Scratch list for the alpha-blend pass: the blended subset of _meshes —
+    // non-decals sorted back-to-front each frame, then decals in NIF block
+    // order. Reused to avoid per-frame allocation.
     private readonly List<GlMesh> _blendDrawList = new();
     private bool _initialized;
     private bool _disposed;
@@ -941,17 +942,19 @@ public class GlRenderer : IDisposable
         // see-through.
         GL.Enable(EnableCap.Blend);
 
-        // Collect the blended subset and sort it back-to-front by camera
-        // distance, so overlapping transparent surfaces composite in the right
-        // order once depth-write is re-enabled for the solid ones. (NifSkope's
-        // secondPass.alphaSort.) All shapes share the single u_model matrix, so
-        // a world-space center distance gives a correct global ordering.
+        // Collect the blended NON-DECAL subset and sort it back-to-front by
+        // camera distance, so overlapping transparent surfaces composite in the
+        // right order once depth-write is re-enabled for the solid ones.
+        // (NifSkope's secondPass.alphaSort.) All shapes share the single
+        // u_model matrix, so a world-space center distance gives a correct
+        // global ordering.
         _blendDrawList.Clear();
         foreach (var mesh in _meshes)
         {
             if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
             if (!mesh.HasAlphaBlend) continue;
+            if (mesh.IsDecal) continue;
             _blendDrawList.Add(mesh);
         }
         var modelForSort = model;
@@ -959,6 +962,25 @@ public class GlRenderer : IDisposable
         _blendDrawList.Sort((a, b) =>
             CameraDistanceSq(b, modelForSort, camForSort)
                 .CompareTo(CameraDistanceSq(a, modelForSort, camForSort)));
+
+        // Blended DECAL shapes (hairline shells, brows, face overlays) are
+        // appended after the distance-sorted set, in _meshes order — i.e. NIF
+        // block order. Camera distance is meaningless between interpenetrating
+        // shells hugging the same scalp: their near-coincident centroids make
+        // the sort order flip with small rotations, and since "over" blending
+        // is not commutative for partial alpha, each flip visibly pops the
+        // brightness of the region where two decals overlap (hairline fade vs
+        // fringe). NIF block order is the author-intended layering and is
+        // rotation-stable; drawing decals last is safe because they never
+        // write depth and sit on opaque geometry that already did.
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (!mesh.HasAlphaBlend) continue;
+            if (!mesh.IsDecal) continue;
+            _blendDrawList.Add(mesh);
+        }
 
         // Per-mesh src/dst blend factors honored from NiAlphaProperty.
         // The vast majority of alpha-blended actor shapes use SRC_ALPHA /
