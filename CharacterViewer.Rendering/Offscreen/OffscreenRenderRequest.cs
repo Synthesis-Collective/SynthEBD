@@ -284,6 +284,24 @@ public sealed class OffscreenRenderRequest
     /// darkening in deep crevices, more subtle elsewhere.</summary>
     public float SsaoIntensity { get; init; } = 1.5f;
 
+    /// <summary>Assumed SSAO occluder thickness in view-space units
+    /// (2.5.20+). An occluder only darkens a fragment when its depth is
+    /// within roughly this distance; geometry farther behind (e.g. a
+    /// collar a few units behind a thin beard strand) is treated as a
+    /// separate surface seen through a gap, not a local crevice wall.
+    /// Also drives the bilateral SSAO blur's depth threshold. Defaults
+    /// match GlRenderer's hardcoded 2.5.16 value.</summary>
+    public float SsaoThickness { get; init; } = 1.5f;
+
+    /// <summary>Max view-space gap between a hair/beard fragment and the
+    /// opaque surface behind it for screen-space AO to still apply to the
+    /// hair (2.5.20+). Hair is excluded from the SSAO depth prepass, so its
+    /// AO texel belongs to the surface behind the strands; past this gap it
+    /// is background structure (collar edges, lip lines) and fades to
+    /// unoccluded instead of ghosting through the beard. See
+    /// GlRenderer.SsaoHairGap.</summary>
+    public float SsaoHairGap { get; init; } = 0.8f;
+
     /// <summary>Eye catch-light toggle (2.5.13+). When true, eye shapes
     /// (those flagged <see cref="GlMesh.IsEye"/>) get an extra tight,
     /// bright Blinn-Phong specular spot from the key light layered on

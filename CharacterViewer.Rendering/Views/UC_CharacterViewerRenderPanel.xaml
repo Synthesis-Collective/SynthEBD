@@ -186,6 +186,22 @@
                                    Foreground="White"
                                    FormatString="0.00"
                                    ToolTip="Power-curve exponent. Higher = harder darkening in deep crevices, more subtle elsewhere; lower = uniformly darker AO. Default 1.5."/>
+
+                <TextBlock Text="Thickness:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0.05" Maximum="10" Increment="0.1"
+                                   Value="{Binding SsaoThickness}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Assumed occluder thickness in view-space units. An occluder only darkens a fragment when its depth is within roughly this distance; geometry farther behind (e.g. a collar behind beard strands) counts as a separate surface seen through a gap, not a crevice wall. Lower = less background bleed onto thin hair; higher = broader contact AO. Default 1.5."/>
+
+                <TextBlock Text="Hair Gap:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="0.05" Maximum="10" Increment="0.1"
+                                   Value="{Binding SsaoHairGap}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Max distance (view units) between hair and the surface behind it for that surface's AO to shade the hair. Hair is absent from the AO depth buffer, so its AO always comes from what is behind it: within this gap (scalp under a hairline, chin under a beard) that is a fair stand-in; beyond it (a collar behind the beard) it is background structure that would ghost through, so it fades out. Default 0.8."/>
             </WrapPanel>
         </Border>
 

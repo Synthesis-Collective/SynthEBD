@@ -146,6 +146,16 @@ uniform sampler2DShadow u_shadowMap;
 uniform bool u_enableAO;
 uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
+// Hair AO gap test (unit 11): the SSAO depth prepass excludes alpha-tested
+// and alpha-blended geometry, so the AO texel under a hair/beard fragment
+// always belongs to the opaque surface behind the strands. These reconstruct
+// the view-space gap between this fragment and that surface; AO fades out
+// past u_ssaoHairGap (fully gone at 2x the gap) so background structure
+// (collar edges, lip lines) cannot ghost through the beard, while contact
+// regions (hairline on scalp, beard on chin) keep their AO.
+uniform sampler2D u_ssaoDepthTex;
+uniform mat4 u_invProjection;
+uniform float u_ssaoHairGap;
 uniform bool u_enableEyeCatchlight;
 // Skin-shading correctness toggles (host checkboxes, read each frame).
 // u_specularAchromatic: when true, dielectric (skin) specular is added on
@@ -580,15 +590,39 @@ void main()
     // naive SSAO occludes every strand against the body just behind it,
     // painting the underlying surface's shading and silhouette edges (e.g. a
     // shirt-collar line) onto the strands so the beard reads as translucent.
-    // That is now rejected at the source - ssao.frag's occluder-thickness test
-    // discards occluders more than ~u_thickness behind a fragment, and the
-    // bilateral ssao_blur keeps body AO out of the strand gaps - so hair keeps
-    // only its own local self-occlusion (depth between strand clumps) without
-    // the background bleed. (Eyes still opt out: their lash-edge depth step is
-    // a separate artifact, and a wet glossy sphere gains nothing from diffuse
+    // Two defenses against that: ssao.frag's occluder-thickness test discards
+    // occluders more than ~u_thickness behind a fragment (with the bilateral
+    // ssao_blur keeping body AO out of the strand gaps), and the hair AO gap
+    // fade below drops the sampled AO entirely when the prepass surface under
+    // this hair fragment is farther behind than u_ssaoHairGap - since hair is
+    // excluded from the prepass, that AO belongs to the background surface,
+    // not the hair. (Eyes still opt out: their lash-edge depth step is a
+    // separate artifact, and a wet glossy sphere gains nothing from diffuse
     // AO anyway.)
     float ao = (u_enableAO && !is_eye)
         ? texture(u_ssaoMap, gl_FragCoord.xy / u_screenSize).r : 1.0;
+
+    // Hair AO gap fade. Hair is absent from the depth prepass, so the AO
+    // sampled above belongs to whatever opaque surface is behind this strand.
+    // Reconstruct the view-space depth of both this fragment and that surface;
+    // when the surface is farther behind than u_ssaoHairGap its AO is
+    // background structure (a collar edge, the lip line under a mustache)
+    // that must not shade the hair - fade it back to unoccluded. Contact-range
+    // surfaces (scalp under a hairline, chin under a beard) keep their AO as a
+    // stand-in for the hair's own local occlusion. See GlRenderer.SsaoHairGap.
+    if (u_enableAO && !is_eye && is_hair_tint) {
+        vec2 aoUv = gl_FragCoord.xy / u_screenSize;
+        float sceneWinZ = texture(u_ssaoDepthTex, aoUv).r;
+        vec4 sceneClip = vec4(aoUv * 2.0 - 1.0, sceneWinZ * 2.0 - 1.0, 1.0);
+        vec4 sceneView = u_invProjection * sceneClip;
+        float sceneZ = sceneView.z / sceneView.w;
+        vec4 fragClip = vec4(aoUv * 2.0 - 1.0, gl_FragCoord.z * 2.0 - 1.0, 1.0);
+        vec4 fragView = u_invProjection * fragClip;
+        float fragZ = fragView.z / fragView.w;
+        float gap = abs(fragZ - sceneZ);
+        float keep = 1.0 - smoothstep(u_ssaoHairGap, 2.0 * u_ssaoHairGap, gap);
+        ao = mix(1.0, ao, keep);
+    }
 
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].type == 0) continue;

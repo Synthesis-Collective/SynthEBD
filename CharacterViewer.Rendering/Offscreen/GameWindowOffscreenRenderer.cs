@@ -584,6 +584,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         vm.SsaoRadius = request.SsaoRadius;
         vm.SsaoBias = request.SsaoBias;
         vm.SsaoIntensity = request.SsaoIntensity;
+        vm.SsaoThickness = request.SsaoThickness;
+        vm.SsaoHairGap = request.SsaoHairGap;
         vm.EnableEyeCatchlight = request.EnableEyeCatchlight;
         vm.SubsurfaceStrength = request.SubsurfaceStrength;
         vm.SkinSaturationBoost = request.SkinSaturationBoost;

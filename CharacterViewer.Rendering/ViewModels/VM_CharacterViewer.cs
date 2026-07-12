@@ -389,6 +389,12 @@ public class VM_CharacterViewer : ViewerVm
     public float SsaoBias { get; set; } = 0.05f;
     /// <summary>SSAO power-curve exponent (2.5.12+).</summary>
     public float SsaoIntensity { get; set; } = 1.5f;
+    /// <summary>SSAO occluder-thickness rejection distance in view-space
+    /// units (2.5.20+). See <see cref="GlRenderer.SsaoThickness"/>.</summary>
+    public float SsaoThickness { get; set; } = 1.5f;
+    /// <summary>Max hair-to-background gap for hair to receive screen AO
+    /// (2.5.20+). See <see cref="GlRenderer.SsaoHairGap"/>.</summary>
+    public float SsaoHairGap { get; set; } = 0.8f;
 
     /// <summary>Eye catch-light toggle (2.5.13+).</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
@@ -1103,6 +1109,10 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SsaoBias = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SsaoIntensity)
             .Subscribe(v => Renderer.SsaoIntensity = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoThickness)
+            .Subscribe(v => Renderer.SsaoThickness = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoHairGap)
+            .Subscribe(v => Renderer.SsaoHairGap = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableEyeCatchlight)
             .Subscribe(v => Renderer.EnableEyeCatchlight = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SpecularAchromatic)

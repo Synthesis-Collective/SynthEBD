@@ -164,6 +164,18 @@ public class GlRenderer : IDisposable
     /// softer/broader AO, lower it for crevice-only.</summary>
     public float SsaoThickness { get; set; } = 1.5f;
 
+    /// <summary>Max view-space gap (world units) between a hair/beard fragment
+    /// and the opaque surface behind it for the screen-space AO to still apply
+    /// to the hair (2.5.20+). The SSAO depth prepass excludes alpha-tested and
+    /// alpha-blended geometry, so the AO texel under a hair fragment always
+    /// belongs to whatever opaque surface sits behind the strands (face, neck,
+    /// collar). When that surface is close (hairline on the scalp, beard on
+    /// the chin) its AO is a fair stand-in for the hair's own; when it is
+    /// farther than this gap the AO is background structure (collar edges,
+    /// lip lines) that would ghost through the beard, so basic.frag fades it
+    /// to unoccluded. Fade is smooth from the gap value to 2x the gap.</summary>
+    public float SsaoHairGap { get; set; } = 0.8f;
+
     /// <summary>Eye catch-light toggle (2.5.13+). When true, basic.frag
     /// adds a tight high-glossiness specular spot from the key light
     /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
@@ -668,9 +680,13 @@ public class GlRenderer : IDisposable
         _bloomShader.SetInt("u_tex", 0);
 
         // basic.frag samples the AO map via texture unit 9 (8 is the
-        // shadow map, 0..7 are the standard material slots).
+        // shadow map, 0..7 are the standard material slots, 10 is the 2D
+        // envmap). Unit 11 carries the prepass depth so hair fragments can
+        // measure the gap to the opaque surface behind them and fade out
+        // background AO (see SsaoHairGap).
         _shader.Use();
         _shader.SetInt("u_ssaoMap", 9);
+        _shader.SetInt("u_ssaoDepthTex", 11);
 
         // Pre-compute the hemispheric sample kernel + a 4x4 noise tile.
         // Done once at init since neither depends on the scene.
@@ -856,7 +872,11 @@ public class GlRenderer : IDisposable
             // shader doesn't see the noise-tile pattern.
             GL.ActiveTexture(TextureUnit.Texture9);
             GL.BindTexture(TextureTarget.Texture2D, _ssaoBlurTex);
+            // Prepass depth for the hair AO gap test in basic.frag.
+            GL.ActiveTexture(TextureUnit.Texture11);
+            GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
             GL.ActiveTexture(TextureUnit.Texture0);
+            _shader.SetFloat("u_ssaoHairGap", SsaoHairGap);
         }
 
         // Camera matrices
@@ -870,6 +890,10 @@ public class GlRenderer : IDisposable
         _shader.SetMatrix4("u_model", ref model);
         _shader.SetMatrix4("u_view", ref view);
         _shader.SetMatrix4("u_projection", ref projection);
+        // Inverse projection reconstructs view-space depth from the prepass
+        // depth texture for the hair AO gap test (u_ssaoDepthTex, unit 11).
+        var invProjMain = projection.Inverted();
+        _shader.SetMatrix4("u_invProjection", ref invProjMain);
 
         // World-space camera position for the cubemap-envmap reflection
         // direction (reflect(-(cameraPos - worldPos), worldNormal)). Pushed
