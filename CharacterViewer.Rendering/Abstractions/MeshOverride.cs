@@ -82,12 +82,24 @@ public sealed record MeshOverride
     /// <see cref="MeshOverrideKind.Skin"/> suits an auxiliary skin mesh.</summary>
     public MeshOverrideKind Kind { get; init; } = MeshOverrideKind.Skin;
 
-    /// <summary>TXST / AlternateTextures override bundled with the mesh
-    /// (texture-slot index -> game-relative path). Unlike the texture-only
-    /// channel, a mesh override carries its own texture set because that's how
-    /// both sources provide it (a SynthEBD auxiliary subgroup ships mesh + its
-    /// slot's <c>SkinTexture.*</c>; an ArmorAddon ships <c>WorldModel</c> +
-    /// <c>SkinTexture</c>/<c>AlternateTextures</c> together). Null = use the
-    /// NIF's own embedded <c>BSShaderTextureSet</c>.</summary>
+    /// <summary>Mesh-wide TXST override bundled with the mesh (texture-slot index
+    /// -> game-relative path), applied to every shape. A mesh override carries its
+    /// own texture set because that's how the source provides it: a SynthEBD
+    /// auxiliary subgroup ships mesh + its slot's <c>SkinTexture.*</c>, and an
+    /// ArmorAddon ships <c>WorldModel</c> + <c>SkinTexture</c> (NAM0/NAM1)
+    /// together. Per-object <c>AlternateTextures</c>, which target individual
+    /// named shapes, go through <see cref="ShapeTextures"/> instead. Null = use
+    /// the NIF's own embedded <c>BSShaderTextureSet</c>.</summary>
     public IReadOnlyDictionary<int, string>? Textures { get; init; }
+
+    /// <summary>Per-shape TXST override from the plugin's <c>AlternateTextures</c>
+    /// (MODS) list: NIF shape node name -> (texture-slot index -> game-relative
+    /// path). This expresses what the flat <see cref="Textures"/> channel cannot —
+    /// a different TextureSet per named shape within a single mesh, which is how an
+    /// ArmorAddon's <c>WorldModel.AlternateTextures</c> retextures individual
+    /// shapes (e.g. alternate-coloured variants of one shared cuirass NIF). Keys
+    /// are matched against each shape's <c>BuiltMesh.ShapeName</c> (the NIF
+    /// geometry node's own name). A per-shape entry wins over <see cref="Textures"/>
+    /// for the same slot on that shape. Null = no per-shape overrides.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<int, string>>? ShapeTextures { get; init; }
 }

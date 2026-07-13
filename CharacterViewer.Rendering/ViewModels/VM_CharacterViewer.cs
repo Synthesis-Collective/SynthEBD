@@ -4972,6 +4972,17 @@ public class VM_CharacterViewer : ViewerVm
                 foreach (var kv in ov.Textures)
                     effectiveTextures[kv.Key] = kv.Value;
 
+            // Per-shape AlternateTextures (MODS): a distinct TextureSet keyed on
+            // this shape's own NIF node name. More specific than the mesh-wide flat
+            // Textures above, so it is folded on top (wins per slot for this shape).
+            IReadOnlyDictionary<int, string>? shapeTxst = null;
+            if (ov.ShapeTextures != null && ov.ShapeTextures.TryGetValue(b.ShapeName, out var st))
+            {
+                shapeTxst = st;
+                foreach (var kv in st)
+                    effectiveTextures[kv.Key] = kv.Value;
+            }
+
             // Armor skin inheritance. An armor NIF's bare-skin shapes (ShaderType 5,
             // ST_SkinTint -- the exposed shoulders/arms/midriff baked into a cuirass,
             // textured below with the QNAM skin tint) ship a PLACEHOLDER body diffuse
@@ -5003,7 +5014,8 @@ public class VM_CharacterViewer : ViewerVm
                 {
                     bool appliedAny = false;
                     foreach (var (slot, path) in raceSkinTxst)
-                        if (ov.Textures == null || !ov.Textures.ContainsKey(slot))
+                        if ((ov.Textures == null || !ov.Textures.ContainsKey(slot))
+                            && (shapeTxst == null || !shapeTxst.ContainsKey(slot)))
                         {
                             effectiveTextures[slot] = path;
                             appliedAny = true;
