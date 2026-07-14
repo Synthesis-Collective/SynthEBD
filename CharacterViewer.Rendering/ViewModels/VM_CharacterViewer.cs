@@ -4952,14 +4952,30 @@ public class VM_CharacterViewer : ViewerVm
             // misaligned (this is how a missing skeleton mod manifests — the
             // auxiliary mesh sits in a slightly wrong frame from the body). Warn
             // but still render.
+            //
+            // Exception: SMP/HDT physics bones (skirt/hair/cloak chains) exist
+            // ONLY in the mesh NIF by design — no skeleton ships them; the
+            // physics engine animates them at runtime, and the bind-pose
+            // fallback render is exactly the authored rest pose. When the NIF
+            // links a physics XML, bones that config drives are not evidence
+            // of a missing skeleton mod, so they are excluded from the warning
+            // (previously every SMP outfit tripped a false "install XPMSSE"
+            // warning, which NPC2 persisted as a missing asset and re-staled
+            // the mugshot every session). Bones the config does NOT name still
+            // warn — an SMP outfit can also be weighted to genuine XPMSSE-only
+            // skeleton bones.
             if (b.BonesAbsentFromSkeleton is { Count: > 0 } skelAbsent)
             {
-                _meshOverrideWarnings.Add(ov.Key + ": the loaded skeleton is missing bone(s) [" +
-                    string.Join(", ", skelAbsent) + "] this mesh needs — it may be misaligned. " +
-                    "Install the skeleton these meshes require (e.g. XPMSSE / XP32 Maximum Skeleton).");
-                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
-                    b.ShapeName + "' SKELETON-INCOMPATIBLE — skeleton lacks [" +
-                    string.Join(", ", skelAbsent) + "] (rendered via mesh-NIF fallback, may be misaligned)");
+                var skelMissing = FilterPhysicsDrivenBones(ov, b, skelAbsent);
+                if (skelMissing.Count > 0)
+                {
+                    _meshOverrideWarnings.Add(ov.Key + ": the loaded skeleton is missing bone(s) [" +
+                        string.Join(", ", skelMissing) + "] this mesh needs — it may be misaligned. " +
+                        "Install the skeleton these meshes require (e.g. XPMSSE / XP32 Maximum Skeleton).");
+                    LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
+                        b.ShapeName + "' SKELETON-INCOMPATIBLE — skeleton lacks [" +
+                        string.Join(", ", skelMissing) + "] (rendered via mesh-NIF fallback, may be misaligned)");
+                }
             }
 
             var glMesh = CreateGlMesh(b);
@@ -5089,6 +5105,117 @@ public class VM_CharacterViewer : ViewerVm
         LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' installed " +
             installed + "/" + built.Count + " shape(s) from " + System.IO.Path.GetFileName(ov.MeshPath) +
             " (slots=" + ov.BipedSlots + ", kind=" + ov.Kind + ")");
+    }
+
+    /// <summary>Splits a shape's skeleton-absent bones into physics-driven ones
+    /// (named by the mesh NIF's linked SMP/HDT physics XML — expected to live
+    /// only in the mesh NIF, so no warning) and genuinely missing ones (returned
+    /// for the skeleton-compatibility warning). When the NIF links no physics
+    /// XML, or none of the linked XMLs can be resolved/read, every bone is
+    /// returned unchanged — unclassifiable stays warned (conservative).</summary>
+    private List<string> FilterPhysicsDrivenBones(MeshOverride ov,
+        NifMeshBuilder.BuiltMesh b, IReadOnlyList<string> skelAbsent)
+    {
+        if (b.PhysicsXmlPaths is not { Count: > 0 } xmlRefs)
+            return new List<string>(skelAbsent);
+
+        // Bone references appear as attribute values throughout the SMP schema
+        // (<bone name=...>, per-vertex-shape/per-triangle-shape name=...,
+        // constraint bodyA=/bodyB=...), so collect every attribute value of
+        // every parseable XML rather than modeling the schema. XMLs that fail
+        // to parse (SMP configs are hand-authored) fall back to a whole-name
+        // substring scan of the raw text.
+        var attributeValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var unparsedTexts = new List<string>();
+        int readable = 0;
+        foreach (var raw in xmlRefs)
+        {
+            if (!TryNormalizePhysicsXmlPath(raw, ov.MeshPath, out var xmlRelPath)) continue;
+
+            string? diskPath = null;
+            try { diskPath = _assetResolver.ResolveAssetSource(xmlRelPath).ResolvedDiskPath; }
+            catch { /* treated as unresolved below */ }
+            if (diskPath == null)
+            {
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' physics XML '" +
+                    xmlRelPath + "' did not resolve — cannot classify physics bones from it");
+                continue;
+            }
+
+            string text;
+            try { text = File.ReadAllText(diskPath); }
+            catch (Exception ex)
+            {
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' physics XML '" +
+                    diskPath + "' unreadable (" + ex.Message + ")");
+                continue;
+            }
+            readable++;
+
+            try
+            {
+                var doc = System.Xml.Linq.XDocument.Parse(text);
+                foreach (var el in doc.Descendants())
+                    foreach (var attr in el.Attributes())
+                        attributeValues.Add(attr.Value);
+            }
+            catch
+            {
+                unparsedTexts.Add(text);
+            }
+        }
+        if (readable == 0) return new List<string>(skelAbsent);
+
+        var remaining = new List<string>();
+        var physicsDriven = new List<string>();
+        foreach (var bone in skelAbsent)
+        {
+            bool isPhysics = attributeValues.Contains(bone) ||
+                unparsedTexts.Any(t => t.IndexOf(bone, StringComparison.OrdinalIgnoreCase) >= 0);
+            (isPhysics ? physicsDriven : remaining).Add(bone);
+        }
+
+        if (physicsDriven.Count > 0)
+        {
+            LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" + b.ShapeName +
+                "' " + physicsDriven.Count + " skeleton-absent bone(s) are SMP-physics-driven " +
+                "(named by the mesh's physics XML; they live only in the mesh NIF by design) — " +
+                "no skeleton warning for [" + string.Join(", ", physicsDriven) + "]");
+        }
+        return remaining;
+    }
+
+    /// <summary>Normalizes a physics-XML reference as stored in an
+    /// NiStringExtraData into a Data-relative path for the asset resolver.
+    /// Handles forward slashes, a leading "…\data\" prefix, and a bare
+    /// filename (resolved into the referencing mesh's own Data-relative
+    /// folder). Mirrors NPC2's <c>AssetHandler.TryNormalizePhysicsXmlPath</c>.</summary>
+    private static bool TryNormalizePhysicsXmlPath(string rawValue, string meshGamePath, out string xmlRelPath)
+    {
+        xmlRelPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(rawValue)) return false;
+
+        var cleaned = rawValue.Replace('/', '\\').Trim().Trim('"').TrimStart('\\');
+        var segs = cleaned.Split('\\', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        // Strip a leading "…\data\" prefix if the path was stored with one.
+        int dataIdx = segs.FindIndex(s => s.Equals("data", StringComparison.OrdinalIgnoreCase));
+        if (dataIdx >= 0 && dataIdx + 1 < segs.Count)
+            segs = segs.Skip(dataIdx + 1).ToList();
+
+        if (segs.Count == 0) return false;
+
+        if (segs.Count == 1)
+        {
+            // Bare filename: siblings of the mesh that references it.
+            var meshDir = System.IO.Path.GetDirectoryName(meshGamePath.Replace('/', '\\'));
+            if (string.IsNullOrEmpty(meshDir)) return false;
+            xmlRelPath = meshDir + "\\" + segs[0];
+            return true;
+        }
+
+        xmlRelPath = string.Join("\\", segs);
+        return true;
     }
 
     /// <summary>Removes every shape a prior <see cref="ApplyMeshOverrides"/>

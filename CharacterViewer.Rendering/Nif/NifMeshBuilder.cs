@@ -167,6 +167,22 @@ public class NifMeshBuilder
         public IReadOnlyList<string>? BonesAbsentFromSkeleton { get; init; }
 
         /// <summary>
+        /// Raw SMP/HDT physics-XML references read from the source NIF's
+        /// NiStringExtraData blocks (the "HDT Skinned Mesh Physics Object"
+        /// marker hdtSMP64/FSMP reads, plus any legacy-named block whose value
+        /// ends in ".xml"), exactly as stored (Data-relative, un-normalized).
+        /// A NIF-level fact stamped identically on every shape of the file,
+        /// and ONLY on builds where some shape reported
+        /// <see cref="BonesAbsentFromSkeleton"/> — its sole consumer is the
+        /// mesh-override warning path, which reads the linked physics config
+        /// to tell physics-driven bones (which legitimately exist only in the
+        /// mesh NIF, e.g. SMP skirt chains) apart from bones a missing
+        /// skeleton mod should have provided. Null otherwise. Mutable because
+        /// it is attached after construction in BuildAllShapes.
+        /// </summary>
+        public IReadOnlyList<string>? PhysicsXmlPaths { get; set; }
+
+        /// <summary>
         /// True if this shape is the primary head mesh in a FaceGen NIF.
         /// </summary>
         public bool IsPrimaryHeadShape { get; init; }
@@ -1054,6 +1070,7 @@ public class NifMeshBuilder
         Skinning = b.Skinning,
         UnresolvedSkinBones = b.UnresolvedSkinBones,
         BonesAbsentFromSkeleton = b.BonesAbsentFromSkeleton,
+        PhysicsXmlPaths = b.PhysicsXmlPaths,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
         DismemberPartitions = b.DismemberPartitions,
         HasAlphaTest = b.HasAlphaTest,
@@ -1173,7 +1190,67 @@ public class NifMeshBuilder
                 results.Add(built);
         }
 
+        // SMP/HDT physics-XML link pass. Only runs when some shape reported
+        // skeleton-absent bones: the mesh-override warning path uses the linked
+        // physics config to recognize physics-driven bones — which legitimately
+        // exist only in the mesh NIF (the physics engine animates them at
+        // runtime) — so an SMP skirt/hair/cloak doesn't trip a false
+        // "install XPMSSE" skeleton-compatibility warning.
+        if (results.Any(r => r.BonesAbsentFromSkeleton is { Count: > 0 }))
+        {
+            var physicsXmls = GetPhysicsXmlPaths(nif);
+            if (physicsXmls.Count > 0)
+            {
+                LogVerbose("CharacterViewer: NIF links physics XML(s) [" +
+                    string.Join(", ", physicsXmls) + "] — available to classify skeleton-absent bones");
+                foreach (var r in results) r.PhysicsXmlPaths = physicsXmls;
+            }
+        }
+
         return results;
+    }
+
+    /// <summary>The NiStringExtraData block name hdtSMP64/FSMP uses to point a
+    /// NIF at its physics XML config (hdtDefaultBBP.cpp scanBBP() reads the
+    /// path from the block's <c>stringData</c>). Same marker NPC2's patcher
+    /// keys its physics-XML copying on.</summary>
+    public const string SmpPhysicsExtraDataName = "HDT Skinned Mesh Physics Object";
+
+    /// <summary>
+    /// Collects SMP/HDT physics-XML references from a NIF's NiStringExtraData
+    /// blocks: any block named <see cref="SmpPhysicsExtraDataName"/> (the
+    /// modern SMP marker) or whose value simply ends in ".xml" (catch-all for
+    /// legacy/variant marker names such as the old "HDT Havok Path"). Returns
+    /// the raw string values exactly as stored; callers normalize/resolve.
+    /// </summary>
+    private static List<string> GetPhysicsXmlPaths(NifFile nif)
+    {
+        var found = new List<string>();
+        try
+        {
+            NiHeader header = nif.GetHeader();
+            uint n = header.GetNumBlocks();
+            for (uint i = 0; i < n; i++)
+            {
+                NiObject? blk = null;
+                try { blk = header.GetBlockById(i); } catch { continue; }
+                if (blk is not NiStringExtraData sed) continue;
+                string? blockName = null, value = null;
+                try { blockName = sed.name?.get(); value = sed.stringData?.get(); } catch { continue; }
+                if (string.IsNullOrWhiteSpace(value)) continue;
+
+                bool isPhysicsMarker = string.Equals(blockName, SmpPhysicsExtraDataName,
+                    StringComparison.OrdinalIgnoreCase);
+                bool looksLikeXml = value.EndsWith(".xml", StringComparison.OrdinalIgnoreCase);
+                if (!isPhysicsMarker && !looksLikeXml) continue;
+
+                string trimmed = value.Trim();
+                if (!found.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                    found.Add(trimmed);
+            }
+        }
+        catch { /* niflib errors fall through as "no physics link" */ }
+        return found;
     }
 
     /// <summary>Returns the primary biped-slot ID for a body-part label, or
