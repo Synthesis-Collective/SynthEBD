@@ -669,9 +669,20 @@ void main()
             // Specular (Blinn-Phong)
             vec3 specular = vec3(0.0);
             if (!DEBUG_DIFFUSE_ONLY && has_specular && u_enableSpecular) {
+                // Per-pixel specular mask, engine-faithful. Skin shapes carry a
+                // dedicated slot-7 _s.dds mask; every other shape (clothes,
+                // armor, hair, eyes) stores the mask in the normal map's ALPHA
+                // channel (NifSkope sk_default.frag uses normalMap.a; sk_msn.frag
+                // falls back to it when no slot-7 map; Community Shaders'
+                // Lighting.hlsl samples normal.w on the non-MSN path). Fabric is
+                // painted dark there and metal bright, so without this fallback
+                // slot-7-less garments rendered at mask=1.0 and cloth read as
+                // glossy plastic.
                 float specMask = 1.0;
                 if (has_specular_map) {
                     specMask = texture(texture_specular, TexCoords).r;
+                } else if (has_normal_map && u_enableNormal) {
+                    specMask = texture(texture_normal, TexCoords).a;
                 }
                 vec3 halfwayDir = normalize(lightDir + viewDir);
                 float specAmount = pow(max(dot(normal_viewSpace, halfwayDir), 0.0), materialGlossiness);

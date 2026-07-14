@@ -4397,9 +4397,13 @@ public class VM_CharacterViewer : ViewerVm
             glMesh.SkinTexture = TextureManager.WhiteTexture;
         }
 
-        // Specular map (slot 7)
+        // Specular map (slot 7). When SLSF2_Back_Lighting is set, slot 7 holds
+        // a backlight mask instead of a specular mask (NifSkope sk_msn.frag
+        // ignores the slot for specular in that case), so those shapes fall
+        // through to the normal-map-alpha specular mask in the shader.
         RenderCancellation.ThrowIfCancellationRequested();
-        if (effectiveTextures.TryGetValue(7, out string? specPath))
+        bool slot7IsBacklight = (built.ShaderFlags2 & (1u << 27)) != 0; // SLSF2_Back_Lighting
+        if (!slot7IsBacklight && effectiveTextures.TryGetValue(7, out string? specPath))
         {
             glMesh.SpecularTexture = TextureManager.LoadTexture(specPath);
             glMesh.HasSpecularMap = true;
