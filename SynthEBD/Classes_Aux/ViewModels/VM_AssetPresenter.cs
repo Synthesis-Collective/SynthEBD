@@ -146,7 +146,7 @@ namespace SynthEBD
         public FormKey PreviewNpcOverride { get; set; } = FormKey.Null;
         public bool LockPreviewNpc { get; set; } = false;
         private FormKey _lastLoadedNpc = FormKey.Null;
-        public Dictionary<(string bodyPart, int slot), FilePathReplacement> AccumulatedOverrides { get; } = new();
+        public Dictionary<SubgroupTextureMapper.OverrideKey, TextureOverride> AccumulatedOverrides { get; } = new();
 
         /// <summary>Accumulated auxiliary mesh overrides, keyed by the biped-slot
         /// bitmask they occupy so a later selection replaces only the same-slot
@@ -240,8 +240,12 @@ namespace SynthEBD
                 // LoadNpcAsync handles its own cancellation for rapid re-invocations.
                 await CharacterViewer.LoadNpcAsync(npc, lk);
 
-                // Merge this subgroup's own textures on top (last-seen per slot wins).
-                var subgroupMap = _textureMapper.MapSubgroupTextures(selected);
+                // Merge this subgroup's own textures on top (last-seen per key wins).
+                // Every destination is resolved against the pack's record template (and the
+                // preview NPC as a fallback) so the target body part / slots come from the real
+                // armature, and worn-armor AlternateTextures target their named sub-shape.
+                var resolutionContext = BuildResolutionContext(npc);
+                var subgroupMap = _textureMapper.MapSubgroupTextures(selected, resolutionContext);
                 foreach (var kv in subgroupMap)
                 {
                     AccumulatedOverrides[kv.Key] = kv.Value;
@@ -258,7 +262,7 @@ namespace SynthEBD
                 // the same-slot variant. Like the texture accumulator above, the
                 // mesh persists across other subgroup selections until a
                 // different variant for that slot is chosen (or Reset clears it).
-                foreach (var mo in _textureMapper.MapSubgroupMeshOverrides(selected, gender))
+                foreach (var mo in _textureMapper.MapSubgroupMeshOverrides(selected, resolutionContext))
                 {
                     AccumulatedMeshOverrides[mo.BipedSlots] = mo;
                 }
@@ -332,8 +336,9 @@ namespace SynthEBD
                 await CharacterViewer.LoadNpcAsync(chosenNpc, lk);
                 _lastLoadedNpc = chosenNpc;
 
+                var resolutionContext = BuildResolutionContext(chosenNpc);
                 AccumulatedOverrides.Clear();
-                foreach (var kv in _textureMapper.MapCombinationTextures(combination))
+                foreach (var kv in _textureMapper.MapCombinationTextures(combination, resolutionContext))
                 {
                     AccumulatedOverrides[kv.Key] = kv.Value;
                 }
@@ -343,7 +348,7 @@ namespace SynthEBD
                 }
 
                 AccumulatedMeshOverrides.Clear();
-                foreach (var mo in _textureMapper.MapCombinationMeshOverrides(combination, gender))
+                foreach (var mo in _textureMapper.MapCombinationMeshOverrides(combination, resolutionContext))
                 {
                     AccumulatedMeshOverrides[mo.BipedSlots] = mo;
                 }
@@ -357,6 +362,22 @@ namespace SynthEBD
             {
                 _logger.LogMessage("VM_AssetPresenter.SelectCombinationFromConfigAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
             }
+        }
+
+        /// <summary>
+        /// Assembles the record-path resolution context for a preview NPC via
+        /// <see cref="SubgroupTextureMapper.BuildContext"/>: the pack's race-specific record-template NPC as
+        /// the primary root and the loaded preview NPC (with the live environment link cache) as a fallback,
+        /// so every destination is resolved against a real record rather than pattern-matched from its string.
+        /// </summary>
+        private SubgroupTextureMapper.DestinationResolutionContext BuildResolutionContext(FormKey npc)
+        {
+            INpcGetter? previewNpc = null;
+            if (!npc.IsNull && lk != null)
+            {
+                lk.TryResolve<INpcGetter>(npc, out previewNpc);
+            }
+            return SubgroupTextureMapper.BuildContext(AssetPack, previewNpc, lk);
         }
 
         /// <summary>

@@ -40,6 +40,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
     private readonly VM_HeadPartAssignment.Factory _headPartFactory;
     private readonly Converters _converters;
+    private readonly SubgroupTextureMapper _subgroupTextureMapper;
 
     /// <summary>
     /// Wires up the assignment editor: seeds the subscribed settings VMs and asset
@@ -64,6 +65,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
         VM_HeadPartAssignment.Factory headPartFactory,
         Converters converters,
+        SubgroupTextureMapper subgroupTextureMapper,
         VM_CharacterViewer characterViewer)
     {
         _environmentProvider = environmentProvider;
@@ -78,6 +80,7 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
         _headPartFactory = headPartFactory;
         _converters = converters;
+        _subgroupTextureMapper = subgroupTextureMapper;
         CharacterViewer = characterViewer;
         CharacterViewer.DisposeWith(this);
 
@@ -869,7 +872,11 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
     /// <summary>
     /// Collects all texture/mesh path overrides from the forced subgroups, mix-in
     /// subgroups, and asset-replacer subgroups (resolved by ID), and applies them to
-    /// the loaded viewer meshes.
+    /// the loaded viewer meshes. Each contributing subgroup's paths are resolved against
+    /// <em>its own</em> asset pack's record template (via <see cref="SubgroupTextureMapper"/>),
+    /// so the target body part / slots come from the real armature and worn-armor
+    /// AlternateTextures land on their named sub-shape — and auxiliary armatures (e.g. a
+    /// slot-52 mesh) are synthesized as mesh overrides, which the flat texture path could not do.
     /// </summary>
     private void RefreshViewerTextures()
     {
@@ -878,20 +885,43 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             return;
         }
 
-        var allOverrides = new List<FilePathReplacement>();
+        INpcGetter? previewNpc = null;
+        if (!NPCFormKey.IsNull && lk != null)
+        {
+            lk.TryResolve<INpcGetter>(NPCFormKey, out previewNpc);
+        }
+
+        var textureOverrides = new Dictionary<SubgroupTextureMapper.OverrideKey, TextureOverride>();
+        var meshOverrides = new Dictionary<int, MeshOverride>();
+
+        void AddSubgroup(VM_SubgroupPlaceHolder sg)
+        {
+            if (sg?.AssociatedModel?.Paths == null) return;
+            var ctx = SubgroupTextureMapper.BuildContext(sg.ParentAssetPack, previewNpc, lk);
+            foreach (var kv in _subgroupTextureMapper.MapPathsTextures(sg.AssociatedModel.Paths, ctx))
+            {
+                textureOverrides[kv.Key] = kv.Value;
+            }
+            foreach (var mo in _subgroupTextureMapper.MapPathsMeshOverrides(sg.AssociatedModel.Paths, ctx))
+            {
+                meshOverrides[mo.BipedSlots] = mo;
+            }
+        }
 
         // Primary forced subgroups
-        allOverrides.AddRange(ForcedSubgroups
-            .Where(sg => sg?.AssociatedModel?.Paths != null)
-            .SelectMany(sg => sg.AssociatedModel.Paths));
+        foreach (var sg in ForcedSubgroups)
+        {
+            AddSubgroup(sg);
+        }
 
         // Mix-In forced subgroups
         foreach (var mixIn in ForcedMixIns)
         {
             if (mixIn?.ForcedSubgroups == null) continue;
-            allOverrides.AddRange(mixIn.ForcedSubgroups
-                .Where(sg => sg?.AssociatedModel?.Paths != null)
-                .SelectMany(sg => sg.AssociatedModel.Paths));
+            foreach (var sg in mixIn.ForcedSubgroups)
+            {
+                AddSubgroup(sg);
+            }
         }
 
         // Asset Replacer subgroups — resolve each ID against the replacer group's subgroup tree
@@ -902,17 +932,15 @@ public class VM_SpecificNPCAssignment : VM, IHasForcedAssets, IHasSynthEBDGender
             {
                 if (string.IsNullOrEmpty(idMember?.Content)) continue;
                 var sg = VM_SubgroupPlaceHolder.GetSubgroupByID(replacer.SubscribedReplacerGroup.Subgroups, idMember.Content);
-                if (sg?.AssociatedModel?.Paths != null)
-                {
-                    allOverrides.AddRange(sg.AssociatedModel.Paths);
-                }
+                AddSubgroup(sg);
             }
         }
 
-        if (allOverrides.Count > 0)
+        if (textureOverrides.Count > 0)
         {
-            CharacterViewer.ApplyTextureOverrides(allOverrides);
+            CharacterViewer.ApplyTextureOverrides(textureOverrides.Values);
         }
+        CharacterViewer.ApplyMeshOverrides(meshOverrides.Values);
     }
 
     /// <summary>Pushes the parsed positive <see cref="ForcedHeight"/> as the viewer's height scale override, or clears it.</summary>

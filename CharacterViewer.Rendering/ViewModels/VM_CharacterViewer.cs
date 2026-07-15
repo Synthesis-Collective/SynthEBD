@@ -4679,13 +4679,40 @@ public class VM_CharacterViewer : ViewerVm
         LogVerbose("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
             " override(s); tracked body parts: [" + string.Join(", ", _meshesByBodyPart.Keys) + "]");
 
-        foreach (var ov in overrideList)
+        // Shape-named overrides (worn-armor AlternateTextures targeting one named
+        // sub-shape) must apply AFTER the flat body-wide overrides so they win on
+        // their shape: a config can carry both a body-wide skin diffuse and a
+        // per-shape AlternateTexture for the same slot, and the per-shape one is the
+        // more specific. OrderBy is stable, so same-specificity order is preserved.
+        foreach (var ov in overrideList.OrderBy(o => string.IsNullOrEmpty(o.ShapeName) ? 0 : 1))
         {
             string bodyPart = ov.BodyPart;
             int slot = ov.Slot;
             string source = ov.GameRelativePath;
             if (string.IsNullOrWhiteSpace(bodyPart) || string.IsNullOrWhiteSpace(source)) continue;
 
+            // A shape-named override targets exactly one shape (by its NIF geometry node
+            // name) within the body part, regardless of shader type — a worn-armor
+            // AlternateTextures (MODS) entry retextures a single named sub-shape of a
+            // multi-shape body NIF, which may not be a skin shape. The flat body-wide
+            // branch below deliberately can't express this, so it is handled first and
+            // separately.
+            List<GlMesh> targets;
+            if (!string.IsNullOrEmpty(ov.ShapeName))
+            {
+                targets = Renderer.Meshes
+                    .Where(m => m.BodyPart == bodyPart &&
+                                string.Equals(m.ShapeName, ov.ShapeName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (targets.Count == 0)
+                {
+                    LogVerbose("CharacterViewer: No shape named '" + ov.ShapeName + "' with BodyPart='" +
+                        bodyPart + "' for AlternateTexture override (slot " + slot + ")");
+                    continue;
+                }
+                LogVerbose("CharacterViewer: AlternateTexture override '" + source + "' → shape '" +
+                    ov.ShapeName + "' (" + bodyPart + ", slot " + slot + ")");
+            }
             // For Head, target only the primary head shape (the face — face/hair/eyes
             // are separate shapes with different meaning for each slot). For non-head
             // body parts, apply to every *skin* shape in that NIF: a body NIF can hold
@@ -4695,8 +4722,7 @@ public class VM_CharacterViewer : ViewerVm
             // fingernails on FemaleHands) keep their NIF-baked textures — without this
             // gate, ARMA[Body] TXST clobbers that shape's own texture with FemaleBody_1.dds
             // and it inherits body detail it shouldn't.
-            List<GlMesh> targets;
-            if (bodyPart == "Head")
+            else if (bodyPart == "Head")
             {
                 if (!_meshesByBodyPart.TryGetValue(bodyPart, out var headMesh))
                 {

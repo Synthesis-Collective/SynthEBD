@@ -24,6 +24,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
     private readonly VM_SettingsBodyGen _bodyGenSettings;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly Logger _logger;
+    private readonly SubgroupTextureMapper _subgroupTextureMapper;
     /// <summary>Autofac factory delegate for constructing a <see cref="VM_ConsistencyAssignment"/>.</summary>
     public delegate VM_ConsistencyAssignment Factory(NPCAssignment model);
     /// <summary>
@@ -39,6 +40,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         VM_SettingsBodyGen bodyGenSettings,
         IEnvironmentStateProvider environmentProvider,
         Logger logger,
+        SubgroupTextureMapper subgroupTextureMapper,
         VM_CharacterViewer characterViewer)
     {
         AssociatedModel = model;
@@ -47,6 +49,7 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         _bodyGenSettings = bodyGenSettings;
         _environmentProvider = environmentProvider;
         _logger = logger;
+        _subgroupTextureMapper = subgroupTextureMapper;
 
         CharacterViewer = characterViewer;
         CharacterViewer.DisposeWith(this);
@@ -353,7 +356,11 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         CharacterViewer.ApplyBodyGen(resolved, sliderGroup, CharacterViewer.NpcWeight);
     }
 
-    /// <summary>Collects texture/mesh path overrides from the primary, mix-in, and replacer subgroup selections and applies them to the character viewer.</summary>
+    /// <summary>Collects texture/mesh path overrides from the primary, mix-in, and replacer subgroup
+    /// selections and applies them to the character viewer. Each subgroup's paths are resolved against
+    /// <em>its own</em> asset pack's record template (via <see cref="SubgroupTextureMapper"/>), so body
+    /// parts / slots come from the real armature, worn-armor AlternateTextures land on their named
+    /// sub-shape, and auxiliary armatures are synthesized as mesh overrides.</summary>
     private void RefreshViewerTextures()
     {
         if (CharacterViewer.Renderer.Meshes.Count == 0)
@@ -361,7 +368,28 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             return;
         }
 
-        var overrides = new List<FilePathReplacement>();
+        INpcGetter? previewNpc = null;
+        if (!NPCFormKey.IsNull && lk != null)
+        {
+            lk.TryResolve<INpcGetter>(NPCFormKey, out previewNpc);
+        }
+
+        var textureOverrides = new Dictionary<SubgroupTextureMapper.OverrideKey, TextureOverride>();
+        var meshOverrides = new Dictionary<int, MeshOverride>();
+
+        void AddSubgroup(VM_SubgroupPlaceHolder sg)
+        {
+            if (sg?.AssociatedModel?.Paths == null) return;
+            var ctx = SubgroupTextureMapper.BuildContext(sg.ParentAssetPack, previewNpc, lk);
+            foreach (var kv in _subgroupTextureMapper.MapPathsTextures(sg.AssociatedModel.Paths, ctx))
+            {
+                textureOverrides[kv.Key] = kv.Value;
+            }
+            foreach (var mo in _subgroupTextureMapper.MapPathsMeshOverrides(sg.AssociatedModel.Paths, ctx))
+            {
+                meshOverrides[mo.BipedSlots] = mo;
+            }
+        }
 
         // Primary asset-pack subgroups
         var primaryPack = _texMeshUI.AssetPacks.FirstOrDefault(p => p.GroupName == AssetPackName);
@@ -369,11 +397,9 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
         {
             foreach (var entry in Subgroups)
             {
-                if (entry?.SubgroupID != null
-                    && primaryPack.TryGetSubgroupByID(entry.SubgroupID, out var sg)
-                    && sg.AssociatedModel?.Paths != null)
+                if (entry?.SubgroupID != null && primaryPack.TryGetSubgroupByID(entry.SubgroupID, out var sg))
                 {
-                    overrides.AddRange(sg.AssociatedModel.Paths);
+                    AddSubgroup(sg);
                 }
             }
         }
@@ -386,11 +412,9 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             if (mixPack == null) continue;
             foreach (var entry in mixIn.Subgroups)
             {
-                if (entry?.SubgroupID != null
-                    && mixPack.TryGetSubgroupByID(entry.SubgroupID, out var sg)
-                    && sg.AssociatedModel?.Paths != null)
+                if (entry?.SubgroupID != null && mixPack.TryGetSubgroupByID(entry.SubgroupID, out var sg))
                 {
-                    overrides.AddRange(sg.AssociatedModel.Paths);
+                    AddSubgroup(sg);
                 }
             }
         }
@@ -403,17 +427,15 @@ public class VM_ConsistencyAssignment : VM, IHasSynthEBDGender
             {
                 if (id?.Content == null) continue;
                 var match = VM_SubgroupPlaceHolder.GetSubgroupByID(replacer.SubscribedReplacerGroup.Subgroups, id.Content);
-                if (match?.AssociatedModel?.Paths != null)
-                {
-                    overrides.AddRange(match.AssociatedModel.Paths);
-                }
+                AddSubgroup(match);
             }
         }
 
-        if (overrides.Count > 0)
+        if (textureOverrides.Count > 0)
         {
-            CharacterViewer.ApplyTextureOverrides(overrides);
+            CharacterViewer.ApplyTextureOverrides(textureOverrides.Values);
         }
+        CharacterViewer.ApplyMeshOverrides(meshOverrides.Values);
     }
 
     /// <summary>Applies the parsed height to the character viewer's height override, or clears it when height is blank/invalid.</summary>
