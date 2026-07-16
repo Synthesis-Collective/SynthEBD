@@ -4509,11 +4509,30 @@ public class VM_CharacterViewer : ViewerVm
         bool detailSlotPopulated = effectiveTextures.TryGetValue(3, out string? detailPath);
         if (detailFlagSet && detailSlotPopulated && detailPath != null)
         {
-            glMesh.DetailTexture = TextureManager.LoadTexture(detailPath);
-            glMesh.HasDetailMap = true;
+            int detailTex = TextureManager.LoadTexture(detailPath);
+            if (detailTex != TextureManager.WhiteTexture)
+            {
+                glMesh.DetailTexture = detailTex;
+                glMesh.HasDetailMap = true;
+            }
+            else
+            {
+                // Slot 3 names a file that doesn't exist in the load order
+                // (e.g. female facegen NIFs baking
+                // textures\actors\character\female\blankdetailmap.dds, which
+                // vanilla only ships in the male directory). The engine treats
+                // a missing detail map as "no detail map"; binding the 1x1
+                // white fallback instead saturates the face to white under
+                // BOTH detail blend modes (engine-style ~x4 multiply and
+                // legacy overlay), so treat the slot as empty. Still recorded
+                // below so the hover tooltip surfaces the broken path.
+                detailSlotPopulated = false;
+                LogVerbose("CharacterViewer: Detail map '" + detailPath +
+                    "' not found — treating slot 3 as empty (engine behavior)");
+            }
             RecordTextureSource(glMesh, "Detail Map", detailPath);
         }
-        else if (detailFlagSet && !detailSlotPopulated && built.ShaderType == 4 && Renderer.UseBlankDetailFallback)
+        if (detailFlagSet && !detailSlotPopulated && built.ShaderType == 4 && Renderer.UseBlankDetailFallback)
         {
             // Experimental fallback: face shape has the detail flag set
             // but slot 3 is empty in its NIF. Substitute Bethesda's CK
@@ -4763,6 +4782,28 @@ public class VM_CharacterViewer : ViewerVm
                     mesh.SkinTexture = TextureManager.LoadTexture(source);
                     mesh.HasSkinMap = true;
                     RecordTextureSource(mesh, "Skin/SSS", source);
+                }
+                else if (slot == 3)
+                {
+                    // Facegen detail (complexion/dirt) override, e.g. a config
+                    // routing to HeadTexture.Height.GivenPath. If the file
+                    // doesn't resolve, keep the mesh's current detail state
+                    // rather than binding the white fallback — a white detail
+                    // sample saturates the face under both blend modes (see
+                    // ApplyTexturesToGlMesh's slot-3 demotion).
+                    int detailTex = TextureManager.LoadTexture(source);
+                    if (detailTex != TextureManager.WhiteTexture)
+                    {
+                        mesh.DetailTexture = detailTex;
+                        mesh.HasDetailMap = true;
+                        mesh.IsFaceWithEmptyDetailSlot = false;
+                    }
+                    else
+                    {
+                        LogVerbose("CharacterViewer: Detail map override '" + source +
+                            "' not found — keeping existing slot 3 state");
+                    }
+                    RecordTextureSource(mesh, "Detail Map", source);
                 }
                 else if (slot == 7)
                 {
