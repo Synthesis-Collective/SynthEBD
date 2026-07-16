@@ -1058,6 +1058,18 @@ public class VM_CharacterViewer : ViewerVm
     public RelayCommand DeleteSelectedLayoutCommand { get; private set; } = null!;
     public RelayCommand DeleteSelectedColorSchemeCommand { get; private set; } = null!;
 
+    /// <summary>Write-back helper for the persisted render-pipeline settings
+    /// (<see cref="InitializeLightingState"/>'s persistence block). No-ops on the
+    /// offscreen render instance — that VM receives transient per-request values
+    /// from an <see cref="Offscreen.OffscreenRenderRequest"/> that must never be
+    /// persisted — and skips the write when the target already equals
+    /// <paramref name="value"/> so settings aren't needlessly marked dirty.</summary>
+    private void PersistViewerSetting<T>(Func<T> get, Action<T> set, T value)
+    {
+        if (IsOffscreenRenderInstance) return;
+        if (!EqualityComparer<T>.Default.Equals(get(), value)) set(value);
+    }
+
     private void InitializeLightingState()
     {
         // Rebuild the combined (built-in + user) preset lists.
@@ -1078,6 +1090,34 @@ public class VM_CharacterViewer : ViewerVm
         // Seed per-light fields from the resolved layout/scheme before any UI binding
         // runs, so the editor panel opens with values that match the picked preset.
         ApplyPresetToFields(SelectedLightingLayout, SelectedLightingColorScheme);
+
+        // Seed the persisted render-pipeline settings from the host before their
+        // renderer-mirror subscriptions are wired below, so the eager (no-Skip)
+        // initial emission pushes the persisted value to the renderer and the
+        // toolbar controls open in their saved state. The dedicated write-back
+        // block further down (Skip(1)) then persists any user edit across sessions.
+        // Shader-troubleshooting debug operators are deliberately session-scoped
+        // (not persisted) — matching NPC Plugin Chooser 2.
+        RenderMissingTextureAsWireframe = _generalSettings.CharacterViewerRenderMissingTextureAsWireframe;
+        EnableToneMapping = _generalSettings.CharacterViewerEnableToneMapping;
+        EnableShadows = _generalSettings.CharacterViewerEnableShadows;
+        EnableAmbientOcclusion = _generalSettings.CharacterViewerEnableAmbientOcclusion;
+        SsaoRadius = _generalSettings.CharacterViewerSsaoRadius;
+        SsaoBias = _generalSettings.CharacterViewerSsaoBias;
+        SsaoIntensity = _generalSettings.CharacterViewerSsaoIntensity;
+        SsaoThickness = _generalSettings.CharacterViewerSsaoThickness;
+        SsaoHairGap = _generalSettings.CharacterViewerSsaoHairGap;
+        EnableEyeCatchlight = _generalSettings.CharacterViewerEnableEyeCatchlight;
+        SubsurfaceStrength = _generalSettings.CharacterViewerSubsurfaceStrength;
+        VignetteRadius = _generalSettings.CharacterViewerVignetteRadius;
+        VignetteIntensity = _generalSettings.CharacterViewerVignetteIntensity;
+        SkinSaturationBoost = _generalSettings.CharacterViewerSkinSaturationBoost;
+        Exposure = _generalSettings.CharacterViewerExposure;
+        TonemapHairRelief = _generalSettings.CharacterViewerTonemapHairRelief;
+        DaylightBoost = _generalSettings.CharacterViewerDaylightBoost;
+        DaylightBoostIntensity = _generalSettings.CharacterViewerDaylightBoostIntensity;
+        EnableBloom = _generalSettings.CharacterViewerEnableBloom;
+        BloomIntensity = _generalSettings.CharacterViewerBloomIntensity;
 
         // Watch selection changes and push them to the renderer + settings.
         this.WhenAnyValue(x => x.SelectedLightingLayout).Skip(1).Subscribe(layout =>
@@ -1199,6 +1239,61 @@ public class VM_CharacterViewer : ViewerVm
             .Skip(1)
             .Subscribe(_ => RequestReload())
             .DisposeWith(_disposables);
+
+        // ── Persist render-pipeline edits back to host settings ──────────────
+        // Skip(1) so the construction-time seed above doesn't write straight back;
+        // each writer no-ops when the value is unchanged. These write to the same
+        // host-owned settings the seed read from, so the choices round-trip across
+        // sessions (the host persists them to disk on save). The renderer-mirror
+        // subscriptions above stay the source of truth for pushing values to
+        // GlRenderer; this block only handles persistence.
+        //
+        // Gated on !IsOffscreenRenderInstance: the offscreen render VM receives its
+        // values from an OffscreenRenderRequest (see GameWindowOffscreenRenderer)
+        // and must never write those transient per-render values back into the
+        // shared host settings. IsOffscreenRenderInstance is set right after
+        // construction, before any request value is applied, so the guard (read at
+        // callback time) is already true by the time these fire on that instance.
+        this.WhenAnyValue(x => x.RenderMissingTextureAsWireframe).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerRenderMissingTextureAsWireframe, x => _generalSettings.CharacterViewerRenderMissingTextureAsWireframe = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableToneMapping).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerEnableToneMapping, x => _generalSettings.CharacterViewerEnableToneMapping = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableShadows).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerEnableShadows, x => _generalSettings.CharacterViewerEnableShadows = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableAmbientOcclusion).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerEnableAmbientOcclusion, x => _generalSettings.CharacterViewerEnableAmbientOcclusion = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoRadius).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSsaoRadius, x => _generalSettings.CharacterViewerSsaoRadius = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoBias).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSsaoBias, x => _generalSettings.CharacterViewerSsaoBias = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoIntensity).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSsaoIntensity, x => _generalSettings.CharacterViewerSsaoIntensity = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoThickness).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSsaoThickness, x => _generalSettings.CharacterViewerSsaoThickness = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SsaoHairGap).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSsaoHairGap, x => _generalSettings.CharacterViewerSsaoHairGap = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableEyeCatchlight).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerEnableEyeCatchlight, x => _generalSettings.CharacterViewerEnableEyeCatchlight = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SubsurfaceStrength).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSubsurfaceStrength, x => _generalSettings.CharacterViewerSubsurfaceStrength = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.VignetteRadius).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerVignetteRadius, x => _generalSettings.CharacterViewerVignetteRadius = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.VignetteIntensity).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerVignetteIntensity, x => _generalSettings.CharacterViewerVignetteIntensity = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SkinSaturationBoost).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSkinSaturationBoost, x => _generalSettings.CharacterViewerSkinSaturationBoost = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.Exposure).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerExposure, x => _generalSettings.CharacterViewerExposure = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.TonemapHairRelief).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerTonemapHairRelief, x => _generalSettings.CharacterViewerTonemapHairRelief = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.DaylightBoost).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerDaylightBoost, x => _generalSettings.CharacterViewerDaylightBoost = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.DaylightBoostIntensity).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerDaylightBoostIntensity, x => _generalSettings.CharacterViewerDaylightBoostIntensity = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.EnableBloom).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerEnableBloom, x => _generalSettings.CharacterViewerEnableBloom = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.BloomIntensity).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerBloomIntensity, x => _generalSettings.CharacterViewerBloomIntensity = x, v)).DisposeWith(_disposables);
 
         // BackgroundColor (System.Windows.Media.Color, 0..255 channels) ->
         // Renderer.ClearColor (Vector3, 0..1 floats). Without this wire the

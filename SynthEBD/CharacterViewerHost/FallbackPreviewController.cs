@@ -297,6 +297,8 @@ public sealed class FallbackPreviewController
             SsaoRadius = _vm.SsaoRadius,
             SsaoBias = _vm.SsaoBias,
             SsaoIntensity = _vm.SsaoIntensity,
+            SsaoThickness = _vm.SsaoThickness,
+            SsaoHairGap = _vm.SsaoHairGap,
             EnableEyeCatchlight = _vm.EnableEyeCatchlight,
             SubsurfaceStrength = _vm.SubsurfaceStrength,
             SkinSaturationBoost = _vm.SkinSaturationBoost,

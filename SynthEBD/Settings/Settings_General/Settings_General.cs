@@ -330,6 +330,52 @@ public class Settings_General
     /// <summary>User-defined CharacterViewer lighting color schemes (in addition to the built-in ones).</summary>
     public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public bool CharacterViewerVerboseLog { get; set; } = false;
+
+    // CharacterViewer render-pipeline settings. Defaults mirror NPC Plugin Chooser 2's
+    // InternalMugshotSettings so both hosts of CharacterViewer.Rendering ship the same
+    // out-of-box portrait look. Seeded into (and written back from) VM_CharacterViewer;
+    // the shader-troubleshooting debug operators are intentionally NOT persisted here
+    // (they are diagnostic-only in both hosts).
+    /// <summary>Green-wireframe placeholder for shapes whose diffuse texture failed to load (default on).</summary>
+    public bool CharacterViewerRenderMissingTextureAsWireframe { get; set; } = true;
+    /// <summary>Portrait-quality ACES tone-mapping toggle (default on).</summary>
+    public bool CharacterViewerEnableToneMapping { get; set; } = true;
+    /// <summary>Shadow-map toggle (default on).</summary>
+    public bool CharacterViewerEnableShadows { get; set; } = true;
+    /// <summary>Screen-space ambient occlusion (SSAO) toggle (default on).</summary>
+    public bool CharacterViewerEnableAmbientOcclusion { get; set; } = true;
+    /// <summary>SSAO sample radius in world units.</summary>
+    public float CharacterViewerSsaoRadius { get; set; } = 4.0f;
+    /// <summary>SSAO depth-comparison bias in world units.</summary>
+    public float CharacterViewerSsaoBias { get; set; } = 0.05f;
+    /// <summary>SSAO power-curve exponent.</summary>
+    public float CharacterViewerSsaoIntensity { get; set; } = 1.5f;
+    /// <summary>SSAO occluder-thickness rejection distance (view-space units).</summary>
+    public float CharacterViewerSsaoThickness { get; set; } = 1.5f;
+    /// <summary>SSAO max hair-to-background gap for hair to receive screen AO.</summary>
+    public float CharacterViewerSsaoHairGap { get; set; } = 0.8f;
+    /// <summary>Eye catch-light toggle (default on).</summary>
+    public bool CharacterViewerEnableEyeCatchlight { get; set; } = true;
+    /// <summary>Subsurface scattering strength multiplier (1.0 = honest source-value SSS).</summary>
+    public float CharacterViewerSubsurfaceStrength { get; set; } = 1.0f;
+    /// <summary>Vignette inner radius (NDC units); only active when tone-mapping is on.</summary>
+    public float CharacterViewerVignetteRadius { get; set; } = 0.7f;
+    /// <summary>Vignette darkening strength (0 = off); only active when tone-mapping is on.</summary>
+    public float CharacterViewerVignetteIntensity { get; set; } = 0.3f;
+    /// <summary>Skin-only saturation multiplier (1.0 = no-op).</summary>
+    public float CharacterViewerSkinSaturationBoost { get; set; } = 1.0f;
+    /// <summary>Tone-map exposure multiplier (1.0 = neutral); only active when tone-mapping is on.</summary>
+    public float CharacterViewerExposure { get; set; } = 1.0f;
+    /// <summary>Hair-relief finishing toggle for the tone-map chain (default on).</summary>
+    public bool CharacterViewerTonemapHairRelief { get; set; } = true;
+    /// <summary>Daylight directional-light boost toggle (default on).</summary>
+    public bool CharacterViewerDaylightBoost { get; set; } = true;
+    /// <summary>Directional-light gain when Daylight boost is on.</summary>
+    public float CharacterViewerDaylightBoostIntensity { get; set; } = 1.1f;
+    /// <summary>Bloom glow toggle (default on); only active when tone-mapping is on.</summary>
+    public bool CharacterViewerEnableBloom { get; set; } = true;
+    /// <summary>Bloom composite gain when Bloom is on.</summary>
+    public float CharacterViewerBloomIntensity { get; set; } = 0.7f;
     /// <summary>Which budgeting strategy the renderer's decode caches use (% free RAM, fixed RAM, or disabled).</summary>
     public RenderCacheMode CacheMode { get; set; } = RenderCacheMode.PercentFreeRam;
     /// <summary>Total RAM (GB) the decode caches may use when <see cref="CacheMode"/> is <see cref="RenderCacheMode.FixedRam"/>.</summary>
