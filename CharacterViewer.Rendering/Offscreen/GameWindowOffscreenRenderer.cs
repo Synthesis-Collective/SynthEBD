@@ -662,6 +662,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             {
                 request.MeshOverrideWarningsOut.AddRange(vm.MeshOverrideWarnings);
             }
+            if (request.MeshOverrideWarningDetailsOut != null && vm.MeshOverrideWarningDetails.Count > 0)
+            {
+                request.MeshOverrideWarningDetailsOut.AddRange(vm.MeshOverrideWarningDetails);
+            }
         }
         if (request.Morphs != null)
         {

@@ -216,6 +216,18 @@ public sealed class OffscreenRenderRequest
     public List<string>? MeshOverrideWarningsOut { get; init; }
 
     /// <summary>
+    /// Optional output collection: the structured counterpart of
+    /// <see cref="MeshOverrideWarningsOut"/> (same entries, from
+    /// <see cref="VM_CharacterViewer.MeshOverrideWarningDetails"/>). The
+    /// <see cref="MeshOverrideWarningKind"/> lets the host route each warning —
+    /// e.g. exclude <see cref="MeshOverrideWarningKind.StalePhysicsConfig"/>
+    /// (the mod's own physics-XML link is broken; the render is still correct)
+    /// from a persisted missing-asset list so it never re-stales a cached
+    /// mugshot. Pass a fresh list to opt in; leave null to skip.
+    /// </summary>
+    public List<MeshOverrideWarning>? MeshOverrideWarningDetailsOut { get; init; }
+
+    /// <summary>
     /// Optional per-render timing sink. Pass a fresh <see cref="RenderTimings"/>
     /// to have the renderer record a wall-clock phase breakdown (setup / build /
     /// install / draw / readback / encode) for this render. Pure data — no

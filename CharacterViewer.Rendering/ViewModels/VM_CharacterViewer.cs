@@ -345,8 +345,14 @@ public class VM_CharacterViewer : ViewerVm
     /// is "&lt;Key&gt;: &lt;reason&gt;" so the UI can name what's wrong.
     /// Recomputed on every apply (and drained queue), so it reflects the current
     /// scene once <see cref="SceneCommitted"/> has fired.</summary>
-    public IReadOnlyList<string> MeshOverrideWarnings => _meshOverrideWarnings;
-    private readonly List<string> _meshOverrideWarnings = new();
+    public IReadOnlyList<string> MeshOverrideWarnings => _meshOverrideWarnings.ConvertAll(w => w.Message);
+
+    /// <summary>Structured view of <see cref="MeshOverrideWarnings"/> — the same
+    /// entries with a <see cref="MeshOverrideWarningKind"/> so hosts can route
+    /// each warning (e.g. NPC2 excludes <see cref="MeshOverrideWarningKind.StalePhysicsConfig"/>
+    /// from its persisted missing-asset list so it never re-stales a mugshot).</summary>
+    public IReadOnlyList<MeshOverrideWarning> MeshOverrideWarningDetails => _meshOverrideWarnings;
+    private readonly List<MeshOverrideWarning> _meshOverrideWarnings = new();
 
     /// <summary>Controls how an alpha-tested / alpha-blended shape with no
     /// resolvable diffuse is handled during scene build. <c>true</c>
@@ -4979,7 +4985,8 @@ public class VM_CharacterViewer : ViewerVm
         if (source.ResolvedDiskPath == null)
         {
             _missingMeshPaths.Add(ov.MeshPath);
-            _meshOverrideWarnings.Add(ov.Key + ": mesh not found (" + ov.MeshPath + ")");
+            _meshOverrideWarnings.Add(new MeshOverrideWarning(MeshOverrideWarningKind.MeshNotFound,
+                ov.Key + ": mesh not found (" + ov.MeshPath + ")"));
             LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
                 "' mesh UNRESOLVED: " + ov.MeshPath);
             return;
@@ -4991,7 +4998,8 @@ public class VM_CharacterViewer : ViewerVm
         var built = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bipedBodyPart: null);
         if (built.Count == 0)
         {
-            _meshOverrideWarnings.Add(ov.Key + ": no renderable shapes in " + System.IO.Path.GetFileName(ov.MeshPath));
+            _meshOverrideWarnings.Add(new MeshOverrideWarning(MeshOverrideWarningKind.NoRenderableShapes,
+                ov.Key + ": no renderable shapes in " + System.IO.Path.GetFileName(ov.MeshPath)));
             LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' produced 0 shapes");
             return;
         }
@@ -5029,8 +5037,9 @@ public class VM_CharacterViewer : ViewerVm
             // via the mesh-NIF fallback like the base body.
             if (b.UnresolvedSkinBones is { Count: > 0 } unresolved)
             {
-                _meshOverrideWarnings.Add(ov.Key + ": unresolved bone(s) [" +
-                    string.Join(", ", unresolved) + "] for shape '" + b.ShapeName + "'");
+                _meshOverrideWarnings.Add(new MeshOverrideWarning(MeshOverrideWarningKind.UnresolvedBones,
+                    ov.Key + ": unresolved bone(s) [" +
+                    string.Join(", ", unresolved) + "] for shape '" + b.ShapeName + "'"));
                 LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
                     b.ShapeName + "' SKIPPED — bones in neither skeleton nor mesh NIF [" +
                     string.Join(", ", unresolved) + "]");
@@ -5058,12 +5067,26 @@ public class VM_CharacterViewer : ViewerVm
             // skeleton bones.
             if (b.BonesAbsentFromSkeleton is { Count: > 0 } skelAbsent)
             {
-                var skelMissing = FilterPhysicsDrivenBones(ov, b, skelAbsent);
+                var skelMissing = FilterPhysicsDrivenBones(ov, b, skelAbsent,
+                    source.ResolvedDiskPath, out var stalePhysicsNote);
+                if (stalePhysicsNote != null)
+                {
+                    // Record-equality Contains: several shapes of one NIF share
+                    // the same physics chains — one warning per distinct note.
+                    var staleWarning = new MeshOverrideWarning(
+                        MeshOverrideWarningKind.StalePhysicsConfig, ov.Key + ": " + stalePhysicsNote);
+                    if (!_meshOverrideWarnings.Contains(staleWarning))
+                        _meshOverrideWarnings.Add(staleWarning);
+                    LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
+                        b.ShapeName + "' STALE-PHYSICS-CONFIG — " + stalePhysicsNote);
+                }
                 if (skelMissing.Count > 0)
                 {
-                    _meshOverrideWarnings.Add(ov.Key + ": the loaded skeleton is missing bone(s) [" +
+                    _meshOverrideWarnings.Add(new MeshOverrideWarning(
+                        MeshOverrideWarningKind.SkeletonMissingBones,
+                        ov.Key + ": the loaded skeleton is missing bone(s) [" +
                         string.Join(", ", skelMissing) + "] this mesh needs — it may be misaligned. " +
-                        "Install the skeleton these meshes require (e.g. XPMSSE / XP32 Maximum Skeleton).");
+                        "Install the skeleton these meshes require (e.g. XPMSSE / XP32 Maximum Skeleton)."));
                     LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" +
                         b.ShapeName + "' SKELETON-INCOMPATIBLE — skeleton lacks [" +
                         string.Join(", ", skelMissing) + "] (rendered via mesh-NIF fallback, may be misaligned)");
@@ -5202,12 +5225,20 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Splits a shape's skeleton-absent bones into physics-driven ones
     /// (named by the mesh NIF's linked SMP/HDT physics XML — expected to live
     /// only in the mesh NIF, so no warning) and genuinely missing ones (returned
-    /// for the skeleton-compatibility warning). When the NIF links no physics
-    /// XML, or none of the linked XMLs can be resolved/read, every bone is
-    /// returned unchanged — unclassifiable stays warned (conservative).</summary>
+    /// for the skeleton-compatibility warning). When the NIF links physics
+    /// XML(s) but NONE of them resolve — a stale link in the mod itself (e.g.
+    /// the author renamed the config and never updated the NiStringExtraData) —
+    /// sibling *.xml files in the mesh's own folder are consulted instead;
+    /// bones they name are physics-driven, and <paramref name="stalePhysicsNote"/>
+    /// describes the broken link so the caller can surface it as its own
+    /// (informational, non-asset) warning. When the NIF links no physics XML at
+    /// all, or nothing readable names the bones, every bone is returned
+    /// unchanged — unclassifiable stays warned (conservative).</summary>
     private List<string> FilterPhysicsDrivenBones(MeshOverride ov,
-        NifMeshBuilder.BuiltMesh b, IReadOnlyList<string> skelAbsent)
+        NifMeshBuilder.BuiltMesh b, IReadOnlyList<string> skelAbsent,
+        string meshDiskPath, out string? stalePhysicsNote)
     {
+        stalePhysicsNote = null;
         if (b.PhysicsXmlPaths is not { Count: > 0 } xmlRefs)
             return new List<string>(skelAbsent);
 
@@ -5234,29 +5265,32 @@ public class VM_CharacterViewer : ViewerVm
                 continue;
             }
 
-            string text;
-            try { text = File.ReadAllText(diskPath); }
-            catch (Exception ex)
-            {
-                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' physics XML '" +
-                    diskPath + "' unreadable (" + ex.Message + ")");
+            if (!TryCollectPhysicsXmlBoneNames(diskPath, ov.Key, attributeValues, unparsedTexts))
                 continue;
-            }
             readable++;
-
-            try
-            {
-                var doc = System.Xml.Linq.XDocument.Parse(text);
-                foreach (var el in doc.Descendants())
-                    foreach (var attr in el.Attributes())
-                        attributeValues.Add(attr.Value);
-            }
-            catch
-            {
-                unparsedTexts.Add(text);
-            }
         }
-        if (readable == 0) return new List<string>(skelAbsent);
+
+        // Sibling fallback: every linked config is unresolvable, so the link
+        // itself is broken. The real config usually still ships beside the
+        // mesh under a different name (observed: Skirt_1.nif linking
+        // 'SkirtYXXY.xml' while the mod ships 'SkirtY1.xml'), so scan the
+        // mesh's own folder. Only reachable for loose meshes / extracted
+        // folders — a BSA-sourced mesh's cache folder simply has no XMLs and
+        // the scan is a no-op.
+        string? siblingSource = null;
+        if (readable == 0)
+        {
+            foreach (var xmlPath in EnumerateSiblingPhysicsXmls(meshDiskPath))
+            {
+                if (!TryCollectPhysicsXmlBoneNames(xmlPath, ov.Key, attributeValues, unparsedTexts))
+                    continue;
+                readable++;
+                siblingSource = siblingSource == null
+                    ? System.IO.Path.GetFileName(xmlPath)
+                    : siblingSource + ", " + System.IO.Path.GetFileName(xmlPath);
+            }
+            if (readable == 0) return new List<string>(skelAbsent);
+        }
 
         var remaining = new List<string>();
         var physicsDriven = new List<string>();
@@ -5269,12 +5303,71 @@ public class VM_CharacterViewer : ViewerVm
 
         if (physicsDriven.Count > 0)
         {
+            if (siblingSource != null)
+            {
+                stalePhysicsNote = "the mesh links physics config '" + string.Join(", ", xmlRefs) +
+                    "' which does not exist (a stale link in the mod itself), but sibling config '" +
+                    siblingSource + "' names its physics bone(s) [" + string.Join(", ", physicsDriven) +
+                    "] — the preview renders them at their authored rest pose and is correct. " +
+                    "In game the outfit's physics likely will not load until the mod fixes the link.";
+            }
             LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" + b.ShapeName +
                 "' " + physicsDriven.Count + " skeleton-absent bone(s) are SMP-physics-driven " +
-                "(named by the mesh's physics XML; they live only in the mesh NIF by design) — " +
+                "(named by " + (siblingSource == null
+                    ? "the mesh's physics XML"
+                    : "sibling physics config(s) " + siblingSource + " — the linked XML is stale") +
+                "; they live only in the mesh NIF by design) — " +
                 "no skeleton warning for [" + string.Join(", ", physicsDriven) + "]");
         }
         return remaining;
+    }
+
+    /// <summary>Reads one physics XML and pours its bone-name evidence into
+    /// <paramref name="attributeValues"/> (parseable XML: every attribute value)
+    /// or <paramref name="unparsedTexts"/> (hand-authored XML that fails to
+    /// parse: raw text for substring scan). False when the file was unreadable
+    /// and contributed nothing.</summary>
+    private bool TryCollectPhysicsXmlBoneNames(string diskPath, string ovKey,
+        HashSet<string> attributeValues, List<string> unparsedTexts)
+    {
+        string text;
+        try { text = File.ReadAllText(diskPath); }
+        catch (Exception ex)
+        {
+            LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ovKey + "' physics XML '" +
+                diskPath + "' unreadable (" + ex.Message + ")");
+            return false;
+        }
+
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Parse(text);
+            foreach (var el in doc.Descendants())
+                foreach (var attr in el.Attributes())
+                    attributeValues.Add(attr.Value);
+        }
+        catch
+        {
+            unparsedTexts.Add(text);
+        }
+        return true;
+    }
+
+    /// <summary>*.xml files sitting beside a mesh on disk, for the stale-link
+    /// sibling fallback. Empty on any IO problem (no folder, no access).</summary>
+    private static IEnumerable<string> EnumerateSiblingPhysicsXmls(string meshDiskPath)
+    {
+        try
+        {
+            var dir = System.IO.Path.GetDirectoryName(meshDiskPath);
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return Array.Empty<string>();
+            return Directory.EnumerateFiles(dir, "*.xml", SearchOption.TopDirectoryOnly);
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     /// <summary>Normalizes a physics-XML reference as stored in an
