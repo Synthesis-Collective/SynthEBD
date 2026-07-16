@@ -103,7 +103,12 @@
                         <local:UC_NamedFormKeyPicker FormKey="{Binding PreviewNpcOverride, Mode=TwoWay}" LinkCache="{Binding lk}" ScopedTypes="{Binding NPCPickerFormKeys}" MaxHeight="180"/>
                     </DockPanel>
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Select from Config File" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}"/>
+                        <Button Content="Randomize" Command="{Binding SelectFromConfigFileCommand}" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}"
+                                local:DocTooltip.Key="AssetPack.RandomizePreview"
+                                ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
+                        <Button Content="View Current" Command="{Binding ViewCurrentAssetsCommand}" Margin="0 0 5 0" Foreground="{DynamicResource ActionAccentForeground}"
+                                local:DocTooltip.Key="AssetPack.ViewCurrentAssets"
+                                ToolTipService.IsEnabled="{Binding Source={x:Static local:TooltipController.Instance}, Path=DisplayToolTips}"/>
                         <Button Content="Reset" Command="{Binding ResetAccumulatedOverridesCommand}" Foreground="Firebrick"/>
                     </StackPanel>
                     <!-- Warning for auxiliary mesh overrides that couldn't render or

@@ -15,6 +15,31 @@ using Pfim;
 
 namespace SynthEBD
 {
+    /// <summary>One asset file a currently-applied subgroup contributes to the render preview.
+    /// Displayed by <see cref="Window_AppliedAssets"/>; the destination path is surfaced as a tooltip.</summary>
+    public class AppliedAssetDisplay
+    {
+        /// <summary>Config-relative source path of the asset file (what the subgroup ships).</summary>
+        public string SourcePath { get; init; } = "";
+        /// <summary>The record destination path the source is routed to (tooltip detail).</summary>
+        public string Destination { get; init; } = "";
+        /// <summary>Just the file name, emphasized in the display row.</summary>
+        public string FileName => System.IO.Path.GetFileName(SourcePath);
+    }
+
+    /// <summary>One subgroup currently applied to the render preview, with the asset files it
+    /// contributed. Rebuilt by <see cref="VM_AssetPresenter"/> whenever a subgroup selection or a
+    /// Randomize roll applies overrides; displayed by <see cref="Window_AppliedAssets"/>.</summary>
+    public class AppliedSubgroupDisplay
+    {
+        public string Id { get; init; } = "";
+        /// <summary>Display name — for a Randomize roll this is the full inheritance chain
+        /// (<see cref="FlattenedSubgroup.DeepNamesString"/>), for a manual selection the subgroup's own name.</summary>
+        public string Name { get; init; } = "";
+        public List<AppliedAssetDisplay> Assets { get; init; } = new();
+        public string FileCountText => Assets.Count == 1 ? "1 file" : Assets.Count + " files";
+    }
+
     /// <summary>
     /// View model for the asset-preview pane: drives either the image-preview pipeline or the 3D
     /// CharacterViewer render preview for the selected subgroup, accumulating texture overrides and
@@ -80,6 +105,7 @@ namespace SynthEBD
                 {
                     AccumulatedOverrides.Clear();
                     AccumulatedMeshOverrides.Clear();
+                    AppliedSubgroups.Clear();
                     PreviewNpcOverride = FormKey.Null;
                     _lastLoadedNpc = FormKey.Null;
                     ClearMeshOverrideWarning();
@@ -134,7 +160,25 @@ namespace SynthEBD
                 {
                     AccumulatedOverrides.Clear();
                     AccumulatedMeshOverrides.Clear();
+                    AppliedSubgroups.Clear();
                     _ = RefreshRenderPreviewAsync();
+                });
+
+            ViewCurrentAssetsCommand = new RelayCommand(
+                canExecute: _ => ParentUI.PreviewMode == PreviewMode.Render,
+                execute: _ =>
+                {
+                    // Non-blocking single instance: a second click focuses the open
+                    // window instead of stacking another. Content stays live because
+                    // the window binds this VM's AppliedSubgroups collection directly.
+                    if (_appliedAssetsWindow != null)
+                    {
+                        _appliedAssetsWindow.Activate();
+                        return;
+                    }
+                    _appliedAssetsWindow = new Window_AppliedAssets(this);
+                    _appliedAssetsWindow.Closed += (_, _) => _appliedAssetsWindow = null;
+                    _appliedAssetsWindow.Show();
                 });
         }
 
@@ -176,6 +220,17 @@ namespace SynthEBD
 
         public RelayCommand SelectFromConfigFileCommand { get; }
         public RelayCommand ResetAccumulatedOverridesCommand { get; }
+        public RelayCommand ViewCurrentAssetsCommand { get; }
+
+        /// <summary>Subgroups currently contributing assets to the render preview, in application
+        /// order (upserted per subgroup ID as selections accumulate; rebuilt wholesale by a
+        /// Randomize roll; cleared by Reset and asset-pack swaps). Bound live by
+        /// <see cref="Window_AppliedAssets"/>.</summary>
+        public ObservableCollection<AppliedSubgroupDisplay> AppliedSubgroups { get; } = new();
+
+        /// <summary>The open "View Current" window, if any — kept single-instance so repeated
+        /// clicks focus rather than stack. Nulled by its Closed handler.</summary>
+        private Window_AppliedAssets? _appliedAssetsWindow;
 
         /// <summary>Re-entrancy guard for <see cref="SelectCombinationFromConfigAsync"/>:
         /// the roll now runs on a background thread, so the button stays clickable while
@@ -255,6 +310,7 @@ namespace SynthEBD
                 {
                     AccumulatedOverrides[kv.Key] = kv.Value;
                 }
+                RecordAppliedSubgroup(selected.ID, selected.Name, selected.AssociatedModel?.Paths);
 
                 if (AccumulatedOverrides.Count > 0)
                 {
@@ -369,6 +425,14 @@ namespace SynthEBD
                 {
                     AccumulatedOverrides[kv.Key] = kv.Value;
                 }
+
+                // A roll replaces the accumulated state wholesale, so the applied-subgroup
+                // display is rebuilt from the combination (full inheritance-chain names).
+                AppliedSubgroups.Clear();
+                foreach (var sg in combination.ContainedSubgroups.Where(s => s != null))
+                {
+                    RecordAppliedSubgroup(sg.Id, sg.DeepNamesString, sg.Paths);
+                }
                 if (AccumulatedOverrides.Count > 0)
                 {
                     CharacterViewer.ApplyTextureOverrides(AccumulatedOverrides.Values);
@@ -394,6 +458,32 @@ namespace SynthEBD
                 CharacterViewer.IsHostBusy = false;
                 _selectFromConfigInFlight = false;
             }
+        }
+
+        /// <summary>
+        /// Upserts one subgroup's entry in <see cref="AppliedSubgroups"/> (matched by ID, so
+        /// re-selecting a subgroup refreshes its entry in place instead of duplicating it).
+        /// Subgroups that ship no asset files are skipped — they contribute nothing to display.
+        /// </summary>
+        private void RecordAppliedSubgroup(string id, string name, IEnumerable<FilePathReplacement>? paths)
+        {
+            var assets = (paths ?? Enumerable.Empty<FilePathReplacement>())
+                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.Source))
+                .Select(p => new AppliedAssetDisplay { SourcePath = p.Source, Destination = p.Destination ?? "" })
+                .OrderBy(a => a.SourcePath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (assets.Count == 0) return;
+
+            var entry = new AppliedSubgroupDisplay { Id = id ?? "", Name = name ?? "", Assets = assets };
+            for (int i = 0; i < AppliedSubgroups.Count; i++)
+            {
+                if (string.Equals(AppliedSubgroups[i].Id, entry.Id, StringComparison.Ordinal))
+                {
+                    AppliedSubgroups[i] = entry;
+                    return;
+                }
+            }
+            AppliedSubgroups.Add(entry);
         }
 
         /// <summary>

@@ -195,5 +195,15 @@ public static partial class UiDocs
             layperson: "Keeps the same NPC in the 3D preview while you click around subgroups, instead of letting the preview switch to a different NPC when a subgroup's race rules point elsewhere.",
             technical: "When enabled (and no explicit preview NPC is picked), the render preview reuses the last-loaded NPC rather than re-resolving one from the selected subgroup's effective races and the config's gender. An explicit selection in the preview NPC picker always takes precedence.",
             motivation: "Comparing texture variants is only meaningful on a constant model - without the lock, clicking a Khajiit-only subgroup would swap your human preview out from under you.");
+
+        Add("AssetPack.RandomizePreview",
+            layperson: "Rolls the dice the same way the patcher would and shows the resulting combination of textures on the preview NPC.",
+            technical: "Runs one repetition of the asset-distribution pipeline against this config (honoring its distribution rules) for the selected preview NPC - or, when none is picked, for the configured preview-NPC defaults in turn until one is compatible - then applies the rolled combination's textures and auxiliary meshes to the render preview. The roll runs on a background thread; a busy overlay covers the viewport until the scene commits.",
+            motivation: "Clicking subgroups one at a time shows individual assets, but not what an actual patch run would put together. Randomize previews a distribution-rule-valid combination, so you see the config the way an NPC in game would.");
+
+        Add("AssetPack.ViewCurrentAssets",
+            layperson: "Opens a window listing which subgroups are currently shown on the preview NPC and which texture files each one contributed.",
+            technical: "Opens a non-modal window bound to the presenter's applied-subgroup records: one entry per subgroup (upserted by ID as selections accumulate; rebuilt wholesale by Randomize; cleared by Reset and config swaps), each listing its asset files' config-relative source paths with the destination record path as tooltip.",
+            motivation: "After a few subgroup clicks or a Randomize roll, it is easy to lose track of what is actually on the model. This window answers 'what am I looking at?' without digging through the verbose log.");
     }
 }

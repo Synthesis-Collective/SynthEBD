@@ -1,0 +1,103 @@
+<Window x:Class="SynthEBD.Window_AppliedAssets"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:VM_AssetPresenter}"
+        Title="Applied Preview Assets"
+        Height="620" Width="780"
+        Style="{DynamicResource ThemedWindowStyle}">
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
+
+    <Window.Resources>
+        <local:IntEqualsToVisibilityConverter x:Key="IntEqVis"/>
+    </Window.Resources>
+
+    <DockPanel Margin="12">
+        <!-- Header: what this window shows and for which config. Non-modal, so the
+             content updates live as the user keeps selecting subgroups / rerolling. -->
+        <StackPanel DockPanel.Dock="Top" Margin="0 0 0 10">
+            <TextBlock Text="Subgroups currently applied to the 3D preview"
+                       FontSize="15" FontWeight="Bold"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+            <StackPanel Orientation="Horizontal" Margin="0 4 0 0">
+                <TextBlock Text="Config: " FontSize="12"
+                           Foreground="{DynamicResource SecondaryForeground}"/>
+                <TextBlock Text="{Binding AssetPack.GroupName}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource ActionAccentForeground}"/>
+            </StackPanel>
+            <TextBlock Margin="0 2 0 0" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource HintForeground}"
+                       Text="Updates live: selecting subgroups adds to this list, Randomize replaces it with the rolled combination, and Reset clears it. Hover a file for the record path it is routed to."/>
+        </StackPanel>
+
+        <Grid>
+            <!-- Empty state -->
+            <TextBlock Text="Nothing applied yet — select a subgroup in the tree, or click Randomize."
+                       FontSize="13" FontStyle="Italic"
+                       Foreground="{DynamicResource HintForeground}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="{Binding AppliedSubgroups.Count, Converter={StaticResource IntEqVis}, ConverterParameter=0}"/>
+
+            <!-- One card per applied subgroup: ID chip + name header, then its asset files. -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding AppliedSubgroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:AppliedSubgroupDisplay}">
+                            <Border Background="{DynamicResource SecondaryBackground}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="4"
+                                    Margin="0 0 4 8" Padding="10 7">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False" Margin="0 0 0 5">
+                                        <Border DockPanel.Dock="Left"
+                                                Background="{DynamicResource AccentBrush}"
+                                                CornerRadius="3" Padding="7 1"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Id}"
+                                                       FontFamily="Consolas, Courier New, monospace"
+                                                       FontSize="11" FontWeight="Bold"
+                                                       Foreground="{DynamicResource AccentForeground}"/>
+                                        </Border>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Name}"
+                                                   Margin="8 0 0 0" FontSize="12" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding FileCountText}"
+                                                   FontSize="11" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                                    </DockPanel>
+
+                                    <ItemsControl ItemsSource="{Binding Assets}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:AppliedAssetDisplay}">
+                                                <!-- One row per asset file: emphasized file name, then its
+                                                     config-relative folder path. Tooltip = destination record path. -->
+                                                <DockPanel Margin="2 1" ToolTip="{Binding Destination}">
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding FileName}"
+                                                               FontFamily="Consolas, Courier New, monospace" FontSize="11"
+                                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                                    <TextBlock Text="{Binding SourcePath}"
+                                                               Margin="10 0 0 0"
+                                                               FontFamily="Consolas, Courier New, monospace" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>
