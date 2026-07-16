@@ -177,6 +177,11 @@ namespace SynthEBD
         public RelayCommand SelectFromConfigFileCommand { get; }
         public RelayCommand ResetAccumulatedOverridesCommand { get; }
 
+        /// <summary>Re-entrancy guard for <see cref="SelectCombinationFromConfigAsync"/>:
+        /// the roll now runs on a background thread, so the button stays clickable while
+        /// one is in flight; a second click is ignored instead of racing the first.</summary>
+        private bool _selectFromConfigInFlight;
+
         private const ulong ByteLimit = 157286400; // minimum available RAM for image preview to function (in bytes)
 
         /// <summary>Reacts to a preview trigger by clearing/loading image previews or refreshing the 3D render, per the current preview mode.</summary>
@@ -289,44 +294,66 @@ namespace SynthEBD
         private async Task SelectCombinationFromConfigAsync()
         {
             if (AssetPack == null || lk == null) return;
+            if (_selectFromConfigInFlight) return;
+            _selectFromConfigInFlight = true;
+
+            // Busy overlay covers the whole operation: IsHostBusy spans the background
+            // roll (cleared in finally), and once LoadNpcAsync starts, the viewer's own
+            // IsLoading takes over through GL scene commit.
+            CharacterViewer.HostBusyMessage = "Selecting from config...";
+            CharacterViewer.IsHostBusy = true;
 
             try
             {
+                // VM reads stay on the UI thread; only model-level work moves off it.
                 var packModel = AssetPack.DumpViewModelToModel();
                 var gender = AssetPack.Gender;
+                var previewOverride = PreviewNpcOverride;
+                var groupName = AssetPack.GroupName;
 
                 FormKey chosenNpc;
                 SubgroupCombination? combination;
 
-                if (!PreviewNpcOverride.IsNull)
+                if (!previewOverride.IsNull)
                 {
-                    // An NPC is already selected: roll a single random compatible combination for it.
-                    combination = TryRollCombination(PreviewNpcOverride, packModel, out string reason);
+                    // An NPC is already selected: roll a single random compatible combination
+                    // for it. The simulator walks the whole distribution pipeline, which can
+                    // take seconds on large configs — run it off the UI thread so the overlay
+                    // animates instead of the window freezing.
+                    string reason = string.Empty;
+                    combination = await Task.Run(() => TryRollCombination(previewOverride, packModel, out reason));
                     if (combination == null)
                     {
+                        CharacterViewer.IsHostBusy = false; // stop the spinner behind the modal
                         MessageWindow.DisplayNotificationOK("No compatible assignment",
-                            "The config file '" + AssetPack.GroupName + "' can't be assigned to the selected preview NPC under its current distribution rules."
+                            "The config file '" + groupName + "' can't be assigned to the selected preview NPC under its current distribution rules."
                             + (string.IsNullOrWhiteSpace(reason) ? "" : Environment.NewLine + Environment.NewLine + reason));
                         return;
                     }
-                    chosenNpc = PreviewNpcOverride;
+                    chosenNpc = previewOverride;
                 }
                 else
                 {
                     // No NPC selected: iterate the configured preview-NPC defaults until one
                     // yields a valid combination under the config's distribution rules.
-                    chosenNpc = FormKey.Null;
-                    combination = null;
-                    foreach (var candidate in EnumeratePreviewNpcCandidates(gender))
+                    // Candidates are materialized here because the enumeration reads
+                    // General-settings VM rows, which must not be touched off-thread.
+                    var candidates = EnumeratePreviewNpcCandidates(gender).ToList();
+                    (chosenNpc, combination) = await Task.Run(() =>
                     {
-                        combination = TryRollCombination(candidate, packModel, out _);
-                        if (combination != null) { chosenNpc = candidate; break; }
-                    }
+                        foreach (var candidate in candidates)
+                        {
+                            var rolled = TryRollCombination(candidate, packModel, out _);
+                            if (rolled != null) { return (candidate, rolled); }
+                        }
+                        return (FormKey.Null, (SubgroupCombination?)null);
+                    });
                     if (combination == null)
                     {
+                        CharacterViewer.IsHostBusy = false; // stop the spinner behind the modal
                         MessageWindow.DisplayNotificationOK("No compatible preview NPC",
                             "None of the configured preview NPCs for " + gender + " could be assigned assets from '"
-                            + AssetPack.GroupName + "' under its current distribution rules. "
+                            + groupName + "' under its current distribution rules. "
                             + "Pick a specific Preview NPC, or review the config's distribution rules with the Distribution Simulator.");
                         return;
                     }
@@ -361,6 +388,11 @@ namespace SynthEBD
             catch (Exception ex)
             {
                 _logger.LogMessage("VM_AssetPresenter.SelectCombinationFromConfigAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
+            }
+            finally
+            {
+                CharacterViewer.IsHostBusy = false;
+                _selectFromConfigInFlight = false;
             }
         }
 

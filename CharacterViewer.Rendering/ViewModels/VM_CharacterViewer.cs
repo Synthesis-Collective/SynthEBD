@@ -760,6 +760,27 @@ public class VM_CharacterViewer : ViewerVm
     public ViewerMode Mode { get; set; } = ViewerMode.ReadOnly;
     public string StatusText { get; set; } = "No mesh loaded";
     public bool IsLoading { get; set; }
+
+    /// <summary>Host-settable busy flag for work that happens OUTSIDE the viewer's own
+    /// load pipeline but should still show the viewport busy overlay — e.g. SynthEBD's
+    /// "Select from Config File" rolling a distribution-valid combination on a background
+    /// thread before calling LoadAsync. The host sets it true before its work and false
+    /// when done (typically in a finally); <see cref="IsLoading"/> takes over coverage for
+    /// the load→scene-commit window, so OR-ing the two keeps the overlay up continuously.</summary>
+    public bool IsHostBusy { get; set; }
+
+    /// <summary>Overlay caption shown while <see cref="IsHostBusy"/> is the active busy
+    /// source. The viewer's own loads always show "Loading...".</summary>
+    public string HostBusyMessage { get; set; } = "Working...";
+
+    /// <summary>Drives the viewport busy overlay: the viewer's own load pipeline
+    /// (<see cref="IsLoading"/>) or host-flagged external work (<see cref="IsHostBusy"/>).</summary>
+    public bool IsBusyOverlayVisible => IsLoading || IsHostBusy;
+
+    /// <summary>Caption for the busy overlay. A live load reads "Loading..." even when the
+    /// host flag is also up, since by then the host's pre-work has handed off to the loader.</summary>
+    public string BusyOverlayText => IsLoading ? "Loading..." : HostBusyMessage;
+
     public int NpcWeight { get; set; } = 50;
 
     /// <summary>True when the last BodySlide/BodyGen deformation attempt couldn't find
