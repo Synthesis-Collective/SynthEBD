@@ -5026,6 +5026,21 @@ public class VM_CharacterViewer : ViewerVm
             }
         }
 
+        // AlternateTextures matching state (consumed in the per-shape block
+        // below): the dangling-name pool is the set of entries eligible for the
+        // 3D-index fallback, and altConsumed tracks entries that applied
+        // anywhere so the leftovers can be logged instead of failing silently
+        // (the pre-fallback failure mode: variant renders in game/CK but
+        // untextured here). Matching rules live in AlternateTextureMatching.
+        List<AlternateTextureSpec>? altIndexFallbackPool = null;
+        HashSet<AlternateTextureSpec>? altConsumed = null;
+        if (ov.AlternateTextures is { Count: > 0 } altSpecsAll)
+        {
+            altConsumed = new HashSet<AlternateTextureSpec>();
+            altIndexFallbackPool = AlternateTextureMatching.DanglingNameEntries(
+                altSpecsAll, built.Select(m => m.ShapeName));
+        }
+
         int installed = 0;
         foreach (var b in built)
         {
@@ -5103,14 +5118,41 @@ public class VM_CharacterViewer : ViewerVm
                 foreach (var kv in ov.Textures)
                     effectiveTextures[kv.Key] = kv.Value;
 
-            // Per-shape AlternateTextures (MODS): a distinct TextureSet keyed on
-            // this shape's own NIF node name. More specific than the mesh-wide flat
-            // Textures above, so it is folded on top (wins per slot for this shape).
+            // Per-shape AlternateTextures (MODS): a distinct TextureSet targeted
+            // at one shape of this NIF, matched by 3D Name first with a 3D-index
+            // fallback for entries whose name matches no shape — the engine keys
+            // on the index, so a mesh whose shapes a rebuild renamed
+            // (BodySlide/Outfit Studio output) still shows its variant in game
+            // and the CK; without the fallback it rendered untextured/black here
+            // (first seen as the "black skirt" on BodySlide-built Obi's
+            // Nocturnal Noir). Full rules + rationale: AlternateTextureMatching.
+            // More specific than the mesh-wide flat Textures above, so it is
+            // folded on top (wins per slot for this shape; later entries win
+            // within the list).
             IReadOnlyDictionary<int, string>? shapeTxst = null;
-            if (ov.ShapeTextures != null && ov.ShapeTextures.TryGetValue(b.ShapeName, out var st))
+            if (ov.AlternateTextures is { Count: > 0 } altSpecs)
             {
+                var viaIndex = new List<AlternateTextureSpec>();
+                shapeTxst = AlternateTextureMatching.MatchForShape(
+                    altSpecs, altIndexFallbackPool, b.ShapeName, b.ShapeOrdinal,
+                    altConsumed, viaIndex);
+                foreach (var spec in viaIndex)
+                {
+                    LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                        "' AlternateTextures entry [3D index " + spec.ShapeIndex + ", name '" +
+                        spec.ShapeName + "'] applied to shape '" + b.ShapeName +
+                        "' by 3D-INDEX fallback — no shape bears the record's name " +
+                        "(mesh likely rebuilt/renamed, e.g. BodySlide output)");
+                }
+            }
+            else if (ov.ShapeTextures != null && ov.ShapeTextures.TryGetValue(b.ShapeName, out var st))
+            {
+                // Legacy name-only channel (hosts that don't supply 3D indices).
                 shapeTxst = st;
-                foreach (var kv in st)
+            }
+            if (shapeTxst != null)
+            {
+                foreach (var kv in shapeTxst)
                     effectiveTextures[kv.Key] = kv.Value;
             }
 
@@ -5215,6 +5257,23 @@ public class VM_CharacterViewer : ViewerVm
             glMesh.ShowWireframe = ShowWireframe;
             Renderer.AddMesh(glMesh);
             installed++;
+        }
+
+        // Surface AlternateTextures entries that bound to nothing — before the
+        // index fallback this failure was silent and presented as an
+        // untextured/black shape that "works in game" (the engine matches by
+        // index). Log-only: dangling entries also occur in benign wild data,
+        // so this doesn't join MeshOverrideWarnings.
+        if (ov.AlternateTextures is { Count: > 0 } specsAll && altConsumed != null)
+        {
+            foreach (var spec in specsAll)
+            {
+                if (altConsumed.Contains(spec)) continue;
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                    "' AlternateTextures entry [3D index " + spec.ShapeIndex + ", name '" +
+                    spec.ShapeName + "'] matched NO shape by name or index — its TextureSet " +
+                    "was not applied (mesh shape list/names differ from the record)");
+            }
         }
 
         LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' installed " +

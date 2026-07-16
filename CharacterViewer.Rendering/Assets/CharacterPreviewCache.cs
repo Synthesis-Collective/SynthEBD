@@ -779,6 +779,41 @@ public class CharacterPreviewCache
                 }
             }
         }
+
+        // Per-shape AlternateTextures (either channel). Decoding doesn't need the
+        // render's shape matching — warm every referenced path once and let the
+        // DDS cache dedupe; whichever shapes they land on at render time hit warm.
+        void WarmSlotPaths(IReadOnlyDictionary<int, string> slotPaths)
+        {
+            foreach (var (slot, path) in slotPaths)
+            {
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                if (slot == 4)
+                {
+                    if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+                }
+                else
+                {
+                    GetOrLoadDdsPixels(path);
+                }
+            }
+        }
+        if (ov.AlternateTextures != null)
+        {
+            foreach (var spec in ov.AlternateTextures)
+            {
+                ct.ThrowIfCancellationRequested();
+                WarmSlotPaths(spec.Textures);
+            }
+        }
+        else if (ov.ShapeTextures != null)
+        {
+            foreach (var slotPaths in ov.ShapeTextures.Values)
+            {
+                ct.ThrowIfCancellationRequested();
+                WarmSlotPaths(slotPaths);
+            }
+        }
     }
 
     private void PrewarmPart(string bodyPart, string? gamePath, ResolvedNpcMeshPaths paths,

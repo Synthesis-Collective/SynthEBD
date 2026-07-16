@@ -200,6 +200,21 @@ public class NifMeshBuilder
         public IReadOnlyList<ushort>? DismemberPartitions { get; init; }
 
         /// <summary>
+        /// This shape's ordinal among the source NIF's shape blocks, in file
+        /// block order (the order nifly's <c>GetShapes()</c> returns), counting
+        /// every shape — including ones the build later skips or fails. Used as
+        /// the "3D Index" fallback when matching a plugin's AlternateTextures
+        /// (MODS) entries against a mesh whose shapes were renamed by a rebuild
+        /// (see <c>VM_CharacterViewer.ApplyOneMeshOverride</c>). Block order
+        /// equals scene order for Outfit Studio/BodySlide-written files, which
+        /// are the ones that need the fallback; block-sorting tools can break
+        /// that equality, so this is only consulted after name matching fails.
+        /// -1 when the shape was built outside the indexed load path. Mutable
+        /// because it is stamped after construction in BuildAllShapes.
+        /// </summary>
+        public int ShapeOrdinal { get; set; } = -1;
+
+        /// <summary>
         /// True if this shape's NiAlphaProperty has the alpha test flag set (bit 9).
         /// </summary>
         public bool HasAlphaTest { get; init; }
@@ -1073,6 +1088,7 @@ public class NifMeshBuilder
         PhysicsXmlPaths = b.PhysicsXmlPaths,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
         DismemberPartitions = b.DismemberPartitions,
+        ShapeOrdinal = b.ShapeOrdinal,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
         ZBufferWrite = b.ZBufferWrite,
@@ -1187,7 +1203,10 @@ public class NifMeshBuilder
             var shape = shapes[si];
             var built = BuildShape(nif, shape, accessoryOffset, skeletonNif, primaryHeadName);
             if (built != null)
+            {
+                built.ShapeOrdinal = si;
                 results.Add(built);
+            }
         }
 
         // SMP/HDT physics-XML link pass. Only runs when some shape reported

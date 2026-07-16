@@ -100,6 +100,54 @@ public sealed record MeshOverride
     /// shapes (e.g. alternate-coloured variants of one shared cuirass NIF). Keys
     /// are matched against each shape's <c>BuiltMesh.ShapeName</c> (the NIF
     /// geometry node's own name). A per-shape entry wins over <see cref="Textures"/>
-    /// for the same slot on that shape. Null = no per-shape overrides.</summary>
+    /// for the same slot on that shape. Null = no per-shape overrides.
+    /// <para>Legacy name-only channel. Ignored when <see cref="AlternateTextures"/>
+    /// is supplied — that list carries the record's 3D Index too, so a shape the
+    /// mesh's author RENAMED (BodySlide/Outfit Studio rebuilds do this routinely)
+    /// can still be matched the way the engine matches it.</para></summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<int, string>>? ShapeTextures { get; init; }
+
+    /// <summary>Per-shape TXST overrides from the plugin's <c>AlternateTextures</c>
+    /// (MODS) list with BOTH identity fields of each entry (3D Name + 3D Index),
+    /// letting the renderer fall back to index matching when the mesh's shapes were
+    /// renamed. Supersedes <see cref="ShapeTextures"/> when non-null; entries apply
+    /// in list order (later wins per slot on the same shape) and win over
+    /// <see cref="Textures"/> for the same slot on their shape.</summary>
+    public IReadOnlyList<AlternateTextureSpec>? AlternateTextures { get; init; }
+}
+
+/// <summary>
+/// One <c>AlternateTextures</c> (MODS) entry of a plugin model record, carried
+/// with both identity fields the record stores for its target shape:
+/// <list type="bullet">
+///   <item><see cref="ShapeName"/> — the "3D Name". Matches the NIF geometry
+///   node's own name as authored, but goes stale when the mesh is rebuilt:
+///   BodySlide/Outfit Studio output routinely renames shapes (its project
+///   shape names differ from the shipped mesh's), and the CK/engine still
+///   apply the entry — observed in the field as "variant renders in game and
+///   CK but not in the preview" (untextured/black outfit pieces).</item>
+///   <item><see cref="ShapeIndex"/> — the "3D Index". The engine-side key, but
+///   only trustworthy as a shape ordinal for meshes whose block order matches
+///   scene order (true of Outfit Studio/BodySlide output — exactly the files
+///   whose names go stale). Block-sorting optimizers can make a shape's file
+///   ordinal differ from its record index, so index is the FALLBACK, not the
+///   primary key: those tools reorder but don't rename, and the name match
+///   still lands first.</item>
+/// </list>
+/// See <c>VM_CharacterViewer.ApplyOneMeshOverride</c> for the matching rules.
+/// </summary>
+public sealed record AlternateTextureSpec
+{
+    /// <summary>The record's "3D Name" for the target shape; may no longer name
+    /// any shape in a rebuilt mesh. Empty = unnamed (index-only matching).</summary>
+    public string ShapeName { get; init; } = "";
+
+    /// <summary>The record's "3D Index" for the target shape; compared against
+    /// the shape's ordinal among the NIF's shape blocks
+    /// (<c>BuiltMesh.ShapeOrdinal</c>). -1 = unknown (name-only matching).</summary>
+    public int ShapeIndex { get; init; } = -1;
+
+    /// <summary>Texture-slot index -> game-relative path (same encoding as
+    /// <see cref="MeshOverride.Textures"/>).</summary>
+    public IReadOnlyDictionary<int, string> Textures { get; init; } = new Dictionary<int, string>();
 }
