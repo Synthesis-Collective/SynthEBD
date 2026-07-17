@@ -909,12 +909,22 @@ public class VM_CharacterViewer : ViewerVm
     /// </summary>
     public bool VerboseLog { get; set; } = false;
 
+    /// <summary>True when verbose diagnostics should be emitted: either the user's
+    /// <see cref="VerboseLog"/> toolbar toggle, or the shared
+    /// <see cref="CharacterViewerLogGate"/> a host forces on for a capture session
+    /// (NPC2's per-render RenderLogs files). The helpers (NifMeshBuilder,
+    /// GameAssetResolver, ...) already consult the gate; without this the VM's own
+    /// load/apply trace (mesh overrides, AlternateTextures matching, texture
+    /// routing) was missing from capture-session logs unless the user also had the
+    /// verbose checkbox on.</summary>
+    private bool VerboseActive => VerboseLog || (_logGate != null && _logGate.Verbose);
+
     /// <summary>Routes an informational line to <see cref="_logger"/> only when
-    /// <see cref="VerboseLog"/> is on. Keeps error paths (which call <c>_logger.LogError</c>
+    /// <see cref="VerboseActive"/> is on. Keeps error paths (which call <c>_logger.LogError</c>
     /// directly) visible at all times.</summary>
     private void LogVerbose(string message)
     {
-        if (VerboseLog) _logger?.LogMessage(message);
+        if (VerboseActive) _logger?.LogMessage(message);
     }
 
     /// <summary>Public verbose-gated log used by <see cref="UC_CharacterViewer"/> for
@@ -5099,6 +5109,17 @@ public class VM_CharacterViewer : ViewerVm
             return;
         }
 
+        // Outfit asset-resolution documentation: the exact disk file loaded (the
+        // VFS/BodySlide answer to "which copy of this NIF am I rendering") and
+        // the shape inventory as built — [file-block ordinal]'3D name' — the same
+        // two identity fields the record's AlternateTextures entries carry, so a
+        // capture log can be compared 1:1 against the CK Model Data table / xEdit
+        // MO3S entries.
+        if (VerboseActive)
+            LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' loaded '" +
+                source.ResolvedDiskPath + "' -> " + built.Count + " renderable shape(s): " +
+                string.Join(", ", built.Select(m => "[" + m.ShapeOrdinal + "]'" + m.ShapeName + "'")));
+
         // Weight morph: the override NIF is the _1 (weight-100) variant. Its bones
         // and vertices are authored to fit a weight-100 body, so on a body morphed
         // to NpcWeight < 100 it would float (the auxiliary mesh sat low/forward at
@@ -5134,6 +5155,26 @@ public class VM_CharacterViewer : ViewerVm
             altConsumed = new HashSet<AlternateTextureSpec>();
             altIndexFallbackPool = AlternateTextureMatching.DanglingNameEntries(
                 altSpecsAll, built.Select(m => m.ShapeName));
+
+            // Manifest as received from the host (slot paths post-rebase, so an
+            // absolute path here means the host redirected the TXST into a mod
+            // folder), followed by the subset whose 3D Name matched no built
+            // shape — the only entries eligible to bind by 3D Index.
+            if (VerboseActive)
+            {
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                    "' AlternateTextures manifest (" + altSpecsAll.Count + " entries):");
+                foreach (var spec in altSpecsAll)
+                    LogVerbose("CharacterViewer:   altTex [3D index " + spec.ShapeIndex +
+                        "] name='" + spec.ShapeName + "' slots {" +
+                        string.Join(", ", spec.Textures.OrderBy(kv => kv.Key)
+                            .Select(kv => kv.Key + "=" + kv.Value)) + "}");
+                LogVerbose("CharacterViewer:   altTex 3D-index fallback pool (name matched no shape): " +
+                    (altIndexFallbackPool.Count == 0
+                        ? "(empty — every entry name-matched a shape)"
+                        : string.Join(", ", altIndexFallbackPool.Select(s =>
+                            "[" + s.ShapeIndex + "]'" + s.ShapeName + "'"))));
+            }
         }
 
         int installed = 0;
@@ -5239,6 +5280,22 @@ public class VM_CharacterViewer : ViewerVm
                         "' by 3D-INDEX fallback — no shape bears the record's name " +
                         "(mesh likely rebuilt/renamed, e.g. BodySlide output)");
                 }
+                // Per-shape verdict, both directions: which route bound the
+                // TXST (or that nothing targeted this shape at all), so a log
+                // shows the complete shape-by-shape application table.
+                if (VerboseActive)
+                {
+                    if (shapeTxst != null)
+                        LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape [" +
+                            b.ShapeOrdinal + "]'" + b.ShapeName + "' alt-texture slots via " +
+                            (viaIndex.Count > 0 ? "3D-INDEX fallback" : "3D Name match") + ": {" +
+                            string.Join(", ", shapeTxst.OrderBy(kv => kv.Key)
+                                .Select(kv => kv.Key + "=" + kv.Value)) + "}");
+                    else
+                        LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape [" +
+                            b.ShapeOrdinal + "]'" + b.ShapeName + "' matched no AlternateTextures " +
+                            "entry — keeps its embedded/base textures");
+                }
             }
             else if (ov.ShapeTextures != null && ov.ShapeTextures.TryGetValue(b.ShapeName, out var st))
             {
@@ -5306,6 +5363,16 @@ public class VM_CharacterViewer : ViewerVm
                 glMesh.Dispose();
                 continue;
             }
+
+            // The merged per-slot set this shape will actually try to load
+            // (NIF-embedded -> flat ov.Textures -> AlternateTextures -> race-skin
+            // inheritance, later wins). Each path's subsequent loose/BSA
+            // resolution is logged by the asset resolver as it loads.
+            if (VerboseActive)
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape [" +
+                    b.ShapeOrdinal + "]'" + b.ShapeName + "' final texture set {" +
+                    string.Join(", ", effectiveTextures.OrderBy(kv => kv.Key)
+                        .Select(kv => kv.Key + "=" + kv.Value)) + "}");
 
             bool isHairTint = false;
             float hairR = 0, hairG = 0, hairB = 0;
