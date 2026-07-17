@@ -832,14 +832,22 @@ void main()
     // sets is_env_map_2d so this branch falls back to the legacy spherical
     // UV math.
     //
-    // Reflection is computed in world space against v_worldNormal (the
-    // vertex/geometry normal, not the per-pixel bumped normal). CS does the
-    // same -- envmap reflections track the macro shape; bumped reflections
-    // would require transforming normal_viewSpace back to world space and
-    // are out of scope for this pass.
+    // Reflection is computed in world space against the per-pixel BUMPED
+    // normal, not the flat vertex/geometry normal. This is what produces the
+    // granular "field of sequins" sparkle on env-mapped garments (shaderType 1
+    // BSLSP_ENVMAP, e.g. glitter/metallic dresses): each sequin facet in the
+    // normal map reflects a different direction of the cubemap. Reflecting off
+    // the macro geometry normal instead makes the whole surface mirror one
+    // smooth blob of the cubemap that slides across as the model rotates -- the
+    // "oily" look. normal_viewSpace already holds the correctly bump-mapped
+    // normal (MSN and tangent-space paths both feed it), so we rotate it back
+    // to world space. The view matrix's rotation is orthonormal, so its inverse
+    // is its transpose; translation lives in the 4th column and drops out of
+    // mat3(). The env MASK (slot 5) still only modulates reflection intensity;
+    // the per-sequin sparkle comes from this bumped reflection direction.
     if (!DEBUG_DIFFUSE_ONLY && has_environment_map && u_enableEnvMap) {
         vec3 viewDirWorld = normalize(u_cameraPos - v_worldPos);
-        vec3 nWorld       = normalize(v_worldNormal);
+        vec3 nWorld       = normalize(transpose(mat3(u_view)) * normal_viewSpace);
         vec3 reflectWorld = reflect(-viewDirWorld, nWorld);
         vec3 envColor;
         if (is_env_map_2d) {
