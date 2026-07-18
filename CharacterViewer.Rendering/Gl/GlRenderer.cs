@@ -582,6 +582,8 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_envmap_2d", 10);
         _shader.SetInt("texture_envmask", 7);
         _shader.SetInt("u_shadowMap", 8);
+        // Unit 12: glow map (units 8/9/11 are shadow / SSAO blur / depth prepass).
+        _shader.SetInt("texture_glow", 12);
 
         GL.Enable(EnableCap.DepthTest);
         GL.Enable(EnableCap.CullFace);
@@ -2408,6 +2410,8 @@ public class GlRenderer : IDisposable
             GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMapTexture);
         else
             GL.BindTexture(TextureTarget.Texture2D, 0);
+        GL.ActiveTexture(TextureUnit.Texture12);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.HasGlowMap ? mesh.GlowTexture : 0);
 
         // Set material flags
         _shader.SetBool("has_normal_map", mesh.HasNormalMap);
@@ -2418,6 +2422,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("has_greyscale_to_palette", mesh.HasGreyscaleToPalette);
         _shader.SetBool("has_tint_color", mesh.HasTintColor);
         _shader.SetBool("has_emissive", mesh.HasEmissive);
+        _shader.SetBool("has_glow_map", mesh.HasGlowMap);
         _shader.SetBool("is_model_space", mesh.IsModelSpace);
         _shader.SetBool("has_hair_soft_lighting", mesh.HasHairSoftLighting);
         _shader.SetBool("has_soft_lighting", mesh.HasSoftLighting);

@@ -92,6 +92,10 @@ uniform sampler2D texture_detail;
 uniform samplerCube texture_envmap;
 uniform sampler2D texture_envmap_2d;
 uniform sampler2D texture_envmask;
+// Glow map (NIF slot 2 on non-skin shaders, SLSF2_Glow_Map). Modulates the
+// emissive term per texel -- the map carries the glow pattern, the material's
+// emissiveColor/emissiveMultiple carry its color/intensity (sk_default.frag).
+uniform sampler2D texture_glow;
 
 // --- MATERIAL FLAGS ---
 uniform bool has_normal_map;
@@ -102,6 +106,7 @@ uniform bool has_face_tint_map;
 uniform bool has_greyscale_to_palette;
 uniform bool has_tint_color;
 uniform bool has_emissive;
+uniform bool has_glow_map;
 uniform bool is_model_space;
 uniform bool has_hair_soft_lighting;
 uniform bool has_soft_lighting;
@@ -874,8 +879,18 @@ void main()
     // Replacer's vampire eyes with emissive (0.89, 0.65, 0) x 1.42) leak
     // saturated yellow onto every fragment of the mesh including dark
     // regions like lash hairs that are part of the same shape.
+    // Glow map (SLSF2_Glow_Map, BSLSP_GLOWMAP gear like the Nightingale
+    // cowl's _emit.dds): modulates the emissive per texel, matching
+    // sk_default.frag's emittance = glowColor * glowMult * glowMap.rgb.
+    // Typical authoring is a white emissiveColor x 1.0 with the pattern
+    // and color entirely in the map. Without the map the term is flat as
+    // before; the albedo multiply stays (see block comment above).
     if (has_emissive && u_enableEmissive) {
-        finalColor += emissiveColor * emissiveMultiple * baseColor.rgb;
+        vec3 emittance = emissiveColor * emissiveMultiple;
+        if (has_glow_map) {
+            emittance *= texture(texture_glow, TexCoords).rgb;
+        }
+        finalColor += emittance * baseColor.rgb;
     }
 
     // --- 6. TONE-MAPPING & COLOR GRADE (CharacterViewer.Rendering 2.5.9+) ---

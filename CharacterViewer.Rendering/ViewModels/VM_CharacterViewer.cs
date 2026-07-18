@@ -4530,6 +4530,27 @@ public class VM_CharacterViewer : ViewerVm
             glMesh.SkinTexture = TextureManager.WhiteTexture;
         }
 
+        // Glow map (slot 2 on NON-skin shaders, e.g. BSLSP_GLOWMAP gear like
+        // the Nightingale cowl's _emit.dds). Gated on SLSF2_Glow_Map + OwnEmit:
+        // without OwnEmit the shader's emissive term never fires (sk_default
+        // computes emittance only under hasEmit), so loading would be wasted.
+        // Typical authoring is white emissiveColor x 1.0 with the pattern in
+        // the map; a black authored emissiveColor legitimately kills the glow
+        // (e.g. the Kynreeve helmet's disabled ornament).
+        RenderCancellation.ThrowIfCancellationRequested();
+        bool glowFlagSet = (built.ShaderFlags2 & (1u << 6)) != 0   // SLSF2_Glow_Map
+                        && (built.ShaderFlags1 & (1u << 22)) != 0; // SLSF1_Own_Emit
+        if (glowFlagSet && !isSkinShader && effectiveTextures.TryGetValue(2, out string? glowPath))
+        {
+            int glowTex = TextureManager.LoadTexture(glowPath);
+            if (glowTex != TextureManager.WhiteTexture)
+            {
+                glMesh.GlowTexture = glowTex;
+                glMesh.HasGlowMap = true;
+                RecordTextureSource(glMesh, "Glow Map", glowPath);
+            }
+        }
+
         // Specular map (slot 7). When SLSF2_Back_Lighting is set, slot 7 holds
         // a backlight mask instead of a specular mask (NifSkope sk_msn.frag
         // ignores the slot for specular in that case), so those shapes fall

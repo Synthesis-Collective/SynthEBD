@@ -190,6 +190,11 @@ public class GlMesh : IDisposable
     public int DetailTexture { get; set; }
     public bool HasDetailMap { get; set; }
 
+    // Glow map (NIF slot 2 on non-skin shaders, SLSF2_Glow_Map): modulates
+    // the emissive term per texel in basic.frag (bound on texture unit 12).
+    public int GlowTexture { get; set; }
+    public bool HasGlowMap { get; set; }
+
     // Per-shape texture visibility toggles (for context menu)
     public bool DiffuseEnabled { get; set; } = true;
     public bool NormalEnabled { get; set; } = true;
