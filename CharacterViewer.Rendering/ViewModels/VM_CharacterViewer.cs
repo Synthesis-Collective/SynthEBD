@@ -4406,7 +4406,8 @@ public class VM_CharacterViewer : ViewerVm
     private void ApplyTexturesToGlMesh(GlMesh glMesh, NifMeshBuilder.BuiltMesh built,
         Dictionary<int, string> effectiveTextures, ResolvedNpcMeshPaths meshPaths,
         ref bool isHairTint, ref float hairR, ref float hairG, ref float hairB,
-        ref bool isFaceTint, ref string? faceTintPath)
+        ref bool isFaceTint, ref string? faceTintPath,
+        bool allowEyeNameHeuristic = true)
     {
         if (TextureManager == null) return;
 
@@ -4539,7 +4540,11 @@ public class VM_CharacterViewer : ViewerVm
         {
             glMesh.SpecularTexture = TextureManager.LoadTexture(specPath);
             glMesh.HasSpecularMap = true;
-            glMesh.HasSpecular = true;
+            // SLSF1_Specular gates the whole specular term in the engine — a
+            // shape can ship an authored _s.dds with the flag clear (vanilla
+            // Keeper armor body, beggar-robe body proxies) and renders WITHOUT
+            // specular in game (AUD-3). Previously forced true here.
+            glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0;
             RecordTextureSource(glMesh, "Specular", specPath);
         }
         else
@@ -4603,8 +4608,16 @@ public class VM_CharacterViewer : ViewerVm
         // KWA_FemaleEyesHuman) and singular "Eye" for accessories
         // (EyeShadow, 0EyeShadow, Eyelashes), so the substring check is
         // sufficient to disambiguate.
+        // The NAME heuristic is only trusted for base-scene shapes (FaceGen
+        // head / body parts, where envmap-typed eyes genuinely occur). Attire
+        // overrides never contain real eyeballs, but DO contain decorative
+        // shapes literally named "Eyes"/"Eyes01" (helmet ornaments — 26 such
+        // shapes in one audited loadout) that would otherwise take the eye
+        // cubemap scale and the eye AO opt-out (AUD-5). ShaderType 16 is
+        // always trusted.
         if (built.ShaderType == 16
-            || built.ShapeName.Contains("Eyes", StringComparison.Ordinal))
+            || (allowEyeNameHeuristic
+                && built.ShapeName.Contains("Eyes", StringComparison.Ordinal)))
         {
             glMesh.IsEye = true;
         }
@@ -5249,8 +5262,16 @@ public class VM_CharacterViewer : ViewerVm
 
             // Bundled textures (the selection's slot-N SkinTexture.* / ARMA TXST)
             // override the NIF's own embedded set; null leaves the NIF's own.
+            // SKIN-SHAPE GATE (AUD-1): an ARMA's SkinTexture (NAM0) is the
+            // engine's per-addon SKIN swap — it replaces the texture set of the
+            // addon's skin-shader shapes only (exposed hands/arms on beast-race
+            // gauntlets, revealing armor midriffs). Merging it onto every shape
+            // repainted armor material with skin textures (vanilla beast
+            // gauntlets, Forsworn Briarheart). Mirrors the base-scene path,
+            // which applies TXST skin overrides only to ShaderType-5 shapes.
             var effectiveTextures = new Dictionary<int, string>(b.TexturePaths);
-            if (ov.Textures != null)
+            bool isSkinShapeForFlatTxst = b.ShaderType == 4 || b.ShaderType == 5;
+            if (ov.Textures != null && isSkinShapeForFlatTxst)
                 foreach (var kv in ov.Textures)
                     effectiveTextures[kv.Key] = kv.Value;
 
@@ -5380,7 +5401,8 @@ public class VM_CharacterViewer : ViewerVm
             string? faceTintPath = null;
             ApplyTexturesToGlMesh(glMesh, b, effectiveTextures, _cachedMeshPaths!,
                 ref isHairTint, ref hairR, ref hairG, ref hairB,
-                ref isFaceTint, ref faceTintPath);
+                ref isFaceTint, ref faceTintPath,
+                allowEyeNameHeuristic: false);
 
             _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
                 new Dictionary<int, string>(effectiveTextures),

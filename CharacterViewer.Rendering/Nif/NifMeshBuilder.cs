@@ -225,6 +225,15 @@ public class NifMeshBuilder
         public bool HasAlphaBlend { get; init; }
 
         /// <summary>
+        /// The NiAlphaProperty's raw flags word, 0 when the shape has none.
+        /// Diagnostic-only: lets a host distinguish an AUTHORED alpha-test
+        /// (bit 9 set) from the builder's fallback that forces
+        /// <see cref="HasAlphaTest"/> on when a property exists with neither
+        /// enable bit set (see the fallback in the alpha read block).
+        /// </summary>
+        public ushort AlphaFlagsRaw { get; init; }
+
+        /// <summary>
         /// True if this shape's BSLightingShaderProperty has SLSF2_ZBuffer_Write
         /// (shaderFlags2 bit 0) — i.e. the NIF wants this shape to write depth.
         /// Drives the alpha-blend pass's per-shape depth masking: solid blended
@@ -1091,6 +1100,7 @@ public class NifMeshBuilder
         ShapeOrdinal = b.ShapeOrdinal,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
+        AlphaFlagsRaw = b.AlphaFlagsRaw,
         ZBufferWrite = b.ZBufferWrite,
         IsDecal = b.IsDecal,
         MaterialAlpha = b.MaterialAlpha,
@@ -1972,6 +1982,7 @@ public class NifMeshBuilder
         // blend pass; opaque and alpha-test passes don't consult them.
         int srcBlendIndex = 6; // Bethesda enum: SRC_ALPHA
         int dstBlendIndex = 7; // Bethesda enum: INV_SRC_ALPHA
+        ushort alphaFlagsRaw = 0;
         try
         {
             if (shape.HasAlphaProperty())
@@ -1984,6 +1995,7 @@ public class NifMeshBuilder
                     if (alphaObj is NiAlphaProperty alphaProp)
                     {
                         ushort flags = alphaProp.flags;
+                        alphaFlagsRaw = flags;
                         // Bit 0 of NiAlphaProperty flags = alpha blend enable
                         hasAlphaBlend = (flags & 1) != 0;
                         // Bit 9 of NiAlphaProperty flags = alpha test enable
@@ -2124,6 +2136,7 @@ public class NifMeshBuilder
             DismemberPartitions = dismemberPartitions,
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
+            AlphaFlagsRaw = alphaFlagsRaw,
             ZBufferWrite = zBufferWrite,
             IsDecal = isDecal,
             MaterialAlpha = materialAlpha,
