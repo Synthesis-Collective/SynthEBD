@@ -3977,13 +3977,15 @@ public class VM_CharacterViewer : ViewerVm
         // after LoadAsync queues _pendingScene and the render thread ticks.
         LogMeshStateSnapshot();
 
-        // Per-load asset-resolution snapshot ends here — the multi-tick sliced
-        // install is finished, so clear the per-VM snapshot. Subsequent narrow
-        // updates (texture overrides, morphs) that need scoping require the
-        // host to re-set AdditionalScopes / AdditionalDataFolders and re-trigger
-        // LoadAsync.
-        _currentSceneScopes = null;
-        _currentSceneFolders = null;
+        // The per-load snapshot deliberately SURVIVES scene commit: it is the
+        // committed scene's resolution context, and post-commit narrow updates
+        // (an attire toggle's ApplyMeshOverrides, texture overrides, head
+        // replace) re-push it so mod-scoped assets keep resolving. Clearing it
+        // here made those updates fall back to the vanilla data folder + BSAs —
+        // masked whenever the mod's files also existed under Data (load-order
+        // installs), exposed as unresolvable textures / physics XMLs (white
+        // wireframe attire) when they did not. The next LoadAsync overwrites
+        // the snapshot; ClearScene and the load cancel/error path clear it.
     }
 
     /// <summary>Body and accessories upload before head/hair so the progressive
@@ -5574,6 +5576,7 @@ public class VM_CharacterViewer : ViewerVm
         // folders — a BSA-sourced mesh's cache folder simply has no XMLs and
         // the scan is a no-op.
         string? siblingSource = null;
+        List<string>? siblingNames = null;
         if (readable == 0)
         {
             foreach (var xmlPath in EnumerateSiblingPhysicsXmls(meshDiskPath))
@@ -5581,11 +5584,10 @@ public class VM_CharacterViewer : ViewerVm
                 if (!TryCollectPhysicsXmlBoneNames(xmlPath, ov.Key, attributeValues, unparsedTexts))
                     continue;
                 readable++;
-                siblingSource = siblingSource == null
-                    ? System.IO.Path.GetFileName(xmlPath)
-                    : siblingSource + ", " + System.IO.Path.GetFileName(xmlPath);
+                (siblingNames ??= new List<string>()).Add(System.IO.Path.GetFileName(xmlPath));
             }
             if (readable == 0) return new List<string>(skelAbsent);
+            siblingSource = string.Join(", ", siblingNames!);
         }
 
         var remaining = new List<string>();
@@ -5599,19 +5601,36 @@ public class VM_CharacterViewer : ViewerVm
 
         if (physicsDriven.Count > 0)
         {
+            // A sibling whose FILENAME matches the linked path means the config
+            // is exactly where the link says — the resolver just could not see
+            // it (a scope gap, not a mod defect). Only a sibling under a
+            // DIFFERENT name evidences a genuinely stale link in the mod.
+            bool linkNameShipsBesideMesh = siblingNames != null && xmlRefs.Any(r =>
+                siblingNames.Any(s => string.Equals(
+                    s, System.IO.Path.GetFileName(r), StringComparison.OrdinalIgnoreCase)));
             if (siblingSource != null)
             {
-                stalePhysicsNote = "the mesh links physics config '" + string.Join(", ", xmlRefs) +
-                    "' which does not exist (a stale link in the mod itself), but sibling config '" +
-                    siblingSource + "' names its physics bone(s) [" + string.Join(", ", physicsDriven) +
-                    "] — the preview renders them at their authored rest pose and is correct. " +
-                    "In game the outfit's physics likely will not load until the mod fixes the link.";
+                stalePhysicsNote = linkNameShipsBesideMesh
+                    ? "the mesh links physics config '" + string.Join(", ", xmlRefs) +
+                      "' which ships beside the mesh ('" + siblingSource +
+                      "') but did not resolve through the asset chain — a viewer resolution gap, " +
+                      "not a mod defect. Its physics bone(s) [" + string.Join(", ", physicsDriven) +
+                      "] render at their authored rest pose, which is correct for a still portrait; " +
+                      "in game the physics config should load normally."
+                    : "the mesh links physics config '" + string.Join(", ", xmlRefs) +
+                      "' which does not exist (a stale link in the mod itself), but sibling config '" +
+                      siblingSource + "' names its physics bone(s) [" + string.Join(", ", physicsDriven) +
+                      "] — the preview renders them at their authored rest pose and is correct. " +
+                      "In game the outfit's physics likely will not load until the mod fixes the link.";
             }
             LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' shape '" + b.ShapeName +
                 "' " + physicsDriven.Count + " skeleton-absent bone(s) are SMP-physics-driven " +
                 "(named by " + (siblingSource == null
                     ? "the mesh's physics XML"
-                    : "sibling physics config(s) " + siblingSource + " — the linked XML is stale") +
+                    : "sibling physics config(s) " + siblingSource +
+                      (linkNameShipsBesideMesh
+                          ? " — the linked XML exists beside the mesh but did not resolve"
+                          : " — the linked XML is stale")) +
                 "; they live only in the mesh NIF by design) — " +
                 "no skeleton warning for [" + string.Join(", ", physicsDriven) + "]");
         }
@@ -6171,6 +6190,14 @@ public class VM_CharacterViewer : ViewerVm
         BodyTriMissing = false;
         _currentLoadedIdentityKey = "";
         _currentHeadMeshOverride = null;
+        // _currentSceneScopes/_currentSceneFolders are deliberately NOT cleared
+        // here: ProcessPendingScene calls ClearScene at the START of a new
+        // scene's install — after LoadAsync has already stored that scene's
+        // snapshot — so nulling them here wipes the incoming scene's resolution
+        // context and every mod-scoped base texture fails to resolve. Their
+        // lifetime is LoadAsync-to-next-LoadAsync (or the load cancel/error
+        // path); after a standalone ClearScene the stale snapshot is inert —
+        // there are no shapes left for narrow updates to touch.
     }
 
     private bool _disposed;
