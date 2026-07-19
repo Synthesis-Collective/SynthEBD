@@ -6103,6 +6103,18 @@ public class VM_CharacterViewer : ViewerVm
     public void ClearScene()
     {
         Renderer.ClearMeshes();
+        // Drop the per-VM GL texture cache with the scene. It is keyed on
+        // game-RELATIVE paths, and a long-lived live-preview VM can load
+        // successive scenes under DIFFERENT resolution scope chains where the
+        // same relative path maps to different files (the offscreen path is
+        // immune only because it builds a fresh VM per render) — a surviving
+        // entry would serve the previous scope's pixels to the new scene.
+        // Runs under the same GL-context constraint as ClearMeshes above.
+        // Same-identity reloads short-circuit before ClearScene, so repeat
+        // loads of an unchanged scene still reuse their uploads; resident-
+        // cache handles are owned by the resident cache and are not deleted
+        // here, only their per-VM lookup entries.
+        TextureManager?.ClearCache();
         _meshesByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();

@@ -547,11 +547,22 @@ public class GameAssetResolver
         return bsaResult;
     }
 
-    /// <summary>Drops the scope-aware resolve cache. Call on env change (asset set
-    /// may differ) and when extracted BSA files are cleared (cached BSA dest paths
-    /// would dangle — hits already re-validate existence, but clearing avoids the
-    /// wasted hit + re-resolve). Thread-safe; doesn't touch the filesystem.</summary>
-    public void ClearResolveCache() => _scopedResolveCache.Clear();
+    /// <summary>Drops the scope-aware resolve cache AND the legacy (non-scoped)
+    /// loose/BSA resolution caches. Call on env change (asset set may differ)
+    /// and when extracted BSA files are cleared (cached BSA dest paths would
+    /// dangle — hits already re-validate existence, but clearing avoids the
+    /// wasted hit + re-resolve). The legacy caches are relative-path-keyed and
+    /// encode load-order-dependent verdicts (a cached NotFound means "not loose
+    /// AND not in any then-open BSA"; a BSA hit records which archive won), so
+    /// they go stale across an in-process load-order change — previously only
+    /// the scoped cache was dropped here and _looseSourceCache was never
+    /// cleared anywhere. Thread-safe; doesn't touch the filesystem.</summary>
+    public void ClearResolveCache()
+    {
+        _scopedResolveCache.Clear();
+        _looseSourceCache.Clear();
+        _bsaSourceCache.Clear();
+    }
 
     /// <summary>Stable content signature for a scope set (ordered folder paths +
     /// modkey filenames), memoized per list reference. Order-sensitive (scopes are
