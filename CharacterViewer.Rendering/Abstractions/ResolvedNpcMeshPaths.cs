@@ -85,6 +85,21 @@ public sealed class ResolvedNpcMeshPaths
     /// resolve the HCLR record.</summary>
     public (float R, float G, float B)? HairColorRgb { get; init; }
 
+    /// <summary>Shape names in the FaceGen NIF that are eyeball geometry,
+    /// per the NPC's resolved HeadPart records: the EditorIDs of every
+    /// effective head part of type Eyes plus its Extra Parts (FaceGen bakes
+    /// one shape per geometry-bearing head part, named after its EditorID).
+    /// Authoritative input to <c>GlMesh.IsEye</c> classification for shapes
+    /// whose shader type is not BSLSP_EYE — custom eyes authored as
+    /// BSLSP_ENVMAP with arbitrary shape names ("FoxGloveEyeMesh") otherwise
+    /// evade the plural-"Eyes" name heuristic and receive eye-socket SSAO.
+    /// Supply a case-insensitive set (membership is tested with the set's
+    /// own comparer). Empty when the host has no head-part data; the name
+    /// heuristic then remains the only fallback.</summary>
+    public IReadOnlySet<string> EyeShapeNames { get; init; } = EmptyEyeShapeNames;
+
+    private static readonly IReadOnlySet<string> EmptyEyeShapeNames = new HashSet<string>();
+
     /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
     /// the HeadParts preview flow to retarget the viewer at a temp FaceGen NIF
     /// without re-resolving the rest of the record chain.</summary>
@@ -106,5 +121,6 @@ public sealed class ResolvedNpcMeshPaths
             NpcWeight = NpcWeight,
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
+            EyeShapeNames = EyeShapeNames,
         };
 }

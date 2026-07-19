@@ -4407,7 +4407,7 @@ public class VM_CharacterViewer : ViewerVm
         Dictionary<int, string> effectiveTextures, ResolvedNpcMeshPaths meshPaths,
         ref bool isHairTint, ref float hairR, ref float hairG, ref float hairB,
         ref bool isFaceTint, ref string? faceTintPath,
-        bool allowEyeNameHeuristic = true)
+        bool allowEyeNameMatching = true)
     {
         if (TextureManager == null) return;
 
@@ -4623,22 +4623,31 @@ public class VM_CharacterViewer : ViewerVm
         //
         // Some FaceGen NIFs ship eyes authored as BSLSP_ENVMAP (1) instead
         // of BSLSP_EYE (16) and would otherwise miss the is_eye AO gate in
-        // basic.frag, leaving the eyeball to receive SSAO darkening along
-        // the eye-opening rim. Skyrim's naming convention uses plural
-        // "Eyes" for actual eye shapes (MaleEyesHumanIceBlue, EyesChild,
-        // KWA_FemaleEyesHuman) and singular "Eye" for accessories
-        // (EyeShadow, 0EyeShadow, Eyelashes), so the substring check is
-        // sufficient to disambiguate.
-        // The NAME heuristic is only trusted for base-scene shapes (FaceGen
-        // head / body parts, where envmap-typed eyes genuinely occur). Attire
-        // overrides never contain real eyeballs, but DO contain decorative
-        // shapes literally named "Eyes"/"Eyes01" (helmet ornaments — 26 such
-        // shapes in one audited loadout) that would otherwise take the eye
-        // cubemap scale and the eye AO opt-out (AUD-5). ShaderType 16 is
-        // always trusted.
+        // basic.frag, leaving the eyeball to receive eye-socket SSAO that no
+        // ambient setting can lift (AO multiplies the ambient term) and
+        // losing the catchlight + shadow-cast skip. Two name-based
+        // recoveries, both trusted only for base-scene shapes:
+        //   1. AUTHORITATIVE — the host's resolved HeadPart records
+        //      (EyeShapeNames). FaceGen bakes one shape per geometry-bearing
+        //      head part, named after its EditorID, so membership in the
+        //      EditorID set of Eyes-typed parts (+ their Extra Parts) IS
+        //      eyeball geometry regardless of what the modder named it.
+        //   2. HEURISTIC fallback for hosts without head-part data: plural
+        //      "Eyes" substring. Skyrim's own convention uses plural for
+        //      eyeballs (MaleEyesHumanIceBlue, EyesChild) and singular "Eye"
+        //      for accessories (EyeShadow, Eyelashes) — but custom mods
+        //      break it: FoxGlove Auri's ENVMAP eyeball is "FoxGloveEyeMesh"
+        //      (singular) and is only caught by route 1.
+        // Attire overrides never contain real eyeballs, but DO contain
+        // decorative shapes literally named "Eyes"/"Eyes01" (helmet
+        // ornaments — 26 such shapes in one audited loadout) that would
+        // otherwise take the eye cubemap scale and the eye AO opt-out
+        // (AUD-5), so ApplyMeshOverrides passes allowEyeNameMatching: false.
+        // ShaderType 16 is always trusted.
         if (built.ShaderType == 16
-            || (allowEyeNameHeuristic
-                && built.ShapeName.Contains("Eyes", StringComparison.Ordinal)))
+            || (allowEyeNameMatching
+                && (meshPaths.EyeShapeNames.Contains(built.ShapeName.Trim())
+                    || built.ShapeName.Contains("Eyes", StringComparison.Ordinal))))
         {
             glMesh.IsEye = true;
         }
@@ -5423,7 +5432,7 @@ public class VM_CharacterViewer : ViewerVm
             ApplyTexturesToGlMesh(glMesh, b, effectiveTextures, _cachedMeshPaths!,
                 ref isHairTint, ref hairR, ref hairG, ref hairB,
                 ref isFaceTint, ref faceTintPath,
-                allowEyeNameHeuristic: false);
+                allowEyeNameMatching: false);
 
             _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
                 new Dictionary<int, string>(effectiveTextures),
