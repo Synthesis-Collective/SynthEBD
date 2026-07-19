@@ -292,7 +292,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 $"[OffscreenRenderer] Render thread MakeCurrent OK tid={Environment.CurrentManagedThreadId}");
             // Context is current on this thread now — safe to create the shared
             // texture cache (it queries VRAM + will own GL handles on this context).
-            _residentTextures = new ResidentTextureCache(_logger);
+            _residentTextures = new ResidentTextureCache(_logger, logGate: _logGate);
         }
         catch (Exception ex)
         {

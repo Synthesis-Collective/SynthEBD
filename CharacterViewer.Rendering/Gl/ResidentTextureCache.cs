@@ -48,6 +48,16 @@ public sealed class ResidentTextureCache : IDisposable
     private readonly LinkedList<Entry> _protected = new();  // re-hit at least once; MRU at front
     private readonly LinkedList<Entry> _probation = new();  // single-use so far; MRU at front
     private readonly ICharacterViewerLogger? _logger;
+    // Gate for the per-hit / per-add / per-evict diagnostic trace. Off by default;
+    // the host's "Verbose Log" toggle (or a force-regen _Mugshot.txt) flips it on so
+    // a poisoned re-render can be diffed against a post-restart render. The budget /
+    // OOM lines below are NOT gated — they're low-volume and always useful.
+    private readonly CharacterViewerLogGate? _logGate;
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
+    }
 
     private long _budgetBytes;
     private long _currentBytes;
@@ -76,9 +86,12 @@ public sealed class ResidentTextureCache : IDisposable
     public int Count => _map.Count;
 
     /// <param name="overrideBudgetBytes">Host pin; null = auto-size and track VRAM.</param>
-    public ResidentTextureCache(ICharacterViewerLogger? logger, long? overrideBudgetBytes = null)
+    /// <param name="logGate">Optional gate for the verbose per-hit/add/evict trace.</param>
+    public ResidentTextureCache(ICharacterViewerLogger? logger, long? overrideBudgetBytes = null,
+        CharacterViewerLogGate? logGate = null)
     {
         _logger = logger;
+        _logGate = logGate;
         (_vramQueryAvailable, _totalVramBytes) = QueryVramCapabilities();
 
         if (overrideBudgetBytes is > 0)
@@ -103,6 +116,9 @@ public sealed class ResidentTextureCache : IDisposable
     public void BeginRenderPass()
     {
         _epoch++;
+        LogVerbose($"[ResidentTex] BeginRenderPass epoch={_epoch} " +
+            $"budget={_budgetBytes / (1024 * 1024)}MB current={_currentBytes / (1024 * 1024)}MB " +
+            $"count={_map.Count} (protected={_protected.Count}/probation={_probation.Count})");
         if (_overrideBudgetBytes == null && _vramQueryAvailable
             && ++_rendersSinceRepoll >= RepollEveryRenders)
         {
@@ -139,6 +155,8 @@ public sealed class ResidentTextureCache : IDisposable
             _protectedBytes += entry.Bytes;
             EnforceProtectedCap();
         }
+        LogVerbose($"[ResidentTex] HIT '{diskPath}' handle={entry.Handle} " +
+            $"seg={(entry.InProtected ? "protected" : "probation")} epoch={_epoch}");
         return entry.Handle;
     }
 
@@ -151,6 +169,8 @@ public sealed class ResidentTextureCache : IDisposable
         entry.Node = _probation.AddFirst(entry);
         _map[diskPath] = entry;
         _currentBytes += bytes;
+        LogVerbose($"[ResidentTex] ADD '{diskPath}' handle={handle} bytes={bytes / 1024}KB " +
+            $"-> current={_currentBytes / (1024 * 1024)}MB/budget={_budgetBytes / (1024 * 1024)}MB count={_map.Count}");
         EvictToBudget();
     }
 
@@ -213,6 +233,9 @@ public sealed class ResidentTextureCache : IDisposable
             _currentBytes -= victim.Bytes;
             if (victim.InProtected) _protectedBytes -= victim.Bytes;
             GL.DeleteTexture(victim.Handle);
+            LogVerbose($"[ResidentTex] EVICT '{victim.Key}' handle={victim.Handle} " +
+                $"bytes={victim.Bytes / 1024}KB seg={(victim.InProtected ? "protected" : "probation")} " +
+                $"-> current={_currentBytes / (1024 * 1024)}MB");
         }
     }
 

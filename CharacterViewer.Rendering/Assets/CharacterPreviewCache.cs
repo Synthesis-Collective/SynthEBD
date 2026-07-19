@@ -41,7 +41,9 @@ public readonly record struct DdsCubemapPixels(byte[][] Faces, int Width, int He
 ///     The head-override path is applied by the caller after retrieval since
 ///     it's a per-load decoration, not part of the resolved record chain.
 ///   * <see cref="GetOrLoadDdsPixels"/> — LRU cache of BGRA32 pixel arrays keyed
-///     on game-relative texture path. GL texture handles are still created per
+///     on the RESOLVED DISK PATH (not the game-relative path — see the method
+///     remarks for the cross-variant poisoning that relative keying caused under
+///     strict per-mod scopes). GL texture handles are still created per
 ///     viewer (context-specific), but the Pfim decode + Rgb24→Rgba32 conversion
 ///     happens once. Preset switching is the hot path — a typical NPC pulls
 ///     ~20 textures and decoding dominated the ~3.6s latency per switch.
@@ -242,6 +244,19 @@ public class CharacterPreviewCache
     /// expected (rare) cost; the missing-texture wireframe path bounds the
     /// visual impact.
     ///
+    /// Entries are keyed on the RESOLVED DISK PATH, not the game-relative path.
+    /// Under strict per-mod scopes the same relative path legitimately resolves
+    /// to different files per scope chain (e.g. 17 variants of one mod family
+    /// each shipping their own 'foxglovehair.dds' / FaceTint DDS under the same
+    /// relative path); a relative-path key let whichever variant decoded first
+    /// poison every sibling variant's renders — and the offscreen resident GL
+    /// cache (correctly keyed on disk path) then persisted the wrong pixels
+    /// under the right key until app restart. Disk-path keying keeps the
+    /// cross-viewer sharing benefit (shared Core / vanilla assets resolve to
+    /// one disk file) while making cross-variant collisions impossible. The
+    /// resolve itself is cheap on the hot path — GameAssetResolver's
+    /// scope-aware resolve cache serves repeat lookups.
+    ///
     /// The returned <see cref="DdsPixels.Data"/> array is treated as immutable
     /// by the cache — callers that blend tints on the CPU must clone before
     /// mutating. <see cref="GlTextureManager"/>'s tint paths do exactly that.
@@ -250,20 +265,27 @@ public class CharacterPreviewCache
     {
         if (string.IsNullOrWhiteSpace(relativeGamePath)) return null;
 
+        // Resolve BEFORE the cache lookup so the key is the physical file, not
+        // the scope-dependent relative path (see method remarks). Unresolved =
+        // miss, uncached (same contract as a failed decode).
+        string? diskPath = _assetResolver.ResolveAssetPath(relativeGamePath);
+        if (diskPath == null) return null;
+
         lock (_pixelLock)
         {
-            if (_pixelCache.TryGetValue(relativeGamePath, out var cached))
+            if (_pixelCache.TryGetValue(diskPath, out var cached))
             {
-                _pixelLru.Remove(relativeGamePath);
-                _pixelLru.AddFirst(relativeGamePath);
+                _pixelLru.Remove(diskPath);
+                _pixelLru.AddFirst(diskPath);
                 if (_logGate != null && _logGate.Verbose)
-                    _logger?.LogMessage("CharacterPreviewCache: DdsPixels cache hit for '" + relativeGamePath + "'");
+                    _logger?.LogMessage("CharacterPreviewCache: DdsPixels cache hit for '" +
+                        relativeGamePath + "' -> '" + diskPath + "'");
                 return cached;
             }
         }
 
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        var decoded = DecodeDds(relativeGamePath);
+        var decoded = DecodeDds(diskPath, relativeGamePath);
         long dt = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
         System.Threading.Interlocked.Add(ref _decodeTicks, dt);
         _threadDecodeTicks += dt;
@@ -274,15 +296,15 @@ public class CharacterPreviewCache
         lock (_pixelLock)
         {
             // Re-check in case a parallel caller already populated the entry.
-            if (_pixelCache.TryGetValue(relativeGamePath, out var racedCached))
+            if (_pixelCache.TryGetValue(diskPath, out var racedCached))
             {
-                _pixelLru.Remove(relativeGamePath);
-                _pixelLru.AddFirst(relativeGamePath);
+                _pixelLru.Remove(diskPath);
+                _pixelLru.AddFirst(diskPath);
                 return racedCached;
             }
 
-            _pixelCache[relativeGamePath] = decoded;
-            _pixelLru.AddFirst(relativeGamePath);
+            _pixelCache[diskPath] = decoded;
+            _pixelLru.AddFirst(diskPath);
             _pixelBytes += decoded.Value.Data.Length;
 
             // Periodically re-evaluate the budget against current free RAM so the
@@ -339,15 +361,22 @@ public class CharacterPreviewCache
     {
         if (string.IsNullOrWhiteSpace(relativeGamePath)) return false;
 
+        // Keyed on the resolved disk path for the same reason as the pixel
+        // cache (see GetOrLoadDdsPixels): the verdict belongs to the physical
+        // file, not the scope-dependent relative path — and this cache never
+        // evicts, so a cross-variant wrong verdict would stick all session.
+        string? diskPath = _assetResolver.ResolveAssetPath(relativeGamePath);
+        if (diskPath == null) return false;
+
         lock (_transparencyLock)
-            if (_fullyTransparentCache.TryGetValue(relativeGamePath, out bool cached))
+            if (_fullyTransparentCache.TryGetValue(diskPath, out bool cached))
                 return cached;
 
         var pixels = GetOrLoadDdsPixels(relativeGamePath);
         bool verdict = pixels != null && IsAllAlphaZero(pixels.Value.Data);
 
         lock (_transparencyLock)
-            _fullyTransparentCache[relativeGamePath] = verdict;
+            _fullyTransparentCache[diskPath] = verdict;
         return verdict;
     }
 
@@ -379,10 +408,9 @@ public class CharacterPreviewCache
         return total;
     }
 
-    private DdsPixels? DecodeDds(string relativeGamePath)
+    private DdsPixels? DecodeDds(string resolved, string relativeGamePath)
     {
-        string? resolved = _assetResolver.ResolveAssetPath(relativeGamePath);
-        if (resolved == null || !File.Exists(resolved)) return null;
+        if (!File.Exists(resolved)) return null;
 
         try
         {
@@ -404,26 +432,32 @@ public class CharacterPreviewCache
     /// Returns six BGRA32 face buffers for the given game-relative cubemap DDS,
     /// or null if the file is missing, unreadable, or not a complete cubemap.
     /// Caching mirrors <see cref="GetOrLoadDdsPixels"/> — successful results
-    /// are cached, failures are not.
+    /// are cached, failures are not, and entries are keyed on the RESOLVED DISK
+    /// PATH (see that method's remarks for the cross-variant poisoning a
+    /// relative-path key caused).
     /// </summary>
     public DdsCubemapPixels? GetOrLoadDdsCubemap(string relativeGamePath)
     {
         if (string.IsNullOrWhiteSpace(relativeGamePath)) return null;
 
+        string? diskPath = _assetResolver.ResolveAssetPath(relativeGamePath);
+        if (diskPath == null) return null;
+
         lock (_cubemapLock)
         {
-            if (_cubemapCache.TryGetValue(relativeGamePath, out var cached))
+            if (_cubemapCache.TryGetValue(diskPath, out var cached))
             {
-                _cubemapLru.Remove(relativeGamePath);
-                _cubemapLru.AddFirst(relativeGamePath);
+                _cubemapLru.Remove(diskPath);
+                _cubemapLru.AddFirst(diskPath);
                 if (_logGate != null && _logGate.Verbose)
-                    _logger?.LogMessage("CharacterPreviewCache: DdsCubemap cache hit for '" + relativeGamePath + "'");
+                    _logger?.LogMessage("CharacterPreviewCache: DdsCubemap cache hit for '" +
+                        relativeGamePath + "' -> '" + diskPath + "'");
                 return cached;
             }
         }
 
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        var decoded = DecodeDdsCubemap(relativeGamePath);
+        var decoded = DecodeDdsCubemap(diskPath, relativeGamePath);
         long dt = System.Diagnostics.Stopwatch.GetTimestamp() - t0;
         System.Threading.Interlocked.Add(ref _decodeTicks, dt);
         _threadDecodeTicks += dt;
@@ -431,15 +465,15 @@ public class CharacterPreviewCache
 
         lock (_cubemapLock)
         {
-            if (_cubemapCache.TryGetValue(relativeGamePath, out var racedCached))
+            if (_cubemapCache.TryGetValue(diskPath, out var racedCached))
             {
-                _cubemapLru.Remove(relativeGamePath);
-                _cubemapLru.AddFirst(relativeGamePath);
+                _cubemapLru.Remove(diskPath);
+                _cubemapLru.AddFirst(diskPath);
                 return racedCached;
             }
 
-            _cubemapCache[relativeGamePath] = decoded;
-            _cubemapLru.AddFirst(relativeGamePath);
+            _cubemapCache[diskPath] = decoded;
+            _cubemapLru.AddFirst(diskPath);
             _cubemapBytes += CubemapByteSize(decoded.Value);
 
             if (++_cubemapAddsSinceRepoll >= CubemapCacheRepollEveryAdds)
@@ -496,10 +530,9 @@ public class CharacterPreviewCache
     /// require a complete cubemap (mask 0xFE00) — partial cubemaps are rare in
     /// the wild and Skyrim envmaps are always complete.
     /// </summary>
-    private DdsCubemapPixels? DecodeDdsCubemap(string relativeGamePath)
+    private DdsCubemapPixels? DecodeDdsCubemap(string resolved, string relativeGamePath)
     {
-        string? resolved = _assetResolver.ResolveAssetPath(relativeGamePath);
-        if (resolved == null || !File.Exists(resolved)) return null;
+        if (!File.Exists(resolved)) return null;
 
         try
         {

@@ -15,6 +15,16 @@ public class GlTextureManager : IDisposable
 {
     private readonly CharacterPreviewCache _previewCache;
     private readonly ICharacterViewerLogger _logger;
+    // Gate for the verbose per-texture resolution trace (game path -> disk path ->
+    // resident-hit/upload/missing + GL handle). Off by default; the host's
+    // "Verbose Log" toggle / force-regen _Mugshot.txt flips it on so a poisoned
+    // re-render's texture provenance can be diffed against a post-restart render.
+    private readonly CharacterViewerLogGate? _logGate;
+
+    private void LogVerbose(string message)
+    {
+        if (_logGate != null && _logGate.Verbose) _logger?.LogMessage(message);
+    }
     // Optional render-context-owned cache shared across renders (offscreen path).
     // When present, uploaded textures are owned by it (keyed on resolved disk
     // path) and survive between renders rather than being deleted with this VM.
@@ -48,11 +58,12 @@ public class GlTextureManager : IDisposable
     public int WhiteTexture { get; private set; }
 
     public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger,
-        ResidentTextureCache? resident = null)
+        ResidentTextureCache? resident = null, CharacterViewerLogGate? logGate = null)
     {
         _previewCache = previewCache;
         _logger = logger;
         _resident = resident;
+        _logGate = logGate;
     }
 
     /// <summary>
@@ -82,7 +93,10 @@ public class GlTextureManager : IDisposable
             return WhiteTexture;
 
         if (_textureCache.TryGetValue(relativeGamePath, out int cached))
+        {
+            LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' VM-CACHE handle={cached}");
             return cached;
+        }
 
         // Resident (offscreen) path: share the GL texture across renders, keyed on
         // the resolved disk path (correct under the strict per-mod scope chain).
@@ -93,6 +107,7 @@ public class GlTextureManager : IDisposable
             if (residentHandle != -1)
             {
                 _textureCache[relativeGamePath] = residentHandle;
+                LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath}' RESIDENT-HIT handle={residentHandle}");
                 return residentHandle;
             }
         }
@@ -104,11 +119,15 @@ public class GlTextureManager : IDisposable
             // when the host actually asked for a path — empty/null paths
             // (above) are normal "shape doesn't use this slot" cases.
             _missingTexturePaths.Add(relativeGamePath);
+            LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath ?? "(unresolved)"}' " +
+                "MISSING pixels (WhiteTexture; shape flagged wireframe)");
             return WhiteTexture;
         }
 
         int handle = UploadTexture2DOwned(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height, diskPath);
         _textureCache[relativeGamePath] = handle;
+        LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath ?? "(per-VM)"}' " +
+            $"UPLOAD handle={handle} {pixels.Value.Width}x{pixels.Value.Height} resident={diskPath != null}");
         return handle;
     }
 
@@ -173,7 +192,11 @@ public class GlTextureManager : IDisposable
     public int LoadTextureWithHairTint(string diffusePath, float tintR, float tintG, float tintB)
     {
         var source = _previewCache.GetOrLoadDdsPixels(diffusePath);
-        if (source == null) return WhiteTexture;
+        if (source == null)
+        {
+            LogVerbose($"[GlTex] HairTint '{diffusePath}' MISSING pixels (WhiteTexture)");
+            return WhiteTexture;
+        }
 
         int width = source.Value.Width;
         int height = source.Value.Height;
@@ -189,7 +212,14 @@ public class GlTextureManager : IDisposable
             pixels[i + 2] = (byte)Math.Clamp((int)(intensity * tintR * 255f), 0, 255);
         }
 
-        return UploadTexture2DOwned(pixels, width, height, null);
+        // Per-VM (residentDiskPath=null): the tinted diffuse is uploaded fresh every
+        // render and carries the alpha the hair alpha-test samples. Logging its
+        // handle + dimensions lets a poisoned re-render be compared against a
+        // post-restart one — the alpha payload here is what drives hair coverage.
+        int handle = UploadTexture2DOwned(pixels, width, height, null);
+        LogVerbose($"[GlTex] HairTint '{diffusePath}' UPLOAD handle={handle} {width}x{height} " +
+            $"tint=({tintR:0.###},{tintG:0.###},{tintB:0.###}) [per-VM]");
+        return handle;
     }
 
     /// <summary>
@@ -304,12 +334,21 @@ public class GlTextureManager : IDisposable
         int handle = UploadTexture(pixelData, width, height);
         if (_resident != null)
         {
-            if (GL.GetError() == ErrorCode.OutOfMemory)
+            // Single GetError drains the queue for this upload. OutOfMemory degrades
+            // to WhiteTexture; any OTHER error is a silent-corruption suspect (the
+            // 16-shared-mod / heavy-4K-texture batch is exactly where a driver can
+            // report a partial/failed upload the cache would otherwise reuse as a
+            // valid-but-garbage handle) — surface it under the verbose gate.
+            ErrorCode err = GL.GetError();
+            if (err == ErrorCode.OutOfMemory)
             {
                 GL.DeleteTexture(handle);
                 _resident.ReduceBudgetAfterOom();
                 return WhiteTexture;
             }
+            if (err != ErrorCode.NoError)
+                LogVerbose($"[GlTex] UPLOAD GL error {err} handle={handle} {width}x{height} " +
+                    $"disk='{residentDiskPath ?? "(per-VM)"}'");
             if (residentDiskPath != null)
             {
                 _resident.Add(residentDiskPath, handle, EstimateTextureBytes(width, height));
