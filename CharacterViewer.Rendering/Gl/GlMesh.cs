@@ -174,6 +174,13 @@ public class GlMesh : IDisposable
     public float EnvMapScale { get; set; } = 1f;
     public float EyeCubemapScale { get; set; } = 1f;
 
+    /// <summary>True only for BSLSP_EYE (shader type 16) shapes: the engine
+    /// scales their cubemap term by <see cref="EyeCubemapScale"/> instead of
+    /// <see cref="EnvMapScale"/>. Deliberately NOT tied to <see cref="IsEye"/> —
+    /// semantic eyes can be authored as BSLSP_ENVMAP (FoxGlove Auri), and
+    /// those take the plain envMapScale in-game like any other envmap shape.</summary>
+    public bool UseEyeCubemapScale { get; set; }
+
     // Environment map textures
     public int EnvMapTexture { get; set; }
     public int EnvMaskTexture { get; set; }

@@ -4150,7 +4150,8 @@ public class VM_CharacterViewer : ViewerVm
     /// hands off to <see cref="LoadAsync"/>. NPC Plugin Chooser 2 (and any
     /// other host) calls this directly with their own <see cref="NpcIdentity"/>.
     /// </summary>
-    public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null)
+    public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null,
+        IReadOnlySet<string>? overrideEyeShapeNames = null)
     {
         // NOTE: no RenderingUnavailable short-circuit here. Even when the GL viewport
         // can't start, the software fallback preview needs the resolved mesh paths, so
@@ -4174,7 +4175,8 @@ public class VM_CharacterViewer : ViewerVm
             return;
         }
 
-        await LoadAsync(identity, meshPaths, overrideHeadMeshAbsolutePath);
+        await LoadAsync(identity, meshPaths, overrideHeadMeshAbsolutePath,
+            overrideEyeShapeNames: overrideEyeShapeNames);
     }
 
     /// <summary>
@@ -4196,8 +4198,23 @@ public class VM_CharacterViewer : ViewerVm
     /// on every change. Path equality would incorrectly skip the reload.
     /// </summary>
     public async Task LoadAsync(NpcIdentity identity, ResolvedNpcMeshPaths paths,
-        string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default)
+        string? overrideHeadMeshAbsolutePath = null, CancellationToken externalCt = default,
+        IReadOnlySet<string>? overrideEyeShapeNames = null)
     {
+        // Merge host-supplied eye shape names (head-part preview flows whose
+        // override NIF bakes an ASSIGNED eyes part, not the record's) into the
+        // POCO before anything captures it — the merged instance flows into
+        // _cachedMeshPaths, the pending scene, the SceneInputsSnapshot the
+        // software fallback reads, and IsEye classification. Union, not
+        // replace: unassigned slots keep the record's parts in the override
+        // NIF, so the record-derived names must stay valid alongside.
+        if (overrideEyeShapeNames is { Count: > 0 })
+        {
+            var mergedEyeNames = new HashSet<string>(paths.EyeShapeNames, StringComparer.OrdinalIgnoreCase);
+            mergedEyeNames.UnionWith(overrideEyeShapeNames);
+            paths = paths.WithEyeShapeNames(mergedEyeNames);
+        }
+
         if ((RenderingUnavailable || ForceRenderingUnavailableForTesting) && !IsOffscreenRenderInstance)
         {
             // No GL surface on this system (WGL_NV_DX_interop missing) — the render loop
@@ -4666,6 +4683,11 @@ public class VM_CharacterViewer : ViewerVm
                 glMesh.IsEnvMap2D = !envIsCube;
                 glMesh.EnvMapScale = built.EnvironmentMapScale;
                 glMesh.EyeCubemapScale = built.EyeCubemapScale;
+                // Engine-faithful scale selection: only the BSLSP_EYE shader
+                // type uses eyeCubemapScale; ENVMAP-typed shapes — including
+                // semantic eyes classified IsEye via head-part data — use
+                // envMapScale in-game.
+                glMesh.UseEyeCubemapScale = built.ShaderType == 16;
                 RecordTextureSource(glMesh,
                     envIsCube ? "Environment Cubemap" : "Environment Map (2D fallback)",
                     envMapPath);
@@ -5968,11 +5990,25 @@ public class VM_CharacterViewer : ViewerVm
     /// SynthEBD's ApplyHeadPartsAsync extension as the fast path when the
     /// same NPC is already loaded — see <see cref="CanRebuildHeadOnly"/>.
     /// </summary>
-    public async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct)
+    public async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct,
+        IReadOnlySet<string>? additionalEyeShapeNames = null)
     {
         var headStopwatch = System.Diagnostics.Stopwatch.StartNew();
         LogLoadCheckpoint(headStopwatch, "RebuildHeadOnlyAsync begin (" +
             System.IO.Path.GetFileName(headNifPath) + ")");
+
+        // Same merge as LoadAsync's overrideEyeShapeNames, for the fast path:
+        // InstallReplacedHead classifies the new head shapes against
+        // _cachedMeshPaths, so an ASSIGNED eyes part baked into headNifPath
+        // must be in its EyeShapeNames before the install runs. Union with the
+        // existing set (immutable-POCO swap; the render thread reads the
+        // reference at install time).
+        if (additionalEyeShapeNames is { Count: > 0 } && _cachedMeshPaths != null)
+        {
+            var mergedEyeNames = new HashSet<string>(_cachedMeshPaths.EyeShapeNames, StringComparer.OrdinalIgnoreCase);
+            mergedEyeNames.UnionWith(additionalEyeShapeNames);
+            _cachedMeshPaths = _cachedMeshPaths.WithEyeShapeNames(mergedEyeNames);
+        }
 
         // Parse with no skeleton: FaceGen head NIFs are rigid / self-skinned and
         // the body skeleton is not needed to produce correct vertex positions.

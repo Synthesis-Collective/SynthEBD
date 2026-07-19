@@ -262,8 +262,12 @@ uniform float rimlightPower;
 uniform float subsurfaceRolloff;
 uniform vec3 emissiveColor;
 uniform float emissiveMultiple;
+// Effective cubemap scale. The host selects between the NIF's envMapScale
+// and eyeCubemapScale by SHADER TYPE (only BSLSP_EYE uses the eye scale
+// in-engine) -- see GlRenderer. Not keyed on is_eye, which is a broader
+// semantic flag (AO opt-out / catchlight) that also covers ENVMAP-typed
+// eyeballs.
 uniform float envMapScale;
-uniform float eyeCubemapScale;
 
 // --- GENERAL UNIFORMS ---
 uniform Light lights[MAX_LIGHTS];
@@ -865,8 +869,7 @@ void main()
             envColor = texture(texture_envmap, reflectWorld).rgb;
         }
         float envMask = has_env_mask ? texture(texture_envmask, TexCoords).r : 1.0;
-        float scale = is_eye ? eyeCubemapScale : envMapScale;
-        finalColor += envColor * envMask * scale;
+        finalColor += envColor * envMask * envMapScale;
     }
 
     // --- 5. EMISSIVE ---

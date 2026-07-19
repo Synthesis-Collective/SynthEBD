@@ -169,6 +169,19 @@ internal sealed class SynthEbdViewerHostState
             return;
         }
 
+        // When the assignment replaces the eyes, the preview FaceGen bakes the
+        // ASSIGNED part's shapes — the record-derived EyeShapeNames (adapter)
+        // no longer name them. Collect the assigned part's EditorIDs so the
+        // viewer can union them in for IsEye classification (AO opt-out,
+        // catchlight); unassigned slots keep the record's parts and stay
+        // covered by the adapter's set.
+        IReadOnlySet<string>? assignedEyeNames = null;
+        if (validAssignments.TryGetValue(HeadPart.TypeEnum.Eyes, out var eyesKey))
+        {
+            var collected = HeadPartShapeNames.CollectFromHeadPart(eyesKey, linkCache);
+            if (collected.Count > 0) assignedEyeNames = collected;
+        }
+
         string? nifPath;
         try
         {
@@ -199,12 +212,13 @@ internal sealed class SynthEbdViewerHostState
             && _vm.CanRebuildHeadOnly
             && npcFormKey.ToString() == _vm.CurrentLoadedIdentityKey)
         {
-            await _vm.RebuildHeadOnlyAsync(nifPath, ct);
+            await _vm.RebuildHeadOnlyAsync(nifPath, ct, assignedEyeNames);
             return;
         }
 
         var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-        await _vm.LoadByIdentityAsync(identity, overrideHeadMeshAbsolutePath: nifPath);
+        await _vm.LoadByIdentityAsync(identity, overrideHeadMeshAbsolutePath: nifPath,
+            overrideEyeShapeNames: assignedEyeNames);
     }
 
     // ───────────────────────────────────────────────────────────────────

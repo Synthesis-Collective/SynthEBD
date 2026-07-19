@@ -590,7 +590,7 @@ envMask = has_env_mask ? texture(envmask, TexCoords).r : 1.0;
 finalColor += envColor * envMask * scale;
 ```
 
-`scale` is `eyeCubemapScale` for eye shapes, `envMapScale` otherwise.
+`scale` arrives pre-selected from the host: GlRenderer sends the NIF's `eyeCubemapScale` for BSLSP_EYE (shader type 16) shapes and `envMapScale` for everything else, matching the engine. The selection is deliberately keyed on shader type rather than `is_eye` -- semantic eyes authored as BSLSP_ENVMAP (classified `IsEye` via host head-part data) take their authored `envMapScale` in-game.
 
 **Cubemap loading.** Vanilla Skyrim envmaps in slot 4 are DDS cubemaps (`Caps2 & 0xFE00 == 0xFE00` → all six face flags set). Pfim 0.11.4 reads only the first face of a multi-face DDS, so [`CharacterPreviewCache.DecodeDdsCubemap`](Assets/CharacterPreviewCache.cs) parses the 124-byte DDS_HEADER itself, slices the payload into six equal face buffers (DDS spec stores faces in `+X, -X, +Y, -Y, +Z, -Z` order, sequentially after the header), and feeds each face through Pfim as a synthesized "single-face" DDS stream — same header with the cubemap bits cleared from `Caps2`, prefixed to that face's bytes. This decouples the cubemap-detection step from Pfim's lack of multi-face support without requiring a different DDS library.
 
@@ -814,6 +814,8 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 
 - **Skin desaturates at high SSS strength.** With `SubsurfaceStrength` at 0 (the current default), skin tones render correctly across all races — Imperials warm, Redguards distinctly dark, Orcs saturated green. Raising it toward the prior default of 2.0 globally desaturates skin (Imperials pale, Redguards Mediterranean, Orcs olive), washing race-distinguishing character toward neutral. The tint pipeline itself is engine-faithful at all SSS strengths — Pegtop + color-shift, QNAM passthrough, and gamma-space rendering all match the CS source byte-for-byte (per the [engine-source cross-check](#engine-source-cross-check-verified-against-cs)) — so the desaturation almost certainly originates in the SSS shader stage or a lighting-interaction issue rather than the tint pipeline. The [skin saturation boost](#stage-1c-skin-saturation-boost) is the user-facing compensation dial; SSS shader audit is a separate follow-up. Causes eliminated during the investigation that traced this back to SSS: NIF `skinTintColor` (always (1,1,1) per render logs), Pegtop math, the color-shift constant, QNAM source/passthrough, color-space mismatch (sRGB-vs-gamma explicitly tested and falsified).
 
+- **TODO — hair-gap fade misses non-HAIRTINT hair; stale eye-AO comment.** The SSAO hair-gap fade in [basic.frag](Shaders/basic.frag) keys on `is_hair_tint` (BSLSP_HAIRTINT, ShaderType 6). Hair authored as DEFAULT/ENVMAP with alpha blending (occasionally seen in pre-colored hair packs that don't want engine tinting) misses the fade, so background-surface AO shades its strands — the same classification-gap class as the FoxGlove ENVMAP eyeballs that motivated `ResolvedNpcMeshPaths.EyeShapeNames`. If a real specimen shows up: add an "is hair geometry" flag fed by host head-part data (HeadPart types Hair / FacialHair / Eyebrows — the EyeShapeNames plumbing is the template) plus `BodyPart == "Hair"` for ARMA wigs, and apply it to the gap fade ONLY. Hair *tinting* must stay keyed on ShaderType 6, which is engine-faithful. While in there, fix the stale comment in basic.frag's `is_eye` AO opt-out block: it still claims lashes pass the prepass gate and write a depth step over the eyeball, but `GlRenderer.RenderDepthPrepass` has since been changed to skip ALL alpha-blend and alpha-test geometry, so that rationale no longer describes current behavior (the opt-out itself remains correct — eyeballs sit in the socket concavity and gain nothing from diffuse AO).
+
 ---
 
 ## Appendix A — Shader flag inventory table
@@ -924,7 +926,7 @@ What we read from the shape's BSLSP, where it goes, and what we ignore.
 | `uvScale` | ✓ | Vertex shader `u_uvScale` | Folded into TexCoords at vertex stage |
 | `uvOffset` | ✓ | Vertex shader `u_uvOffset` | Same |
 | `environmentMapScale` | ✓ | `envMapScale` uniform | |
-| `eyeCubemapScale` | ✓ | `eyeCubemapScale` uniform | Used when `is_eye` |
+| `eyeCubemapScale` | ✓ | folded into `envMapScale` uniform | Host-side selection; used only for BSLSP_EYE (shader type 16) shapes |
 | `refractionStrength` | ✗ | (unused) | We don't do refraction |
 | `skinTintColor` | ✗ | (unused) | NIF stores `(1,1,1)` — the engine doesn't use this for body tinting at runtime; it pulls QNAM from the NPC record. We follow the engine. |
 | `skinTintAlpha` | ✗ | (unused) | Same |

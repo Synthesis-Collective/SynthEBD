@@ -2462,8 +2462,12 @@ public class GlRenderer : IDisposable
         _shader.SetFloat("subsurfaceRolloff", mesh.SubsurfaceRolloff);
         _shader.SetVector3("emissiveColor", mesh.EmissiveColor.X, mesh.EmissiveColor.Y, mesh.EmissiveColor.Z);
         _shader.SetFloat("emissiveMultiple", mesh.EmissiveMultiple);
-        _shader.SetFloat("envMapScale", mesh.EnvMapScale);
-        _shader.SetFloat("eyeCubemapScale", mesh.EyeCubemapScale);
+        // Effective cubemap scale, selected host-side by SHADER TYPE (only
+        // BSLSP_EYE uses eyeCubemapScale in-engine). Not keyed on is_eye:
+        // ENVMAP-typed eyeballs classified IsEye for AO/catchlight purposes
+        // still take their authored envMapScale, matching the engine.
+        _shader.SetFloat("envMapScale",
+            mesh.UseEyeCubemapScale ? mesh.EyeCubemapScale : mesh.EnvMapScale);
         _shader.SetVector2("u_uvScale", mesh.UvScale.X, mesh.UvScale.Y);
         _shader.SetVector2("u_uvOffset", mesh.UvOffset.X, mesh.UvOffset.Y);
 

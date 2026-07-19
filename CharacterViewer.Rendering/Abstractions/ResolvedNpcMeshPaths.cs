@@ -123,4 +123,31 @@ public sealed class ResolvedNpcMeshPaths
             HairColorRgb = HairColorRgb,
             EyeShapeNames = EyeShapeNames,
         };
+
+    /// <summary>Returns a copy with <see cref="EyeShapeNames"/> replaced — the
+    /// companion to <see cref="WithHeadMeshPath"/> for head-part preview flows
+    /// whose override NIF bakes shapes for head parts OTHER than the NPC
+    /// record's (a host previewing a candidate eyes assignment). Callers
+    /// typically pass the union of the record-derived set and the assigned
+    /// part's names so both authored and assigned eyes stay classified.</summary>
+    public ResolvedNpcMeshPaths WithEyeShapeNames(IReadOnlySet<string> eyeShapeNames) =>
+        new()
+        {
+            BodyMeshPath = BodyMeshPath,
+            HandsMeshPath = HandsMeshPath,
+            FeetMeshPath = FeetMeshPath,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
+            Sex = Sex,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            EyeShapeNames = eyeShapeNames,
+        };
 }

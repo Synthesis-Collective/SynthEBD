@@ -13,8 +13,8 @@ namespace SynthEBD;
 /// LinkCache from the host environment, converts the resolver's
 /// <see cref="NpcMeshResolver.NpcMeshPaths"/> into the neutral
 /// <see cref="ResolvedNpcMeshPaths"/> POCO, and adds NPC-record-derived
-/// values (weight, height, hair color) so the rendering tier's
-/// LoadAsync entry point doesn't need to touch Mutagen.
+/// values (weight, height, hair color, eye head-part shape names) so the
+/// rendering tier's LoadAsync entry point doesn't need to touch Mutagen.
 ///
 /// <see cref="CurrentInvalidationToken"/> exposes the active LinkCache as the
 /// reference-equality token — when Mutagen builds a new environment the
@@ -109,6 +109,11 @@ public sealed class SynthEbdNpcMeshDataSourceAdapter : INpcMeshDataSource
             NpcWeight = weight,
             NpcBaseHeight = baseHeight,
             HairColorRgb = hairRgb,
+            // Authoritative IsEye input: EditorIDs of the record's Eyes-typed
+            // head parts (+ Extra Parts). ApplyHeadPartsAsync unions in the
+            // ASSIGNED eyes part separately when a preview replaces them.
+            EyeShapeNames = HeadPartShapeNames.CollectFromNpcRecord(
+                npcGetter, linkCache, HeadPart.TypeEnum.Eyes),
         };
     }
 }
