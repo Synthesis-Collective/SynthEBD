@@ -586,6 +586,19 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_glow", 12);
 
         GL.Enable(EnableCap.DepthTest);
+        // LEQUAL, not the GL default LESS: hair ships as two coincident copies
+        // of the same strand geometry — an aggressive alpha-TEST pass that
+        // writes depth (the opaque core) and an alpha-BLEND pass drawn after it
+        // that supplies the color and soft edges. The blend twin sits at
+        // exactly the depth its test twin wrote, so under LESS every interior
+        // fragment z-rejects and only the sub-threshold edge strands survive —
+        // observed as a hair NIF whose two twins carried different baked tints
+        // rendering the test twin's color with edge-only highlights of the
+        // blend twin's, while in-game showed the blend twin's color throughout.
+        // LEQUAL lets the later pass repaint its own prepass, matching the
+        // engine and NifSkope. Within each pass, later coincident draws win —
+        // NIF block order, the author-intended layering.
+        GL.DepthFunc(DepthFunction.Lequal);
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 

@@ -79,10 +79,12 @@ public sealed class ResolvedNpcMeshPaths
     /// values from malformed records before populating this.</summary>
     public float NpcBaseHeight { get; init; } = 1f;
 
-    /// <summary>HCLR record-resolved hair color (RGB, 0..1). In-game Skyrim
-    /// uses this to override the default tint baked into the hair NIF's BSLSP.
-    /// Null when the NPC has no HairColor FormLink set or the host can't
-    /// resolve the HCLR record.</summary>
+    /// <summary>HCLR record-resolved hair color (RGB, 0..1). Fallback tint for
+    /// hair-tint shapes whose NIF carries no baked BSLSP hairTintColor — when a
+    /// baked tint is present the renderer uses it, matching the in-game engine
+    /// (verified empirically: editing the NIF's tint alone recolors the hair
+    /// in-game with no plugin edit). Null when the NPC has no HairColor
+    /// FormLink set or the host can't resolve the HCLR record.</summary>
     public (float R, float G, float B)? HairColorRgb { get; init; }
 
     /// <summary>Shape names in the FaceGen NIF that are eyeball geometry,
