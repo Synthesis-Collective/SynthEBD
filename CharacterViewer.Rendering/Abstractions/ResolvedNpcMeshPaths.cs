@@ -100,6 +100,15 @@ public sealed class ResolvedNpcMeshPaths
     /// heuristic then remains the only fallback.</summary>
     public IReadOnlySet<string> EyeShapeNames { get; init; } = EmptyEyeShapeNames;
 
+    /// <summary>Shape names in the FaceGen head NIF the renderer must NOT draw —
+    /// baked head-part geometry the host has designated for removal (e.g. an
+    /// antler head part the patch strips from both the NPC record and the FaceGen
+    /// NIF, so the preview should match the patched result). Matched against each
+    /// base-head shape's trimmed name; supply a case-insensitive set. Empty (the
+    /// default) hides nothing. Only base-scene head shapes are affected — attire
+    /// mesh overrides are never filtered by this set.</summary>
+    public IReadOnlySet<string> HideHeadShapeNames { get; init; } = EmptyEyeShapeNames;
+
     private static readonly IReadOnlySet<string> EmptyEyeShapeNames = new HashSet<string>();
 
     /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
@@ -124,6 +133,7 @@ public sealed class ResolvedNpcMeshPaths
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
             EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
         };
 
     /// <summary>Returns a copy with <see cref="EyeShapeNames"/> replaced — the
@@ -151,5 +161,31 @@ public sealed class ResolvedNpcMeshPaths
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
             EyeShapeNames = eyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
+        };
+
+    /// <summary>Returns a copy with <see cref="HideHeadShapeNames"/> replaced.
+    /// Used by hosts that resolve the base record chain first and layer a
+    /// head-shape hide-set on afterwards (e.g. NPC2's antler-Remove preview).</summary>
+    public ResolvedNpcMeshPaths WithHideHeadShapeNames(IReadOnlySet<string> hideHeadShapeNames) =>
+        new()
+        {
+            BodyMeshPath = BodyMeshPath,
+            HandsMeshPath = HandsMeshPath,
+            FeetMeshPath = FeetMeshPath,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
+            Sex = Sex,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = hideHeadShapeNames,
         };
 }

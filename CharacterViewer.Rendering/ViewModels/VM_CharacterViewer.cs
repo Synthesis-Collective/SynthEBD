@@ -4045,6 +4045,18 @@ public class VM_CharacterViewer : ViewerVm
             return;
         }
 
+        // Host-designated head-shape hide (e.g. NPC2 antler Remove): the patch
+        // strips this baked head-part shape from the FaceGen NIF, so the preview
+        // must not draw it either. Base-scene head shapes only — attire overrides
+        // install through a different path and are never filtered here.
+        if (shape.BodyPart == "Head" && install.MeshPaths.HideHeadShapeNames.Count > 0 &&
+            install.MeshPaths.HideHeadShapeNames.Contains((shape.Built.ShapeName ?? string.Empty).Trim()))
+        {
+            LogVerbose("CharacterViewer: hiding head shape '" + shape.Built.ShapeName +
+                       "' (host-designated HideHeadShapeNames — antler/head-part removal).");
+            return;
+        }
+
         var glMesh = CreateGlMesh(shape.Built);
         glMesh.MeshSource = shape.MeshSource;
 
