@@ -4158,6 +4158,14 @@ public class VM_CharacterViewer : ViewerVm
         ReloadRequested?.Invoke();
     }
 
+    /// <summary>Marks the next <see cref="LoadAsync"/> to force a full rebuild
+    /// even for the same NPC identity (bypassing the same-identity short-circuit).
+    /// For a host that drives its OWN reload after changing a mesh-upload-time
+    /// input — e.g. NPC Plugin Chooser 2 designating an antler head part to hide
+    /// via <see cref="ResolvedNpcMeshPaths.HideHeadShapeNames"/>, which is applied
+    /// at install time — so the same-NPC reload actually re-installs the head.</summary>
+    public void ForceRebuildNextLoad() => _forceRebuildNextLoad = true;
+
     /// <summary>
     /// Neutral cache-driven load entry. Resolves <paramref name="identity"/>
     /// to a <see cref="ResolvedNpcMeshPaths"/> through the preview cache
@@ -5070,6 +5078,59 @@ public class VM_CharacterViewer : ViewerVm
     //  the NIF's own), tints by NIF shader type, and registers the shape under
     //  the override Key with its biped slots for occupancy/hiding.
     // ═══════════════════════════════════════════════════════════════════════
+
+    // Saved original emissive of each currently glow-highlighted base-head shape
+    // (see SetHighlightedShapeNames), restored when the highlight moves off it.
+    private readonly Dictionary<GlMesh, (bool HasEmissive, System.Numerics.Vector3 Color, float Multiple)>
+        _highlightSavedEmissive = new();
+
+    /// <summary>
+    /// Live-highlights the base-head shapes whose names are in
+    /// <paramref name="shapeNames"/> (case-insensitive) with a bright emissive
+    /// glow, restoring the original emissive as the highlight moves or clears
+    /// (pass null/empty to clear). Non-head meshes and attire overrides are never
+    /// touched. Used by the host's "Set Antler Head Parts" selector to highlight
+    /// the head part under the cursor. Takes effect on the next frame (the
+    /// viewport draws continuously); no reload needed.
+    /// </summary>
+    public void SetHighlightedShapeNames(IEnumerable<string>? shapeNames)
+    {
+        var want = shapeNames == null
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(shapeNames, StringComparer.OrdinalIgnoreCase);
+
+        // Self-heal: drop saved entries for meshes a reload already removed.
+        if (_highlightSavedEmissive.Count > 0)
+        {
+            var live = new HashSet<GlMesh>(Renderer.Meshes);
+            foreach (var stale in _highlightSavedEmissive.Keys.Where(k => !live.Contains(k)).ToList())
+                _highlightSavedEmissive.Remove(stale);
+        }
+
+        // Restore any highlighted mesh that's no longer wanted.
+        foreach (var kv in _highlightSavedEmissive.ToList())
+        {
+            var mesh = kv.Key;
+            if (mesh.BodyPart == "Head" && want.Contains((mesh.ShapeName ?? string.Empty).Trim())) continue;
+            mesh.HasEmissive = kv.Value.HasEmissive;
+            mesh.EmissiveColor = kv.Value.Color;
+            mesh.EmissiveMultiple = kv.Value.Multiple;
+            _highlightSavedEmissive.Remove(mesh);
+        }
+
+        if (want.Count == 0) return;
+
+        foreach (var mesh in Renderer.Meshes)
+        {
+            if (mesh.BodyPart != "Head") continue;
+            if (!want.Contains((mesh.ShapeName ?? string.Empty).Trim())) continue;
+            if (_highlightSavedEmissive.ContainsKey(mesh)) continue; // already highlighted
+            _highlightSavedEmissive[mesh] = (mesh.HasEmissive, mesh.EmissiveColor, mesh.EmissiveMultiple);
+            mesh.HasEmissive = true;
+            mesh.EmissiveColor = new System.Numerics.Vector3(0.15f, 0.9f, 1.0f); // bright cyan glow
+            mesh.EmissiveMultiple = 3.0f;
+        }
+    }
 
     /// <summary>
     /// Neutral mesh-override entry. Each <see cref="MeshOverride"/> names a

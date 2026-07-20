@@ -15,7 +15,7 @@
          in CharacterViewerRendering.cs — hosts compare against that constant
          for staleness checks. Bump together: Major = breaking, Minor =
          additive, Patch = bugfix. This is also the published NuGet version. -->
-    <Version>2.6.3</Version>
+    <Version>2.6.4</Version>
     <AssemblyVersion>2.6.1.0</AssemblyVersion>
     <FileVersion>2.6.1.0</FileVersion>
   </PropertyGroup>
