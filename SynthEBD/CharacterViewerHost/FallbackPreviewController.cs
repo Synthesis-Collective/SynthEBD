@@ -306,6 +306,7 @@ public sealed class FallbackPreviewController
             VignetteIntensity = _vm.VignetteIntensity,
             Exposure = _vm.Exposure,
             TonemapHairRelief = _vm.TonemapHairRelief,
+            HairAlbedoCompensate = _vm.HairAlbedoCompensate,
             DaylightBoost = _vm.DaylightBoost,
             DaylightBoostIntensity = _vm.DaylightBoostIntensity,
             EnableBloom = _vm.EnableBloom,

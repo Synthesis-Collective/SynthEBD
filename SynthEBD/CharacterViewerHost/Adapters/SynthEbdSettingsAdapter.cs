@@ -150,6 +150,12 @@ public sealed class SynthEbdSettingsAdapter : ICharacterViewerSettings
         set => _inner.CharacterViewerTonemapHairRelief = value;
     }
 
+    public float CharacterViewerHairAlbedoCompensate
+    {
+        get => _inner.CharacterViewerHairAlbedoCompensate;
+        set => _inner.CharacterViewerHairAlbedoCompensate = value;
+    }
+
     public bool CharacterViewerDaylightBoost
     {
         get => _inner.CharacterViewerDaylightBoost;

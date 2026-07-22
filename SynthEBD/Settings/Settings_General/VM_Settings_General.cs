@@ -411,6 +411,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public float CharacterViewerSkinSaturationBoost { get; set; } = 1.0f;
     public float CharacterViewerExposure { get; set; } = 1.0f;
     public bool CharacterViewerTonemapHairRelief { get; set; } = true;
+    public float CharacterViewerHairAlbedoCompensate { get; set; } = 1.0f;
     public bool CharacterViewerDaylightBoost { get; set; } = true;
     public float CharacterViewerDaylightBoostIntensity { get; set; } = 1.1f;
     public bool CharacterViewerEnableBloom { get; set; } = true;
@@ -512,6 +513,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         CharacterViewerSkinSaturationBoost = model.CharacterViewerSkinSaturationBoost;
         CharacterViewerExposure = model.CharacterViewerExposure;
         CharacterViewerTonemapHairRelief = model.CharacterViewerTonemapHairRelief;
+        CharacterViewerHairAlbedoCompensate = model.CharacterViewerHairAlbedoCompensate;
         CharacterViewerDaylightBoost = model.CharacterViewerDaylightBoost;
         CharacterViewerDaylightBoostIntensity = model.CharacterViewerDaylightBoostIntensity;
         CharacterViewerEnableBloom = model.CharacterViewerEnableBloom;
@@ -604,6 +606,7 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.CharacterViewerSkinSaturationBoost = CharacterViewerSkinSaturationBoost;
         model.CharacterViewerExposure = CharacterViewerExposure;
         model.CharacterViewerTonemapHairRelief = CharacterViewerTonemapHairRelief;
+        model.CharacterViewerHairAlbedoCompensate = CharacterViewerHairAlbedoCompensate;
         model.CharacterViewerDaylightBoost = CharacterViewerDaylightBoost;
         model.CharacterViewerDaylightBoostIntensity = CharacterViewerDaylightBoostIntensity;
         model.CharacterViewerEnableBloom = CharacterViewerEnableBloom;

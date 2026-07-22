@@ -228,6 +228,27 @@
             </WrapPanel>
         </Border>
 
+        <!-- Row: hair-shading correctness (gamma-space albedo compensation for
+             neutral-white-tint hair). Gated on the Row 1 "Shader Troubleshooting"
+             toggle; defaults to full (1.0) so the corrected look ships by default. -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsChecked, ElementName=ShaderTroubleshootingCheck, Converter={StaticResource BoolToVis}}">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Hair Shading" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <TextBlock Text="sRGB comp:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,4,0"
+                           ToolTip="Neutral-white-tint hair albedo compensation."/>
+                <xctk:DoubleUpDown Width="60" Minimum="0" Maximum="1" Increment="0.05"
+                                   Value="{Binding HairAlbedoCompensate}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Fixes hair whose baked tint is a neutral WHITE (e.g. the FoxGlove red wig) reading pink/coral. This renderer lights on raw sRGB texels, so a white-tinted (un-attenuated) albedo sits ~3x too bright and clips; this applies the sRGB-to-linear the pipeline skips, pulling it to a deep, un-clipped red. 0 = off (coral), 1 = full (NifSkope-depth). Keyed on tint neutrality, so dark-tint replacers and warm-blonde hair are exempt. Works with or without Tone-mapping."/>
+            </WrapPanel>
+        </Border>
+
         <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override).
              Gated on the Row 1 "Shader Troubleshooting" toggle - this row is debug-only. -->
         <Border Background="#FF222222" Padding="6 3"

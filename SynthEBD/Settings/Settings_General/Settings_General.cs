@@ -368,6 +368,8 @@ public class Settings_General
     public float CharacterViewerExposure { get; set; } = 1.0f;
     /// <summary>Hair-relief finishing toggle for the tone-map chain (default on).</summary>
     public bool CharacterViewerTonemapHairRelief { get; set; } = true;
+    /// <summary>Neutral-white-tint hair albedo compensation strength (default 1.0).</summary>
+    public float CharacterViewerHairAlbedoCompensate { get; set; } = 1.0f;
     /// <summary>Daylight directional-light boost toggle (default on).</summary>
     public bool CharacterViewerDaylightBoost { get; set; } = true;
     /// <summary>Directional-light gain when Daylight boost is on.</summary>

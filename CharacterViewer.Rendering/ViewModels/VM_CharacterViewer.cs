@@ -425,6 +425,12 @@ public class VM_CharacterViewer : ViewerVm
     /// chain. Mirrors to <see cref="GlRenderer.TonemapHairRelief"/>.</summary>
     public bool TonemapHairRelief { get; set; } = true;
 
+    /// <summary>Neutral-white-tint hair albedo compensation strength (default 1.0;
+    /// 0 = off). Applies the sRGB->linear the gamma-space pipeline skips to
+    /// near-white-tint hair only (fixes a red wig reading pink); colored-tint hair
+    /// is exempt. Mirrors to <see cref="GlRenderer.HairAlbedoCompensate"/>.</summary>
+    public float HairAlbedoCompensate { get; set; } = 1.0f;
+
     /// <summary>Toggle (default ON). When true, directional lights get a
     /// noon-sun gain (<see cref="DaylightBoostIntensity"/>) + slight warmth
     /// (ambient untouched), lifting blonde hair toward its in-game daylight
@@ -1126,6 +1132,7 @@ public class VM_CharacterViewer : ViewerVm
         SkinSaturationBoost = _generalSettings.CharacterViewerSkinSaturationBoost;
         Exposure = _generalSettings.CharacterViewerExposure;
         TonemapHairRelief = _generalSettings.CharacterViewerTonemapHairRelief;
+        HairAlbedoCompensate = _generalSettings.CharacterViewerHairAlbedoCompensate;
         DaylightBoost = _generalSettings.CharacterViewerDaylightBoost;
         DaylightBoostIntensity = _generalSettings.CharacterViewerDaylightBoostIntensity;
         EnableBloom = _generalSettings.CharacterViewerEnableBloom;
@@ -1200,6 +1207,8 @@ public class VM_CharacterViewer : ViewerVm
             .Subscribe(v => Renderer.SkinFaithfulSoftLight = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.TonemapHairRelief)
             .Subscribe(v => Renderer.TonemapHairRelief = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.HairAlbedoCompensate)
+            .Subscribe(v => Renderer.HairAlbedoCompensate = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.DaylightBoost)
             .Subscribe(v => Renderer.DaylightBoost = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.DaylightBoostIntensity)
@@ -1298,6 +1307,8 @@ public class VM_CharacterViewer : ViewerVm
             PersistViewerSetting(() => _generalSettings.CharacterViewerExposure, x => _generalSettings.CharacterViewerExposure = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.TonemapHairRelief).Skip(1).Subscribe(v =>
             PersistViewerSetting(() => _generalSettings.CharacterViewerTonemapHairRelief, x => _generalSettings.CharacterViewerTonemapHairRelief = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.HairAlbedoCompensate).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerHairAlbedoCompensate, x => _generalSettings.CharacterViewerHairAlbedoCompensate = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.DaylightBoost).Skip(1).Subscribe(v =>
             PersistViewerSetting(() => _generalSettings.CharacterViewerDaylightBoost, x => _generalSettings.CharacterViewerDaylightBoost = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.DaylightBoostIntensity).Skip(1).Subscribe(v =>

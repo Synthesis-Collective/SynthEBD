@@ -368,6 +368,11 @@ public sealed class OffscreenRenderRequest
     /// false for back-compat; only meaningful with tone-mapping on.</summary>
     public bool TonemapHairRelief { get; init; } = false;
 
+    /// <summary>Neutral-white-tint hair albedo compensation strength. Default 1.0
+    /// (on) so a red wig with a white baked tint renders deep, not pink. Keyed on
+    /// tint neutrality, so dark-tint and warm-blonde hair are exempt.</summary>
+    public float HairAlbedoCompensate { get; init; } = 1.0f;
+
     /// <summary>Daylight boost: scales the directional lights by
     /// <see cref="DaylightBoostIntensity"/> + slight warmth (ambient
     /// untouched). Default false for back-compat.</summary>

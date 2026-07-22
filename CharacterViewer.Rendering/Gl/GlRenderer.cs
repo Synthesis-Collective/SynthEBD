@@ -202,6 +202,14 @@ public class GlRenderer : IDisposable
     /// skin-tuned finishing chain. Skin is untouched. Read each frame.</summary>
     public bool TonemapHairRelief { get; set; } = true;
 
+    /// <summary>Neutral-white-tint hair albedo compensation strength (default 1.0;
+    /// 0 = off). This renderer lights on raw sRGB texels, so a hair whose baked
+    /// BSLSP tint is a neutral white keeps its albedo ~3x too bright and clips (a
+    /// red wig reads pink). Keyed on tint neutrality, this applies the sRGB->linear
+    /// the pipeline skips to near-white-tint hair only, pulling it into range;
+    /// colored-tint hair (dark auburn, warm blonde) is exempt. Read each frame.</summary>
+    public float HairAlbedoCompensate { get; set; } = 1.0f;
+
     /// <summary>Toggle (default ON): when true, directional lights are scaled
     /// by <see cref="DaylightBoostIntensity"/> and warmed slightly (ambient
     /// untouched), lifting blonde hair toward its in-game daylight appearance
@@ -855,6 +863,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("u_specularAchromatic", SpecularAchromatic);
         _shader.SetBool("u_skinFaithfulSoftLight", SkinFaithfulSoftLight);
         _shader.SetBool("u_tonemapHairRelief", TonemapHairRelief);
+        _shader.SetFloat("u_hairAlbedoCompensate", HairAlbedoCompensate);
         _shader.SetBool("u_daylightBoost", DaylightBoost);
         _shader.SetFloat("u_daylightBoostIntensity", DaylightBoostIntensity);
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);

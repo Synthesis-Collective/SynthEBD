@@ -184,6 +184,14 @@ uniform bool u_skinFaithfulSoftLight;
 // curve, so the brown hair midtone is not crushed the way the skin-tuned
 // finishing chain crushes it. Skin and everything else are untouched.
 uniform bool u_tonemapHairRelief;
+// u_hairAlbedoCompensate: strength (0 = off) of the neutral-white-tint albedo
+// compensation. This renderer lights on raw sRGB texels (gamma space), so a hair
+// whose baked BSLSP tint is a neutral WHITE keeps its albedo un-attenuated (~3x
+// the linear value) and clips under the rig -- a red wig reads pink. A colored
+// tint (dark auburn, warm blonde) already multiplies the albedo down and never
+// clips, so this keys off tint neutrality and applies the sRGB->linear the
+// pipeline skips, ONLY to near-white-tint hair. Hair pixels only.
+uniform float u_hairAlbedoCompensate;
 // u_daylightBoost: when true, directional lights (not ambient) are scaled by
 // u_daylightBoostIntensity and warmed slightly, lifting blonde hair toward its
 // in-game daylight appearance without the user hand-tuning the Key light.
@@ -464,6 +472,22 @@ void main()
                 baseColor.rgb *= tint_color; // unknown op => safe fallback
             }
         }
+    }
+
+    // Neutral-white-tint albedo compensation (hair only). See u_hairAlbedoCompensate.
+    // A near-white baked tint means the albedo was never pulled down, so in this
+    // gamma-space pipeline it sits ~3x too bright and clips (red wig -> pink). Key
+    // off tint neutrality (the tint's MIN channel): near-white -> apply the
+    // sRGB->linear the pipeline skips (deep, not clipped); any colored tint (dark
+    // auburn, warm blonde) has a low min channel and is exempt, so the dark-tint
+    // replacers and blondes are untouched. Runs after the tint multiply so it acts
+    // on the effective albedo.
+    if (is_hair_tint && u_hairAlbedoCompensate > 0.0) {
+        float tintNeutral = min(min(tint_color.r, tint_color.g), tint_color.b);
+        float w = smoothstep(0.60, 0.95, tintNeutral) * u_hairAlbedoCompensate;
+        baseColor.rgb = mix(baseColor.rgb,
+                            pow(max(baseColor.rgb, vec3(0.0)), vec3(2.2)),
+                            clamp(w, 0.0, 1.0));
     }
 
     // Detail map overlay (applied before face tint, matching NifSkope order)

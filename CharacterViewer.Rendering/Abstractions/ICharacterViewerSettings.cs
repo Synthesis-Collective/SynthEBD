@@ -90,6 +90,10 @@ public interface ICharacterViewerSettings : INotifyPropertyChanged
     /// <summary>Hair-relief finishing toggle. Seeds <see cref="VM_CharacterViewer.TonemapHairRelief"/>.</summary>
     bool CharacterViewerTonemapHairRelief { get => true; set { } }
 
+    /// <summary>Neutral-white-tint hair albedo compensation strength (default 1.0).
+    /// Seeds <see cref="VM_CharacterViewer.HairAlbedoCompensate"/>.</summary>
+    float CharacterViewerHairAlbedoCompensate { get => 1.0f; set { } }
+
     /// <summary>Daylight directional-light boost toggle. Seeds <see cref="VM_CharacterViewer.DaylightBoost"/>.</summary>
     bool CharacterViewerDaylightBoost { get => true; set { } }
 
