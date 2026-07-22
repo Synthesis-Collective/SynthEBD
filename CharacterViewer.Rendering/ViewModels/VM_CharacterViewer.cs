@@ -385,6 +385,33 @@ public class VM_CharacterViewer : ViewerVm
     /// in <c>basic.frag</c>. Off: legacy occlusion-free lighting.</summary>
     public bool EnableShadows { get; set; } = false;
 
+    // --- Hair-shadow troubleshooting toggles (A/B/C) ---
+    // Diagnostic knobs for the "brow ridge" bangs cast onto the forehead.
+    // Surfaced in the Shader Troubleshooting UI for A/B comparison; all
+    // default OFF (current behavior) and mirror to GlRenderer live. Not
+    // persisted — they reset per session until a winning approach is picked.
+
+    /// <summary>Strategy A: exclude hair from the shadow caster set.
+    /// Mirrors to <see cref="GlRenderer.ExcludeHairShadowCaster"/>.</summary>
+    public bool ExcludeHairShadowCaster { get; set; } = false;
+
+    /// <summary>Strategy B (default ON): constant-bias + wide-PCF soft
+    /// shadow — the shipped default; also relieves the over-dark neck under
+    /// the jaw. Mirrors to <see cref="GlRenderer.SoftenShadowEdges"/>.</summary>
+    public bool SoftenShadowEdges { get; set; } = true;
+
+    /// <summary>PCF kernel step (texels) for Strategy B.
+    /// Mirrors to <see cref="GlRenderer.ShadowPcfRadius"/>.</summary>
+    public float ShadowPcfRadius { get; set; } = 1.5f;
+
+    /// <summary>Strategy C: tighten the light frustum.
+    /// Mirrors to <see cref="GlRenderer.TightShadowFrustum"/>.</summary>
+    public bool TightShadowFrustum { get; set; } = false;
+
+    /// <summary>Light-frustum radius (world units) for Strategy C.
+    /// Mirrors to <see cref="GlRenderer.ShadowFrustumRadius"/>.</summary>
+    public float ShadowFrustumRadius { get; set; } = 100f;
+
     /// <summary>Screen-space ambient occlusion toggle (2.5.11+). When
     /// true, <see cref="GlRenderer"/> runs a depth pre-pass + SSAO
     /// post-process before the main passes and samples the AO texture
@@ -1119,6 +1146,12 @@ public class VM_CharacterViewer : ViewerVm
         RenderMissingTextureAsWireframe = _generalSettings.CharacterViewerRenderMissingTextureAsWireframe;
         EnableToneMapping = _generalSettings.CharacterViewerEnableToneMapping;
         EnableShadows = _generalSettings.CharacterViewerEnableShadows;
+        // Hair-shadow "brow ridge" mitigations (A/B/C). B (soften) ships on.
+        ExcludeHairShadowCaster = _generalSettings.CharacterViewerExcludeHairShadowCaster;
+        SoftenShadowEdges = _generalSettings.CharacterViewerSoftenShadowEdges;
+        ShadowPcfRadius = _generalSettings.CharacterViewerShadowPcfRadius;
+        TightShadowFrustum = _generalSettings.CharacterViewerTightShadowFrustum;
+        ShadowFrustumRadius = _generalSettings.CharacterViewerShadowFrustumRadius;
         EnableAmbientOcclusion = _generalSettings.CharacterViewerEnableAmbientOcclusion;
         SsaoRadius = _generalSettings.CharacterViewerSsaoRadius;
         SsaoBias = _generalSettings.CharacterViewerSsaoBias;
@@ -1186,6 +1219,16 @@ public class VM_CharacterViewer : ViewerVm
         this.WhenAnyValue(x => x.EnableShadows)
             .Subscribe(v => Renderer.EnableShadows = v)
             .DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ExcludeHairShadowCaster)
+            .Subscribe(v => Renderer.ExcludeHairShadowCaster = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SoftenShadowEdges)
+            .Subscribe(v => Renderer.SoftenShadowEdges = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ShadowPcfRadius)
+            .Subscribe(v => Renderer.ShadowPcfRadius = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.TightShadowFrustum)
+            .Subscribe(v => Renderer.TightShadowFrustum = v).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ShadowFrustumRadius)
+            .Subscribe(v => Renderer.ShadowFrustumRadius = v).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableAmbientOcclusion)
             .Subscribe(v => Renderer.EnableAmbientOcclusion = v)
             .DisposeWith(_disposables);
@@ -1281,6 +1324,16 @@ public class VM_CharacterViewer : ViewerVm
             PersistViewerSetting(() => _generalSettings.CharacterViewerEnableToneMapping, x => _generalSettings.CharacterViewerEnableToneMapping = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableShadows).Skip(1).Subscribe(v =>
             PersistViewerSetting(() => _generalSettings.CharacterViewerEnableShadows, x => _generalSettings.CharacterViewerEnableShadows = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ExcludeHairShadowCaster).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerExcludeHairShadowCaster, x => _generalSettings.CharacterViewerExcludeHairShadowCaster = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.SoftenShadowEdges).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerSoftenShadowEdges, x => _generalSettings.CharacterViewerSoftenShadowEdges = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ShadowPcfRadius).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerShadowPcfRadius, x => _generalSettings.CharacterViewerShadowPcfRadius = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.TightShadowFrustum).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerTightShadowFrustum, x => _generalSettings.CharacterViewerTightShadowFrustum = x, v)).DisposeWith(_disposables);
+        this.WhenAnyValue(x => x.ShadowFrustumRadius).Skip(1).Subscribe(v =>
+            PersistViewerSetting(() => _generalSettings.CharacterViewerShadowFrustumRadius, x => _generalSettings.CharacterViewerShadowFrustumRadius = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.EnableAmbientOcclusion).Skip(1).Subscribe(v =>
             PersistViewerSetting(() => _generalSettings.CharacterViewerEnableAmbientOcclusion, x => _generalSettings.CharacterViewerEnableAmbientOcclusion = x, v)).DisposeWith(_disposables);
         this.WhenAnyValue(x => x.SsaoRadius).Skip(1).Subscribe(v =>

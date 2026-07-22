@@ -72,6 +72,36 @@ public sealed class SynthEbdSettingsAdapter : ICharacterViewerSettings
         set => _inner.CharacterViewerEnableShadows = value;
     }
 
+    public bool CharacterViewerExcludeHairShadowCaster
+    {
+        get => _inner.CharacterViewerExcludeHairShadowCaster;
+        set => _inner.CharacterViewerExcludeHairShadowCaster = value;
+    }
+
+    public bool CharacterViewerSoftenShadowEdges
+    {
+        get => _inner.CharacterViewerSoftenShadowEdges;
+        set => _inner.CharacterViewerSoftenShadowEdges = value;
+    }
+
+    public float CharacterViewerShadowPcfRadius
+    {
+        get => _inner.CharacterViewerShadowPcfRadius;
+        set => _inner.CharacterViewerShadowPcfRadius = value;
+    }
+
+    public bool CharacterViewerTightShadowFrustum
+    {
+        get => _inner.CharacterViewerTightShadowFrustum;
+        set => _inner.CharacterViewerTightShadowFrustum = value;
+    }
+
+    public float CharacterViewerShadowFrustumRadius
+    {
+        get => _inner.CharacterViewerShadowFrustumRadius;
+        set => _inner.CharacterViewerShadowFrustumRadius = value;
+    }
+
     public bool CharacterViewerEnableAmbientOcclusion
     {
         get => _inner.CharacterViewerEnableAmbientOcclusion;

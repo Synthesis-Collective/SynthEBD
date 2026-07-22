@@ -580,6 +580,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // place reduces the chance of one being missed for a future feature.
         vm.EnableToneMapping = request.EnableToneMapping;
         vm.EnableShadows = request.EnableShadows;
+        vm.ExcludeHairShadowCaster = request.ExcludeHairShadowCaster;
+        vm.SoftenShadowEdges = request.SoftenShadowEdges;
+        vm.ShadowPcfRadius = request.ShadowPcfRadius;
+        vm.TightShadowFrustum = request.TightShadowFrustum;
+        vm.ShadowFrustumRadius = request.ShadowFrustumRadius;
         vm.EnableAmbientOcclusion = request.EnableAmbientOcclusion;
         vm.SsaoRadius = request.SsaoRadius;
         vm.SsaoBias = request.SsaoBias;

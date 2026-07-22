@@ -51,6 +51,30 @@ public interface ICharacterViewerSettings : INotifyPropertyChanged
     /// <summary>Shadow-map toggle. Seeds <see cref="VM_CharacterViewer.EnableShadows"/>.</summary>
     bool CharacterViewerEnableShadows { get => true; set { } }
 
+    // Hair-shadow "brow ridge" mitigations (Strategies A/B/C). B (soften)
+    // ships ON — it de-warps the shadow edge and relieves the over-dark neck
+    // under the jaw; A and C default OFF and stay available for comparison.
+
+    /// <summary>Strategy A: exclude hair from the shadow caster set.
+    /// Seeds <see cref="VM_CharacterViewer.ExcludeHairShadowCaster"/>.</summary>
+    bool CharacterViewerExcludeHairShadowCaster { get => false; set { } }
+
+    /// <summary>Strategy B (default ON): soft constant-bias hair shadow.
+    /// Seeds <see cref="VM_CharacterViewer.SoftenShadowEdges"/>.</summary>
+    bool CharacterViewerSoftenShadowEdges { get => true; set { } }
+
+    /// <summary>Strategy B PCF kernel step (texels). Seeds
+    /// <see cref="VM_CharacterViewer.ShadowPcfRadius"/>.</summary>
+    float CharacterViewerShadowPcfRadius { get => 1.5f; set { } }
+
+    /// <summary>Strategy C: tighten the light frustum. Seeds
+    /// <see cref="VM_CharacterViewer.TightShadowFrustum"/>.</summary>
+    bool CharacterViewerTightShadowFrustum { get => false; set { } }
+
+    /// <summary>Strategy C light-frustum radius (world units). Seeds
+    /// <see cref="VM_CharacterViewer.ShadowFrustumRadius"/>.</summary>
+    float CharacterViewerShadowFrustumRadius { get => 100f; set { } }
+
     /// <summary>SSAO toggle. Seeds <see cref="VM_CharacterViewer.EnableAmbientOcclusion"/>.</summary>
     bool CharacterViewerEnableAmbientOcclusion { get => true; set { } }
 

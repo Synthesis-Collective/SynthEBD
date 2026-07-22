@@ -249,6 +249,52 @@
             </WrapPanel>
         </Border>
 
+        <!-- Row: hair-shadow "brow ridge" mitigations (Strategies A/B/C).
+             Bangs cast a hard shadow onto the forehead; the slope-scaled
+             shadow bias warps its edge across the curved brow into an
+             embossed ridge. Three independent, combinable approaches, all
+             default OFF (current behavior) - flip them to A/B compare and
+             pick a winner. Only visible effect when the Row 1 "Shadows"
+             toggle is on. Gated on the "Shader Troubleshooting" toggle. -->
+        <Border Background="#FF222222" Padding="6 3"
+                BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0"
+                Visibility="{Binding IsChecked, ElementName=ShaderTroubleshootingCheck, Converter={StaticResource BoolToVis}}">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Hair Shadows" Foreground="#FFAAAAAA" FontSize="11" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="0,0,10,0"
+                           ToolTip="Mitigations for the 'brow ridge' shadow bangs cast on the forehead. Requires the Shadows toggle to be on to see any effect. A/B/C are independent and can be combined."/>
+
+                <CheckBox Content="A: Hair doesn't cast" FontSize="11" Foreground="#FFAAAAAA"
+                          VerticalAlignment="Center"
+                          IsChecked="{Binding ExcludeHairShadowCaster}"
+                          ToolTip="Strategy A: exclude hair from the shadow-map caster pass (like eyes already are), so bangs cast no shadow on the face at all. Hair/face contact darkening then comes from SSAO instead. Cleanest fix; the only loss is hair casting onto the neck/shoulders (barely visible in portrait framing)."/>
+
+                <CheckBox Content="B: Soften edges" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding SoftenShadowEdges}"
+                          ToolTip="Strategy B: keep hair casting, but drop the slope-scaled bias (whose NdotL swing warps the shadow edge into a ridge) for a small constant bias and a wider PCF kernel, so the strand-cutout shadow blurs into a soft, ridge-free contact shadow. Softness set by the PCF slider."/>
+                <TextBlock Text="PCF:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="6,0,4,0"/>
+                <xctk:DoubleUpDown Width="55" Minimum="0.5" Maximum="6" Increment="0.25"
+                                   Value="{Binding ShadowPcfRadius}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0.00"
+                                   ToolTip="Strategy B kernel step in shadow-map texels (5x5 taps). Higher = softer / broader shadow. Default 1.5. Only used when 'Soften edges' is on."/>
+
+                <CheckBox Content="C: Tight frustum" FontSize="11" Foreground="#FFAAAAAA"
+                          Margin="15,0,0,0" VerticalAlignment="Center"
+                          IsChecked="{Binding TightShadowFrustum}"
+                          ToolTip="Strategy C: keep hair casting, but shrink the light's orthographic frustum from radius 300 to the value at right, so the same NDC bias resolves to far fewer world units and the shadow hugs the caster tightly (less warp). Too small clips tall geometry out of the shadow map - back off if shadows vanish."/>
+                <TextBlock Text="Radius:" Foreground="#FFAAAAAA" FontSize="11"
+                           VerticalAlignment="Center" Margin="6,0,4,0"/>
+                <xctk:DoubleUpDown Width="60" Minimum="30" Maximum="300" Increment="10"
+                                   Value="{Binding ShadowFrustumRadius}" VerticalAlignment="Center"
+                                   Foreground="White"
+                                   FormatString="0"
+                                   ToolTip="Strategy C light-frustum scene radius in world units. Lower = tighter depth range = less bias warp, but higher risk of clipping shoulders/hair out of the shadow map. Default 100 (vs the legacy 300). Only used when 'Tight frustum' is on."/>
+            </WrapPanel>
+        </Border>
+
         <!-- Row 3: skin-tint debug (operator selector / Apply-To-Face / vertex-color override).
              Gated on the Row 1 "Shader Troubleshooting" toggle - this row is debug-only. -->
         <Border Background="#FF222222" Padding="6 3"

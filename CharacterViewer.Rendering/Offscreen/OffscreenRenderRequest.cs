@@ -270,6 +270,25 @@ public sealed class OffscreenRenderRequest
     /// </summary>
     public bool EnableShadows { get; init; } = false;
 
+    /// <summary>Strategy A: exclude hair from the shadow caster set so
+    /// bangs don't cast a hard shadow onto the forehead. Default off.</summary>
+    public bool ExcludeHairShadowCaster { get; init; } = false;
+
+    /// <summary>Strategy B (default ON): soften the cast shadow with a
+    /// constant bias + wide PCF kernel, removing the "brow ridge" and the
+    /// over-dark neck under the jaw. Only relevant when EnableShadows.</summary>
+    public bool SoftenShadowEdges { get; init; } = true;
+
+    /// <summary>Strategy B PCF kernel step in shadow-map texels.</summary>
+    public float ShadowPcfRadius { get; init; } = 1.5f;
+
+    /// <summary>Strategy C: tighten the light's orthographic frustum so the
+    /// shadow bias resolves to fewer world units. Default off.</summary>
+    public bool TightShadowFrustum { get; init; } = false;
+
+    /// <summary>Strategy C light-frustum scene radius (world units).</summary>
+    public float ShadowFrustumRadius { get; init; } = 100f;
+
     /// <summary>
     /// Screen-space ambient occlusion toggle (2.5.11+). When true, the
     /// renderer runs a depth pre-pass + SSAO post-process and samples

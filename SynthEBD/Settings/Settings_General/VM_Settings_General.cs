@@ -398,6 +398,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public bool CharacterViewerRenderMissingTextureAsWireframe { get; set; } = true;
     public bool CharacterViewerEnableToneMapping { get; set; } = true;
     public bool CharacterViewerEnableShadows { get; set; } = true;
+    public bool CharacterViewerExcludeHairShadowCaster { get; set; } = false;
+    public bool CharacterViewerSoftenShadowEdges { get; set; } = true;
+    public float CharacterViewerShadowPcfRadius { get; set; } = 1.5f;
+    public bool CharacterViewerTightShadowFrustum { get; set; } = false;
+    public float CharacterViewerShadowFrustumRadius { get; set; } = 100f;
     public bool CharacterViewerEnableAmbientOcclusion { get; set; } = true;
     public float CharacterViewerSsaoRadius { get; set; } = 4.0f;
     public float CharacterViewerSsaoBias { get; set; } = 0.05f;
@@ -500,6 +505,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         CharacterViewerRenderMissingTextureAsWireframe = model.CharacterViewerRenderMissingTextureAsWireframe;
         CharacterViewerEnableToneMapping = model.CharacterViewerEnableToneMapping;
         CharacterViewerEnableShadows = model.CharacterViewerEnableShadows;
+        CharacterViewerExcludeHairShadowCaster = model.CharacterViewerExcludeHairShadowCaster;
+        CharacterViewerSoftenShadowEdges = model.CharacterViewerSoftenShadowEdges;
+        CharacterViewerShadowPcfRadius = model.CharacterViewerShadowPcfRadius;
+        CharacterViewerTightShadowFrustum = model.CharacterViewerTightShadowFrustum;
+        CharacterViewerShadowFrustumRadius = model.CharacterViewerShadowFrustumRadius;
         CharacterViewerEnableAmbientOcclusion = model.CharacterViewerEnableAmbientOcclusion;
         CharacterViewerSsaoRadius = model.CharacterViewerSsaoRadius;
         CharacterViewerSsaoBias = model.CharacterViewerSsaoBias;
@@ -593,6 +603,11 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         model.CharacterViewerRenderMissingTextureAsWireframe = CharacterViewerRenderMissingTextureAsWireframe;
         model.CharacterViewerEnableToneMapping = CharacterViewerEnableToneMapping;
         model.CharacterViewerEnableShadows = CharacterViewerEnableShadows;
+        model.CharacterViewerExcludeHairShadowCaster = CharacterViewerExcludeHairShadowCaster;
+        model.CharacterViewerSoftenShadowEdges = CharacterViewerSoftenShadowEdges;
+        model.CharacterViewerShadowPcfRadius = CharacterViewerShadowPcfRadius;
+        model.CharacterViewerTightShadowFrustum = CharacterViewerTightShadowFrustum;
+        model.CharacterViewerShadowFrustumRadius = CharacterViewerShadowFrustumRadius;
         model.CharacterViewerEnableAmbientOcclusion = CharacterViewerEnableAmbientOcclusion;
         model.CharacterViewerSsaoRadius = CharacterViewerSsaoRadius;
         model.CharacterViewerSsaoBias = CharacterViewerSsaoBias;

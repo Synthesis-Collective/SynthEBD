@@ -148,6 +148,13 @@ uniform bool u_enableToneMapping;
 uniform bool u_enableShadows;
 uniform mat4 u_lightViewProj;
 uniform sampler2DShadow u_shadowMap;
+// Hair-shadow troubleshooting Strategy B (soften + de-warp). When true,
+// sampleShadowPCF drops the slope-scaled bias (whose NdotL variation warps
+// the cast-shadow boundary into a "brow ridge" across the curved glabella)
+// in favor of a small constant bias, and widens the PCF kernel by
+// u_shadowPcfRadius so the strand-cutout pattern reads as a soft shadow.
+uniform bool u_softenShadowEdges;
+uniform float u_shadowPcfRadius;
 uniform bool u_enableAO;
 uniform sampler2D u_ssaoMap;
 uniform vec2 u_screenSize;
@@ -343,11 +350,31 @@ float sampleShadowPCF(vec3 worldPos, vec3 normal_view, vec3 lightDir_view)
     // about right for face geometry (sub-unit features stay sharp,
     // grazing-angle acne stays at bay).
     float NdotL = max(dot(normal_view, lightDir_view), 0.0);
+    vec2 texelSize = 1.0 / vec2(textureSize(u_shadowMap, 0));
+
+    if (u_softenShadowEdges) {
+        // Strategy B: the slope-scaled bias above swings from ~0.6 to
+        // ~3.6 world units across the curved brow, which slides the
+        // bangs' cast-shadow edge in and out along NdotL contours and
+        // reads as an embossed "brow ridge". Use a small constant bias
+        // instead (front-face culling in the depth pass already guards
+        // acne), and widen the kernel so the strand cutout blurs into a
+        // soft shadow. 5x5 taps stepped by u_shadowPcfRadius texels.
+        uv.z -= 0.0008;
+        float sum = 0.0;
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+                vec2 off = vec2(x, y) * texelSize * u_shadowPcfRadius;
+                sum += texture(u_shadowMap, vec3(uv.xy + off, uv.z));
+            }
+        }
+        return sum / 25.0;
+    }
+
     float bias = max(0.003 * (1.0 - NdotL), 0.0005);
     uv.z -= bias;
 
     // 3x3 PCF kernel on top of the hardware bilinear PCF.
-    vec2 texelSize = 1.0 / vec2(textureSize(u_shadowMap, 0));
     float sum = 0.0;
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {

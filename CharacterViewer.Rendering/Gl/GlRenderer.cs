@@ -136,6 +136,42 @@ public class GlRenderer : IDisposable
     /// Hosts mirror their settings toggle here before each Render call.</summary>
     public bool EnableShadows { get; set; } = false;
 
+    // --- Hair-shadow troubleshooting toggles (A/B/C) ---
+    // Three independent mitigations for the "brow ridge" artifact bangs cast
+    // onto the forehead. Diagnostic knobs surfaced in the Shader
+    // Troubleshooting UI so the winning approach can be picked by eye; all
+    // default OFF (current behavior). Read each frame.
+
+    /// <summary>Strategy A: when true, hair (IsHairTintShader) shapes are
+    /// skipped as shadow casters in <see cref="RenderShadowDepthPass"/>, the
+    /// same way eyes already are, so bangs no longer cast a hard shadow onto
+    /// the forehead. Hair/face contact darkening then falls to SSAO.</summary>
+    public bool ExcludeHairShadowCaster { get; set; } = false;
+
+    /// <summary>Strategy B (default ON): when true, basic.frag's PCF lookup
+    /// drops the slope-scaled bias (which warps the cast-shadow edge into a
+    /// ridge across the curved brow, and over-darkens the neck under the
+    /// jaw) for a small constant bias and a wider kernel, softening the
+    /// shadow. Paired with <see cref="ShadowPcfRadius"/>.</summary>
+    public bool SoftenShadowEdges { get; set; } = true;
+
+    /// <summary>PCF kernel step (in shadow-map texels) used when
+    /// <see cref="SoftenShadowEdges"/> is on. Larger = softer / broader.</summary>
+    public float ShadowPcfRadius { get; set; } = 1.5f;
+
+    /// <summary>Strategy C: when true, <see cref="ComputeLightViewProj"/>
+    /// uses <see cref="ShadowFrustumRadius"/> instead of the default 300,
+    /// tightening the light's orthographic depth range so the same NDC bias
+    /// resolves to fewer world units and the shadow hugs the caster more
+    /// tightly (less peter-panning warp). Risk: too small clips tall
+    /// geometry out of the shadow map.</summary>
+    public bool TightShadowFrustum { get; set; } = false;
+
+    /// <summary>Light-frustum scene radius (world units, pre-ModelScale)
+    /// used when <see cref="TightShadowFrustum"/> is on. Default 300 is the
+    /// legacy value; ~100 clearly tightens a head-and-shoulders portrait.</summary>
+    public float ShadowFrustumRadius { get; set; } = 100f;
+
     /// <summary>When true, <see cref="Render"/> runs a depth pre-pass +
     /// SSAO post-process before the main passes, then samples the AO
     /// texture per-fragment in basic.frag and multiplies into the
@@ -858,6 +894,8 @@ public class GlRenderer : IDisposable
         _shader.Use();
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
         _shader.SetBool("u_enableShadows", EnableShadows);
+        _shader.SetBool("u_softenShadowEdges", SoftenShadowEdges);
+        _shader.SetFloat("u_shadowPcfRadius", ShadowPcfRadius);
         _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
         _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
         _shader.SetBool("u_specularAchromatic", SpecularAchromatic);
@@ -1463,7 +1501,9 @@ public class GlRenderer : IDisposable
         // frustum. Center on a Skyrim-NPC chest height (Y=85 pre-scale)
         // scaled by ModelScale.
         var sceneCenter = new Vector3(0f, 85f * ModelScale, 0f);
-        float radius = 300f * ModelScale;
+        // Strategy C: tighten the frustum to shrink the world-units-per-NDC
+        // depth range so the bias warps the cast-shadow edge less.
+        float radius = (TightShadowFrustum ? ShadowFrustumRadius : 300f) * ModelScale;
         var lightEye = sceneCenter + lightDir * radius * 1.5f;
 
         // Up vector: world up unless the light is shining straight down.
@@ -1514,6 +1554,9 @@ public class GlRenderer : IDisposable
             // Eyes are inside the head — their cast shadow would always be
             // self-occluding noise. Skip.
             if (mesh.IsEye) continue;
+            // Strategy A: optionally drop hair as a caster so bangs don't
+            // throw a hard shadow onto the forehead.
+            if (ExcludeHairShadowCaster && mesh.IsHairTintShader) continue;
 
             _shadowShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
             _shadowShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);

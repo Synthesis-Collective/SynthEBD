@@ -342,6 +342,16 @@ public class Settings_General
     public bool CharacterViewerEnableToneMapping { get; set; } = true;
     /// <summary>Shadow-map toggle (default on).</summary>
     public bool CharacterViewerEnableShadows { get; set; } = true;
+    /// <summary>Hair-shadow Strategy A: exclude hair from casting (default off).</summary>
+    public bool CharacterViewerExcludeHairShadowCaster { get; set; } = false;
+    /// <summary>Hair-shadow Strategy B: soften cast-shadow edges (default on).</summary>
+    public bool CharacterViewerSoftenShadowEdges { get; set; } = true;
+    /// <summary>Strategy B PCF kernel step in shadow-map texels.</summary>
+    public float CharacterViewerShadowPcfRadius { get; set; } = 1.5f;
+    /// <summary>Hair-shadow Strategy C: tighten the light frustum (default off).</summary>
+    public bool CharacterViewerTightShadowFrustum { get; set; } = false;
+    /// <summary>Strategy C light-frustum radius (world units).</summary>
+    public float CharacterViewerShadowFrustumRadius { get; set; } = 100f;
     /// <summary>Screen-space ambient occlusion (SSAO) toggle (default on).</summary>
     public bool CharacterViewerEnableAmbientOcclusion { get; set; } = true;
     /// <summary>SSAO sample radius in world units.</summary>
