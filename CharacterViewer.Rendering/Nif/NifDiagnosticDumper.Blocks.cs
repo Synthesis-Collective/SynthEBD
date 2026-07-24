@@ -561,6 +561,22 @@ internal static partial class NifDiagnosticDumper
             if (tr != null && !tr.IsEmpty()) sb.Append("  target:          [").Append(tr.index).AppendLine("]");
         }
         catch { }
+        if (s is BSDismemberSkinInstance dismember)
+        {
+            try
+            {
+                using var partitions = dismember.partitions;
+                using var items = partitions?.items();
+                if (items != null)
+                {
+                    for (int pi = 0; pi < items.Count; pi++)
+                        sb.Append("  partition[").Append(pi).Append("]:    partID=")
+                          .Append(items[pi].partID)
+                          .Append("  flags=0x").AppendLine(((ushort)items[pi].flags).ToString("X4"));
+                }
+            }
+            catch (Exception ex) { sb.AppendLine($"  <partition read failed: {ex.Message}>"); }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════

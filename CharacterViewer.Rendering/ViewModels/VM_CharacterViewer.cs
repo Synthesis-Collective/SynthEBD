@@ -5149,13 +5149,15 @@ public class VM_CharacterViewer : ViewerVm
         _highlightSavedEmissive = new();
 
     /// <summary>
-    /// Live-highlights the base-head shapes whose names are in
+    /// Live-highlights the base-scene head and hair shapes whose names are in
     /// <paramref name="shapeNames"/> (case-insensitive) with a bright emissive
     /// glow, restoring the original emissive as the highlight moves or clears
-    /// (pass null/empty to clear). Non-head meshes and attire overrides are never
-    /// touched. Used by the host's "Set Antler Head Parts" selector to highlight
-    /// the head part under the cursor. Takes effect on the next frame (the
-    /// viewport draws continuously); no reload needed.
+    /// (pass null/empty to clear). Covers <c>BodyPart == "Head"</c> (FaceGen
+    /// head parts — the "Set Antler Head Parts" selector) and
+    /// <c>BodyPart == "Hair"</c> (the worn-armor hair-slot ARMA channel — the
+    /// host's skin-carried-wig selector). Other meshes and attire overrides are
+    /// never touched. Takes effect on the next frame (the viewport draws
+    /// continuously); no reload needed.
     /// </summary>
     public void SetHighlightedShapeNames(IEnumerable<string>? shapeNames)
     {
@@ -5175,7 +5177,7 @@ public class VM_CharacterViewer : ViewerVm
         foreach (var kv in _highlightSavedEmissive.ToList())
         {
             var mesh = kv.Key;
-            if (mesh.BodyPart == "Head" && want.Contains((mesh.ShapeName ?? string.Empty).Trim())) continue;
+            if (mesh.BodyPart is "Head" or "Hair" && want.Contains((mesh.ShapeName ?? string.Empty).Trim())) continue;
             mesh.HasEmissive = kv.Value.HasEmissive;
             mesh.EmissiveColor = kv.Value.Color;
             mesh.EmissiveMultiple = kv.Value.Multiple;
@@ -5186,7 +5188,7 @@ public class VM_CharacterViewer : ViewerVm
 
         foreach (var mesh in Renderer.Meshes)
         {
-            if (mesh.BodyPart != "Head") continue;
+            if (mesh.BodyPart is not ("Head" or "Hair")) continue;
             if (!want.Contains((mesh.ShapeName ?? string.Empty).Trim())) continue;
             if (_highlightSavedEmissive.ContainsKey(mesh)) continue; // already highlighted
             _highlightSavedEmissive[mesh] = (mesh.HasEmissive, mesh.EmissiveColor, mesh.EmissiveMultiple);
