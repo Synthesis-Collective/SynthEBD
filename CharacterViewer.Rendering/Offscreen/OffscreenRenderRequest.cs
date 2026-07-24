@@ -201,6 +201,22 @@ public sealed class OffscreenRenderRequest
 
     /// <summary>
     /// Optional output collection. If non-null and <see cref="MeshOverrides"/>
+    /// were supplied, the renderer appends every texture game-path that FIRST
+    /// went missing while the mesh-override (attire) shapes were being built —
+    /// i.e. the set-difference of <see cref="VM_CharacterViewer.MissingTexturePaths"/>
+    /// taken across <see cref="VM_CharacterViewer.ApplyMeshOverrides"/>. This
+    /// splits "the outfit/headgear references a texture that doesn't resolve"
+    /// (an outfit-asset problem) from the base NPC's own missing textures, which
+    /// continue to flow to <see cref="MissingTexturePathsOut"/> (copied out
+    /// before overrides run). A missing texture already referenced by the base
+    /// mesh stays attributed to the base list, not here.
+    /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave null to
+    /// skip tracking. Independent of the other missing-* collections.</para>
+    /// </summary>
+    public List<string>? MissingOutfitTexturePathsOut { get; init; }
+
+    /// <summary>
+    /// Optional output collection. If non-null and <see cref="MeshOverrides"/>
     /// were supplied, the renderer appends the human-readable warning strings
     /// from <see cref="VM_CharacterViewer.MeshOverrideWarnings"/> — auxiliary
     /// override meshes that couldn't render (mesh not found / weighted to a bone

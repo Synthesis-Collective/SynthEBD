@@ -663,6 +663,14 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // hair under headgear, exactly as in the live preview.
         if (request.MeshOverrides != null)
         {
+            // Base NPC textures were copied to MissingTexturePathsOut above, before
+            // any override ran. Snapshot the missing set now so anything the attire
+            // build newly misses can be attributed to the outfit/headgear rather
+            // than the base NPC (see MissingOutfitTexturePathsOut).
+            var baseMissingTextures = request.MissingOutfitTexturePathsOut != null
+                ? new HashSet<string>(vm.MissingTexturePaths, StringComparer.OrdinalIgnoreCase)
+                : null;
+
             vm.ApplyMeshOverrides(request.MeshOverrides, request.Cancellation);
             if (request.MeshOverrideWarningsOut != null && vm.MeshOverrideWarnings.Count > 0)
             {
@@ -671,6 +679,14 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             if (request.MeshOverrideWarningDetailsOut != null && vm.MeshOverrideWarningDetails.Count > 0)
             {
                 request.MeshOverrideWarningDetailsOut.AddRange(vm.MeshOverrideWarningDetails);
+            }
+            if (baseMissingTextures != null)
+            {
+                foreach (var texPath in vm.MissingTexturePaths)
+                {
+                    if (!baseMissingTextures.Contains(texPath))
+                        request.MissingOutfitTexturePathsOut!.Add(texPath);
+                }
             }
         }
         if (request.Morphs != null)
