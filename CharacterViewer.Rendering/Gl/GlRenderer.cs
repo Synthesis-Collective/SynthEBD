@@ -2840,6 +2840,11 @@ public class GlRenderer : IDisposable
         _debugVbo = 0;
         _heatmapVao = 0;
         _heatmapVbo = 0;
+        // Created once in Initialize() and deleted in Dispose(). It was missing here, so after a
+        // context death the field kept a stale texture name: a later Dispose would then issue
+        // GL.DeleteTexture on it in the NEW context, destroying whatever texture had been handed
+        // that name in the meantime. Every handle Dispose deletes must be forgotten here.
+        _defaultBlackCubemap = -1;
         _initialized = false;
         _hasCachedLightDirs = false;
     }
