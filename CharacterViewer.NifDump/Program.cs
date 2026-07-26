@@ -176,6 +176,13 @@ static void DumpPartitions(string path)
                 for (int pi = 0; pi < items.Count; pi++)
                     descs.Add($"{(int)items[pi].partID}(0x{(ushort)items[pi].flags:X4})");
                 parts = string.Join(", ", descs);
+
+                // Triangle→partition histogram: which dismember entry does each
+                // triangle actually belong to (mismatches break per-partition hiding).
+                var histo = new SortedDictionary<int, int>();
+                for (int ti = 0; ti < triParts.Count; ti++)
+                    histo[triParts[ti]] = histo.TryGetValue(triParts[ti], out var c) ? c + 1 : 1;
+                parts += "  tris={" + string.Join(", ", histo.Select(kv => $"p{kv.Key}:{kv.Value}")) + "}";
             }
         }
         catch (Exception ex) { parts = $"<error: {ex.Message}>"; }
