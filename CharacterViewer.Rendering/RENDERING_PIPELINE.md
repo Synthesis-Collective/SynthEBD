@@ -368,6 +368,8 @@ if has_face_tint_map:             // primary head shape with slot 6
 
 Only on shapes with `bslspShaderType == BSLSP_HAIRTINT`. The diffuse texture is monochrome — only the red channel is meaningful — and gets multiplied by `tint_color × greyscaleToPaletteScale`. The host populates `tint_color` from the NIF's baked `BSLSP.hairTintColor`; the NPC record's `HairColor` FormLink is used only as a fallback when the shape has no baked tint. (Engine-verified empirically 2026-07: editing the NIF's tint recolors the hair in-game with no plugin edit, so the baked value wins at runtime.)
 
+**Exception — worn hair-slot items.** The baked-wins rule describes the ENGINE, and the engine never tints worn armor. RaceMenu's skee64 does: `bEnableTintHairSlot`, "automatically tinting worn items in the hair slot where they have the Hair Tint Shader". Wig meshes are routinely authored with a near-black placeholder tint on that assumption — High Poly NPC Overhaul's KS Hairdos wigs bake `(0.133, 0.133, 0.133)`, which is why that mod is famously black-haired until RaceMenu is installed. So for shapes that come from a worn hair-slot item (biped 31 — `HairMeshPath`, or a `MeshOverrideKind.Hair` override) a host-supplied `ResolvedNpcMeshPaths.WornHairSlotTintRgb` wins over the baked value. Null (the host's opt-out, correct for a load order without RaceMenu) restores baked-wins. FaceGen/head-part hair is unaffected — it isn't a worn item, and skee64 never touches it.
+
 **Alternative**: simple RGB multiply (`baseColor.rgb *= tint_color`). Used when SLSF1_Greyscale_To_PaletteColor is **not** set but the shape is still a hair-tint shader. The choice happens host-side in [VM_CharacterViewer.cs:2902-2929](ViewModels/VM_CharacterViewer.cs#L2902).
 
 #### Skin tint (body)
@@ -930,7 +932,7 @@ What we read from the shape's BSLSP, where it goes, and what we ignore.
 | `refractionStrength` | ✗ | (unused) | We don't do refraction |
 | `skinTintColor` | ✗ | (unused) | NIF stores `(1,1,1)` — the engine doesn't use this for body tinting at runtime; it pulls QNAM from the NPC record. We follow the engine. |
 | `skinTintAlpha` | ✗ | (unused) | Same |
-| `hairTintColor` | ✓ | `tint_color` uniform (when ShaderType==HAIRTINT) | Baked value wins (engine-verified); `INpcGetter.HairColor` is the fallback when no baked tint |
+| `hairTintColor` | ✓ | `tint_color` uniform (when ShaderType==HAIRTINT) | Baked value wins (engine-verified); `INpcGetter.HairColor` is the fallback when no baked tint. Worn hair-slot items instead take `WornHairSlotTintRgb` when supplied (RaceMenu `bEnableTintHairSlot` emulation) |
 | `parallaxInnerLayerThickness` | ✗ | (unused) | Parallax not supported |
 | `parallaxRefractionScale` | ✗ | (unused) | |
 | `parallaxInnerLayerTextureScale` | ✗ | (unused) | |

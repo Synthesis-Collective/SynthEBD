@@ -93,8 +93,22 @@ public class VM_CharacterViewer : ViewerVm
     /// in 0..1 linear floats. Null if the NPC has no HairColor set or it fails to resolve.
     /// Fallback tint only: the engine renders the NIF's baked BSLSP hairTintColor when
     /// one is present (verified empirically — editing the NIF alone changes the in-game
-    /// color), so this applies just to hair-tint shapes with no baked tint.</summary>
+    /// color), so this applies just to hair-tint shapes with no baked tint. WORN
+    /// hair-slot items are the exception and take
+    /// <see cref="ResolvedNpcMeshPaths.WornHairSlotTintRgb"/> over their baked value —
+    /// the engine doesn't tint worn armor at all, RaceMenu does.</summary>
     private (float R, float G, float B)? _npcHairColorFromRecord;
+
+    /// <summary>The hair color the CK baked into THIS NPC's FaceGen, taken from
+    /// the first non-neutral HairTint shape in the head group (the hair if the
+    /// FaceGen has any, else the brows or beard — the CK writes the same color
+    /// to all of them). Preferred over
+    /// <see cref="ResolvedNpcMeshPaths.WornHairSlotTintRgb"/> when tinting a worn
+    /// wig, so the wig matches the beard and brows by construction even where the
+    /// record and the FaceGen disagree (a color record overridden later in the
+    /// load order than the appearance mod's FaceGen export). Recomputed per
+    /// scene; null when the FaceGen carries no informative HairTint shape.</summary>
+    private (float R, float G, float B)? _faceGenHairTint;
 
     /// <summary>Cached texture info per mesh for ReapplyAllTextures.</summary>
     private readonly Dictionary<GlMesh, TextureApplyInfo> _textureApplyInfoByMesh = new();
@@ -3938,6 +3952,7 @@ public class VM_CharacterViewer : ViewerVm
 
             ClearScene();
             _cachedMeshPaths = meshPaths;
+            _faceGenHairTint = ComputeFaceGenHairTint(queue);
 
             _sceneInstall = new SceneInstallState(
                 MeshPaths: meshPaths,
@@ -4094,6 +4109,23 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>Uploads one shape's GL mesh + textures and registers it in the
     /// per-body-part dictionaries. Mirrors the inner loop body the single-frame
     /// install used; called once per shape from the sliced install loop.</summary>
+    /// <summary>Reads <see cref="_faceGenHairTint"/> off the built head shapes.
+    /// Head-group only: a worn wig's own shapes carry the placeholder tint this
+    /// exists to replace, and body/hands/feet are never HairTint. Neutral white
+    /// is skipped as uninformative (it's a no-op multiply, not a hair color).</summary>
+    private static (float R, float G, float B)? ComputeFaceGenHairTint(IEnumerable<PendingShape> shapes)
+    {
+        foreach (var shape in shapes)
+        {
+            if (shape.BodyPart != "Head" || !shape.Built.IsHairTintShader) continue;
+            var tint = shape.Built.HairTintColor;
+            if (tint == null) continue;
+            if (tint.Value.R >= 0.98f && tint.Value.G >= 0.98f && tint.Value.B >= 0.98f) continue;
+            return tint;
+        }
+        return null;
+    }
+
     private void InstallOneShape(SceneInstallState install, PendingShape shape)
     {
         // Cheap pre-shape bail: avoids creating a GL mesh we'd only tear down.
@@ -4158,7 +4190,10 @@ public class VM_CharacterViewer : ViewerVm
 
         ApplyTexturesToGlMesh(glMesh, shape.Built, effectiveTextures, install.MeshPaths,
             ref isHairTint, ref hairR, ref hairG, ref hairB,
-            ref isFaceTint, ref faceTintPath);
+            ref isFaceTint, ref faceTintPath,
+            // "Hair" here is the worn hair-slot ARMA (slot 31) loaded from
+            // HairMeshPath — FaceGen-baked hair is tagged "Head".
+            isWornHairSlotItem: shape.BodyPart == "Hair");
 
         _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
             new Dictionary<int, string>(effectiveTextures),
@@ -4508,11 +4543,17 @@ public class VM_CharacterViewer : ViewerVm
     //  TEXTURE APPLICATION
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <param name="isWornHairSlotItem">True when this shape comes from a WORN
+    /// hair-slot item (biped 31) rather than the FaceGen/head-part scene. Such
+    /// shapes are tinted by RaceMenu in game, not by the engine, so a supplied
+    /// <see cref="ResolvedNpcMeshPaths.WornHairSlotTintRgb"/> overrides their
+    /// baked placeholder tint. See that property for the full rationale.</param>
     private void ApplyTexturesToGlMesh(GlMesh glMesh, NifMeshBuilder.BuiltMesh built,
         Dictionary<int, string> effectiveTextures, ResolvedNpcMeshPaths meshPaths,
         ref bool isHairTint, ref float hairR, ref float hairG, ref float hairB,
         ref bool isFaceTint, ref string? faceTintPath,
-        bool allowEyeNameMatching = true)
+        bool allowEyeNameMatching = true,
+        bool isWornHairSlotItem = false)
     {
         if (TextureManager == null) return;
 
@@ -4540,16 +4581,42 @@ public class VM_CharacterViewer : ViewerVm
         // rebase is needed. Entered whenever a hair-tint shape has EITHER a
         // baked tint or a resolved HCLR, so a shape with no baked color still
         // gets tinted.
+        //
+        // ONE exception: a WORN hair-slot item. The engine never tints worn
+        // armor, so its baked value is not what the player sees — RaceMenu's
+        // skee64 (bEnableTintHairSlot) recolors it from the actor's hair color,
+        // which is why wig meshes ship a near-black placeholder tint and why
+        // mods like High Poly NPC Overhaul look black-haired without RaceMenu.
+        // When the host supplies WornHairSlotTintRgb it wins over the baked
+        // placeholder for those shapes only (see that property). Within that,
+        // this FaceGen's OWN baked hair color wins over the host's record-derived
+        // value, so the wig matches the beard and brows even when a color record
+        // was overridden after the appearance mod exported its FaceGen.
+        var wornHairSlotTint = isWornHairSlotItem && meshPaths.WornHairSlotTintRgb.HasValue
+            ? (_faceGenHairTint ?? meshPaths.WornHairSlotTintRgb)
+            : null;
         if (built.IsHairTintShader
-            && (built.HairTintColor.HasValue || _npcHairColorFromRecord.HasValue)
+            && (wornHairSlotTint.HasValue || built.HairTintColor.HasValue ||
+                _npcHairColorFromRecord.HasValue)
             && effectiveTextures.TryGetValue(0, out string? hairDiffuse))
         {
-            var (tR, tG, tB) = built.HairTintColor ?? _npcHairColorFromRecord!.Value;
+            var (tR, tG, tB) = wornHairSlotTint
+                               ?? built.HairTintColor
+                               ?? _npcHairColorFromRecord!.Value;
             isHairTint = true; hairR = tR; hairG = tG; hairB = tB;
             glMesh.DiffuseTexture = TextureManager.LoadTexture(hairDiffuse);
             glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
 
-            string tintSrc = built.HairTintColor.HasValue
+            string tintSrc = wornHairSlotTint.HasValue
+                ? "worn hair-slot tint from " +
+                  (_faceGenHairTint.HasValue ? "the FaceGen's baked hair color" : "the NPC record HCLR") +
+                  " (RaceMenu bEnableTintHairSlot emulation" +
+                  (built.HairTintColor.HasValue
+                      ? ", baked (" + built.HairTintColor.Value.R.ToString("F3")
+                        + "," + built.HairTintColor.Value.G.ToString("F3")
+                        + "," + built.HairTintColor.Value.B.ToString("F3") + ") overridden"
+                      : "") + ")"
+                : built.HairTintColor.HasValue
                 ? "baked NIF hairTintColor" + (_npcHairColorFromRecord.HasValue
                     ? " (record HCLR=(" + _npcHairColorFromRecord.Value.R.ToString("F3")
                         + "," + _npcHairColorFromRecord.Value.G.ToString("F3")
@@ -5596,7 +5663,11 @@ public class VM_CharacterViewer : ViewerVm
             ApplyTexturesToGlMesh(glMesh, b, effectiveTextures, _cachedMeshPaths!,
                 ref isHairTint, ref hairR, ref hairG, ref hairB,
                 ref isFaceTint, ref faceTintPath,
-                allowEyeNameMatching: false);
+                allowEyeNameMatching: false,
+                // An outfit-carried wig arrives through this channel instead of
+                // HairMeshPath; it is just as much a worn hair-slot item.
+                isWornHairSlotItem: ov.Kind == MeshOverrideKind.Hair ||
+                                    string.Equals(ov.Key, "Hair", StringComparison.OrdinalIgnoreCase));
 
             _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
                 new Dictionary<int, string>(effectiveTextures),

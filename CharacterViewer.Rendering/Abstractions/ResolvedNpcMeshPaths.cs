@@ -87,6 +87,31 @@ public sealed class ResolvedNpcMeshPaths
     /// FormLink set or the host can't resolve the HCLR record.</summary>
     public (float R, float G, float B)? HairColorRgb { get; init; }
 
+    /// <summary>
+    /// Tint to force onto WORN hair-slot (biped 31) shapes that use the HairTint
+    /// shader, overriding whatever the wig NIF bakes. This emulates RaceMenu's
+    /// skee64 <c>bEnableTintHairSlot</c> — "automatically tinting worn items in
+    /// the hair slot where they have the Hair Tint Shader" — which the vanilla
+    /// engine does NOT do. Wig meshes are routinely authored with a near-black
+    /// placeholder tint on that assumption (High Poly NPC Overhaul's KS Hairdos
+    /// wigs bake (0.133, 0.133, 0.133)), so without this a RaceMenu-equipped
+    /// load order renders black-haired here and correct in game.
+    ///
+    /// <para>Applies ONLY to worn hair-slot items. FaceGen/head-part hair keeps
+    /// the baked-tint-wins rule (see <see cref="HairColorRgb"/>) — that geometry
+    /// is not a worn item and skee64 never touches it.</para>
+    ///
+    /// <para>Null disables the emulation (the host's opt-out, and the correct
+    /// value for a load order without RaceMenu). Non-null enables it, but is
+    /// itself only a FALLBACK: the renderer prefers the hair color baked into
+    /// this NPC's own FaceGen (its hair/brows/beard), so a converted or previewed
+    /// wig matches the rest of the head even when the two disagree — a color
+    /// record overridden later in the load order than the appearance mod's
+    /// FaceGen export. Supply the record-derived value in FaceGen tint space
+    /// (the CK bakes 2x the HCLR color).</para>
+    /// </summary>
+    public (float R, float G, float B)? WornHairSlotTintRgb { get; init; }
+
     /// <summary>Shape names in the FaceGen NIF that are eyeball geometry,
     /// per the NPC's resolved HeadPart records: the EditorIDs of every
     /// effective head part of type Eyes plus its Extra Parts (FaceGen bakes
@@ -132,6 +157,7 @@ public sealed class ResolvedNpcMeshPaths
             NpcWeight = NpcWeight,
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
             EyeShapeNames = EyeShapeNames,
             HideHeadShapeNames = HideHeadShapeNames,
         };
@@ -160,6 +186,7 @@ public sealed class ResolvedNpcMeshPaths
             NpcWeight = NpcWeight,
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
             EyeShapeNames = eyeShapeNames,
             HideHeadShapeNames = HideHeadShapeNames,
         };
@@ -185,6 +212,7 @@ public sealed class ResolvedNpcMeshPaths
             NpcWeight = NpcWeight,
             NpcBaseHeight = NpcBaseHeight,
             HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
             EyeShapeNames = EyeShapeNames,
             HideHeadShapeNames = hideHeadShapeNames,
         };
