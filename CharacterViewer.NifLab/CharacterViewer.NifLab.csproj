@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <!-- Windows TFM because CharacterViewer.Rendering is a WPF assembly;
+             match the repo's other tools (see CharacterViewer.NifDump). -->
+        <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+        <CETCompat>false</CETCompat>
+        <UseWPF>true</UseWPF>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+    </ItemGroup>
+
+</Project>
