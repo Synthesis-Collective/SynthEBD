@@ -4993,8 +4993,11 @@ public class VM_CharacterViewer : ViewerVm
                 // culling (matches pre-2.5.6 behavior).
                 string disposition = RenderMissingTextureAsWireframe
                     ? "WIREFRAME-FALLBACK" : "CULLED";
-                System.Diagnostics.Trace.WriteLine(
-                    $"[CharacterViewer.ApplyMaterial] {disposition} shape='{glMesh.ShapeName}' " +
+                // Through LogVerbose, not Trace.WriteLine: this is the disposition of a shape whose
+                // diffuse could not be resolved, which is exactly what someone reading a RenderLogs
+                // capture is looking for. On Trace it reached a debugger and nothing else (AUD-8).
+                LogVerbose(
+                    $"CharacterViewer: {disposition} shape='{glMesh.ShapeName}' " +
                     $"bodyPart='{glMesh.BodyPart}' " +
                     $"alphaTest={built.HasAlphaTest} alphaBlend={built.HasAlphaBlend} " +
                     $"hairTint={built.IsHairTintShader} " +
