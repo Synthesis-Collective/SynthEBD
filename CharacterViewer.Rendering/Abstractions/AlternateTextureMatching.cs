@@ -28,6 +28,15 @@ namespace CharacterViewer.Rendering;
 /// <para>Hence: match by name first, and only entries whose name matches NO
 /// shape of the mesh fall back to index matching. An entry whose name binds
 /// elsewhere never index-hijacks a second shape.</para>
+///
+/// <para><b>Duplicate shape names.</b> A name match is one-to-many when a mesh
+/// has two shapes with the same name (BodySlide output can produce them), and
+/// applying the entry to both is wrong: the engine gives it to exactly one. So
+/// when the name is ambiguous AND the entry's 3D Index picks out one of the
+/// same-named shapes, the index breaks the tie
+/// (<see cref="BuildShapeOrdinalsByName"/>). If the index matches none of them
+/// — the block-re-sort desync above — every same-named shape still gets it,
+/// because over-applying beats an entry that binds to nothing.</para>
 /// </summary>
 public static class AlternateTextureMatching
 {
@@ -41,6 +50,46 @@ public static class AlternateTextureMatching
         return specs.Where(s => s.ShapeName.Length == 0 || !names.Contains(s.ShapeName)).ToList();
     }
 
+    /// <summary>
+    /// Ordinals per shape name, but ONLY for names borne by more than one shape — and null when
+    /// the mesh has no duplicates at all, which is the overwhelming majority. Compute once per mesh
+    /// and pass to every <see cref="MatchForShape"/> call; passing null keeps pure name matching.
+    ///
+    /// <para>Returning null rather than an empty map is deliberate: it makes "this mesh has no
+    /// ambiguity" a single reference check per shape instead of a dictionary probe, and it means the
+    /// disambiguation code below provably cannot alter the result for a normal mesh.</para>
+    ///
+    /// <para><paramref name="shapeNames"/> must be enumerated in shape-ordinal order — the same
+    /// order the ordinals passed to <see cref="MatchForShape"/> come from.</para>
+    /// </summary>
+    public static Dictionary<string, List<int>>? BuildShapeOrdinalsByName(IEnumerable<string> shapeNames)
+    {
+        Dictionary<string, List<int>>? byName = null;
+        int ordinal = 0;
+        foreach (var name in shapeNames)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                byName ??= new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+                if (!byName.TryGetValue(name, out var ordinals))
+                {
+                    byName[name] = ordinals = new List<int>(1);
+                }
+                ordinals.Add(ordinal);
+            }
+            ordinal++;
+        }
+
+        if (byName == null) return null;
+
+        // Drop the unambiguous names; if nothing is left, say so with null.
+        foreach (var name in byName.Keys.Where(k => byName[k].Count < 2).ToList())
+        {
+            byName.Remove(name);
+        }
+        return byName.Count > 0 ? byName : null;
+    }
+
     /// <summary>Resolves the effective per-shape texture-slot map for one shape:
     /// every entry naming the shape applies (in list order, later wins per slot);
     /// when none does, entries from <paramref name="danglingNameEntries"/> whose
@@ -49,19 +98,48 @@ public static class AlternateTextureMatching
     /// <paramref name="consumed"/> (so a caller can report never-applied entries)
     /// and index-fallback applications also to
     /// <paramref name="appliedByIndexFallback"/> (so a caller can log them).</summary>
+    /// <param name="shapeOrdinalsByName">
+    /// From <see cref="BuildShapeOrdinalsByName"/> — the duplicate-name index only. Null (or a mesh
+    /// with no duplicated names) leaves name matching exactly as it was.
+    /// </param>
+    /// <param name="skippedByNameAmbiguity">
+    /// Receives entries this shape declined because their 3D Index named a DIFFERENT shape of the
+    /// same name. Purely for logging; without it a shape silently losing a TXST it used to get looks
+    /// like a regression.
+    /// </param>
     public static Dictionary<int, string>? MatchForShape(
         IReadOnlyList<AlternateTextureSpec> specs,
         IReadOnlyList<AlternateTextureSpec>? danglingNameEntries,
         string shapeName, int shapeOrdinal,
         ISet<AlternateTextureSpec>? consumed = null,
-        ICollection<AlternateTextureSpec>? appliedByIndexFallback = null)
+        ICollection<AlternateTextureSpec>? appliedByIndexFallback = null,
+        IReadOnlyDictionary<string, List<int>>? shapeOrdinalsByName = null,
+        ICollection<AlternateTextureSpec>? skippedByNameAmbiguity = null)
     {
+        // Only non-null for a mesh that actually has same-named shapes, and only for those names.
+        List<int>? sameNamedOrdinals = null;
+        shapeOrdinalsByName?.TryGetValue(shapeName, out sameNamedOrdinals);
+
         Dictionary<int, string>? merged = null;
         foreach (var spec in specs)
         {
             if (spec.ShapeName.Length == 0
                 || !string.Equals(spec.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase))
                 continue;
+
+            // Ambiguous name: the engine binds this entry to ONE shape, by index. Only step aside
+            // when the index actually picks out one of the same-named shapes and it is not this one
+            // — if it matches none of them (block-re-sort desync) every one of them keeps the entry,
+            // because an entry bound to nothing is worse than an entry bound twice.
+            if (sameNamedOrdinals != null
+                && spec.ShapeIndex >= 0
+                && spec.ShapeIndex != shapeOrdinal
+                && sameNamedOrdinals.Contains(spec.ShapeIndex))
+            {
+                skippedByNameAmbiguity?.Add(spec);
+                continue;
+            }
+
             merged ??= new Dictionary<int, string>();
             foreach (var kv in spec.Textures) merged[kv.Key] = kv.Value;
             consumed?.Add(spec);

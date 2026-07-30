@@ -5427,11 +5427,24 @@ public class VM_CharacterViewer : ViewerVm
         // untextured here). Matching rules live in AlternateTextureMatching.
         List<AlternateTextureSpec>? altIndexFallbackPool = null;
         HashSet<AlternateTextureSpec>? altConsumed = null;
+        Dictionary<string, List<int>>? altShapeOrdinalsByName = null;
         if (ov.AlternateTextures is { Count: > 0 } altSpecsAll)
         {
             altConsumed = new HashSet<AlternateTextureSpec>();
             altIndexFallbackPool = AlternateTextureMatching.DanglingNameEntries(
                 altSpecsAll, built.Select(m => m.ShapeName));
+
+            // Null unless this mesh has same-named shapes, in which case the 3D Index breaks the
+            // tie so an entry lands on one shape as the engine would, not on every namesake.
+            altShapeOrdinalsByName =
+                AlternateTextureMatching.BuildShapeOrdinalsByName(built.Select(m => m.ShapeName));
+            if (altShapeOrdinalsByName != null)
+            {
+                LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' has duplicate shape " +
+                    "name(s) {" + string.Join(", ", altShapeOrdinalsByName.Select(kv =>
+                        "'" + kv.Key + "' at " + string.Join("/", kv.Value))) +
+                    "} — AlternateTextures entries naming them bind by 3D Index");
+            }
 
             // Manifest as received from the host (slot paths post-rebase, so an
             // absolute path here means the host redirected the TXST into a mod
@@ -5554,9 +5567,10 @@ public class VM_CharacterViewer : ViewerVm
             if (ov.AlternateTextures is { Count: > 0 } altSpecs)
             {
                 var viaIndex = new List<AlternateTextureSpec>();
+                var skippedAmbiguous = new List<AlternateTextureSpec>();
                 shapeTxst = AlternateTextureMatching.MatchForShape(
                     altSpecs, altIndexFallbackPool, b.ShapeName, b.ShapeOrdinal,
-                    altConsumed, viaIndex);
+                    altConsumed, viaIndex, altShapeOrdinalsByName, skippedAmbiguous);
                 foreach (var spec in viaIndex)
                 {
                     LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
@@ -5564,6 +5578,14 @@ public class VM_CharacterViewer : ViewerVm
                         spec.ShapeName + "'] applied to shape '" + b.ShapeName +
                         "' by 3D-INDEX fallback — no shape bears the record's name " +
                         "(mesh likely rebuilt/renamed, e.g. BodySlide output)");
+                }
+                foreach (var spec in skippedAmbiguous)
+                {
+                    LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key +
+                        "' AlternateTextures entry [3D index " + spec.ShapeIndex + ", name '" +
+                        spec.ShapeName + "'] NOT applied to shape ordinal " + b.ShapeOrdinal +
+                        " — another shape of the same name sits at the record's 3D index, and the " +
+                        "engine binds the entry there");
                 }
                 // Per-shape verdict, both directions: which route bound the
                 // TXST (or that nothing targeted this shape at all), so a log
