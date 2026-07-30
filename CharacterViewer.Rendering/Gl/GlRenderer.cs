@@ -1560,6 +1560,7 @@ public class GlRenderer : IDisposable
 
             _shadowShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
             _shadowShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            _shadowShader.SetFloat("material_alpha", mesh.MaterialAlpha);
             if (mesh.UseAlphaTest)
             {
                 GL.ActiveTexture(TextureUnit.Texture0);
@@ -1993,6 +1994,7 @@ public class GlRenderer : IDisposable
 
             _depthOnlyShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
             _depthOnlyShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            _depthOnlyShader.SetFloat("material_alpha", mesh.MaterialAlpha);
             if (mesh.UseAlphaTest)
             {
                 GL.ActiveTexture(TextureUnit.Texture0);
@@ -2518,6 +2520,7 @@ public class GlRenderer : IDisposable
 
         // Set material properties
         _shader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+        _shader.SetFloat("material_alpha", mesh.MaterialAlpha);
         _shader.SetFloat("greyscaleToPaletteScale", mesh.GreyscaleToPaletteScale);
         _shader.SetVector3("tint_color", mesh.TintColor.X, mesh.TintColor.Y, mesh.TintColor.Z);
         _shader.SetFloat("materialGlossiness", mesh.MaterialGlossiness);

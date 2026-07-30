@@ -268,6 +268,9 @@ uniform bool u_enableTintColor;
 
 // --- MATERIAL PROPERTIES ---
 uniform float alpha_threshold;
+// BSLightingShaderProperty.alpha. Scales the whole fragment alpha; applied
+// alongside the vertex-color alpha below, before the alpha test.
+uniform float material_alpha;
 uniform float greyscaleToPaletteScale;
 uniform vec3 tint_color;
 uniform float materialGlossiness;
@@ -440,6 +443,15 @@ void main()
         baseColor.rgb *= vertexColor.rgb;
         baseColor.a *= vertexColor.a;
     }
+
+    // Material alpha scales the whole alpha, matching NifSkope's sk_default /
+    // sk_msn / sk_multilayer (all three do a plain "gl_FragColor.a *= alpha")
+    // and the engine. It MUST land before the alpha test: a mod that hides a
+    // head part by zeroing the material alpha relies on the cutout discarding
+    // every texel, and skipping this made such shapes draw fully opaque.
+    // Unconditional is safe -- the opaque and alpha-test passes run with
+    // blending off, so the framebuffer ignores this channel there.
+    baseColor.a *= material_alpha;
 
     if (use_alpha_test && baseColor.a < alpha_threshold) {
         discard;
@@ -632,7 +644,7 @@ void main()
     // occluded by nearby geometry.
     //
     // Eye shapes (is_eye, BSLSP shader type 16) opt OUT of receiving AO:
-    // eyeballs sit a tiny ΔZ behind the lash cards in the depth prepass
+    // eyeballs sit a tiny delta-Z behind the lash cards in the depth prepass
     // (lashes set HasAlphaBlend+HasAlphaTest both, so they pass the
     // prepass gate at GlRenderer.cs RenderDepthPrepass and write depth
     // wherever their alpha-test passes - see Nif/NifMeshBuilder.cs flag

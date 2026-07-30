@@ -18,11 +18,15 @@ layout(location = 0) out vec4 fragNormal;
 uniform sampler2D texture_diffuse;
 uniform bool use_alpha_test;
 uniform float alpha_threshold;
+// Kept in lockstep with shadow_depth.frag per the note above. Inert today: this
+// pass skips every alpha-test and alpha-blend mesh, so nothing reaching it has a
+// cutout to fold the material alpha into.
+uniform float material_alpha;
 
 void main()
 {
     if (use_alpha_test) {
-        float a = texture(texture_diffuse, TexCoords).a;
+        float a = texture(texture_diffuse, TexCoords).a * material_alpha;
         if (a < alpha_threshold) discard;
     }
     fragNormal = vec4(normalize(v_viewNormal) * 0.5 + 0.5, 1.0);
