@@ -5436,8 +5436,10 @@ public class VM_CharacterViewer : ViewerVm
 
             // Null unless this mesh has same-named shapes, in which case the 3D Index breaks the
             // tie so an entry lands on one shape as the engine would, not on every namesake.
-            altShapeOrdinalsByName =
-                AlternateTextureMatching.BuildShapeOrdinalsByName(built.Select(m => m.ShapeName));
+            // ShapeOrdinal, not the position in `built`: the biped filter and failed builds leave
+            // holes, and these ordinals are compared against the record's NIF-space 3D Index.
+            altShapeOrdinalsByName = AlternateTextureMatching.BuildShapeOrdinalsByName(
+                built.Select(m => (m.ShapeName, m.ShapeOrdinal)));
             if (altShapeOrdinalsByName != null)
             {
                 LogVerbose("CharacterViewer: ApplyMeshOverrides '" + ov.Key + "' has duplicate shape " +

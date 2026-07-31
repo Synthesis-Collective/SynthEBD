@@ -59,25 +59,30 @@ public static class AlternateTextureMatching
     /// ambiguity" a single reference check per shape instead of a dictionary probe, and it means the
     /// disambiguation code below provably cannot alter the result for a normal mesh.</para>
     ///
-    /// <para><paramref name="shapeNames"/> must be enumerated in shape-ordinal order — the same
-    /// order the ordinals passed to <see cref="MatchForShape"/> come from.</para>
+    /// <para><b>Each shape's ordinal is passed in, not inferred from its position in
+    /// <paramref name="shapes"/>.</b> The two are not the same number: an ordinal is the shape's
+    /// index in the NIF's own block list (<c>BuiltMesh.ShapeOrdinal</c>), and the built list this is
+    /// called with has holes in it — the biped-slot filter skips shapes and a shape can fail to
+    /// build. One dropped shape ahead of a namesake shifts every later position by one, and since
+    /// the values here are compared against a record's 3D Index (also NIF-space) in
+    /// <see cref="MatchForShape"/>, counting positions would compare two different spaces: entries
+    /// could then be stood down for a namesake that does not exist, leaving them bound to nothing —
+    /// the one outcome the fail-open rule below exists to prevent.</para>
     /// </summary>
-    public static Dictionary<string, List<int>>? BuildShapeOrdinalsByName(IEnumerable<string> shapeNames)
+    public static Dictionary<string, List<int>>? BuildShapeOrdinalsByName(
+        IEnumerable<(string Name, int Ordinal)> shapes)
     {
         Dictionary<string, List<int>>? byName = null;
-        int ordinal = 0;
-        foreach (var name in shapeNames)
+        foreach (var (name, ordinal) in shapes)
         {
-            if (!string.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name)) continue;
+
+            byName ??= new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+            if (!byName.TryGetValue(name, out var ordinals))
             {
-                byName ??= new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-                if (!byName.TryGetValue(name, out var ordinals))
-                {
-                    byName[name] = ordinals = new List<int>(1);
-                }
-                ordinals.Add(ordinal);
+                byName[name] = ordinals = new List<int>(1);
             }
-            ordinal++;
+            ordinals.Add(ordinal);
         }
 
         if (byName == null) return null;
