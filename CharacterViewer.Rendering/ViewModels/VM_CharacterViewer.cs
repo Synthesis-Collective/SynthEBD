@@ -5363,6 +5363,14 @@ public class VM_CharacterViewer : ViewerVm
     /// rendering a collapsed or misaligned shape.</summary>
     private void ApplyOneMeshOverride(MeshOverride ov, nifly.NifFile? skeletonNif, string? skelDiskPath)
     {
+        // Per-override resolution widening (see MeshOverride.AllowLoadOrderFallback).
+        // Nested inside ApplyMeshOverrides' scope bracket, so it only flips this one
+        // bit and leaves the scope chain intact. Scoped to the WHOLE method rather
+        // than the resolve below: the weight-0 companion mesh and every texture this
+        // override binds (ApplyTexturesToGlMesh, further down) come from the same
+        // out-of-scope mod, and all of them run synchronously on this flow.
+        using var __loadOrderFallback = _assetResolver.PushLoadOrderFallback(ov.AllowLoadOrderFallback);
+
         var source = _assetResolver.ResolveAssetSource(ov.MeshPath);
         if (source.ResolvedDiskPath == null)
         {

@@ -172,6 +172,16 @@ public class GameAssetResolver
     /// files.</summary>
     private readonly AsyncLocal<bool> _vanillaLooseOverridesModLoose = new();
 
+    /// <summary>When true, a strict scope-chain miss falls through to the
+    /// broadcast archive lookup (<see cref="IBsaArchiveProvider.TryLocateInBsa"/>)
+    /// instead of returning NotFound. Default false — see
+    /// <see cref="MeshOverride.AllowLoadOrderFallback"/> for why widening is
+    /// opt-in and per-asset rather than per-render. Pushed by
+    /// <see cref="PushLoadOrderFallback"/> around the individual assets that
+    /// need it; backed by <see cref="AsyncLocal{T}"/> for the same
+    /// flow-isolation reasons as the fields above.</summary>
+    private readonly AsyncLocal<bool> _allowLoadOrderFallback = new();
+
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
         IBsaArchiveProvider bsaProvider,
@@ -317,6 +327,47 @@ public class GameAssetResolver
         _vanillaLooseOverridesBsa.Value = vanillaLooseOverridesBsa;
         _vanillaLooseOverridesModLoose.Value = vanillaLooseOverridesModLoose;
         return new ScopeToken(this, snapshot);
+    }
+
+    /// <summary>
+    /// Pushes <see cref="_allowLoadOrderFallback"/> for the current flow and
+    /// returns a token restoring the prior value on dispose.
+    ///
+    /// <para>Deliberately separate from <see cref="PushScopes"/>: this widens ONE
+    /// asset's resolution without restating the scope chain. Re-pushing the chain
+    /// just to flip this bit would mean reconstructing it at the call site, and a
+    /// caller that reconstructed it as null — easy to do from inside a nested
+    /// bracket, where the scene snapshot fields may legitimately be null because
+    /// an OUTER push already established the chain — would silently clear the
+    /// ambient scopes and resolve the asset against nothing.</para>
+    /// </summary>
+    public IDisposable PushLoadOrderFallback(bool value)
+    {
+        bool prev = _allowLoadOrderFallback.Value;
+        _allowLoadOrderFallback.Value = value;
+        return new LoadOrderFallbackToken(this, prev);
+    }
+
+    /// <summary>Restores the captured <see cref="_allowLoadOrderFallback"/> value
+    /// on <see cref="Dispose"/>. Idempotent, like <see cref="ScopeToken"/>.</summary>
+    private sealed class LoadOrderFallbackToken : IDisposable
+    {
+        private readonly GameAssetResolver _owner;
+        private readonly bool _prev;
+        private bool _disposed;
+
+        public LoadOrderFallbackToken(GameAssetResolver owner, bool prev)
+        {
+            _owner = owner;
+            _prev = prev;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _owner._allowLoadOrderFallback.Value = _prev;
+        }
     }
 
     /// <summary>
@@ -612,10 +663,17 @@ public class GameAssetResolver
         // key and the resolution it caches can't disagree.
         bool toggleVanillaOverridesBsa = _vanillaLooseOverridesBsa.Value ?? true;
         bool toggleVanillaOverridesModLoose = _vanillaLooseOverridesModLoose.Value;
+        // Part of the key too: the same path under the same scopes resolves
+        // differently with the fallback on (broadcast hit) vs off (NotFound),
+        // so sharing one entry between them would serve a widened answer to a
+        // strictly-scoped caller — the exact leak the scope chain exists to
+        // prevent.
+        bool toggleLoadOrderFallback = _allowLoadOrderFallback.Value;
 
         string cacheKey = GetScopeSetSignature(scopes)
             + (toggleVanillaOverridesBsa ? '1' : '0')
             + (toggleVanillaOverridesModLoose ? '1' : '0')
+            + (toggleLoadOrderFallback ? '1' : '0')
             + '|' + normalized;
 
         if (_scopedResolveCache.TryGetValue(cacheKey, out var cachedScoped))
@@ -631,14 +689,16 @@ public class GameAssetResolver
 
         var resolvedScoped = ResolveViaScopesUncached(
             relativeGamePath, normalized, scopes,
-            toggleVanillaOverridesBsa, toggleVanillaOverridesModLoose);
+            toggleVanillaOverridesBsa, toggleVanillaOverridesModLoose,
+            toggleLoadOrderFallback);
         _scopedResolveCache[cacheKey] = resolvedScoped;
         return resolvedScoped;
     }
 
     private AssetSource ResolveViaScopesUncached(string relativeGamePath, string normalized,
         IReadOnlyList<RenderScope> scopes,
-        bool toggleVanillaOverridesBsa, bool toggleVanillaOverridesModLoose)
+        bool toggleVanillaOverridesBsa, bool toggleVanillaOverridesModLoose,
+        bool toggleLoadOrderFallback)
     {
         bool isFaceGen = IsFaceGenPath(normalized);
 
@@ -751,8 +811,30 @@ public class GameAssetResolver
             }
         }
 
+        // Phase 3 (opt-in): broadcast archive lookup. The scope chain above is
+        // built from the mod being depicted; an asset owned by a mod OUTSIDE
+        // that chain has no scope to be found in, however correctly the chain
+        // is configured. Callers that know an asset is in that category — see
+        // MeshOverride.AllowLoadOrderFallback — enable this tail, which asks
+        // the provider to pick across every indexed archive. Running strictly
+        // LAST means it can only turn a NotFound into a hit: nothing that
+        // resolved through a scope changes source or priority.
+        if (toggleLoadOrderFallback)
+        {
+            var broadcast = TryResolveFromBsa(relativeGamePath, normalized);
+            if (broadcast.Kind != AssetOriginKind.NotFound)
+            {
+                LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
+                    "' -> load-order fallback (broadcast archive lookup) at '" +
+                    broadcast.ResolvedDiskPath + "' (from '" + broadcast.BsaPath +
+                    "'); not present in any of " + scopes.Count + " scope(s)");
+                return broadcast;
+            }
+        }
+
         LogVerbose("CharacterViewer: Could not resolve '" + relativeGamePath +
-            "' in any of " + scopes.Count + " scope(s)");
+            "' in any of " + scopes.Count + " scope(s)" +
+            (toggleLoadOrderFallback ? " or any indexed archive (load-order fallback)" : ""));
         return AssetSource.NotFound(relativeGamePath);
     }
 

@@ -114,6 +114,27 @@ public sealed record MeshOverride
     /// in list order (later wins per slot on the same shape) and win over
     /// <see cref="Textures"/> for the same slot on their shape.</summary>
     public IReadOnlyList<AlternateTextureSpec>? AlternateTextures { get; init; }
+
+    /// <summary>Lets this override's mesh and textures fall back to a broadcast
+    /// archive lookup (<see cref="IBsaArchiveProvider.TryLocateInBsa"/>) when the
+    /// strict scope chain cannot resolve them. Default false: the scope chain is
+    /// exact, and a silent widening would let one mod's assets stand in for
+    /// another's in a render whose whole purpose is to depict ONE mod.
+    ///
+    /// <para>Set it for content the scope chain provably does not cover: an
+    /// override the host attributes to a mod OUTSIDE the render's scope. NPC2's
+    /// case is an outfit assigned by something other than the appearance mod — a
+    /// SkyPatcher/SPID distribution or the load-order winner — whose armors live
+    /// in a third mod that contributes no scope. Those resolve as records through
+    /// the link cache (which spans the load order) but had no asset path at all,
+    /// so the outfit silently rendered as nothing.</para>
+    ///
+    /// <para>The scope chain still runs FIRST and unchanged; this only adds a
+    /// tail. Anything that resolves today resolves identically, at the same
+    /// priority. The provider decides how to rank broadcast candidates — NPC2
+    /// ranks them by load order so the fallback reproduces what the game would
+    /// pick rather than whichever archive was indexed first.</para></summary>
+    public bool AllowLoadOrderFallback { get; init; }
 }
 
 /// <summary>
